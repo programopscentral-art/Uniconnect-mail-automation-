@@ -1,0 +1,11 @@
+{
+    "hosting": {
+        "site": "uniconnect-39b26",
+        "public": "apps/app/static",
+        "ignore": [
+            "firebase.json",
+            "**/.*",
+            "**/node_modules/**"
+        ]
+    }
+}

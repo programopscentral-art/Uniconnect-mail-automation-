@@ -1,0 +1,8 @@
+kind: "AppHostingYaml"
+apiVersion: "v1"
+runConfig:
+  minInstances: 0
+  maxInstances: 10
+  memory: "512Mi"
+# Environment variables will be populated in the Firebase Console
+# for production secrets.

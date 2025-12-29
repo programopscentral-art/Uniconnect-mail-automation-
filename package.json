@@ -1,0 +1,29 @@
+{
+  "name": "uniconnect-mail-automation",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx pnpm -r --parallel run dev",
+    "build": "npx pnpm -r run build",
+    "test": "npx pnpm -r run test",
+    "lint": "npx pnpm -r run lint",
+    "typecheck": "npx pnpm -r run check",
+    "migrate": "npx pnpm -F @uniconnect/shared run migrate",
+    "seed": "npx pnpm -F @uniconnect/shared run seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

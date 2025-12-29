@@ -1,0 +1,1 @@
+ALTER TABLE campaigns ADD COLUMN include_ack BOOLEAN DEFAULT TRUE;

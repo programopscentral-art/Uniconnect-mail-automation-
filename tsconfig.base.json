@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "moduleResolution": "Bundler",
+        "module": "ESNext",
+        "target": "ESNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true
+    },
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}
