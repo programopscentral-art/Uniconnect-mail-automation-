@@ -2,6 +2,7 @@
   "name": "uniconnect-mail-automation",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.26.2",
   "scripts": {
     "dev": "npx pnpm -r --parallel run dev",
     "build": "npx pnpm -r run build",
