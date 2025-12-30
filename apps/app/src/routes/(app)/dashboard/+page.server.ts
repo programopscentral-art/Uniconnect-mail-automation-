@@ -7,7 +7,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     let universityId = url.searchParams.get('universityId');
 
-    if (locals.user.role === 'UNIVERSITY_OPERATOR') {
+    // AUTO-SCOPE: If no universityId is selected, default to the user's university
+    if (!universityId && locals.user.university_id) {
         universityId = locals.user.university_id;
     }
 
@@ -30,9 +31,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
         // Transform Task Stats to match UI expectation { total, completed, pending, overdue }
         const taskStats = {
-            total: (rawTaskStats.PENDING || 0) + (rawTaskStats.COMPLETED || 0) + (rawTaskStats.CANCELLED || 0),
+            total: (rawTaskStats.PENDING || 0) + (rawTaskStats.IN_PROGRESS || 0) + (rawTaskStats.COMPLETED || 0) + (rawTaskStats.CANCELLED || 0),
             completed: rawTaskStats.COMPLETED || 0,
             pending: rawTaskStats.PENDING || 0,
+            in_progress: rawTaskStats.IN_PROGRESS || 0,
             overdue: rawTaskStats.OVERDUE || 0
         };
 

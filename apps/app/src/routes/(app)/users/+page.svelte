@@ -163,7 +163,7 @@
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
     <div>
       <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Team Members</h1>
-      <p class="mt-1 text-gray-500 font-medium">Orchestrate platform access and manage institutional personnel.</p>
+      <p class="mt-1 text-gray-500 font-medium">Manage your team and their access.</p>
     </div>
     
     <div class="flex flex-wrap items-center gap-4">
@@ -203,7 +203,7 @@
     <!-- Search & Filters -->
     <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 shadow-inner">
         <div class="flex-1 min-w-[280px]">
-            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Directory Search</label>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Search Members</label>
             <div class="relative">
                 <input type="text" bind:value={searchQuery} placeholder="Search by name or email identity..." class="w-full bg-white border border-gray-200 rounded-2xl pl-12 pr-6 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
                 <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -212,9 +212,9 @@
         
         {#if data.isGlobalAdmin}
             <div class="w-[240px]">
-                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Institutional Context</label>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">University Filter</label>
                 <select bind:value={filterUniversity} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                    <option value="">Global Hierarchy</option>
+                    <option value="">All Universities</option>
                     {#each data.universities as univ}
                         <option value={univ.id}>{univ.name}</option>
                     {/each}
@@ -223,11 +223,11 @@
         {/if}
 
         <div class="w-[220px]">
-            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Permission Tier</label>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Role Filter</label>
             <select bind:value={filterRole} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">All Tiers</option>
-                <option value="ADMIN">Program Authority</option>
-                <option value="UNIVERSITY_OPERATOR">Univ Admin</option>
+                <option value="">All Roles</option>
+                <option value="ADMIN">Admin</option>
+                <option value="UNIVERSITY_OPERATOR">University Admin</option>
                 <option value="COS">COS</option>
                 <option value="PM">PM</option>
                 <option value="PMA">PMA</option>
@@ -243,8 +243,8 @@
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50/50">
                         <tr>
-                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Team Member</th>
-                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Role & Context</th>
+                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Role</th>
                             <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Status</th>
                             <th class="px-6 py-4 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest">Activity</th>
                         </tr>
@@ -369,8 +369,8 @@
     <!-- Access Requests View -->
     <div class="bg-white shadow-xl rounded-3xl border border-gray-100 overflow-hidden">
         <div class="p-8 border-b border-gray-50">
-            <h2 class="text-xl font-extrabold text-gray-900 tracking-tight">Access Pipeline</h2>
-            <p class="text-sm text-gray-500 font-medium">Verify credentials and approve pending invitation requests.</p>
+            <h2 class="text-xl font-extrabold text-gray-900 tracking-tight">Access Requests</h2>
+            <p class="text-sm text-gray-500 font-medium">Approve or reject pending access requests.</p>
         </div>
         <div class="divide-y divide-gray-50">
             {#if accessRequests.filter(r => r.status === 'PENDING').length === 0}
@@ -428,7 +428,7 @@
         <h3 class="text-2xl font-black tracking-tight" id="modal-title">
           {editingUserId ? 'Edit Member' : 'Invite Member'}
         </h3>
-        <p class="text-indigo-100 text-sm opacity-80 mt-1">Configure credentials and define platform responsibilities.</p>
+        <p class="text-indigo-100 text-sm opacity-80 mt-1">Set user details and assigned roles.</p>
     </div>
     
     <div class="p-8 space-y-6">

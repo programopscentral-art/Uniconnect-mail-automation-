@@ -218,8 +218,8 @@
 <div class="space-y-6">
   <div class="flex justify-between items-center">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Students & Recipients</h1>
-      <p class="mt-1 text-sm text-gray-500">Manage student data and imports.</p>
+      <h1 class="text-2xl font-bold text-gray-900">Contact List</h1>
+      <p class="mt-1 text-sm text-gray-500">Manage your student recipients and data imports.</p>
     </div>
     <div class="flex space-x-3">
         {#if data.students.length > 0}
@@ -243,18 +243,18 @@
 
   {#if data.userRole === 'ADMIN'}
     <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating flex items-center gap-6">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Institutional Node:</label>
-        <select 
-            id="univ-select" 
-            bind:value={selectedUniversityId} 
-            onchange={onUnivChange}
-            class="flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all focus:bg-white"
-        >
-            <option value="">Global Hierarchy (All)</option>
-            {#each data.universities as univ}
-                <option value={univ.id}>{univ.name}</option>
-            {/each}
-        </select>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Filter by University:</label>
+            <select 
+                id="univ-select" 
+                bind:value={selectedUniversityId} 
+                onchange={onUnivChange}
+                class="flex-1 max-w-md bg-gray-50 border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all focus:bg-white"
+            >
+                <option value="">All Universities</option>
+                {#each data.universities as univ}
+                    <option value={univ.id}>{univ.name}</option>
+                {/each}
+            </select>
     </div>
   {/if}
 

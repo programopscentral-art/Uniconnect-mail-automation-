@@ -75,8 +75,9 @@
     // Task Stats
     const taskStats = $derived([
         { label: 'Total Tasks', value: data.taskStats.total, icon: '📋', color: 'bg-blue-50 text-blue-600' },
-        { label: 'Completed', value: data.taskStats.completed, icon: '✅', color: 'bg-green-50 text-green-600' },
+        { label: 'Done', value: data.taskStats.completed, icon: '✅', color: 'bg-green-50 text-green-600' },
         { label: 'Pending', value: data.taskStats.pending, icon: '⏳', color: 'bg-yellow-50 text-yellow-600' },
+        { label: 'Processing', value: data.taskStats.in_progress || 0, icon: '🚀', color: 'bg-indigo-50 text-indigo-600' },
         { label: 'Overdue', value: data.taskStats.overdue || 0, icon: '⚠️', color: 'bg-red-50 text-red-600' },
     ]);
 
@@ -258,7 +259,7 @@
     function getStatusSymbol(status: string) {
         switch (status) {
             case 'PENDING': return '🕒';
-            case 'PROCESSING': return '🔄';
+            case 'IN_PROGRESS': return '🚀';
             case 'COMPLETED': return '✅';
             case 'CANCELLED': return '❌';
             default: return '📋';
@@ -273,15 +274,45 @@
             .slice(0, 5)
             .map(parseEvent);
     });
+
+    // Mock/Initial Day Plan logic
+    let dayPlanItems = $state([
+        { id: '1', title: 'Review today\'s campaign performance', completed: false },
+        { id: '2', title: 'Follow up with Central University regarding student list', completed: true },
+        { id: '3', title: 'Finalize template for January outreach', completed: false }
+    ]);
+
+    function toggleDayPlanItem(id: string) {
+        dayPlanItems = dayPlanItems.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
+    }
+
+    async function promoteToTask(item: any) {
+        // Conceptual: Convert a day plan item into a full task if not completed
+        const res = await fetch('/api/tasks', {
+            method: 'POST',
+            body: JSON.stringify({
+                title: item.title,
+                description: 'Promoted from Day Plan',
+                priority: 'MEDIUM',
+                assigned_to: data.userId,
+                university_id: data.defaultUniversityId || ''
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            dayPlanItems = dayPlanItems.filter(i => i.id !== item.id);
+            await invalidateAll();
+        }
+    }
 </script>
 
 <div class="flex flex-col lg:flex-row gap-8 min-h-screen relative p-2 md:p-6" in:fade>
-    <!-- Main Content Area -->
-    <div class="flex-1 space-y-8">
+    <!-- Main Content Area (Left) -->
+    <div class="flex-1 space-y-8 max-w-[calc(100%-400px)]">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Institutional HUD</h1>
-                <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Operational Overview</p>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard</h1>
+                <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
             </div>
             {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
                 <div class="w-full sm:w-auto">
@@ -290,7 +321,7 @@
                         value={data.selectedUniversityId || ''} 
                         class="block w-full sm:w-72 bg-white border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-black text-gray-700 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all outline-none"
                     >
-                       <option value="">All Institutions</option>
+                       <option value="">All Universities</option>
                        {#each data.universities as univ}
                            <option value={univ.id}>{univ.name}</option>
                        {/each}
@@ -316,10 +347,10 @@
         <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div class="flex items-center gap-6">
-                    <h2 class="text-xl font-black text-gray-900">Task Scheduler</h2>
+                    <h2 class="text-xl font-black text-gray-900">Task Calendar</h2>
                     <div class="flex bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
-                        <button onclick={() => viewMode = 'MY_TASKS'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">Institutional</button>
-                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">Academic</button>
+                        <button onclick={() => viewMode = 'MY_TASKS'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">All Tasks</button>
+                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">Student Schedule</button>
                     </div>
                 </div>
                 
@@ -366,20 +397,20 @@
         <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
             <div class="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
                 <div>
-                    <h2 class="text-xl font-black text-gray-900 leading-tight">Live Campaigns</h2>
-                    <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time engagement telemetry</p>
+                    <h2 class="text-xl font-black text-gray-900 leading-tight">Recent Activity</h2>
+                    <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Live statistics and updates</p>
                 </div>
-                <a href="/campaigns" class="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm">Explore Repository</a>
+                <a href="/campaigns" class="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm">View All</a>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full">
                     <thead>
                         <tr class="bg-gray-50/50">
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Campaign Asset</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Institutional Scope</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Originator</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Operational Status</th>
+                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Campaign Name</th>
+                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">University</th>
+                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Created By</th>
+                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Status</th>
                             <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Engagement</th>
                         </tr>
                     </thead>
@@ -434,14 +465,63 @@
         </div>
     </div>
 
-    <!-- Quick Actions & Upcoming -->
-    <div class="w-full lg:w-96 space-y-8">
+    <!-- Right Sidebar (Day Plan & Quick Actions) -->
+    <div class="w-full lg:w-[380px] space-y-8">
+        <!-- Daily Focus / Day Plan -->
+        <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8 flex flex-col">
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">My Day Plan</h3>
+                    <p class="text-[10px] font-bold text-gray-400 mt-1">Personal Focus for Today</p>
+                </div>
+                <div class="p-3 bg-indigo-50 rounded-2xl">
+                    <svg class="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                {#each dayPlanItems as item}
+                    <div class="group flex items-start gap-3 p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
+                        <button 
+                            onclick={() => toggleDayPlanItem(item.id)}
+                            class="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center {item.completed ? 'bg-green-500 border-green-500' : 'border-gray-200'}"
+                        >
+                            {#if item.completed}
+                                <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
+                            {/if}
+                        </button>
+                        <div class="flex-1 min-w-0">
+                            <span class="text-sm font-bold {item.completed ? 'text-gray-400 line-through' : 'text-gray-700'} transition-all block leading-snug">
+                                {item.title}
+                            </span>
+                            {#if !item.completed}
+                                <button 
+                                    onclick={() => promoteToTask(item)}
+                                    class="text-[9px] font-black text-indigo-500 mt-2 uppercase tracking-tighter hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                    Move to Tasks →
+                                </button>
+                            {/if}
+                        </div>
+                    </div>
+                {:else}
+                    <div class="text-center py-6 bg-gray-50/30 rounded-2xl border border-dashed border-gray-100">
+                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Plan is Empty</p>
+                    </div>
+                {/each}
+            </div>
+            
+            <button class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-100 transition-all">
+                Add To Day Plan
+            </button>
+        </div>
+
         <!-- Upcoming Tasks -->
         <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8">
             <div class="flex items-center justify-between mb-8">
                 <div>
-                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">Urgent Deadlines</h3>
-                    <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">{upcomingTasks.length} Institutional Requirements</p>
+                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">Upcoming Deadlines</h3>
+                    <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">{upcomingTasks.length} Pending tasks</p>
                 </div>
                 <div class="p-3 bg-red-50 rounded-2xl">
                     <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -470,9 +550,16 @@
                                     {/if}
                                 </div>
                             </div>
-                            <span class="flex-shrink-0 text-[10px] px-2.5 py-1.5 rounded-xl border border-gray-100 bg-white text-gray-600 font-black uppercase tracking-widest shadow-sm">
-                                {task.priority}
-                            </span>
+                            <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                <span class="text-[10px] px-2.5 py-1.5 rounded-xl border border-gray-100 bg-white text-gray-600 font-black uppercase tracking-widest shadow-sm">
+                                    {task.priority}
+                                </span>
+                                {#if task.assigned_by_name}
+                                    <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter opacity-70">
+                                        BY: {task.assigned_by_name}
+                                    </span>
+                                {/if}
+                            </div>
                         </div>
                     </div>
                 {:else}
@@ -483,13 +570,14 @@
                 {/each}
             </div>
             {#if upcomingTasks.length > 0}
-                <button onclick={() => goto('/tasks')} class="w-full mt-8 py-4 text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 rounded-2xl transition-all border border-indigo-100/50">Access Task Vault</button>
+                <button onclick={() => goto('/tasks')} class="w-full mt-8 py-4 text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 rounded-2xl transition-all border border-indigo-100/50">View All Tasks</button>
             {/if}
         </div>
 
+        <!-- Quick Actions -->
         <div class="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden shadow-floating">
             <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent"></div>
-            <h3 class="relative z-10 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-6">Mission Control</h3>
+            <h3 class="relative z-10 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
             <div class="relative z-10 space-y-4">
                 <button onclick={() => showTaskModal = true} class="w-full flex items-center p-5 rounded-2xl bg-white text-gray-900 hover:scale-[1.02] transition-all font-black shadow-xl group hover:shadow-floating">
                     <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mr-4 group-hover:rotate-6 transition-transform">

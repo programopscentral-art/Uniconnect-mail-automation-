@@ -41,8 +41,8 @@
 <div class="space-y-8 p-4 md:p-8" in:fade>
   <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
     <div>
-      <h1 class="text-3xl font-black text-gray-900 tracking-tight">Institutional Campaigns</h1>
-      <p class="mt-1 text-sm font-bold text-gray-400 uppercase tracking-widest">Global Communication Telemetry</p>
+      <h1 class="text-3xl font-black text-gray-900 tracking-tight">Campaigns</h1>
+      <p class="mt-1 text-sm font-bold text-gray-400 uppercase tracking-widest">Email Statistics and Status</p>
     </div>
     <a 
       href={selectedUniversityId ? `/campaigns/new?universityId=${selectedUniversityId}` : '#'}
@@ -50,7 +50,7 @@
       class="inline-flex items-center px-8 py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-indigo-700 hover:shadow-indigo-500/20 hover:scale-[1.02] transition-all active:scale-95"
     >
       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
-      INITIATE CAMPAIGN
+      START CAMPAIGN
     </a>
   </div>
 
@@ -81,11 +81,11 @@
       <table class="min-w-full">
         <thead>
           <tr class="bg-gray-50/50">
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Campaign Asset</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Operational Status</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Intelligence Pattern</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Completion Velocity</th>
-            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Execution Control</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Campaign Name</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Template</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Progress</th>
+            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
@@ -101,7 +101,7 @@
                    cam.status === 'FAILED' ? 'bg-red-50 text-red-700 border border-red-100' : 
                    cam.status === 'DRAFT' ? 'bg-gray-100 text-gray-600 border border-gray-200' : 
                    'bg-indigo-600 text-white animate-pulse'}">
-                  {cam.status}
+                  {cam.status === 'IN_PROGRESS' ? 'PROCESSING' : cam.status === 'COMPLETED' ? 'DONE' : cam.status}
                 </span>
               </td>
               <td class="px-8 py-6 whitespace-nowrap">

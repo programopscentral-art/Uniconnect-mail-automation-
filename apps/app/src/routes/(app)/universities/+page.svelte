@@ -55,7 +55,7 @@
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
       <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Universities</h1>
-      <p class="mt-1 text-gray-500 font-medium">Manage institutional configurations and oversight.</p>
+      <p class="mt-1 text-gray-500 font-medium">Manage your university partners and connections.</p>
     </div>
     <button 
       onclick={() => showModal = true}
@@ -80,11 +80,11 @@
              </div>
              {#if isConnected}
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-green-50 text-green-700 border border-green-100">
-                    ✅ Active Node
+                    ✅ Connected
                 </span>
              {:else}
                 <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-50 text-gray-400 border border-gray-100">
-                    ⚪ Offline
+                    ⚪ Not Connected
                 </span>
              {/if}
           </div>
@@ -92,7 +92,7 @@
           <div>
             <h3 class="text-xl font-black text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">{univ.name}</h3>
             <div class="flex items-center gap-2 mt-2">
-                <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md">TENANT: {univ.slug}</span>
+                <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md">ID: {univ.slug}</span>
             </div>
           </div>
 
@@ -135,8 +135,8 @@
     <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
     <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-100">
       <div class="bg-gradient-to-br from-indigo-600 to-blue-700 px-8 py-6 text-white text-left">
-          <h3 class="text-2xl font-bold" id="modal-title">Create University</h3>
-          <p class="text-indigo-100 text-sm opacity-80">Add a new institutional partner to the ecosystem.</p>
+          <h3 class="text-2xl font-bold" id="modal-title">Add University</h3>
+          <p class="text-indigo-100 text-sm opacity-80">Add a new university to your list.</p>
       </div>
       <div class="bg-white px-8 py-6 space-y-6">
         <div>
@@ -144,9 +144,9 @@
           <input type="text" id="name" bind:value={newName} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all font-bold" placeholder="e.g. Central University">
         </div>
         <div>
-          <label for="slug" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Slug Identifier</label>
+          <label for="slug" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Short Name / ID</label>
           <input type="text" id="slug" bind:value={newSlug} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all font-bold" placeholder="e.g. central-univ">
-          <p class="mt-2 text-[10px] text-gray-400 font-bold uppercase tracking-wide px-1">This will be used for URLs and tenant isolation.</p>
+          <p class="mt-2 text-[10px] text-gray-400 font-bold uppercase tracking-wide px-1">A simple shorthand name for this university.</p>
         </div>
       </div>
       <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">

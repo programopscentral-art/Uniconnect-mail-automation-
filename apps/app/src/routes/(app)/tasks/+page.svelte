@@ -39,8 +39,8 @@
 
     const statusLabels: Record<string, string> = {
         PENDING: '🕒 Pending',
-        IN_PROGRESS: '🔄 In Progress',
-        COMPLETED: '✅ Completed',
+        IN_PROGRESS: '🚀 Processing',
+        COMPLETED: '✅ Done',
         CANCELLED: '❌ Cancelled'
     };
 
@@ -177,20 +177,20 @@
     <!-- Filters Strip -->
     <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 shadow-inner">
         <div class="flex-1 min-w-[200px]">
-            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Lifecycle Status</label>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Status</label>
             <select bind:value={filterStatus} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">Aura: All Life-stages</option>
-                <option value="PENDING">⏳ Quiescent</option>
-                <option value="IN_PROGRESS">🚀 Kinetic</option>
-                <option value="COMPLETED">✅ Realized</option>
-                <option value="CANCELLED">❌ Aborted</option>
+                <option value="">All Statuses</option>
+                <option value="PENDING">⏳ Pending</option>
+                <option value="IN_PROGRESS">🚀 Processing</option>
+                <option value="COMPLETED">✅ Done</option>
+                <option value="CANCELLED">❌ Cancelled</option>
             </select>
         </div>
         {#if (data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS')}
             <div class="flex-1 min-w-[200px]">
-                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Institutional Filter</label>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">University</label>
                 <select bind:value={filterUniversity} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                    <option value="">Entities: Universal</option>
+                    <option value="">All Universities</option>
                     {#each data.universities as univ}
                         <option value={univ.id}>{univ.name}</option>
                     {/each}
@@ -198,9 +198,9 @@
             </div>
         {/if}
         <div class="flex-1 min-w-[200px]">
-            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Personnel Filter</label>
+            <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Assigned To</label>
             <select bind:value={filterAssignedTo} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">Unit: All Personnel</option>
+                <option value="">All Members</option>
                 {#each data.users as user}
                     <option value={user.id}>{user.name || user.email}</option>
                 {/each}
@@ -251,20 +251,29 @@
                                 </div>
                             {/if}
                         </div>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-col items-end gap-2">
                              {#if task.assigned_to_name}
                                 <div class="flex items-center gap-2 bg-gray-50 pr-3 rounded-full border border-gray-100 group-hover:bg-indigo-50/50 transition-colors">
                                     <div 
-                                        class="w-8 h-8 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-600 shadow-sm"
+                                        class="w-7 h-7 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-indigo-600 shadow-sm"
                                         title="Assigned to: {task.assigned_to_name}"
                                     >
                                         {getInitials(task.assigned_to_name)}
                                     </div>
-                                    <span class="text-[10px] font-bold text-gray-700 truncate max-w-[80px]">{task.assigned_to_name}</span>
+                                    <span class="text-[9px] font-bold text-gray-700 truncate max-w-[70px]">{task.assigned_to_name}</span>
                                 </div>
                             {:else}
-                                <div class="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-400">
-                                    ?
+                                <div class="flex items-center gap-2 bg-gray-50 pr-3 rounded-full border border-gray-100">
+                                    <div class="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-400">
+                                        ?
+                                    </div>
+                                    <span class="text-[9px] font-bold text-gray-400">Unassigned</span>
+                                </div>
+                            {/if}
+
+                            {#if task.assigned_by_name}
+                                <div class="text-[8px] font-black text-gray-400 uppercase tracking-tighter opacity-70">
+                                    BY: {task.assigned_by_name}
                                 </div>
                             {/if}
                         </div>
