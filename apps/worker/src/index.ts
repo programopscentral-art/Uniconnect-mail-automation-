@@ -163,8 +163,8 @@ const systemWorker = new Worker('system-notifications', async (job: Job) => {
     // This bypasses Port 587/465 blocks by using the Gmail API (Port 443)
     const mailboxRes = await db.query(
       `SELECT m.* FROM mailbox_connections m 
-       JOIN users u ON m.user_id = u.id 
-       WHERE u.role IN ('ADMIN', 'PROGRAM_OPS') 
+       JOIN users u ON m.email = u.email 
+       WHERE u.role IN ('ADMIN', 'PROGRAM_OPS') AND m.status = 'ACTIVE'
        LIMIT 1`
     );
 
