@@ -12,6 +12,7 @@ export * from './db/notifications';
 export * from './db/invitations';
 export * from './db/mail_logs';
 export * from './db/schedule_events';
+export * from './db/day_plans';
 export * from './db/mailbox_permissions';
 export * from './crypto';
 export * from './template';

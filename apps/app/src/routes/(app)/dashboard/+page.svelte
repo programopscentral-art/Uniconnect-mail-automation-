@@ -275,33 +275,78 @@
             .map(parseEvent);
     });
 
-    // Mock/Initial Day Plan logic
-    let dayPlanItems = $state([
-        { id: '1', title: 'Review today\'s campaign performance', completed: false },
-        { id: '2', title: 'Follow up with Central University regarding student list', completed: true },
-        { id: '3', title: 'Finalize template for January outreach', completed: false }
-    ]);
+    // Day Plan state and logic
+    let dayPlanItems = $derived(data.dayPlans || []);
+    let newDayPlanTitle = $state('');
+    let isAddingItem = $state(false);
 
-    function toggleDayPlanItem(id: string) {
-        dayPlanItems = dayPlanItems.map(item => item.id === id ? { ...item, completed: !item.completed } : item);
+    async function toggleDayPlanItem(item: any) {
+        try {
+            const res = await fetch('/api/day-plans', {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    id: item.id,
+                    completed: !item.completed
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) await invalidateAll();
+        } catch (e) {
+            console.error('Error toggling day plan item:', e);
+        }
+    }
+
+    async function addDayPlanItem() {
+        if (!newDayPlanTitle.trim()) return;
+        try {
+            const res = await fetch('/api/day-plans', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: newDayPlanTitle,
+                    plan_date: new Date().toISOString().split('T')[0]
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                newDayPlanTitle = '';
+                isAddingItem = false;
+                await invalidateAll();
+            }
+        } catch (e) {
+            console.error('Error adding day plan item:', e);
+        }
+    }
+
+    async function deleteDayPlanItem(id: string) {
+        try {
+            const res = await fetch(`/api/day-plans?id=${id}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) await invalidateAll();
+        } catch (e) {
+            console.error('Error deleting day plan item:', e);
+        }
     }
 
     async function promoteToTask(item: any) {
-        // Conceptual: Convert a day plan item into a full task if not completed
-        const res = await fetch('/api/tasks', {
-            method: 'POST',
-            body: JSON.stringify({
-                title: item.title,
-                description: 'Promoted from Day Plan',
-                priority: 'MEDIUM',
-                assigned_to: data.userId,
-                university_id: data.defaultUniversityId || ''
-            }),
-            headers: { 'Content-Type': 'application/json' }
-        });
-        if (res.ok) {
-            dayPlanItems = dayPlanItems.filter(i => i.id !== item.id);
-            await invalidateAll();
+        try {
+            const res = await fetch('/api/tasks', {
+                method: 'POST',
+                body: JSON.stringify({
+                    title: item.title,
+                    description: 'Promoted from Day Plan',
+                    priority: 'MEDIUM',
+                    assigned_to: data.userId,
+                    university_id: data.defaultUniversityId || undefined
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                await deleteDayPlanItem(item.id);
+                await invalidateAll();
+            }
+        } catch (e) {
+            console.error('Error promoting task:', e);
         }
     }
 </script>
@@ -483,7 +528,7 @@
                 {#each dayPlanItems as item}
                     <div class="group flex items-start gap-3 p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
                         <button 
-                            onclick={() => toggleDayPlanItem(item.id)}
+                            onclick={() => toggleDayPlanItem(item)}
                             class="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center {item.completed ? 'bg-green-500 border-green-500' : 'border-gray-200'}"
                         >
                             {#if item.completed}
@@ -495,12 +540,21 @@
                                 {item.title}
                             </span>
                             {#if !item.completed}
-                                <button 
-                                    onclick={() => promoteToTask(item)}
-                                    class="text-[9px] font-black text-indigo-500 mt-2 uppercase tracking-tighter hover:text-indigo-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                    Move to Tasks →
-                                </button>
+                                <div class="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button 
+                                        onclick={() => promoteToTask(item)}
+                                        class="text-[9px] font-black text-indigo-500 uppercase tracking-tighter hover:text-indigo-700"
+                                    >
+                                        Move to Tasks →
+                                    </button>
+                                    <span class="text-gray-300">|</span>
+                                    <button 
+                                        onclick={() => deleteDayPlanItem(item.id)}
+                                        class="text-[9px] font-black text-red-500 uppercase tracking-tighter hover:text-red-700"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
                             {/if}
                         </div>
                     </div>
@@ -509,11 +563,32 @@
                         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Plan is Empty</p>
                     </div>
                 {/each}
+
+                {#if isAddingItem}
+                    <div class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200 animate-in fade-in slide-in-from-top-2">
+                        <input 
+                            bind:value={newDayPlanTitle}
+                            placeholder="What's the focus?"
+                            class="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-700 placeholder:text-indigo-300 focus:ring-0"
+                            autofocus
+                            onkeydown={(e) => e.key === 'Enter' && addDayPlanItem()}
+                        />
+                        <div class="flex items-center justify-end gap-2 mt-3">
+                            <button onclick={() => isAddingItem = false} class="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600">Cancel</button>
+                            <button onclick={addDayPlanItem} class="text-[9px] font-black text-indigo-600 uppercase tracking-widest px-3 py-1.5 bg-white rounded-lg shadow-sm border border-indigo-100">Add Item</button>
+                        </div>
+                    </div>
+                {/if}
             </div>
             
-            <button class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-100 transition-all">
-                Add To Day Plan
-            </button>
+            {#if !isAddingItem}
+                <button 
+                    onclick={() => isAddingItem = true}
+                    class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-100 transition-all"
+                >
+                    Add To Day Plan
+                </button>
+            {/if}
         </div>
 
         <!-- Upcoming Tasks -->

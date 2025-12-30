@@ -1,10 +1,11 @@
-import { getDashboardStats, getTaskStats, getAllUniversities, getTasks, getScheduleEvents } from '@uniconnect/shared';
+import { getDashboardStats, getTaskStats, getAllUniversities, getTasks, getScheduleEvents, getDayPlans } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
+    const today = new Date().toISOString().split('T')[0];
     let universityId = url.searchParams.get('universityId');
 
     // AUTO-SCOPE: If no universityId is selected, default to the user's university
@@ -18,13 +19,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     console.log('[DASHBOARD_LOAD] UniversityId:', universityId);
 
     try {
-        const [stats, rawTaskStats, universities, tasks, scheduleEvents] = await Promise.all([
+        const [stats, rawTaskStats, universities, tasks, scheduleEvents, dayPlans] = await Promise.all([
             getDashboardStats(effectiveUniversityId),
             getTaskStats(effectiveUniversityId),
             locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([]),
             // Upcoming tasks: only show self-assigned tasks
             getTasks({ assigned_to: locals.user.id }),
-            getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined)
+            getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined),
+            getDayPlans(locals.user.id, today)
         ]);
 
         console.log('[DASHBOARD_LOAD] Stats Fetched Successfully');
@@ -44,6 +46,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             universities,
             tasks: tasks || [],
             scheduleEvents: scheduleEvents || [],
+            dayPlans: dayPlans || [],
             selectedUniversityId: universityId,
             userRole: locals.user.role,
             userId: locals.user.id,
