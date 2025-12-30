@@ -26,6 +26,11 @@ const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 // @ts-ignore
 const connection = new IORedis(redisUrl, { maxRetriesPerRequest: null });
 
+// Log database connection info for debugging
+const dbUrl = process.env.DATABASE_URL || '';
+const dbHost = dbUrl.split('@')[1]?.split('/')[0] || 'unknown';
+console.log(`[WORKER_INIT] Database Host: ${dbHost}`);
+
 // Queues (for adding jobs from worker if needed)
 const systemNotificationQueue = new Queue('system-notifications', { connection });
 
