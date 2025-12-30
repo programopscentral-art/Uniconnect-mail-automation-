@@ -33,10 +33,11 @@ export async function getAllUsers(universityId?: string) {
     SELECT u.*, un.name as university_name 
     FROM users u 
     LEFT JOIN universities un ON u.university_id = un.id 
+    WHERE u.is_active = true
   `;
     const params: any[] = [];
     if (universityId) {
-        query += ` WHERE u.university_id = $1 `;
+        query += ` AND u.university_id = $1 `;
         params.push(universityId);
     }
     query += ` ORDER BY u.created_at DESC `;
@@ -78,7 +79,8 @@ export async function updateUser(id: string, data: {
 }
 
 export async function deleteUser(id: string) {
-    await db.query(`DELETE FROM users WHERE id = $1`, [id]);
+    // Soft delete to preserve referential integrity (templates, campaigns)
+    await db.query(`UPDATE users SET is_active = false, updated_at = NOW() WHERE id = $1`, [id]);
 }
 
 

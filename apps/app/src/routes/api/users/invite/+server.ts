@@ -22,11 +22,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         throw error(400, 'Email and role are required');
     }
 
-    // Check if user already exists
+    // Check if user already exists - we now ALLOW this to support role/university updates via invitation
     const existingUser = await getUserByEmail(email);
-    if (existingUser) {
-        throw error(400, 'User already exists with this email');
-    }
 
     // Role-based university restriction
     const targetUnivId = isGlobalAdmin ? university_id : locals.user.university_id;
@@ -39,8 +36,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             invited_by: locals.user.id
         });
 
-        // Send Email
-        const baseUrl = env.PUBLIC_BASE_URL || 'http://localhost:3001';
+        // Send Email - Use process.env for maximum reliability in production
+        const baseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3001';
         const inviteUrl = `${baseUrl}/accept-invite?token=${invite.token}`;
 
         await addNotificationJob({
