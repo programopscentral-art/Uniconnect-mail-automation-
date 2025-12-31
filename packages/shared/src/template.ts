@@ -162,14 +162,23 @@ export class TemplateRenderer {
 
         // Root level checks
         if (parts.length === 1) {
+            const searchPart = parts[0].toLowerCase().trim();
+
+            // 1. Direct match
             if (obj[parts[0]] !== undefined) return obj[parts[0]];
+
+            // 2. Metadata match
             if (obj.metadata && obj.metadata[parts[0]] !== undefined) return obj.metadata[parts[0]];
 
-            // Case-insensitive fallback for metadata
+            // 3. Case-insensitive & trimmed search in metadata
             if (obj.metadata) {
-                const key = Object.keys(obj.metadata).find(k => k.toLowerCase() === parts[0].toLowerCase());
+                const key = Object.keys(obj.metadata).find(k => k.toLowerCase().trim() === searchPart);
                 if (key) return obj.metadata[key];
             }
+
+            // 4. Case-insensitive & trimmed search in root object
+            const rootKey = Object.keys(obj).find(k => k.toLowerCase().trim() === searchPart);
+            if (rootKey) return obj[rootKey];
         }
 
         for (const part of parts) {

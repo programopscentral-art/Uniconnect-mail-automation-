@@ -91,7 +91,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return;
             }
 
-            const metadata: any = { ...row };
+            // Create cleaned metadata by trimming all keys and values
+            const metadata: any = {};
+            Object.entries(row).forEach(([k, v]) => {
+                metadata[k.trim()] = typeof v === 'string' ? v.trim() : v;
+            });
+
             // Note: We used to delete matched keys from metadata here. 
             // We'll keep them now so users see their "Correct Headers" in the table too.
             // ['Name', 'name', 'Email', 'email', 'ExternalID', 'external_id'].forEach(k => delete metadata[k]);
