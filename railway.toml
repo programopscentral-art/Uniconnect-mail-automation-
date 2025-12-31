@@ -4,7 +4,7 @@
 name = "app"
 # Start from root to allow workspace dependencies
 build.command = "npm install && npm run build -w apps/app"
-start.command = "node apps/app/build"
+start.command = "node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
