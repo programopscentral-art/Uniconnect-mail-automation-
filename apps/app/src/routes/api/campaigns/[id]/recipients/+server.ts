@@ -15,5 +15,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }
 
     const recipients = await getCampaignRecipients(campaignId);
+    console.log(`[API] Found ${recipients.length} recipients for campaign ${campaignId}`);
     return json(recipients);
 };

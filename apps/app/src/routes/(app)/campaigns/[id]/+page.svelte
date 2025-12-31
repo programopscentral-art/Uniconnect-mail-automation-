@@ -43,15 +43,15 @@
       }
   }
 
-  async function loadRecipients() {
-      if (showRecipients) {
+  async function loadRecipients(force = false) {
+      if (!force && showRecipients) {
           showRecipients = false;
           return;
       }
-      showRecipients = true;
-      if (recipients.length > 0) return;
+      if (!force) showRecipients = true;
+      if (!force && recipients.length > 0) return;
       
-      isLoadingRecipients = true;
+      isLoadingRecipients = !force; // Only show loader on initial click
       try {
           const res = await fetch(`/api/campaigns/${data.campaign.id}/recipients`);
           if (res.ok) {
@@ -149,12 +149,29 @@
       }
     }
 
+    async function stopCampaign() {
+        if (!confirm('🛑 Are you sure you want to STOP this campaign? Emails already in the queue will be cancelled.')) return;
+        try {
+            const res = await fetch(`/api/campaigns/${data.campaign.id}/stop`, { method: 'POST' });
+            if (res.ok) {
+                alert('Campaign Stopped!');
+                invalidateAll();
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to stop');
+            }
+        } catch(e) {
+            alert('Error');
+        }
+    }
+
     // Polling for progress if IN_PROGRESS
     let pollInterval: any;
     $effect(() => {
         if (data.campaign.status === 'IN_PROGRESS' || data.campaign.status === 'QUEUED') {
             pollInterval = setInterval(() => {
                 invalidateAll();
+                if (showRecipients) loadRecipients(true);
             }, 3000);
         }
         return () => clearInterval(pollInterval);
@@ -175,9 +192,23 @@
             <p class="text-sm text-gray-500">ID: {data.campaign.id}</p>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="px-3 py-1 rounded-full text-sm font-medium {data.campaign.status === 'DRAFT' ? 'bg-gray-100' : 'bg-green-100 text-green-800'}">
+            <span class="px-3 py-1 rounded-full text-sm font-medium 
+                {data.campaign.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' : 
+                 data.campaign.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                 data.campaign.status === 'STOPPED' ? 'bg-red-100 text-red-800' :
+                 'bg-blue-100 text-blue-800 animate-pulse'}">
                 {data.campaign.status}
             </span>
+            
+            {#if ['IN_PROGRESS', 'QUEUED', 'SCHEDULED'].includes(data.campaign.status)}
+                <button 
+                    onclick={stopCampaign}
+                    class="inline-flex items-center px-3 py-1 border border-red-300 text-xs font-bold rounded-full text-red-600 hover:bg-red-50 transition-all shadow-sm"
+                >
+                    <svg class="mr-1.5 h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                    STOP CAMPAIGN
+                </button>
+            {/if}
             {#if data.campaign.include_ack}
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-100">
                     <svg class="mr-1.5 h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
@@ -299,7 +330,7 @@
     <div class="bg-white shadow sm:rounded-lg overflow-hidden border border-gray-200">
         <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Recipient Details</h3>
-            <button onclick={loadRecipients} class="text-sm text-blue-600 hover:text-blue-900">
+            <button onclick={() => loadRecipients()} class="text-sm text-blue-600 hover:text-blue-900">
                 {showRecipients ? 'Hide' : 'Show Details'}
             </button>
         </div>

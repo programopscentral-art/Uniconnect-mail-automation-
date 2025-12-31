@@ -37,21 +37,40 @@ console.log(`[WORKER_INIT] Database Host: ${dbHost}`);
 const systemNotificationQueue = new Queue('system-notifications', { connection });
 
 // Updates status of individual recipient
-async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED', messageId?: string, error?: string) {
+async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED' | 'CANCELLED', messageId?: string, error?: string) {
   await db.query(
-    `UPDATE campaign_recipients SET status = $1, sent_at = NOW(), gmail_message_id = $2, error_message = $3, updated_at = NOW() WHERE id = $4`,
+    `UPDATE campaign_recipients SET status = $1, sent_at = CASE WHEN $1 = 'SENT' THEN NOW() ELSE sent_at END, gmail_message_id = $2, error_message = $3, updated_at = NOW() WHERE id = $4`,
     [status, messageId, error, id]
   );
+
   // Update campaign stats
-  if (status === 'SENT') {
-    const res = await db.query(`SELECT campaign_id FROM campaign_recipients WHERE id = $1`, [id]);
-    if (res.rows[0]) {
-      await db.query(`UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`, [res.rows[0].campaign_id]);
+  const res = await db.query(`SELECT campaign_id FROM campaign_recipients WHERE id = $1`, [id]);
+  if (res.rows[0]) {
+    const campaignId = res.rows[0].campaign_id;
+
+    if (status === 'SENT') {
+      await db.query(`UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`, [campaignId]);
+    } else if (status === 'FAILED') {
+      await db.query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`, [campaignId]);
     }
-  } else if (status === 'FAILED') {
-    const res = await db.query(`SELECT campaign_id FROM campaign_recipients WHERE id = $1`, [id]);
-    if (res.rows[0]) {
-      await db.query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`, [res.rows[0].campaign_id]);
+
+    // Check if fully completed
+    const { rows: stats } = await db.query(
+      `SELECT total_recipients, sent_count, failed_count 
+       FROM campaigns WHERE id = $1`,
+      [campaignId]
+    );
+
+    if (stats[0]) {
+      const { total_recipients, sent_count, failed_count } = stats[0];
+      if (sent_count + failed_count >= total_recipients) {
+        await db.query(
+          `UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() 
+           WHERE id = $1 AND status = 'IN_PROGRESS'`,
+          [campaignId]
+        );
+        console.log(`[WORKER] Campaign ${campaignId} marked as COMPLETED.`);
+      }
     }
   }
 }
@@ -62,6 +81,15 @@ const worker = new Worker('email-sending', async (job: Job) => {
   console.log(`Processing job ${job.id} for ${email}`);
 
   try {
+    // 1. Check if campaign is STOPPED
+    const { rows: campaignRows } = await db.query(`SELECT status FROM campaigns WHERE id = $1`, [campaignId]);
+    if (campaignRows[0]?.status === 'STOPPED') {
+      console.log(`[WORKER] Skipping job ${job.id} - Campaign ${campaignId} is STOPPED.`);
+      if (recipientId && recipientId !== 'test_recipient') {
+        await updateRecipientStatus(recipientId, 'CANCELLED', undefined, 'Campaign stopped by user');
+      }
+      return { skipped: true, reason: 'STOPPED' };
+    }
     const template = await getTemplateById(templateId);
     if (!template) throw new Error('Template not found');
 
