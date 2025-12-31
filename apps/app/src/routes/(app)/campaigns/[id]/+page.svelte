@@ -168,7 +168,7 @@
     // Polling for progress if IN_PROGRESS
     let pollInterval: any;
     $effect(() => {
-        if (data.campaign.status === 'IN_PROGRESS' || data.campaign.status === 'QUEUED') {
+        if (data.campaign.status === 'IN_PROGRESS' || data.campaign.status === 'QUEUED' || data.campaign.status === 'SCHEDULED') {
             pollInterval = setInterval(() => {
                 invalidateAll();
                 if (showRecipients) loadRecipients(true);
@@ -196,16 +196,17 @@
                 {data.campaign.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' : 
                  data.campaign.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                  data.campaign.status === 'STOPPED' ? 'bg-red-100 text-red-800' :
-                 'bg-blue-100 text-blue-800 animate-pulse'}">
+                 data.campaign.status === 'FAILED' ? 'bg-red-100 text-red-800' :
+                 'bg-blue-100 text-blue-800 animate-pulse border border-blue-200'}">
                 {data.campaign.status}
             </span>
             
             {#if ['IN_PROGRESS', 'QUEUED', 'SCHEDULED'].includes(data.campaign.status)}
                 <button 
                     onclick={stopCampaign}
-                    class="inline-flex items-center px-3 py-1 border border-red-300 text-xs font-bold rounded-full text-red-600 hover:bg-red-50 transition-all shadow-sm"
+                    class="inline-flex items-center px-4 py-1.5 border border-red-300 text-xs font-bold rounded-full text-red-600 bg-white hover:bg-red-50 transition-all shadow-sm active:scale-95"
                 >
-                    <svg class="mr-1.5 h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                    <svg class="mr-1.5 h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
                     STOP CAMPAIGN
                 </button>
             {/if}
@@ -283,7 +284,11 @@
                     <div class="text-2xl font-black text-gray-900 mt-1">{progress}% <span class="text-sm font-bold text-gray-400">({(data.campaign.sent_count || 0) + (data.campaign.failed_count || 0)} / {data.campaign.total_recipients})</span></div>
                 </div>
                 <div class="text-xs font-bold text-indigo-600 animate-pulse">
-                    {data.campaign.status === 'IN_PROGRESS' ? '● System is sending...' : '✓ Sending Complete'}
+                    {#if progress >= 100 && data.campaign.status === 'IN_PROGRESS'}
+                        ⏳ Finishing up processing...
+                    {:else}
+                        {data.campaign.status === 'IN_PROGRESS' ? '● System is sending...' : '✓ Sending Complete'}
+                    {/if}
                 </div>
             </div>
             <div class="w-full bg-gray-100 h-4 rounded-full overflow-hidden border border-gray-50 shadow-inner">

@@ -1,0 +1,5 @@
+--- All Campaign Recipients ---
+[Testing fathers] karthikeya.a105@gmail.com | Status: SENT | Token: 27a7d156785bbaf8e28b80c1d6bfd023 | Ack: null
+[Testing fathers] karthikeya.a544@gmail.com | Status: SENT | Token: b9ae40928c769a1c47e13355ec8b0962 | Ack: null
+[Testing Students ] dragonballz.a105@gmail.com | Status: ACKNOWLEDGED | Token: dedfcdbefe22c81d00df9cf4287c8bea | Ack: Wed Dec 31 2025 10:19:13 GMT+0530 (India Standard Time)
+[Testing Students ] karthikeya.a544@gmail.com | Status: ACKNOWLEDGED | Token: 16c23dd6f56133116fce6d1bab62fbd2 | Ack: Wed Dec 31 2025 10:20:44 GMT+0530 (India Standard Time)

@@ -3,7 +3,7 @@ import fs from 'fs';
 
 async function debugCampaign() {
     try {
-        const id = '9a234e48-a344-4886-bde9-aff0959c94bc';
+        const id = '431ce091-d089-4b7d-a063-f0a8df79d823';
         const { rows: campaign } = await db.query('SELECT * FROM campaigns WHERE id = $1', [id]);
         const { rows: recipients } = await db.query('SELECT * FROM campaign_recipients WHERE campaign_id = $1', [id]);
 

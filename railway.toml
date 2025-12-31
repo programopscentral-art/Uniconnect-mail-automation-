@@ -1,13 +1,15 @@
-# Railway configuration for monorepo
+# Railway configuration for monorepo starting from ROOT
+# This ensures workspace dependencies are correctly built.
 
 [[services]]
 name = "app"
-# Start from root to allow workspace dependencies
+source = "."
 build.command = "npm install && npm run build -w apps/app"
 start.command = "node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
+source = "."
 build.command = "npm install && npm run build -w apps/worker"
 start.command = "node apps/worker/dist/index.js"
 
