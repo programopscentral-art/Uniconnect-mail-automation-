@@ -2,15 +2,14 @@
 
 [[services]]
 name = "app"
-source = "apps/app"
-build.command = "npm install && npm run build"
-start.command = "npm start"
+# Start from root to allow workspace dependencies
+build.command = "npm install && npm run build -w apps/app"
+start.command = "node apps/app/build"
 
 [[services]]
 name = "worker"
-source = "apps/worker"
-build.command = "npm install && npm run build"
-start.command = "npm start"
+build.command = "npm install && npm run build -w apps/worker"
+start.command = "node apps/worker/dist/index.js"
 
 [[services]]
 name = "redis"

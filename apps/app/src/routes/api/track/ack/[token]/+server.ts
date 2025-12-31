@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ params }) => {
             return json({ success: true });
         } else {
             // Already acked or invalid
-            return json({ success: false, message: 'Invalid or already acknowledged' });
+            return json({ success: false, message: 'Invalid or already acknowledged' }, { status: 404 });
         }
     } catch (e) {
         console.error(e);
