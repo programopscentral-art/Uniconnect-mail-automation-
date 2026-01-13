@@ -8,6 +8,10 @@
     let editingTask = $state<any>(null);
     let isSubmitting = $state(false);
     
+    // Bulk selection
+    let selectedTasks = $state<Set<string>>(new Set());
+    let selectAll = $state(false);
+    
     // Filters
     let filterStatus = $state('');
     let filterUniversity = $state('');
@@ -131,6 +135,43 @@
         if (res.ok) invalidateAll();
     }
 
+    async function bulkDeleteTasks() {
+        if (selectedTasks.size === 0) return;
+        if (!confirm(`Are you sure you want to delete ${selectedTasks.size} task(s)?`)) return;
+        
+        try {
+            await Promise.all(
+                Array.from(selectedTasks).map(id => 
+                    fetch(`/api/tasks?id=${id}`, { method: 'DELETE' })
+                )
+            );
+            selectedTasks = new Set();
+            selectAll = false;
+            invalidateAll();
+        } catch (err) {
+            alert('Failed to delete some tasks');
+        }
+    }
+
+    function toggleSelectAll() {
+        if (selectAll) {
+            selectedTasks = new Set(filteredTasks.map((t: any) => t.id));
+        } else {
+            selectedTasks = new Set();
+        }
+    }
+
+    function toggleTaskSelection(taskId: string) {
+        const newSet = new Set(selectedTasks);
+        if (newSet.has(taskId)) {
+            newSet.delete(taskId);
+        } else {
+            newSet.add(taskId);
+        }
+        selectedTasks = newSet;
+        selectAll = selectedTasks.size === filteredTasks.length && filteredTasks.length > 0;
+    }
+
     function getInitials(name: string) {
         return name ? name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2) : '??';
     }
@@ -143,15 +184,28 @@
             <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Task Command Center</h1>
             <p class="mt-1 text-gray-500 font-medium">Orchestrate your team's daily operations and student follow-ups.</p>
         </div>
-        <button 
-            onclick={openCreate}
-            class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 font-bold hover:bg-indigo-700 hover:-translate-y-0.5 transition-all duration-200"
-        >
-            <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-            {(data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS' || data.user.role === 'UNIVERSITY_OPERATOR') ? 'Assign New Task' : 'New Task'}
-        </button>
+        <div class="flex items-center gap-3">
+            {#if selectedTasks.size > 0}
+                <button 
+                    onclick={bulkDeleteTasks}
+                    class="inline-flex items-center px-6 py-3 bg-red-600 text-white rounded-xl shadow-lg shadow-red-200 font-bold hover:bg-red-700 hover:-translate-y-0.5 transition-all duration-200"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete ({selectedTasks.size})
+                </button>
+            {/if}
+            <button 
+                onclick={openCreate}
+                class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 font-bold hover:bg-indigo-700 hover:-translate-y-0.5 transition-all duration-200"
+            >
+                <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                {(data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS' || data.user.role === 'UNIVERSITY_OPERATOR') ? 'Assign New Task' : 'New Task'}
+            </button>
+        </div>
     </div>
 
     <!-- Stats Dashboard View -->
@@ -176,6 +230,15 @@
 
     <!-- Filters Strip -->
     <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 shadow-inner">
+        <div class="flex items-center gap-3">
+            <input 
+                type="checkbox" 
+                bind:checked={selectAll}
+                onchange={toggleSelectAll}
+                class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <label class="text-sm font-bold text-gray-700 cursor-pointer" onclick={toggleSelectAll}>Select All</label>
+        </div>
         <div class="flex-1 min-w-[200px]">
             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Status</label>
             <select bind:value={filterStatus} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
@@ -219,8 +282,17 @@
         {#each filteredTasks as task (task.id)}
             <div 
                 in:fly={{ y: 20, duration: 300 }}
-                class="group bg-white rounded-[32px] border border-gray-100 shadow-floating hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden"
+                class="group bg-white rounded-[32px] border border-gray-100 shadow-floating hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden relative"
             >
+                <!-- Selection Checkbox -->
+                <div class="absolute top-4 left-4 z-10">
+                    <input 
+                        type="checkbox" 
+                        checked={selectedTasks.has(task.id)}
+                        onchange={() => toggleTaskSelection(task.id)}
+                        class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                    />
+                </div>
                 <!-- Priority/Status Bar -->
                 <div class="flex items-center justify-between px-5 py-3 border-b border-gray-50 bg-gray-50/50 group-hover:bg-indigo-50/30 transition-colors">
                     <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border {priorityColors[task.priority] || priorityColors.MEDIUM}">
