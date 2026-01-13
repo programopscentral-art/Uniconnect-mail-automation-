@@ -6,7 +6,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
     let universityId = url.searchParams.get('universityId');
-    if (locals.user.role === 'UNIVERSITY_OPERATOR') {
+    const isGlobal = locals.user.permissions?.includes('universities');
+    if (!isGlobal && locals.user.university_id) {
         universityId = locals.user.university_id;
     } else if (!universityId && locals.user.university_id) {
         universityId = locals.user.university_id;
@@ -14,13 +15,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const [templates, universities] = await Promise.all([
         getTemplates(universityId || undefined),
-        locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([])
+        isGlobal ? getAllUniversities() : Promise.resolve([])
     ]);
 
     return {
         templates,
         universities,
         selectedUniversityId: universityId,
-        userRole: locals.user.role
+        userRole: locals.user.role,
+        userPermissions: locals.user.permissions || []
     };
 };

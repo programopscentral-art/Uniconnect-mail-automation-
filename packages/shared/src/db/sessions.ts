@@ -65,7 +65,18 @@ export async function validateSession(token: string): Promise<SessionUser | null
         );
 
         if (result.rows.length === 0) return null;
-        return result.rows[0];
+        const user = result.rows[0];
+
+        // Ensure permissions is a valid array and provide defaults if missing/empty
+        if (!user.permissions || (Array.isArray(user.permissions) && user.permissions.length === 0)) {
+            if (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
+                user.permissions = allFeatures;
+            } else {
+                user.permissions = ['dashboard', 'students'];
+            }
+        }
+
+        return user;
     } catch (e: any) {
         console.error('[VALIDATE_SESSION_ERROR_FALLBACK_TRIGGERED]', e.message);
         // Stage 2: Absolute Core Fallback - Minimal columns, no joins

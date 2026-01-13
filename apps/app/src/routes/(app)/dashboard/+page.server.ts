@@ -18,13 +18,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     console.log('[DASHBOARD_LOAD] UniversityId:', universityId);
 
+    const hasCampaigns = locals.user.permissions?.includes('campaigns');
+    const hasTasks = locals.user.permissions?.includes('tasks');
+
     try {
         const [stats, rawTaskStats, universities, tasks, scheduleEvents, dayPlans] = await Promise.all([
-            getDashboardStats(effectiveUniversityId),
-            getTaskStats(effectiveUniversityId),
+            hasCampaigns ? getDashboardStats(effectiveUniversityId) : Promise.resolve({
+                total_campaigns: 0, active_campaigns: 0, total_emails_sent: 0,
+                avg_open_rate: 0, remaining_credits: 0, recent_campaigns: [],
+                daily_activity: []
+            }),
+            hasTasks ? getTaskStats(effectiveUniversityId) : Promise.resolve({
+                PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0
+            } as any),
             locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([]),
             // Upcoming tasks: only show self-assigned tasks
-            getTasks({ assigned_to: locals.user.id }),
+            hasTasks ? getTasks({ assigned_to: locals.user.id }) : Promise.resolve([]),
             getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined),
             getDayPlans(locals.user.id, today)
         ]);
@@ -50,7 +59,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             selectedUniversityId: universityId,
             userRole: locals.user.role,
             userId: locals.user.id,
-            defaultUniversityId: locals.user.university_id
+            defaultUniversityId: locals.user.university_id,
+            userPermissions: locals.user.permissions || [] // Added for permission check in Svelte component
         };
     } catch (err: any) {
         console.error('[DASHBOARD_LOAD] CRITICAL ERROR:', err);
@@ -68,7 +78,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             selectedUniversityId: universityId,
             userRole: locals.user.role,
             userId: locals.user.id,
-            error: `Load Error: ${err.message}`
+            userPermissions: locals.user?.permissions || [],
+            error: `Load Error: ${err.message} `
         };
     }
 };

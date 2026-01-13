@@ -10,7 +10,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const limit = parseInt(url.searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
-    if (locals.user.role === 'UNIVERSITY_OPERATOR') {
+    const isGlobal = locals.user.permissions?.includes('universities');
+
+    if (!isGlobal && locals.user.university_id) {
         universityId = locals.user.university_id;
     } else if (!universityId && locals.user.university_id) {
         // Default to active session university if no query param
@@ -20,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const [students, totalCount, universities] = await Promise.all([
         getStudents(universityId || undefined, limit, offset),
         getStudentsCount(universityId || undefined),
-        locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([])
+        isGlobal ? getAllUniversities() : Promise.resolve([])
     ]);
 
     return {

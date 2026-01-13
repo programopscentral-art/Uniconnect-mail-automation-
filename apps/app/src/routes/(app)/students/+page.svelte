@@ -142,7 +142,7 @@
 
     async function uploadCsv() {
         if (!uploadFiles || uploadFiles.length === 0) return;
-        if (!selectedUniversityId && data.userRole === 'ADMIN') {
+        if (!selectedUniversityId && data.universities.length > 1) {
             alert('Select a university first');
             return;
         }
@@ -180,7 +180,7 @@
     }
 
     async function deleteAllStudents() {
-        if (!selectedUniversityId && data.userRole === 'ADMIN') {
+        if (!selectedUniversityId && data.universities.length > 1) {
             alert('Select a university first');
             return;
         }
@@ -245,7 +245,7 @@
     </div>
   </div>
 
-  {#if data.userRole === 'ADMIN'}
+  {#if data.universities.length > 1}
     <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating flex items-center gap-6">
         <label for="univ-select" class="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Filter by University:</label>
             <select 
@@ -352,7 +352,7 @@
       <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 max-h-[80vh] overflow-y-auto">
         <h3 class="text-lg leading-6 font-bold text-gray-900 mb-4" id="modal-title">Import Students</h3>
         
-        {#if data.userRole === 'ADMIN' && !selectedUniversityId}
+        {#if data.universities.length > 1 && !selectedUniversityId}
             <div class="bg-red-50 text-red-700 p-4 rounded-lg mb-4 text-sm">Please select a university on the main page first.</div>
         {:else}
             <div class="space-y-6">
@@ -421,7 +421,7 @@
         <button 
             type="button" 
             onclick={uploadCsv}
-            disabled={isUploading || !uploadFiles || (data.userRole === 'ADMIN' && !selectedUniversityId)}
+            disabled={isUploading || !uploadFiles || (data.universities.length > 1 && !selectedUniversityId)}
             class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isUploading ? 'Importing...' : `Import ${totalPreviewRows > 0 ? totalPreviewRows + ' Rows' : ''}`}

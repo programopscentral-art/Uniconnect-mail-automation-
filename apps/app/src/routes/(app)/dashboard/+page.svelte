@@ -364,7 +364,7 @@
                 <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard</h1>
                 <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
             </div>
-            {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
+            {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
                 <div class="w-full sm:w-auto">
                    <select 
                         onchange={onUnivChange} 
@@ -444,75 +444,77 @@
         </div>
 
         <!-- Recent Campaigns Table -->
-        <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
-            <div class="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
-                <div>
-                    <h2 class="text-xl font-black text-gray-900 leading-tight">Recent Activity</h2>
-                    <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Live statistics and updates</p>
+        {#if (data.user?.permissions || []).includes('campaigns')}
+            <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+                <div class="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+                    <div>
+                        <h2 class="text-xl font-black text-gray-900 leading-tight">Recent Activity</h2>
+                        <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Live statistics and updates</p>
+                    </div>
+                    <a href="/campaigns" class="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm">View All</a>
                 </div>
-                <a href="/campaigns" class="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm">View All</a>
-            </div>
 
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="bg-gray-50/50">
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Campaign Name</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">University</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Created By</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Status</th>
-                            <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Engagement</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-50">
-                        {#each data.stats.recent_campaigns || [] as campaign}
-                            <tr class="group hover:bg-indigo-50/20 transition-colors">
-                                <td class="px-8 py-6">
-                                    <div class="text-sm font-black text-gray-900 group-hover:text-indigo-700 transition-colors">{campaign.name}</div>
-                                    <div class="text-[10px] font-bold text-gray-400 mt-0.5">{new Date(campaign.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
-                                </td>
-                                <td class="px-8 py-6">
-                                    <span class="text-xs font-black text-indigo-500 uppercase tracking-tighter bg-indigo-50/50 px-2.5 py-1 rounded-xl">{campaign.university_name}</span>
-                                </td>
-                                <td class="px-8 py-6">
-                                    <div class="text-xs font-black text-gray-700">{campaign.creator_name || 'System Auto'}</div>
-                                    <div class="text-[10px] font-bold text-gray-400">{campaign.creator_email || 'automated@uniconnect.com'}</div>
-                                </td>
-                                <td class="px-8 py-6">
-                                    <span class="px-3 py-1.5 text-[9px] font-black rounded-xl uppercase tracking-widest shadow-sm
-                                        {campaign.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border border-green-100' : 
-                                         campaign.status === 'IN_PROGRESS' ? 'bg-indigo-600 text-white animate-pulse' : 
-                                         'bg-gray-100 text-gray-700 border border-gray-200'}">
-                                        {campaign.status}
-                                    </span>
-                                </td>
-                                <td class="px-8 py-6">
-                                    <div class="flex items-center space-x-4 text-xs">
-                                        <div class="flex flex-col">
-                                            <span class="text-indigo-600 font-black">{campaign.sent_count}</span>
-                                            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Velocity</span>
-                                        </div>
-                                        <div class="flex flex-col">
-                                            <span class="text-green-600 font-black">{campaign.open_count}</span>
-                                            <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Impact</span>
-                                        </div>
-                                    </div>
-                                </td>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead>
+                            <tr class="bg-gray-50/50">
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Campaign Name</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">University</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Created By</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Status</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Engagement</th>
                             </tr>
-                        {:else}
-                            <tr>
-                                <td colspan="5" class="px-8 py-16 text-center">
-                                    <div class="flex flex-col items-center">
-                                        <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-2xl mb-4">📭</div>
-                                        <p class="text-xs font-black text-gray-400 uppercase tracking-widest">No Active Telemetry</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-gray-50">
+                            {#each data.stats.recent_campaigns || [] as campaign}
+                                <tr class="group hover:bg-indigo-50/20 transition-colors">
+                                    <td class="px-8 py-6">
+                                        <div class="text-sm font-black text-gray-900 group-hover:text-indigo-700 transition-colors">{campaign.name}</div>
+                                        <div class="text-[10px] font-bold text-gray-400 mt-0.5">{new Date(campaign.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <span class="text-xs font-black text-indigo-500 uppercase tracking-tighter bg-indigo-50/50 px-2.5 py-1 rounded-xl">{campaign.university_name}</span>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <div class="text-xs font-black text-gray-700">{campaign.creator_name || 'System Auto'}</div>
+                                        <div class="text-[10px] font-bold text-gray-400">{campaign.creator_email || 'automated@uniconnect.com'}</div>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <span class="px-3 py-1.5 text-[9px] font-black rounded-xl uppercase tracking-widest shadow-sm
+                                            {campaign.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border border-green-100' : 
+                                            campaign.status === 'IN_PROGRESS' ? 'bg-indigo-600 text-white animate-pulse' : 
+                                            'bg-gray-100 text-gray-700 border border-gray-200'}">
+                                            {campaign.status}
+                                        </span>
+                                    </td>
+                                    <td class="px-8 py-6">
+                                        <div class="flex items-center space-x-4 text-xs">
+                                            <div class="flex flex-col">
+                                                <span class="text-indigo-600 font-black">{campaign.sent_count}</span>
+                                                <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Velocity</span>
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="text-green-600 font-black">{campaign.open_count}</span>
+                                                <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Impact</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {:else}
+                                <tr>
+                                    <td colspan="5" class="px-8 py-16 text-center">
+                                        <div class="flex flex-col items-center">
+                                            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-2xl mb-4">📭</div>
+                                            <p class="text-xs font-black text-gray-400 uppercase tracking-widest">No Active Telemetry</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
+        {/if}
     </div>
 
     <!-- Right Sidebar (Day Plan & Quick Actions) -->
@@ -667,12 +669,14 @@
                     </div>
                     CREATE TASK
                 </button>
-                {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
+                {#if (data.user?.permissions || []).includes('universities')}
                     <button onclick={() => goto('/universities')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">UNIVERSITIES</button>
                 {/if}
-                <button onclick={() => goto('/users')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">
-                    TEAM MEMBERS
-                </button>
+                {#if (data.user?.permissions || []).includes('users')}
+                    <button onclick={() => goto('/users')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">
+                        TEAM MEMBERS
+                    </button>
+                {/if}
             </div>
         </div>
     </div>

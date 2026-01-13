@@ -74,7 +74,7 @@
     </div>
     <a 
       href={selectedUniversityId ? `/campaigns/new?universityId=${selectedUniversityId}` : '#'}
-      onclick={(e) => { if(!selectedUniversityId && data.userRole==='ADMIN') { e.preventDefault(); alert('Please select an institution first to initiate a campaign.'); } }}
+      onclick={(e) => { if(!selectedUniversityId && (data.user?.permissions || []).includes('universities')) { e.preventDefault(); alert('Please select an institution first to initiate a campaign.'); } }}
       class="inline-flex items-center px-8 py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg hover:bg-indigo-700 hover:shadow-indigo-500/20 hover:scale-[1.02] transition-all active:scale-95"
     >
       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
@@ -82,7 +82,7 @@
     </a>
   </div>
 
-  {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
+  {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
     <div class="bg-white p-6 rounded-[32px] shadow-floating border border-gray-100 flex flex-col md:flex-row items-center gap-6">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">

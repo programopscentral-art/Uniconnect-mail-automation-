@@ -28,14 +28,14 @@
     </div>
     <a 
       href={selectedUniversityId ? `/templates/new?universityId=${selectedUniversityId}` : '#'}
-      onclick={(e) => { if(!selectedUniversityId && data.userRole==='ADMIN') { e.preventDefault(); alert('Select university first'); } }}
+      onclick={(e) => { if(!selectedUniversityId && (data.user?.permissions || []).includes('universities')) { e.preventDefault(); alert('Select university first'); } }}
       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
     >
       Create Template
     </a>
   </div>
 
-  {#if data.userRole === 'ADMIN'}
+  {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
     <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating flex items-center gap-6">
         <label for="univ-select" class="text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">Institutional Node:</label>
         <select 

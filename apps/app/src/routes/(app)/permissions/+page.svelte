@@ -28,7 +28,12 @@
     try {
       const res = await fetch('/api/admin/permissions');
       if (res.ok) {
-        rolePermissions = await res.json();
+        const data = await res.json();
+        // Merge with known roles to ensure all roles are present
+        rolePermissions = roles.map(role => {
+          const existing = data.find((p: any) => p.role === role);
+          return existing || { role, features: [], created_at: new Date(), updated_at: new Date() };
+        });
       }
     } catch (e) {
       console.error(e);
@@ -46,11 +51,16 @@
   async function toggleFeature(featureId: string) {
     if (isSaving) return;
     
-    let updatedFeatures = [...currentFeatures];
+    const roleIndex = rolePermissions.findIndex(p => p.role === selectedRole);
+    if (roleIndex === -1) return;
+
+    const originalFeatures = [...rolePermissions[roleIndex].features];
+    let updatedFeatures = [...originalFeatures];
+
     if (updatedFeatures.includes(featureId)) {
-      updatedFeatures = updatedFeatures.filter(id => id !== featureId);
+        updatedFeatures = updatedFeatures.filter(id => id !== featureId);
     } else {
-      updatedFeatures.push(featureId);
+        updatedFeatures.push(featureId);
     }
 
     // Protection for Admins - don't let them disable permissions for themselves easily
@@ -58,7 +68,13 @@
         if (!confirm('Warning: You are about to disable this page for Admins. You might lose access to manage these permissions. Continue?')) return;
     }
 
+    // Optimistic UI Update
+    // Svelte 5 $state reactivity for arrays of objects:
+    // Directly modifying an object property within an array ($state) will trigger reactivity.
+    // If rolePermissions was a primitive array, we'd need to create a new array for reactivity.
+    rolePermissions[roleIndex].features = updatedFeatures;
     isSaving = true;
+
     try {
       const res = await fetch('/api/admin/permissions', {
         method: 'POST',
@@ -66,14 +82,14 @@
         body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
       });
       
-      if (res.ok) {
-        // Optimistic UI update or re-fetch
-        rolePermissions = rolePermissions.map(p => 
-          p.role === selectedRole ? { ...p, features: updatedFeatures } : p
-        );
+      if (!res.ok) {
+        throw new Error('Failed to save permissions');
       }
     } catch (e) {
-      console.error(e);
+      console.error('Failed to sync permissions:', e);
+      // Revert on failure
+      rolePermissions[roleIndex].features = originalFeatures;
+      alert('Failed to sync permission. Please try again.');
     } finally {
       isSaving = false;
     }
