@@ -83,13 +83,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             const realCountB = is100 ? 5 : 8;
             for (let i = 0; i < realCountB; i++) {
+                const marksB = is100 ? 16 : 5;
                 slotsToProcess.push({
                     label: `${countA + 1 + i}`,
-                    marks: is100 ? 16 : 5,
+                    marks: marksB,
                     type: 'OR_GROUP',
                     unit: 'Auto',
                     hasSubQuestions: false,
-                    qType: 'NORMAL'
+                    qType: 'NORMAL',
+                    choices: [
+                        { label: `${countA + 1 + i * 2}`, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) },
+                        { label: `${countA + 2 + i * 2}`, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) }
+                    ]
                 });
             }
         }
