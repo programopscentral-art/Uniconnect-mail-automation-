@@ -530,7 +530,7 @@
         <button onclick={closeModal} class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Discard</button>
         <button 
             onclick={saveUser}
-            disabled={isSubmitting || !email || (role !== 'ADMIN' && !universityId && data.isGlobalAdmin)}
+            disabled={isSubmitting || !email || (role !== 'ADMIN' && universityIds.length === 0 && data.isGlobalAdmin)}
             class="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
         >
             {isSubmitting ? 'Syncing...' : (editingUserId ? 'Update Permissions' : 'Send Invitation')}
