@@ -12,12 +12,6 @@
     function onDateChange() {
         goto(`?date=${selectedDate}`);
     }
-
-    const campaignStats = $derived([
-        { label: 'Total Sent', value: data.report.campaign_summary.total_sent, color: 'text-green-600', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-        { label: 'Total Failed', value: data.report.campaign_summary.total_failed, color: 'text-red-600', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-        { label: 'Total Opened', value: data.report.campaign_summary.total_opened, color: 'text-purple-600', icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z' }
-    ]);
 </script>
 
 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -36,23 +30,6 @@
                 class="block pl-3 pr-4 py-2 text-sm border-gray-200 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 font-bold"
             >
         </div>
-    </div>
-
-    <!-- Campaign Summary Row -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {#each campaignStats as stat}
-            <div class="bg-white rounded-[32px] shadow-floating border border-gray-100 p-8 flex items-center space-x-6 hover:-translate-y-1 transition-all duration-300">
-                <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <svg class="h-10 w-10 {stat.color}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={stat.icon} />
-                    </svg>
-                </div>
-                <div>
-                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 opacity-60">{stat.label}</p>
-                    <p class="text-4xl font-black text-gray-900 leading-tight">{stat.value.toLocaleString()}</p>
-                </div>
-            </div>
-        {/each}
     </div>
 
     <!-- Team Reports Table -->
