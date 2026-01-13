@@ -101,6 +101,9 @@
       showModal = true;
   }
 
+  const selectAll = () => universityIds = data.universities.map((u:any) => u.id);
+  const clearSelection = () => universityIds = [];
+
   function closeModal() {
       showModal = false;
       editingUserId = null;
@@ -446,8 +449,9 @@
   <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick={closeModal}></div>
   <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-gray-100 animate-in zoom-in-95 duration-200">
     <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 px-8 py-6 text-white">
-        <h3 class="text-2xl font-black tracking-tight" id="modal-title">
-          {editingUserId ? 'Edit Member' : 'Invite Member'}
+        <h3 class="text-2xl font-black tracking-tight flex items-center justify-between" id="modal-title">
+          <span>{editingUserId ? 'Edit Member' : 'Invite Member'}</span>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-lg border border-white/10">v2.1</span>
         </h3>
         <p class="text-indigo-100 text-sm opacity-80 mt-1">Set user details and assigned roles.</p>
     </div>
@@ -488,7 +492,13 @@
 
             {#if data.isGlobalAdmin}
             <div class="col-span-2">
-                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 ml-1">Assign to Institutions</label>
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Assign to Institutions</label>
+                    <div class="flex gap-3">
+                        <button type="button" onclick={selectAll} class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors">Select All</button>
+                        <button type="button" onclick={clearSelection} class="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors">Clear</button>
+                    </div>
+                </div>
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-64 overflow-y-auto space-y-2 shadow-inner">
                     {#each data.universities as univ}
                         <label class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:bg-indigo-50/50 hover:border-indigo-100 cursor-pointer transition-all group">
