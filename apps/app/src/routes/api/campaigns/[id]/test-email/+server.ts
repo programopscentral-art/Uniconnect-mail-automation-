@@ -41,9 +41,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             studentName: sampleStudent.name,
             studentExternalId: sampleStudent.external_id,
             metadata: sampleStudent.metadata,
-            // Mock variables for commonly used placeholders in test emails
-            COUPON_CODE: sampleStudent.metadata?.COUPON_CODE || 'TEST-COUPON-2026',
-            fee_table_rows: [] // Ensure table logic triggers
+            ...(sampleStudent.metadata || {})
         }
     });
 

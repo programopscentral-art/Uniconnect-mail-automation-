@@ -31,10 +31,15 @@ export const POST: RequestHandler = async ({ params, locals }) => {
         [campaignId]
     );
 
-    // 3. Decrement failed_count in campaign
-    await db.query(`UPDATE campaigns SET failed_count = 0 WHERE id = $1`, [campaignId]);
+    // 3. Reset campaign stats and set status back to IN_PROGRESS
+    console.log(`[RETRY] Resetting failed_count and setting status to IN_PROGRESS for campaign ${campaignId}`);
+    await db.query(
+        `UPDATE campaigns SET failed_count = 0, status = 'IN_PROGRESS', updated_at = NOW() WHERE id = $1`,
+        [campaignId]
+    );
 
     // 4. Re-enqueue jobs
+    console.log(`[RETRY] Re-enqueuing ${failedRecipients.length} jobs...`);
     for (const r of failedRecipients) {
         await addEmailJob({
             recipientId: r.id,

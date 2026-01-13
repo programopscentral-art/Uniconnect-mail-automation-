@@ -29,6 +29,14 @@ services:
     depends_on:
       - redis
 
+  ai-detector-service:
+    build:
+      context: apps/ai-detector-service
+    ports:
+      - "8001:8001"
+    environment:
+      - PYTHONUNBUFFERED=1
+
   redis:
     image: redis:alpine
     ports:

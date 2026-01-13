@@ -38,7 +38,7 @@ export function getGoogleAuthUrl() {
             'https://www.googleapis.com/auth/userinfo.email',
             'openid'
         ],
-        prompt: 'consent',
+        prompt: 'select_account',
         redirect_uri: redirectUri
     });
 

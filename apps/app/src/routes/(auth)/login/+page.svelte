@@ -13,12 +13,12 @@
     in:fly={{ y: 20, duration: 800, delay: 100 }}
   >
     <div class="text-center mb-10">
-      <div class="flex justify-center mb-6">
-        <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-           <img src="/nxtwave-logo.png" alt="NxtWave" class="h-10 object-contain">
+      <div class="flex justify-center mb-10">
+        <div class="p-5 bg-white rounded-3xl border border-gray-100 shadow-xl shadow-indigo-500/5 transition-transform hover:scale-105 active:scale-95">
+           <img src="/nxtwave-logo.png" alt="NxtWave" class="h-14 object-contain">
         </div>
       </div>
-      <h1 class="text-3xl font-black text-gray-900 tracking-tight mb-2">
+     <h1 class="text-4xl font-black text-gray-900 tracking-tight mb-3">
         UniConnect
       </h1>
       <p class="text-gray-500 font-medium text-sm">Internal ProgramOps & University Portal</p>

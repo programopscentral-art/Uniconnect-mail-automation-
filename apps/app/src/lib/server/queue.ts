@@ -25,16 +25,23 @@ export async function addEmailJob(data: {
     includeAck?: boolean;
     attempts?: number;
 }, delay: number = 0) {
-    await emailQueue.add('send-email', { ...data }, {
-        attempts: data.attempts || 5,
-        backoff: {
-            type: 'exponential',
-            delay: 1000
-        },
-        delay,
-        removeOnComplete: true,
-        removeOnFail: 1000
-    });
+    console.log(`[QUEUE] Adding email job for ${data.email} in campaign ${data.campaignId}`);
+    try {
+        const job = await emailQueue.add('send-email', { ...data }, {
+            attempts: data.attempts || 5,
+            backoff: {
+                type: 'exponential',
+                delay: 1000
+            },
+            delay,
+            removeOnComplete: true,
+            removeOnFail: 1000
+        });
+        console.log(`[QUEUE] Successfully added job ${job.id} for ${data.email}`);
+    } catch (err) {
+        console.error(`[QUEUE] Failed to add job for ${data.email}:`, err);
+        throw err;
+    }
 }
 
 export async function addNotificationJob(data: {

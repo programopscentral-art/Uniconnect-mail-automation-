@@ -1,4 +1,4 @@
-import type { Handle } from '@sveltejs/kit';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { validateSession } from '@uniconnect/shared';
 
@@ -11,9 +11,14 @@ export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');
 
     if (token) {
-        const user = await validateSession(token);
-        if (user) {
-            event.locals.user = user;
+        try {
+            const user = await validateSession(token);
+            if (user) {
+                // Ensure plain objects for serialization
+                event.locals.user = JSON.parse(JSON.stringify(user));
+            }
+        } catch (e) {
+            console.error('Session validation error:', e);
         }
     }
 
@@ -42,20 +47,25 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (path.startsWith('/universities') || path.startsWith('/users') || path.startsWith('/mail-logs')) {
         const userRole = event.locals.user?.role as any;
         const isGlobalAdmin = userRole === 'ADMIN' || userRole === 'PROGRAM_OPS';
-        const isUnivAdmin = userRole === 'UNIVERSITY_OPERATOR';
 
-        if (path.startsWith('/users')) {
-            if (!isGlobalAdmin && !isUnivAdmin) {
-                return new Response('Forbidden', { status: 403 });
-            }
-        } else {
-            // /universities and /mail-logs are global admin only
-            if (!isGlobalAdmin) {
-                return new Response('Forbidden', { status: 403 });
-            }
+        if (!isGlobalAdmin) {
+            return new Response('Forbidden', { status: 403 });
         }
     }
 
-    const response = await resolve(event);
-    return response;
+    return await resolve(event);
+};
+
+export const handleError: HandleServerError = ({ error }) => {
+    const err = error as any;
+    // Log concisely to avoid crashing dev terminal with huge Pool/Socket objects
+    console.error('SERVER_ERROR:', {
+        message: err.message || 'Internal Error',
+        code: err.code,
+        stack: err.stack?.split('\n').slice(0, 5).join('\n')
+    });
+    return {
+        message: err.message || 'Internal Error',
+        code: err.code
+    };
 };

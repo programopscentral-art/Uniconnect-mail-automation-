@@ -351,9 +351,9 @@
     }
 </script>
 
-<div class="flex flex-col lg:flex-row gap-8 min-h-screen relative p-2 md:p-6" in:fade>
+<div class="flex flex-col xl:flex-row gap-8 min-h-screen relative p-2 md:p-6" in:fade>
     <!-- Main Content Area (Left) -->
-    <div class="flex-1 space-y-8 max-w-[calc(100%-400px)]">
+    <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
                 <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard</h1>
@@ -376,13 +376,13 @@
         </div>
 
         <!-- Task Stats -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
             {#each taskStats as stat}
-                <div class="bg-white p-8 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex items-center space-x-5 transition-transform hover:scale-[1.02] cursor-default">
-                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl {stat.color} shadow-sm">{stat.icon}</div>
-                    <div>
-                        <div class="text-3xl font-black text-gray-900 leading-tight">{stat.value}</div>
-                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</div>
+                <div class="bg-white p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-indigo-500/10 cursor-default group">
+                    <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-xl {stat.color} shadow-sm mb-4 group-hover:rotate-6 transition-transform">{stat.icon}</div>
+                    <div class="w-full">
+                        <div class="text-3xl font-black text-gray-900 leading-none mb-1">{stat.value}</div>
+                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{stat.label}</div>
                     </div>
                 </div>
             {/each}

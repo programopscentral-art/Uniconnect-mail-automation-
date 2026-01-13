@@ -147,6 +147,16 @@ export async function createRecipients(campaignId: string, students: any[], reci
     }
 }
 
+export async function updateCampaignRecipientEmail(id: string, email: string) {
+    const { rows } = await db.query(
+        `UPDATE campaign_recipients 
+         SET to_email = $1, status = 'QUEUED', error_message = NULL, updated_at = NOW() 
+         WHERE id = $2 RETURNING *`,
+        [email.toLowerCase().trim(), id]
+    );
+    return rows[0];
+}
+
 export async function getCampaignRecipients(campaignId: string) {
     const result = await db.query(`SELECT r.*, s.name as student_name, s.external_id FROM campaign_recipients r LEFT JOIN students s ON r.student_id = s.id WHERE campaign_id = $1`, [campaignId]);
     return result.rows;

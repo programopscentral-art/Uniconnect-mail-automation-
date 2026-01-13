@@ -276,7 +276,13 @@
                     {student.metadata?.[header] || '-'}
                 </td>
             {/each}
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
+              <a 
+                href="/plagiarism"
+                class="text-indigo-600 hover:text-indigo-900 font-bold"
+              >
+                Scan
+              </a>
               <button 
                 onclick={() => deleteOneStudent(student.id)}
                 class="text-red-600 hover:text-red-900"

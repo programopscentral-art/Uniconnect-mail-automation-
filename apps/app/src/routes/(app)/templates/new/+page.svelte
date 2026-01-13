@@ -40,12 +40,16 @@
       };
       
       const baseVars: Record<string, any> = {
-          ...sample,
-          STUDENT_NAME: sample.name,
-          TERM_FEE: sample.metadata?.TERM_FEE || sample.metadata?.['2nd Sem Fee'] || '1,12,500',
-          ACTION_BUTTON: sample.metadata?.['Payment link'] || 'https://payment.niat.edu.in/sample',
+          STUDENT_NAME: sample.name || sample.full_name || '',
           ...(sample.metadata || {})
       };
+
+      // Ensure every field has a sample value for the preview
+      allFields.forEach(field => {
+          if (baseVars[field] === undefined) {
+              baseVars[field] = `[${field}]`;
+          }
+      });
 
       return TemplateRenderer.render(html, baseVars, { 
           config: { tableRows, payButton } 

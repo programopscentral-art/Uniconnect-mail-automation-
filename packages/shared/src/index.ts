@@ -15,4 +15,5 @@ export * from './db/schedule_events';
 export * from './db/day_plans';
 export * from './db/mailbox_permissions';
 export * from './crypto';
+export * from './db/assessments';
 export * from './template';

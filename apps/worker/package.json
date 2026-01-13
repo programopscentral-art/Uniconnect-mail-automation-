@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "node -r dotenv/config -r esbuild-register src/index.ts",
+        "dev": "npx tsx watch src/index.ts",
         "build": "esbuild src/index.ts --bundle --platform=node --outfile=dist/index.js",
         "start": "node dist/index.js"
     },
@@ -20,6 +20,7 @@
         "@types/nodemailer": "^7.0.4",
         "esbuild": "^0.19.0",
         "esbuild-register": "^3.5.0",
+        "tsx": "^4.7.0",
         "typescript": "^5.0.0"
     }
 }

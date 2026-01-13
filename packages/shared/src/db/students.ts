@@ -12,7 +12,7 @@ export interface Student {
 
 export async function getStudents(universityId: string, limit = 100, offset = 0) {
     const result = await db.query(
-        `SELECT * FROM students WHERE university_id = $1 ORDER BY sort_order ASC, created_at ASC LIMIT $2 OFFSET $3`,
+        `SELECT * FROM students WHERE university_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
         [universityId, limit, offset]
     );
     return result.rows as Student[];

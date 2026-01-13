@@ -77,8 +77,9 @@ async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED' | 'CA
 
 // 1. Email Campaign Worker
 const worker = new Worker('email-sending', async (job: Job) => {
+  console.log(`[WORKER] Received job ${job.id} for campaign ${job.data.campaignId}`);
   const { recipientId, campaignId, email, trackingToken, templateId, mailboxId, variables } = job.data;
-  console.log(`Processing job ${job.id} for ${email}`);
+  console.log(`[WORKER] Processing job ${job.id} for ${email}`);
 
   try {
     // 1. Check if campaign is STOPPED
@@ -181,6 +182,10 @@ const worker = new Worker('email-sending', async (job: Job) => {
   }
 });
 
+worker.on('error', err => console.error('[WORKER_ERROR]', err));
+worker.on('failed', (job, err) => console.error('[JOB_FAILED]', job?.id, err));
+worker.on('completed', job => console.log(`[WORKER_SUCCESS] Job ${job?.id} finished.`));
+
 // 2. System Notification Worker
 const systemWorker = new Worker('system-notifications', async (job: Job) => {
   const { to, subject, text, html } = job.data;
@@ -264,6 +269,10 @@ const systemWorker = new Worker('system-notifications', async (job: Job) => {
     throw err;
   }
 }, { connection });
+
+systemWorker.on('error', err => console.error('[SYSTEM_WORKER_ERROR]', err));
+systemWorker.on('failed', (job, err) => console.error('[SYSTEM_JOB_FAILED]', job?.id, err));
+systemWorker.on('completed', job => console.log(`[SYSTEM_WORKER_SUCCESS] Job ${job?.id} finished.`));
 
 // 3. Task Deadline Reminder Logic
 async function checkTaskDeadlines() {

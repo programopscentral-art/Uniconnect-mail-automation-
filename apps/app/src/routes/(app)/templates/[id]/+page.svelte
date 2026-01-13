@@ -34,13 +34,19 @@
           }
       };
 
-      return TemplateRenderer.render(html, {
-        STUDENT_NAME: data.sampleStudent?.full_name || 'John Doe',
-        TERM_FEE: '10,000',
-        ACTION_BUTTON: config.actionButtonUrl || 'https://payment.example.com',
-        COUPON_CODE: 'WELCOME2026',
-        metadata: data.sampleStudent?.metadata || {}
-      }, { config: renderConfig });
+      const baseVars: Record<string, any> = {
+        STUDENT_NAME: data.sampleStudent?.name || data.sampleStudent?.full_name || '',
+        ...(data.sampleStudent?.metadata || {})
+      };
+
+      // Ensure every field has a sample value for the preview
+      allFields.forEach(field => {
+          if (baseVars[field] === undefined) {
+              baseVars[field] = `[${field}]`;
+          }
+      });
+
+      return TemplateRenderer.render(html, baseVars, { config: renderConfig });
     } catch (e) {
       console.error('Preview render error:', e);
       return `<div class="p-4 text-red-500 bg-red-50 border border-red-200 rounded">

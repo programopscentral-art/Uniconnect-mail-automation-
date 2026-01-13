@@ -1,0 +1,43 @@
+import { getAllUniversities, getAssessmentBatches, getAssessmentBranches, getAssessmentSubjects } from '@uniconnect/shared';
+import type { PageServerLoad } from './$types';
+import { error } from '@sveltejs/kit';
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+    if (!locals.user) throw error(401);
+
+    const universityId = url.searchParams.get('universityId') || locals.user.university_id;
+    const batchId = url.searchParams.get('batchId');
+    const branchId = url.searchParams.get('branchId');
+
+    try {
+        console.log('[GENERATE_LOAD] universityId:', universityId, 'batchId:', batchId);
+        const [universities, batches, branches] = await Promise.all([
+            locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([]),
+            universityId ? getAssessmentBatches(universityId) : Promise.resolve([]),
+            universityId ? getAssessmentBranches(universityId, batchId || undefined) : Promise.resolve([])
+        ]);
+
+        console.log(`[GENERATE_LOAD] Found ${batches.length} batches and ${branches.length} branches for universityId:`, universityId);
+        if (batches.length > 0) {
+            console.log('[GENERATE_LOAD] Sample Batch:', batches[0]);
+        }
+
+        let subjects: any[] = [];
+        if (branchId) {
+            subjects = await getAssessmentSubjects(branchId, undefined, batchId || undefined);
+        }
+
+        return {
+            universities,
+            batches,
+            branches,
+            subjects,
+            selectedUniversityId: universityId,
+            selectedBatchId: batchId,
+            selectedBranchId: branchId
+        };
+    } catch (err: any) {
+        console.error('[GENERATE_LOAD] Error:', err);
+        throw error(500, err.message);
+    }
+};

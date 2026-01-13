@@ -15,6 +15,12 @@
   let isSendingTest = $state(false);
 
   let isRetrying = $state(false);
+  let statusFilter = $state<'ALL' | 'FAILED' | 'SENT' | 'OPENED' | 'ACKNOWLEDGED'>('ALL');
+
+  let filteredRecipients = $derived.by(() => {
+      if (statusFilter === 'ALL') return recipients;
+      return recipients.filter(r => r.status === statusFilter);
+  });
 
   // Edit Student Modal
   let showEditModal = $state(false);
@@ -43,13 +49,15 @@
       }
   }
 
-  async function loadRecipients(force = false) {
-      if (!force && showRecipients) {
+  async function loadRecipients(force = false, filterToSet?: any) {
+      if (filterToSet) statusFilter = filterToSet;
+
+      if (!force && showRecipients && !filterToSet) {
           showRecipients = false;
           return;
       }
       if (!force) showRecipients = true;
-      if (!force && recipients.length > 0) return;
+      if (!force && recipients.length > 0 && !filterToSet) return;
       
       isLoadingRecipients = !force; // Only show loader on initial click
       try {
@@ -86,9 +94,9 @@
   async function saveStudentEdit() {
       isSavingEdit = true;
       try {
-          // 1. Update Student Table
+          // 1. Update Student Table (Global record)
           const meta = JSON.parse(editingRecipient.metadata_str);
-          const res = await fetch(`/api/students/${editingRecipient.student_id}`, {
+          const studentRes = await fetch(`/api/students/${editingRecipient.student_id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
@@ -98,17 +106,23 @@
               })
           });
 
-          if (res.ok) {
-              alert('Student updated. You can now retry the failed mail.');
+          // 2. Update Specific Recipient for this Campaign (Local record)
+          const recipientRes = await fetch(`/api/campaigns/${data.campaign.id}/recipients/${editingRecipient.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: editingRecipient.to_email })
+          });
+
+          if (studentRes.ok && recipientRes.ok) {
+              alert('Recipient updated and queued for retry!');
               showEditModal = false;
-              // Refresh recipients if they are shown
-              if (showRecipients) {
-                  const rRes = await fetch(`/api/campaigns/${data.campaign.id}/recipients`);
-                  if (rRes.ok) recipients = await rRes.json();
-              }
               invalidateAll();
+              if (showRecipients) loadRecipients(true);
           } else {
-              alert('Failed to update student');
+              const sErr = !studentRes.ok ? await studentRes.text() : 'OK';
+              const rErr = !recipientRes.ok ? await recipientRes.text() : 'OK';
+              console.error('Update failed:', { student: sErr, recipient: rErr });
+              alert(`Failed to update recipient. Student: ${studentRes.status}, Recipient: ${recipientRes.status}`);
           }
       } catch(e) {
           alert('Invalid JSON in metadata or network error');
@@ -165,6 +179,23 @@
         }
     }
 
+    async function resumeCampaign() {
+        if (!confirm('▶️ Are you sure you want to RESUME this campaign? Emails will start sending to remaining recipients.')) return;
+        try {
+            const res = await fetch(`/api/campaigns/${data.campaign.id}/resume`, { method: 'POST' });
+            if (res.ok) {
+                const result = await res.json();
+                alert(result.message);
+                invalidateAll();
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Failed to resume');
+            }
+        } catch(e) {
+            alert('Error');
+        }
+    }
+
     // Polling for progress if IN_PROGRESS
     let pollInterval: any;
     $effect(() => {
@@ -208,6 +239,15 @@
                 >
                     <svg class="mr-1.5 h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
                     STOP CAMPAIGN
+                </button>
+            {/if}
+            {#if data.campaign.status === 'STOPPED'}
+                <button 
+                    onclick={resumeCampaign}
+                    class="inline-flex items-center px-4 py-1.5 border border-green-300 text-xs font-bold rounded-full text-green-600 bg-white hover:bg-green-50 transition-all shadow-sm active:scale-95"
+                >
+                    <svg class="mr-1.5 h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" clip-rule="evenodd"></path><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path></svg>
+                    RESUME CAMPAIGN
                 </button>
             {/if}
             {#if data.campaign.include_ack}
@@ -302,42 +342,73 @@
 
     <!-- Stats -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-sm font-medium text-gray-500">Total Recipients</h3>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{data.campaign.total_recipients}</p>
-        </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-sm font-medium text-gray-500">Sent</h3>
-            <p class="mt-2 text-3xl font-bold text-gray-900">{data.campaign.sent_count}</p>
-        </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-sm font-medium text-gray-500">Opened</h3>
-            <p class="mt-2 text-3xl font-bold text-blue-600">{data.campaign.open_count}</p>
-        </div>
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 relative">
-            <h3 class="text-sm font-medium text-gray-500">Failed</h3>
+        <button 
+            onclick={() => loadRecipients(false, 'ALL')}
+            class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'ALL' ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-gray-100'} hover:border-indigo-200 transition-all text-left group"
+        >
+            <h3 class="text-sm font-medium text-gray-500 group-hover:text-indigo-600">Total Recipients</h3>
+            <p class="mt-2 text-3xl font-black text-gray-900">{data.campaign.total_recipients}</p>
+        </button>
+        <button 
+            onclick={() => loadRecipients(false, 'SENT')}
+            class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'SENT' ? 'border-blue-500 ring-4 ring-blue-50' : 'border-gray-100'} hover:border-blue-200 transition-all text-left group"
+        >
+            <h3 class="text-sm font-medium text-gray-500 group-hover:text-blue-600">Sent</h3>
+            <p class="mt-2 text-3xl font-black text-gray-900">{data.campaign.sent_count}</p>
+        </button>
+        <button 
+            onclick={() => loadRecipients(false, 'OPENED')}
+            class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'OPENED' ? 'border-cyan-500 ring-4 ring-cyan-50' : 'border-gray-100'} hover:border-cyan-200 transition-all text-left group"
+        >
+            <h3 class="text-sm font-medium text-gray-500 group-hover:text-cyan-600">Opened</h3>
+            <p class="mt-2 text-3xl font-black text-blue-600">{data.campaign.open_count}</p>
+        </button>
+        <button 
+            onclick={() => loadRecipients(false, 'FAILED')}
+            class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'FAILED' ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-100'} hover:border-red-200 transition-all text-left relative group"
+        >
+            <h3 class="text-sm font-medium text-gray-500 group-hover:text-red-600">Failed</h3>
             <div class="flex items-end justify-between">
-                <p class="mt-2 text-3xl font-bold text-red-600">{data.campaign.failed_count || 0}</p>
+                <p class="mt-2 text-3xl font-black text-red-600">{data.campaign.failed_count || 0}</p>
                 {#if data.campaign.failed_count > 0}
-                    <button 
-                        onclick={retryFailed} 
-                        disabled={isRetrying}
-                        class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 disabled:opacity-50"
-                    >
-                        {isRetrying ? 'Retrying...' : 'Retry All'}
-                    </button>
+                    <div class="text-[10px] font-black text-red-500 uppercase tracking-widest animate-bounce">Click to view ↴</div>
                 {/if}
             </div>
-        </div>
+        </button>
     </div>
 
     <!-- Recipients -->
-    <div class="bg-white shadow sm:rounded-lg overflow-hidden border border-gray-200">
-        <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
-            <h3 class="text-lg leading-6 font-medium text-gray-900">Recipient Details</h3>
-            <button onclick={() => loadRecipients()} class="text-sm text-blue-600 hover:text-blue-900">
-                {showRecipients ? 'Hide' : 'Show Details'}
-            </button>
+    <div class="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
+        <div class="px-8 py-6 flex justify-between items-center bg-gray-50/50">
+            <div>
+                <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">Recipient Details</h3>
+                <div class="flex gap-2 mt-2">
+                    {#each ['ALL', 'SENT', 'OPENED', 'FAILED'] as filter}
+                        <button 
+                            onclick={() => statusFilter = filter as any}
+                            class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
+                            {statusFilter === filter ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-gray-400 border border-gray-100 hover:border-indigo-200'}"
+                        >
+                            {filter}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                {#if statusFilter === 'FAILED' && data.campaign.failed_count > 0}
+                    <button 
+                        onclick={retryFailed} 
+                        disabled={isRetrying}
+                        class="inline-flex items-center px-6 py-2 bg-red-600 text-white text-xs font-black rounded-xl hover:bg-red-700 transition-all shadow-xl shadow-red-200 disabled:opacity-50 active:scale-95"
+                    >
+                        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        RETRY ALL FAILED
+                    </button>
+                {/if}
+                <button onclick={() => loadRecipients()} class="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline">
+                    {showRecipients ? 'Hide Details' : 'Show Details'}
+                </button>
+            </div>
         </div>
         
         {#if showRecipients}
@@ -355,8 +426,8 @@
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                {#each recipients as r}
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                {#each filteredRecipients as r}
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{r.student_name || 'N/A'}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{r.to_email}</td>

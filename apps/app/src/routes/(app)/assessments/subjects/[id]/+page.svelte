@@ -1,0 +1,1378 @@
+<script lang="ts">
+    import { page } from '$app/stores';
+    import { slide, fade } from 'svelte/transition';
+    import { invalidateAll } from '$app/navigation';
+
+    let { data } = $props();
+
+    let expandedUnits = $state<string[]>([]);
+    let unitTabs = $state<Record<string, 'PORTION' | 'QUESTIONS'>>({});
+    let newTopicNames = $state<Record<string, string>>({});
+
+    function toggleUnit(unitId: string) {
+        if (expandedUnits.includes(unitId)) {
+            expandedUnits = expandedUnits.filter(id => id !== unitId);
+        } else {
+            expandedUnits = [...expandedUnits, unitId];
+        }
+    }
+
+    async function addUnit(unitNumber: number) {
+        const res = await fetch('/api/assessments/units', {
+            method: 'POST',
+            body: JSON.stringify({ 
+                subject_id: data.subject.id,
+                unit_number: unitNumber,
+                name: `Unit ${unitNumber}`
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) invalidateAll();
+    }
+
+    async function deleteTopic(id: string) {
+        if (!confirm('Are you sure you want to delete this topic?')) return;
+        const res = await fetch(`/api/assessments/topics?id=${id}`, { method: 'DELETE' });
+        if (res.ok) invalidateAll();
+    }
+
+    async function deleteUnit(id: string) {
+        if (!confirm('Are you sure you want to delete this unit and all its topics?')) return;
+        const res = await fetch(`/api/assessments/units?id=${id}`, { method: 'DELETE' });
+        if (res.ok) invalidateAll();
+    }
+
+    async function addTopic(unitId: string) {
+        const name = newTopicNames[unitId];
+        if (!name) return;
+
+        const res = await fetch('/api/assessments/topics', {
+            method: 'POST',
+            body: JSON.stringify({ unit_id: unitId, name }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            newTopicNames[unitId] = '';
+            invalidateAll();
+        }
+    }
+
+    let fileInput: HTMLInputElement;
+    let isUploading = $state(false);
+
+    async function handleFileUpload(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) return;
+
+        isUploading = true;
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/assessments/parse-pdf', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const { text } = await res.json();
+                smartSyllabusText = text;
+                showSmartParser = true;
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.message || 'Failed to parse file'}`);
+            }
+        } catch (err) {
+            alert('Failed to parse file. Ensure it is a valid PDF.');
+        } finally {
+            isUploading = false;
+            target.value = ''; // Reset input
+        }
+    }
+
+    let qFileInput = $state<Record<string, HTMLInputElement>>({});
+    let mcqFileInput = $state<Record<string, HTMLInputElement>>({});
+    let isUploadingQuestions = $state<Record<string, boolean>>({});
+
+    async function handleQuestionUpload(unitId: string, event: Event, mode: 'normal' | 'mcq' = 'normal') {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) return;
+
+        isUploadingQuestions[unitId] = true;
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('unitId', unitId);
+        formData.append('subjectId', data.subject.id);
+        formData.append('mode', mode);
+
+        try {
+            const res = await fetch('/api/assessments/questions/upload', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const result = await res.json();
+                alert(`Successfully imported ${result.count} questions!`);
+                await invalidateAll();
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.message || 'Failed to upload questions'}`);
+            }
+        } catch (err) {
+            alert('Upload failed. Please try again.');
+        } finally {
+            isUploadingQuestions[unitId] = false;
+            target.value = '';
+        }
+    }
+
+    async function toggleImportant(qId: string, current: boolean) {
+        const res = await fetch('/api/assessments/questions', {
+            method: 'PATCH',
+            body: JSON.stringify({ id: qId, is_important: !current }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) invalidateAll();
+    }
+
+    let selectedQuestionIds = $state<string[]>([]);
+    function toggleSelectAll(unitId: string, event: Event) {
+        const checked = (event.target as HTMLInputElement).checked;
+        const unitQs = getUnitQuestions(unitId).map(q => q.id);
+        if (checked) {
+            selectedQuestionIds = [...new Set([...selectedQuestionIds, ...unitQs])];
+        } else {
+            selectedQuestionIds = selectedQuestionIds.filter(id => !unitQs.includes(id));
+        }
+    }
+
+    async function bulkDeleteQuestions() {
+        if (!confirm(`Are you sure you want to delete ${selectedQuestionIds.length} questions?`)) return;
+        
+        // Parallel deletion
+        await Promise.all(selectedQuestionIds.map(id => 
+            fetch(`/api/assessments/questions?id=${id}`, { method: 'DELETE' })
+        ));
+        
+        selectedQuestionIds = [];
+        invalidateAll();
+    }
+
+    async function deleteQuestion(qId: string) {
+        if (!confirm('Are you sure you want to delete this question?')) return;
+        const res = await fetch(`/api/assessments/questions?id=${qId}`, { method: 'DELETE' });
+        if (res.ok) invalidateAll();
+    }
+
+    let expandedQuestions = $state<string[]>([]);
+    function toggleQuestion(qId: string) {
+        if (expandedQuestions.includes(qId)) {
+            expandedQuestions = expandedQuestions.filter(id => id !== qId);
+        } else {
+            expandedQuestions = [...expandedQuestions, qId];
+        }
+    }
+
+    let editingQuestion = $state<any>(null);
+    let activeEditor = $state<'question' | 'answer' | null>(null);
+    let qEditorEl = $state<HTMLDivElement | null>(null);
+    let aEditorEl = $state<HTMLDivElement | null>(null);
+
+    async function handlePaste(e: ClipboardEvent, type: 'question' | 'answer') {
+        e.preventDefault();
+        const clipboardData = e.clipboardData;
+        if (!clipboardData) return;
+
+        // Try images first (take only the first one to avoid duplicates)
+        const items = Array.from(clipboardData.items);
+        const imageItem = items.find(item => item.type.indexOf('image') !== -1);
+        
+        if (imageItem) {
+            const file = imageItem.getAsFile();
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const imgHtml = `<img src="${event.target?.result}" class="max-w-full rounded-xl my-2 border border-blue-50/50 shadow-sm" style="display: block; margin: 0.5rem 0;" />`;
+                    document.execCommand('insertHTML', false, imgHtml);
+                };
+                reader.readAsDataURL(file);
+                return;
+            }
+        }
+
+        // Try HTML (for tables and formatting)
+        const html = clipboardData.getData('text/html');
+        if (html) {
+            document.execCommand('insertHTML', false, html);
+            return;
+        }
+
+        // Fallback to plain text
+        const text = clipboardData.getData('text/plain');
+        if (text) {
+            document.execCommand('insertText', false, text);
+        }
+    }
+
+    async function saveQuestion() {
+        if (!editingQuestion) return;
+        
+        const res = await fetch('/api/assessments/questions', {
+            method: 'PATCH',
+            body: JSON.stringify(editingQuestion),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            editingQuestion = null;
+            invalidateAll();
+        }
+    }
+
+    let showSmartParser = $state(false);
+    let smartSyllabusText = $state('');
+    let isImporting = $state(false);
+
+    let showSettings = $state(false);
+    let editedDifficultyLevels = $state<string[]>([]);
+    
+    // Tab control
+    let activeTab = $state<'SYLLABUS' | 'CO' | 'PRACTICALS'>('SYLLABUS');
+    
+    // Course Outcomes state
+    let courseOutcomes = $derived(data.courseOutcomes || []);
+    let newCOCode = $state('');
+    let newCODescription = $state('');
+    let editingCOId = $state<string | null>(null);
+
+    // Practicals state
+    let practicals = $derived(data.practicals || []);
+    let newPracticalName = $state('');
+    let editingPracticalId = $state<string | null>(null);
+
+    // Initialize difficulty levels from data
+    $effect(() => {
+        if (data.subject?.difficulty_levels) {
+            editedDifficultyLevels = [...data.subject.difficulty_levels];
+        } else {
+            editedDifficultyLevels = ['L1', 'L2', 'L3'];
+        }
+    });
+
+    async function saveCO() {
+        if (!newCOCode || !newCODescription) return;
+        const res = await fetch('/api/assessments/course-outcomes', {
+            method: editingCOId ? 'PATCH' : 'POST',
+            body: JSON.stringify({
+                id: editingCOId,
+                subject_id: data.subject.id,
+                code: newCOCode,
+                description: newCODescription
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            newCOCode = '';
+            newCODescription = '';
+            editingCOId = null;
+            await invalidateAll();
+        } else {
+            const err = await res.json();
+            alert(`Error saving Course Outcome: ${err.message || 'Unknown error'}`);
+        }
+    }
+
+    async function deleteCO(id: string) {
+        if (!confirm('Are you sure? This will unlink this CO from any questions.')) return;
+        const res = await fetch(`/api/assessments/course-outcomes?id=${id}`, { method: 'DELETE' });
+        if (res.ok) {
+            invalidateAll();
+        }
+    }
+
+    async function savePractical() {
+        if (!newPracticalName) return;
+        const res = await fetch('/api/assessments/practicals', {
+            method: editingPracticalId ? 'PATCH' : 'POST',
+            body: JSON.stringify({
+                id: editingPracticalId,
+                subject_id: data.subject.id,
+                name: newPracticalName
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            newPracticalName = '';
+            editingPracticalId = null;
+            await invalidateAll();
+        }
+    }
+
+    async function deletePractical(id: string) {
+        if (!confirm('Are you sure?')) return;
+        const res = await fetch(`/api/assessments/practicals?id=${id}`, { method: 'DELETE' });
+        if (res.ok) await invalidateAll();
+    }
+
+    function generateLevels(n: number) {
+        if (!n || n < 1) return;
+        editedDifficultyLevels = Array.from({ length: n }, (_, i) => `L${i + 1}`);
+    }
+
+    async function saveSettings() {
+        if (editedDifficultyLevels.length === 0) return alert('At least one difficulty level is required.');
+        
+        const res = await fetch(`/api/assessments/subjects`, {
+            method: 'PATCH',
+            body: JSON.stringify({ 
+                id: data.subject.id,
+                name: data.subject.name, 
+                difficulty_levels: editedDifficultyLevels.filter(l => l && l.trim().length > 0)
+            }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            showSettings = false;
+            await invalidateAll();
+            alert('Subject settings (Difficulty Levels) updated and saved successfully! 📏✅');
+        } else {
+            const err = await res.json();
+            alert(`Error saving settings: ${err.message || 'Unknown error'}`);
+        }
+    }
+
+    async function parseSmartSyllabus() {
+        if (!smartSyllabusText || isImporting) return;
+        
+        isImporting = true;
+        
+        const text = smartSyllabusText;
+        // Marker regex: stricter Unit/Module/Chapter detection
+        // Anchored to start of line or followed by space/colon
+        const markerRegex = /(?:^|\n)(?:Unit|Module|Chapter)[\s-]*(V|IV|III|II|I|1|2|3|4|5|One|Two|Three|Four|Five)[:\s]*([^\n]*)/gi;
+        
+        let modules: { num: number, name: string, content: string }[] = [];
+        let match;
+        let lastEnd = 0;
+        let lastModule: any = null;
+
+        const romanToNum: Record<string, number> = {
+            'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+            'ONE': 1, 'TWO': 2, 'THREE': 3, 'FOUR': 4, 'FIVE': 5
+        };
+
+        while ((match = markerRegex.exec(text)) !== null) {
+            if (lastModule) {
+                lastModule.content = text.substring(lastEnd, match.index).trim();
+            }
+
+            const val = match[1].toUpperCase();
+            const num = romanToNum[val] || parseInt(val) || 0;
+            const name = match[2].trim() || `Unit ${num}`;
+
+            if (num >= 1 && num <= 8) {
+                lastModule = { num, name, content: '' };
+                modules.push(lastModule);
+            }
+            lastEnd = match.index + match[0].length;
+        }
+
+        if (lastModule) {
+            let content = text.substring(lastEnd).trim();
+            // Boundary detection: Stop parsing if we hit References, Textbooks, Practicals, etc.
+            const boundaryMarkers = [
+                /\n\s*(?:TEXT\s*BOOKS?|REFERENCES?|LIST\s*OF\s*EXPERIMENTS|PRACTICALS?|LAB|COURSE\s*OUTCOMES?|CO[1-9])[:\s]*/i,
+                /\n\s*(?:L\s*T\s*P\s*C|Total\s*Hours|Credits)[:\s]*/i
+            ];
+
+            let earliestBoundary = content.length;
+            for (const marker of boundaryMarkers) {
+                const bMatch = content.match(marker);
+                if (bMatch && bMatch.index !== undefined && bMatch.index < earliestBoundary) {
+                    earliestBoundary = bMatch.index;
+                }
+            }
+            lastModule.content = content.substring(0, earliestBoundary).trim();
+        }
+
+        if (modules.length === 0) {
+            alert('No Unit/Module markers detected (e.g., "Module I" or "Unit 1"). Please ensure your text contains these markers (Units 1-5) and they start on new lines.');
+            isImporting = false;
+            return;
+        }
+
+        for (const mod of modules) {
+            // 1. Create/Ensure Unit exists
+            let unit = data.units.find(u => u.unit_number === mod.num);
+            if (!unit) {
+                const res = await fetch('/api/assessments/units', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        subject_id: data.subject.id, 
+                        unit_number: mod.num, 
+                        name: mod.name 
+                    }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (res.ok) unit = await res.json();
+            }
+
+            if (unit) {
+                // 2. Add topics & sub-topics
+                // Stricter filtering for noise (page numbers, Course Outcomes, etc.)
+                const lines = mod.content.split(/[\n;]+/)
+                    .map(t => t.trim())
+                    .filter(t => {
+                        // Skip page numbers (e.g. "Page 5" or just "5" on its own line)
+                        if (t.match(/^(?:Page\s*)?\d+$/i)) return false;
+                        // Skip likely marker residuals
+                        if (t.match(/^(?:Unit|Module|Chapter)/i)) return false;
+                        // Skip likely Course Outcome blocks if they are inside unit content
+                        if (t.match(/^CO[1-9]/i)) return false;
+                        // Skip headers like "Course Outcomes:" or "SYLLABUS:"
+                        if (t.match(/^(?:Course\s*Outcomes|SYLLABUS|Course\s*Objectives)[:\s]*/i)) return false;
+                        
+                        return t.length > 3;
+                    });
+
+                for (const line of lines) {
+                    if (line.includes(':')) {
+                        const parts = line.split(':');
+                        const topicName = parts[0].trim();
+                        const subTopics = parts.slice(1).join(':').split(/[,]+/).map(s => s.trim()).filter(s => s.length > 2);
+                        
+                        // Create parent topic
+                        const res = await fetch('/api/assessments/topics', {
+                            method: 'POST',
+                            body: JSON.stringify({ unit_id: unit.id, name: topicName }),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (res.ok) {
+                            const parent = await res.json();
+                            for (const sub of subTopics) {
+                                await fetch('/api/assessments/topics', {
+                                    method: 'POST',
+                                    body: JSON.stringify({ unit_id: unit.id, name: sub, parent_topic_id: parent.id }),
+                                    headers: { 'Content-Type': 'application/json' }
+                                });
+                            }
+                        }
+                    } else {
+                        await fetch('/api/assessments/topics', {
+                            method: 'POST',
+                            body: JSON.stringify({ unit_id: unit.id, name: line }),
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                }
+            }
+        }
+
+        // 3. Extract Practicals / Experiments
+        const practicalMarkers = /(?:LIST\s*OF\s*EXPERIMENTS|PRACTICALS?|LAB|LIST\s*OF\s*PRACTICALS|Practicals)[:\s]*([\s\S]*)/i;
+        const practicalMatch = text.match(practicalMarkers);
+        if (practicalMatch) {
+            const practicalText = practicalMatch[1].split(/(?:TEXT\s*BOOKS?|REFERENCES?|COURSE\s*OUTCOMES?|CO[1-9])/i)[0].trim();
+            const practicalLines = practicalText.split(/\n+/).map((l: string) => l.trim()).filter((l: string) => l.length > 5);
+            
+            for (const line of practicalLines) {
+                // Remove numbering (e.g. "1.", "1)")
+                const cleanedName = line.replace(/^\d+[\.\)\s-]+/, '').trim();
+                if (cleanedName) {
+                    await fetch('/api/assessments/practicals', {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            subject_id: data.subject.id, 
+                            name: cleanedName 
+                        }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+            }
+        }
+
+        // 4. Extract Course Outcomes (COs)
+        const coMarkers = /(?:Course\s*Outcomes?|CO[1-9])[:\s]*([\s\S]*)/i;
+        const coMatch = text.match(coMarkers);
+        if (coMatch) {
+            const coText = coMatch[1].split(/(?:TEXT\s*BOOKS?|REFERENCES?|LIST\s*OF\s*EXPERIMENTS|PRACTICALS?|LAB)/i)[0].trim();
+            const coLines = coText.split(/\n+/).map((l: string) => l.trim()).filter((l: string) => l.length > 5);
+            
+            for (const line of coLines) {
+                // Try to detect CO code like CO1, CO2
+                const codeMatch = line.match(/^(CO[1-9])/i);
+                const code = codeMatch ? codeMatch[1].toUpperCase() : `CO${data.courseOutcomes.length + 1}`;
+                const desc = line.replace(/^(?:CO[1-9])[:\s-]*/i, '').trim();
+                
+                if (desc) {
+                    await fetch('/api/assessments/course-outcomes', {
+                        method: 'POST',
+                        body: JSON.stringify({ 
+                            subject_id: data.subject.id, 
+                            code, 
+                            description: desc 
+                        }),
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+            }
+        }
+        
+        isImporting = false;
+        showSmartParser = false;
+        smartSyllabusText = '';
+        await invalidateAll();
+        alert('Syllabus and Course Outcomes imported successfully!');
+    }
+
+    // Helpers to get topics for a unit
+    function getRootTopics(unitId: string) {
+        return data.allTopics.filter((t: any) => t.unit_id === unitId && !t.parent_topic_id);
+    }
+
+    function getSubTopics(parentId: string) {
+        return data.allTopics.filter((t: any) => t.parent_topic_id === parentId);
+    }
+
+    function getUnitQuestions(unitId: string) {
+        return data.allQuestions.filter((q: any) => q.unit_id === unitId);
+    }
+</script>
+
+<div class="space-y-8">
+    <!-- Breadcrumbs & Header -->
+    <div class="space-y-4">
+        <div class="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <a href="/assessments?universityId={data.subject.university_id}" class="hover:text-indigo-600 transition-colors">Assessments</a>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+            <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="hover:text-indigo-600 transition-colors">{data.subject.branch_name}</a>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+            <span class="text-indigo-600">Syllabus</span>
+        </div>
+
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-4 mb-2">
+                    <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="inline-flex items-center gap-2 text-[9px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-all uppercase tracking-widest">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                        Back to Subjects
+                    </a>
+                </div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-black text-gray-900 tracking-tight uppercase">{data.subject.name}</h1>
+                    <span class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100">{data.subject.code || 'CS-XXXX'}</span>
+                    <button 
+                        onclick={() => showSettings = true}
+                        class="p-2 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                        aria-label="Subject Settings"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </button>
+                </div>
+                <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Syllabus Mapping & Topic Management • SEMESTER {data.subject.semester}</p>
+            </div>
+            
+            <div class="flex gap-3">
+                 <button 
+                    onclick={() => showSmartParser = true}
+                    class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-sm font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                    SMART PORTION IMPORT
+                </button>
+                 
+                 <input 
+                    type="file" 
+                    accept=".pdf,.docx" 
+                    class="hidden" 
+                    bind:this={fileInput}
+                    onchange={handleFileUpload}
+                 />
+                 
+                 <button 
+                    onclick={() => fileInput.click()}
+                    disabled={isUploading}
+                    class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-sm font-black rounded-2xl hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+                >
+                    {#if isUploading}
+                        <div class="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
+                        PARSING...
+                    {:else}
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        UPLOAD PDF
+                    {/if}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex gap-4 border-b border-gray-100">
+        <button 
+            onclick={() => activeTab = 'SYLLABUS'}
+            class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
+            {activeTab === 'SYLLABUS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+        >Syllabus & Units</button>
+        <button 
+            onclick={() => activeTab = 'PRACTICALS'}
+            class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
+            {activeTab === 'PRACTICALS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+        >Practicals (Experiments)</button>
+        <button 
+            onclick={() => activeTab = 'CO'}
+            class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
+            {activeTab === 'CO' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+        >Course Outcomes (CO)</button>
+    </div>
+
+    {#if activeTab === 'SYLLABUS'}
+        <!-- Units Grid -->
+        <div class="grid grid-cols-1 gap-6" in:fade>
+        {#each [1,2,3,4,5] as unitNum}
+            {@const unit = data.units.find(u => u.unit_number === unitNum)}
+            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all {unit && expandedUnits.includes(unit.id) ? 'ring-2 ring-indigo-500/20' : ''}">
+                <div 
+                    class="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-all" 
+                    role="button"
+                    tabindex="0"
+                    onclick={() => unit && toggleUnit(unit.id)}
+                    onkeydown={(e) => e.key === 'Enter' && unit && toggleUnit(unit.id)}
+                >
+                    <div class="flex items-center gap-6">
+                        <div class="w-14 h-14 rounded-2xl {unit ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-300'} flex flex-col items-center justify-center shadow-lg shadow-indigo-100 transition-all">
+                            <span class="text-[10px] font-black uppercase tracking-tighter opacity-70">Unit</span>
+                            <span class="text-xl font-black leading-none">{unitNum}</span>
+                        </div>
+                        <div>
+                            {#if unit}
+                                <h3 class="text-lg font-black text-gray-900 leading-tight uppercase tracking-tight">{unit.name || `Unit ${unitNum}`}</h3>
+                                <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">{getRootTopics(unit.id).length} Primary Topics</p>
+                            {:else}
+                                <button 
+                                    onclick={(e) => { e.stopPropagation(); addUnit(unitNum); }}
+                                    class="text-sm font-black text-indigo-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+                                >+ Initialize unit structure</button>
+                            {/if}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        {#if unit}
+                            <button 
+                                onclick={(e) => { e.stopPropagation(); deleteUnit(unit.id); }}
+                                class="p-2 text-gray-300 hover:text-red-500 transition-all"
+                                aria-label="Delete unit"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4s.5 0 1 0m-4 0a1 1 0 110-2h4a1 1 0 110 2"/></svg>
+                            </button>
+                            <svg class="w-5 h-5 text-gray-300 transition-transform {expandedUnits.includes(unit.id) ? 'rotate-180 text-indigo-500' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                        {/if}
+                    </div>
+                </div>
+
+                {#if unit && expandedUnits.includes(unit.id)}
+                    <div class="border-t border-gray-50 bg-gray-50/20" transition:slide>
+                        <!-- Unit Sub-Tabs -->
+                        <div class="flex border-b border-gray-100 bg-white/50 px-8">
+                            <button 
+                                onclick={() => unitTabs[unit.id] = 'PORTION'}
+                                class="px-6 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 
+                                {(unitTabs[unit.id] === 'PORTION' || !unitTabs[unit.id]) ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+                            >Portion (Topics)</button>
+                            <button 
+                                onclick={() => unitTabs[unit.id] = 'QUESTIONS'}
+                                class="px-6 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 
+                                {unitTabs[unit.id] === 'QUESTIONS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+                            >Question Bank</button>
+                        </div>
+
+                        <div class="p-8">
+                            {#if unitTabs[unit.id] === 'PORTION' || !unitTabs[unit.id]}
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" in:fade>
+                                    {#each getRootTopics(unit.id) as topic}
+                                        {@const subs = getSubTopics(topic.id)}
+                                        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm group hover:border-indigo-200 transition-all flex flex-col justify-between h-full relative">
+                                            <div class="w-full">
+                                                <div class="flex justify-between items-start mb-3">
+                                                    <h4 class="text-xs font-black text-gray-900 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{topic.name}</h4>
+                                                    <button 
+                                                        onclick={() => deleteTopic(topic.id)}
+                                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-300 hover:text-red-500"
+                                                        aria-label="Delete topic"
+                                                    >
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4s.5 0 1 0m-4 0a1 1 0 110-2h4a1 1 0 110 2"/></svg>
+                                                    </button>
+                                                </div>
+                                                
+                                                {#if subs.length > 0}
+                                                    <div class="space-y-1.5 mb-4 pl-3 border-l-2 border-indigo-50">
+                                                        {#each subs as sub}
+                                                            <div class="flex items-center justify-between group/sub">
+                                                                <span class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
+                                                                    <span class="w-1 h-1 rounded-full bg-indigo-300"></span>
+                                                                    {sub.name}
+                                                                </span>
+                                                                <button 
+                                                                    onclick={() => deleteTopic(sub.id)}
+                                                                    class="p-0.5 text-gray-200 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 transition-opacity"
+                                                                    aria-label="Delete sub-topic"
+                                                                >
+                                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                                                                </button>
+                                                            </div>
+                                                        {/each}
+                                                    </div>
+                                                {/if}
+                                            </div>
+
+                                            <div class="mt-4 border-t border-gray-50/50"></div>
+                                        </div>
+                                    {/each}
+
+                                    <div class="bg-indigo-50/30 p-4 rounded-2xl border border-dashed border-indigo-200 flex flex-col gap-3">
+                                        <input 
+                                            type="text" 
+                                            bind:value={newTopicNames[unit.id]}
+                                            placeholder="Topic/Concept Name"
+                                            class="w-full bg-white border-gray-200 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-indigo-500 py-2.5"
+                                        />
+                                        <button 
+                                            onclick={() => addTopic(unit.id)}
+                                            class="w-full py-2 bg-indigo-600 text-white text-[9px] font-black rounded-lg hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-lg shadow-indigo-100"
+                                        >ADD TOPIC</button>
+                                    </div>
+                                </div>
+                            {:else if unitTabs[unit.id] === 'QUESTIONS'}
+                                <div class="space-y-6" in:fade>
+                                    <div class="flex justify-between items-center">
+                                        {#if selectedQuestionIds.length > 0}
+                                            <div class="flex items-center gap-4 bg-red-50 px-6 py-3 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-left-4 duration-300">
+                                                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">{selectedQuestionIds.length} SELECTED</span>
+                                                <button 
+                                                    onclick={bulkDeleteQuestions}
+                                                    class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
+                                                >
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                    DELETE SELECTED
+                                                </button>
+                                            </div>
+                                        {:else}
+                                            <div>
+                                                <h4 class="text-sm font-black text-gray-900 uppercase tracking-tight">Unit {unitNum} Question Bank</h4>
+                                                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{getUnitQuestions(unit.id).length} Questions available</p>
+                                            </div>
+                                        {/if}
+                                        <div class="flex gap-3">
+                                            <input 
+                                                type="file" 
+                                                accept=".pdf,.docx" 
+                                                class="hidden" 
+                                                bind:this={qFileInput[unit.id]}
+                                                onchange={(e) => handleQuestionUpload(unit.id, e)}
+                                            />
+                                            <input 
+                                                type="file" 
+                                                accept=".pdf,.docx" 
+                                                class="hidden" 
+                                                bind:this={mcqFileInput[unit.id]}
+                                                onchange={(e) => handleQuestionUpload(unit.id, e, 'mcq')}
+                                            />
+                                            <button 
+                                                onclick={() => mcqFileInput[unit.id].click()}
+                                                disabled={isUploadingQuestions[unit.id]}
+                                                class="inline-flex items-center px-4 py-2 bg-slate-900 text-white text-[9px] font-black rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-100 disabled:opacity-50"
+                                            >
+                                                {#if isUploadingQuestions[unit.id]}
+                                                    <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                                    UPLOADING...
+                                                {:else}
+                                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                                                    UPLOAD MCQS
+                                                {/if}
+                                            </button>
+
+                                            <button 
+                                                onclick={() => qFileInput[unit.id].click()}
+                                                disabled={isUploadingQuestions[unit.id]}
+                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                                            >
+                                                {#if isUploadingQuestions[unit.id]}
+                                                    <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                                                    UPLOADING...
+                                                {:else}
+                                                    <svg class="w-3 h-3 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                                                    UPLOAD BANK
+                                                {/if}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Upload Guide -->
+                                    <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-4">
+                                        <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        </div>
+                                        <div>
+                                            <p class="text-[10px] font-black text-amber-900 uppercase tracking-widest leading-tight">Recognition Guide</p>
+                                            <p class="text-[9px] font-bold text-amber-700/70 mt-1">To auto-detect types, use headers like <span class="bg-white/50 px-1 rounded">"MCQ QUESTIONS"</span>, <span class="bg-white/50 px-1 rounded">"SHORT QUESTIONS"</span> or <span class="bg-white/50 px-1 rounded">"LONG QUESTIONS"</span> in your file. For MCQs, use <span class="bg-white/50 px-1 rounded">(a), (b), (c), (d)</span> on separate lines.</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead class="bg-gray-50/50">
+                                                <tr>
+                                                    <th class="px-6 py-4 w-10">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={getUnitQuestions(unit.id).every(q => selectedQuestionIds.includes(q.id)) && getUnitQuestions(unit.id).length > 0}
+                                                            onchange={(e) => toggleSelectAll(unit.id, e)}
+                                                            class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        />
+                                                    </th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Marks</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Question Details</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">CO</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Level</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Settings</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-50">
+                                                {#each getUnitQuestions(unit.id) as q}
+                                                    <tr class="group hover:bg-indigo-50/20 transition-all cursor-pointer" onclick={() => toggleQuestion(q.id)}>
+                                                        <td class="px-6 py-4" onclick={(e) => e.stopPropagation()}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedQuestionIds.includes(q.id)}
+                                                                onchange={() => {
+                                                                    if (selectedQuestionIds.includes(q.id)) selectedQuestionIds = selectedQuestionIds.filter(id => id !== q.id);
+                                                                    else selectedQuestionIds = [...selectedQuestionIds, q.id];
+                                                                }}
+                                                                class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                            />
+                                                        </td>
+                                                        <td class="px-6 py-4">
+                                                            <span class="px-2 py-1 bg-gray-50 text-gray-400 text-[8px] font-black rounded-lg border border-gray-100 uppercase group-hover:bg-white group-hover:text-indigo-600 group-hover:border-indigo-100 transition-all">{q.marks}M</span>
+                                                        </td>
+                                                         <td class="px-6 py-4">
+                                                            <div class="flex flex-col gap-1.5">
+                                                                <div class="text-[10px] font-bold text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors line-clamp-2">
+                                                                    {@html q.question_text}
+                                                                </div>
+                                                                {#if q.type && q.type !== 'NORMAL'}
+                                                                    <div class="flex gap-2">
+                                                                        <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-500 text-[8px] font-black rounded uppercase border border-indigo-100/50">{q.type}</span>
+                                                                    </div>
+                                                                {/if}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-6 py-4 text-center">
+                                                            <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">{q.co_code || '-'}</span>
+                                                        </td>
+                                                        <td class="px-6 py-4 text-center">
+                                                            <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-amber-400 transition-colors">{q.bloom_level || '-'}</span>
+                                                        </td>
+                                                        <td class="px-6 py-4 text-center">
+                                                            <button 
+                                                                onclick={(e) => { e.stopPropagation(); toggleImportant(q.id, q.is_important); }}
+                                                                class="p-2 transition-all {q.is_important ? 'text-amber-400' : 'text-gray-100 hover:text-gray-300'}"
+                                                                title={q.is_important ? "Important Question" : "Mark as Important"}
+                                                            >
+                                                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                                                            </button>
+                                                        </td>
+                                                        <td class="px-6 py-4 text-right">
+                                                            <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button 
+                                                                        onclick={(e) => { e.stopPropagation(); editingQuestion = {...q}; }}
+                                                                        aria-label="Edit Question"
+                                                                        class="p-2 text-gray-200 hover:text-indigo-500 transition-colors"
+                                                                    >
+                                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                                                    </button>
+                                                                    <button 
+                                                                        onclick={(e) => { e.stopPropagation(); deleteQuestion(q.id); }}
+                                                                        aria-label="Delete Question"
+                                                                        class="p-2 text-gray-200 hover:text-red-400 transition-colors"
+                                                                    >
+                                                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                                    </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {#if expandedQuestions.includes(q.id)}
+                                                        <tr class="bg-indigo-50/50">
+                                                            <td colspan="7" class="px-6 py-6 transition-all" transition:slide>
+                                                                <div class="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm">
+                                                                     <div class="flex justify-between items-center mb-4">
+                                                                        <h5 class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Question Details & Solution</h5>
+                                                                        <span class="text-[8px] font-bold text-gray-400 uppercase">{q.type || 'NORMAL'} • {q.marks} Marks • {q.co_code || 'No CO'} • {q.bloom_level || 'No Level'}</span>
+                                                                    </div>
+                                                                    
+                                                                    <div class="space-y-4">
+                                                                        {#if q.type === 'MCQ' && q.options && q.options.length > 0}
+                                                                            <div class="grid grid-cols-2 gap-3 mb-6">
+                                                                                {#each q.options as opt}
+                                                                                    <div class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold text-gray-600">
+                                                                                        {opt}
+                                                                                    </div>
+                                                                                {/each}
+                                                                            </div>
+                                                                        {/if}
+
+                                                                        <div class="bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">
+                                                                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Answer Key:</div>
+                                                                            {#if q.answer_key}
+                                                                                <div class="text-[10px] text-gray-700 leading-relaxed font-medium">
+                                                                                    {@html q.answer_key}
+                                                                                </div>
+                                                                            {:else}
+                                                                                <div class="text-[9px] font-bold text-gray-400 italic">No solution provided.</div>
+                                                                            {/if}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    {/if}
+                                                {:else}
+                                                    <tr>
+                                                        <td colspan="5" class="px-6 py-12 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                                                            No questions uploaded for this unit yet
+                                                        </td>
+                                                    </tr>
+                                                {/each}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+            {/each}
+        </div>
+    {:else if activeTab === 'PRACTICALS'}
+        <!-- Practicals Tab -->
+        <div class="space-y-6" in:fade>
+            <div class="bg-white p-8 rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-500/5 space-y-6">
+                <div>
+                    <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">List of Experiments / Practicals</h3>
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage lab experiments for {data.subject.name}</p>
+                </div>
+
+                <div class="flex gap-4 bg-gray-50/50 p-6 rounded-2xl border border-gray-100 items-center">
+                    <input 
+                        type="text" 
+                        bind:value={newPracticalName} 
+                        placeholder="e.g. Study of Logic Gates" 
+                        class="flex-1 bg-white border-gray-200 rounded-xl p-3 text-xs font-bold"
+                        onkeydown={(e) => e.key === 'Enter' && savePractical()}
+                    />
+                    <button 
+                        onclick={savePractical} 
+                        class="bg-indigo-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                    >
+                        {editingPracticalId ? 'Update' : 'Add Practical'}
+                    </button>
+                    {#if editingPracticalId}
+                        <button onclick={() => { editingPracticalId = null; newPracticalName = ''; }} class="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline">Cancel</button>
+                    {/if}
+                </div>
+
+                <div class="divide-y divide-gray-50">
+                    {#each practicals as practical, i}
+                        <div class="flex items-center justify-between py-4 group hover:bg-indigo-50/20 px-4 rounded-xl transition-all">
+                            <div class="flex items-center gap-6">
+                                <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-black border border-indigo-100">{i + 1}</span>
+                                <p class="text-xs font-semibold text-gray-700 uppercase tracking-tight">{practical.name}</p>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick={() => { editingPracticalId = practical.id; newPracticalName = practical.name; }} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" aria-label="Edit Practical">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                </button>
+                                <button onclick={() => deletePractical(practical.id)} class="p-2 text-gray-400 hover:text-red-500 transition-colors" aria-label="Delete Practical">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    {:else}
+                        <div class="text-center py-12">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Practicals Added Yet</p>
+                            <p class="text-[9px] text-gray-400 italic mt-1">Use 'Smart Portion Import' to automatically detect experiments</p>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {:else if activeTab === 'CO'}
+        <!-- Course Outcomes Tab -->
+        <div class="space-y-6" in:fade>
+            <div class="bg-white p-8 rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-500/5 space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">Manage Course Outcomes</h3>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Define the learning objectives for {data.subject.name}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                    <div class="space-y-2">
+                        <label for="co-code" class="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">CO Code</label>
+                        <input id="co-code" type="text" bind:value={newCOCode} placeholder="CO1" class="w-full bg-white border-gray-200 rounded-xl p-3 text-xs font-black uppercase" />
+                    </div>
+                    <div class="md:col-span-2 space-y-2">
+                        <label for="co-desc" class="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Description / mapping</label>
+                        <input id="co-desc" type="text" bind:value={newCODescription} placeholder="Master modern JavaScript concepts..." class="w-full bg-white border-gray-200 rounded-xl p-3 text-xs font-medium" />
+                    </div>
+                    <button onclick={saveCO} class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                        {editingCOId ? 'Update CO' : 'Add Outcome'}
+                    </button>
+                    {#if editingCOId}
+                        <button onclick={() => { editingCOId = null; newCOCode = ''; newCODescription = ''; }} class="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline mt-2">Discard Edits</button>
+                    {/if}
+                </div>
+
+                <div class="space-y-3">
+                    {#each courseOutcomes as co}
+                        <div class="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl group hover:border-indigo-200 transition-all">
+                            <div class="flex items-center gap-6">
+                                <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black border border-indigo-100 uppercase">{co.code}</span>
+                                <p class="text-xs font-semibold text-gray-600">{co.description}</p>
+                            </div>
+                            <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onclick={() => { editingCOId = co.id; newCOCode = co.code; newCODescription = co.description; }} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="Edit CO">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                                </button>
+                                <button onclick={() => deleteCO(co.id)} class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Delete CO">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+    {/if}
+</div>
+
+{#if showSmartParser}
+    <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300" transition:slide>
+            <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-indigo-50/30">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-900 leading-tight">Smart Syllabus Import</h2>
+                    <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest mt-1">AI-Powered Portion Detection</p>
+                </div>
+                <button 
+                    onclick={() => showSmartParser = false} 
+                    class="p-2 hover:bg-white rounded-xl transition-colors text-gray-400 hover:text-gray-900"
+                    aria-label="Close"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="p-8 space-y-6">
+                <div class="space-y-3">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
+                        Instructions
+                    </p>
+                    <div class="bg-gray-50 rounded-2xl p-4 text-[11px] font-bold text-gray-600 border border-gray-100 leading-relaxed">
+                        Paste your syllabus/portion below. The system will automatically detect <span class="bg-indigo-100 text-indigo-700 px-1.5 rounded">Unit 1-5</span> or <span class="bg-indigo-100 text-indigo-700 px-1.5 rounded">Module 1-5</span> markers and create topics for you. Use new lines or semicolons to separate topics within a unit.
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <label for="syllabusText" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Syllabus Text Chunk</label>
+                    <textarea 
+                        id="syllabusText"
+                        bind:value={smartSyllabusText}
+                        placeholder="e.g. Unit 1: Introduction to Web Design, HTML5 basics, CSS3 fundamentals...&#10;Unit 2: JavaScript basics, DOM manipulation..."
+                        class="w-full h-64 bg-gray-50 border-gray-100 rounded-3xl p-6 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-inner resize-none transition-all"
+                    ></textarea>
+                </div>
+
+                <div class="flex gap-4">
+                    <button 
+                        onclick={() => showSmartParser = false}
+                        class="flex-1 py-4 bg-gray-100 text-gray-500 text-xs font-black rounded-2xl hover:bg-gray-200 transition-all uppercase tracking-widest"
+                    >CANCEL</button>
+                    <button 
+                        onclick={parseSmartSyllabus}
+                        disabled={isImporting}
+                        class="flex-[2] py-4 bg-indigo-600 text-white text-xs font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {#if isImporting}
+                            <div class="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                            IMPORTING PORTION...
+                        {:else}
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            DETECTION & IMPORT
+                        {/if}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showSettings}
+    <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-300" transition:slide>
+            <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-indigo-50/30">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-900 leading-tight">Subject Settings</h2>
+                    <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest mt-1">Difficulty & Content Configuration</p>
+                </div>
+                <button 
+                    onclick={() => showSettings = false} 
+                    class="p-2 hover:bg-white rounded-xl transition-colors text-gray-400 hover:text-gray-900"
+                    aria-label="Close"
+                >
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="p-8 space-y-6">
+                <!-- Difficulty Levels -->
+                <div class="space-y-4">
+                    <div class="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 flex items-center justify-between gap-6">
+                        <div class="flex-1">
+                            <label for="level-gen" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Quick Generate Levels</label>
+                            <p class="text-[9px] text-indigo-400 italic">Enter a number (e.g. 5) to auto-create L1 to L5</p>
+                        </div>
+                        <select 
+                            id="level-gen"
+                            onchange={(e) => generateLevels(parseInt(e.currentTarget.value))}
+                            class="w-32 bg-white border-indigo-100 rounded-xl p-3 text-xs font-black focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
+                        >
+                            <option value="">Select</option>
+                            <option value="1">1 Level</option>
+                            <option value="2">2 Levels</option>
+                            <option value="3">3 Levels</option>
+                            <option value="4">4 Levels</option>
+                            <option value="5">5 Levels</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Configurable Difficulty Levels</span>
+                        <p class="text-[9px] text-gray-400 ml-1 mb-3 italic">Define the Bloom's Taxonomy or difficulty levels (e.g., L1, L2, L3, Advanced)</p>
+                        
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            {#each editedDifficultyLevels as level, i}
+                                <div class="flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                                    <input 
+                                        type="text" 
+                                        bind:value={editedDifficultyLevels[i]}
+                                        class="bg-transparent border-none p-0 text-xs font-black text-indigo-600 focus:ring-0 w-20"
+                                    />
+                                    <button 
+                                        onclick={() => editedDifficultyLevels = editedDifficultyLevels.filter((_, idx) => idx !== i)}
+                                        class="p-0.5 text-indigo-300 hover:text-red-500 transition-colors"
+                                        title="Remove Level"
+                                    >
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                            {/each}
+                            
+                            <button 
+                                onclick={() => editedDifficultyLevels = [...editedDifficultyLevels, '']}
+                                class="px-3 py-1.5 bg-white border border-dashed border-gray-200 rounded-xl text-[10px] font-black text-gray-400 hover:bg-gray-50 hover:border-indigo-300 transition-all"
+                            >+ ADD LEVEL</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-6 border-t border-gray-50 flex justify-end gap-3">
+                    <button 
+                        onclick={() => showSettings = false}
+                        class="px-8 py-3 bg-white text-gray-400 text-sm font-black rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
+                    >CANCEL</button>
+                    <button 
+                        onclick={saveSettings}
+                        class="px-8 py-3 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                    >SAVE SETTINGS</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if editingQuestion}
+<div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
+    <div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl" transition:slide>
+        <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div>
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">Edit Question</h3>
+                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Modify question details and answer</p>
+            </div>
+            <button onclick={() => editingQuestion = null} class="p-2 text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        
+        <div class="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+            <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex gap-2 sticky top-0 z-10 backdrop-blur-sm">
+                <button 
+                    onmousedown={(e) => { e.preventDefault(); document.execCommand('bold', false); }}
+                    aria-label="Bold" title="Bold"
+                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                >Bold</button>
+                <button 
+                    onmousedown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList', false); }}
+                    aria-label="List" title="List"
+                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                >List</button>
+                <button 
+                    onmousedown={(e) => {
+                        e.preventDefault();
+                        const rows = prompt("Number of rows?", "2");
+                        const cols = prompt("Number of columns?", "2");
+                        if (rows && cols) {
+                            let table = '<table style="width:100%; border-collapse: collapse; border: 1px solid #e5e7eb; margin: 1rem 0;">';
+                            for (let r=0; r<parseInt(rows); r++) {
+                                table += '<tr>';
+                                for (let c=0; c<parseInt(cols); c++) {
+                                    table += '<td style="border: 1px solid #e5e7eb; padding: 0.5rem; font-size: 10px; min-width: 50px;">Cell</td>';
+                                }
+                                table += '</tr>';
+                            }
+                            table += '</table>';
+                            document.execCommand('insertHTML', false, table);
+                        }
+                    }} 
+                    aria-label="Insert Table" title="Insert Table"
+                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                >Table+</button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Marks</label>
+                    <input type="number" bind:value={editingQuestion.marks} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20" />
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">CO Code</label>
+                    <select bind:value={editingQuestion.co_id} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
+                        <option value={null}>None</option>
+                        {#each data.courseOutcomes as co}
+                            <option value={co.id}>{co.code}</option>
+                        {/each}
+                        {#if data.courseOutcomes.length === 0}
+                            <option disabled>No COs defined</option>
+                        {/if}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Level</label>
+                    <select bind:value={editingQuestion.bloom_level} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
+                        <option value="L1">L1 - Remember</option>
+                        <option value="L2">L2 - Understand</option>
+                        <option value="L3">L3 - Apply</option>
+                        <option value="L4">L4 - Analysis</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Category</label>
+                    <select bind:value={editingQuestion.type} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
+                        <option value="NORMAL">Normal</option>
+                        <option value="SHORT">Short</option>
+                        <option value="LONG">Long</option>
+                        <option value="MCQ">MCQ</option>
+                    </select>
+                </div>
+            </div>
+
+            {#if editingQuestion.type === 'MCQ'}
+                <div class="space-y-4 p-6 bg-indigo-50/30 rounded-[2rem] border border-indigo-100">
+                    <div class="flex justify-between items-center">
+                        <label class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">MCQ Options</label>
+                        <button 
+                            onclick={() => editingQuestion.options = [...(editingQuestion.options || []), `(${String.fromCharCode(97 + (editingQuestion.options?.length || 0))}) Option Text`]}
+                            class="px-2 py-1 bg-white border border-indigo-100 rounded-lg text-[8px] font-black text-indigo-600 uppercase"
+                        >+ Option</button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">
+                        {#each editingQuestion.options || [] as opt, idx}
+                            <div class="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    bind:value={editingQuestion.options[idx]}
+                                    class="flex-1 bg-white border-gray-100 rounded-xl text-[10px] font-bold py-2.5 px-4 focus:ring-2 focus:ring-indigo-500/20"
+                                />
+                                <button 
+                                    onclick={() => editingQuestion.options = editingQuestion.options.filter((_: any, i: number) => i !== idx)}
+                                    class="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
+            <div>
+                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Question Text</label>
+                <div 
+                    bind:this={qEditorEl}
+                    bind:innerHTML={editingQuestion.question_text}
+                    contenteditable="true" 
+                    onfocus={() => activeEditor = 'question'}
+                    onpaste={(e) => handlePaste(e, 'question')}
+                    class="w-full bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[100px] outline-none overflow-y-auto rich-editor"
+                ></div>
+            </div>
+
+            <div>
+                <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Answer / Solution</label>
+                <div 
+                    bind:this={aEditorEl}
+                    bind:innerHTML={editingQuestion.answer_key}
+                    contenteditable="true" 
+                    onfocus={() => activeEditor = 'answer'}
+                    onpaste={(e) => handlePaste(e, 'answer')}
+                    class="w-full bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[150px] outline-none overflow-y-auto rich-editor"
+                ></div>
+                <p class="text-[8px] font-bold text-gray-300 uppercase mt-2">Paste images directly or use buttons for tables and formatting</p>
+            </div>
+        </div>
+
+        <div class="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-4">
+            <button 
+                onclick={() => editingQuestion = null}
+                class="flex-1 py-4 bg-white text-gray-400 text-[10px] font-black rounded-2xl hover:bg-gray-100 transition-all uppercase tracking-widest border border-gray-200"
+            >CANCEL</button>
+            <button 
+                onclick={saveQuestion}
+                class="flex-[2] py-4 bg-indigo-600 text-white text-[10px] font-black rounded-2xl hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-xl shadow-indigo-100"
+            >SAVE CHANGES</button>
+        </div>
+    </div>
+</div>
+{/if}
+
+<style>
+    :global(.tracking-widest) {
+        letter-spacing: 0.15em;
+    }
+    :global(.rich-editor table) {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+    :global(.rich-editor td) {
+        border: 1px solid #e5e7eb;
+        padding: 0.5rem;
+    }
+    :global(.rich-editor img) {
+        max-width: 100%;
+        border-radius: 0.5rem;
+    }
+</style>

@@ -1,8 +1,15 @@
 const NIAT_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5Yb1laLiB-hpiL8dBfVkaW7VcyLdyWxuWGQ&s";
 
 export class TemplateRenderer {
-    static render(content: string, variables: Record<string, any> = {}, options: { includeAck?: boolean; trackingToken?: string; baseUrl?: string; config?: any; noLayout?: boolean } = {}): string {
-        let rendered = content;
+    public static render(template: string, variables: any, options: { includeAck?: boolean, trackingToken?: string, baseUrl?: string, config?: any, noLayout?: boolean } = {}): string {
+        console.log(`[TEMPLATE_RENDER_V2.5] Rendering template...`);
+        if (!template) return '';
+        // Flatten variables to ensure metadata keys are treated as root keys for matching
+        const vars = {
+            ...variables,
+            ...(variables.metadata || {})
+        };
+        let rendered = template;
 
         // STEP 1: Auto-inject Dynamic Table (ONLY if placeholder exists)
         const tableMarker = "{{TABLE}}";
@@ -27,9 +34,9 @@ export class TemplateRenderer {
                 // Process placeholders in row values
                 const processedRows = tableRows.map((r: any) => ({
                     label: r.label,
-                    value: String(r.value || '').replace(/\{\{(.*?)\}\}/g, (m: string, rawKey: string) => {
+                    value: String(r.value || '').replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
                         const key = rawKey.trim();
-                        const val = this.getValueByPath(variables, key);
+                        const val = this.getValueByPath(vars, key);
                         return val !== undefined && val !== null ? String(val) : m;
                     })
                 }));
@@ -49,9 +56,9 @@ export class TemplateRenderer {
             let btnUrl = options?.config?.payButton?.url || '{{ACTION_BUTTON}}';
 
             // Resolve placeholders in the URL itself if it's a dynamic field
-            btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/g, (m: string, rawKey: string) => {
+            btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
                 const key = rawKey.trim();
-                const val = this.getValueByPath(variables, key);
+                const val = this.getValueByPath(vars, key);
                 return val !== undefined && val !== null ? String(val) : m;
             });
 
@@ -73,9 +80,12 @@ export class TemplateRenderer {
         }
 
         // STEP 3: Process remaining placeholders {{key}} (AFTER components are injected)
-        rendered = rendered.replace(/\{\{(.*?)\}\}/g, (match, rawKey) => {
+        rendered = rendered.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
             const key = rawKey.trim();
-            const value = this.getValueByPath(variables, key);
+            const value = this.getValueByPath(vars, key);
+            if (value === undefined) {
+                console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}" (normalized: "${key.trim()}")`);
+            }
             return value !== undefined && value !== null ? String(value) : match;
         });
 
@@ -157,37 +167,73 @@ export class TemplateRenderer {
 
     private static getValueByPath(obj: any, path: string): any {
         if (!path) return undefined;
+
+        const normalize = (s: string) => {
+            if (!s) return '';
+            return s.toLowerCase()
+                .replace(/<[^>]*>/g, ' ')            // Strip HTML tags
+                .replace(/&nbsp;/g, ' ')             // Resolve entities
+                .replace(/&amp;/g, '&')
+                .replace(/&lt;/g, '<')
+                .replace(/&gt;/g, '>')
+                .replace(/&quot;/g, '"')
+                .replace(/[\n\r\t]+/g, ' ')          // NEW: Explicitly replace newlines/tabs with spaces
+                .replace(/[\s_]+/g, ' ')             // Standardize remaining whitespace/underscores
+                .trim();
+        };
+        const searchPath = normalize(path);
+
+        // 1. Full path match (Fuzzy whitespace & Case-insensitive)
+        const checkObj = (target: any) => {
+            if (!target || typeof target !== 'object') return undefined;
+
+            const keys = Object.keys(target);
+
+            // 1.1 Direct fuzzy match (normalized whitespace and underscores)
+            const key = keys.find(k => normalize(k) === searchPath);
+            if (key) return target[key];
+
+            // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
+            // This bridges: "COUPON_CODE", "coupon codes", "CouponCode", "Coupon Code"
+            const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const searchAlpha = alphaOnly(searchPath); // FIX: Use searchPath instead of raw path
+
+            if (searchAlpha) {
+                const alphaKey = keys.find(k => alphaOnly(k) === searchAlpha);
+                if (alphaKey) return target[alphaKey];
+
+                // 1.3 Pluralization-aware Alphanumeric match (ignores trailing 's')
+                const singularAlpha = (s: string) => alphaOnly(s).replace(/s$/, '');
+                const searchSingular = singularAlpha(searchPath); // FIX: Use searchPath
+                const singularKey = keys.find(k => singularAlpha(k) === searchSingular);
+                if (singularKey) return target[singularKey];
+            }
+
+            return undefined;
+        };
+
+        const fromRoot = checkObj(obj);
+        if (fromRoot !== undefined) return fromRoot;
+
+        const fromMetadata = checkObj(obj.metadata);
+        if (fromMetadata !== undefined) return fromMetadata;
+
+        // 2. Deep path match (a.b.c)
         const parts = path.split('.');
-        let current = obj;
-
-        // Root level checks
-        if (parts.length === 1) {
-            const searchPart = parts[0].toLowerCase().trim();
-
-            // 1. Direct match
-            if (obj[parts[0]] !== undefined) return obj[parts[0]];
-
-            // 2. Metadata match
-            if (obj.metadata && obj.metadata[parts[0]] !== undefined) return obj.metadata[parts[0]];
-
-            // 3. Case-insensitive & trimmed search in metadata
-            if (obj.metadata) {
-                const key = Object.keys(obj.metadata).find(k => k.toLowerCase().trim() === searchPart);
-                if (key) return obj.metadata[key];
+        if (parts.length > 1) {
+            let current = obj;
+            for (const part of parts) {
+                if (current && typeof current === 'object') {
+                    const key = Object.keys(current).find(k => normalize(k) === normalize(part));
+                    current = key ? current[key] : undefined;
+                } else {
+                    current = undefined;
+                    break;
+                }
             }
-
-            // 4. Case-insensitive & trimmed search in root object
-            const rootKey = Object.keys(obj).find(k => k.toLowerCase().trim() === searchPart);
-            if (rootKey) return obj[rootKey];
+            if (current !== undefined) return current;
         }
 
-        for (const part of parts) {
-            if (current && typeof current === 'object' && part in current) {
-                current = current[part];
-            } else {
-                return undefined;
-            }
-        }
-        return current;
+        return undefined;
     }
 }

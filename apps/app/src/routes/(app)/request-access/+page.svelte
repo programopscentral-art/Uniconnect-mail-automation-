@@ -28,7 +28,7 @@
             });
 
             if (res.ok) {
-                message = 'Access request sent successfully! You will be notified once admin approves.';
+                message = 'Request has been sent to your admin wait until they accept';
                 selectedUniversities = [];
             } else {
                 const d = await res.json();

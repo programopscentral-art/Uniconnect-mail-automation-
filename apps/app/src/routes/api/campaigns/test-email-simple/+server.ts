@@ -125,17 +125,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const sampleStudent = students[0];
 
         const mockVariables = {
-            STUDENT_NAME: sampleStudent?.name || 'John Doe',
-            TERM_FEE: sampleStudent?.metadata?.['2nd Sem Fee'] || sampleStudent?.metadata?.['fee'] || '10,000',
-            ACTION_BUTTON: config?.payButton?.url || sampleStudent?.metadata?.['Payment link'] || 'https://payment.niat.edu.in/sample',
-            COUPON_CODE: sampleStudent?.metadata?.['coupon code'] || 'WELCOME2026',
-            TABLE: '', // Renderer will handle this if config is passed
-            metadata: sampleStudent?.metadata || {
-                'STUDENT_NAME': 'John Doe',
-                'TERM_FEE': '10,000',
-                'ACTION_BUTTON': config?.actionButtonUrl || 'https://payment.example.com',
-                'COUPON_CODE': 'WELCOME2026'
-            }
+            STUDENT_NAME: sampleStudent?.name || sampleStudent?.full_name || '',
+            ...sampleStudent,
+            ...(sampleStudent?.metadata || {})
         };
 
         const renderConfig = config;
