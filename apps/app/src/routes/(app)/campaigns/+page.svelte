@@ -6,6 +6,10 @@
   let { data } = $props();
 
   let selectedUniversityId = $state(data.selectedUniversityId || '');
+
+  $effect(() => {
+    selectedUniversityId = data.selectedUniversityId || '';
+  });
   let campaigns = $derived(data.campaigns);
 
   onMount(() => {

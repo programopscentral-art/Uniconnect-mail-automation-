@@ -3,7 +3,7 @@
     import { onMount } from 'svelte';
     // @ts-ignore
     let { data } = $props();
-    const { invite } = data;
+    let invite = $derived(data.invite);
 
     // Store token in cookie when landing on this page to ensure callback can find it
     // even if the user logs in with a different email (e.g. alias)

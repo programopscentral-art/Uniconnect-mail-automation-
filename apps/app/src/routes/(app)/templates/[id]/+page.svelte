@@ -15,6 +15,19 @@
     actionButtonText: data.template.config?.actionButtonText ?? 'Click Here',
     actionButtonUrl: data.template.config?.actionButtonUrl ?? ''
   });
+
+  $effect(() => {
+    name = data.template.name;
+    subject = data.template.subject;
+    html = data.template.html;
+    config = {
+      showTable: data.template.config?.showTable ?? false,
+      tableRows: data.template.config?.tableRows ?? [],
+      showActionButton: data.template.config?.showActionButton ?? false,
+      actionButtonText: data.template.config?.actionButtonText ?? 'Click Here',
+      actionButtonUrl: data.template.config?.actionButtonUrl ?? ''
+    };
+  });
   let isSaving = $state(false);
   let isSendingTest = $state(false);
   let testEmail = $state('');

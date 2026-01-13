@@ -5,6 +5,10 @@
 
   let selectedUniversityId = $state(data.selectedUniversityId || '');
 
+  $effect(() => {
+    selectedUniversityId = data.selectedUniversityId || '';
+  });
+
   function onUnivChange() {
       if (selectedUniversityId) goto(`?universityId=${selectedUniversityId}`);
   }

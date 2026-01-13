@@ -35,9 +35,14 @@
         title: '',
         description: '',
         priority: 'MEDIUM',
-        assigned_to: data.userId, // Default to self
-        university_id: data.defaultUniversityId || '',
+        assigned_to: '',
+        university_id: '',
         due_date: new Date().toISOString().slice(0, 16)
+    });
+
+    $effect(() => {
+        if (!taskForm.assigned_to) taskForm.assigned_to = data.userId;
+        if (!taskForm.university_id) taskForm.university_id = data.defaultUniversityId || '';
     });
 
     let isSaving = $state(false);

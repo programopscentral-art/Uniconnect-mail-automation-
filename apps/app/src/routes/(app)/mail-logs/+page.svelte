@@ -11,6 +11,10 @@
     let isLoading = $state(true);
     let universityId = $state((data.user?.university_id as string) || '');
 
+    $effect(() => {
+        universityId = (data.user?.university_id as string) || '';
+    });
+
     async function fetchLogs() {
         isLoading = true;
         try {

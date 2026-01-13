@@ -3,7 +3,11 @@
     // @ts-ignore
     let { data } = $props();
 
-    let selectedDate = $state(data.selectedDate);
+  let selectedDate = $state(data.selectedDate);
+
+  $effect(() => {
+    selectedDate = data.selectedDate;
+  });
 
     function onDateChange() {
         goto(`?date=${selectedDate}`);

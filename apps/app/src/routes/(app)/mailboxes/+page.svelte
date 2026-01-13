@@ -7,6 +7,11 @@
   let isLoading = $state(false);
   let mailboxes = $state(data.mailboxes);
 
+  $effect(() => {
+    selectedUniversityId = data.userUniversityId || '';
+    mailboxes = data.mailboxes;
+  });
+
   async function loadMailboxes() {
       if (!selectedUniversityId) return;
       isLoading = true;
