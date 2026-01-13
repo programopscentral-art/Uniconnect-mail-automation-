@@ -27,10 +27,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         throw error(400, 'Email and Role are required');
     }
 
-    const targetUniversityId = isGlobalAdmin ? data.university_id : locals.user?.university_id;
+    // Handle both single university_id and multiple university_ids
+    const universityIds = data.university_ids || (data.university_id ? [data.university_id] : []);
+    const targetUniversityIds = isGlobalAdmin ? universityIds : (locals.user?.university_id ? [locals.user.university_id] : []);
 
-    if ((data.role === 'UNIVERSITY_OPERATOR' || !isGlobalAdmin) && !targetUniversityId) {
-        throw error(400, 'University is required');
+    if ((data.role === 'UNIVERSITY_OPERATOR' || !isGlobalAdmin) && targetUniversityIds.length === 0) {
+        throw error(400, 'At least one university is required');
     }
 
     try {
@@ -39,7 +41,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             email: data.email,
             name: data.name || '',
             role: data.role,
-            university_id: targetUniversityId || null
+            university_ids: targetUniversityIds
         });
 
         // Enqueue Invitation Email

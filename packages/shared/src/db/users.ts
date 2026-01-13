@@ -30,28 +30,63 @@ export async function getUserById(id: string) {
 
 export async function getAllUsers(universityId?: string) {
     let query = `
-    SELECT u.*, un.name as university_name 
+    SELECT u.*, 
+           u_univ.name as university_name,
+           COALESCE(
+               json_agg(
+                   json_build_object('id', uu_univ.id, 'name', uu_univ.name)
+               ) FILTER (WHERE uu_univ.id IS NOT NULL),
+               '[]'::json
+           ) as universities
     FROM users u 
-    LEFT JOIN universities un ON u.university_id = un.id 
+    LEFT JOIN universities u_univ ON u.university_id = u_univ.id
+    LEFT JOIN user_universities uu ON u.id = uu.user_id
+    LEFT JOIN universities uu_univ ON uu.university_id = uu_univ.id
     WHERE u.is_active = true
   `;
     const params: any[] = [];
     if (universityId) {
-        query += ` AND u.university_id = $1 `;
+        query += ` AND (u.university_id = $1 OR uu.university_id = $1) `;
         params.push(universityId);
     }
-    query += ` ORDER BY u.created_at DESC `;
+    query += ` GROUP BY u.id, u_univ.name ORDER BY u.created_at DESC `;
 
     const result = await db.query(query, params);
-    return result.rows as (User & { university_name: string | null })[];
+    return result.rows as (User & { university_name: string | null; universities: Array<{ id: string; name: string }> })[];
 }
 
-export async function createUser(data: { email: string; name: string; role: UserRole; university_id?: string | null }) {
+export async function createUser(data: {
+    email: string;
+    name: string;
+    role: UserRole;
+    university_id?: string | null;
+    university_ids?: string[];  // New: array of university IDs
+}) {
+    // Create the user with primary university_id (for backward compatibility)
+    const primaryUniversityId = data.university_ids?.[0] || data.university_id || null;
+
     const result = await db.query(
         `INSERT INTO users (email, name, role, university_id) VALUES ($1, $2, $3, $4) RETURNING *`,
-        [data.email, data.name, data.role, data.university_id || null]
+        [data.email, data.name, data.role, primaryUniversityId]
     );
-    return result.rows[0] as User;
+
+    const user = result.rows[0] as User;
+
+    // If university_ids array is provided, insert into junction table
+    if (data.university_ids && data.university_ids.length > 0) {
+        const values = data.university_ids.map((univId, idx) =>
+            `($1, $${idx + 2})`
+        ).join(', ');
+
+        await db.query(
+            `INSERT INTO user_universities (user_id, university_id) 
+             VALUES ${values} 
+             ON CONFLICT (user_id, university_id) DO NOTHING`,
+            [user.id, ...data.university_ids]
+        );
+    }
+
+    return user;
 }
 
 export async function updateUser(id: string, data: {
@@ -63,19 +98,51 @@ export async function updateUser(id: string, data: {
     profile_picture_url?: string | null;
     role?: UserRole;
     university_id?: string | null;
+    university_ids?: string[];  // New: array of university IDs
     is_active?: boolean
 }) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let i = 1;
+    // Extract university_ids before updating the user table
+    const { university_ids, ...userData } = data;
 
-    Object.entries(data).forEach(([key, val]) => {
-        fields.push(`${key} = $${i++}`);
-        values.push(val);
-    });
+    // Update primary university_id if university_ids is provided
+    if (university_ids && university_ids.length > 0) {
+        userData.university_id = university_ids[0];
+    }
 
-    values.push(id);
-    await db.query(`UPDATE users SET ${fields.join(', ')} WHERE id = $${i}`, values);
+    // Update user table fields
+    if (Object.keys(userData).length > 0) {
+        const fields: string[] = [];
+        const values: any[] = [];
+        let i = 1;
+
+        Object.entries(userData).forEach(([key, val]) => {
+            fields.push(`${key} = $${i++}`);
+            values.push(val);
+        });
+
+        values.push(id);
+        await db.query(`UPDATE users SET ${fields.join(', ')} WHERE id = $${i}`, values);
+    }
+
+    // Update junction table if university_ids is provided
+    if (university_ids !== undefined) {
+        // Delete existing associations
+        await db.query(`DELETE FROM user_universities WHERE user_id = $1`, [id]);
+
+        // Insert new associations
+        if (university_ids.length > 0) {
+            const values = university_ids.map((univId, idx) =>
+                `($1, $${idx + 2})`
+            ).join(', ');
+
+            await db.query(
+                `INSERT INTO user_universities (user_id, university_id) 
+                 VALUES ${values} 
+                 ON CONFLICT (user_id, university_id) DO NOTHING`,
+                [id, ...university_ids]
+            );
+        }
+    }
 }
 
 export async function deleteUser(id: string) {

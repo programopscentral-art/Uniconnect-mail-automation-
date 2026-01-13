@@ -11,11 +11,12 @@
   let email = $state('');
   let name = $state('');
   let role = $state<string>('UNIVERSITY_OPERATOR');
-  let universityId = $state('');
+  let universityIds = $state<string[]>([]);  // Changed from single string to array
   let editingUserId = $state<string | null>(null);
   let phone = $state('');
   let bio = $state('');
   let displayName = $state('');
+  let showUniversityDropdown = $state(false);  // For multi-select dropdown
 
   let activeTab = $state<'users' | 'requests'>('users');
   let accessRequests = $state<any[]>([]);
@@ -55,7 +56,7 @@
             bio,
             display_name: displayName || name,
             role,
-            university_id: (role !== 'ADMIN' && role !== 'PROGRAM_OPS') ? universityId : null
+            university_ids: (role !== 'ADMIN' && role !== 'PROGRAM_OPS') ? universityIds : []
         };
         
         const method = editingUserId ? 'PATCH' : 'POST';
@@ -95,7 +96,8 @@
       bio = user.bio || '';
       displayName = user.display_name || '';
       role = user.role;
-      universityId = user.university_id || '';
+      // Load universities from the universities array if available
+      universityIds = user.universities?.map((u: any) => u.id) || (user.university_id ? [user.university_id] : []);
       showModal = true;
   }
 
@@ -108,7 +110,15 @@
       bio = '';
       displayName = '';
       role = 'UNIVERSITY_OPERATOR';
-      universityId = '';
+      universityIds = [];
+  }
+
+  function toggleUniversity(univId: string) {
+      if (universityIds.includes(univId)) {
+          universityIds = universityIds.filter(id => id !== univId);
+      } else {
+          universityIds = [...universityIds, univId];
+      }
   }
 
   async function deleteUser(id: string) {
@@ -472,13 +482,45 @@
 
             {#if data.isGlobalAdmin}
             <div class="col-span-2">
-                <label for="f-univ" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Assign to Institution</label>
-                <select id="f-univ" bind:value={universityId} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
-                    <option value="">Select University</option>
-                    {#each data.universities as univ}
-                        <option value={univ.id}>{univ.name}</option>
-                    {/each}
-                </select>
+                <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Assign to Institutions</label>
+                <div class="relative">
+                    <button
+                        type="button"
+                        onclick={() => showUniversityDropdown = !showUniversityDropdown}
+                        class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all text-left flex items-center justify-between"
+                    >
+                        <span class="truncate">
+                            {#if universityIds.length === 0}
+                                Select Universities
+                            {:else if universityIds.length === 1}
+                                {data.universities.find(u => u.id === universityIds[0])?.name || '1 selected'}
+                            {:else}
+                                {universityIds.length} universities selected
+                            {/if}
+                        </span>
+                        <svg class="w-4 h-4 ml-2 transition-transform {showUniversityDropdown ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    
+                    {#if showUniversityDropdown}
+                        <div class="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
+                            <div class="p-2 space-y-1">
+                                {#each data.universities as univ}
+                                    <label class="flex items-center gap-3 px-3 py-2 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors">
+                                        <input
+                                            type="checkbox"
+                                            checked={universityIds.includes(univ.id)}
+                                            onchange={() => toggleUniversity(univ.id)}
+                                            class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span class="text-sm font-semibold text-gray-700">{univ.name}</span>
+                                    </label>
+                                {/each}
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </div>
             {/if}
         </div>
