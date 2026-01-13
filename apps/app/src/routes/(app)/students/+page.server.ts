@@ -12,12 +12,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     if (locals.user.role === 'UNIVERSITY_OPERATOR') {
         universityId = locals.user.university_id;
+    } else if (!universityId && locals.user.university_id) {
+        // Default to active session university if no query param
+        universityId = locals.user.university_id;
     }
 
     const [students, totalCount, universities] = await Promise.all([
-        universityId ? getStudents(universityId, limit, offset) : Promise.resolve([]),
-        universityId ? getStudentsCount(universityId) : Promise.resolve(0),
-        locals.user.role === 'ADMIN' ? getAllUniversities() : Promise.resolve([])
+        getStudents(universityId || undefined, limit, offset),
+        getStudentsCount(universityId || undefined),
+        locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([])
     ]);
 
     return {

@@ -11,16 +11,21 @@ export interface Student {
     created_at: Date;
 }
 
-export async function getStudents(universityId: string, limit = 100, offset = 0) {
-    const result = await db.query(
-        `SELECT * FROM students WHERE university_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
-        [universityId, limit, offset]
-    );
+export async function getStudents(universityId?: string, limit = 100, offset = 0) {
+    const query = universityId
+        ? [`SELECT * FROM students WHERE university_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [universityId, limit, offset]]
+        : [`SELECT * FROM students ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]];
+
+    const result = await db.query(query[0] as string, query[1] as any[]);
     return result.rows as Student[];
 }
 
-export async function getStudentsCount(universityId: string) {
-    const result = await db.query(`SELECT COUNT(*) as count FROM students WHERE university_id = $1`, [universityId]);
+export async function getStudentsCount(universityId?: string) {
+    const query = universityId
+        ? [`SELECT COUNT(*) as count FROM students WHERE university_id = $1`, [universityId]]
+        : [`SELECT COUNT(*) as count FROM students`, []];
+
+    const result = await db.query(query[0] as string, query[1] as any[]);
     return parseInt(result.rows[0].count);
 }
 

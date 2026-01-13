@@ -8,11 +8,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     let universityId = url.searchParams.get('universityId');
     if (locals.user.role === 'UNIVERSITY_OPERATOR') {
         universityId = locals.user.university_id;
+    } else if (!universityId && locals.user.university_id) {
+        universityId = locals.user.university_id;
     }
 
     const [templates, universities] = await Promise.all([
-        universityId ? getTemplates(universityId) : Promise.resolve([]),
-        locals.user.role === 'ADMIN' ? getAllUniversities() : Promise.resolve([])
+        getTemplates(universityId || undefined),
+        locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([])
     ]);
 
     return {

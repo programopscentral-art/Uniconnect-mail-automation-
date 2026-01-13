@@ -45,15 +45,18 @@ export async function createCampaign(data: {
     return result.rows[0] as Campaign;
 }
 
-export async function getCampaigns(universityId: string) {
+export async function getCampaigns(universityId?: string) {
+    const whereClause = universityId ? `WHERE c.university_id = $1` : ``;
+    const params = universityId ? [universityId] : [];
+
     const result = await db.query(
         `SELECT c.*, t.name as template_name, m.email as mailbox_email 
          FROM campaigns c
          JOIN templates t ON c.template_id = t.id
          JOIN mailbox_connections m ON c.mailbox_id = m.id
-         WHERE c.university_id = $1
+         ${whereClause}
          ORDER BY c.created_at DESC`,
-        [universityId]
+        params
     );
     return result.rows;
 }

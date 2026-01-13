@@ -12,10 +12,13 @@ export interface Template {
     updated_at: Date;
 }
 
-export async function getTemplates(universityId: string) {
+export async function getTemplates(universityId?: string) {
+    const whereClause = universityId ? `WHERE university_id = $1` : ``;
+    const params = universityId ? [universityId] : [];
+
     const result = await db.query(
-        `SELECT * FROM templates WHERE university_id = $1 ORDER BY created_at DESC`,
-        [universityId]
+        `SELECT * FROM templates ${whereClause} ORDER BY created_at DESC`,
+        params
     );
     return result.rows as Template[];
 }

@@ -14,9 +14,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }
 
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const universityId = url.searchParams.get('universityId') || undefined;
+    const universityId = url.searchParams.get('universityId') || locals.user.university_id || undefined;
 
-    const report = await getDayPlanReport(date, universityId);
+    const report = await getDayPlanReport(date, universityId === 'ALL' ? undefined : universityId);
 
     return {
         report,

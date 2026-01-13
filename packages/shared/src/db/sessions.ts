@@ -12,6 +12,7 @@ export interface SessionUser {
     bio: string | null;
     age: number | null;
     profile_picture_url: string | null;
+    universities: { id: string, name: string }[];
 }
 
 const SESSION_TTL_HOURS = 168; // 7 days
@@ -34,7 +35,17 @@ export async function validateSession(token: string): Promise<SessionUser | null
 
     const result = await db.query(
         `
-    SELECT u.id, u.email, u.role, u.university_id, u.name, u.display_name, u.phone, u.bio, u.age, u.profile_picture_url
+    SELECT 
+        u.id, u.email, u.role, u.university_id, u.name, u.display_name, u.phone, u.bio, u.age, u.profile_picture_url,
+        COALESCE(
+            (
+                SELECT json_agg(json_build_object('id', un.id, 'name', un.name))
+                FROM user_universities uu
+                JOIN universities un ON uu.university_id = un.id
+                WHERE uu.user_id = u.id
+            ),
+            '[]'::json
+        ) as universities
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token_hash = $1 AND s.expires_at > NOW()

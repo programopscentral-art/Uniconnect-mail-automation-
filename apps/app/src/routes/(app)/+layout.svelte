@@ -42,6 +42,22 @@
     } catch (e) {}
   }
 
+  import { invalidateAll } from '$app/navigation';
+  async function switchUniversity(univId: string) {
+    try {
+        const res = await fetch('/api/auth/active-university', {
+            method: 'POST',
+            body: JSON.stringify({ universityId: univId }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        if (res.ok) {
+            invalidateAll();
+        }
+    } catch (e) {
+        console.error('Failed to switch university', e);
+    }
+  }
+
   import { onMount } from 'svelte';
   onMount(() => {
     fetchNotifications();
@@ -174,6 +190,35 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto bg-gray-50 focus:outline-none scrollbar-hide">
     <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
+        
+        <!-- Institutional Context Selector -->
+        {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
+          <div class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-2xl shadow-sm">
+            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest hidden sm:block">Context:</span>
+            <select 
+              value={user.university_id || 'ALL'} 
+              onchange={(e) => switchUniversity(e.currentTarget.value)}
+              class="bg-transparent border-none text-[10px] font-black text-indigo-600 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none"
+            >
+              {#if user.role === 'ADMIN' || user.role === 'PROGRAM_OPS'}
+                <option value="ALL">All Institutions</option>
+              {/if}
+              {#if user.universities}
+                {#each user.universities as univ}
+                  <option value={univ.id}>{univ.name}</option>
+                {/each}
+              {/if}
+            </select>
+          </div>
+        {:else if user?.university_id}
+          <!-- Single University Display (ReadOnly) -->
+           <div class="px-4 py-2 bg-white border border-gray-100 rounded-2xl opacity-60">
+              <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                {user.universities?.find((u:any) => u.id === user.university_id)?.name || 'Member Access'}
+              </span>
+           </div>
+        {/if}
+
         <!-- Account Hub Header -->
         <a 
           href="/profile" 
