@@ -34,33 +34,80 @@ export async function createSession(userId: string): Promise<string> {
 export async function validateSession(token: string): Promise<SessionUser | null> {
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
-    const result = await db.query(
-        `
-    SELECT 
-        u.id, u.email, u.role, u.university_id, u.name, u.display_name, u.phone, u.bio, u.age, u.profile_picture_url,
-        COALESCE(
-            (
-                SELECT json_agg(json_build_object('id', un.id, 'name', un.name))
-                FROM user_universities uu
-                JOIN universities un ON uu.university_id = un.id
-                WHERE uu.user_id = u.id
-            ),
-            '[]'::json
-        ) as universities,
-        COALESCE(rp.features, '[]'::jsonb) as permissions
-    FROM sessions s
-    JOIN users u ON s.user_id = u.id
-    LEFT JOIN role_permissions rp ON u.role = rp.role
-    WHERE s.token_hash = $1 AND s.expires_at > NOW()
-    `,
-        [tokenHash]
-    );
+    try {
+        const result = await db.query(
+            `
+        SELECT 
+            u.id, u.email, u.role, u.university_id, u.name, u.display_name, u.phone, u.bio, u.age, u.profile_picture_url,
+            COALESCE(
+                (
+                    SELECT json_agg(json_build_object('id', un.id, 'name', un.name))
+                    FROM user_universities uu
+                    JOIN universities un ON uu.university_id = un.id
+                    WHERE uu.user_id = u.id
+                ),
+                '[]'::json
+            ) as universities,
+            COALESCE(rp.features, '[]'::jsonb) as permissions
+        FROM sessions s
+        JOIN users u ON s.user_id = u.id
+        LEFT JOIN role_permissions rp ON u.role = rp.role
+        WHERE s.token_hash = $1 AND s.expires_at > NOW()
+        `,
+            [tokenHash]
+        );
 
-    if (result.rows.length === 0) {
-        return null;
+        if (result.rows.length === 0) {
+            return null;
+        }
+
+        return result.rows[0];
+    } catch (e: any) {
+        // Fallback for when role_permissions table doesn't exist yet
+        if (e.code === '42P01') { // relation does not exist
+            const result = await db.query(
+                `
+            SELECT 
+                u.id, u.email, u.role, u.university_id, u.name, u.display_name, u.phone, u.bio, u.age, u.profile_picture_url,
+                COALESCE(
+                    (
+                        SELECT json_agg(json_build_object('id', un.id, 'name', un.name))
+                        FROM user_universities uu
+                        JOIN universities un ON uu.university_id = un.id
+                        WHERE uu.user_id = u.id
+                    ),
+                    '[]'::json
+                ) as universities
+            FROM sessions s
+            JOIN users u ON s.user_id = u.id
+            WHERE s.token_hash = $1 AND s.expires_at > NOW()
+            `,
+                [tokenHash]
+            );
+
+            if (result.rows.length === 0) {
+                return null;
+            }
+
+            const user = result.rows[0];
+            // Provide default permissions based on role if table matches the list of features
+            const allFeatures = [
+                'dashboard', 'tasks', 'universities', 'students', 'users',
+                'analytics', 'mailboxes', 'templates', 'campaigns',
+                'assessments', 'mail-logs', 'permissions'
+            ];
+
+            if (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
+                user.permissions = allFeatures;
+            } else {
+                // Safe subset for other roles if they somehow get in before migration
+                user.permissions = ['dashboard', 'tasks', 'students'];
+            }
+
+            return user;
+        }
+        throw e;
     }
-
-    return result.rows[0];
 }
 
 export async function invalidateSession(token: string): Promise<void> {
