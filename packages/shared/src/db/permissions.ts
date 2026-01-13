@@ -12,6 +12,22 @@ export async function getAllRolePermissions(): Promise<RolePermission[]> {
     return result.rows;
 }
 
+export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
+    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "permissions"],
+    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "permissions"],
+    'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments"],
+    'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
+    'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
+    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
+    'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"]
+};
+
+export async function seedDefaultPermissions(): Promise<void> {
+    for (const [role, features] of Object.entries(DEFAULT_ROLE_PERMISSIONS)) {
+        await updateRolePermissions(role, features);
+    }
+}
+
 export async function getRolePermissions(role: string): Promise<string[]> {
     const result = await db.query(`SELECT features FROM role_permissions WHERE role = $1`, [role]);
     if (result.rows.length === 0) {

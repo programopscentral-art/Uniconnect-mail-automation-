@@ -19,7 +19,7 @@
   ];
 
   let selectedRole = $state(roles[0]);
-  let rolePermissions = $state<any[]>([]);
+  let permissionsState = $state<Record<string, string[]>>({});
   let isLoading = $state(true);
   let isSaving = $state(false);
 
@@ -29,11 +29,13 @@
       const res = await fetch('/api/admin/permissions');
       if (res.ok) {
         const data = await res.json();
-        // Merge with known roles to ensure all roles are present
-        rolePermissions = roles.map(role => {
+        // Initialize all roles with fetched data or empty arrays
+        const newState: Record<string, string[]> = {};
+        roles.forEach(role => {
           const existing = data.find((p: any) => p.role === role);
-          return existing || { role, features: [], created_at: new Date(), updated_at: new Date() };
+          newState[role] = existing ? (existing.features || []) : [];
         });
+        permissionsState = newState;
       }
     } catch (e) {
       console.error(e);
@@ -42,19 +44,36 @@
     }
   }
 
+  async function restoreDefaults() {
+      if (!confirm('This will overwrite ALL role permissions with system defaults. Continue?')) return;
+      isSaving = true;
+      try {
+          const res = await fetch('/api/admin/permissions', { method: 'PATCH' });
+          if (res.ok) {
+              const data = await res.json();
+              const newState: Record<string, string[]> = {};
+              roles.forEach(role => {
+                  const existing = data.find((p: any) => p.role === role);
+                  newState[role] = existing ? (existing.features || []) : [];
+              });
+              permissionsState = newState;
+              alert('Default permissions restored successfully.');
+          }
+      } catch (e) {
+          alert('Failed to restore defaults.');
+      } finally {
+          isSaving = false;
+      }
+  }
+
   onMount(fetchPermissions);
 
-  let currentFeatures = $derived(
-    rolePermissions.find(p => p.role === selectedRole)?.features || []
-  );
+  let currentFeatures = $derived(permissionsState[selectedRole] || []);
 
   async function toggleFeature(featureId: string) {
-    if (isSaving) return;
+    if (isSaving || !permissionsState[selectedRole]) return;
     
-    const roleIndex = rolePermissions.findIndex(p => p.role === selectedRole);
-    if (roleIndex === -1) return;
-
-    const originalFeatures = [...rolePermissions[roleIndex].features];
+    const originalFeatures = [...(permissionsState[selectedRole] || [])];
     let updatedFeatures = [...originalFeatures];
 
     if (updatedFeatures.includes(featureId)) {
@@ -63,16 +82,12 @@
         updatedFeatures.push(featureId);
     }
 
-    // Protection for Admins - don't let them disable permissions for themselves easily
     if (selectedRole === 'ADMIN' && featureId === 'permissions' && !updatedFeatures.includes('permissions')) {
-        if (!confirm('Warning: You are about to disable this page for Admins. You might lose access to manage these permissions. Continue?')) return;
+        if (!confirm('Warning: You are about to disable this page for Admins. Continue?')) return;
     }
 
-    // Optimistic UI Update
-    // Svelte 5 $state reactivity for arrays of objects:
-    // Directly modifying an object property within an array ($state) will trigger reactivity.
-    // If rolePermissions was a primitive array, we'd need to create a new array for reactivity.
-    rolePermissions[roleIndex].features = updatedFeatures;
+    // Direct assignment to Record trigger reactivity
+    permissionsState[selectedRole] = updatedFeatures;
     isSaving = true;
 
     try {
@@ -82,22 +97,17 @@
         body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
       });
       
-      if (!res.ok) {
-        throw new Error('Failed to save permissions');
-      }
+      if (!res.ok) throw new Error();
     } catch (e) {
-      console.error('Failed to sync permissions:', e);
-      // Revert on failure
-      rolePermissions[roleIndex].features = originalFeatures;
-      alert('Failed to sync permission. Please try again.');
+      permissionsState[selectedRole] = originalFeatures;
+      alert('Failed to sync permission.');
     } finally {
       isSaving = false;
     }
   }
 
   function getFeatureStatus(role: string, featureId: string) {
-      const p = rolePermissions.find(rp => rp.role === role);
-      return p?.features?.includes(featureId) || false;
+      return (permissionsState[role] || []).includes(featureId);
   }
 </script>
 
@@ -118,6 +128,13 @@
             </div>
         </div>
     </div>
+    <button 
+        onclick={restoreDefaults}
+        disabled={isSaving || isLoading}
+        class="px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 hover:border-indigo-200 transition-all disabled:opacity-50"
+    >
+        Restore System Defaults
+    </button>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
@@ -135,7 +152,7 @@
           >
             <div class="text-left">
               <span class="block text-sm font-black {selectedRole === role ? 'text-indigo-600' : 'text-gray-700'} uppercase tracking-tight">{role}</span>
-              <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{rolePermissions.find(p => p.role === role)?.features?.length || 0} Features Active</span>
+              <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{(permissionsState[role] || []).length} Features Active</span>
             </div>
             {#if selectedRole === role}
               <div transition:fly={{ x: 10, duration: 200 }} class="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-200"></div>
