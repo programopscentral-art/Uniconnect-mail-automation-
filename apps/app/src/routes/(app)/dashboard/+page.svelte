@@ -362,7 +362,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
             <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 4000)</span></h1>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 5000)</span></h1>
                 <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
             </div>
             </div>

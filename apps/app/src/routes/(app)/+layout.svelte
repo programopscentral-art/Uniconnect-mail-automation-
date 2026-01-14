@@ -247,7 +247,7 @@
       </div>
     </div>
 
-    <div class="flex-1 w-full flex flex-col items-center overflow-hidden">
+    <div class="w-full flex-shrink-0 flex flex-col items-center">
       <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-4">
         {@render children()}
       </div>
