@@ -73,7 +73,7 @@
   let currentFeatures = $derived(permissionsState[selectedRole] || []);
 
   async function toggleFeature(featureId: string) {
-    if (isSaving || !permissionsState[selectedRole]) return;
+    if (!permissionsState[selectedRole]) return;
     
     const originalFeatures = [...(permissionsState[selectedRole] || [])];
     let updatedFeatures = [...originalFeatures];
@@ -88,36 +88,34 @@
         if (!confirm('Warning: You are about to disable this page for Admins. Continue?')) return;
     }
 
-    // PHASE 1: Instant UI Update (Optimistic)
+    // PHASE 1: Instant UI Update (Zero Latency)
+    // We update the state Record directly. Svelte 5 will trigger all dependent UI parts immediately.
     permissionsState[selectedRole] = updatedFeatures;
     
-    // PHASE 2: Background Sync
-    (async () => {
-        isSaving = true;
-        try {
-          const res = await fetch('/api/admin/permissions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
-          });
-          
-          if (!res.ok) throw new Error('Failed to save');
-          
-          // Background revalidation for sidebar - non blocking for the matrix UI
-          invalidateAll();
-        } catch (e) {
-          // Revert state ONLY on hard failure
-          permissionsState[selectedRole] = originalFeatures;
-          alert(`Sync failed. Reverting selection. ${e.message}`);
-        } finally {
-          isSaving = false;
-        }
-    })();
+    // PHASE 2: Background Sync (Non-blocking)
+    syncToServer(selectedRole, updatedFeatures, originalFeatures);
   }
 
-  function toggleFeatureViaBinding(featureId: string, checked: boolean) {
-      // Small helper to bridge bind:checked if needed, but onchange is cleaner for specific logic
-      toggleFeature(featureId);
+  async function syncToServer(role: string, features: string[], fallback: string[]) {
+      isSaving = true;
+      try {
+        const res = await fetch('/api/admin/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role, features })
+        });
+        
+        if (!res.ok) throw new Error('Sync failed');
+        
+        // Quietly update sidebar data
+        invalidateAll();
+      } catch (e: any) {
+        // Only revert on hard error, and inform the user
+        permissionsState[role] = fallback;
+        alert(`Could not save changes: ${e.message}. Settings have been reverted.`);
+      } finally {
+        isSaving = false;
+      }
   }
 
   function getFeatureStatus(role: string, featureId: string) {
@@ -129,7 +127,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1400)</p>
+      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1500)</p>
     </div>
     <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
         <div class="flex items-center gap-3">
@@ -206,12 +204,8 @@
                   <input 
                     type="checkbox" 
                     checked={currentFeatures.includes(feature.id)}
-                    onclick={(e) => {
-                        e.preventDefault(); // Stop native toggle
-                        toggleFeature(feature.id);
-                    }}
+                    onchange={() => toggleFeature(feature.id)}
                     class="sr-only peer"
-                    disabled={isSaving}
                   >
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
