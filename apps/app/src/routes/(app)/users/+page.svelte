@@ -180,7 +180,7 @@
   <!-- Header & Navigation -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
     <div>
-      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Team Members</h1>
+      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Team Members <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1900)</span></h1>
       <p class="mt-1 text-gray-500 font-medium">Manage your team and their access.</p>
     </div>
     

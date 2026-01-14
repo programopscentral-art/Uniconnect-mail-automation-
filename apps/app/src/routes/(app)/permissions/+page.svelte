@@ -123,11 +123,11 @@
   }
 </script>
 
-<div class="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+<div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1500)</p>
+      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 1900)</p>
     </div>
     <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
         <div class="flex items-center gap-3">

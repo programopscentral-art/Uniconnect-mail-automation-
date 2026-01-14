@@ -189,7 +189,7 @@
       ></div>
   {/if}
   <!-- Main Content -->
-  <main class="flex-1 overflow-auto bg-gray-50 focus:outline-none scrollbar-hide">
+  <main class="flex-1 overflow-auto bg-gray-50 focus:outline-none">
     <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md border-b border-gray-100/50">
       <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
         

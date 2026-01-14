@@ -222,7 +222,7 @@
 <div class="space-y-6">
   <div class="flex flex-wrap justify-between items-center gap-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1800)</span></h1>
+      <h1 class="text-2xl font-bold text-gray-900">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1900)</span></h1>
       <p class="mt-1 text-sm text-gray-500">Manage your student recipients and data imports.</p>
     </div>
     <div class="flex flex-wrap items-center gap-3">

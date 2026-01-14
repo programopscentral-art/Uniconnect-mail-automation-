@@ -356,13 +356,15 @@
     }
 </script>
 
-<div class="flex flex-col 2xl:flex-row gap-8 min-h-screen relative p-2 md:p-6" in:fade>
+<div class="flex flex-col 2xl:flex-row gap-8 min-h-screen relative" in:fade>
     <!-- Main Content Area (Left) -->
     <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1800)</span></h1>
+            <div>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1900)</span></h1>
                 <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
+            </div>
             </div>
             {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
                 <div class="w-full sm:w-auto">
@@ -505,7 +507,7 @@
                                     <td colspan="5" class="px-8 py-16 text-center">
                                         <div class="flex flex-col items-center">
                                             <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-2xl mb-4">📭</div>
-                                            <p class="text-xs font-black text-gray-400 uppercase tracking-widest">No Active Telemetry</p>
+                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Active Telemetry</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -660,7 +662,7 @@
 
         <!-- Quick Actions -->
         <div class="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden shadow-floating">
-            <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-transparent"></div>
+            <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700"></div>
             <h3 class="relative z-10 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
             <div class="relative z-10 space-y-4">
                 <button onclick={() => showTaskModal = true} class="w-full flex items-center p-5 rounded-2xl bg-white text-gray-900 hover:scale-[1.02] transition-all font-black shadow-xl group hover:shadow-floating">
