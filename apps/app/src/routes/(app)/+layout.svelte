@@ -247,8 +247,8 @@
       </div>
     </div>
 
-    <div class="py-2">
-      <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8">
+    <div class="py-4 flex flex-col items-center">
+      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8">
         {@render children()}
       </div>
     </div>
