@@ -54,7 +54,7 @@
 <div class="space-y-8 pb-12">
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
-      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Universities <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 2200)</span></h1>
+      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Universities <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 3000)</span></h1>
       <p class="mt-1 text-gray-500 font-medium">Manage your university partners and connections.</p>
     </div>
     <button 

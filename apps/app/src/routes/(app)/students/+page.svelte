@@ -219,10 +219,10 @@
     }
 </script>
 
-<div class="space-y-6">
+<div class="space-y-6 min-w-0 max-w-full overflow-hidden">
   <div class="flex flex-wrap justify-between items-center gap-4">
     <div class="flex-grow min-w-0">
-      <h1 class="text-2xl font-bold text-gray-900 truncate">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 2200)</span></h1>
+      <h1 class="text-2xl font-bold text-gray-900 truncate">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 3000)</span></h1>
       <p class="mt-0.5 text-sm text-gray-500 truncate">Manage your student recipients and data imports.</p>
     </div>
     <div class="flex flex-wrap items-center gap-3">
@@ -262,7 +262,7 @@
     </div>
   {/if}
 
-  <div class="bg-white shadow-floating rounded-[2rem] border border-gray-100 overflow-hidden relative">
+  <div class="bg-white shadow-floating rounded-[2rem] border border-gray-100 relative">
     <div class="overflow-x-auto w-full">
     <table class="min-w-full divide-y divide-gray-100">
       <thead class="bg-gray-50">
