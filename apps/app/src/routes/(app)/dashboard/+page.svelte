@@ -361,7 +361,7 @@
     <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1700)</span></h1>
+                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1800)</span></h1>
                 <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
             </div>
             {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
