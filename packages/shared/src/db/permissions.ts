@@ -1,5 +1,16 @@
 import { db } from './client';
 
+export async function ensurePermissionsTableExists(): Promise<void> {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS role_permissions (
+            role VARCHAR(50) PRIMARY KEY,
+            features JSONB NOT NULL DEFAULT '[]'::jsonb,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+    `);
+}
+
 export interface RolePermission {
     role: string;
     features: string[];
@@ -40,11 +51,11 @@ export async function updateRolePermissions(role: string, features: string[]): P
     try {
         await db.query(
             `INSERT INTO role_permissions (role, features, updated_at) 
-             VALUES ($1, $2::jsonb, NOW()) 
+             VALUES ($1, $2, NOW()) 
              ON CONFLICT (role) DO UPDATE SET 
                 features = EXCLUDED.features,
                 updated_at = NOW()`,
-            [role, features]
+            [role, JSON.stringify(features)]
         );
     } catch (e) {
         console.error(`[DB_PERMISSIONS_ERROR] Failed to update role ${role}:`, e);

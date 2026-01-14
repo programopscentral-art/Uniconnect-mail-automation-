@@ -1,18 +1,24 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getAllRolePermissions, updateRolePermissions, seedDefaultPermissions } from '@uniconnect/shared';
+import { getAllRolePermissions, updateRolePermissions, seedDefaultPermissions, ensurePermissionsTableExists } from '@uniconnect/shared';
 
 export const GET: RequestHandler = async ({ locals }) => {
     if (!locals.user || (locals.user.role !== 'ADMIN' && locals.user.role !== 'PROGRAM_OPS')) {
         throw error(403, 'Forbidden');
     }
 
-    let permissions = await getAllRolePermissions();
-    if (permissions.length === 0) {
-        await seedDefaultPermissions();
-        permissions = await getAllRolePermissions();
+    try {
+        await ensurePermissionsTableExists();
+        let permissions = await getAllRolePermissions();
+        if (permissions.length === 0) {
+            await seedDefaultPermissions();
+            permissions = await getAllRolePermissions();
+        }
+        return json(permissions);
+    } catch (e: any) {
+        console.error('[API_PERMISSIONS_GET_ERROR]', e.message);
+        throw error(500, `Database initialization failed: ${e.message}`);
     }
-    return json(permissions);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {

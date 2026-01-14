@@ -86,7 +86,7 @@
         if (!confirm('Warning: You are about to disable this page for Admins. Continue?')) return;
     }
 
-    // Direct assignment to Record trigger reactivity
+    // Direct assignment to Record trigger reactivity immediately
     permissionsState[selectedRole] = updatedFeatures;
     isSaving = true;
 
@@ -97,13 +97,19 @@
         body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
       });
       
-      if (!res.ok) throw new Error();
+      if (!res.ok) throw new Error('Failed to save');
     } catch (e) {
+      // Revert state if server sync fails
       permissionsState[selectedRole] = originalFeatures;
-      alert('Failed to sync permission.');
+      alert(`Sync failed. Your selection has been reverted. Please ensure your internet is stable. Error: ${e.message}`);
     } finally {
       isSaving = false;
     }
+  }
+
+  function toggleFeatureViaBinding(featureId: string, checked: boolean) {
+      // Small helper to bridge bind:checked if needed, but onchange is cleaner for specific logic
+      toggleFeature(featureId);
   }
 
   function getFeatureStatus(role: string, featureId: string) {
@@ -115,7 +121,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1100)</p>
+      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1200)</p>
     </div>
     <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
         <div class="flex items-center gap-3">
@@ -189,11 +195,13 @@
             {#each features as feature (feature.id)}
               <div class="p-8 hover:bg-gray-50/50 transition-all flex items-start gap-4">
                 <label class="relative inline-flex items-center cursor-pointer mt-1">
-                  <!-- Simplified toggle with click handler instead of complex binding for more control -->
                   <input 
                     type="checkbox" 
                     checked={currentFeatures.includes(feature.id)}
-                    onchange={() => toggleFeature(feature.id)}
+                    onclick={(e) => {
+                        e.preventDefault(); // Stop native toggle
+                        toggleFeature(feature.id);
+                    }}
                     class="sr-only peer"
                     disabled={isSaving}
                   >
