@@ -191,7 +191,7 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto bg-gray-50 focus:outline-none scrollbar-hide">
     <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md border-b border-gray-100/50">
-      <div class="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
+      <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
@@ -248,7 +248,7 @@
     </div>
 
     <div class="py-2">
-      <div class="max-w-[1440px] mx-auto px-4 sm:px-6 md:px-8">
+      <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8">
         {@render children()}
       </div>
     </div>

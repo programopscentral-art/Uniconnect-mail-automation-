@@ -222,21 +222,21 @@
 <div class="space-y-6">
   <div class="flex flex-wrap justify-between items-center gap-4">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1700)</span></h1>
+      <h1 class="text-2xl font-bold text-gray-900">Contact List <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 1800)</span></h1>
       <p class="mt-1 text-sm text-gray-500">Manage your student recipients and data imports.</p>
     </div>
-    <div class="flex space-x-3">
+    <div class="flex flex-wrap items-center gap-3">
         {#if data.students.length > 0}
             <button 
                 onclick={deleteAllStudents}
-                class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none"
+                class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none flex-shrink-0"
             >
                 Delete All
             </button>
         {/if}
         <button 
             onclick={() => showUploadModal = true}
-            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none relative"
+            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none relative flex-shrink-0"
         >
             <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             Import CSV/Excel
