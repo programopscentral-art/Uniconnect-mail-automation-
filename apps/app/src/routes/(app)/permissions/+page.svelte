@@ -88,26 +88,31 @@
         if (!confirm('Warning: You are about to disable this page for Admins. Continue?')) return;
     }
 
-    // Direct assignment to Record trigger reactivity immediately
+    // PHASE 1: Instant UI Update (Optimistic)
     permissionsState[selectedRole] = updatedFeatures;
-    isSaving = true;
-
-    try {
-      const res = await fetch('/api/admin/permissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
-      });
-      
-      if (!res.ok) throw new Error('Failed to save');
-      await invalidateAll();
-    } catch (e) {
-      // Revert state if server sync fails
-      permissionsState[selectedRole] = originalFeatures;
-      alert(`Sync failed. Your selection has been reverted. Please ensure your internet is stable. Error: ${e.message}`);
-    } finally {
-      isSaving = false;
-    }
+    
+    // PHASE 2: Background Sync
+    (async () => {
+        isSaving = true;
+        try {
+          const res = await fetch('/api/admin/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: selectedRole, features: updatedFeatures })
+          });
+          
+          if (!res.ok) throw new Error('Failed to save');
+          
+          // Background revalidation for sidebar - non blocking for the matrix UI
+          invalidateAll();
+        } catch (e) {
+          // Revert state ONLY on hard failure
+          permissionsState[selectedRole] = originalFeatures;
+          alert(`Sync failed. Reverting selection. ${e.message}`);
+        } finally {
+          isSaving = false;
+        }
+    })();
   }
 
   function toggleFeatureViaBinding(featureId: string, checked: boolean) {
@@ -124,7 +129,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1300)</p>
+      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 2026-01-14-1400)</p>
     </div>
     <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
         <div class="flex items-center gap-3">
