@@ -182,7 +182,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Task Command Center</h1>
-            <p class="mt-1 text-gray-500 font-medium">Orchestrate your team's daily operations and student follow-ups. (Build: 3000)</p>
+            <p class="mt-1 text-gray-500 font-medium">Orchestrate your team's daily operations and student follow-ups. (Build: 4000)</p>
         </div>
         <div class="flex items-center gap-3">
             {#if selectedTasks.size > 0}

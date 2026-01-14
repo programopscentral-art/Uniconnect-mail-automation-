@@ -189,9 +189,9 @@
       ></div>
   {/if}
   <!-- Main Content -->
-  <main class="flex-1 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 focus:outline-none">
-    <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md border-b border-gray-100/50">
-      <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
+  <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 focus:outline-none flex flex-col">
+    <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md border-b border-gray-100/50 w-full flex justify-center">
+      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
@@ -247,8 +247,10 @@
       </div>
     </div>
 
-    <div class="max-w-[1280px] mx-auto px-4 sm:px-6 md:px-8 py-4">
-      {@render children()}
+    <div class="flex-1 w-full flex flex-col items-center overflow-hidden">
+      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-4">
+        {@render children()}
+      </div>
     </div>
   </main>
   </div>

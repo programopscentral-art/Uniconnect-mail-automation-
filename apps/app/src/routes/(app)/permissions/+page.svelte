@@ -127,7 +127,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 3000)</p>
+      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 4000)</p>
     </div>
     <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
         <div class="flex items-center gap-3">
