@@ -279,8 +279,8 @@
     }
 
     function getCOCode(coId: string | undefined) {
-        if (!coId) return null;
-        return courseOutcomes.find((c: any) => c.id === coId)?.code || null;
+        if (!coId) return '';
+        return courseOutcomes.find((c: any) => c.id === coId)?.code || '';
     }
 
     // UPDATED: Text update helper to avoid state_unsafe_mutation on derived state
@@ -961,22 +961,42 @@
     }
 
     @media print {
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        :global(body) {
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* Hide everything except the paper content */
+        :global(nav), :global(header), :global(sidebar), :global(.no-print), :global(.print\:hidden) {
+            display: none !important;
+        }
+
+        .paper-container {
+            width: 210mm !important;
+            min-height: 297mm !important;
+            padding: 20mm !important;
+            margin: 0 auto !important;
+            border: none !important;
+            box-shadow: none !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+        }
+
         .section-page-break {
-            break-before: page;
-            -webkit-column-break-before: always;
-            page-break-before: always;
+            break-before: page !important;
+            page-break-before: always !important;
             margin-top: 0 !important;
         }
 
         .page-break-avoid {
-            break-inside: avoid;
-            -webkit-column-break-inside: avoid;
-            page-break-inside: avoid;
-        }
-
-        /* Ensure header doesn't get pushed to new page alone */
-        .paper-container {
-            padding: 0.5in !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
         }
     }
 
