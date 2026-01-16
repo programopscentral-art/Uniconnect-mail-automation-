@@ -26,28 +26,34 @@
 
     // Initialize state from data
     $effect(() => {
-        const rawSetsData = data.paper.sets_data || {};
+        // We check multiple potential properties for the sets data
+        const paper = data.paper;
+        const rawSetsData = paper?.sets_data || paper?.sets || paper?.json_data || {};
         
         // Only initialize if we haven't already
-        if (Object.keys(editableSets).length === 0) {
+        if (Object.keys(editableSets).length === 0 && paper) {
             // Ensure A, B, C, D exist
-            const sets = ['A', 'B', 'C', 'D'];
+            const setsToInit = ['A', 'B', 'C', 'D'];
             const initial: any = {};
-            sets.forEach(s => {
-                initial[s] = rawSetsData[s] || { questions: [] };
+            setsToInit.forEach(s => {
+                // We prefer data[s], but if it's nested in data.sets[s] or similar, handle it.
+                // Our loop handles if rawSetsData is the sets object itself.
+                const val = rawSetsData[s] || rawSetsData[s.toLowerCase()];
+                initial[s] = val || { questions: [] };
             });
             editableSets = initial;
 
-            const meta = rawSetsData.metadata || rawSetsData.editor_metadata || {};
+            // Extract metadata from either the wrapper metadata or the sets_data nested metadata
+            const meta = rawSetsData.metadata || rawSetsData.editor_metadata || paper.meta || {};
             paperMeta = {
-                paper_date: meta.paper_date || data.paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+                paper_date: meta.paper_date || paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
                 exam_time: meta.exam_time || '',
-                duration_minutes: String(meta.duration_minutes || data.paper.duration_minutes || 180),
-                max_marks: String(meta.max_marks || data.paper.max_marks || 100),
-                course_code: meta.course_code || data.paper.subject_code || 'CS-XXXX',
+                duration_minutes: String(meta.duration_minutes || paper.duration_minutes || 180),
+                max_marks: String(meta.max_marks || paper.max_marks || 100),
+                course_code: meta.course_code || paper.subject_code || 'CS-XXXX',
                 exam_title: meta.exam_title || 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
-                programme: meta.programme || data.paper.branch_name || 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
-                semester: String(meta.semester || data.paper.semester || 1),
+                programme: meta.programme || paper.branch_name || 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
+                semester: String(meta.semester || paper.semester || 1),
                 instructions: meta.instructions || 'ANSWER ALL QUESTIONS'
             };
         }
