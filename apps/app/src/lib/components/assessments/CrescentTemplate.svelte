@@ -966,47 +966,46 @@
             margin: 0;
         }
 
-        /* ABSOLUTE ISOLATION: Hide everything but the paper */
-        :global(body *) {
-            visibility: hidden !important;
+        /* STRUCTURAL ISOLATION: Hide chrome, keep flow static */
+        :global(body) {
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
-        
-        .paper-container, .paper-container * {
-            visibility: visible !important;
+
+        :global(.no-print), :global(.print\:hidden), :global(nav), :global(header), :global(sidebar) {
+            display: none !important;
         }
 
         .paper-container {
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
             width: 210mm !important;
-            margin: 0 !important;
+            margin: 0 auto !important;
             padding: 15mm !important;
             border: none !important;
             box-shadow: none !important;
             background: white !important;
+            position: relative !important;
+            display: block !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
         }
 
-        /* FORCE PAGE BREAKS */
+        /* NATURAL FLOW: Keep sections together but allow breaks */
         .section-page-break {
-            break-before: page !important;
-            page-break-before: always !important;
-            margin-top: 0 !important;
+            break-before: auto !important;
+            page-break-before: auto !important;
+            margin-top: 20pt !important;
             padding-top: 0 !important;
-            visibility: visible !important;
         }
 
+        /* Prevent questions from splitting poorly */
         .page-break-avoid {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
         }
 
-        /* Ensure signatures are visible and at bottom */
         .mt-20 {
             margin-top: 40pt !important;
-            visibility: visible !important;
         }
     }
 
