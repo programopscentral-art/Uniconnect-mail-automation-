@@ -230,6 +230,28 @@
         return courseOutcomes.find((c: any) => c.id === coId)?.code || null;
     }
 
+    // UPDATED: Text update helper to avoid state_unsafe_mutation on derived state
+    function updateText(e: Event, type: 'META' | 'QUESTION', key: string, slotId?: string, questionId?: string, subPart?: 'choice1' | 'choice2') {
+        const value = (e.target as HTMLElement).innerText;
+        
+        if (type === 'META') {
+            (paperMeta as any)[key] = value;
+        } else if (type === 'QUESTION') {
+            const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
+            const slot = arr.find((s: any) => s.id === slotId);
+            if (!slot) return;
+
+            if (slot.type === 'SINGLE') {
+                const q = slot.questions.find((q: any) => q.id === questionId);
+                if (q) q.text = value;
+            } else if (slot.type === 'OR_GROUP') {
+                 const choice = subPart === 'choice1' ? slot.choice1 : slot.choice2;
+                 const q = choice.questions.find((q: any) => q.id === questionId);
+                 if (q) q.text = value;
+            }
+        }
+    }
+
     const isEditable = $derived(mode === 'edit');
 
     // Robust partitioning based on marks
@@ -312,7 +334,11 @@
             <!-- Right: Course Code & RRN Box -->
             <div class="flex flex-col items-end gap-2 mt-4">
                 <div class="text-[12px] font-black text-gray-900 uppercase tracking-tighter">
-                    &lt;<span contenteditable="true" bind:innerHTML={paperMeta.course_code} class={isEditable ? '' : 'pointer-events-none'}></span>&gt;
+                    &lt;<span 
+                        contenteditable="true" 
+                        oninput={(e) => updateText(e, 'META', 'course_code')}
+                        class={isEditable ? '' : 'pointer-events-none outline-none'}
+                    >{paperMeta.course_code}</span>&gt;
                 </div>
                 
                 <div class="flex items-center gap-2">
@@ -330,7 +356,7 @@
         <div class="w-full text-center mb-4">
             <h3 
                 contenteditable="true" 
-                bind:innerHTML={paperMeta.exam_title} 
+                oninput={(e) => updateText(e, 'META', 'exam_title')}
                 class="text-[14px] font-black uppercase tracking-wide border-b border-white hover:border-gray-200 outline-none inline-block pb-0.5 {isEditable ? '' : 'pointer-events-none'}"
             >
                 {paperMeta.exam_title}
@@ -346,7 +372,11 @@
                         <td class="border border-gray-900 p-2 font-bold w-[25%] uppercase tracking-tighter">Programme & Branch</td>
                         <td class="border border-gray-900 p-2 text-center w-[2%] font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black uppercase" colspan="4">
-                            <div contenteditable="true" bind:innerHTML={paperMeta.programme} class={isEditable ? '' : 'pointer-events-none'}></div>
+                            <div 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'programme')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.programme}</div>
                         </td>
                     </tr>
                     <!-- Row 2: Semester & Date/Session -->
@@ -354,12 +384,20 @@
                         <td class="border border-gray-900 p-2 font-bold uppercase tracking-tighter">Semester</td>
                         <td class="border border-gray-900 p-2 text-center font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black w-[15%]">
-                            <div contenteditable="true" bind:innerHTML={paperMeta.semester} class={isEditable ? '' : 'pointer-events-none'}></div>
+                            <div 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'semester')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.semester}</div>
                         </td>
                         <td class="border border-gray-900 p-2 font-bold w-[25%] uppercase tracking-tighter border-l-2">Date & Session</td>
                         <td class="border border-gray-900 p-2 text-center w-[2%] font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black uppercase">
-                            <span contenteditable="true" bind:innerHTML={paperMeta.paper_date} class={isEditable ? '' : 'pointer-events-none'}>{paperMeta.paper_date}</span>
+                            <span 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'paper_date')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.paper_date}</span>
                             {#if paperMeta.exam_time}
                                 <span class="ml-2 text-[9px] font-bold text-gray-500">[{paperMeta.exam_time}]</span>
                             {/if}
@@ -370,7 +408,15 @@
                         <td class="border border-gray-900 p-2 font-bold uppercase tracking-tighter">Course Code & Name</td>
                         <td class="border border-gray-900 p-2 text-center font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black uppercase" colspan="4">
-                            <span contenteditable="true" bind:innerHTML={paperMeta.course_code} class={isEditable ? '' : 'pointer-events-none'}></span> - <span contenteditable="true" bind:innerHTML={paperMeta.subject_name} class={isEditable ? '' : 'pointer-events-none'}></span>
+                            <span 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'course_code')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.course_code}</span> - <span 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'subject_name')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.subject_name}</span>
                         </td>
                     </tr>
                     <!-- Row 4: Duration & Max Marks -->
@@ -378,12 +424,20 @@
                         <td class="border border-gray-900 p-2 font-bold uppercase tracking-tighter">Duration</td>
                         <td class="border border-gray-900 p-2 text-center font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black w-[15%]">
-                            <div contenteditable="true" bind:innerHTML={paperMeta.duration_minutes} class={isEditable ? '' : 'pointer-events-none'}>{paperMeta.duration_minutes} Minutes</div>
+                            <div 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'duration_minutes')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.duration_minutes} Minutes</div>
                         </td>
                         <td class="border border-gray-900 p-2 font-bold w-[25%] uppercase tracking-tighter border-l-2">Maximum Marks</td>
                         <td class="border border-gray-900 p-2 text-center w-[2%] font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black">
-                            <div contenteditable="true" bind:innerHTML={paperMeta.max_marks} class={isEditable ? '' : 'pointer-events-none'}>{paperMeta.max_marks}</div>
+                            <div 
+                                contenteditable="true" 
+                                oninput={(e) => updateText(e, 'META', 'max_marks')}
+                                class={isEditable ? 'outline-none' : 'pointer-events-none'}
+                            >{paperMeta.max_marks}</div>
                         </td>
                     </tr>
                 </tbody>
@@ -394,8 +448,8 @@
         <div class="w-full text-center mb-6">
             <p 
                 contenteditable="true" 
-                bind:innerHTML={paperMeta.instructions} 
-                class="text-[9px] font-black uppercase tracking-[0.3em] font-serif italic mb-2 {isEditable ? '' : 'pointer-events-none'}"
+                oninput={(e) => updateText(e, 'META', 'instructions')}
+                class="text-[9px] font-black uppercase tracking-[0.3em] font-serif italic mb-2 {isEditable ? 'outline-none' : 'pointer-events-none'}"
             >
                 &lt; {paperMeta.instructions} &gt;
             </p>
@@ -437,7 +491,11 @@
                                 </div>
                                 <div class="flex-1 p-2 text-[10px] leading-relaxed group relative">
                                     <div class="flex justify-between items-start gap-4">
-                                        <div contenteditable="true" bind:innerHTML={q.text} class="flex-1 {isEditable ? '' : 'pointer-events-none'}"></div>
+                                        <div 
+                                            contenteditable="true" 
+                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
+                                            class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
+                                        >{q.text}</div>
                                         {#if q.type === 'MCQ'}
                                             <div class="flex-shrink-0 font-black text-[11px] whitespace-nowrap">[&nbsp;&nbsp;&nbsp;&nbsp;]</div>
                                         {/if}
@@ -563,7 +621,11 @@
                                         {q.sub_label || ''}
                                     </div>
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
-                                        <div contenteditable="true" bind:innerHTML={q.text} class={isEditable ? '' : 'pointer-events-none'}></div>
+                                        <div 
+                                            contenteditable="true" 
+                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
+                                            class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
+                                        >{q.text}</div>
                                         {#if isEditable}
                                             <button 
                                                 onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B', 'q2')}
@@ -595,7 +657,11 @@
                                         {slot.n1 + '.'}
                                     </div>
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
-                                        <div contenteditable="true" bind:innerHTML={q.text} class="flex-1 {isEditable ? '' : 'pointer-events-none'}"></div>
+                                        <div 
+                                            contenteditable="true" 
+                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
+                                            class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
+                                        >{q.text}</div>
                                         {#if isEditable}
                                             <button 
                                                 onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B')}
@@ -668,7 +734,11 @@
                                     {q.sub_label || ''}
                                 </div>
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed">
-                                    <div contenteditable="true" bind:innerHTML={q.text} class={isEditable ? '' : 'pointer-events-none'}></div>
+                                    <div 
+                                        contenteditable="true" 
+                                        oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
+                                        class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
+                                    >{q.text}</div>
                                     
                                     {#if q.options && q.options.length > 0}
                                         <div class="grid grid-cols-2 gap-x-8 gap-y-1 mt-3 pl-8">
@@ -709,7 +779,11 @@
                                     {q.sub_label || ''}
                                 </div>
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
-                                    <div contenteditable="true" bind:innerHTML={q.text} class={isEditable ? '' : 'pointer-events-none'}></div>
+                                    <div 
+                                        contenteditable="true" 
+                                        oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
+                                        class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
+                                    >{q.text}</div>
                                     {#if isEditable}
                                         <button 
                                             onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'C', 'q2')}

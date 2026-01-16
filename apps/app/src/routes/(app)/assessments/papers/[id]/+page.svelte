@@ -133,6 +133,14 @@
     <!-- Top Bar with Set Selector Integrated -->
     <div class="bg-gray-900 text-white rounded-[2rem] p-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 print:hidden">
         <div class="flex items-center gap-6 px-4">
+            <a 
+                href="/assessments/papers"
+                class="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                title="Back to Papers"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            </a>
+
              <div class="space-y-0.5">
                 <div class="flex items-center gap-2 text-[8px] font-black text-indigo-400 uppercase tracking-[0.3em]">
                     <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
@@ -158,6 +166,13 @@
         </div>
 
         <div class="flex items-center gap-3 px-4">
+            <a 
+                href="/assessments/generate"
+                class="inline-flex items-center px-4 py-3 bg-white/5 text-indigo-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-indigo-500/30"
+            >
+                GENERATE NEW
+            </a>
+
             <button 
                 onclick={saveChanges}
                 disabled={isSaving}
