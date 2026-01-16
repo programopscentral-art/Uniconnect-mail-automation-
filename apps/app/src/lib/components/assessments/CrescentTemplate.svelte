@@ -76,9 +76,10 @@
         return mapped;
     });
 
-    function openSwapSidebar(index: number, part: 'A' | 'B' | 'C', subPart?: 'q1' | 'q2') {
-        const slot = safeQuestions[index];
+    function openSwapSidebar(slot: any, part: 'A' | 'B' | 'C', subPart?: 'q1' | 'q2') {
         if (!slot) return;
+        const index = safeQuestions.findIndex((s: any) => s.id === slot.id);
+        if (index === -1) return;
 
         let currentQ: any = null;
         if (slot.type === 'SINGLE') {
@@ -191,18 +192,53 @@
     }
 
     function addQuestion(part: 'A' | 'B' | 'C') {
-        const marks = part === 'A' ? 2 : 16;
-        const newSlot = {
-            id: 'manual-' + Math.random().toString(36).substr(2, 9),
-            type: 'SINGLE',
-            label: 'New',
-            questions: [{
-                id: 'q-' + Math.random().toString(36).substr(2, 9),
-                text: 'Click to edit question text...',
+        const isPartA = part === 'A';
+        const marks = isPartA ? (Number(paperMeta.max_marks) === 100 ? 2 : 2) : (Number(paperMeta.max_marks) === 100 ? 16 : 5);
+        
+        let newSlot;
+        if (isPartA) {
+            newSlot = {
+                id: 'manual-' + Math.random().toString(36).substr(2, 9),
+                type: 'SINGLE',
+                label: 'New',
                 marks: marks,
-                co_id: null
-            }]
-        };
+                unit: 'Auto',
+                questions: [{
+                    id: 'q-' + Math.random().toString(36).substr(2, 9),
+                    text: 'Click to edit question text...',
+                    marks: marks,
+                    co_id: null,
+                    bloom_level: 'L2',
+                    type: 'NORMAL'
+                }]
+            };
+        } else {
+            // Parts B & C use OR_GROUPs in Crescent template
+            newSlot = {
+                id: 'manual-' + Math.random().toString(36).substr(2, 9),
+                type: 'OR_GROUP',
+                label: 'New',
+                marks: marks,
+                choice1: {
+                    questions: [{
+                        id: 'q1-' + Math.random().toString(36).substr(2, 9),
+                        text: 'Click to edit option A...',
+                        marks: marks,
+                        co_id: null,
+                        bloom_level: 'L3'
+                    }]
+                },
+                choice2: {
+                    questions: [{
+                        id: 'q2-' + Math.random().toString(36).substr(2, 9),
+                        text: 'Click to edit option B...',
+                        marks: marks,
+                        co_id: null,
+                        bloom_level: 'L3'
+                    }]
+                }
+            };
+        }
         
         if (Array.isArray(currentSetData)) {
             currentSetData = [...currentSetData, newSlot];
@@ -422,15 +458,12 @@
 
         <!-- Instructions -->
         <div class="w-full text-center mb-6">
-            <p 
-                contenteditable="true" 
+            <div 
+                contenteditable="true"
                 oninput={(e) => updateText(e, 'META', 'instructions')}
-                class="text-[9px] font-black uppercase tracking-[0.3em] font-serif italic mb-2 {isEditable ? 'outline-none' : 'pointer-events-none'}"
+                class="text-[11px] font-black uppercase text-gray-900 tracking-[0.2em] border-b-2 border-gray-900 inline-block pb-0.5 {isEditable ? 'outline-none focus:bg-indigo-50/50' : 'pointer-events-none'}"
             >
-                &lt; {paperMeta.instructions} &gt;
-            </p>
-            <div class="text-[11px] font-black uppercase text-gray-900 tracking-[0.2em] border-b-2 border-gray-900 inline-block pb-0.5">
-                ANSWER ALL QUESTIONS
+                {paperMeta.instructions || 'ANSWER ALL QUESTIONS'}
             </div>
         </div>
     </div>
@@ -485,9 +518,8 @@
                                         </div>
                                     {/if}
 
-                                    {#if isEditable}
                                         <button 
-                                            onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'A')}
+                                            onclick={() => openSwapSidebar(slot, 'A')}
                                             class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest flex items-center gap-1"
                                         >
                                             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -571,7 +603,7 @@
                                         >{@html q.text}</div>
                                         {#if isEditable}
                                             <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B', 'q1')}
+                                                onclick={() => openSwapSidebar(slot, 'B', 'q1')}
                                                 class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                             >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -606,11 +638,10 @@
                                             oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                             class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
                                         >{@html q.text}</div>
-                                        {#if isEditable}
-                                            <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B', 'q2')}
-                                                class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
-                                            >
+                                        <button 
+                                            onclick={() => openSwapSidebar(slot, 'B', 'q2')}
+                                            class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
+                                        >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 SWAP
                                             </button>
@@ -642,11 +673,10 @@
                                             oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                             class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
                                         >{q.text}</div>
-                                        {#if isEditable}
-                                            <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B')}
-                                                class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
-                                            >
+                                        <button 
+                                            onclick={() => openSwapSidebar(slot, 'B')}
+                                            class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
+                                        >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 SWAP
                                             </button>
@@ -733,7 +763,7 @@
                                     <span class="text-[10px] font-black">({q.marks})</span>
                                     {#if isEditable}
                                         <button 
-                                            onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'C', 'q1')}
+                                            onclick={() => openSwapSidebar(slot, 'C', 'q1')}
                                             class="absolute -right-2 top-0 opacity-0 group-hover/btn:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                         >
                                             <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -766,7 +796,7 @@
                                     >{q.text}</div>
                                     {#if isEditable}
                                         <button 
-                                            onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'C', 'q2')}
+                                            onclick={() => openSwapSidebar(slot, 'C', 'q2')}
                                             class="absolute -right-2 top-0 opacity-0 group-hover/btn:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                         >
                                             <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>

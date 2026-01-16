@@ -8,7 +8,7 @@
 
     // Local state for editing
     let activeSet = $state('A');
-    const availableSets = ['A', 'B', 'C', 'D'];
+    const availableSets = $state(['A', 'B', 'C', 'D']);
     
     // We deep clone paper data to allow local edits
     let editableSets = $state<any>(initializeSets());
@@ -164,21 +164,23 @@
             
             <div class="h-8 w-px bg-white/10 hidden md:block"></div>
 
-            <!-- Set Selector -->
-            <div class="flex items-center gap-1 bg-white/5 p-1 rounded-xl">
-                {#each availableSets as set}
-                    <button 
-                        onclick={() => activeSet = set}
-                        class="px-5 py-2.5 rounded-lg text-[10px] font-black tracking-tighter transition-all duration-300 uppercase
-                        {activeSet === set ? 'bg-indigo-600 text-white shadow-xl scale-105' : 'text-gray-400 hover:text-white hover:bg-white/5'}"
-                    >
-                        SET {set}
-                    </button>
-                {/each}
-            </div>
+            <!-- Left empty for balance or future use -->
         </div>
 
         <div class="flex items-center gap-3 px-4">
+            <!-- Set Selector -->
+            <div class="flex items-center gap-1 bg-white/10 p-1.5 rounded-2xl mr-4 border border-white/5">
+                {#each availableSets as set}
+                    <button 
+                        onclick={() => activeSet = set}
+                        class="px-4 py-2 rounded-xl text-[10px] font-black tracking-tighter transition-all duration-300 uppercase
+                        {activeSet === set ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/10'}"
+                    >
+                        {set}
+                    </button>
+                {/each}
+            </div>
+
             <a 
                 href="/assessments/generate"
                 class="inline-flex items-center px-4 py-3 bg-white/5 text-indigo-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-indigo-500/30"
