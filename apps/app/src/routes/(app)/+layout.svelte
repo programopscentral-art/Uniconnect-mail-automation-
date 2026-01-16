@@ -180,6 +180,10 @@
       <div class="px-2 mb-4">
         <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] opacity-40">System Integrity</p>
       </div>
+      <div class="px-2 flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Global Shield Active</span>
+      </div>
     </div>
   </aside>
 

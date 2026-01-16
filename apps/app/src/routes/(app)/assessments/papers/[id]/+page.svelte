@@ -191,14 +191,14 @@
             <button 
                 onclick={saveChanges}
                 disabled={isSaving}
-                class="inline-flex items-center px-6 py-3 bg-green-600 text-white text-[10px] font-black rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-900/20 disabled:opacity-50 active:scale-95"
+                class="inline-flex items-center px-6 py-3 bg-green-600 text-white text-[11px] font-black rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-900/40 disabled:opacity-50 active:scale-95 flex-shrink-0"
             >
                 {#if isSaving}
-                    <div class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                    SAVING...
+                    <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                    <span class="tracking-widest">SAVING...</span>
                 {:else}
-                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-                    SAVE CHANGES
+                    <svg class="w-4 h-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                    <span class="tracking-widest uppercase">Save Changes</span>
                 {/if}
             </button>
             <button 

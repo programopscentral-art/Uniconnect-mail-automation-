@@ -44,8 +44,18 @@
                 if (item.type === 'SINGLE' && item.questions) {
                     mappedSlot.questions = item.questions.map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }));
                 } else if (item.type === 'OR_GROUP') {
-                    if (item.choice1) item.choice1.questions = (item.choice1.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }));
-                    if (item.choice2) item.choice2.questions = (item.choice2.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }));
+                    if (item.choice1) {
+                        mappedSlot.choice1 = {
+                            ...item.choice1,
+                            questions: (item.choice1.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }))
+                        };
+                    }
+                    if (item.choice2) {
+                        mappedSlot.choice2 = {
+                            ...item.choice2,
+                            questions: (item.choice2.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }))
+                        };
+                    }
                 }
                 return { ...mappedSlot, id: mappedSlot.id || `slot-${activeSet}-${i}` };
             }
