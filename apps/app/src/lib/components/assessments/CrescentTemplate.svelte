@@ -29,7 +29,8 @@
     // This ensures even raw question objects from DB are wrapped into the "slot" structure expected by the UI
     let safeQuestions = $derived.by(() => {
         const raw = currentSetData;
-        const totalExpectedSlots = paperStructure.reduce((acc: any, s: any) => acc + (s.count || 0), 0) || 16;
+        const generationMode = paperMeta.generation_mode || 'Standard';
+        const isModifiable = generationMode === 'Modifiable';
         
         // Handle various input structures: { questions: [] } or just []
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
@@ -84,28 +85,42 @@
             };
         });
 
-        // PAD with empty slots if needed to maintain structure visibility
-        if (mapped.length < totalExpectedSlots) {
-            const padding = [];
-            let countSoFar = mapped.length;
-            
-            // Calculate where we are in parts for padding
-            let partACount = paperStructure[0]?.count || 10;
-            let partBCount = paperStructure[1]?.count || 5;
+        // PAD with empty slots ONLY for Standard mode or if collection is empty
+        if (!isModifiable) {
+            const totalExpectedSlots = paperStructure.reduce((acc: any, s: any) => acc + (s.count || 0), 0) || 16;
+            if (mapped.length < totalExpectedSlots) {
+                const padding = [];
+                let partACount = paperStructure[0]?.count || 10;
 
-            for (let i = mapped.length; i < totalExpectedSlots; i++) {
-                padding.push({
-                    id: `pad-${activeSet}-${i}`,
-                    type: i < partACount ? 'SINGLE' : 'OR_GROUP',
-                    label: '?',
-                    questions: []
-                });
+                for (let i = mapped.length; i < totalExpectedSlots; i++) {
+                    padding.push({
+                        id: `pad-${activeSet}-${i}`,
+                        type: i < partACount ? 'SINGLE' : 'OR_GROUP',
+                        label: '?',
+                        questions: []
+                    });
+                }
+                return [...mapped, ...padding];
             }
-            return [...mapped, ...padding];
         }
 
         return mapped;
     });
+
+    function removeQuestion(slotId: string) {
+        if (!confirm('Are you sure you want to delete this question?')) return;
+        
+        let targetArr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
+        if (!targetArr) return;
+
+        const filtered = targetArr.filter((s: any) => s.id !== slotId);
+        
+        if (Array.isArray(currentSetData)) {
+            currentSetData = filtered;
+        } else {
+            currentSetData.questions = filtered;
+        }
+    }
 
     function openSwapSidebar(slot: any, part: 'A' | 'B' | 'C', subPart?: 'q1' | 'q2') {
         if (!slot) return;
@@ -202,23 +217,30 @@
     }
 
     function updateQuestionsFromDnd(items: any[], part: 'A' | 'B' | 'C') {
-        const countA = paperStructure[0]?.count || 10;
-        const countB = paperStructure[1]?.count || 5;
+        // Find indices for start/end of each part in the master list
+        const partAIds = questionsA.map(q => q.id);
+        const partBIds = questionsB.map(q => q.id);
+        const partCIds = questionsC.map(q => q.id);
 
-        // Reconstruct full list based on current segments
-        let newList: any[] = [];
+        let masterList = [...safeQuestions];
+        
         if (part === 'A') {
-            newList = [...items, ...safeQuestions.slice(countA)];
+            // Replace Part A items
+            const bAndC = masterList.filter(s => !partAIds.includes(s.id));
+            masterList = [...items, ...bAndC];
         } else if (part === 'B') {
-            newList = [...safeQuestions.slice(0, countA), ...items, ...safeQuestions.slice(countA + countB)];
+            const aItems = masterList.filter(s => partAIds.includes(s.id));
+            const cItems = masterList.filter(s => partCIds.includes(s.id));
+            masterList = [...aItems, ...items, ...cItems];
         } else if (part === 'C') {
-            newList = [...safeQuestions.slice(0, countA + countB), ...items];
+            const aAndB = masterList.filter(s => !partCIds.includes(s.id));
+            masterList = [...aAndB, ...items];
         }
 
         if (Array.isArray(currentSetData)) {
-            currentSetData = newList;
+            currentSetData = masterList;
         } else {
-            currentSetData.questions = newList;
+            currentSetData.questions = masterList;
         }
     }
 
@@ -271,10 +293,24 @@
             };
         }
         
-        if (Array.isArray(currentSetData)) {
-            currentSetData = [...currentSetData, newSlot];
+        // Find correct insertion index based on current partitions
+        let targetArr = Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || []);
+        let newList = [...targetArr];
+
+        if (part === 'A') {
+            const endIdx = questionsA.length;
+            newList.splice(endIdx, 0, newSlot);
+        } else if (part === 'B') {
+            const endIdx = questionsA.length + questionsB.length;
+            newList.splice(endIdx, 0, newSlot);
         } else {
-            currentSetData.questions = [...currentSetData.questions, newSlot];
+            newList.push(newSlot);
+        }
+
+        if (Array.isArray(currentSetData)) {
+            currentSetData = newList;
+        } else {
+            currentSetData.questions = newList;
         }
     }
 
@@ -307,18 +343,52 @@
 
     const isEditable = $derived(mode === 'edit');
 
-    // Partition using slicing based on counts from paperStructure
+    // Dynamic Partitioning: Filter by Slot Type for Parts
+    // Part A: All slots of type SINGLE (usually up to the first OR_GROUP or a fixed count)
     let questionsA = $derived.by(() => {
-        const count = paperStructure[0]?.count || 10;
-        return safeQuestions.slice(0, count).map((s: any, idx: number) => ({ ...s, n1: idx + 1 }));
+        // If Standard mode, respect structure count
+        const isStandard = (paperMeta.generation_mode || 'Standard') === 'Standard';
+        if (isStandard) {
+            const count = paperStructure[0]?.count || 10;
+            return safeQuestions.slice(0, count).map((s: any, idx: number) => ({ ...s, n1: idx + 1 }));
+        }
+        // If Modifiable, Part A is all SINGLE slots at the beginning
+        let result = [];
+        for (let i = 0; i < safeQuestions.length; i++) {
+            if (safeQuestions[i].type === 'SINGLE') result.push({ ...safeQuestions[i], n1: i + 1 });
+            else break;
+        }
+        return result;
     });
 
     let questionsB = $derived.by(() => {
-        const start = paperStructure[0]?.count || 10;
-        const count = paperStructure[1]?.count || 5;
-        const slots = safeQuestions.slice(start, start + count);
-        
-        // Calculate starting number for Part B
+        const isStandard = (paperMeta.generation_mode || 'Standard') === 'Standard';
+        const startIdx = questionsA.length;
+
+        if (isStandard) {
+             const count = paperStructure[1]?.count || 5;
+             const slots = safeQuestions.slice(startIdx, startIdx + count);
+             let currentNum = questionsA.length + 1;
+             return slots.map((s: any) => {
+                if (s.type === 'OR_GROUP') {
+                    const n1 = currentNum++;
+                    const n2 = currentNum++;
+                    return { ...s, n1, n2 };
+                } else {
+                    const n1 = currentNum++;
+                    return { ...s, n1 };
+                }
+            });
+        }
+
+        // Modifiable: Pick next segment of slots until next major break or end
+        // In Crescent, Part B is usually OR_GROUPs but could have SINGLEs
+        // Let's assume Part B continues until Part C (if exists) or end
+        const partCCount = paperStructure[2]?.count || 0;
+        const slots = partCCount > 0 
+            ? safeQuestions.slice(startIdx, safeQuestions.length - partCCount)
+            : safeQuestions.slice(startIdx);
+
         let currentNum = questionsA.length + 1;
         return slots.map((s: any) => {
             if (s.type === 'OR_GROUP') {
@@ -333,16 +403,13 @@
     });
 
     let questionsC = $derived.by(() => {
-        const start = (paperStructure[0]?.count || 10) + (paperStructure[1]?.count || 5);
-        const count = paperStructure[2]?.count || 0;
-        const slots = safeQuestions.slice(start, start + count);
-        
-        // Calculate starting number for Part C
-        let currentNum = questionsA.length + 1;
-        questionsB.forEach((s: any) => {
-            if (s.type === 'OR_GROUP') currentNum += 2;
-            else currentNum += 1;
-        });
+        const isStandard = (paperMeta.generation_mode || 'Standard') === 'Standard';
+        const startIdx = questionsA.length + questionsB.length;
+        const slots = safeQuestions.slice(startIdx);
+
+        let currentNum = 1;
+        questionsA.forEach(s => { currentNum++; });
+        questionsB.forEach(s => { currentNum += (s.type === 'OR_GROUP' ? 2 : 1); });
 
         return slots.map((s: any) => {
             if (s.type === 'OR_GROUP') {
@@ -357,9 +424,9 @@
     });
 
     // Stats
-    let partACount = $derived(paperStructure[0]?.count || 10);
-    let partBCount = $derived(paperStructure[1]?.count || 5);
-    let partCCount = $derived(paperStructure[2]?.count || 0);
+    let partACount = $derived(questionsA.length);
+    let partBCount = $derived(questionsB.length);
+    let partCCount = $derived(questionsC.length);
     let is100m = $derived(Number(paperMeta.max_marks) === 100);
 </script>
 
@@ -553,13 +620,22 @@
                                     {/if}
 
                                     {#if isEditable}
-                                        <button 
-                                            onclick={() => openSwapSidebar(slot, 'A')}
-                                            class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest flex items-center gap-1"
-                                        >
-                                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                            SWAP
-                                        </button>
+                                        <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
+                                            <button 
+                                                onclick={() => openSwapSidebar(slot, 'A')}
+                                                class="bg-indigo-600 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-indigo-700 active:scale-95"
+                                            >
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                                SWAP
+                                            </button>
+                                            <button 
+                                                onclick={() => removeQuestion(slot.id)}
+                                                class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
+                                            >
+                                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                DEL
+                                            </button>
+                                        </div>
                                     {/if}
                                 </div>
                                 <div class="w-20 border-l border-black p-2 text-center text-[8px] font-black text-gray-400 flex flex-col justify-center gap-1">
@@ -570,8 +646,16 @@
                         {/each}
                     {:else}
                         <!-- OR GROUP in Part A -->
-                        <div class="p-2 bg-gray-50/50">
+                        <div class="p-2 bg-gray-50/50 relative group">
                              <div class="text-[10px] font-bold text-center">Slot {i+1} (OR Question Support)</div>
+                             {#if isEditable}
+                                <button 
+                                    onclick={() => removeQuestion(slot.id)}
+                                    class="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1 rounded-md text-[8px] print:hidden"
+                                >
+                                    DELETE
+                                </button>
+                             {/if}
                         </div>
                     {/if}
                     </div>
@@ -619,6 +703,15 @@
                             {#if isEditable}
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
                                     <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+                                </div>
+                                <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
+                                     <button 
+                                        onclick={() => removeQuestion(slot.id)}
+                                        class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
+                                    >
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        DEL
+                                    </button>
                                 </div>
                             {/if}
                             <!-- Choice 1 -->
@@ -697,6 +790,15 @@
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
                                     <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
                                 </div>
+                                <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
+                                     <button 
+                                        onclick={() => removeQuestion(slot.id)}
+                                        class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
+                                    >
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        DEL
+                                    </button>
+                                </div>
                             {/if}
                             {#each slot.questions || [] as q}
                                 <div class="flex min-h-[50px]">
@@ -752,7 +854,7 @@
                 class="w-full text-center font-black text-xs uppercase mb-4 border border-black p-1 {isEditable ? '' : 'pointer-events-none'}"
             >
                 {#if paperStructure[2]}
-                    {paperStructure[2].title} ({paperStructure[2].answered_count} X {paperStructure[2].marks_per_q} = {paperStructure[2].answered_count * paperStructure[2].marks_per_q} MARKS)
+                    {paperStructure[2].title} ({partCCount} X {paperStructure[2].marks_per_q} = {partCCount * paperStructure[2].marks_per_q} MARKS)
                 {:else}
                     PART C (1 X 16 = 16 MARKS)
                 {/if}
@@ -769,6 +871,15 @@
                         {#if isEditable}
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
                                     <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
+                                </div>
+                                <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
+                                     <button 
+                                        onclick={() => removeQuestion(slot.id)}
+                                        class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
+                                    >
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        DEL
+                                    </button>
                                 </div>
                         {/if}
                         <!-- Choice 1 -->
