@@ -97,13 +97,26 @@
         }
 
         const marks = Number(currentQ?.marks || slot.marks || (part === 'A' ? 2 : 16));
-        const alternates = (questionPool || []).filter((q: any) => Number(q.marks || q.mark) === marks && q.id !== currentQ?.id);
+        const unitId = currentQ?.unit_id || slot.unit_id;
+
+        // Filter by marks first
+        let alternates = (questionPool || []).filter((q: any) => Number(q.marks || q.mark) === marks && q.id !== currentQ?.id);
+        
+        // Group or sort by unit consistency if requested by context
+        if (unitId) {
+            // Prioritize questions from the same unit
+            alternates = [
+                ...alternates.filter(q => q.unit_id === unitId),
+                ...alternates.filter(q => q.unit_id !== unitId)
+            ];
+        }
 
         swapContext = {
             slotIndex: index,
             part,
             subPart,
             currentMark: marks,
+            currentUnit: unitId,
             alternates
         };
         isSwapSidebarOpen = true;
@@ -240,11 +253,11 @@
         return 'B';
     };
 
-    let questionsA = $derived(safeQuestions.filter(s => getPartForSlot(s) === 'A'));
+    let questionsA = $derived(safeQuestions.filter((s: any) => getPartForSlot(s) === 'A'));
     let questionsB = $derived.by(() => {
-        const slots = safeQuestions.filter(s => getPartForSlot(s) === 'B');
+        const slots = safeQuestions.filter((s: any) => getPartForSlot(s) === 'B');
         let current = questionsA.length + 1;
-        return slots.map(s => {
+        return slots.map((s: any) => {
             if (s.type === 'OR_GROUP') {
                 const n1 = current++;
                 const n2 = current++;
@@ -256,16 +269,16 @@
         });
     });
     let questionsC = $derived.by(() => {
-        const slots = safeQuestions.filter(s => getPartForSlot(s) === 'C');
+        const slots = safeQuestions.filter((s: any) => getPartForSlot(s) === 'C');
         let current = questionsA.length + (questionsB.length * 2) + 1; // Approximate but safer
         // Recalculate correctly
         current = questionsA.length + 1;
-        questionsB.forEach(s => {
+        questionsB.forEach((s: any) => {
             if (s.type === 'OR_GROUP') current += 2;
             else current += 1;
         });
 
-        return slots.map(s => {
+        return slots.map((s: any) => {
             if (s.type === 'OR_GROUP') {
                 const n1 = current++;
                 const n2 = current++;
@@ -520,7 +533,7 @@
                                         <div contenteditable="true" bind:innerHTML={q.text} class={isEditable ? '' : 'pointer-events-none'}></div>
                                         {#if isEditable}
                                             <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex(s => s.id === slot.id), 'B', 'q1')}
+                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B', 'q1')}
                                                 class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                             >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -553,7 +566,7 @@
                                         <div contenteditable="true" bind:innerHTML={q.text} class={isEditable ? '' : 'pointer-events-none'}></div>
                                         {#if isEditable}
                                             <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex(s => s.id === slot.id), 'B', 'q2')}
+                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B', 'q2')}
                                                 class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                             >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -585,7 +598,7 @@
                                         <div contenteditable="true" bind:innerHTML={q.text} class="flex-1 {isEditable ? '' : 'pointer-events-none'}"></div>
                                         {#if isEditable}
                                             <button 
-                                                onclick={() => openSwapSidebar(safeQuestions.findIndex(s => s.id === slot.id), 'B')}
+                                                onclick={() => openSwapSidebar(safeQuestions.findIndex((s: any) => s.id === slot.id), 'B')}
                                                 class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
                                             >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -756,19 +769,22 @@
             class="relative w-[400px] bg-white h-full shadow-2xl flex flex-col"
             transition:fly={{x: 400, duration: 300}}
         >
-            <div class="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                <div>
-                    <h2 class="text-lg font-black text-gray-900 tracking-tight">SWAP QUESTION</h2>
-                    <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1">
-                        Displaying {swapContext.currentMark} Mark Alternates
-                    </p>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-8">
+                    <div class="space-y-1">
+                        <h2 class="text-xl font-black text-gray-900 tracking-tight uppercase">Alternate Questions</h2>
+                        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                            {swapContext.currentMark} Marks • {swapContext.currentUnit ? `Unit ${swapContext.currentUnit.split('-').pop()}` : 'System Recommended'}
+                        </p>
+                    </div>
+                    <button 
+                        onclick={() => isSwapSidebarOpen = false} 
+                        aria-label="Close Sidebar"
+                        class="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all active:scale-90"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <button 
-                    onclick={() => isSwapSidebarOpen = false}
-                    class="p-2 hover:bg-white rounded-full transition-colors shadow-sm"
-                >
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
             </div>
 
             <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30">
