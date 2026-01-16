@@ -32,14 +32,34 @@
         if (!raw) return [];
         
         // Handle various input structures: { questions: [] } or just []
-        const arr = Array.isArray(raw) ? raw : (raw.questions || []);
+        const arr = (Array.isArray(raw) ? raw : (raw.questions || [])).filter(Boolean);
         
         return arr.map((item: any, i: number) => {
-            // If it's already a slot structure, just ensure it has an ID
+            // If it's already a slot structure, ensure questions are safe
             if (item.type === 'SINGLE' || item.type === 'OR_GROUP') {
+                const mappedSlot = { ...item };
+                if (mappedSlot.type === 'SINGLE' && mappedSlot.questions) {
+                    mappedSlot.questions = mappedSlot.questions.map((q: any) => ({
+                        ...q,
+                        text: q.text || q.question_text || 'Question Text Placeholder'
+                    }));
+                } else if (mappedSlot.type === 'OR_GROUP') {
+                    if (mappedSlot.choice1?.questions) {
+                        mappedSlot.choice1.questions = mappedSlot.choice1.questions.map((q: any) => ({
+                            ...q,
+                            text: q.text || q.question_text || 'Question Text Placeholder'
+                        }));
+                    }
+                    if (mappedSlot.choice2?.questions) {
+                        mappedSlot.choice2.questions = mappedSlot.choice2.questions.map((q: any) => ({
+                            ...q,
+                            text: q.text || q.question_text || 'Question Text Placeholder'
+                        }));
+                    }
+                }
                 return {
-                    ...item,
-                    id: item.id || `slot-${activeSet}-${i}-${item.label || ''}`
+                    ...mappedSlot,
+                    id: mappedSlot.id || `slot-${activeSet}-${i}-${mappedSlot.label || ''}`
                 };
             }
             
@@ -49,7 +69,10 @@
                 type: 'SINGLE',
                 label: String(i + 1),
                 marks: Number(item.marks || 2),
-                questions: [item] // The raw question becomes the first (and only) question in the slot
+                questions: [{
+                    ...item,
+                    text: item.text || item.question_text || 'Question Text Placeholder'
+                }]
             };
         });
     });
@@ -66,7 +89,7 @@
         }
 
         const marks = Number(currentQ?.marks || slot.marks || (part === 'A' ? 2 : 16));
-        const alternates = questionPool.filter((q: any) => Number(q.marks) === marks && q.id !== currentQ?.id);
+        const alternates = (questionPool || []).filter((q: any) => Number(q.marks) === marks && q.id !== currentQ?.id);
 
         swapContext = {
             slotIndex: index,

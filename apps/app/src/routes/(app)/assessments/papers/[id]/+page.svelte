@@ -8,7 +8,7 @@
 
     // Local state for editing
     let activeSet = $state('A');
-    const sets = ['A', 'B', 'C', 'D'];
+    const availableSets = ['A', 'B', 'C', 'D'];
     
     // We deep clone paper data to allow local edits
     let editableSets = $state<any>({});
@@ -26,24 +26,20 @@
 
     // Initialize state from data
     $effect(() => {
-        // We check multiple potential properties for the sets data
-        const paper = data.paper;
-        const rawSetsData = paper?.sets_data || paper?.sets || paper?.json_data || {};
+        const paper = data?.paper;
+        if (!paper) return;
+
+        const rawSetsData = paper.sets_data || paper.sets || paper.json_data || {};
         
         // Only initialize if we haven't already
-        if (Object.keys(editableSets).length === 0 && paper) {
-            // Ensure A, B, C, D exist
-            const setsToInit = ['A', 'B', 'C', 'D'];
+        if (Object.keys(editableSets).length === 0) {
             const initial: any = {};
-            setsToInit.forEach(s => {
-                // We prefer data[s], but if it's nested in data.sets[s] or similar, handle it.
-                // Our loop handles if rawSetsData is the sets object itself.
+            availableSets.forEach(s => {
                 const val = rawSetsData[s] || rawSetsData[s.toLowerCase()];
                 initial[s] = val || { questions: [] };
             });
             editableSets = initial;
 
-            // Extract metadata from either the wrapper metadata or the sets_data nested metadata
             const meta = rawSetsData.metadata || rawSetsData.editor_metadata || paper.meta || {};
             paperMeta = {
                 paper_date: meta.paper_date || paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -78,8 +74,6 @@
     });
 
     let isSaving = $state(false);
-
-    let currentSetData = $derived(editableSets[activeSet]);
 
     async function saveChanges() {
         isSaving = true;
@@ -133,84 +127,83 @@
         fileDownload.click();
         document.body.removeChild(fileDownload);
     }
-
-    function getCOCode(coId: string | undefined) {
-        if (!coId) return null;
-        return data.courseOutcomes.find(c => c.id === coId)?.code || null;
-    }
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 pb-32 print:p-0 print:m-0 print:max-w-none">
     <!-- toolbar -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden px-4 md:px-0">
         <div class="space-y-1">
             <div class="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest">
                 <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                 Live Assessment Editor
             </div>
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight uppercase">{data.paper.subject_name}</h1>
+            <h1 class="text-3xl font-black text-gray-900 tracking-tight uppercase">{data.paper?.subject_name || 'Question Paper'}</h1>
         </div>
         
         <div class="flex flex-wrap gap-3">
-            <div class="flex items-center gap-4">
-                <a href="/assessments/generate" class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-400 text-xs font-black rounded-2xl hover:bg-gray-50 transition-all uppercase tracking-widest">
-                    Create New Paper
-                </a>
+            <button 
+                onclick={saveChanges}
+                disabled={isSaving}
+                class="inline-flex items-center px-8 py-4 bg-green-600 text-white text-xs font-black rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-100 disabled:opacity-50 active:scale-95 text-center justify-center min-w-[200px]"
+            >
+                {#if isSaving}
+                    <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                    SAVING CHANGES...
+                {:else}
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+                    SAVE PAPER CHANGES
+                {/if}
+            </button>
+            <div class="flex gap-2">
                 <button 
-                    onclick={saveChanges}
-                    disabled={isSaving}
-                    class="inline-flex items-center px-8 py-4 bg-green-600 text-white text-xs font-black rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-100 disabled:opacity-50 active:scale-95 text-center justify-center min-w-[150px]"
+                    onclick={downloadPDF}
+                    class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-xs font-black rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
                 >
-                    {#if isSaving}
-                        <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                        SAVING...
-                    {:else}
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-                        SAVE CHANGES
-                    {/if}
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    PDF / PRINT
+                </button>
+                <button 
+                    onclick={downloadDOCX}
+                    class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-xs font-black rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
+                >
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    DOCX (WORD)
                 </button>
             </div>
-            <button 
-                onclick={downloadPDF}
-                class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-xs font-black rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
-            >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                PDF / PRINT
-            </button>
-            <button 
-                onclick={downloadDOCX}
-                class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-xs font-black rounded-2xl hover:bg-gray-50 transition-all shadow-sm"
-            >
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                DOCX (WORD)
-            </button>
         </div>
     </div>
 
     <!-- Set Selector -->
-    <div class="bg-white p-2 rounded-[2rem] border border-gray-100 shadow-sm flex gap-2 print:hidden">
-        {#each sets as set}
+    <div class="bg-gray-100/50 p-2 rounded-[2rem] border border-gray-200 shadow-inner flex gap-2 print:hidden backdrop-blur-sm">
+        {#each availableSets as set}
             <button 
                 onclick={() => activeSet = set}
-                class="flex-1 py-4 rounded-[1.5rem] text-sm font-black transition-all
-                {activeSet === set ? 'bg-gray-900 text-white shadow-2xl shadow-gray-200' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+                class="flex-1 py-4 rounded-[1.5rem] text-sm font-black transition-all duration-300
+                {activeSet === set ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-200 scale-102' : 'text-gray-400 hover:text-gray-600 hover:bg-white/80'}"
             >
-                SET {set}
+                VIEW SET {set}
             </button>
         {/each}
     </div>
 
     <!-- Paper View (Crescent Template) -->
-    <div id="paper-content" class="bg-white rounded-[1rem] shadow-2xl overflow-hidden print:shadow-none print:m-0 print:p-0">
-        <CrescentTemplate 
-            bind:paperMeta 
-            bind:currentSetData={editableSets[activeSet]} 
-            paperStructure={paperStructure}
-            activeSet={activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-        />
+    <div id="paper-content" class="bg-white rounded-[1rem] shadow-2xl overflow-hidden print:shadow-none print:m-0 print:p-0 border border-gray-100">
+        {#if editableSets[activeSet]}
+            <CrescentTemplate 
+                bind:paperMeta 
+                bind:currentSetData={editableSets[activeSet]} 
+                paperStructure={paperStructure}
+                activeSet={activeSet}
+                courseOutcomes={data.courseOutcomes}
+                questionPool={data.questionPool}
+                mode="edit"
+            />
+        {:else}
+            <div class="p-20 text-center space-y-4">
+                <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p class="text-gray-400 font-black uppercase tracking-widest text-xs">Loading Paper Content...</p>
+            </div>
+        {/if}
     </div>
 </div>
 
