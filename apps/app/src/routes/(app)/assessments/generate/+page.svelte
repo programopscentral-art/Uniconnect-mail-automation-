@@ -295,7 +295,7 @@
     }
 
     async function fetchTemplates() {
-        if (!selectedUniversityId) return;
+        if (!selectedUniversityId || selectedUniversityId === 'undefined' || selectedUniversityId.length < 36) return;
         const res = await fetch(`/api/assessments/templates?universityId=${selectedUniversityId}`);
         if (res.ok) availableTemplates = await res.json();
     }

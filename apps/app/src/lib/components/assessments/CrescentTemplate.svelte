@@ -29,10 +29,10 @@
     // This ensures even raw question objects from DB are wrapped into the "slot" structure expected by the UI
     let safeQuestions = $derived.by(() => {
         const raw = currentSetData;
-        const totalExpectedSlots = paperStructure.reduce((acc, s) => acc + (s.count || 0), 0) || 16;
+        const totalExpectedSlots = paperStructure.reduce((acc: any, s: any) => acc + (s.count || 0), 0) || 16;
         
         // Handle various input structures: { questions: [] } or just []
-        let arr = (Array.isArray(raw) ? raw : (raw.questions || [])).filter(Boolean);
+        let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
         
         // Map existing data
         const mapped = arr.map((item: any, i: number) => {

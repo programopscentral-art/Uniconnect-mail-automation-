@@ -11,65 +11,60 @@
     const availableSets = ['A', 'B', 'C', 'D'];
     
     // We deep clone paper data to allow local edits
-    let editableSets = $state<any>({
-        'A': { questions: [] },
-        'B': { questions: [] },
-        'C': { questions: [] },
-        'D': { questions: [] }
-    });
-    let paperMeta = $state({
-        paper_date: '',
-        exam_time: '',
-        duration_minutes: '180',
-        max_marks: '100',
-        course_code: 'CS-XXXX',
-        subject_name: 'Question Paper',
-        exam_title: 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
-        programme: 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
-        semester: '1',
-        instructions: 'ANSWER ALL QUESTIONS'
-    });
+    let editableSets = $state<any>(initializeSets());
+    let paperMeta = $state(initializeMeta());
 
-    // Initialize state from data
-    $effect(() => {
+    function initializeSets() {
         const paper = data?.paper;
-        if (!paper) return;
+        if (!paper) return { 'A': { questions: [] }, 'B': { questions: [] }, 'C': { questions: [] }, 'D': { questions: [] } };
 
         let rawSetsData = paper.sets_data || paper.sets || paper.json_data || {};
-        
-        // Handle case where sets_data might be a string (SQLite or some PG drivers)
         if (typeof rawSetsData === 'string') {
-            try {
-                rawSetsData = JSON.parse(rawSetsData);
-            } catch (e) {
-                console.error('Failed to parse sets_data', e);
-                rawSetsData = {};
-            }
+            try { rawSetsData = JSON.parse(rawSetsData); } catch (e) { rawSetsData = {}; }
         }
-        
-        // Only initialize if we haven't already
-        if (Object.keys(editableSets).length === 0) {
-            const initial: any = {};
-            availableSets.forEach(s => {
-                const val = rawSetsData[s] || rawSetsData[s.toLowerCase()];
-                // DEEP CLONE to prevent mutation of reactive props
-                initial[s] = val ? JSON.parse(JSON.stringify(val)) : { questions: [] };
-            });
-            editableSets = initial;
 
-            const meta = rawSetsData.metadata || rawSetsData.editor_metadata || paper.meta || {};
-            paperMeta = {
-                paper_date: meta.paper_date || paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
-                exam_time: meta.exam_time || '',
-                duration_minutes: String(meta.duration_minutes || paper.duration_minutes || 180),
-                max_marks: String(meta.max_marks || paper.max_marks || 100),
-                course_code: meta.course_code || paper.subject_code || 'CS-XXXX',
-                subject_name: meta.subject_name || paper.subject_name || 'Question Paper',
-                exam_title: meta.exam_title || paper.exam_title || 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
-                programme: meta.programme || paper.branch_name || 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
-                semester: String(meta.semester || paper.semester || 1),
-                instructions: meta.instructions || paper.instructions || 'ANSWER ALL QUESTIONS'
-            };
+        const initial: any = {};
+        availableSets.forEach(s => {
+            const val = rawSetsData[s] || rawSetsData[s.toLowerCase()];
+            initial[s] = val ? JSON.parse(JSON.stringify(val)) : { questions: [] };
+        });
+        return initial;
+    }
+
+    function initializeMeta() {
+        const paper = data?.paper;
+        if (!paper) return {
+            paper_date: '', exam_time: '', duration_minutes: '180', max_marks: '100',
+            course_code: 'CS-XXXX', subject_name: 'Question Paper',
+            exam_title: 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
+            programme: 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
+            semester: '1', instructions: 'ANSWER ALL QUESTIONS'
+        };
+
+        let rawSetsData = paper.sets_data || paper.sets || paper.json_data || {};
+        if (typeof rawSetsData === 'string') {
+            try { rawSetsData = JSON.parse(rawSetsData); } catch (e) { rawSetsData = {}; }
+        }
+
+        const meta = rawSetsData.metadata || rawSetsData.editor_metadata || paper.meta || {};
+        return {
+            paper_date: meta.paper_date || paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+            exam_time: meta.exam_time || '',
+            duration_minutes: String(meta.duration_minutes || paper.duration_minutes || 180),
+            max_marks: String(meta.max_marks || paper.max_marks || 100),
+            course_code: meta.course_code || paper.subject_code || 'CS-XXXX',
+            subject_name: meta.subject_name || paper.subject_name || 'Question Paper',
+            exam_title: meta.exam_title || paper.exam_title || 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
+            programme: meta.programme || paper.branch_name || 'B.Tech - COMPUTER SCIENCE AND ENGINEERING',
+            semester: String(meta.semester || paper.semester || 1),
+            instructions: meta.instructions || paper.instructions || 'ANSWER ALL QUESTIONS'
+        };
+    }
+
+    // Handle data changes from server (rare but good for safety)
+    $effect(() => {
+        if (data.paper?.id) {
+             // In Svelte 5, we might not need to do anything here if we reset state on navigation
         }
     });
 
