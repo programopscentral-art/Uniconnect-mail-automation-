@@ -131,22 +131,72 @@
     }
 
     function downloadDOCX() {
-        const content = document.getElementById('paper-content')?.innerHTML;
-        if (!content) return;
+        const paperElement = document.getElementById('paper-content');
+        if (!paperElement) return;
+
+        // Clone the element to manipulate it without affecting the live UI
+        const clone = paperElement.cloneNode(true) as HTMLElement;
         
+        // Remove all elements marked as hidden during print (SWAP buttons, etc)
+        clone.querySelectorAll('.print\\:hidden').forEach(el => el.remove());
+
+        // Remove Svelte transition artifacts if any
+        clone.querySelectorAll('[style*="transition"]').forEach(el => (el as HTMLElement).style.transition = 'none');
+
+        const content = clone.innerHTML;
+        
+        const wordStyles = `
+            <style>
+                @page { margin: 1in; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: black; }
+                table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+                td, th { border: 1pt solid black; padding: 5pt; }
+                .paper-container { padding: 0 !important; border: none !important; }
+                .section-part-a, .section-part-b, .section-part-c { margin-top: 20pt; }
+                .text-center { text-align: center; }
+                .font-black { font-weight: 900; }
+                .font-bold { font-weight: bold; }
+                .uppercase { text-transform: uppercase; }
+                .border-b-2 { border-bottom: 2pt solid black; }
+                .border-2 { border: 2pt solid black; }
+                .border { border: 1pt solid black; }
+                .divide-y > * + * { border-top: 1pt solid black; }
+                .flex { display: block; } /* Word doesn't support flex, fallback to block */
+                .justify-between { display: table; width: 100%; }
+                .w-12 { width: 40pt; text-align: center; }
+                .w-20 { width: 60pt; text-align: center; }
+                .p-2, .p-3 { padding: 5pt; }
+                .mb-4 { margin-bottom: 10pt; }
+                .mt-8 { margin-top: 20pt; }
+                .grid { display: table; width: 100%; }
+                .grid-cols-2 > * { display: inline-block; width: 45%; padding: 5pt; vertical-align: top; }
+                img { max-width: 300pt; height: auto; }
+            </style>
+        `;
+
         const header = `
             <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-            <head><meta charset='utf-8'><title>Question Paper</title></head><body>`;
+            <head>
+                <meta charset='utf-8'>
+                <title>Question Paper</title>
+                ${wordStyles}
+            </head>
+            <body>`;
         const footer = "</body></html>";
         const sourceHTML = header + content + footer;
         
-        const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+        const blob = new Blob(['\ufeff', sourceHTML], {
+            type: 'application/msword'
+        });
+        
+        const url = URL.createObjectURL(blob);
         const fileDownload = document.createElement("a");
         document.body.appendChild(fileDownload);
-        fileDownload.href = source;
+        fileDownload.href = url;
         fileDownload.download = `${data.paper.subject_name}_Paper.doc`;
         fileDownload.click();
         document.body.removeChild(fileDownload);
+        URL.revokeObjectURL(url);
     }
 </script>
 
