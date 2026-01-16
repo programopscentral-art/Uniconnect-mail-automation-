@@ -46,7 +46,9 @@
     let isLoadingTopics = $state(false);
     let isGenerating = $state(false);
 
-    function initializeStructure() {
+    function initializeStructure(force = false) {
+        if (!force && paperStructure.length > 0) return; // Don't overwrite if already exists
+
         const is100 = Number(maxMarks) === 100;
         const structure = [];
         
@@ -58,6 +60,7 @@
 
         const partA = { 
             title: 'PART A', 
+            part: 'A',
             answered_count: countA,
             marks_per_q: marksA,
             slots: [] as any[] 
@@ -65,8 +68,9 @@
 
         for(let i=1; i<=countA; i++) {
             partA.slots.push({ 
-                id: `A-${i}`, 
+                id: `A-${i}-${Math.random()}`, 
                 label: `${i}`, 
+                part: 'A',
                 type: 'SINGLE',
                 marks: marksA, 
                 unit: 'Auto', 
@@ -84,6 +88,7 @@
         const marksB = is100 ? 16 : 5;
         const partB = { 
             title: 'PART B', 
+            part: 'B',
             answered_count: countB,
             marks_per_q: marksB,
             slots: [] as any[] 
@@ -91,16 +96,17 @@
 
         const startB = countA + 1;
         for(let i=0; i<countB; i++) {
-            const qNum = startB + (i * 2);
+            const qNum = startB + i;
             partB.slots.push({ 
-                id: `B-${i}`, 
+                id: `B-${i}-${Math.random()}`, 
                 label: `${qNum}`, 
                 displayLabel: `${qNum} or ${qNum + 1}`,
+                part: 'B',
                 type: 'OR_GROUP',
                 marks: marksB,
                 choices: [
-                    { label: `${qNum}`, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: marksB, bloom: 'ANY', marks_a: Number((marksB/2).toFixed(1)), marks_b: Number((marksB/2).toFixed(1)) },
-                    { label: `${qNum+1}`, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: marksB, bloom: 'ANY', marks_a: Number((marksB/2).toFixed(1)), marks_b: Number((marksB/2).toFixed(1)) }
+                    { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: marksB, bloom: 'ANY', marks_a: Number((marksB/2).toFixed(1)), marks_b: Number((marksB/2).toFixed(1)) },
+                    { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: marksB, bloom: 'ANY', marks_a: Number((marksB/2).toFixed(1)), marks_b: Number((marksB/2).toFixed(1)) }
                 ]
             });
         }
@@ -109,20 +115,22 @@
         if (is100) {
             const partC = {
                 title: 'PART C',
+                part: 'C',
                 answered_count: 1,
                 marks_per_q: 16,
                 slots: [] as any[]
             };
-            const startC = startB + (countB * 2);
+            const startC = startB + countB;
             partC.slots.push({
-                id: `C-1`,
+                id: `C-1-${Math.random()}`,
                 label: `${startC}`,
                 displayLabel: `${startC} or ${startC + 1}`,
+                part: 'C',
                 type: 'OR_GROUP',
                 marks: 16,
                 choices: [
-                    { label: `${startC}`, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 16, bloom: 'ANY', marks_a: 8, marks_b: 8 },
-                    { label: `${startC+1}`, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 16, bloom: 'ANY', marks_a: 8, marks_b: 8 }
+                    { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 16, bloom: 'ANY', marks_a: 8, marks_b: 8 },
+                    { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 16, bloom: 'ANY', marks_a: 8, marks_b: 8 }
                 ]
             });
             structure.push(partC);
@@ -376,7 +384,7 @@
             return alert('Select at least one unit');
         }
         if (currentStep === 3) {
-            initializeStructure();
+            initializeStructure(); // Only initializes if empty
         }
         if (currentStep < 5) currentStep++; 
     }
@@ -737,7 +745,11 @@
                                             <span class="text-[9px] font-black text-gray-400 uppercase">Marks</span>
                                         </div>
 
-                                        <div class="flex items-center gap-2">
+                                         <div class="flex items-center gap-2">
+                                            <button 
+                                                onclick={() => initializeStructure(true)}
+                                                class="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                            >Reset to Defaults</button>
                                             <button 
                                                 onclick={() => addSingleSlot(section)}
                                                 class="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm"

@@ -60,11 +60,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const slotsToProcess: any[] = [];
         if (generation_mode === 'Modifiable' && template_config) {
             template_config.forEach((section: any) => {
+                const partTitle = section.title?.toUpperCase() || '';
+                const part = partTitle.includes('PART A') ? 'A' : (partTitle.includes('PART B') ? 'B' : 'C');
+
                 section.slots.forEach((slot: any) => {
                     slotsToProcess.push({
                         ...slot,
                         id: slot.id || uuidv4(),
-                        marks: slot.marks || section.marks_per_q
+                        marks: slot.marks || section.marks_per_q,
+                        part: part // Explicitly assign part from section
                     });
                 });
             });
@@ -83,7 +87,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     type: 'SINGLE',
                     unit: 'Auto',
                     hasSubQuestions: false,
-                    qType: typeA
+                    qType: typeA,
+                    part: 'A'
                 });
             }
 
@@ -98,9 +103,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     unit: 'Auto',
                     hasSubQuestions: false,
                     qType: 'NORMAL',
+                    part: 'B',
                     choices: [
-                        { label: `${countA + 1 + i * 2}`, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) },
-                        { label: `${countA + 2 + i * 2}`, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) }
+                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) },
+                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) }
                     ]
                 });
             }
@@ -108,13 +114,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // For Standard mode, we reconstruct the structure for metadata preservation
             if (!template_config) {
                 template_config = [
-                    { title: 'PART A', marks_per_q: marksA, count: countA, slots: slotsToProcess.slice(0, countA) },
-                    { title: 'PART B', marks_per_q: is100 ? 16 : 5, count: realCountB, slots: slotsToProcess.slice(countA) }
+                    { title: 'PART A', marks_per_q: marksA, count: countA, slots: slotsToProcess.filter(s => s.part === 'A') },
+                    { title: 'PART B', marks_per_q: is100 ? 16 : 5, count: realCountB, slots: slotsToProcess.filter(s => s.part === 'B') }
                 ];
-                if (is100) {
-                    // Adjust for Part C if needed, but the loop above handles total slots
-                    // Original logic had PART C for 100m. 
-                }
             }
         }
 
@@ -248,7 +250,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setQuestions.push({
                         type: 'SINGLE',
                         label: slot.label,
-                        questions: questions.length > 0 ? questions : [{ text: `[No question found for Unit ${unitId}]`, marks: slot.marks }]
+                        part: slot.part, // PASS PART TO FINAL OBJECT
+                        questions: questions.length > 0 ? questions.map(q => ({ ...q, part: slot.part })) : [{ text: `[No question found for Unit ${unitId}]`, marks: slot.marks, part: slot.part }]
                     });
                 } else {
                     // OR_GROUP
@@ -285,13 +288,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setQuestions.push({
                         type: 'OR_GROUP',
                         label: slot.label,
+                        part: slot.part, // PASS PART TO FINAL OBJECT
                         choice1: {
                             label: c1.label,
-                            questions: questions1.length > 0 ? questions1 : [{ text: `[No question found for Unit ${u1}]`, marks: c1.marks }]
+                            questions: questions1.length > 0 ? questions1.map(q => ({ ...q, part: slot.part })) : [{ text: `[No question found for Unit ${u1}]`, marks: c1.marks, part: slot.part }]
                         },
                         choice2: {
                             label: c2.label,
-                            questions: questions2.length > 0 ? questions2 : [{ text: `[No question found for Unit ${u2}]`, marks: c2.marks }]
+                            questions: questions2.length > 0 ? questions2.map(q => ({ ...q, part: slot.part })) : [{ text: `[No question found for Unit ${u2}]`, marks: c2.marks, part: slot.part }]
                         }
                     });
                 }
