@@ -1,5 +1,7 @@
 import { db, getQuestionsByUnits, getAssessmentUnits } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
+// @ts-ignore
+import { v4 as uuidv4 } from 'uuid';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -11,8 +13,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         exam_type, semester, unit_ids,
         paper_date, exam_time, duration_minutes, max_marks,
         course_code, exam_title, instructions,
-        generation_mode, template_config, part_a_type
+        generation_mode, part_a_type
     } = body;
+
+    let template_config = body.template_config;
 
     if (!subject_id || !unit_ids || unit_ids.length === 0) {
         throw error(400, 'Subject and Units are required');
@@ -59,7 +63,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 section.slots.forEach((slot: any) => {
                     slotsToProcess.push({
                         ...slot,
-                        marks: slot.marks || section.marks_per_q // Fallback to section marks if not set
+                        id: slot.id || uuidv4(),
+                        marks: slot.marks || section.marks_per_q
                     });
                 });
             });
@@ -72,6 +77,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             for (let i = 1; i <= countA; i++) {
                 slotsToProcess.push({
+                    id: uuidv4(),
                     label: `${i}`,
                     marks: marksA,
                     type: 'SINGLE',
@@ -81,15 +87,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
             }
 
-            const countB = is100 ? 5 : 8; // Adjusting 100m to 5 questions in Part B if needed, 
-            // but let's stick to original logic unless asked. 
-            // Wait, the user said for 100m it should be 10 Qs in Part A and 5 in Part B (OR).
-            // Original code had 4 + 1 = 5 for 100m.
-
             const realCountB = is100 ? 5 : 8;
             for (let i = 0; i < realCountB; i++) {
                 const marksB = is100 ? 16 : 5;
                 slotsToProcess.push({
+                    id: uuidv4(),
                     label: `${countA + 1 + i}`,
                     marks: marksB,
                     type: 'OR_GROUP',
@@ -101,6 +103,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         { label: `${countA + 2 + i * 2}`, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) }
                     ]
                 });
+            }
+
+            // For Standard mode, we reconstruct the structure for metadata preservation
+            if (!template_config) {
+                template_config = [
+                    { title: 'PART A', marks_per_q: marksA, count: countA, slots: slotsToProcess.slice(0, countA) },
+                    { title: 'PART B', marks_per_q: is100 ? 16 : 5, count: realCountB, slots: slotsToProcess.slice(countA) }
+                ];
+                if (is100) {
+                    // Adjust for Part C if needed, but the loop above handles total slots
+                    // Original logic had PART C for 100m. 
+                }
             }
         }
 
@@ -272,11 +286,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 3. Save to DB
         const { rows } = await db.query(
-            `INSERT INTO assessment_papers (
-                university_id, batch_id, branch_id, subject_id, 
-                exam_type, semester, paper_date, duration_minutes, 
-                max_marks, sets_data
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+            `INSERT INTO assessment_papers(
+    university_id, batch_id, branch_id, subject_id,
+    exam_type, semester, paper_date, duration_minutes,
+    max_marks, sets_data
+) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING * `,
             [
                 university_id, batch_id, branch_id, subject_id,
                 exam_type, semester, paper_date, duration_minutes,

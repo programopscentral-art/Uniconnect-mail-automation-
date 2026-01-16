@@ -68,19 +68,27 @@
         }
     });
 
-    // Helper to find paper structure based on marks
+    // Helper to find paper structure from metadata or defaults
     let paperStructure = $derived.by(() => {
+        const rawSetsData = data?.paper?.sets_data || {};
+        const meta = rawSetsData.metadata || {};
+        
+        // Priority 1: Use the structure saved during generation
+        if (meta.template_config) return meta.template_config;
+
+        // Priority 2: Standard resolution logic
         const marks = Number(paperMeta.max_marks);
         const is100 = marks === 100;
+        const isMCQ = meta.part_a_type === 'MCQ';
+
         if (is100) {
             return [
-                { title: 'PART A', marks_per_q: 2, count: 10, answered_count: 10 },
-                { title: 'PART B', marks_per_q: 16, count: 5, answered_count: 4 },
-                { title: 'PART C', marks_per_q: 16, count: 1, answered_count: 1 }
+                { title: 'PART A', marks_per_q: isMCQ ? 1 : 2, count: isMCQ ? 20 : 10, answered_count: isMCQ ? 20 : 10 },
+                { title: 'PART B', marks_per_q: 16, count: 5, answered_count: 5 }
             ];
         } else {
             return [
-                { title: 'PART A', marks_per_q: 2, count: 5, answered_count: 5 },
+                { title: 'PART A', marks_per_q: isMCQ ? 1 : 2, count: isMCQ ? 10 : 5, answered_count: isMCQ ? 10 : 5 },
                 { title: 'PART B', marks_per_q: 5, count: 8, answered_count: 8 }
             ];
         }

@@ -42,18 +42,33 @@
             if (item.type === 'SINGLE' || item.type === 'OR_GROUP') {
                 let mappedSlot = { ...item };
                 if (item.type === 'SINGLE' && item.questions) {
-                    mappedSlot.questions = item.questions.map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }));
+                    mappedSlot.questions = item.questions.map((q: any) => ({ 
+                        ...q, 
+                        id: q.id || `q-${item.id || i}-${Math.random()}`,
+                        text: getTxt(q), 
+                        marks: getMarks(q) 
+                    }));
                 } else if (item.type === 'OR_GROUP') {
                     if (item.choice1) {
                         mappedSlot.choice1 = {
                             ...item.choice1,
-                            questions: (item.choice1.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }))
+                            questions: (item.choice1.questions || []).map((q: any, qi: number) => ({ 
+                                ...q, 
+                                id: q.id || `q1-${item.id || i}-${qi}`,
+                                text: getTxt(q), 
+                                marks: getMarks(q) 
+                            }))
                         };
                     }
                     if (item.choice2) {
                         mappedSlot.choice2 = {
                             ...item.choice2,
-                            questions: (item.choice2.questions || []).map((q: any) => ({ ...q, text: getTxt(q), marks: getMarks(q) }))
+                            questions: (item.choice2.questions || []).map((q: any, qi: number) => ({ 
+                                ...q, 
+                                id: q.id || `q2-${item.id || i}-${qi}`,
+                                text: getTxt(q), 
+                                marks: getMarks(q) 
+                            }))
                         };
                     }
                 }
@@ -65,17 +80,23 @@
                 type: 'SINGLE',
                 label: String(i + 1),
                 marks: getMarks(item),
-                questions: [{ ...item, text: getTxt(item), marks: getMarks(item) }]
+                questions: [{ ...item, id: item.id || `qi-raw-${i}`, text: getTxt(item), marks: getMarks(item) }]
             };
         });
 
         // PAD with empty slots if needed to maintain structure visibility
         if (mapped.length < totalExpectedSlots) {
             const padding = [];
+            let countSoFar = mapped.length;
+            
+            // Calculate where we are in parts for padding
+            let partACount = paperStructure[0]?.count || 10;
+            let partBCount = paperStructure[1]?.count || 5;
+
             for (let i = mapped.length; i < totalExpectedSlots; i++) {
                 padding.push({
                     id: `pad-${activeSet}-${i}`,
-                    type: i < (paperStructure[0]?.count || 10) ? 'SINGLE' : 'OR_GROUP',
+                    type: i < partACount ? 'SINGLE' : 'OR_GROUP',
                     label: '?',
                     questions: []
                 });
@@ -297,6 +318,7 @@
         const count = paperStructure[1]?.count || 5;
         const slots = safeQuestions.slice(start, start + count);
         
+        // Calculate starting number for Part B
         let currentNum = questionsA.length + 1;
         return slots.map((s: any) => {
             if (s.type === 'OR_GROUP') {
@@ -312,7 +334,7 @@
 
     let questionsC = $derived.by(() => {
         const start = (paperStructure[0]?.count || 10) + (paperStructure[1]?.count || 5);
-        const count = paperStructure[2]?.count || 1;
+        const count = paperStructure[2]?.count || 0;
         const slots = safeQuestions.slice(start, start + count);
         
         // Calculate starting number for Part C
@@ -334,8 +356,10 @@
         });
     });
 
-    let partACount = $derived(questionsA.length);
-    let partBCount = $derived(questionsB.length);
+    // Stats
+    let partACount = $derived(paperStructure[0]?.count || 10);
+    let partBCount = $derived(paperStructure[1]?.count || 5);
+    let partCCount = $derived(paperStructure[2]?.count || 0);
     let is100m = $derived(Number(paperMeta.max_marks) === 100);
 </script>
 
