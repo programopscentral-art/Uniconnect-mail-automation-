@@ -147,33 +147,30 @@
                     ${styles}
                     <style>
                         @media print {
-                            @page { size: A4; margin: 0; }
+                            @page { size: A4; margin: 0mm; }
                             html, body { 
                                 margin: 0 !important; 
                                 padding: 0 !important; 
                                 width: 210mm !important;
                                 background: white !important;
-                                display: block !important;
                             }
-                            body > * {
-                                margin-left: auto !important;
-                                margin-right: auto !important;
+                            body {
+                                display: flex !important;
+                                justify-content: center !important;
                             }
                             .paper-container { 
                                 width: 210mm !important; 
                                 margin: 0 auto !important; 
-                                padding: 20mm !important; 
+                                padding: 18mm !important; 
                                 border: none !important; 
-                                box-shadow: none !important;
                                 box-sizing: border-box !important;
-                                position: relative !important;
+                                background: white !important;
                             }
                             .no-print, nav, header, sidebar, .print\\:hidden, .fixed { display: none !important; }
                         }
                         body { 
                             margin: 0; 
-                            background: #666; 
-                            font-family: 'Times New Roman', serif;
+                            background: #555; 
                             display: flex;
                             justify-content: center;
                             padding: 20px;
@@ -183,7 +180,7 @@
                             width: 210mm; 
                             min-height: 297mm;
                             padding: 22mm; 
-                            box-shadow: 0 0 50px rgba(0,0,0,0.3); 
+                            box-shadow: 0 0 50px rgba(0,0,0,0.5); 
                             box-sizing: border-box;
                         }
                     </style>
@@ -224,9 +221,7 @@
 
         const cleanQuestionText = (txt: string) => {
             if (!txt) return '';
-            // Safe cleaning: only remove IF it looks like a complete option block at the very end
-            // Otherwise, keep it to avoid cutting off legitimate text containing parts like "in a row"
-            return txt.replace(/\s*\(a\).+\(d\).+$/is, '').trim();
+            return txt.trim();
         };
 
         let html = `
@@ -234,27 +229,27 @@
             <head>
                 <meta charset='utf-8'>
                 <style>
-                    @page { margin: 0.5in; mso-header-margin: 0.5in; mso-footer-margin: 0.5in; }
-                    body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: black; line-height: 1.15; }
+                    @page { margin: 0.6in; mso-header-margin: 0.5in; mso-footer-margin: 0.5in; }
+                    body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; color: black; line-height: 1.25; }
                     table { border-collapse: collapse; width: 100%; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
                     td { vertical-align: top; border: 1pt solid black; padding: 6pt; }
                     .no-border td { border: none !important; padding: 1pt; }
                     .metadata-table td { font-weight: bold; border: 1pt solid black; padding: 4pt 6pt; text-transform: uppercase; font-size: 9.5pt; }
-                    .part-header { 
+                    .part-header-row { 
                         text-align: center; 
                         font-weight: bold; 
                         padding: 10pt; 
                         background-color: #f2f2f2;
-                        font-size: 12pt;
+                        font-size: 11.5pt;
                         text-transform: uppercase;
-                        border: 1pt solid black;
-                        margin-top: 15pt;
                     }
-                    .or-text {
+                    .or-row td {
                         text-align: center;
                         font-weight: bold;
                         font-style: italic;
-                        padding: 8pt;
+                        padding: 6pt;
+                        border-top: none !important;
+                        border-bottom: none !important;
                     }
                 </style>
             </head>
@@ -263,7 +258,7 @@
 
         // 1. HEADER
         html += `
-            <table class="no-border" style="margin-bottom: 2pt;">
+            <table class="no-border" style="margin-bottom: 5pt; border-collapse: collapse;">
                 <tr>
                     <td style="width: 15%; text-align: left; vertical-align: middle;">
                         <img src="https://uniconnect-app.up.railway.app/crescent-logo.png" width="95" height="95" />
@@ -274,7 +269,7 @@
                         <div style="font-size: 7.5pt; color: #555; margin-top: 2pt;">Deemed to be University u/s 3 of the UGC Act, 1956</div>
                     </td>
                     <td style="width: 30%; text-align: right; vertical-align: bottom; padding-bottom: 2pt;">
-                        <div style="font-weight: bold; margin-bottom: 10pt; font-size: 11pt;">&lt;${meta.course_code || ''}&gt;</div>
+                        <div style="font-weight: bold; margin-bottom: 12pt; font-size: 11pt;">&lt;${meta.course_code || ''}&gt;</div>
                         <table border="0" align="right" style="width: auto; border-collapse: collapse;">
                             <tr>
                                 <td style="border: 1pt solid black; font-size: 8.5pt; padding: 4pt 6pt; font-weight: bold; background: #eee;">RRN</td>
@@ -285,7 +280,7 @@
                 </tr>
             </table>
 
-            <div style="text-align: center; font-weight: bold; font-size: 14pt; margin: 10pt 0; text-transform: uppercase; letter-spacing: 0.8pt;">
+            <div style="text-align: center; font-weight: bold; font-size: 13.5pt; margin: 12pt 0; text-transform: uppercase; letter-spacing: 0.5pt;">
                 ${meta.exam_title || 'SEMESTER END EXAMINATIONS - NOV/DEC 2025'}
             </div>
 
@@ -312,7 +307,7 @@
                 </tr>
             </table>
 
-            <div style="text-align: center; font-weight: bold; font-size: 11pt; margin: 15pt 0; text-decoration: underline;">
+            <div style="text-align: center; font-weight: bold; font-size: 10pt; margin: 15pt 0; text-decoration: underline;">
                 ${meta.instructions || 'ANSWER ALL QUESTIONS'}
             </div>
         `;
@@ -326,8 +321,8 @@
 
         const buildBlock = (title: string, slots: any[], startNum: number, marksPerQ: number) => {
             if (slots.length === 0) return '';
-            let blockHtml = `<div class="part-header">${title} (${slots.length} X ${marksPerQ} = ${slots.length * marksPerQ} MARKS)</div>`;
-            blockHtml += `<table style="width: 100%; border: 1pt solid black; margin-top: -1pt;">`;
+            let blockHtml = `<table style="width: 100%; border: 1pt solid black; margin-top: 15pt;">`;
+            blockHtml += `<tr><td colspan="3" class="part-header-row">${title} (${slots.length} X ${marksPerQ} = ${slots.length * marksPerQ} MARKS)</td></tr>`;
             
             let currentNum = startNum;
             slots.forEach((s) => {
@@ -337,20 +332,20 @@
                     blockHtml += `
                         <tr>
                             <td style="width: 45pt; text-align: center; font-weight: bold; border-bottom: none !important;">${currentNum}.</td>
-                            <td style="width: auto; border-bottom: none !important;">${cleanQuestionText(q1.text)}</td>
+                            <td style="width: auto; border-bottom: none !important;">${q1.text || ''}</td>
                             <td style="width: 80pt; text-align: center; border-left: 1pt solid black; border-bottom: none !important; font-size: 10pt;">
                                 ${fetchCO(q1) ? `<div>(${fetchCO(q1)})</div>` : ''}
                                 <div style="font-weight: bold;">(${q1.marks || s.marks || 0})</div>
                             </td>
                         </tr>
-                        <tr>
-                            <td style="border-top: none !important; border-bottom: none !important;">&nbsp;</td>
-                            <td class="or-text" style="border-top: none !important; border-bottom: none !important;">(OR)</td>
-                            <td style="border-left: 1pt solid black; border-top: none !important; border-bottom: none !important;">&nbsp;</td>
+                        <tr class="or-row">
+                            <td style="width: 45pt;">&nbsp;</td>
+                            <td style="width: auto;">(OR)</td>
+                            <td style="width: 80pt; border-left: 1pt solid black;">&nbsp;</td>
                         </tr>
                         <tr>
                             <td style="width: 45pt; text-align: center; font-weight: bold; border-top: none !important;">&nbsp;</td>
-                            <td style="width: auto; border-top: none !important;">${cleanQuestionText(q2.text)}</td>
+                            <td style="width: auto; border-top: none !important;">${q2.text || ''}</td>
                             <td style="width: 80pt; text-align: center; border-left: 1pt solid black; border-top: none !important; font-size: 10pt;">
                                 ${fetchCO(q2) ? `<div>(${fetchCO(q2)})</div>` : ''}
                                 <div style="font-weight: bold;">(${q2.marks || s.marks || 0})</div>
@@ -364,19 +359,19 @@
                         <tr>
                             <td style="width: 45pt; text-align: center; font-weight: bold;">${currentNum++}.</td>
                             <td style="width: auto;">
-                                <div style="margin-bottom: 6pt; font-size: 11.5pt;">${cleanQuestionText(q.text)}</div>
+                                <div style="margin-bottom: 4pt; font-size: 11pt;">${q.text || ''}</div>
                                 ${q.type === 'MCQ' ? `
                                     <div style="text-align: right; font-weight: bold; margin-bottom: 2pt;">[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div>
                                 ` : ''}
                                 ${q.options && q.options.length > 0 ? `
                                     <table border="0" style="margin-top: 5pt; margin-left: 20pt; width: 95%; border-collapse: collapse;">
                                         <tr>
-                                            <td style="width: 50%; border: none !important; padding: 3pt; font-size: 11pt;">(a) ${cleanOption(q.options[0])}</td>
-                                            <td style="width: 50%; border: none !important; padding: 3pt; font-size: 11pt;">(b) ${cleanOption(q.options[1])}</td>
+                                            <td style="width: 50%; border: none !important; padding: 2pt; font-size: 10.5pt;">(a) ${cleanOption(q.options[0])}</td>
+                                            <td style="width: 50%; border: none !important; padding: 2pt; font-size: 10.5pt;">(b) ${cleanOption(q.options[1])}</td>
                                         </tr>
                                         <tr>
-                                            <td style="width: 50%; border: none !important; padding: 3pt; font-size: 11pt;">(c) ${cleanOption(q.options[2])}</td>
-                                            <td style="width: 50%; border: none !important; padding: 3pt; font-size: 11pt;">(d) ${cleanOption(q.options[3])}</td>
+                                            <td style="width: 50%; border: none !important; padding: 2pt; font-size: 10.5pt;">(c) ${cleanOption(q.options[2])}</td>
+                                            <td style="width: 50%; border: none !important; padding: 2pt; font-size: 10.5pt;">(d) ${cleanOption(q.options[3])}</td>
                                         </tr>
                                     </table>
                                 ` : ''}
@@ -400,7 +395,7 @@
         }
 
         html += `
-            <table class="no-border" style="margin-top: 60pt;">
+            <table class="no-border" style="margin-top: 60pt; border-collapse: collapse;">
                 <tr>
                     <td style="width: 50%; text-align: left; padding-top: 30pt; font-size: 11pt; font-weight: bold; border-top: 1pt solid black;">Name & Signature of DAAC Member</td>
                     <td style="width: 50%; text-align: right; padding-top: 30pt; font-size: 11pt; font-weight: bold; border-top: 1pt solid black;">Name & Signature of DAAC Member</td>
