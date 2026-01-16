@@ -30,72 +30,68 @@
     let safeQuestions = $derived.by(() => {
         const raw = currentSetData;
         
-        // Handle various input structures: { questions: [] } or just []
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
         
-        // Map existing data
-        const mapped = arr.map((item: any, i: number) => {
+        let currentLabelNum = 1;
+        
+        const mapped = arr.map((item: any) => {
             const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
             const getMarks = (q: any) => Number(q.marks || q.mark || 0);
 
             // Store original reference for easy deletion/updates
             let mappedSlot = { ...item, _raw: item };
             
-            // Assign part if missing (heuristic based on original position/structure)
-            if (!mappedSlot.part) {
-                const partACount = paperStructure[0]?.count || 10;
-                const partBCount = paperStructure[1]?.count || 5;
-                if (i < partACount) mappedSlot.part = 'A';
-                else if (i < partACount + partBCount) mappedSlot.part = 'B';
-                else mappedSlot.part = 'C';
-            }
-
+            // Assign labels and tracking numbers
             if (item.type === 'SINGLE' || item.type === 'OR_GROUP') {
+                 if (item.type === 'SINGLE') {
+                    mappedSlot.n1 = currentLabelNum;
+                    currentLabelNum++;
+                 } else {
+                    mappedSlot.n1 = currentLabelNum;
+                    mappedSlot.n2 = currentLabelNum + 1;
+                    currentLabelNum += 2;
+                 }
+
                 if (item.type === 'SINGLE' && item.questions) {
-                    mappedSlot.questions = item.questions.map((q: any) => ({ 
+                    mappedSlot.questions = item.questions.map((q: any, qi: number) => ({ 
                         ...q, 
-                        id: q.id || `q-${item.id || i}-${Math.random()}`,
+                        id: q.id || `q-${item.id || Math.random()}-${qi}`,
                         text: getTxt(q), 
                         marks: getMarks(q) 
                     }));
                 } else if (item.type === 'OR_GROUP') {
-                    if (item.choice1) {
-                        mappedSlot.choice1 = {
-                            ...item.choice1,
-                            questions: (item.choice1.questions || []).map((q: any, qi: number) => ({ 
-                                ...q, 
-                                id: q.id || `q1-${item.id || i}-${qi}`,
-                                text: getTxt(q), 
-                                marks: getMarks(q) 
-                            }))
-                        };
+                    if (mappedSlot.choice1) {
+                        mappedSlot.choice1.questions = (mappedSlot.choice1.questions || []).map((q: any, qi: number) => ({
+                            ...q,
+                            id: q.id || `q1-${item.id || Math.random()}-${qi}`,
+                            text: getTxt(q),
+                            marks: getMarks(q)
+                        }));
                     }
-                    if (item.choice2) {
-                        mappedSlot.choice2 = {
-                            ...item.choice2,
-                            questions: (item.choice2.questions || []).map((q: any, qi: number) => ({ 
-                                ...q, 
-                                id: q.id || `q2-${item.id || i}-${qi}`,
-                                text: getTxt(q), 
-                                marks: getMarks(q) 
-                            }))
-                        };
+                    if (mappedSlot.choice2) {
+                        mappedSlot.choice2.questions = (mappedSlot.choice2.questions || []).map((q: any, qi: number) => ({
+                            ...q,
+                            id: q.id || `q2-${item.id || Math.random()}-${qi}`,
+                            text: getTxt(q),
+                            marks: getMarks(q)
+                        }));
                     }
                 }
-                return { ...mappedSlot, id: mappedSlot.id || `slot-${activeSet}-${i}` };
+                return { ...mappedSlot, id: item.id || `slot-${activeSet}-${Math.random()}` };
             }
             
+            // Fallback for raw questions without slots
+            const n = currentLabelNum;
+            currentLabelNum++;
             return {
                 ...mappedSlot,
-                id: item.id || `q-raw-${activeSet}-${i}`,
+                id: item.id || `q-raw-${activeSet}-${Math.random()}`,
                 type: 'SINGLE',
-                label: String(i + 1),
-                marks: getMarks(item),
-                questions: [{ ...item, id: item.id || `qi-raw-${i}`, text: getTxt(item), marks: getMarks(item) }]
+                n1: n,
+                questions: [{ ...item, id: item.id || `qi-raw-${Math.random()}`, text: getTxt(item), marks: getMarks(item) }]
             };
         });
 
-        // NO PADDING anymore. Only show what's in the data.
         return mapped;
     });
 
