@@ -769,6 +769,7 @@
                                                 <button 
                                                     onclick={() => removeSlot(section, slot.id)}
                                                     class="absolute -top-2 -right-2 bg-red-100 text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:text-white shadow-lg"
+                                                    aria-label="Remove Slot"
                                                 >
                                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
                                                 </button>
@@ -855,6 +856,7 @@
                                                 <button 
                                                     onclick={() => removeSlot(section, slot.id)}
                                                     class="absolute -top-2 -right-2 bg-red-100 text-red-600 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:text-white shadow-lg z-10"
+                                                    aria-label="Remove Slot"
                                                 >
                                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
                                                 </button>

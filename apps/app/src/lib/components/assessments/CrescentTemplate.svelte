@@ -518,6 +518,7 @@
                                         </div>
                                     {/if}
 
+                                    {#if isEditable}
                                         <button 
                                             onclick={() => openSwapSidebar(slot, 'A')}
                                             class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest flex items-center gap-1"
@@ -638,10 +639,11 @@
                                             oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                             class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
                                         >{@html q.text}</div>
-                                        <button 
-                                            onclick={() => openSwapSidebar(slot, 'B', 'q2')}
-                                            class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
-                                        >
+                                        {#if isEditable}
+                                            <button 
+                                                onclick={() => openSwapSidebar(slot, 'B', 'q2')}
+                                                class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
+                                            >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 SWAP
                                             </button>
@@ -673,10 +675,11 @@
                                             oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                             class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
                                         >{q.text}</div>
-                                        <button 
-                                            onclick={() => openSwapSidebar(slot, 'B')}
-                                            class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
-                                        >
+                                        {#if isEditable}
+                                            <button 
+                                                onclick={() => openSwapSidebar(slot, 'B')}
+                                                class="absolute -right-2 top-0 opacity-0 group-hover:opacity-100 bg-indigo-600 text-white px-2 py-1 rounded-md shadow-lg transition-all z-20 print:hidden text-[9px] font-black tracking-widest leading-none flex items-center gap-1"
+                                            >
                                                 <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                                 SWAP
                                             </button>
