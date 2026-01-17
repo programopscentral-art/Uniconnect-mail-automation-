@@ -509,6 +509,7 @@
                 contenteditable="true" 
                 oninput={(e) => updateText(e, 'META', 'exam_title')}
                 class="text-[14px] font-black uppercase tracking-wide border-b border-white hover:border-gray-200 outline-none inline-block pb-0.5 {isEditable ? '' : 'pointer-events-none'}"
+                style="color: black !important;"
             >
                 {paperMeta.exam_title}
             </h3>
@@ -601,6 +602,7 @@
                 contenteditable="true"
                 oninput={(e) => updateText(e, 'META', 'instructions')}
                 class="text-[11px] font-black uppercase text-gray-900 tracking-[0.2em] border-b-2 border-gray-900 inline-block pb-0.5 {isEditable ? 'outline-none focus:bg-indigo-50/50' : 'pointer-events-none'}"
+                style="color: black !important;"
             >
                 {paperMeta.instructions || 'ANSWER ALL QUESTIONS'}
             </div>
