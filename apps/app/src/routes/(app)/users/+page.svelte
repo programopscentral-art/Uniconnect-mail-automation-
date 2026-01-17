@@ -179,26 +179,26 @@
 <div class="space-y-8 pb-12">
   <!-- Header & Navigation -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-    <div>
-      <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Team Members <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 5000)</span></h1>
-      <p class="mt-1 text-gray-500 font-medium">Manage your team and their access.</p>
+    <div class="animate-premium-slide">
+      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Team Members <span class="text-xs font-normal text-gray-400 dark:text-slate-500 opacity-50 ml-2">v5.0.0</span></h1>
+      <p class="mt-1 text-gray-500 dark:text-slate-400 font-medium">Manage your team and their access.</p>
     </div>
     
     <div class="flex flex-wrap items-center gap-4">
-        <div class="flex bg-gray-100 p-1 rounded-xl shadow-inner">
+        <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner">
             <button 
                 onclick={() => activeTab = 'users'}
-                class="px-5 py-2 rounded-lg text-sm font-bold transition-all {activeTab === 'users' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}"
+                class="px-5 py-2 rounded-lg text-sm font-bold transition-all {activeTab === 'users' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
             >
                 Directory
             </button>
             <button 
                 onclick={() => activeTab = 'requests'}
-                class="px-5 py-2 rounded-lg text-sm font-bold transition-all relative {activeTab === 'requests' ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'}"
+                class="px-5 py-2 rounded-lg text-sm font-bold transition-all relative {activeTab === 'requests' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
             >
                 Requests
                 {#if accessRequests.filter(r => r.status === 'PENDING').length > 0}
-                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white">
+                    <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800">
                         {accessRequests.filter(r => r.status === 'PENDING').length}
                     </span>
                 {/if}
@@ -219,12 +219,12 @@
 
   {#if activeTab === 'users'}
     <!-- Search & Filters -->
-    <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 shadow-inner">
+    <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 dark:bg-slate-900/40 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner animate-premium-fade stagger-1">
         <div class="flex-1 min-w-[280px]">
-            <label for="u-search" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Search Members</label>
+            <label for="u-search" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Search Members</label>
             <div class="relative">
-                <input id="u-search" type="text" bind:value={searchQuery} placeholder="Search by name or email identity..." class="w-full bg-white border border-gray-200 rounded-2xl pl-12 pr-6 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input id="u-search" type="text" bind:value={searchQuery} placeholder="Search by name or email identity..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
         </div>
         

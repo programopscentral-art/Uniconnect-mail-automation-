@@ -125,25 +125,25 @@
 
 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
   <div class="flex items-center justify-between">
-    <div>
-      <h1 class="text-4xl font-black text-gray-900 tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 mt-2 font-medium">Control which roles have access to specific application features. (Build: 5000)</p>
+    <div class="animate-premium-slide">
+      <h1 class="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Feature Management</h1>
+      <p class="text-gray-500 dark:text-slate-400 mt-2 font-medium">Control role access to core application modules. <span class="text-indigo-600 dark:text-indigo-400 font-bold">v5.0.0</span></p>
     </div>
-    <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 hidden md:block">
+    <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 hidden md:block animate-premium-slide-left stagger-1">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white">
+            <div class="w-10 h-10 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
             <div>
-                <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">Global Access Policy</div>
-                <div class="text-sm font-black text-indigo-700 mt-0.5 uppercase tracking-tight">Active Matrix Control</div>
+                <div class="text-[10px] font-black text-indigo-400 dark:text-indigo-300 uppercase tracking-widest leading-none">Global Access Policy</div>
+                <div class="text-sm font-black text-indigo-700 dark:text-indigo-400 mt-0.5 uppercase tracking-tight">Active Matrix Control</div>
             </div>
         </div>
     </div>
     <button 
         onclick={restoreDefaults}
         disabled={isSaving || isLoading}
-        class="px-6 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-50 hover:border-indigo-200 transition-all disabled:opacity-50"
+        class="px-6 py-3 bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-100 dark:hover:border-red-900/30 transition-all disabled:opacity-50 shadow-sm animate-premium-slide stagger-2"
     >
         Restore System Defaults
     </button>
@@ -151,20 +151,20 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
     <!-- Role Selector -->
-    <div class="lg:col-span-1 bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden sticky top-24">
-      <div class="p-6 border-b border-gray-50 bg-gray-50/30">
-        <h2 class="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Select Role</h2>
+    <div class="lg:col-span-1 bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden sticky top-24 animate-premium-slide stagger-3">
+      <div class="p-6 border-b border-gray-50 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-800/20">
+        <h2 class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]">Select Role</h2>
       </div>
-      <div class="divide-y divide-gray-50">
+      <div class="divide-y divide-gray-50 dark:divide-slate-800">
         {#each roles as role}
           <button 
             onclick={() => selectedRole = role}
             class="w-full px-6 py-5 flex items-center justify-between group transition-all 
-            {selectedRole === role ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}"
+            {selectedRole === role ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
           >
             <div class="text-left">
-              <span class="block text-sm font-black {selectedRole === role ? 'text-indigo-600' : 'text-gray-700'} uppercase tracking-tight">{role}</span>
-              <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{(permissionsState[role] || []).length} Features Active</span>
+              <span class="block text-sm font-black {selectedRole === role ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-slate-400'} uppercase tracking-tight">{role}</span>
+              <span class="text-[10px] text-gray-400 dark:text-slate-600 font-bold uppercase tracking-wider">{(permissionsState[role] || []).length} Features Active</span>
             </div>
             {#if selectedRole === role}
               <div transition:fly={{ x: 10, duration: 200 }} class="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-200"></div>
@@ -183,11 +183,11 @@
         </div>
       {:else}
         {#key selectedRole}
-        <div class="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden" in:fade={{ duration: 200 }}>
-          <div class="px-8 py-6 border-b border-gray-50 flex items-center justify-between">
+        <div class="bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden animate-premium-slide stagger-4" in:fade={{ duration: 200 }}>
+          <div class="px-8 py-6 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between bg-gray-50/10 dark:bg-slate-800/10">
             <div>
-              <h2 class="text-xl font-black text-gray-900 uppercase tracking-tight">Feature Matrix for {selectedRole}</h2>
-              <p class="text-xs text-gray-500 font-medium mt-1">Changes take effect immediately for all users in this role.</p>
+              <h2 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Feature Matrix for {selectedRole}</h2>
+              <p class="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">Changes take effect immediately for all users in this role.</p>
             </div>
             {#if isSaving}
               <div transition:fade class="flex items-center gap-2 text-indigo-600">
@@ -197,9 +197,9 @@
             {/if}
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50">
-            {#each features as feature (feature.id)}
-              <div class="p-8 hover:bg-gray-50/50 transition-all flex items-start gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50 dark:divide-slate-800">
+            {#each features as feature, i (feature.id)}
+              <div class="p-8 hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-all flex items-start gap-4 animate-premium-fade" style="animation-delay: {i * 50}ms">
                 <label class="relative inline-flex items-center cursor-pointer mt-1">
                   <input 
                     type="checkbox" 
@@ -210,13 +210,13 @@
                   <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
                 <div>
-                  <div class="text-sm font-black text-gray-900 uppercase tracking-tight">{feature.label}</div>
-                  <p class="text-[11px] text-gray-500 font-medium mt-1 leading-relaxed">{feature.desc}</p>
+                  <div class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{feature.label}</div>
+                  <p class="text-[11px] text-gray-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">{feature.desc}</p>
                   
                   {#if currentFeatures.includes(feature.id)}
-                    <span class="inline-block mt-2 px-3 py-1 bg-green-50 text-green-600 text-[10px] font-black rounded-lg uppercase tracking-widest border border-green-100 shadow-sm animate-in fade-in zoom-in duration-300">Enabled</span>
+                    <span class="inline-block mt-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-black rounded-lg uppercase tracking-widest border border-green-100 dark:border-green-900/30 shadow-sm">Enabled</span>
                   {:else}
-                    <span class="inline-block mt-2 px-3 py-1 bg-gray-100 text-gray-400 text-[10px] font-black rounded-lg uppercase tracking-widest border border-gray-200 opacity-60">Disabled</span>
+                    <span class="inline-block mt-2 px-3 py-1 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-widest border border-gray-200 dark:border-slate-800 opacity-60">Disabled</span>
                   {/if}
                 </div>
               </div>
