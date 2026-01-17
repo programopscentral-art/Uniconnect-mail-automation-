@@ -236,37 +236,37 @@
                 type="checkbox" 
                 bind:checked={selectAll}
                 onchange={toggleSelectAll}
-                class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                class="w-5 h-5 rounded border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
             />
-            <label for="select-all-checkbox" class="text-sm font-bold text-gray-700 cursor-pointer">Select All</label>
+            <label for="select-all-checkbox" class="text-sm font-bold text-gray-700 dark:text-slate-300 cursor-pointer">Select All</label>
         </div>
         <div class="flex-1 min-w-[200px]">
             <label for="filter-status" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Status</label>
-            <select id="filter-status" bind:value={filterStatus} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">All Statuses</option>
-                <option value="PENDING">⏳ Pending</option>
-                <option value="IN_PROGRESS">🚀 Processing</option>
-                <option value="COMPLETED">✅ Done</option>
-                <option value="CANCELLED">❌ Cancelled</option>
+            <select id="filter-status" bind:value={filterStatus} class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                <option value="" class="dark:bg-slate-800">All Statuses</option>
+                <option value="PENDING" class="dark:bg-slate-800">⏳ Pending</option>
+                <option value="IN_PROGRESS" class="dark:bg-slate-800">🚀 Processing</option>
+                <option value="COMPLETED" class="dark:bg-slate-800">✅ Done</option>
+                <option value="CANCELLED" class="dark:bg-slate-800">❌ Cancelled</option>
             </select>
         </div>
         {#if (data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS')}
             <div class="flex-1 min-w-[200px]">
                 <label for="filter-university" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">University</label>
-                <select id="filter-university" bind:value={filterUniversity} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                    <option value="">All Universities</option>
+                <select id="filter-university" bind:value={filterUniversity} class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                    <option value="" class="dark:bg-slate-800">All Universities</option>
                     {#each data.universities as univ}
-                        <option value={univ.id}>{univ.name}</option>
+                        <option value={univ.id} class="dark:bg-slate-800">{univ.name}</option>
                     {/each}
                 </select>
             </div>
         {/if}
         <div class="flex-1 min-w-[200px]">
             <label for="filter-assigned" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Assigned To</label>
-            <select id="filter-assigned" bind:value={filterAssignedTo} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">All Members</option>
+            <select id="filter-assigned" bind:value={filterAssignedTo} class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                <option value="" class="dark:bg-slate-800">All Members</option>
                 {#each data.users as user}
-                    <option value={user.id}>{user.name || user.email}</option>
+                    <option value={user.id} class="dark:bg-slate-800">{user.name || user.email}</option>
                 {/each}
             </select>
         </div>
@@ -283,7 +283,7 @@
         {#each filteredTasks as task (task.id)}
             <div 
                 in:fly={{ y: 20, duration: 300 }}
-                class="group bg-white rounded-[32px] border border-gray-100 shadow-floating hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden relative"
+                class="group bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden relative"
             >
                 <!-- Selection Checkbox -->
                 <div class="absolute top-4 left-4 z-10">
@@ -291,11 +291,11 @@
                         type="checkbox" 
                         checked={selectedTasks.has(task.id)}
                         onchange={() => toggleTaskSelection(task.id)}
-                        class="w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                        class="w-5 h-5 rounded border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
                     />
                 </div>
                 <!-- Priority/Status Bar -->
-                <div class="flex items-center justify-between pl-14 pr-5 py-3 border-b border-gray-50 bg-gray-50/50 group-hover:bg-indigo-50/30 transition-colors">
+                <div class="flex items-center justify-between pl-14 pr-5 py-3 border-b border-gray-50 dark:border-slate-800/50 bg-gray-50/50 dark:bg-slate-800/30 group-hover:bg-indigo-50/30 dark:group-hover:bg-indigo-900/10 transition-colors">
                     <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border {priorityColors[task.priority] || priorityColors.MEDIUM}">
                         {task.priority || 'MEDIUM'} Priority
                     </span>
@@ -326,14 +326,14 @@
                         </div>
                         <div class="flex flex-col items-end gap-2">
                              {#if task.assigned_to_name}
-                                <div class="flex items-center gap-2 bg-gray-50 pr-3 rounded-full border border-gray-100 group-hover:bg-indigo-50/50 transition-colors">
+                                <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 pr-3 rounded-full border border-gray-100 dark:border-slate-700 group-hover:bg-indigo-50/50 dark:group-hover:bg-indigo-900/30 transition-colors">
                                     <div 
-                                        class="w-7 h-7 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-indigo-600 shadow-sm"
+                                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 border-2 border-white dark:border-slate-800 flex items-center justify-center text-[9px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm"
                                         title="Assigned to: {task.assigned_to_name}"
                                     >
                                         {getInitials(task.assigned_to_name)}
                                     </div>
-                                    <span class="text-[9px] font-bold text-gray-700 truncate max-w-[70px]">{task.assigned_to_name}</span>
+                                    <span class="text-[9px] font-bold text-gray-700 dark:text-slate-300 truncate max-w-[70px]">{task.assigned_to_name}</span>
                                 </div>
                             {:else}
                                 <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 pr-3 rounded-full border border-gray-100 dark:border-slate-700">
@@ -358,7 +358,7 @@
                         </p>
                     {/if}
 
-                    <div class="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-50 dark:border-slate-800/50">
                         <div class="flex items-center space-x-4">
                             <div class="flex items-center text-xs font-bold text-gray-400">
                                 <svg class="h-4 w-4 mr-1 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -375,7 +375,7 @@
                             </button>
                             <button 
                                 onclick={() => deleteTask(task.id)}
-                                class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                 title="Delete Task"
                             >
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -429,29 +429,29 @@
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="f-priority" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Priority</label>
-                        <select id="f-priority" bind:value={form.priority} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
-                            <option value="URGENT">🔴 Urgent</option>
-                            <option value="HIGH">🟠 High</option>
-                            <option value="MEDIUM" selected>🔵 Medium</option>
-                            <option value="LOW">⚪ Low</option>
+                        <label for="f-priority" class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2">Priority</label>
+                        <select id="f-priority" bind:value={form.priority} class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all">
+                            <option value="URGENT" class="dark:bg-slate-800">🔴 Urgent</option>
+                            <option value="HIGH" class="dark:bg-slate-800">🟠 High</option>
+                            <option value="MEDIUM" class="dark:bg-slate-800" selected>🔵 Medium</option>
+                            <option value="LOW" class="dark:bg-slate-800">⚪ Low</option>
                         </select>
                     </div>
                     <div>
-                        <label for="f-due" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Deadline (Optional)</label>
-                        <input id="f-due" type="datetime-local" bind:value={form.due_date} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                        <label for="f-due" class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2">Deadline (Optional)</label>
+                        <input id="f-due" type="datetime-local" bind:value={form.due_date} class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all [color-scheme:dark]">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="f-assign" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Assign To</label>
+                        <label for="f-assign" class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2">Assign To</label>
                         {#if (data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS' || data.user.role === 'UNIVERSITY_OPERATOR')}
-                            <select id="f-assign" bind:value={form.assigned_to} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
-                                <option value="">Personal / Unassigned</option>
-                                <option value={data.user.id}>Assign to Myself</option>
+                            <select id="f-assign" bind:value={form.assigned_to} class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all">
+                                <option value="" class="dark:bg-slate-800">Personal / Unassigned</option>
+                                <option value={data.user.id} class="dark:bg-slate-800">Assign to Myself</option>
                                 {#each filteredUsers.filter(u => u.id !== data.user.id) as user}
-                                    <option value={user.id}>{user.name || user.email}</option>
+                                    <option value={user.id} class="dark:bg-slate-800">{user.name || user.email}</option>
                                 {/each}
                             </select>
                         {:else}
@@ -461,12 +461,12 @@
                         {/if}
                     </div>
                     <div>
-                        <label for="f-univ" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">University</label>
+                        <label for="f-univ" class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2">University</label>
                         {#if (data.user.role === 'ADMIN' || data.user.role === 'PROGRAM_OPS')}
-                            <select id="f-univ" bind:value={form.university_id} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
-                                <option value="">None</option>
+                            <select id="f-univ" bind:value={form.university_id} class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all">
+                                <option value="" class="dark:bg-slate-800">None</option>
                                 {#each data.universities as univ}
-                                    <option value={univ.id}>{univ.name}</option>
+                                    <option value={univ.id} class="dark:bg-slate-800">{univ.name}</option>
                                 {/each}
                             </select>
                         {:else}

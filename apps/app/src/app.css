@@ -149,6 +149,12 @@
   .dark h4,
   .dark h5,
   .dark h6 {
-    @apply text-white !important;
+    @apply text-white;
+  }
+
+  /* Protect Paper Containers from Dark Mode Overrides */
+  .paper-container,
+  .paper-container * {
+    color: black !important;
   }
 }
