@@ -340,7 +340,7 @@
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div class="animate-premium-slide">
             <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Syllabus <span class="text-indigo-600 dark:text-indigo-400">&</span> Subjects</h1>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2">Manage your batches, departments, subjects, and generate question papers.</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-slate-500 mt-2">Manage your batches, departments, subjects, and generate question papers.</p>
         </div>
         
         <div class="flex gap-4 animate-premium-slide" style="animation-delay: 100ms;">
@@ -404,8 +404,8 @@
             <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
                 <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
-                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Batches</h3>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Class Batches</p>
+                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]">Academic Batches</h3>
+                        <p class="text-[9px] text-gray-400 dark:text-slate-600 font-bold mt-1 italic">Class Batches</p>
                     </div>
                     <button 
                         onclick={() => showAddBatch = !showAddBatch}
@@ -480,7 +480,7 @@
                             </div>
                         </div>
                     {:else}
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold text-center py-10 uppercase tracking-widest italic">No Batches</p>
+                        <p class="text-[9px] text-gray-400 dark:text-slate-700 font-bold text-center py-10 uppercase tracking-widest italic">No Batches</p>
                     {/each}
                 </div>
             </div>
@@ -489,8 +489,8 @@
             <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 400ms;">
                 <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
-                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Departments</h3>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Departments</p>
+                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]">Academic Departments</h3>
+                        <p class="text-[9px] text-gray-400 dark:text-slate-600 font-bold mt-1 italic">Departments</p>
                     </div>
                     <button 
                         onclick={() => showAddBranch = !showAddBranch}
@@ -573,7 +573,7 @@
                                     <div class="animate-spin rounded-full h-6 w-6 border-2 border-indigo-500 border-t-transparent shadow-sm"></div>
                                 </div>
                             {:else}
-                                <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold text-center py-10 uppercase tracking-widest italic">Stream Empty</p>
+                                <p class="text-[9px] text-gray-400 dark:text-slate-700 font-bold text-center py-10 uppercase tracking-widest italic">Stream Empty</p>
                             {/if}
                         {/each}
                     {/if}
@@ -593,7 +593,7 @@
                                 {branches.find(b => b.id === selectedBranchId)?.name}
                             </p>
                         {:else}
-                            <p class="text-[10px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.2em] mt-2 italic">Awaiting structural context</p>
+                            <p class="text-[10px] font-black text-gray-400 dark:text-slate-700 uppercase tracking-[0.2em] mt-2 italic">Awaiting structural context</p>
                         {/if}
                     </div>
 
@@ -650,7 +650,7 @@
                                         <label for="subjectSemester" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Academic Phase</label>
                                         <select id="subjectSemester" bind:value={newSubjectSemester} class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white">
                                             {#each [1,2,3,4,5,6,7,8] as sem}
-                                                <option value={sem}>Semester {sem}</option>
+                                                <option value={sem} class="dark:bg-slate-800">Semester {sem}</option>
                                             {/each}
                                         </select>
                                     </div>
@@ -733,11 +733,11 @@
                                 {/if}
                             {:else}
                                 <div class="h-full flex flex-col items-center justify-center text-center py-24 opacity-30 animate-premium-fade">
-                                    <div class="w-20 h-20 bg-gray-50 dark:bg-slate-900 rounded-[2rem] flex items-center justify-center text-gray-300 mb-6 border border-gray-100 dark:border-slate-800 shadow-inner">
+                                    <div class="w-20 h-20 bg-gray-50 dark:bg-slate-900 rounded-[2rem] flex items-center justify-center text-gray-300 dark:text-slate-700 mb-6 border border-gray-100 dark:border-slate-800 shadow-inner">
                                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                                     </div>
-                                    <h3 class="text-sm font-black text-gray-700 dark:text-white uppercase tracking-[0.2em]">Resource Void</h3>
-                                    <p class="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-2 uppercase tracking-widest italic">No subjects added to this department</p>
+                                    <h3 class="text-sm font-black text-gray-700 dark:text-slate-300 uppercase tracking-[0.2em]">Resource Void</h3>
+                                    <p class="text-[10px] text-gray-400 dark:text-slate-600 font-bold mt-2 uppercase tracking-widest italic">No subjects added to this department</p>
                                 </div>
                             {/each}
                         </div>
@@ -818,7 +818,7 @@
                     <label for="editSubjectSemester" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Phase Vector</label>
                     <select id="editSubjectSemester" bind:value={editingSubject.semester} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
                         {#each [1,2,3,4,5,6,7,8] as sem}
-                            <option value={sem}>Semester {sem}</option>
+                            <option value={sem} class="dark:bg-slate-800">Semester {sem}</option>
                         {/each}
                     </select>
                 </div>
@@ -857,9 +857,9 @@
                         <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Select Source Subject Authority</h4>
                     </div>
                     <select bind:value={syncSourceSubjectId} class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
-                        <option value="">-- Choose subject node --</option>
+                        <option value="" class="dark:bg-slate-800">-- Choose subject node --</option>
                         {#each subjects as s}
-                            <option value={s.id}>{s.name} ({s.code || 'NO-REF'})</option>
+                            <option value={s.id} class="dark:bg-slate-800">{s.name} ({s.code || 'NO-REF'})</option>
                         {/each}
                     </select>
                 </div>

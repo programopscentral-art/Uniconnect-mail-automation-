@@ -230,33 +230,33 @@
         
         {#if data.isGlobalAdmin}
             <div class="w-[240px]">
-                <label for="filter-univ" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">University Filter</label>
-                <select id="filter-univ" bind:value={filterUniversity} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                    <option value="">All Universities</option>
+                <label for="filter-univ" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">University Filter</label>
+                <select id="filter-univ" bind:value={filterUniversity} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                    <option value="" class="dark:bg-slate-900">All Universities</option>
                     {#each data.universities as univ}
-                        <option value={univ.id}>{univ.name}</option>
+                        <option value={univ.id} class="dark:bg-slate-900">{univ.name}</option>
                     {/each}
                 </select>
             </div>
         {/if}
 
         <div class="w-[220px]">
-            <label for="filter-role" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Role Filter</label>
-            <select id="filter-role" bind:value={filterRole} class="w-full bg-white border border-gray-200 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all shadow-sm">
-                <option value="">All Roles</option>
-                <option value="ADMIN">Admin</option>
-                <option value="UNIVERSITY_OPERATOR">University Admin</option>
-                <option value="COS">COS</option>
-                <option value="PM">PM</option>
-                <option value="PMA">PMA</option>
-                <option value="BOA">BOA</option>
+            <label for="filter-role" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Role Filter</label>
+            <select id="filter-role" bind:value={filterRole} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                <option value="" class="dark:bg-slate-900">All Roles</option>
+                <option value="ADMIN" class="dark:bg-slate-900">Admin</option>
+                <option value="UNIVERSITY_OPERATOR" class="dark:bg-slate-900">University Admin</option>
+                <option value="COS" class="dark:bg-slate-900">COS</option>
+                <option value="PM" class="dark:bg-slate-900">PM</option>
+                <option value="PMA" class="dark:bg-slate-900">PMA</option>
+                <option value="BOA" class="dark:bg-slate-900">BOA</option>
             </select>
         </div>
     </div>
 
     <!-- Users Grid/Table -->
     <div class="flex gap-8 relative items-start">
-        <div class="flex-1 bg-white shadow-floating rounded-[32px] border border-gray-100 overflow-hidden">
+        <div class="flex-1 bg-white dark:bg-slate-900 shadow-floating dark:shadow-2xl rounded-[32px] border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50/50">

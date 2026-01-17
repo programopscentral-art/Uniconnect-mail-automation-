@@ -543,40 +543,40 @@
 <div class="space-y-8">
     <!-- Breadcrumbs & Header -->
     <div class="space-y-4">
-        <div class="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            <a href="/assessments?universityId={data.subject.university_id}" class="hover:text-indigo-600 transition-colors">Assessments</a>
+        <div class="flex items-center gap-2 text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">
+            <a href="/assessments?universityId={data.subject.university_id}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Assessments</a>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
-            <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="hover:text-indigo-600 transition-colors">{data.subject.branch_name}</a>
+            <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{data.subject.branch_name}</a>
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
-            <span class="text-indigo-600">Syllabus</span>
+            <span class="text-indigo-600 dark:text-indigo-400">Syllabus</span>
         </div>
 
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
                 <div class="flex items-center gap-4 mb-2">
-                    <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="inline-flex items-center gap-2 text-[9px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-all uppercase tracking-widest">
+                    <a href="/assessments?universityId={data.subject.university_id}&batchId={data.subject.batch_id}&branchId={data.subject.branch_id}" class="inline-flex items-center gap-2 text-[9px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all uppercase tracking-widest border border-indigo-100 dark:border-indigo-800/50">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                         Back to Subjects
                     </a>
                 </div>
                 <div class="flex items-center gap-3">
-                    <h1 class="text-3xl font-black text-gray-900 tracking-tight uppercase">{data.subject.name}</h1>
-                    <span class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100">{data.subject.code || 'CS-XXXX'}</span>
+                    <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">{data.subject.name}</h1>
+                    <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg border border-indigo-100 dark:border-indigo-800/50">{data.subject.code || 'CS-XXXX'}</span>
                     <button 
                         onclick={() => showSettings = true}
-                        class="p-2 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                        class="p-2 text-gray-300 dark:text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-all"
                         aria-label="Subject Settings"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </button>
                 </div>
-                <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Syllabus Mapping & Topic Management • SEMESTER {data.subject.semester}</p>
+                <p class="text-sm font-bold text-gray-400 dark:text-slate-500 mt-1 uppercase tracking-widest">Syllabus Mapping & Topic Management • SEMESTER {data.subject.semester}</p>
             </div>
             
             <div class="flex gap-3">
                  <button 
                     onclick={() => showSmartParser = true}
-                    class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-sm font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95"
+                    class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-sm font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40 active:scale-95"
                 >
                     <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                     SMART PORTION IMPORT
@@ -593,13 +593,13 @@
                  <button 
                     onclick={() => fileInput.click()}
                     disabled={isUploading}
-                    class="inline-flex items-center px-6 py-3 bg-white border border-gray-200 text-gray-600 text-sm font-black rounded-2xl hover:bg-gray-50 transition-all active:scale-95 disabled:opacity-50"
+                    class="inline-flex items-center px-6 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-400 text-sm font-black rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
                 >
                     {#if isUploading}
                         <div class="w-5 h-5 mr-2 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
                         PARSING...
                     {:else}
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        <svg class="w-5 h-5 mr-2 text-indigo-400 dark:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                         UPLOAD PDF
                     {/if}
                 </button>
@@ -607,21 +607,21 @@
         </div>
     </div>
 
-    <div class="flex gap-4 border-b border-gray-100">
+    <div class="flex gap-4 border-b border-gray-100 dark:border-slate-800">
         <button 
             onclick={() => activeTab = 'SYLLABUS'}
             class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
-            {activeTab === 'SYLLABUS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+            {activeTab === 'SYLLABUS' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'}"
         >Syllabus & Units</button>
         <button 
             onclick={() => activeTab = 'PRACTICALS'}
             class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
-            {activeTab === 'PRACTICALS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+            {activeTab === 'PRACTICALS' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'}"
         >Practicals (Experiments)</button>
         <button 
             onclick={() => activeTab = 'CO'}
             class="px-8 py-4 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 
-            {activeTab === 'CO' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+            {activeTab === 'CO' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'}"
         >Course Outcomes (CO)</button>
     </div>
 
@@ -630,27 +630,27 @@
         <div class="grid grid-cols-1 gap-6" in:fade>
         {#each [1,2,3,4,5] as unitNum}
             {@const unit = data.units.find(u => u.unit_number === unitNum)}
-            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden transition-all {unit && expandedUnits.includes(unit.id) ? 'ring-2 ring-indigo-500/20' : ''}">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden transition-all {unit && expandedUnits.includes(unit.id) ? 'ring-2 ring-indigo-500/20' : ''}">
                 <div 
-                    class="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-all" 
+                    class="p-6 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-all" 
                     role="button"
                     tabindex="0"
                     onclick={() => unit && toggleUnit(unit.id)}
                     onkeydown={(e) => e.key === 'Enter' && unit && toggleUnit(unit.id)}
                 >
                     <div class="flex items-center gap-6">
-                        <div class="w-14 h-14 rounded-2xl {unit ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-300'} flex flex-col items-center justify-center shadow-lg shadow-indigo-100 transition-all">
+                        <div class="w-14 h-14 rounded-2xl {unit ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-slate-600'} flex flex-col items-center justify-center shadow-lg shadow-indigo-100 dark:shadow-indigo-950 transition-all">
                             <span class="text-[10px] font-black uppercase tracking-tighter opacity-70">Unit</span>
                             <span class="text-xl font-black leading-none">{unitNum}</span>
                         </div>
                         <div>
                             {#if unit}
-                                <h3 class="text-lg font-black text-gray-900 leading-tight uppercase tracking-tight">{unit.name || `Unit ${unitNum}`}</h3>
-                                <p class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-0.5">{getRootTopics(unit.id).length} Primary Topics</p>
+                                <h3 class="text-lg font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tight">{unit.name || `Unit ${unitNum}`}</h3>
+                                <p class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-0.5">{getRootTopics(unit.id).length} Primary Topics</p>
                             {:else}
                                 <button 
                                     onclick={(e) => { e.stopPropagation(); addUnit(unitNum); }}
-                                    class="text-sm font-black text-indigo-400 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+                                    class="text-sm font-black text-indigo-400 dark:text-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors uppercase tracking-widest"
                                 >+ Initialize unit structure</button>
                             {/if}
                         </div>
@@ -660,29 +660,29 @@
                         {#if unit}
                             <button 
                                 onclick={(e) => { e.stopPropagation(); deleteUnit(unit.id); }}
-                                class="p-2 text-gray-300 hover:text-red-500 transition-all"
+                                class="p-2 text-gray-300 dark:text-slate-700 hover:text-red-500 transition-all"
                                 aria-label="Delete unit"
                             >
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4s.5 0 1 0m-4 0a1 1 0 110-2h4a1 1 0 110 2"/></svg>
                             </button>
-                            <svg class="w-5 h-5 text-gray-300 transition-transform {expandedUnits.includes(unit.id) ? 'rotate-180 text-indigo-500' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
+                            <svg class="w-5 h-5 text-gray-300 dark:text-slate-700 transition-transform {expandedUnits.includes(unit.id) ? 'rotate-180 text-indigo-500 dark:text-indigo-400' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
                         {/if}
                     </div>
                 </div>
 
                 {#if unit && expandedUnits.includes(unit.id)}
-                    <div class="border-t border-gray-50 bg-gray-50/20" transition:slide>
+                    <div class="border-t border-gray-50 dark:border-slate-800 bg-gray-50/20 dark:bg-slate-900/20" transition:slide>
                         <!-- Unit Sub-Tabs -->
-                        <div class="flex border-b border-gray-100 bg-white/50 px-8">
+                        <div class="flex border-b border-gray-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 px-8">
                             <button 
                                 onclick={() => unitTabs[unit.id] = 'PORTION'}
                                 class="px-6 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 
-                                {(unitTabs[unit.id] === 'PORTION' || !unitTabs[unit.id]) ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+                                {(unitTabs[unit.id] === 'PORTION' || !unitTabs[unit.id]) ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'}"
                             >Portion (Topics)</button>
                             <button 
                                 onclick={() => unitTabs[unit.id] = 'QUESTIONS'}
                                 class="px-6 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 
-                                {unitTabs[unit.id] === 'QUESTIONS' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'}"
+                                {unitTabs[unit.id] === 'QUESTIONS' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'}"
                             >Question Bank</button>
                         </div>
 
@@ -691,13 +691,13 @@
                                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" in:fade>
                                     {#each getRootTopics(unit.id) as topic}
                                         {@const subs = getSubTopics(topic.id)}
-                                        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm group hover:border-indigo-200 transition-all flex flex-col justify-between h-full relative">
+                                        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm group hover:border-indigo-200 dark:hover:border-indigo-500 transition-all flex flex-col justify-between h-full relative">
                                             <div class="w-full">
                                                 <div class="flex justify-between items-start mb-3">
-                                                    <h4 class="text-xs font-black text-gray-900 uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{topic.name}</h4>
+                                                    <h4 class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{topic.name}</h4>
                                                     <button 
                                                         onclick={() => deleteTopic(topic.id)}
-                                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-300 hover:text-red-500"
+                                                        class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-300 dark:text-slate-600 hover:text-red-500"
                                                         aria-label="Delete topic"
                                                     >
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4s.5 0 1 0m-4 0a1 1 0 110-2h4a1 1 0 110 2"/></svg>
@@ -705,16 +705,16 @@
                                                 </div>
                                                 
                                                 {#if subs.length > 0}
-                                                    <div class="space-y-1.5 mb-4 pl-3 border-l-2 border-indigo-50">
+                                                    <div class="space-y-1.5 mb-4 pl-3 border-l-2 border-indigo-50 dark:border-indigo-900/30">
                                                         {#each subs as sub}
                                                             <div class="flex items-center justify-between group/sub">
-                                                                <span class="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-1.5">
-                                                                    <span class="w-1 h-1 rounded-full bg-indigo-300"></span>
+                                                                <span class="text-[9px] font-bold text-gray-500 dark:text-slate-400 uppercase flex items-center gap-1.5">
+                                                                    <span class="w-1 h-1 rounded-full bg-indigo-300 dark:bg-indigo-700"></span>
                                                                     {sub.name}
                                                                 </span>
                                                                 <button 
                                                                     onclick={() => deleteTopic(sub.id)}
-                                                                    class="p-0.5 text-gray-200 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 transition-opacity"
+                                                                    class="p-0.5 text-gray-200 dark:text-slate-700 hover:text-red-500 opacity-0 group-hover/sub:opacity-100 transition-opacity"
                                                                     aria-label="Delete sub-topic"
                                                                 >
                                                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -725,20 +725,20 @@
                                                 {/if}
                                             </div>
 
-                                            <div class="mt-4 border-t border-gray-50/50"></div>
+                                            <div class="mt-4 border-t border-gray-50 dark:border-slate-800/50"></div>
                                         </div>
                                     {/each}
 
-                                    <div class="bg-indigo-50/30 p-4 rounded-2xl border border-dashed border-indigo-200 flex flex-col gap-3">
+                                    <div class="bg-indigo-50/30 dark:bg-indigo-900/10 p-4 rounded-2xl border border-dashed border-indigo-200 dark:border-indigo-800/50 flex flex-col gap-3">
                                         <input 
                                             type="text" 
                                             bind:value={newTopicNames[unit.id]}
                                             placeholder="Topic/Concept Name"
-                                            class="w-full bg-white border-gray-200 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-indigo-500 py-2.5"
+                                            class="w-full bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-indigo-500 py-2.5 text-gray-900 dark:text-white"
                                         />
                                         <button 
                                             onclick={() => addTopic(unit.id)}
-                                            class="w-full py-2 bg-indigo-600 text-white text-[9px] font-black rounded-lg hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-lg shadow-indigo-100"
+                                            class="w-full py-2 bg-indigo-600 text-white text-[9px] font-black rounded-lg hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-lg shadow-indigo-100 dark:shadow-indigo-950/40"
                                         >ADD TOPIC</button>
                                     </div>
                                 </div>
@@ -746,11 +746,11 @@
                                 <div class="space-y-6" in:fade>
                                     <div class="flex justify-between items-center">
                                         {#if selectedQuestionIds.length > 0}
-                                            <div class="flex items-center gap-4 bg-red-50 px-6 py-3 rounded-2xl border border-red-100 animate-in fade-in slide-in-from-left-4 duration-300">
-                                                <span class="text-[10px] font-black text-red-600 uppercase tracking-widest">{selectedQuestionIds.length} SELECTED</span>
+                                            <div class="flex items-center gap-4 bg-red-50 dark:bg-red-900/10 px-6 py-3 rounded-2xl border border-red-100 dark:border-red-900/30 animate-in fade-in slide-in-from-left-4 duration-300">
+                                                <span class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest">{selectedQuestionIds.length} SELECTED</span>
                                                 <button 
                                                     onclick={bulkDeleteQuestions}
-                                                    class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2"
+                                                    class="bg-red-600 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 dark:shadow-red-950/40 flex items-center gap-2"
                                                 >
                                                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                     DELETE SELECTED
@@ -758,8 +758,8 @@
                                             </div>
                                         {:else}
                                             <div>
-                                                <h4 class="text-sm font-black text-gray-900 uppercase tracking-tight">Unit {unitNum} Question Bank</h4>
-                                                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{getUnitQuestions(unit.id).length} Questions available</p>
+                                                <h4 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">Unit {unitNum} Question Bank</h4>
+                                                <p class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{getUnitQuestions(unit.id).length} Questions available</p>
                                             </div>
                                         {/if}
                                         <div class="flex gap-3">
@@ -780,7 +780,7 @@
                                             <button 
                                                 onclick={() => mcqFileInput[unit.id].click()}
                                                 disabled={isUploadingQuestions[unit.id]}
-                                                class="inline-flex items-center px-4 py-2 bg-slate-900 text-white text-[9px] font-black rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-100 disabled:opacity-50"
+                                                class="inline-flex items-center px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white text-[9px] font-black rounded-xl hover:bg-slate-800 dark:hover:bg-slate-700 transition-all shadow-lg shadow-slate-100 dark:shadow-slate-950 disabled:opacity-50"
                                             >
                                                 {#if isUploadingQuestions[unit.id]}
                                                     <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
@@ -794,7 +794,7 @@
                                             <button 
                                                 onclick={() => qFileInput[unit.id].click()}
                                                 disabled={isUploadingQuestions[unit.id]}
-                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:opacity-50"
+                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-indigo-950/40 disabled:opacity-50"
                                             >
                                                 {#if isUploadingQuestions[unit.id]}
                                                     <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
@@ -808,19 +808,19 @@
                                     </div>
 
                                     <!-- Upload Guide -->
-                                    <div class="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-start gap-4">
-                                        <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+                                    <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-2xl p-4 flex items-start gap-4">
+                                        <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         </div>
                                         <div>
-                                            <p class="text-[10px] font-black text-amber-900 uppercase tracking-widest leading-tight">Recognition Guide</p>
-                                            <p class="text-[9px] font-bold text-amber-700/70 mt-1">To auto-detect types, use headers like <span class="bg-white/50 px-1 rounded">"MCQ QUESTIONS"</span>, <span class="bg-white/50 px-1 rounded">"SHORT QUESTIONS"</span> or <span class="bg-white/50 px-1 rounded">"LONG QUESTIONS"</span> in your file. For MCQs, use <span class="bg-white/50 px-1 rounded">(a), (b), (c), (d)</span> on separate lines.</p>
+                                            <p class="text-[10px] font-black text-amber-900 dark:text-amber-400 uppercase tracking-widest leading-tight">Recognition Guide</p>
+                                            <p class="text-[9px] font-bold text-amber-700/70 dark:text-amber-500/70 mt-1">To auto-detect types, use headers like <span class="bg-white/50 dark:bg-slate-800 px-1 rounded">"MCQ QUESTIONS"</span>, <span class="bg-white/50 dark:bg-slate-800 px-1 rounded">"SHORT QUESTIONS"</span> or <span class="bg-white/50 dark:bg-slate-800 px-1 rounded">"LONG QUESTIONS"</span> in your file. For MCQs, use <span class="bg-white/50 dark:bg-slate-800 px-1 rounded">(a), (b), (c), (d)</span> on separate lines.</p>
                                         </div>
                                     </div>
 
-                                    <div class="overflow-hidden bg-white border border-gray-100 rounded-2xl shadow-sm">
+                                    <div class="overflow-hidden bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-sm">
                                         <table class="w-full text-left border-collapse">
-                                            <thead class="bg-gray-50/50">
+                                            <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                                                 <tr>
                                                     <th class="px-6 py-4 w-10">
                                                         <input 
@@ -830,17 +830,17 @@
                                                             class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                                         />
                                                     </th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Marks</th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest">Question Details</th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">CO</th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Level</th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Settings</th>
-                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Marks</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Question Details</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest text-center">CO</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest text-center">Level</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest text-center">Settings</th>
+                                                    <th class="px-6 py-4 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest text-right">Actions</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="divide-y divide-gray-50">
+                                            <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
                                                 {#each getUnitQuestions(unit.id) as q}
-                                                    <tr class="group hover:bg-indigo-50/20 transition-all cursor-pointer" onclick={() => toggleQuestion(q.id)}>
+                                                    <tr class="group hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-all cursor-pointer" onclick={() => toggleQuestion(q.id)}>
                                                         <td class="px-6 py-4" onclick={(e) => e.stopPropagation()}>
                                                             <input 
                                                                 type="checkbox" 
@@ -853,30 +853,30 @@
                                                             />
                                                         </td>
                                                         <td class="px-6 py-4">
-                                                            <span class="px-2 py-1 bg-gray-50 text-gray-400 text-[8px] font-black rounded-lg border border-gray-100 uppercase group-hover:bg-white group-hover:text-indigo-600 group-hover:border-indigo-100 transition-all">{q.marks}M</span>
+                                                            <span class="px-2 py-1 bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500 text-[8px] font-black rounded-lg border border-gray-100 dark:border-slate-700 uppercase group-hover:bg-white dark:group-hover:bg-indigo-900/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:border-indigo-100 dark:group-hover:border-indigo-800/50 transition-all">{q.marks}M</span>
                                                         </td>
                                                          <td class="px-6 py-4">
                                                             <div class="flex flex-col gap-1.5">
-                                                                <div class="text-[10px] font-bold text-gray-600 leading-relaxed group-hover:text-gray-900 transition-colors line-clamp-2">
+                                                                <div class="text-[10px] font-bold text-gray-600 dark:text-slate-400 leading-relaxed group-hover:text-gray-900 dark:group-hover:text-slate-200 transition-colors line-clamp-2">
                                                                     {@html q.question_text}
                                                                 </div>
                                                                 {#if q.type && q.type !== 'NORMAL'}
                                                                     <div class="flex gap-2">
-                                                                        <span class="px-1.5 py-0.5 bg-indigo-50 text-indigo-500 text-[8px] font-black rounded uppercase border border-indigo-100/50">{q.type}</span>
+                                                                        <span class="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 text-[8px] font-black rounded uppercase border border-indigo-100/50 dark:border-indigo-800/50">{q.type}</span>
                                                                     </div>
                                                                 {/if}
                                                             </div>
                                                         </td>
                                                         <td class="px-6 py-4 text-center">
-                                                            <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">{q.co_code || '-'}</span>
+                                                            <span class="text-[9px] font-black text-gray-300 dark:text-slate-700 uppercase tracking-widest group-hover:text-indigo-400 transition-colors">{q.co_code || '-'}</span>
                                                         </td>
                                                         <td class="px-6 py-4 text-center">
-                                                            <span class="text-[9px] font-black text-gray-300 uppercase tracking-widest group-hover:text-amber-400 transition-colors">{q.bloom_level || '-'}</span>
+                                                            <span class="text-[9px] font-black text-gray-300 dark:text-slate-700 uppercase tracking-widest group-hover:text-amber-400 transition-colors">{q.bloom_level || '-'}</span>
                                                         </td>
                                                         <td class="px-6 py-4 text-center">
                                                             <button 
                                                                 onclick={(e) => { e.stopPropagation(); toggleImportant(q.id, q.is_important); }}
-                                                                class="p-2 transition-all {q.is_important ? 'text-amber-400' : 'text-gray-100 hover:text-gray-300'}"
+                                                                class="p-2 transition-all {q.is_important ? 'text-amber-400' : 'text-gray-200 dark:text-slate-700 hover:text-gray-400 dark:hover:text-slate-500'}"
                                                                 title={q.is_important ? "Important Question" : "Mark as Important"}
                                                             >
                                                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
@@ -887,14 +887,14 @@
                                                                     <button 
                                                                         onclick={(e) => { e.stopPropagation(); editingQuestion = {...q}; }}
                                                                         aria-label="Edit Question"
-                                                                        class="p-2 text-gray-200 hover:text-indigo-500 transition-colors"
+                                                                        class="p-2 text-gray-200 dark:text-slate-700 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
                                                                     >
                                                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                                                     </button>
                                                                     <button 
                                                                         onclick={(e) => { e.stopPropagation(); deleteQuestion(q.id); }}
                                                                         aria-label="Delete Question"
-                                                                        class="p-2 text-gray-200 hover:text-red-400 transition-colors"
+                                                                        class="p-2 text-gray-200 dark:text-slate-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
                                                                     >
                                                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                                                     </button>
@@ -902,43 +902,43 @@
                                                         </td>
                                                     </tr>
                                                     {#if expandedQuestions.includes(q.id)}
-                                                        <tr class="bg-indigo-50/50">
+                                                        <tr class="bg-indigo-50/50 dark:bg-indigo-900/10">
                                                             <td colspan="7" class="px-6 py-6 transition-all" transition:slide>
-                                                                <div class="bg-white p-5 rounded-2xl border border-indigo-100 shadow-sm">
+                                                                <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm">
                                                                      <div class="flex justify-between items-center mb-4">
-                                                                        <h5 class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Question Details & Solution</h5>
-                                                                        <span class="text-[8px] font-bold text-gray-400 uppercase">{q.type || 'NORMAL'} • {q.marks} Marks • {q.co_code || 'No CO'} • {q.bloom_level || 'No Level'}</span>
+                                                                        <h5 class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Question Details & Solution</h5>
+                                                                        <span class="text-[8px] font-bold text-gray-400 dark:text-slate-500 uppercase">{q.type || 'NORMAL'} • {q.marks} Marks • {q.co_code || 'No CO'} • {q.bloom_level || 'No Level'}</span>
                                                                     </div>
                                                                     
                                                                     <div class="space-y-4">
                                                                         {#if q.type === 'MCQ' && q.options && q.options.length > 0}
                                                                             <div class="grid grid-cols-2 gap-3 mb-6">
                                                                                 {#each q.options as opt}
-                                                                                    <div class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-bold text-gray-600">
+                                                                                    <div class="px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-bold text-gray-600 dark:text-slate-300">
                                                                                         {opt}
                                                                                     </div>
                                                                                 {/each}
                                                                             </div>
                                                                         {/if}
 
-                                                                        <div class="bg-gray-50/50 p-4 rounded-xl border border-dashed border-gray-200">
-                                                                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Answer Key:</div>
+                                                                        <div class="bg-gray-50/50 dark:bg-slate-800/50 p-4 rounded-xl border border-dashed border-gray-200 dark:border-slate-700">
+                                                                            <div class="text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2">Answer Key:</div>
                                                                             {#if q.answer_key}
-                                                                                <div class="text-[10px] text-gray-700 leading-relaxed font-medium">
+                                                                                <div class="text-[10px] text-gray-700 dark:text-slate-300 leading-relaxed font-medium rich-preview">
                                                                                     {@html q.answer_key}
                                                                                 </div>
                                                                             {:else}
-                                                                                <div class="text-[9px] font-bold text-gray-400 italic">No solution provided.</div>
+                                                                                <div class="text-[9px] font-bold text-gray-400 dark:text-slate-700 italic">No solution provided.</div>
                                                                             {/if}
                                                                         </div>
-                                                                    </div>
+                                                                        <p class="text-[8px] font-bold text-gray-300 dark:text-slate-700 uppercase mt-2">Extended technical schema metadata</p>
                                                                 </div>
                                                             </td>
                                                         </tr>
                                                     {/if}
                                                 {:else}
                                                     <tr>
-                                                        <td colspan="5" class="px-6 py-12 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                                                        <td colspan="7" class="px-6 py-12 text-center text-[10px] font-black text-gray-300 dark:text-slate-700 uppercase tracking-widest">
                                                             No questions uploaded for this unit yet
                                                         </td>
                                                     </tr>
@@ -957,51 +957,51 @@
     {:else if activeTab === 'PRACTICALS'}
         <!-- Practicals Tab -->
         <div class="space-y-6" in:fade>
-            <div class="bg-white p-8 rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-500/5 space-y-6">
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 dark:shadow-indigo-950/20 space-y-6">
                 <div>
-                    <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">List of Experiments / Practicals</h3>
-                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage lab experiments for {data.subject.name}</p>
+                    <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">List of Experiments / Practicals</h3>
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-1">Manage lab experiments for {data.subject.name}</p>
                 </div>
 
-                <div class="flex gap-4 bg-gray-50/50 p-6 rounded-2xl border border-gray-100 items-center">
+                <div class="flex gap-4 bg-gray-50/50 dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700 items-center">
                     <input 
                         type="text" 
                         bind:value={newPracticalName} 
                         placeholder="e.g. Study of Logic Gates" 
-                        class="flex-1 bg-white border-gray-200 rounded-xl p-3 text-xs font-bold"
+                        class="flex-1 bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs font-bold text-gray-900 dark:text-white"
                         onkeydown={(e) => e.key === 'Enter' && savePractical()}
                     />
                     <button 
                         onclick={savePractical} 
-                        class="bg-indigo-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                        class="bg-indigo-600 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-indigo-950/40"
                     >
                         {editingPracticalId ? 'Update' : 'Add Practical'}
                     </button>
                     {#if editingPracticalId}
-                        <button onclick={() => { editingPracticalId = null; newPracticalName = ''; }} class="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline">Cancel</button>
+                        <button onclick={() => { editingPracticalId = null; newPracticalName = ''; }} class="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase tracking-widest hover:underline">Cancel</button>
                     {/if}
                 </div>
 
-                <div class="divide-y divide-gray-50">
+                <div class="divide-y divide-gray-50 dark:divide-slate-800">
                     {#each practicals as practical, i}
-                        <div class="flex items-center justify-between py-4 group hover:bg-indigo-50/20 px-4 rounded-xl transition-all">
+                        <div class="flex items-center justify-between py-4 group hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 px-4 rounded-xl transition-all">
                             <div class="flex items-center gap-6">
-                                <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-black border border-indigo-100">{i + 1}</span>
-                                <p class="text-xs font-semibold text-gray-700 uppercase tracking-tight">{practical.name}</p>
+                                <span class="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[10px] font-black border border-indigo-100 dark:border-indigo-800/50">{i + 1}</span>
+                                <p class="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-tight">{practical.name}</p>
                             </div>
                             <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onclick={() => { editingPracticalId = practical.id; newPracticalName = practical.name; }} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" aria-label="Edit Practical">
+                                <button onclick={() => { editingPracticalId = practical.id; newPracticalName = practical.name; }} class="p-2 text-gray-400 dark:text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" aria-label="Edit Practical">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                 </button>
-                                <button onclick={() => deletePractical(practical.id)} class="p-2 text-gray-400 hover:text-red-500 transition-colors" aria-label="Delete Practical">
+                                <button onclick={() => deletePractical(practical.id)} class="p-2 text-gray-400 dark:text-slate-600 hover:text-red-500 transition-colors" aria-label="Delete Practical">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </div>
                         </div>
                     {:else}
                         <div class="text-center py-12">
-                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Practicals Added Yet</p>
-                            <p class="text-[9px] text-gray-400 italic mt-1">Use 'Smart Portion Import' to automatically detect experiments</p>
+                            <p class="text-[10px] font-black text-gray-400 dark:text-slate-600 uppercase tracking-widest">No Practicals Added Yet</p>
+                            <p class="text-[9px] text-gray-400 dark:text-slate-700 italic mt-1">Use 'Smart Portion Import' to automatically detect experiments</p>
                         </div>
                     {/each}
                 </div>
@@ -1010,43 +1010,43 @@
     {:else if activeTab === 'CO'}
         <!-- Course Outcomes Tab -->
         <div class="space-y-6" in:fade>
-            <div class="bg-white p-8 rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-500/5 space-y-6">
+            <div class="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-indigo-100 dark:border-slate-800 shadow-xl shadow-indigo-500/5 dark:shadow-indigo-950/20 space-y-6">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">Manage Course Outcomes</h3>
-                        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Define the learning objectives for {data.subject.name}</p>
+                        <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Manage Course Outcomes</h3>
+                        <p class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-1">Define the learning objectives for {data.subject.name}</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50/50 dark:bg-slate-800 p-6 rounded-2xl border border-gray-100 dark:border-slate-700">
                     <div class="space-y-2">
-                        <label for="co-code" class="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">CO Code</label>
-                        <input id="co-code" type="text" bind:value={newCOCode} placeholder="CO1" class="w-full bg-white border-gray-200 rounded-xl p-3 text-xs font-black uppercase" />
+                        <label for="co-code" class="text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest ml-1">CO Code</label>
+                        <input id="co-code" type="text" bind:value={newCOCode} placeholder="CO1" class="w-full bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs font-black uppercase text-gray-900 dark:text-white" />
                     </div>
                     <div class="md:col-span-2 space-y-2">
-                        <label for="co-desc" class="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Description / mapping</label>
-                        <input id="co-desc" type="text" bind:value={newCODescription} placeholder="Master modern JavaScript concepts..." class="w-full bg-white border-gray-200 rounded-xl p-3 text-xs font-medium" />
+                        <label for="co-desc" class="text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest ml-1">Description / mapping</label>
+                        <input id="co-desc" type="text" bind:value={newCODescription} placeholder="Master modern JavaScript concepts..." class="w-full bg-white dark:bg-slate-900 border-gray-200 dark:border-slate-700 rounded-xl p-3 text-xs font-medium text-gray-900 dark:text-white" />
                     </div>
-                    <button onclick={saveCO} class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+                    <button onclick={saveCO} class="bg-indigo-600 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-indigo-950/40">
                         {editingCOId ? 'Update CO' : 'Add Outcome'}
                     </button>
                     {#if editingCOId}
-                        <button onclick={() => { editingCOId = null; newCOCode = ''; newCODescription = ''; }} class="text-[10px] font-bold text-red-500 uppercase tracking-widest hover:underline mt-2">Discard Edits</button>
+                        <button onclick={() => { editingCOId = null; newCOCode = ''; newCODescription = ''; }} class="text-[10px] font-bold text-red-500 dark:text-red-400 uppercase tracking-widest hover:underline mt-2">Discard Edits</button>
                     {/if}
                 </div>
 
                 <div class="space-y-3">
                     {#each courseOutcomes as co}
-                        <div class="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl group hover:border-indigo-200 transition-all">
+                        <div class="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl group hover:border-indigo-200 dark:hover:border-indigo-500 transition-all">
                             <div class="flex items-center gap-6">
-                                <span class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black border border-indigo-100 uppercase">{co.code}</span>
-                                <p class="text-xs font-semibold text-gray-600">{co.description}</p>
+                                <span class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-black border border-indigo-100 dark:border-indigo-800/50 uppercase">{co.code}</span>
+                                <p class="text-xs font-semibold text-gray-600 dark:text-slate-400">{co.description}</p>
                             </div>
                             <div class="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onclick={() => { editingCOId = co.id; newCOCode = co.code; newCODescription = co.description; }} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="Edit CO">
+                                <button onclick={() => { editingCOId = co.id; newCOCode = co.code; newCODescription = co.description; }} class="p-2 text-gray-400 dark:text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Edit CO">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                                 </button>
-                                <button onclick={() => deleteCO(co.id)} class="p-2 text-gray-400 hover:text-red-500 transition-colors" title="Delete CO">
+                                <button onclick={() => deleteCO(co.id)} class="p-2 text-gray-400 dark:text-slate-600 hover:text-red-500 transition-colors" title="Delete CO">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                 </button>
                             </div>
@@ -1060,15 +1060,15 @@
 
 {#if showSmartParser}
     <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
-        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300" transition:slide>
-            <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-indigo-50/30">
+        <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300 border border-white dark:border-slate-800" transition:slide>
+            <div class="p-8 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10">
                 <div>
-                    <h2 class="text-2xl font-black text-gray-900 leading-tight">Smart Syllabus Import</h2>
-                    <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest mt-1">AI-Powered Portion Detection</p>
+                    <h2 class="text-2xl font-black text-gray-900 dark:text-white leading-tight">Smart Syllabus Import</h2>
+                    <p class="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-1">AI-Powered Portion Detection</p>
                 </div>
                 <button 
                     onclick={() => showSmartParser = false} 
-                    class="p-2 hover:bg-white rounded-xl transition-colors text-gray-400 hover:text-gray-900"
+                    class="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-colors text-gray-400 dark:text-slate-600 hover:text-gray-900 dark:hover:text-white"
                     aria-label="Close"
                 >
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1077,34 +1077,34 @@
             
             <div class="p-8 space-y-6">
                 <div class="space-y-3">
-                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <p class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
                         <span class="w-1.5 h-1.5 rounded-full bg-green-500 flex-shrink-0"></span>
                         Instructions
                     </p>
-                    <div class="bg-gray-50 rounded-2xl p-4 text-[11px] font-bold text-gray-600 border border-gray-100 leading-relaxed">
-                        Paste your syllabus/portion below. The system will automatically detect <span class="bg-indigo-100 text-indigo-700 px-1.5 rounded">Unit 1-5</span> or <span class="bg-indigo-100 text-indigo-700 px-1.5 rounded">Module 1-5</span> markers and create topics for you. Use new lines or semicolons to separate topics within a unit.
+                    <div class="bg-gray-50 dark:bg-slate-800/50 rounded-2xl p-4 text-[11px] font-bold text-gray-600 dark:text-slate-400 border border-gray-100 dark:border-slate-800 leading-relaxed">
+                        Paste your syllabus/portion below. The system will automatically detect <span class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-1.5 rounded">Unit 1-5</span> or <span class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-1.5 rounded">Module 1-5</span> markers and create topics for you. Use new lines or semicolons to separate topics within a unit.
                     </div>
                 </div>
 
                 <div class="space-y-2">
-                    <label for="syllabusText" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest ml-1">Syllabus Text Chunk</label>
+                    <label for="syllabusText" class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest ml-1">Syllabus Text Chunk</label>
                     <textarea 
                         id="syllabusText"
                         bind:value={smartSyllabusText}
                         placeholder="e.g. Unit 1: Introduction to Web Design, HTML5 basics, CSS3 fundamentals...&#10;Unit 2: JavaScript basics, DOM manipulation..."
-                        class="w-full h-64 bg-gray-50 border-gray-100 rounded-3xl p-6 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-inner resize-none transition-all"
+                        class="w-full h-64 bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-3xl p-6 text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 shadow-inner resize-none transition-all text-gray-900 dark:text-white"
                     ></textarea>
                 </div>
 
                 <div class="flex gap-4">
                     <button 
                         onclick={() => showSmartParser = false}
-                        class="flex-1 py-4 bg-gray-100 text-gray-500 text-xs font-black rounded-2xl hover:bg-gray-200 transition-all uppercase tracking-widest"
+                        class="flex-1 py-4 bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-slate-400 text-xs font-black rounded-2xl hover:bg-gray-200 dark:hover:bg-slate-700 transition-all uppercase tracking-widest"
                     >CANCEL</button>
                     <button 
                         onclick={parseSmartSyllabus}
                         disabled={isImporting}
-                        class="flex-[2] py-4 bg-indigo-600 text-white text-xs font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="flex-[2] py-4 bg-indigo-600 text-white text-xs font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40 uppercase tracking-widest flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {#if isImporting}
                             <div class="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
@@ -1122,15 +1122,15 @@
 
 {#if showSettings}
     <div class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
-        <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-300" transition:slide>
-            <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-indigo-50/30">
+        <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-300 border border-white dark:border-slate-800" transition:slide>
+            <div class="p-8 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-indigo-50/30 dark:bg-indigo-900/10">
                 <div>
-                    <h2 class="text-2xl font-black text-gray-900 leading-tight">Subject Settings</h2>
-                    <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest mt-1">Difficulty & Content Configuration</p>
+                    <h2 class="text-2xl font-black text-gray-900 dark:text-white leading-tight">Subject Settings</h2>
+                    <p class="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mt-1">Difficulty & Content Configuration</p>
                 </div>
                 <button 
                     onclick={() => showSettings = false} 
-                    class="p-2 hover:bg-white rounded-xl transition-colors text-gray-400 hover:text-gray-900"
+                    class="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-colors text-gray-400 dark:text-slate-600 hover:text-gray-900 dark:hover:text-white"
                     aria-label="Close"
                 >
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1140,40 +1140,40 @@
             <div class="p-8 space-y-6">
                 <!-- Difficulty Levels -->
                 <div class="space-y-4">
-                    <div class="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100 flex items-center justify-between gap-6">
+                    <div class="bg-indigo-50/50 dark:bg-indigo-900/30 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-800/50 flex items-center justify-between gap-6">
                         <div class="flex-1">
-                            <label for="level-gen" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">Quick Generate Levels</label>
-                            <p class="text-[9px] text-indigo-400 italic">Enter a number (e.g. 5) to auto-create L1 to L5</p>
+                            <label for="level-gen" class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest block mb-1">Quick Generate Levels</label>
+                            <p class="text-[9px] text-indigo-400 dark:text-indigo-500 italic">Enter a number (e.g. 5) to auto-create L1 to L5</p>
                         </div>
                         <select 
                             id="level-gen"
                             onchange={(e) => generateLevels(parseInt(e.currentTarget.value))}
-                            class="w-32 bg-white border-indigo-100 rounded-xl p-3 text-xs font-black focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none"
+                            class="w-32 bg-white dark:bg-slate-800 border-indigo-100 dark:border-indigo-800/50 rounded-xl p-3 text-xs font-black focus:ring-2 focus:ring-indigo-500 shadow-sm appearance-none text-gray-900 dark:text-white"
                         >
-                            <option value="">Select</option>
-                            <option value="1">1 Level</option>
-                            <option value="2">2 Levels</option>
-                            <option value="3">3 Levels</option>
-                            <option value="4">4 Levels</option>
-                            <option value="5">5 Levels</option>
+                            <option value="" class="dark:bg-slate-800">Select</option>
+                            <option value="1" class="dark:bg-slate-800">1 Level</option>
+                            <option value="2" class="dark:bg-slate-800">2 Levels</option>
+                            <option value="3" class="dark:bg-slate-800">3 Levels</option>
+                            <option value="4" class="dark:bg-slate-800">4 Levels</option>
+                            <option value="5" class="dark:bg-slate-800">5 Levels</option>
                         </select>
                     </div>
 
                     <div>
-                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Configurable Difficulty Levels</span>
-                        <p class="text-[9px] text-gray-400 ml-1 mb-3 italic">Define the Bloom's Taxonomy or difficulty levels (e.g., L1, L2, L3, Advanced)</p>
+                        <span class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest ml-1">Configurable Difficulty Levels</span>
+                        <p class="text-[9px] text-gray-400 dark:text-slate-600 ml-1 mb-3 italic">Define the Bloom's Taxonomy or difficulty levels (e.g., L1, L2, L3, Advanced)</p>
                         
                         <div class="flex flex-wrap gap-2 mb-4">
                             {#each editedDifficultyLevels as level, i}
-                                <div class="flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                                <div class="flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
                                     <input 
                                         type="text" 
                                         bind:value={editedDifficultyLevels[i]}
-                                        class="bg-transparent border-none p-0 text-xs font-black text-indigo-600 focus:ring-0 w-20"
+                                        class="bg-transparent border-none p-0 text-xs font-black text-indigo-600 dark:text-indigo-400 focus:ring-0 w-20"
                                     />
                                     <button 
                                         onclick={() => editedDifficultyLevels = editedDifficultyLevels.filter((_, idx) => idx !== i)}
-                                        class="p-0.5 text-indigo-300 hover:text-red-500 transition-colors"
+                                        class="p-0.5 text-indigo-300 dark:text-indigo-700 hover:text-red-500 transition-colors"
                                         title="Remove Level"
                                     >
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1183,20 +1183,20 @@
                             
                             <button 
                                 onclick={() => editedDifficultyLevels = [...editedDifficultyLevels, '']}
-                                class="px-3 py-1.5 bg-white border border-dashed border-gray-200 rounded-xl text-[10px] font-black text-gray-400 hover:bg-gray-50 hover:border-indigo-300 transition-all"
+                                class="px-3 py-1.5 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-xl text-[10px] font-black text-gray-400 dark:text-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-indigo-300 transition-all"
                             >+ ADD LEVEL</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="pt-6 border-t border-gray-50 flex justify-end gap-3">
+                <div class="pt-6 border-t border-gray-50 dark:border-slate-800 flex justify-end gap-3">
                     <button 
                         onclick={() => showSettings = false}
-                        class="px-8 py-3 bg-white text-gray-400 text-sm font-black rounded-xl border border-gray-200 hover:bg-gray-50 transition-all"
+                        class="px-8 py-3 bg-white dark:bg-slate-900 text-gray-400 text-sm font-black rounded-xl border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
                     >CANCEL</button>
                     <button 
                         onclick={saveSettings}
-                        class="px-8 py-3 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                        class="px-8 py-3 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40"
                     >SAVE SETTINGS</button>
                 </div>
             </div>
@@ -1206,28 +1206,28 @@
 
 {#if editingQuestion}
 <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" transition:fade>
-    <div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl" transition:slide>
-        <div class="p-8 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl border border-white dark:border-slate-800" transition:slide>
+        <div class="p-8 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
             <div>
-                <h3 class="text-sm font-black text-gray-900 uppercase tracking-tight">Edit Question</h3>
-                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Modify question details and answer</p>
+                <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">Edit Question</h3>
+                <p class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Modify question details and answer</p>
             </div>
-            <button onclick={() => editingQuestion = null} class="p-2 text-gray-400 hover:text-gray-600" aria-label="Close Edit Modal">
+            <button onclick={() => editingQuestion = null} class="p-2 text-gray-400 dark:text-slate-600 hover:text-gray-600 dark:hover:text-white" aria-label="Close Edit Modal">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         
-        <div class="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-            <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 flex gap-2 sticky top-0 z-10 backdrop-blur-sm">
+        <div class="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div class="bg-indigo-50/50 dark:bg-indigo-900/10 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 flex gap-2 sticky top-0 z-10 backdrop-blur-sm">
                 <button 
                     onmousedown={(e) => { e.preventDefault(); document.execCommand('bold', false); }}
                     aria-label="Bold" title="Bold"
-                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                    class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[9px] font-black text-gray-700 dark:text-slate-300 hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
                 >Bold</button>
                 <button 
                     onmousedown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList', false); }}
                     aria-label="List" title="List"
-                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                    class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[9px] font-black text-gray-700 dark:text-slate-300 hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
                 >List</button>
                 <button 
                     onmousedown={(e) => {
@@ -1248,21 +1248,21 @@
                         }
                     }} 
                     aria-label="Insert Table" title="Insert Table"
-                    class="px-3 py-1.5 bg-white border border-gray-100 rounded-xl text-[9px] font-black hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
+                    class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[9px] font-black text-gray-700 dark:text-slate-300 hover:bg-indigo-600 hover:text-white transition-all uppercase shadow-sm"
                 >Table+</button>
             </div>
 
             <div class="grid grid-cols-3 gap-6">
                 <div>
-                    <label for="eq-marks" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Marks</label>
-                    <input id="eq-marks" type="number" bind:value={editingQuestion.marks} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20" />
+                    <label for="eq-marks" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">Marks</label>
+                    <input id="eq-marks" type="number" bind:value={editingQuestion.marks} class="w-full bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white" />
                 </div>
                 <div>
-                    <label for="eq-co" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">CO Code</label>
-                    <select id="eq-co" bind:value={editingQuestion.co_id} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
-                        <option value={null}>None</option>
+                    <label for="eq-co" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">CO Code</label>
+                    <select id="eq-co" bind:value={editingQuestion.co_id} class="w-full bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white">
+                        <option value={null} class="dark:bg-slate-800">None</option>
                         {#each data.courseOutcomes as co}
-                            <option value={co.id}>{co.code}</option>
+                            <option value={co.id} class="dark:bg-slate-800">{co.code}</option>
                         {/each}
                         {#if data.courseOutcomes.length === 0}
                             <option disabled>No COs defined</option>
@@ -1270,33 +1270,33 @@
                     </select>
                 </div>
                 <div>
-                    <label for="eq-level" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Level</label>
-                    <select id="eq-level" bind:value={editingQuestion.bloom_level} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
-                        <option value="L1">L1 - Remember</option>
-                        <option value="L2">L2 - Understand</option>
-                        <option value="L3">L3 - Apply</option>
-                        <option value="L4">L4 - Analysis</option>
+                    <label for="eq-level" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">Level</label>
+                    <select id="eq-level" bind:value={editingQuestion.bloom_level} class="w-full bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white">
+                        <option value="L1" class="dark:bg-slate-800">L1 - Remember</option>
+                        <option value="L2" class="dark:bg-slate-800">L2 - Understand</option>
+                        <option value="L3" class="dark:bg-slate-800">L3 - Apply</option>
+                        <option value="L4" class="dark:bg-slate-800">L4 - Analysis</option>
                     </select>
                 </div>
                 <div>
-                    <label for="eq-category" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Category</label>
-                    <select id="eq-category" bind:value={editingQuestion.type} class="w-full bg-gray-50 border-gray-100 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20">
-                        <option value="NORMAL">Normal</option>
-                        <option value="SHORT">Short</option>
-                        <option value="LONG">Long</option>
-                        <option value="MCQ">MCQ</option>
+                    <label for="eq-category" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">Category</label>
+                    <select id="eq-category" bind:value={editingQuestion.type} class="w-full bg-gray-50 dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-bold py-3 px-4 focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white">
+                        <option value="NORMAL" class="dark:bg-slate-800">Normal</option>
+                        <option value="SHORT" class="dark:bg-slate-800">Short</option>
+                        <option value="LONG" class="dark:bg-slate-800">Long</option>
+                        <option value="MCQ" class="dark:bg-slate-800">MCQ</option>
                     </select>
                 </div>
             </div>
 
             {#if editingQuestion.type === 'MCQ'}
-                <div class="space-y-4 p-6 bg-indigo-50/30 rounded-[2rem] border border-indigo-100">
+                <div class="space-y-4 p-6 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-800/50">
                     <div class="flex justify-between items-center">
-                        <span class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">MCQ Options</span>
+                        <span class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">MCQ Options</span>
                         <button 
                             type="button" 
                             onclick={() => editingQuestion.options = [...editingQuestion.options, '']}
-                            class="px-2 py-1 bg-white border border-indigo-100 rounded-lg text-[8px] font-black text-indigo-600 uppercase"
+                            class="px-2 py-1 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 rounded-lg text-[8px] font-black text-indigo-600 dark:text-indigo-400 uppercase"
                         >+ Option</button>
                     </div>
                     <div class="grid grid-cols-1 gap-3">
@@ -1306,12 +1306,12 @@
                                     id="mcq-opt-{idx}"
                                     type="text" 
                                     bind:value={editingQuestion.options[idx]}
-                                    class="flex-1 bg-white border-gray-100 rounded-xl text-[10px] font-bold py-2.5 px-4 focus:ring-2 focus:ring-indigo-500/20"
+                                    class="flex-1 bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 rounded-xl text-[10px] font-bold py-2.5 px-4 focus:ring-2 focus:ring-indigo-500/20 text-gray-900 dark:text-white"
                                 />
                                 <button 
                                     onclick={() => editingQuestion.options = editingQuestion.options.filter((_: any, i: number) => i !== idx)}
                                     aria-label="Remove Option"
-                                    class="p-2 text-gray-300 hover:text-red-500 transition-colors"
+                                    class="p-2 text-gray-300 dark:text-slate-600 hover:text-red-500 transition-colors"
                                 >
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
@@ -1322,7 +1322,7 @@
             {/if}
 
             <div>
-                <label for="q-editor" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Question Text</label>
+                <label for="q-editor" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">Question Text</label>
                 <div 
                     id="q-editor"
                     bind:this={qEditorEl}
@@ -1333,12 +1333,12 @@
                     role="textbox"
                     tabindex="0"
                     aria-multiline="true"
-                    class="w-full bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[100px] outline-none overflow-y-auto rich-editor"
+                    class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[100px] outline-none overflow-y-auto rich-editor text-gray-900 dark:text-white"
                 ></div>
             </div>
 
             <div>
-                <label for="a-editor" class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2 text-indigo-400">Answer / Solution</label>
+                <label for="a-editor" class="block text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 text-indigo-400 dark:text-indigo-500">Answer / Solution</label>
                 <div 
                     id="a-editor"
                     bind:this={aEditorEl}
@@ -1349,20 +1349,20 @@
                     role="textbox"
                     tabindex="0"
                     aria-multiline="true"
-                    class="w-full bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[150px] outline-none overflow-y-auto rich-editor"
+                    class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl text-[10px] font-medium py-3 px-4 leading-relaxed focus:ring-2 focus:ring-indigo-500/20 min-h-[150px] outline-none overflow-y-auto rich-editor text-gray-900 dark:text-white"
                 ></div>
-                <p class="text-[8px] font-bold text-gray-300 uppercase mt-2">Paste images directly or use buttons for tables and formatting</p>
+                <p class="text-[8px] font-bold text-gray-300 dark:text-slate-700 uppercase mt-2">Paste images directly or use buttons for tables and formatting</p>
             </div>
         </div>
 
-        <div class="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-4">
+        <div class="p-8 bg-gray-50/50 dark:bg-slate-800/50 border-t border-gray-100 dark:border-slate-800 flex gap-4">
             <button 
                 onclick={() => editingQuestion = null}
-                class="flex-1 py-4 bg-white text-gray-400 text-[10px] font-black rounded-2xl hover:bg-gray-100 transition-all uppercase tracking-widest border border-gray-200"
+                class="flex-1 py-4 bg-white dark:bg-slate-900 text-gray-400 dark:text-slate-500 text-[10px] font-black rounded-2xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-all uppercase tracking-widest border border-gray-200 dark:border-slate-800"
             >CANCEL</button>
             <button 
                 onclick={saveQuestion}
-                class="flex-[2] py-4 bg-indigo-600 text-white text-[10px] font-black rounded-2xl hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-xl shadow-indigo-100"
+                class="flex-[2] py-4 bg-indigo-600 text-white text-[10px] font-black rounded-2xl hover:bg-indigo-700 transition-all uppercase tracking-widest shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40"
             >SAVE CHANGES</button>
         </div>
     </div>
