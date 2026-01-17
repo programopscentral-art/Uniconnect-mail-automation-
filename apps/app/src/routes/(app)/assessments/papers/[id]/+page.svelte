@@ -63,9 +63,11 @@
 
     // Handle data changes from server (rare but good for safety)
     $effect(() => {
-        if (data.paper?.id) {
-             // In Svelte 5, we might not need to do anything here if we reset state on navigation
-        }
+        const handler = (e: any) => {
+            activeSet = e.detail;
+        };
+        window.addEventListener('changeSet', handler);
+        return () => window.removeEventListener('changeSet', handler);
     });
 
     // Helper to find paper structure from metadata or defaults

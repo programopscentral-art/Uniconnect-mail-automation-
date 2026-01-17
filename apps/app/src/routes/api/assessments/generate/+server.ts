@@ -248,6 +248,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const questions = pickQuestionsForChoice(slot.marks, unitId, slot.hasSubQuestions, excludeInSet, manualMarks, slot.qType, slot.bloom, slot.co_id);
 
                     setQuestions.push({
+                        id: slot.id, // STABLE ID
                         type: 'SINGLE',
                         label: slot.label,
                         part: slot.part, // PASS PART TO FINAL OBJECT
@@ -286,6 +287,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const questions2 = pickQuestionsForChoice(c2.marks, u2, c2.hasSubQuestions, excludeInSet, m2, c2.qType, c2.bloom, c2.co_id);
 
                     setQuestions.push({
+                        id: slot.id, // STABLE ID
                         type: 'OR_GROUP',
                         label: slot.label,
                         part: slot.part, // PASS PART TO FINAL OBJECT

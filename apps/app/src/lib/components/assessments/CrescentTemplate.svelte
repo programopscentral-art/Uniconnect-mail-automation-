@@ -29,21 +29,19 @@
     // This ensures even raw question objects from DB are wrapped into the "slot" structure expected by the UI
     let safeQuestions = $derived.by(() => {
         const raw = currentSetData;
-        
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
-        
         let currentLabelNum = 1;
         
-        const mapped = arr.map((item: any) => {
+        return arr.map((item: any, idx: number) => {
             const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
             const getMarks = (q: any) => Number(q.marks || q.mark || 0);
 
-            // Store original reference for easy deletion/updates
-            let mappedSlot = { ...item, _raw: item };
+            // Use a stable ID if possible, otherwise derive one from index
+            const stableId = item.id || `slot-${activeSet}-${idx}`;
+            let mappedSlot = { ...item, _raw: item, id: stableId };
             
-            // Assign labels and tracking numbers
-            if (item.type === 'SINGLE' || item.type === 'OR_GROUP') {
-                 if (item.type === 'SINGLE') {
+            if (item.type === 'SINGLE' || item.type === 'OR_GROUP' || item.choices) {
+                 if (item.type === 'SINGLE' || !item.type) {
                     mappedSlot.n1 = currentLabelNum;
                     currentLabelNum++;
                  } else {
@@ -52,47 +50,49 @@
                     currentLabelNum += 2;
                  }
 
-                if (item.type === 'SINGLE' && item.questions) {
+                if ((item.type === 'SINGLE' || !item.type) && item.questions) {
                     mappedSlot.questions = item.questions.map((q: any, qi: number) => ({ 
                         ...q, 
-                        id: q.id || `q-${item.id || Math.random()}-${qi}`,
+                        id: q.id || `q-${stableId}-${qi}`,
                         text: getTxt(q), 
                         marks: getMarks(q) 
                     }));
-                } else if (item.type === 'OR_GROUP') {
-                    if (mappedSlot.choice1) {
-                        mappedSlot.choice1.questions = (mappedSlot.choice1.questions || []).map((q: any, qi: number) => ({
+                } else if (item.type === 'OR_GROUP' || item.choices) {
+                    const choice1 = mappedSlot.choice1 || (item.choices?.[0] ? { questions: [item.choices[0]] } : { questions: [] });
+                    const choice2 = mappedSlot.choice2 || (item.choices?.[1] ? { questions: [item.choices[1]] } : { questions: [] });
+                    
+                    mappedSlot.choice1 = {
+                        ...choice1,
+                        questions: (choice1.questions || []).map((q: any, qi: number) => ({
                             ...q,
-                            id: q.id || `q1-${item.id || Math.random()}-${qi}`,
+                            id: q.id || `q1-${stableId}-${qi}`,
                             text: getTxt(q),
                             marks: getMarks(q)
-                        }));
-                    }
-                    if (mappedSlot.choice2) {
-                        mappedSlot.choice2.questions = (mappedSlot.choice2.questions || []).map((q: any, qi: number) => ({
+                        }))
+                    };
+                    mappedSlot.choice2 = {
+                        ...choice2,
+                        questions: (choice2.questions || []).map((q: any, qi: number) => ({
                             ...q,
-                            id: q.id || `q2-${item.id || Math.random()}-${qi}`,
+                            id: q.id || `q2-${stableId}-${qi}`,
                             text: getTxt(q),
                             marks: getMarks(q)
-                        }));
-                    }
+                        }))
+                    };
                 }
-                return { ...mappedSlot, id: item.id || `slot-${activeSet}-${Math.random()}` };
+                return mappedSlot;
             }
             
-            // Fallback for raw questions without slots
+            // Fallback for raw questions
             const n = currentLabelNum;
             currentLabelNum++;
             return {
                 ...mappedSlot,
-                id: item.id || `q-raw-${activeSet}-${Math.random()}`,
                 type: 'SINGLE',
                 n1: n,
-                questions: [{ ...item, id: item.id || `qi-raw-${Math.random()}`, text: getTxt(item), marks: getMarks(item) }]
+                questions: [{ ...item, id: item.id || `qi-${stableId}`, text: getTxt(item), marks: getMarks(item) }]
             };
         });
-
-        return mapped;
     });
 
     function removeQuestion(slot: any) {
@@ -397,6 +397,78 @@
 </script>
 
 <div class="paper-container relative p-[1in] bg-white text-black shadow-none border border-gray-100 {mode === 'preview' ? 'scale-[0.5] origin-top' : ''}">
+    
+    {#if isEditable}
+        <!-- Sets Sidebar -->
+        <div class="fixed left-4 top-24 w-16 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-2 flex flex-col gap-2 z-40 print:hidden no-print">
+            <div class="text-[8px] font-black text-gray-400 text-center uppercase mb-1">Sets</div>
+            {#each ['A', 'B', 'C', 'D'] as s}
+                <button 
+                    onclick={() => {
+                        const event = new CustomEvent('changeSet', { detail: s });
+                        window.dispatchEvent(event);
+                    }}
+                    class="w-12 h-12 rounded-xl text-[11px] font-black transition-all flex items-center justify-center 
+                    {activeSet === s ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}"
+                >
+                    {s}
+                </button>
+            {/each}
+        </div>
+
+        <!-- Navigation Sidebar -->
+        <div class="fixed left-24 top-24 w-48 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-4 z-40 print:hidden no-print max-h-[70vh] overflow-y-auto">
+            <div class="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-4">Paper Outline</div>
+            <div class="space-y-4">
+                {#if questionsA.length > 0}
+                    <div>
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part A</div>
+                        <div class="grid grid-cols-4 gap-1">
+                            {#each questionsA as q}
+                                <button 
+                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                >
+                                    {q.n1}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+                {#if questionsB.length > 0}
+                    <div>
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part B</div>
+                        <div class="grid grid-cols-4 gap-1">
+                            {#each questionsB as q}
+                                <button 
+                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                >
+                                    {q.n1}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+                {#if questionsC.length > 0}
+                    <div>
+                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part C</div>
+                        <div class="grid grid-cols-4 gap-1">
+                            {#each questionsC as q}
+                                <button 
+                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                >
+                                    {q.n1}
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
+            </div>
+        </div>
+    {/if}
+
     <!-- Exact Crescent Header -->
     <div class="relative flex flex-col items-center">
         <!-- Refined Header based on uploaded images -->
@@ -552,7 +624,7 @@
         >
             {#if questionsA.length > 0}
                 {#each questionsA as slot, i (slot.id)}
-                    <div animate:flip={{duration: dndFlipDurationMs}}>
+                    <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'SINGLE'}
                         {#each slot.questions || [] as q}
                             <div class="flex min-h-[40px] page-break-avoid relative group border-b border-black last:border-b-0">
@@ -664,7 +736,7 @@
         >
             {#if questionsB.length > 0}
                 {#each questionsB as slot, idx (slot.id)}
-                    <div animate:flip={{duration: dndFlipDurationMs}}>
+                    <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'OR_GROUP'}
                         <div class="border-2 border-black page-break-avoid mb-6 relative group">
                             {#if isEditable}
@@ -673,7 +745,7 @@
                                 </div>
                                 <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
                                      <button 
-                                        onclick={() => removeQuestion(slot.id)}
+                                        onclick={() => removeQuestion(slot)}
                                         class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
                                     >
                                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -759,7 +831,7 @@
                                 </div>
                                 <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
                                      <button 
-                                        onclick={() => removeQuestion(slot.id)}
+                                        onclick={() => removeQuestion(slot)}
                                         class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
                                     >
                                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -833,7 +905,7 @@
             onfinalize={(e) => handleDndFinalize(e, 'C')}
         >
                 {#each questionsC as slot, idx (slot.id)}
-                    <div animate:flip={{duration: dndFlipDurationMs}}>
+                    <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     <div class="border-2 border-black page-break-avoid relative group">
                         {#if isEditable}
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
@@ -841,7 +913,7 @@
                                 </div>
                                 <div class="absolute -right-12 top-0 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-20 print:hidden">
                                      <button 
-                                        onclick={() => removeQuestion(slot.id)}
+                                        onclick={() => removeQuestion(slot)}
                                         class="bg-red-500 text-white p-1.5 rounded-md shadow-lg text-[9px] font-black tracking-widest flex items-center gap-1 hover:bg-red-600 active:scale-95"
                                     >
                                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
