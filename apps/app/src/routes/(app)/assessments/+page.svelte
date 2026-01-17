@@ -339,8 +339,8 @@
     <!-- Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div class="animate-premium-slide">
-            <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Assessments <span class="text-indigo-600 dark:text-indigo-400">&</span> Question Papers</h1>
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2">Manage academic architecture, syllabus catalog, and automated intelligence-driven generation.</p>
+            <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Syllabus <span class="text-indigo-600 dark:text-indigo-400">&</span> Subjects</h1>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mt-2">Manage your batches, departments, subjects, and generate question papers.</p>
         </div>
         
         <div class="flex gap-4 animate-premium-slide" style="animation-delay: 100ms;">
@@ -361,7 +361,7 @@
                 class="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95"
             >
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                Generate Blueprint
+                Generate Paper
             </a>
         </div>
     </div>
@@ -375,12 +375,12 @@
                 </div>
                 <div>
                     <h3 class="text-xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">{activeUniversity?.name || 'Select Entity'}</h3>
-                    <p class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] mt-1">Active Institutional Pipeline</p>
+                    <p class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] mt-1">Active University</p>
                 </div>
             </div>
             
             <div class="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-gray-100 dark:border-slate-800">
-                <span class="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest ml-3">Switch Node</span>
+                <span class="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest ml-3">Switch University</span>
                 <select 
                     class="bg-white dark:bg-slate-800 border-none text-[11px] font-black text-gray-900 dark:text-white rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 shadow-sm"
                     onchange={(e) => {
@@ -405,7 +405,7 @@
                 <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
                         <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Batches</h3>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Enrollment Cohorts</p>
+                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Class Batches</p>
                     </div>
                     <button 
                         onclick={() => showAddBatch = !showAddBatch}
@@ -480,7 +480,7 @@
                             </div>
                         </div>
                     {:else}
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold text-center py-10 uppercase tracking-widest italic">Node Empty</p>
+                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold text-center py-10 uppercase tracking-widest italic">No Batches</p>
                     {/each}
                 </div>
             </div>
@@ -490,7 +490,7 @@
                 <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
                         <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Departments</h3>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Streams of Study</p>
+                        <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Departments</p>
                     </div>
                     <button 
                         onclick={() => showAddBranch = !showAddBranch}
@@ -583,10 +583,10 @@
 
         <!-- Subjects & Syllabus Column (Main) -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-3xl border border-gray-100 shadow-sm min-h-[600px] flex flex-col">
+            <div class="bg-white dark:bg-slate-900 rounded-3xl border border-gray-100 dark:border-slate-800 shadow-sm min-h-[600px] flex flex-col">
                 <div class="p-8 border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gray-50/30 dark:bg-slate-800/20">
                     <div>
-                        <h2 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">Syllabus <span class="text-indigo-600 dark:text-indigo-400">&</span> Catalog</h2>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">Syllabus <span class="text-indigo-600 dark:text-indigo-400">&</span> Subjects</h2>
                         {#if selectedBatchId && selectedBranchId}
                             <p class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] mt-2"> 
                                 <span class="text-gray-400 dark:text-slate-400">{activeBatch?.name}</span> • 
@@ -606,7 +606,7 @@
                                     class="inline-flex items-center px-5 py-2.5 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-100 dark:hover:bg-red-900/20 transition-all border border-red-100 dark:border-red-900/30 active:scale-95 disabled:opacity-50 shadow-sm"
                                 >
                                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v2m3 4s.5 0 1 0m-4 0a1 1 0 110-2h4a1 1 0 110 2"/></svg>
-                                    Purge Selected ({selectedSubjectIds.length})
+                                    Delete Selected ({selectedSubjectIds.length})
                                 </button>
                             {/if}
                             <button 
@@ -614,7 +614,7 @@
                                 class="inline-flex items-center px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
                             >
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
-                                Mapping Subject
+                                Add Subject
                             </button>
                         </div>
                     {/if}
@@ -626,8 +626,8 @@
                             <div class="w-24 h-24 glass rounded-[2.5rem] flex items-center justify-center text-indigo-500 mb-8 border border-white dark:border-slate-800 shadow-xl shadow-indigo-500/10">
                                 <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                             </div>
-                            <h3 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">Initialize Catalog</h3>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-4 max-w-sm font-medium leading-relaxed">Map institutional subjects by selecting a <span class="text-indigo-600 dark:text-indigo-400 font-black">Cohort Cluster</span> and then an <span class="text-indigo-600 dark:text-indigo-400 font-black">Academic Stream</span>.</p>
+                            <h3 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">View Syllabus</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-4 max-w-sm font-medium leading-relaxed">View subjects by selecting a <span class="text-indigo-600 dark:text-indigo-400 font-black">Batch</span> and then a <span class="text-indigo-600 dark:text-indigo-400 font-black">Department</span>.</p>
                         </div>
                     {:else if isLoadingSubjects}
                          <div class="h-full flex items-center justify-center py-20">
@@ -657,7 +657,7 @@
                                 </div>
                                 <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-slate-800">
                                     <button onclick={() => showAddSubject = false} class="px-6 py-3 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
-                                    <button onclick={addSubject} class="px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">COMMIT SUBJECT</button>
+                                    <button onclick={addSubject} class="px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">SAVE SUBJECT</button>
                                 </div>
                             </div>
                         {/if}
@@ -723,7 +723,7 @@
                                                             href="/assessments/subjects/{subject.id}"
                                                             class="text-[11px] font-black uppercase tracking-widest {selectedSubjectIds.includes(subject.id) ? 'text-white hover:underline' : 'text-indigo-600 dark:text-indigo-400 hover:underline'}"
                                                         >
-                                                            Portion Analysis
+                                                            View Topics
                                                         </a>
                                                     </div>
                                                 </div>
@@ -737,7 +737,7 @@
                                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                                     </div>
                                     <h3 class="text-sm font-black text-gray-700 dark:text-white uppercase tracking-[0.2em]">Resource Void</h3>
-                                    <p class="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-2 uppercase tracking-widest italic">No subjects mapped to current stream node</p>
+                                    <p class="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-2 uppercase tracking-widest italic">No subjects added to this department</p>
                                 </div>
                             {/each}
                         </div>

@@ -181,7 +181,7 @@
     <!-- Header Area -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Task Command Center</h1>
+            <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Task Center</h1>
             <p class="mt-1 text-gray-500 font-medium">Orchestrate your team's daily operations and student follow-ups. (Build: 5000)</p>
         </div>
         <div class="flex items-center gap-3">
@@ -212,24 +212,24 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating">
             <div class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5 opacity-60">Open Tasks</div>
-            <div class="text-3xl font-black dark:text-white leading-tight">{data.tasks.filter((t:any) => t.status !== 'COMPLETED').length}</div>
+            <div class="text-3xl font-black text-gray-900 dark:text-white leading-tight">{data.tasks.filter((t:any) => t.status !== 'COMPLETED').length}</div>
         </div>
-        <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating">
-            <div class="text-[10px] font-black text-red-400 uppercase tracking-widest mb-1.5 opacity-60">Critical Path</div>
-            <div class="text-3xl font-black text-red-600 leading-tight">{data.tasks.filter((t:any) => t.priority === 'URGENT' || t.priority === 'HIGH').length}</div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating">
+            <div class="text-[10px] font-black text-red-500 dark:text-red-400 uppercase tracking-widest mb-1.5 opacity-60">High Priority</div>
+            <div class="text-3xl font-black text-red-600 dark:text-red-500 leading-tight">{data.tasks.filter((t:any) => t.priority === 'URGENT' || t.priority === 'HIGH').length}</div>
         </div>
-        <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating">
-            <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1.5 opacity-60">Active Sync</div>
-            <div class="text-3xl font-black text-indigo-600 leading-tight">{data.tasks.filter((t:any) => t.status === 'IN_PROGRESS').length}</div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating">
+            <div class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-1.5 opacity-60">In Progress</div>
+            <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400 leading-tight">{data.tasks.filter((t:any) => t.status === 'IN_PROGRESS').length}</div>
         </div>
-        <div class="bg-white p-6 rounded-[32px] border border-gray-100 shadow-floating">
-            <div class="text-[10px] font-black text-green-400 uppercase tracking-widest mb-1.5 opacity-60">Success Ops</div>
-            <div class="text-3xl font-black text-green-600 leading-tight">{data.tasks.filter((t:any) => t.status === 'COMPLETED').length}</div>
+        <div class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating">
+            <div class="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-widest mb-1.5 opacity-60">Completed</div>
+            <div class="text-3xl font-black text-green-600 dark:text-green-500 leading-tight">{data.tasks.filter((t:any) => t.status === 'COMPLETED').length}</div>
         </div>
     </div>
 
     <!-- Filters Strip -->
-    <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100 shadow-inner">
+    <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 dark:bg-slate-900/50 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner">
         <div class="flex items-center gap-3">
             <input 
                 id="select-all-checkbox"
@@ -302,7 +302,7 @@
                     <div class="flex items-center space-x-2">
                         <select 
                             onchange={(e) => updateStatus(task, (e.target as HTMLSelectElement).value)}
-                            class="text-[11px] font-bold py-1 px-2 rounded-lg border-none bg-transparent hover:bg-white cursor-pointer transition-all {statusColors[task.status] || statusColors.PENDING}"
+                            class="text-[11px] font-bold py-1 px-2 rounded-lg border-none bg-transparent hover:bg-white dark:hover:bg-slate-800 cursor-pointer transition-all {statusColors[task.status] || statusColors.PENDING}"
                         >
                             {#each Object.entries(statusLabels) as [val, label]}
                                 <option value={val} selected={task.status === val}>{label}</option>
@@ -314,11 +314,11 @@
                 <div class="p-6 flex-1 space-y-4">
                     <div class="flex justify-between items-start gap-3">
                         <div class="space-y-1">
-                            <h3 class="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">
                                 {task.title}
                             </h3>
                             {#if task.university_name}
-                                <div class="flex items-center text-xs font-semibold text-indigo-500 bg-indigo-50/50 px-2 py-0.5 rounded-full">
+                                <div class="flex items-center text-xs font-semibold text-indigo-500 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
                                     <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                     {task.university_short_name || task.university_name}
                                 </div>
@@ -336,8 +336,8 @@
                                     <span class="text-[9px] font-bold text-gray-700 truncate max-w-[70px]">{task.assigned_to_name}</span>
                                 </div>
                             {:else}
-                                <div class="flex items-center gap-2 bg-gray-50 pr-3 rounded-full border border-gray-100">
-                                    <div class="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[9px] font-bold text-gray-400">
+                                <div class="flex items-center gap-2 bg-gray-50 dark:bg-slate-800 pr-3 rounded-full border border-gray-100 dark:border-slate-700">
+                                    <div class="w-7 h-7 rounded-full bg-gray-100 dark:bg-slate-700 border-2 border-white dark:border-slate-600 flex items-center justify-center text-[9px] font-bold text-gray-400">
                                         ?
                                     </div>
                                     <span class="text-[9px] font-bold text-gray-400">Unassigned</span>
@@ -353,7 +353,7 @@
                     </div>
 
                     {#if task.description}
-                        <p class="text-sm text-gray-600 line-clamp-2 leading-relaxed h-[40px]">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed h-[40px]">
                             {task.description}
                         </p>
                     {/if}
@@ -368,7 +368,7 @@
                         <div class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button 
                                 onclick={() => openEdit(task)}
-                                class="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                class="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"
                                 title="Edit Task"
                             >
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -385,12 +385,12 @@
                 </div>
             </div>
         {:else}
-            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
-                <div class="bg-gray-100 p-4 rounded-full mb-4">
+            <div class="col-span-full py-16 flex flex-col items-center justify-center bg-gray-50/50 dark:bg-slate-900/30 rounded-3xl border-2 border-dashed border-gray-200 dark:border-slate-800">
+                <div class="bg-gray-100 dark:bg-slate-800 p-4 rounded-full mb-4">
                     <svg class="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4" /></svg>
                 </div>
-                <h3 class="text-xl font-bold text-gray-900">Clear Skies!</h3>
-                <p class="text-gray-500 font-medium">No tasks match your current filters. Take a break or create a new one.</p>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">All Caught Up!</h3>
+                <p class="text-gray-500 dark:text-slate-400 font-medium">No tasks match your current filters. Take a break or create a new one.</p>
             </div>
         {/each}
     </div>
@@ -402,7 +402,7 @@
     <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onclick={() => showModal = false} onkeydown={(e) => e.key === 'Escape' && (showModal = false)} role="button" tabindex="-1" aria-label="Close modal background"></div>
     
     <div 
-        class="bg-white rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden"
+        class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden border border-transparent dark:border-slate-800"
         transition:fly={{ y: 30, duration: 400 }}
     >
         <div class="bg-indigo-600 px-8 py-6 text-white relative">
@@ -419,12 +419,12 @@
             <div class="space-y-4">
                 <div>
                     <label for="f-title" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Title</label>
-                    <input id="f-title" type="text" bind:value={form.title} placeholder="What needs to be done?" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all">
+                    <input id="f-title" type="text" bind:value={form.title} placeholder="What needs to be done?" class="w-full bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white">
                 </div>
                 
                 <div>
                     <label for="f-desc" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Description / Context</label>
-                    <textarea id="f-desc" bind:value={form.description} rows="3" placeholder="Provide extra details for the team member..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 text-sm font-semibold outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all"></textarea>
+                    <textarea id="f-desc" bind:value={form.description} rows="3" placeholder="Provide extra details for the team member..." class="w-full bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-xl px-5 py-3 text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"></textarea>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
@@ -479,7 +479,7 @@
             </div>
         </div>
 
-        <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+        <div class="px-8 py-6 bg-gray-50 dark:bg-slate-950 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
             <button onclick={() => showModal = false} class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Discard Changes</button>
             <button 
                 onclick={saveTask}
@@ -495,6 +495,6 @@
 
 <style>
     :global(body) {
-        background-color: #fcfcfd;
+        @apply bg-[#fcfcfd] dark:bg-slate-950;
     }
 </style>

@@ -25,7 +25,7 @@
     <div class="animate-premium-slide">
       <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Templates</h1>
       <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-        Design and manage institutional email blueprints.
+        Design and manage email templates.
       </p>
     </div>
     <a 
@@ -41,14 +41,14 @@
 
   {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">University:</label>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
             onchange={onUnivChange}
             class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-white"
         >
-            <option value="">Global Hierarchy (All)</option>
+            <option value="">All Universities</option>
             {#each data.universities as univ}
                 <option value={univ.id}>{univ.name}</option>
             {/each}
@@ -63,8 +63,8 @@
           <tr>
             <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Template Name</th>
             <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Subject Reference</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Registration Date</th>
-            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Actions</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Added Date</th>
+            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -108,7 +108,7 @@
                   <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
-                  <p class="text-[10px] font-black uppercase tracking-[0.2em]">No blueprints registered in this node.</p>
+                  <p class="text-[10px] font-black uppercase tracking-[0.2em]">No templates found for this university.</p>
                 </div>
               </td>
             </tr>

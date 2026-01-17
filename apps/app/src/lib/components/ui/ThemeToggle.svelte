@@ -5,19 +5,18 @@
     let { currentTheme = $bindable('light') } = $props<{ currentTheme: 'light' | 'dark' }>();
 
     function toggleTheme() {
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        currentTheme = newTheme;
-        
-        // Apply class to document
-        if (newTheme === 'dark') {
+        currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+        // Persist in cookie
+        document.cookie = `theme=${currentTheme}; path=/; max-age=31536000`;
+    }
+
+    $effect(() => {
+        if (currentTheme === 'dark') {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
-
-        // Persist in cookie
-        document.cookie = `theme=${newTheme}; path=/; max-age=31536000`; // 1 year
-    }
+    });
 </script>
 
 <button

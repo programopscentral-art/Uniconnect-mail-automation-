@@ -190,11 +190,11 @@
 
     <div class="px-8 py-10 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10">
       <div class="px-2 mb-4 flex justify-between items-center">
-        <p class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-40">System Integrity</p>
+        <p class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-40">System Status</p>
       </div>
       <div class="px-2 flex items-center gap-3">
         <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)]"></div>
-        <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter">Global Shield Active</span>
+        <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter">System Online</span>
       </div>
     </div>
   </aside>
@@ -218,7 +218,7 @@
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
           <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-sm transition-all hover:shadow-md">
-            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">Context:</span>
+            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">University:</span>
             <select 
               value={user.university_id || 'ALL'} 
               onchange={(e) => switchUniversity(e.currentTarget.value)}
@@ -257,7 +257,7 @@
           </div>
           <div class="text-right">
             <div class="text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight">{user?.display_name || user?.name || 'User'}</div>
-            <div class="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70">Account Hub</div>
+            <div class="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70">My Profile</div>
           </div>
         </a>
 

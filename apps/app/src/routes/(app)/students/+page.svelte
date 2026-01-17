@@ -223,7 +223,7 @@
   <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
     <div class="animate-premium-slide">
       <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Contact List <span class="text-[10px] font-normal text-gray-400 dark:text-gray-600 opacity-50 ml-3 italic">v5.0.0-PRO</span></h1>
-      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">Secure management of student identities and institutional communication vectors.</p>
+      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">Secure management of student records and contact details.</p>
     </div>
     <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto animate-premium-slide" style="animation-delay: 100ms;">
         {#if data.students.length > 0}
@@ -231,7 +231,7 @@
                 onclick={deleteAllStudents}
                 class="flex-1 lg:flex-none px-6 py-3 border border-red-200 dark:border-red-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl text-red-600 dark:text-red-400 bg-white/50 dark:bg-red-950/20 hover:bg-red-600 hover:text-white transition-all active:scale-95"
             >
-                Purge All
+                Clear All
             </button>
         {/if}
         <button 
@@ -239,7 +239,7 @@
             class="flex-1 lg:flex-none inline-flex items-center justify-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 relative overflow-visible"
         >
             <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-            Ingest Data
+            Import Students
             <span class="absolute -top-2 -right-1 bg-green-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse tracking-tighter">ULTRA</span>
         </button>
     </div>
@@ -247,7 +247,7 @@
 
   {#if data.universities.length > 1}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Source Node:</label>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">University:</label>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
@@ -306,7 +306,7 @@
                         <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                         </div>
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em]">{selectedUniversityId ? 'No identities registered in this node.' : 'Select source node to initialize matrix.'}</p>
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em]">{selectedUniversityId ? 'No students found in this university.' : 'Select a university to view students.'}</p>
                     </div>
                   </td>
               </tr>
@@ -324,7 +324,7 @@
         </div>
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div class="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">
-                Displaying <span class="text-indigo-600 dark:text-indigo-400">{(data.currentPage - 1) * data.limit + 1} - {Math.min(data.currentPage * data.limit, data.totalCount)}</span> <span class="mx-1">/</span> Total {data.totalCount} Identities
+                Displaying <span class="text-indigo-600 dark:text-indigo-400">{(data.currentPage - 1) * data.limit + 1} - {Math.min(data.currentPage * data.limit, data.totalCount)}</span> <span class="mx-1">/</span> Total {data.totalCount} Records
             </div>
             <div class="flex items-center space-x-4">
                 <nav class="relative z-0 inline-flex shadow-sm -space-x-px rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden" aria-label="Pagination">
@@ -363,11 +363,11 @@
     <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
     <div class="inline-block align-bottom glass dark:bg-slate-900/95 border-gray-100 dark:border-slate-800 rounded-[3rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full animate-premium-scale">
       <div class="px-8 pt-8 pb-6 sm:p-10 max-h-[85vh] overflow-y-auto">
-        <h3 class="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-6" id="modal-title">Data Ingestion Engine</h3>
+        <h3 class="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-6" id="modal-title">Import Students</h3>
         
         {#if data.universities.length > 1 && !selectedUniversityId}
             <div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-5 rounded-2xl mb-6 text-[11px] font-black uppercase tracking-widest border border-red-100 dark:border-red-800/50">
-                Warning: Institutional node must be defined before ingestion.
+                Warning: A university must be selected before importing.
             </div>
         {:else}
             <div class="space-y-10">
@@ -415,7 +415,7 @@
                     <div class="animate-premium-fade">
                         <div class="flex justify-between items-center mb-4">
                              <h4 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Data Stream Preview</h4>
-                             <span class="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter italic">Count: {totalPreviewRows} Entities</span>
+                             <span class="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter italic">Count: {totalPreviewRows} Records</span>
                         </div>
                         <div class="border border-gray-100 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-sm">
                           <div class="overflow-x-auto">
@@ -453,14 +453,14 @@
             disabled={isUploading || !uploadFiles || (data.universities.length > 1 && !selectedUniversityId)}
             class="w-full inline-flex justify-center rounded-2xl border border-transparent shadow-lg px-6 py-3 bg-indigo-600 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-indigo-700 transition-all sm:ml-4 sm:w-auto active:scale-95 disabled:opacity-30 disabled:grayscale"
         >
-          {isUploading ? 'Executing...' : `Confirm Matrix Ingestion`}
+          {isUploading ? 'Importing...' : `Confirm Import`}
         </button>
         <button 
             type="button" 
             onclick={() => { showUploadModal = false; resetPreview(); }}
             class="mt-3 w-full inline-flex justify-center rounded-2xl border border-gray-100 dark:border-slate-800 px-6 py-3 bg-white dark:bg-slate-900 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all sm:mt-0 sm:w-auto active:scale-95 shadow-sm"
         >
-          Abort Protocol
+          Cancel
         </button>
       </div>
     </div>
@@ -476,8 +476,8 @@
             <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
             <div class="absolute inset-4 border-4 border-blue-400/20 rounded-full animate-pulse"></div>
         </div>
-        <span class="text-[12px] text-white font-black uppercase tracking-[0.3em] animate-pulse">Ingesting Source Data...</span>
-        <span class="mt-4 text-[9px] text-gray-400 font-bold uppercase tracking-widest italic animate-premium-slide" style="animation-delay: 1000ms;">Synchronizing institutional nodes</span>
+        <span class="text-[12px] text-white font-black uppercase tracking-[0.3em] animate-pulse">Importing student data...</span>
+        <span class="mt-4 text-[9px] text-gray-400 font-bold uppercase tracking-widest italic animate-premium-slide" style="animation-delay: 1000ms;">Synchronizing university data</span>
     </div>
 {/if}
  <!-- Closes root space-y-6 -->
