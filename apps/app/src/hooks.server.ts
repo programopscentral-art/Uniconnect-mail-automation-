@@ -9,6 +9,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = env.NODE_TLS_REJECT_UNAUTHORIZED || '
 
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');
+    const theme = event.cookies.get('theme') || 'light';
+    event.locals.theme = theme as 'light' | 'dark';
 
     if (token) {
         try {

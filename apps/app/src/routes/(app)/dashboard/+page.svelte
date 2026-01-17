@@ -360,18 +360,16 @@
     <!-- Main Content Area (Left) -->
     <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div>
-            <div>
-                <h1 class="text-3xl font-black text-gray-900 tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 opacity-50 ml-2">(Build: 5000)</span></h1>
-                <p class="text-sm font-bold text-gray-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
-            </div>
+            <div class="animate-premium-slide">
+                <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 dark:text-gray-500 opacity-50 ml-2">(Build: 5000)</span></h1>
+                <p class="text-sm font-bold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-widest">Real-time Overview</p>
             </div>
             {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
-                <div class="w-full sm:w-auto">
+                <div class="w-full sm:w-auto animate-premium-fade" style="animation-delay: 100ms;">
                    <select 
                         onchange={onUnivChange} 
                         value={data.selectedUniversityId || ''} 
-                        class="block w-full sm:w-72 bg-white border border-gray-100 rounded-2xl px-5 py-3.5 text-sm font-black text-gray-700 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 transition-all outline-none"
+                        class="block w-full sm:w-72 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl px-5 py-3.5 text-sm font-black text-gray-700 dark:text-gray-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 focus:border-indigo-600 transition-all outline-none"
                     >
                        <option value="">All Universities</option>
                        {#each data.universities as univ}
@@ -384,51 +382,54 @@
 
         <!-- Task Stats -->
         <div class="grid grid-cols-2 min-[500px]:grid-cols-3 min-[900px]:grid-cols-5 gap-4 lg:gap-6">
-            {#each taskStats as stat}
-                <div class="bg-white p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-indigo-500/10 cursor-default group">
-                    <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-xl {stat.color} shadow-sm mb-4 group-hover:rotate-6 transition-transform">{stat.icon}</div>
+            {#each taskStats as stat, i}
+                <div 
+                    class="bg-white dark:bg-gray-900 p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-gray-800 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-xl hover:shadow-indigo-500/10 cursor-default group animate-premium-slide"
+                    style="animation-delay: {200 + i * 50}ms;"
+                >
+                    <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-xl {stat.color.replace('bg-', 'bg-').replace('text-', 'text-')} dark:bg-opacity-10 shadow-sm mb-4 group-hover:rotate-6 transition-transform">{stat.icon}</div>
                     <div class="w-full">
-                        <div class="text-3xl font-black text-gray-900 leading-none mb-1">{stat.value}</div>
-                        <div class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{stat.label}</div>
+                        <div class="text-3xl font-black text-gray-900 dark:text-white leading-none mb-1">{stat.value}</div>
+                        <div class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">{stat.label}</div>
                     </div>
                 </div>
             {/each}
         </div>
 
         <!-- Calendar Section -->
-        <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8">
+        <div class="bg-white dark:bg-gray-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-8 animate-premium-fade" style="animation-delay: 500ms;">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div class="flex items-center gap-6">
-                    <h2 class="text-xl font-black text-gray-900">Task Calendar</h2>
-                    <div class="flex bg-gray-50/50 p-1.5 rounded-2xl border border-gray-100">
-                        <button onclick={() => viewMode = 'MY_TASKS'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">All Tasks</button>
-                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white shadow-md text-indigo-600' : 'text-gray-400 hover:text-gray-600'}">Student Schedule</button>
+                    <h2 class="text-xl font-black text-gray-900 dark:text-white">Task Calendar</h2>
+                    <div class="flex bg-gray-50/50 dark:bg-gray-800/50 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                        <button onclick={() => viewMode = 'MY_TASKS'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">All Tasks</button>
+                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">Student Schedule</button>
                     </div>
                 </div>
                 
                 <div class="flex items-center gap-3">
-                    <button onclick={prevMonth} class="p-3 bg-gray-50 hover:bg-white hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100" aria-label="Previous Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
-                    <span class="text-sm font-black w-40 text-center text-gray-700 bg-gray-50 py-3 rounded-[18px] tracking-wide border border-transparent">{monthNames[currentMonth]} {currentYear}</span>
-                    <button onclick={nextMonth} class="p-3 bg-gray-50 hover:bg-white hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100" aria-label="Next Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+                    <button onclick={prevMonth} class="p-3 bg-gray-50 dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Previous Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+                    <span class="text-sm font-black w-40 text-center text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800 py-3 rounded-[18px] tracking-wide border border-transparent">{monthNames[currentMonth]} {currentYear}</span>
+                    <button onclick={nextMonth} class="p-3 bg-gray-50 dark:bg-gray-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Next Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
                 </div>
             </div>
 
             <div class="grid grid-cols-7 gap-3">
                 {#each ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as day}
-                    <div class="py-3 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{day}</div>
+                    <div class="py-3 text-center text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">{day}</div>
                 {/each}
                 {#each calendarDays as day}
-                    <div role="button" tabindex="0" class="bg-gray-50/30 h-32 p-3 relative rounded-[24px] border border-transparent group hover:bg-white hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all cursor-pointer" onclick={() => day && openDayModal(day)} onkeydown={(e) => e.key==='Enter' && day && openDayModal(day)}>
+                    <div role="button" tabindex="0" class="bg-gray-50/30 dark:bg-gray-800/20 h-32 p-3 relative rounded-[24px] border border-transparent group hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 transition-all cursor-pointer" onclick={() => day && openDayModal(day)} onkeydown={(e) => e.key==='Enter' && day && openDayModal(day)}>
                         {#if day}
                             <div class="flex justify-between items-start">
-                                <span class="text-sm font-black {day === today.getDate() && currentMonth === today.getMonth() ? 'bg-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200' : 'text-gray-700 group-hover:text-indigo-600'} transition-colors">
+                                <span class="text-sm font-black {day === today.getDate() && currentMonth === today.getMonth() ? 'bg-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200' : 'text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'} transition-colors">
                                     {day}
                                 </span>
                             </div>
                             <div class="mt-2 space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
                                 {#each getEventsForDay(day).slice(0, 3) as event}
                                     <div 
-                                        class="text-[9px] px-2 py-1.5 rounded-xl border transition-all hover:scale-[1.02] font-black uppercase tracking-tighter {getEventColor(event)} {getEventColor(event).includes('green') ? 'shadow-sm shadow-green-100' : ''} {event.isOverdue ? 'ring-2 ring-red-400/20 border-red-300' : ''}"
+                                        class="text-[9px] px-2 py-1.5 rounded-xl border transition-all hover:scale-[1.02] font-black uppercase tracking-tighter {getEventColor(event)} dark:bg-opacity-10 dark:border-opacity-20 {event.isOverdue ? 'ring-2 ring-red-400/20 border-red-300 dark:border-red-500/50' : ''}"
                                     >
                                         <div class="truncate max-w-[90%]">
                                              {#if event.type === 'TASK'}{getStatusSymbol(event.status)}{/if} {event.title}
@@ -436,7 +437,7 @@
                                     </div>
                                 {/each}
                                 {#if getEventsForDay(day).length > 3}
-                                    <div class="text-[8px] text-indigo-400 pl-1 font-black uppercase tracking-widest">+ {getEventsForDay(day).length - 3} More</div>
+                                    <div class="text-[8px] text-indigo-400 dark:text-indigo-500 pl-1 font-black uppercase tracking-widest">+ {getEventsForDay(day).length - 3} More</div>
                                 {/if}
                             </div>
                         {/if}
@@ -447,57 +448,57 @@
 
         <!-- Recent Campaigns Table -->
         {#if (data.user?.permissions || []).includes('campaigns')}
-            <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
-                <div class="p-8 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+            <div class="bg-white dark:bg-gray-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 overflow-hidden animate-premium-fade" style="animation-delay: 700ms;">
+                <div class="p-8 border-b border-gray-50 dark:border-gray-800 flex items-center justify-between bg-gray-50/30 dark:bg-gray-800/30">
                     <div>
-                        <h2 class="text-xl font-black text-gray-900 leading-tight">Recent Activity</h2>
-                        <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Live statistics and updates</p>
+                        <h2 class="text-xl font-black text-gray-900 dark:text-white leading-tight">Recent Activity</h2>
+                        <p class="text-xs font-bold text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-widest">Live statistics and updates</p>
                     </div>
-                    <a href="/campaigns" class="px-6 py-2.5 bg-white border border-gray-100 rounded-2xl text-xs font-black text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm">View All</a>
+                    <a href="/campaigns" class="px-6 py-2.5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shadow-sm">View All</a>
                 </div>
 
                 <div class="overflow-x-auto">
                     <table class="min-w-full">
                         <thead>
-                            <tr class="bg-gray-50/50">
-                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Campaign Name</th>
-                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">University</th>
-                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Created By</th>
-                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Status</th>
-                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.1em]">Engagement</th>
+                            <tr class="bg-gray-50/50 dark:bg-gray-800/50">
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em]">Campaign Name</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em]">University</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em]">Created By</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em]">Status</th>
+                                <th class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.1em]">Engagement</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-gray-50">
+                        <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
                             {#each data.stats.recent_campaigns || [] as campaign}
-                                <tr class="group hover:bg-indigo-50/20 transition-colors">
+                                <tr class="group hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-colors">
                                     <td class="px-8 py-6">
-                                        <div class="text-sm font-black text-gray-900 group-hover:text-indigo-700 transition-colors">{campaign.name}</div>
-                                        <div class="text-[10px] font-bold text-gray-400 mt-0.5">{new Date(campaign.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                                        <div class="text-sm font-black text-gray-900 dark:text-gray-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors">{campaign.name}</div>
+                                        <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-0.5">{new Date(campaign.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                                     </td>
                                     <td class="px-8 py-6">
-                                        <span class="text-xs font-black text-indigo-500 uppercase tracking-tighter bg-indigo-50/50 px-2.5 py-1 rounded-xl">{campaign.university_name}</span>
+                                        <span class="text-xs font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter bg-indigo-50/50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-xl">{campaign.university_name}</span>
                                     </td>
                                     <td class="px-8 py-6">
-                                        <div class="text-xs font-black text-gray-700">{campaign.creator_name || 'System Auto'}</div>
-                                        <div class="text-[10px] font-bold text-gray-400">{campaign.creator_email || 'automated@uniconnect.com'}</div>
+                                        <div class="text-xs font-black text-gray-700 dark:text-gray-300">{campaign.creator_name || 'System Auto'}</div>
+                                        <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500">{campaign.creator_email || 'automated@uniconnect.com'}</div>
                                     </td>
                                     <td class="px-8 py-6">
-                                        <span class="px-3 py-1.5 text-[9px] font-black rounded-xl uppercase tracking-widest shadow-sm
-                                            {campaign.status === 'COMPLETED' ? 'bg-green-50 text-green-700 border border-green-100' : 
-                                            campaign.status === 'IN_PROGRESS' ? 'bg-indigo-600 text-white animate-pulse' : 
-                                            'bg-gray-100 text-gray-700 border border-gray-200'}">
+                                        <span class="px-3 py-1.5 text-[9px] font-black rounded-xl uppercase tracking-widest shadow-sm border
+                                            {campaign.status === 'COMPLETED' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800' : 
+                                            campaign.status === 'IN_PROGRESS' ? 'bg-indigo-600 dark:bg-indigo-500 text-white animate-pulse border-transparent' : 
+                                            'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}">
                                             {campaign.status}
                                         </span>
                                     </td>
                                     <td class="px-8 py-6">
                                         <div class="flex items-center space-x-4 text-xs">
                                             <div class="flex flex-col">
-                                                <span class="text-indigo-600 font-black">{campaign.sent_count}</span>
-                                                <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Velocity</span>
+                                                <span class="text-indigo-600 dark:text-indigo-400 font-black">{campaign.sent_count}</span>
+                                                <span class="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">Velocity</span>
                                             </div>
                                             <div class="flex flex-col">
-                                                <span class="text-green-600 font-black">{campaign.open_count}</span>
-                                                <span class="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Impact</span>
+                                                <span class="text-green-600 dark:text-green-400 font-black">{campaign.open_count}</span>
+                                                <span class="text-[8px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-tighter">Impact</span>
                                             </div>
                                         </div>
                                     </td>
@@ -506,8 +507,8 @@
                                 <tr>
                                     <td colspan="5" class="px-8 py-16 text-center">
                                         <div class="flex flex-col items-center">
-                                            <div class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-2xl mb-4">📭</div>
-                                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">No Active Telemetry</p>
+                                            <div class="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center text-2xl mb-4">📭</div>
+                                            <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">No Active Telemetry</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -520,46 +521,46 @@
     </div>
 
     <!-- Right Sidebar (Day Plan & Quick Actions) -->
-    <div class="w-full 2xl:w-[320px] space-y-8">
+    <div class="w-full 2xl:w-[320px] space-y-8 animate-premium-fade" style="animation-delay: 800ms;">
         <!-- Daily Focus / Day Plan -->
-        <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8 flex flex-col">
+        <div class="bg-white dark:bg-gray-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-8 flex flex-col transition-all hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 group">
             <div class="flex items-center justify-between mb-8">
                 <div>
-                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">My Day Plan</h3>
-                    <p class="text-[10px] font-bold text-gray-400 mt-1">Personal Focus for Today</p>
+                    <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">My Day Plan</h3>
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-1">Personal Focus for Today</p>
                 </div>
-                <div class="p-3 bg-indigo-50 rounded-2xl">
-                    <svg class="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                <div class="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl group-hover:scale-110 transition-transform">
+                    <svg class="w-6 h-6 text-indigo-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                 </div>
             </div>
 
             <div class="space-y-4">
                 {#each dayPlanItems as item}
-                    <div class="group flex items-start gap-3 p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
+                    <div class="group flex items-start gap-3 p-4 rounded-2xl bg-gray-50/50 dark:bg-gray-800/50 border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/40 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm hover:shadow-md">
                         <button 
                             onclick={() => toggleDayPlanItem(item)}
-                            class="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center {item.completed ? 'bg-green-500 border-green-500' : 'border-gray-200'}"
+                            class="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center {item.completed ? 'bg-green-500 border-green-500' : 'border-gray-200 dark:border-gray-700'}"
                         >
                             {#if item.completed}
                                 <svg class="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="4"><path d="M5 13l4 4L19 7"/></svg>
                             {/if}
                         </button>
                         <div class="flex-1 min-w-0">
-                            <span class="text-sm font-bold {item.completed ? 'text-gray-400 line-through' : 'text-gray-700'} transition-all block leading-snug">
+                            <span class="text-sm font-bold {item.completed ? 'text-gray-400 dark:text-gray-600 line-through' : 'text-gray-700 dark:text-gray-200'} transition-all block leading-snug">
                                 {item.title}
                             </span>
                             {#if !item.completed}
                                 <div class="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                         onclick={() => promoteToTask(item)}
-                                        class="text-[9px] font-black text-indigo-500 uppercase tracking-tighter hover:text-indigo-700"
+                                        class="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter hover:text-indigo-700 dark:hover:text-indigo-300"
                                     >
                                         Move to Tasks →
                                     </button>
-                                    <span class="text-gray-300">|</span>
+                                    <span class="text-gray-300 dark:text-gray-700">|</span>
                                     <button 
                                         onclick={() => deleteDayPlanItem(item.id)}
-                                        class="text-[9px] font-black text-red-500 uppercase tracking-tighter hover:text-red-700"
+                                        class="text-[9px] font-black text-red-500 dark:text-red-400 uppercase tracking-tighter hover:text-red-700 dark:hover:text-red-300"
                                     >
                                         Delete
                                     </button>
@@ -568,25 +569,25 @@
                         </div>
                     </div>
                 {:else}
-                    <div class="text-center py-6 bg-gray-50/30 rounded-2xl border border-dashed border-gray-100">
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Plan is Empty</p>
+                    <div class="text-center py-6 bg-gray-50/30 dark:bg-gray-800/20 rounded-2xl border border-dashed border-gray-100 dark:border-gray-800">
+                        <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Plan is Empty</p>
                     </div>
                 {/each}
 
                 {#if isAddingItem}
                     <div 
                         transition:fade={{ duration: 200 }}
-                        class="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200"
+                        class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800"
                     >
                         <input 
                             bind:value={newDayPlanTitle}
                             placeholder="What's the focus?"
-                            class="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-700 placeholder:text-indigo-300 focus:ring-0"
+                            class="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-700 dark:text-gray-200 placeholder:text-indigo-300 dark:placeholder:text-indigo-700 focus:ring-0"
                             onkeydown={(e) => e.key === 'Enter' && addDayPlanItem()}
                         />
                         <div class="flex items-center justify-end gap-2 mt-3">
-                            <button onclick={() => { console.log('Cancelling add'); isAddingItem = false; }} class="text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-gray-600">Cancel</button>
-                            <button onclick={addDayPlanItem} class="text-[9px] font-black text-indigo-600 uppercase tracking-widest px-3 py-1.5 bg-white rounded-lg shadow-sm border border-indigo-100">Add Item</button>
+                            <button onclick={() => { console.log('Cancelling add'); isAddingItem = false; }} class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hover:text-gray-600">Cancel</button>
+                            <button onclick={addDayPlanItem} class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-900/50">Add Item</button>
                         </div>
                     </div>
                 {/if}
@@ -595,7 +596,7 @@
             {#if !isAddingItem}
                 <button 
                     onclick={() => isAddingItem = true}
-                    class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-100 transition-all"
+                    class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800"
                 >
                     Add To Day Plan
                 </button>
@@ -603,14 +604,14 @@
         </div>
 
         <!-- Upcoming Tasks -->
-        <div class="bg-white rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 p-8">
+        <div class="bg-white dark:bg-gray-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-gray-800 p-8 transition-all hover:shadow-red-500/5 group">
             <div class="flex items-center justify-between mb-8">
                 <div>
-                    <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest">Upcoming Deadlines</h3>
-                    <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">{upcomingTasks.length} Pending tasks</p>
+                    <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Upcoming Deadlines</h3>
+                    <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-1 uppercase">{upcomingTasks.length} Pending tasks</p>
                 </div>
-                <div class="p-3 bg-red-50 rounded-2xl">
-                    <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <div class="p-3 bg-red-50 dark:bg-red-900/30 rounded-2xl group-hover:rotate-12 transition-transform">
+                    <svg class="w-6 h-6 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </div>
             </div>
             
@@ -619,29 +620,29 @@
                     <div 
                         role="button" 
                         tabindex="0"
-                        class="group cursor-pointer bg-gray-50/50 p-5 rounded-2xl border border-transparent hover:border-indigo-100 hover:bg-white hover:shadow-xl hover:shadow-indigo-500/5 transition-all" 
+                        class="group cursor-pointer bg-gray-50/50 dark:bg-gray-800/50 p-5 rounded-2xl border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/40 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 transition-all shadow-sm" 
                         onclick={() => goto('/tasks')}
                         onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && goto('/tasks')}
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div class="min-w-0">
-                                <div class="text-sm font-black text-gray-900 truncate group-hover:text-indigo-600 transition-colors leading-tight">{task.title}</div>
+                                <div class="text-sm font-black text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight">{task.title}</div>
                                 <div class="flex flex-col gap-1.5 mt-2">
-                                    <div class="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-tighter">
+                                    <div class="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-tighter">
                                         <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                         T- {new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </div>
                                     {#if task.university_short_name}
-                                        <span class="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em]">{task.university_short_name} Entity</span>
+                                        <span class="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em]">{task.university_short_name} Entity</span>
                                     {/if}
                                 </div>
                             </div>
                             <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                                <span class="text-[10px] px-2.5 py-1.5 rounded-xl border border-gray-100 bg-white text-gray-600 font-black uppercase tracking-widest shadow-sm">
+                                <span class="text-[10px] px-2.5 py-1.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-300 font-black uppercase tracking-widest shadow-sm">
                                     {task.priority}
                                 </span>
                                 {#if task.assigned_by_name}
-                                    <span class="text-[8px] font-black text-gray-400 uppercase tracking-tighter opacity-70">
+                                    <span class="text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-tighter opacity-70">
                                         BY: {task.assigned_by_name}
                                     </span>
                                 {/if}
@@ -649,33 +650,33 @@
                         </div>
                     </div>
                 {:else}
-                    <div class="text-center py-10 bg-gray-50/50 rounded-[32px] border border-dashed border-gray-100">
+                    <div class="text-center py-10 bg-gray-50/50 dark:bg-gray-800/20 rounded-[32px] border border-dashed border-gray-100 dark:border-gray-800">
                         <div class="text-3xl mb-3">🛡️</div>
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Perimeter Secured</p>
+                        <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Perimeter Secured</p>
                     </div>
                 {/each}
             </div>
             {#if upcomingTasks.length > 0}
-                <button onclick={() => goto('/tasks')} class="w-full mt-8 py-4 text-xs font-black text-indigo-600 uppercase tracking-widest hover:bg-indigo-50 rounded-2xl transition-all border border-indigo-100/50">View All Tasks</button>
+                <button onclick={() => goto('/tasks')} class="w-full mt-8 py-4 text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-2xl transition-all border border-indigo-100/50 dark:border-indigo-800">View All Tasks</button>
             {/if}
         </div>
 
         <!-- Quick Actions -->
-        <div class="bg-gray-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden shadow-floating">
-            <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700"></div>
-            <h3 class="relative z-10 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
+        <div class="bg-gray-900 dark:bg-black rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden group shadow-floating">
+            <div class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+            <h3 class="relative z-10 text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-[0.2em] mb-6">Quick Actions</h3>
             <div class="relative z-10 space-y-4">
-                <button onclick={() => showTaskModal = true} class="w-full flex items-center p-5 rounded-2xl bg-white text-gray-900 hover:scale-[1.02] transition-all font-black shadow-xl group hover:shadow-floating">
-                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mr-4 group-hover:rotate-6 transition-transform">
+                <button onclick={() => showTaskModal = true} class="w-full flex items-center p-5 rounded-2xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:scale-[1.02] transition-all font-black shadow-xl group/btn hover:shadow-floating">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mr-4 group-hover/btn:rotate-6 transition-transform shadow-lg shadow-indigo-500/30">
                         <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                     </div>
                     CREATE TASK
                 </button>
                 {#if (data.user?.permissions || []).includes('universities')}
-                    <button onclick={() => goto('/universities')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">UNIVERSITIES</button>
+                    <button onclick={() => goto('/universities')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 dark:bg-gray-800/50 border border-white/10 dark:border-gray-700 text-white hover:bg-white/20 dark:hover:bg-gray-800 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">UNIVERSITIES</button>
                 {/if}
                 {#if (data.user?.permissions || []).includes('users')}
-                    <button onclick={() => goto('/users')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 border border-white/10 text-white hover:bg-white/20 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">
+                    <button onclick={() => goto('/users')} class="w-full flex items-center p-5 rounded-2xl bg-white/10 dark:bg-gray-800/50 border border-white/10 dark:border-gray-700 text-white hover:bg-white/20 dark:hover:bg-gray-800 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating">
                         TEAM MEMBERS
                     </button>
                 {/if}

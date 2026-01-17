@@ -396,12 +396,12 @@
     let is100m = $derived(Number(paperMeta.max_marks) === 100);
 </script>
 
-<div class="paper-container relative p-[1in] bg-white text-black shadow-none border border-gray-100 {mode === 'preview' ? 'scale-[0.5] origin-top' : ''}">
+<div class="paper-container relative p-[1in] bg-white dark:bg-gray-100 text-black shadow-none border border-gray-100 dark:border-gray-800 transition-all duration-500 {mode === 'preview' ? 'scale-[0.5] origin-top' : ''}">
     
     {#if isEditable}
         <!-- Sets Sidebar -->
-        <div class="fixed left-4 top-24 w-16 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-2 flex flex-col gap-2 z-40 print:hidden no-print">
-            <div class="text-[8px] font-black text-gray-400 text-center uppercase mb-1">Sets</div>
+        <div class="fixed left-4 top-24 w-16 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-2 flex flex-col gap-2 z-40 print:hidden no-print animate-premium-slide">
+            <div class="text-[8px] font-black text-gray-400 dark:text-gray-500 text-center uppercase mb-1">Sets</div>
             {#each ['A', 'B', 'C', 'D'] as s}
                 <button 
                     onclick={() => {
@@ -409,7 +409,7 @@
                         window.dispatchEvent(event);
                     }}
                     class="w-12 h-12 rounded-xl text-[11px] font-black transition-all flex items-center justify-center 
-                    {activeSet === s ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}"
+                    {activeSet === s ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}"
                 >
                     {s}
                 </button>
@@ -417,17 +417,17 @@
         </div>
 
         <!-- Navigation Sidebar -->
-        <div class="fixed left-24 top-24 w-48 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 p-4 z-40 print:hidden no-print max-h-[70vh] overflow-y-auto">
-            <div class="text-[9px] font-black text-indigo-600 uppercase tracking-widest mb-4">Paper Outline</div>
+        <div class="fixed left-24 top-24 w-48 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-4 z-40 print:hidden no-print max-h-[70vh] overflow-y-auto animate-premium-slide" style="animation-delay: 100ms;">
+            <div class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-4">Paper Outline</div>
             <div class="space-y-4">
                 {#if questionsA.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part A</div>
+                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part A</div>
                         <div class="grid grid-cols-4 gap-1">
                             {#each questionsA as q}
                                 <button 
                                     onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
                                 >
                                     {q.n1}
                                 </button>
@@ -437,12 +437,12 @@
                 {/if}
                 {#if questionsB.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part B</div>
+                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part B</div>
                         <div class="grid grid-cols-4 gap-1">
                             {#each questionsB as q}
                                 <button 
                                     onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
                                 >
                                     {q.n1}
                                 </button>
@@ -452,12 +452,12 @@
                 {/if}
                 {#if questionsC.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-2">Part C</div>
+                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part C</div>
                         <div class="grid grid-cols-4 gap-1">
                             {#each questionsC as q}
                                 <button 
                                     onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all font-mono"
+                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
                                 >
                                     {q.n1}
                                 </button>
@@ -617,7 +617,7 @@
             ({partACount} X {paperStructure[0]?.marks_per_q || 2} = {totalMarksA} MARKS)
         </div>
         <div 
-            class="w-full border border-black divide-y divide-black"
+            class="w-full border border-black dark:border-gray-800 divide-y divide-black dark:divide-gray-800"
             use:dndzone={{items: questionsA, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
             onconsider={(e) => handleDndConsider(e, 'A')}
             onfinalize={(e) => handleDndFinalize(e, 'A')}
@@ -712,7 +712,7 @@
         {#if isEditable}
             <button 
                 onclick={() => addQuestion('A')}
-                class="w-full py-3 border-2 border-dashed border-gray-100 text-gray-300 text-[10px] font-black uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-400 transition-all rounded-xl mt-2 print:hidden"
+                class="w-full py-3 border-2 border-dashed border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 text-[10px] font-black uppercase tracking-widest hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-400 dark:hover:text-indigo-500 transition-all rounded-xl mt-2 print:hidden"
             >
                 + Add Question to Part A
             </button>
@@ -723,7 +723,7 @@
     <div class="mt-12 section-page-break section-part-b">
         <div 
             contenteditable="true"
-            class="w-full text-center font-black text-xs uppercase mb-4 border border-black p-1 {isEditable ? '' : 'pointer-events-none'}"
+            class="w-full text-center font-black text-xs uppercase mb-4 border border-black dark:border-gray-800 p-1 {isEditable ? '' : 'pointer-events-none'}"
         >
             {paperStructure[1]?.title || 'PART B'} 
             ({partBCount} X {paperStructure[1]?.marks_per_q || 5} = {totalMarksB} MARKS)
@@ -738,7 +738,7 @@
                 {#each questionsB as slot, idx (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'OR_GROUP'}
-                        <div class="border-2 border-black page-break-avoid mb-6 relative group">
+                        <div class="border-2 border-black dark:border-gray-800 page-break-avoid mb-6 relative group">
                             {#if isEditable}
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
                                     <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
@@ -786,7 +786,7 @@
                             {/each}
                             
                             <!-- OR Separator -->
-                            <div class="w-full text-center text-[10px] font-black uppercase py-1 border-b border-black bg-gray-50/20 italic tracking-[0.2em]">
+                            <div class="w-full text-center text-[10px] font-black uppercase py-1 border-b border-black dark:border-gray-800 bg-gray-50/20 dark:bg-gray-800/20 italic tracking-[0.2em]">
                                 (OR)
                             </div>
 
@@ -890,7 +890,7 @@
         <div class="mt-12 section-page-break section-part-c">
              <div 
                 contenteditable="true"
-                class="w-full text-center font-black text-xs uppercase mb-4 border border-black p-1 {isEditable ? '' : 'pointer-events-none'}"
+                class="w-full text-center font-black text-xs uppercase mb-4 border border-black dark:border-gray-800 p-1 {isEditable ? '' : 'pointer-events-none'}"
             >
                 {#if paperStructure[2]}
                     {paperStructure[2].title} ({partCCount} X {paperStructure[2].marks_per_q} = {totalMarksC} MARKS)
@@ -906,7 +906,7 @@
         >
                 {#each questionsC as slot, idx (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
-                    <div class="border-2 border-black page-break-avoid relative group">
+                    <div class="border-2 border-black dark:border-gray-800 page-break-avoid relative group">
                         {#if isEditable}
                                 <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
                                     <svg class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10h2v2H7v-2zm0 4h2v2H7v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2z"/></svg>
@@ -923,19 +923,19 @@
                         {/if}
                         <!-- Choice 1 -->
                         {#each slot.choice1.questions as q, subIdx}
-                            <div class="flex border-b border-black last:border-b-0 min-h-[50px]">
-                                <div class="w-12 border-r border-black p-2 text-center text-[11px] font-black">
+                            <div class="flex border-b border-black dark:border-gray-800 last:border-b-0 min-h-[50px]">
+                                <div class="w-12 border-r border-black dark:border-gray-800 p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n1 + '.' : ''}
                                 </div>
-                                <div class="w-10 border-r border-black p-2 text-center text-[10px] font-bold flex items-center justify-center">
+                                <div class="w-10 border-r border-black dark:border-gray-800 p-2 text-center text-[10px] font-bold flex items-center justify-center">
                                     {q.sub_label || ''}
                                 </div>
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed">
                                     <div 
                                         contenteditable="true" 
                                         oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
-                                        class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
-                                    >{q.text}</div>
+                                        class={isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'}
+                                    >{@html q.text}</div>
                                     
                                     {#if q.options && q.options.length > 0}
                                         <div class="grid grid-cols-2 gap-x-8 gap-y-1 mt-3 pl-8">
@@ -945,7 +945,7 @@
                                         </div>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
+                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                     <span class="text-[10px] font-black">({q.marks})</span>
                                     {#if isEditable}
@@ -962,25 +962,25 @@
                         {/each}
                         
                         <!-- OR Separator -->
-                        <div class="w-full text-center text-[10px] font-black uppercase py-1 border-b border-black bg-gray-50/20 italic tracking-[0.2em]">
+                        <div class="w-full text-center text-[10px] font-black uppercase py-1 border-b border-black dark:border-gray-800 bg-gray-50/20 dark:bg-gray-800/20 italic tracking-[0.2em]">
                             (OR)
                         </div>
 
                         <!-- Choice 2 -->
                         {#each slot.choice2?.questions || [] as q, subIdx}
-                            <div class="flex border-b border-black last:border-b-0 min-h-[50px]">
-                                <div class="w-12 border-r border-black p-2 text-center text-[11px] font-black">
+                            <div class="flex border-b border-black dark:border-gray-800 last:border-b-0 min-h-[50px]">
+                                <div class="w-12 border-r border-black dark:border-gray-800 p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n2 + '.' : ''}
                                 </div>
-                                <div class="w-10 border-r border-black p-2 text-center text-[10px] font-bold flex items-center justify-center">
+                                <div class="w-10 border-r border-black dark:border-gray-800 p-2 text-center text-[10px] font-bold flex items-center justify-center">
                                     {q.sub_label || ''}
                                 </div>
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                     <div 
                                         contenteditable="true" 
                                         oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
-                                        class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
-                                    >{q.text}</div>
+                                        class={isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'}
+                                    >{@html q.text}</div>
                                     {#if isEditable}
                                         <button 
                                             onclick={() => openSwapSidebar(slot, 'C', 'q2')}
@@ -991,7 +991,7 @@
                                         </button>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
+                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                     <span class="text-[10px] font-black">({q.marks})</span>
                                 </div>
@@ -1004,7 +1004,7 @@
             {#if isEditable}
                 <button 
                     onclick={() => addQuestion('C')}
-                    class="w-full py-4 border-2 border-dashed border-gray-100 text-gray-300 text-[10px] font-black uppercase tracking-widest hover:border-indigo-200 hover:text-indigo-400 transition-all rounded-xl mt-4 print:hidden"
+                    class="w-full py-4 border-2 border-dashed border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-600 text-[10px] font-black uppercase tracking-widest hover:border-indigo-200 dark:hover:border-indigo-800 hover:text-indigo-400 dark:hover:text-indigo-500 transition-all rounded-xl mt-4 print:hidden"
                 >
                     + Add Question to Part C
                 </button>
@@ -1014,11 +1014,11 @@
 
     <!-- Bottom Signatures -->
     <div class="mt-20 grid grid-cols-2 gap-20">
-        <div class="border-t border-black pt-2 text-center">
-            <p class="text-[9px] font-black uppercase">Name & Signature of DAAC Member</p>
+        <div class="border-t border-black dark:border-gray-800 pt-2 text-center">
+            <p class="text-[9px] font-black uppercase text-gray-900 dark:text-gray-500">Name & Signature of DAAC Member</p>
         </div>
-        <div class="border-t border-black pt-2 text-center">
-            <p class="text-[9px] font-black uppercase">Name & Signature of DAAC Member</p>
+        <div class="border-t border-black dark:border-gray-800 pt-2 text-center">
+            <p class="text-[9px] font-black uppercase text-gray-900 dark:text-gray-500">Name & Signature of DAAC Member</p>
         </div>
     </div>
 </div>
@@ -1030,76 +1030,87 @@
     >
         <!-- Overlay -->
         <button 
-            class="absolute inset-0 bg-black/40 backdrop-blur-sm w-full h-full border-none cursor-default"
+            class="absolute inset-0 bg-black/60 backdrop-blur-md w-full h-full border-none cursor-default"
             onclick={() => isSwapSidebarOpen = false}
             aria-label="Close Sidebar"
         ></button>
 
         <!-- Sidebar -->
         <div 
-            class="relative w-[400px] bg-white h-full shadow-2xl flex flex-col"
-            transition:fly={{x: 400, duration: 300}}
+            class="relative w-[450px] bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl h-full shadow-2xl flex flex-col border-l border-white/20 dark:border-gray-800/30"
+            transition:fly={{x: 450, duration: 400, opacity: 1}}
         >
-            <div class="p-6">
-                <div class="flex items-center justify-between mb-8">
+            <div class="p-8 border-b border-gray-100 dark:border-gray-800">
+                <div class="flex items-center justify-between">
                     <div class="space-y-1">
-                        <h2 class="text-xl font-black text-gray-900 tracking-tight uppercase">Alternate Questions</h2>
-                        <p class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                            {swapContext.currentMark} Marks • {swapContext.currentUnit ? `Unit ${swapContext.currentUnit.split('-').pop()}` : 'System Recommended'}
-                        </p>
+                        <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Alternate Questions</h2>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-full">
+                                {swapContext.currentMark} Marks
+                            </span>
+                            <span class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                                {swapContext.currentUnit ? `Unit ${swapContext.currentUnit.split('-').pop()}` : 'System Recommended'}
+                            </span>
+                        </div>
                     </div>
                     <button 
                         onclick={() => isSwapSidebarOpen = false} 
                         aria-label="Close Sidebar"
-                        class="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all active:scale-90"
+                        class="w-12 h-12 bg-gray-50 dark:bg-gray-800 rounded-2xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all active:scale-90 hover:rotate-90"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30">
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 bg-transparent">
                 {#if swapContext.alternates.length === 0}
-                    <div class="flex flex-col items-center justify-center h-64 text-gray-400 text-center space-y-4">
-                        <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-600 text-center space-y-4 animate-premium-fade">
+                        <div class="w-20 h-20 rounded-3xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         </div>
-                        <p class="text-xs font-bold uppercase tracking-widest leading-loose">
+                        <p class="text-[11px] font-black uppercase tracking-[0.2em] leading-loose">
                             No alternative questions found<br/>in the question bank for {swapContext.currentMark} marks.
                         </p>
                     </div>
                 {:else}
-                    {#each swapContext.alternates as q}
-                        <button 
-                            onclick={() => selectAlternate(q)}
-                            class="w-full text-left bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all group relative overflow-hidden"
-                        >
-                            <!-- Selection Overlay -->
-                            <div class="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/[0.02] transition-colors"></div>
-                            
-                            <div class="flex justify-between items-start gap-4 mb-3">
-                                <span class="px-2 py-0.5 bg-gray-900 text-white text-[9px] font-black rounded-md uppercase tracking-tighter italic">
-                                    {q.bloom_level}
-                                </span>
-                                <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">
-                                    {getCOCode(q.co_id) || 'General'}
-                                </span>
-                            </div>
+                    <div class="grid grid-cols-1 gap-4">
+                        {#each swapContext.alternates as q, i}
+                            <button 
+                                onclick={() => selectAlternate(q)}
+                                class="w-full text-left bg-white dark:bg-gray-800/50 p-6 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-500/50 transition-all group relative overflow-hidden animate-premium-slide"
+                                style="animation-delay: {i * 50}ms;"
+                            >
+                                <div class="flex justify-between items-start gap-4 mb-4">
+                                    <span class="px-2.5 py-1 bg-gray-900 dark:bg-white text-white dark:text-black text-[9px] font-black rounded-lg uppercase tracking-tighter italic">
+                                        {q.bloom_level}
+                                    </span>
+                                    <span class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">
+                                        {getCOCode(q.co_id) || 'General'}
+                                    </span>
+                                </div>
 
-                            <p class="text-xs leading-relaxed text-gray-800 font-medium">
-                                {q.question_text}
-                            </p>
+                                <p class="text-xs leading-relaxed text-gray-800 dark:text-gray-200 font-medium">
+                                    {q.question_text}
+                                </p>
 
-                            <div class="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                                <span class="text-[10px] text-gray-400 font-black uppercase tracking-tighter">{q.marks} Marks</span>
-                                <span class="opacity-0 group-hover:opacity-100 text-indigo-600 text-[10px] font-black uppercase tracking-widest transition-opacity flex items-center gap-1">
-                                    Select This
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                                </span>
-                            </div>
-                        </button>
-                    {/each}
+                                <div class="mt-6 pt-4 border-t border-gray-50 dark:border-gray-800/50 flex items-center justify-between">
+                                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-black uppercase tracking-tighter">{q.marks} Marks</span>
+                                    <span class="opacity-0 group-hover:opacity-100 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1 translate-x-4 group-hover:translate-x-0">
+                                        Select This
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                                    </span>
+                                </div>
+                            </button>
+                        {/each}
+                    </div>
                 {/if}
+            </div>
+            
+            <div class="p-8 bg-gray-50/50 dark:bg-gray-950/50 backdrop-blur-md border-t border-gray-100 dark:border-gray-800">
+                 <p class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest text-center">
+                    System Integrity: Optimal Question Selection Active
+                 </p>
             </div>
         </div>
     </div>

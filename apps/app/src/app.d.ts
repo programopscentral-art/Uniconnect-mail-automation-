@@ -5,6 +5,7 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			user: SessionUser | null;
+			theme: 'light' | 'dark';
 		}
 		// interface PageData {}
 		// interface PageState {}

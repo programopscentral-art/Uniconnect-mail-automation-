@@ -1,8 +1,16 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { fade, fly } from 'svelte/transition';
+  import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
   let { children, data } = $props();
   let user = $derived(data.user);
+  let currentTheme = $state<'light' | 'dark'>(data.theme || 'light');
+
+  $effect(() => {
+    if (data.theme && data.theme !== currentTheme) {
+      currentTheme = data.theme;
+    }
+  });
 
   let isSidebarOpen = $state(false);
 
@@ -67,75 +75,78 @@
   });
 </script>
 
-<div class="flex h-screen bg-gray-50 overflow-hidden">
+<div class="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden transition-colors duration-500">
   <!-- Mobile Header -->
-  <header class="lg:hidden h-16 bg-white border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-50">
+  <header class="lg:hidden h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-6 flex items-center justify-between sticky top-0 z-50">
       <div class="flex items-center space-x-3">
-        <div class="p-2 bg-white rounded-xl border border-gray-50 shadow-sm transition-transform hover:scale-105 active:scale-95">
-            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-8 object-contain">
+        <div class="p-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-105 active:scale-95">
+            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-8 object-contain dark:invert">
         </div>
-        <span class="text-xl font-black text-gray-900 tracking-tight leading-none">UniConnect</span>
+        <span class="text-xl font-black text-gray-900 dark:text-white tracking-tight leading-none">UniConnect</span>
       </div>
-      <button 
-          onclick={() => isSidebarOpen = !isSidebarOpen} 
-          class="p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-all"
-          aria-label="Toggle Sidebar"
-      >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
+      <div class="flex items-center gap-2">
+        <ThemeToggle bind:currentTheme />
+        <button 
+            onclick={() => isSidebarOpen = !isSidebarOpen} 
+            class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+            aria-label="Toggle Sidebar"
+        >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
   </header>
 
   <div class="flex flex-1 relative">
   <!-- Sidebar -->
   <aside 
-    class="fixed inset-y-0 left-0 w-72 bg-white border-r border-gray-100 lg:static lg:block z-[60] transition-transform duration-300 {isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
+    class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen ? 'translate-x-0 bubble-glow' : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
   >
-    <div class="h-20 flex items-center justify-between px-8 border-b border-gray-50">
+    <div class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-gray-800/50">
       <div class="flex items-center space-x-4">
-        <div class="p-2.5 bg-white rounded-[1.25rem] border border-gray-50 shadow-sm transition-transform hover:scale-110 active:scale-95">
-            <img src="/nxtwave-logo.png" alt="NxtWave Institutional" class="h-11 w-auto object-contain">
+        <div class="p-2.5 bg-white dark:bg-gray-800 rounded-[1.25rem] border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-110 active:scale-95">
+            <img src="/nxtwave-logo.png" alt="NxtWave Institutional" class="h-11 w-auto object-contain dark:invert">
         </div>
         <div class="flex flex-col">
-            <span class="text-xl font-black text-gray-900 leading-none">UniConnect</span>
-            <span class="text-[10px] font-bold text-indigo-500 mt-1.5 tracking-widest uppercase opacity-70">Program Operations</span>
+            <span class="text-xl font-black text-gray-900 dark:text-white leading-none">UniConnect</span>
+            <span class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mt-1.5 tracking-widest uppercase opacity-70">Program Operations</span>
         </div>
       </div>
       <!-- Notification Bell -->
       <div class="relative">
         <button 
           onclick={() => showNotifications = !showNotifications}
-          class="p-2 text-gray-400 hover:text-gray-600 transition-colors relative"
+          class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors relative"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           {#if unreadCount > 0}
-            <span class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white"></span>
+            <span class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
           {/if}
         </button>
 
         {#if showNotifications}
-          <div class="absolute left-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 animate-in fade-in slide-in-from-top-2">
-            <div class="p-4 border-b border-gray-50 flex justify-between items-center">
-              <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Notifications</h3>
+          <div class="absolute left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2">
+            <div class="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
+              <h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Notifications</h3>
               {#if unreadCount > 0}
                 <span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold">{unreadCount} New</span>
               {/if}
             </div>
             <div class="max-h-96 overflow-y-auto">
               {#each notifications as n}
-                <div class="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors group {n.is_read ? 'opacity-60' : ''}">
+                <div class="p-4 border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group {n.is_read ? 'opacity-60' : ''}">
                   <div class="flex justify-between items-start gap-2">
                     <div>
-                      <div class="text-xs font-bold text-gray-900">{n.title}</div>
-                      <p class="text-[11px] text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                      <div class="text-[10px] text-gray-400 mt-1 flex items-center gap-2">
+                      <div class="text-xs font-bold text-gray-900 dark:text-gray-100">{n.title}</div>
+                      <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                      <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-2">
                         <span>{new Date(n.created_at).toLocaleDateString()}</span>
                         {#if !n.is_read}
                           <button 
                             onclick={() => markRead(n.id)} 
                             aria-label="Mark notification as read"
-                            class="text-blue-600 hover:underline font-bold"
+                            class="text-blue-600 dark:text-blue-400 hover:underline font-bold"
                           >
                             Mark as Read
                           </button>
@@ -156,33 +167,38 @@
       </div>
     </div>
 
-    <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+    <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto">
       {#each menuItems as item}
         {#if user?.permissions?.includes(item.id)}
           <a 
             href={item.href}
             onclick={() => isSidebarOpen = false}
-            class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all 
+            class="flex items-center px-4 py-3 text-sm font-bold rounded-2xl transition-all duration-300
             {$page.url.pathname.startsWith(item.href) 
-              ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100' 
-              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}"
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 scale-[1.02]' 
+              : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'}"
           >
-            <svg class="mr-3 h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={item.icon} />
-            </svg>
+            <div class="mr-4 h-6 w-6 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={item.icon} />
+                </svg>
+            </div>
             {item.label}
           </a>
         {/if}
       {/each}
     </nav>
 
-    <div class="px-6 py-10 border-t border-gray-100 bg-gray-50/10">
-      <div class="px-2 mb-4">
-        <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] opacity-40">System Integrity</p>
+    <div class="px-8 py-10 border-t border-gray-100 dark:border-gray-800 bg-gray-50/10 dark:bg-gray-900/10">
+      <div class="px-2 mb-4 flex justify-between items-center">
+        <p class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-40">System Integrity</p>
+        <div class="hidden lg:block">
+            <ThemeToggle bind:currentTheme />
+        </div>
       </div>
       <div class="px-2 flex items-center gap-3">
-        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-        <span class="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Global Shield Active</span>
+        <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)]"></div>
+        <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter">Global Shield Active</span>
       </div>
     </div>
   </aside>
@@ -197,18 +213,18 @@
       ></div>
   {/if}
   <!-- Main Content -->
-  <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 focus:outline-none flex flex-col">
-    <div class="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-md border-b border-gray-100/50 w-full flex justify-center">
-      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
+  <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-950 focus:outline-none flex flex-col transition-colors duration-500">
+    <div class="sticky top-0 z-40 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-gray-800/50 w-full flex justify-center">
+      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-6">
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
-          <div class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-2xl shadow-sm">
-            <span class="text-[9px] font-black text-gray-400 uppercase tracking-widest hidden sm:block">Context:</span>
+          <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transition-all hover:shadow-md">
+            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">Context:</span>
             <select 
               value={user.university_id || 'ALL'} 
               onchange={(e) => switchUniversity(e.currentTarget.value)}
-              class="bg-transparent border-none text-[10px] font-black text-indigo-600 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none"
+              class="bg-transparent border-none text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none"
             >
               {#if user.role === 'ADMIN' || user.role === 'PROGRAM_OPS'}
                 <option value="ALL">All Institutions</option>
@@ -222,8 +238,8 @@
           </div>
         {:else if user?.university_id}
           <!-- Single University Display (ReadOnly) -->
-           <div class="px-4 py-2 bg-white border border-gray-100 rounded-2xl opacity-60">
-              <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+           <div class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl opacity-60">
+              <span class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                 {user.universities?.find((u:any) => u.id === user.university_id)?.name || 'Member Access'}
               </span>
            </div>
@@ -232,9 +248,9 @@
         <!-- Account Hub Header -->
         <a 
           href="/profile" 
-          class="flex items-center px-4 py-2 rounded-2xl bg-white border border-gray-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
+          class="flex items-center px-4 py-2 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
         >
-          <div class="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-sm font-black text-indigo-700 mr-2 group-hover:scale-110 transition-transform">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform">
             {#if user?.profile_picture_url}
               <img src={user.profile_picture_url} alt={user.name} class="w-full h-full object-cover rounded-xl">
             {:else}
@@ -242,13 +258,13 @@
             {/if}
           </div>
           <div class="text-right">
-            <div class="text-[10px] font-black text-gray-900 truncate leading-tight uppercase tracking-tight">{user?.display_name || user?.name || 'User'}</div>
-            <div class="text-[8px] font-black text-indigo-500 uppercase tracking-widest leading-none mt-0.5 opacity-70">Account Hub</div>
+            <div class="text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight">{user?.display_name || user?.name || 'User'}</div>
+            <div class="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70">Account Hub</div>
           </div>
         </a>
 
         <form action="/api/auth/logout" method="POST">
-          <button class="p-2.5 text-gray-400 hover:text-red-500 transition-all flex items-center justify-center bg-white border border-gray-100 rounded-xl hover:bg-red-50 hover:border-red-100 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
+          <button class="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-all flex items-center justify-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-100 dark:hover:border-red-800 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </form>
