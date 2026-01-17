@@ -76,7 +76,7 @@
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
     <div class="animate-premium-slide">
       <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Mailbox Connections</h1>
-      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">Establish and manage secure Gmail integrations for system automation.</p>
+      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-white">Establish and manage secure Gmail integrations for system automation.</p>
     </div>
     <button 
       onclick={connectMailbox}
@@ -94,12 +94,12 @@
   
   {#if data.userRole === 'ADMIN'}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
             onchange={loadMailboxes}
-            class="flex-1 max-w-md bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
+            class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy (All)</option>
             {#each data.universities as univ}
@@ -112,12 +112,12 @@
   <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-          <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+          <thead class="bg-gray-50/50 dark:bg-slate-800/50">
               <tr>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Mailbox Identity</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Operational Status</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Integration Date</th>
-                  <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Authority Control</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Mailbox Identity</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Operational Status</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Integration Date</th>
+                  <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Control</th>
               </tr>
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -131,7 +131,7 @@
                               {box.status}
                           </span>
                       </td>
-                      <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-gray-400 dark:text-gray-500 font-mono italic">
+                      <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-gray-400 dark:text-slate-400 font-mono italic">
                         {new Date(box.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
                       <td class="px-8 py-6 whitespace-nowrap text-right text-sm font-medium">
@@ -173,7 +173,7 @@
                   <tr>
                       <td colspan="4" class="px-8 py-20 text-center">
                           <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4">
-                              <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                              <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                               </div>
                               <p class="text-[10px] font-black uppercase tracking-[0.2em]">{selectedUniversityId ? 'No mailboxes connected in this node.' : 'Select institutional node to view connections.'}</p>
@@ -190,18 +190,18 @@
     <div class="mt-16 space-y-6 animate-premium-slide" style="animation-delay: 400ms;">
         <div class="flex items-center gap-4">
           <h2 class="text-xl font-black text-gray-900 dark:text-white tracking-widest uppercase">Authority Requests</h2>
-          <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+          <div class="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
           <span class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-full uppercase tracking-tighter italic">{data.permissions.length} Pending</span>
         </div>
         
         <div class="glass overflow-hidden rounded-[2.5rem]">
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-                <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+                <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                     <tr>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Inquirer Profile</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Target Resource</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Authority Status</th>
-                        <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">System Decision</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Inquirer Profile</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Target Resource</th>
+                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Status</th>
+                        <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Decision</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -209,7 +209,7 @@
                         <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                             <td class="px-8 py-6 whitespace-nowrap">
                                 <div class="text-sm font-bold text-gray-900 dark:text-white">{perm.user_name || 'System Operator'}</div>
-                                <div class="text-xs font-semibold text-gray-400 dark:text-gray-500">{perm.user_email}</div>
+                                <div class="text-xs font-semibold text-gray-400 dark:text-slate-400">{perm.user_email}</div>
                             </td>
                             <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-300">
                               {perm.mailbox_email}

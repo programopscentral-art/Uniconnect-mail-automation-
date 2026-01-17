@@ -271,11 +271,11 @@
                         {#each filteredUsers as user}
                             <tr 
                                 onclick={() => selectedUser = (selectedUser?.id === user.id ? null : user)}
-                                class="group transition-all duration-200 cursor-pointer {selectedUser?.id === user.id ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}"
+                                class="group transition-all duration-200 cursor-pointer {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-900'}"
                             >
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-black text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
+                                        <div class="h-10 w-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-sm font-black text-gray-500 dark:text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
                                             {user.name ? user.name.split(' ').map((n:any)=>n[0]).join('').toUpperCase().substring(0,2) : user.email[0].toUpperCase()}
                                         </div>
                                         <div>

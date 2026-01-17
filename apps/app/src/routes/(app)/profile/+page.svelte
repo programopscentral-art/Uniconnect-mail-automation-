@@ -122,23 +122,23 @@
                 </div>
 
                 <div>
-                    <h2 class="text-2xl font-black text-gray-900 leading-tight">{user?.display_name || user?.name || 'User'}</h2>
+                    <h2 class="text-2xl font-black dark:text-white leading-tight">{user?.display_name || user?.name || 'User'}</h2>
                     <p class="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">{user?.role?.replace('_', ' ') || 'Team Member'}</p>
                 </div>
 
                 <div class="flex items-center justify-center gap-4 py-4 border-y border-gray-50">
                     <div class="text-center">
-                        <div class="text-lg font-black text-gray-900">{stats.tasks.total}</div>
+                        <div class="text-lg font-black dark:text-white">{stats.tasks.total}</div>
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Tasks</div>
                     </div>
                     <div class="w-px h-8 bg-gray-100"></div>
                     <div class="text-center">
-                        <div class="text-lg font-black text-gray-900">{stats.mails.total}</div>
+                        <div class="text-lg font-black dark:text-white">{stats.mails.total}</div>
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Mails</div>
                     </div>
                     <div class="w-px h-8 bg-gray-100"></div>
                     <div class="text-center">
-                        <div class="text-lg font-black text-gray-900">{stats.efficiency}%</div>
+                        <div class="text-lg font-black dark:text-white">{stats.efficiency}%</div>
                         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Efficiency</div>
                     </div>
                 </div>
@@ -146,7 +146,7 @@
                 <div class="space-y-2">
                     <button 
                         onclick={() => showPerformanceModal = true}
-                        class="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-sm hover:bg-black transition-all shadow-lg active:scale-[0.98]"
+                        class="w-full py-4 bg-gray-900 dark:bg-slate-800 text-white dark:text-slate-200 rounded-2xl font-bold text-sm hover:bg-black dark:hover:bg-slate-700 transition-all shadow-lg active:scale-[0.98]"
                     >
                         Detailed Work Report
                     </button>
@@ -181,7 +181,7 @@
             <div class="bg-white rounded-[32px] border border-gray-100 shadow-floating overflow-hidden">
                 <div class="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
                     <div>
-                        <h3 class="text-lg font-black text-gray-900">Account Details</h3>
+                        <h3 class="text-lg font-black dark:text-white">Account Details</h3>
                         <p class="text-xs font-bold text-gray-400">Personalize your professional identity</p>
                     </div>
                     <button 
@@ -233,20 +233,20 @@
 
             <!-- Activity Timeline -->
             <div class="bg-white rounded-[32px] border border-gray-100 shadow-floating p-8">
-                <h3 class="text-lg font-black text-gray-900 mb-6">Live Activity Audit</h3>
+                <h3 class="text-lg font-black dark:text-white mb-6">Live Activity Audit</h3>
                 {#if auditLogs.length > 0}
                     <div class="space-y-6">
                         {#each auditLogs as log}
                             <div class="flex gap-4 group">
                                 <div class="flex flex-col items-center">
-                                    <div class="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-lg shadow-sm group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
+                                    <div class="w-10 h-10 rounded-xl dark:bg-slate-950 border border-gray-100 flex items-center justify-center text-lg shadow-sm group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
                                         {#if log.action.includes('CREATE')} 📝 {:else if log.action.includes('SEND')} 📤 {:else if log.action.includes('DELETE')} 🗑️ {:else} ⚡ {/if}
                                     </div>
                                     <div class="w-px flex-1 bg-gray-100 my-2 group-last:hidden"></div>
                                 </div>
                                 <div class="pb-6">
-                                    <div class="text-sm font-black text-gray-900">{log.action.replace('_', ' ')}</div>
-                                    <p class="text-xs font-bold text-gray-500 mt-0.5">{log.entity_type}: {log.entity_id || 'System Event'}</p>
+                                    <div class="text-sm font-black dark:text-white">{log.action.replace('_', ' ')}</div>
+                                    <p class="text-xs font-bold dark:text-slate-400 mt-0.5">{log.entity_type}: {log.entity_id || 'System Event'}</p>
                                     <span class="text-[10px] font-black text-gray-300 uppercase mt-2 block tracking-widest">{formatTime(log.created_at)}</span>
                                 </div>
                             </div>
@@ -266,13 +266,13 @@
             <div class="p-10 space-y-8">
                 <div class="flex items-center justify-between">
                     <div>
-                        <h2 class="text-3xl font-black text-gray-900">Performance Report</h2>
+                        <h2 class="text-3xl font-black dark:text-white">Performance Report</h2>
                         <p class="text-sm font-bold text-gray-400 mt-1">Institutional productivity metrics for {user.name}</p>
                     </div>
                     <button 
                         onclick={() => showPerformanceModal = false} 
                         aria-label="Close performance report"
-                        class="p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"
+                        class="p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 dark:bg-slate-900 transition-colors"
                     >
                         <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -292,10 +292,10 @@
                 </div>
 
                 <div class="space-y-4">
-                    <h4 class="text-sm font-black text-gray-900 uppercase tracking-widest pl-1">Operational Efficiency</h4>
+                    <h4 class="text-sm font-black dark:text-white uppercase tracking-widest pl-1">Operational Efficiency</h4>
                     <div class="p-6 bg-gray-50 rounded-3xl border border-gray-100 relative overflow-hidden">
                         <div class="relative z-10 flex items-center justify-between mb-4">
-                            <span class="text-2xl font-black text-gray-900">{stats.efficiency}%</span>
+                            <span class="text-2xl font-black dark:text-white">{stats.efficiency}%</span>
                             <span class="text-xs font-bold text-gray-400">Target Range: 90-100%</span>
                         </div>
                         <div class="h-3 bg-gray-200 rounded-full overflow-hidden relative">
@@ -304,7 +304,7 @@
                     </div>
                 </div>
 
-                <button onclick={() => showPerformanceModal = false} class="w-full py-5 bg-gray-900 text-white rounded-3xl font-black text-sm hover:shadow-xl transition-all shadow-indigo-100">
+                <button onclick={() => showPerformanceModal = false} class="w-full py-5 bg-gray-900 dark:bg-slate-800 text-white dark:text-slate-200 rounded-3xl font-black text-sm hover:shadow-xl transition-all shadow-indigo-100">
                     Close Institutional Report
                 </button>
             </div>

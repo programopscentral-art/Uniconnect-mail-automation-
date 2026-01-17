@@ -89,13 +89,13 @@
             <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
                 <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
             </div>
-            <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Active Node</label>
+            <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Active Node</label>
         </div>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
             onchange={onUnivChange}
-            class="flex-1 max-w-md bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
+            class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy (All)</option>
             {#each data.universities as univ}
@@ -110,34 +110,34 @@
       <div class="space-y-6 animate-premium-slide" style="animation-delay: {300 + (i * 100)}ms;">
         <div class="flex items-center gap-6">
           <h2 class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em] bg-indigo-50 dark:bg-indigo-900/30 px-5 py-2 rounded-xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm">{date}</h2>
-          <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+          <div class="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
           <span class="text-[10px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest italic">{items.length} Registered Tasks</span>
         </div>
 
         <div class="glass overflow-hidden rounded-[2.5rem]">
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-              <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+              <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                 <tr>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Campaign Reference</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Operational State</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Blueprint Used</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Throughput</th>
-                  <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">System Control</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Campaign Reference</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Operational State</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Blueprint Used</th>
+                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Throughput</th>
+                  <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Control</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
                 {#each items as cam}
-                  <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+                  <tr class="group hover:bg-slate-950/50 dark:hover:bg-gray-800/30 transition-colors">
                     <td class="px-8 py-6 whitespace-normal max-w-xs">
                       <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{cam.name}</div>
-                      <div class="text-[9px] font-black text-gray-400 dark:text-gray-500 mt-1 uppercase tracking-tighter italic">CRC: {cam.id.slice(0,8)}</div>
+                      <div class="text-[9px] font-black text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-tighter italic">CRC: {cam.id.slice(0,8)}</div>
                     </td>
                     <td class="px-8 py-6 whitespace-nowrap">
                       <span class="px-4 py-1.5 text-[9px] font-black rounded-lg uppercase tracking-widest shadow-sm border
-                        {cam.status === 'COMPLETED' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' : 
+                        {cam.status === 'COMPLETED' ? 'bg-green-100 dark:bg-slate-900/40 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800' : 
                          cam.status === 'FAILED' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800' : 
-                         cam.status === 'DRAFT' ? 'bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' : 
+                         cam.status === 'DRAFT' ? 'bg-gray-50 dark:bg-slate-800/50 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' : 
                          cam.status === 'STOPPED' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800' :
                          'bg-indigo-600 text-white border-transparent animate-pulse animate-duration-1000'}">
                         {cam.status === 'IN_PROGRESS' ? 'PROCESSING' : cam.status === 'COMPLETED' ? 'EXECUTED' : cam.status}
@@ -151,7 +151,7 @@
                     </td>
                     <td class="px-8 py-6 whitespace-nowrap">
                       <div class="flex items-center space-x-4">
-                          <div class="flex-1 w-32 bg-gray-100 dark:bg-gray-800 h-2 rounded-full overflow-hidden shadow-inner">
+                          <div class="flex-1 w-32 bg-gray-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner">
                               <div class="bg-indigo-600 dark:bg-indigo-500 h-full transition-all duration-700 shadow-lg shadow-indigo-500/20" style="width: {(cam.sent_count / cam.total_recipients) * 100}%"></div>
                           </div>
                           <span class="text-[11px] font-black text-gray-900 dark:text-white font-mono tracking-tighter">
@@ -189,7 +189,7 @@
     {:else}
       <div class="px-8 py-32 text-center glass rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
           <div class="flex flex-col items-center space-y-6">
-              <div class="w-20 h-20 bg-gray-50 dark:bg-gray-800/50 rounded-3xl flex items-center justify-center text-4xl shadow-inner animate-bounce animate-duration-[3000ms]">📡</div>
+              <div class="w-20 h-20 bg-gray-50 dark:bg-slate-800/50 rounded-3xl flex items-center justify-center text-4xl shadow-inner animate-bounce animate-duration-[3000ms]">📡</div>
               <p class="text-[10px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-[0.3em]">No valid frequency detected.</p>
           </div>
       </div>

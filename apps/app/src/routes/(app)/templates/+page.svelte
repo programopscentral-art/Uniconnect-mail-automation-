@@ -41,12 +41,12 @@
 
   {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
             onchange={onUnivChange}
-            class="flex-1 max-w-md bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-white"
+            class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all focus:bg-white dark:focus:bg-gray-800 text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy (All)</option>
             {#each data.universities as univ}
@@ -59,17 +59,17 @@
   <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-        <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+        <thead class="bg-gray-50/50 dark:bg-slate-800/50">
           <tr>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Template Name</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Subject Reference</th>
-            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Registration Date</th>
-            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">System Actions</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Template Name</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Subject Reference</th>
+            <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Registration Date</th>
+            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
           {#each data.templates as temp}
-            <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
+            <tr class="group hover:bg-gray-50/50 dark:hover:bg-slate-950/50 transition-colors">
               <td class="px-8 py-6 whitespace-nowrap">
                 <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{temp.name}</div>
               </td>
@@ -77,7 +77,7 @@
                 <div class="text-sm text-gray-600 dark:text-gray-400 font-medium truncate max-w-xs">{temp.subject}</div>
               </td>
               <td class="px-8 py-6 whitespace-nowrap">
-                <div class="text-xs font-bold text-gray-400 dark:text-gray-500 font-mono italic">
+                <div class="text-xs font-bold text-gray-400 dark:text-slate-400 font-mono italic">
                   {new Date(temp.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </div>
               </td>
@@ -92,7 +92,7 @@
                   </a>
                   <button 
                     onclick={() => deleteTemp(temp.id)} 
-                    class="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-600 hover:text-white dark:hover:bg-red-500 transition-all active:scale-90"
+                    class="p-2 bg-red-50 dark:bg-slate-900/30 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-600 hover:text-white dark:hover:bg-red-500 transition-all active:scale-90"
                     title="Delete Template"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -105,7 +105,7 @@
             <tr>
               <td colspan="4" class="px-8 py-16 text-center">
                 <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4">
-                  <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                  <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </div>
                   <p class="text-[10px] font-black uppercase tracking-[0.2em]">No blueprints registered in this node.</p>

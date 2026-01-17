@@ -247,12 +247,12 @@
 
   {#if data.universities.length > 1}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
-        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] whitespace-nowrap">Source Node:</label>
+        <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Source Node:</label>
         <select 
             id="univ-select" 
             bind:value={selectedUniversityId} 
             onchange={onUnivChange}
-            class="flex-1 max-w-md bg-white/50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
+            class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy</option>
             {#each data.universities as univ}
@@ -265,12 +265,12 @@
   <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
     <div class="overflow-x-auto w-full">
       <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-        <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+        <thead class="bg-gray-50/50 dark:bg-slate-800/50">
           <tr>
             {#each dynamicHeaders as header}
-              <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{formatHeader(header)}</th>
+              <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">{formatHeader(header)}</th>
             {/each}
-            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Protocol</th>
+            <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Protocol</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -303,7 +303,7 @@
               <tr>
                   <td colspan={1 + dynamicHeaders.length} class="px-8 py-24 text-center">
                     <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4">
-                        <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center">
+                        <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
                         </div>
                         <p class="text-[10px] font-black uppercase tracking-[0.2em]">{selectedUniversityId ? 'No identities registered in this node.' : 'Select source node to initialize matrix.'}</p>
@@ -317,28 +317,28 @@
 
     <!-- Pagination Controls -->
     {#if data.totalCount > 0}
-      <div class="bg-gray-50/50 dark:bg-gray-800/50 px-8 py-6 flex items-center justify-between border-t border-gray-100 dark:border-gray-800">
+      <div class="bg-gray-50/50 dark:bg-slate-800/50 px-8 py-6 flex items-center justify-between border-t border-gray-100 dark:border-slate-800">
         <div class="flex-1 flex justify-between sm:hidden">
-            <button onclick={() => changePage(data.currentPage - 1)} disabled={data.currentPage === 1} class="px-5 py-2.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 transition-all shadow-sm active:scale-95 cursor-pointer">Previous</button>
-            <button onclick={() => changePage(data.currentPage + 1)} disabled={data.currentPage === totalPages} class="px-5 py-2.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 transition-all shadow-sm active:scale-95 cursor-pointer">Next</button>
+            <button onclick={() => changePage(data.currentPage - 1)} disabled={data.currentPage === 1} class="px-5 py-2.5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 transition-all shadow-sm active:scale-95 cursor-pointer">Previous</button>
+            <button onclick={() => changePage(data.currentPage + 1)} disabled={data.currentPage === totalPages} class="px-5 py-2.5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 transition-all shadow-sm active:scale-95 cursor-pointer">Next</button>
         </div>
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div class="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">
                 Displaying <span class="text-indigo-600 dark:text-indigo-400">{(data.currentPage - 1) * data.limit + 1} - {Math.min(data.currentPage * data.limit, data.totalCount)}</span> <span class="mx-1">/</span> Total {data.totalCount} Identities
             </div>
             <div class="flex items-center space-x-4">
-                <nav class="relative z-0 inline-flex shadow-sm -space-x-px rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden" aria-label="Pagination">
+                <nav class="relative z-0 inline-flex shadow-sm -space-x-px rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden" aria-label="Pagination">
                     {#each Array(totalPages) as _, i}
                         {#if totalPages <= 7 || (i + 1 >= data.currentPage - 2 && i + 1 <= data.currentPage + 2) || i === 0 || i === totalPages - 1}
                             <button 
                               onclick={() => changePage(i + 1)} 
                               class="relative inline-flex items-center px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all
-                              {data.currentPage === i + 1 ? 'z-10 bg-indigo-600 text-white shadow-inner' : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}"
+                              {data.currentPage === i + 1 ? 'z-10 bg-indigo-600 text-white shadow-inner' : 'bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'}"
                             >
                               {i + 1}
                             </button>
                         {:else if (i + 1 === data.currentPage - 3) || (i + 1 === data.currentPage + 3)}
-                            <span class="relative inline-flex items-center px-4 py-2.5 bg-white dark:bg-gray-900 text-[10px] font-black text-gray-400 dark:text-gray-600 italic">...</span>
+                            <span class="relative inline-flex items-center px-4 py-2.5 bg-white dark:bg-slate-900 text-[10px] font-black text-gray-400 dark:text-gray-600 italic">...</span>
                         {/if}
                     {/each}
                 </nav>
@@ -361,7 +361,7 @@
       aria-label="Close Modal"
     ></div>
     <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-    <div class="inline-block align-bottom glass dark:bg-gray-900/95 border-gray-100 dark:border-gray-800 rounded-[3rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full animate-premium-scale">
+    <div class="inline-block align-bottom glass dark:bg-slate-900/95 border-gray-100 dark:border-slate-800 rounded-[3rem] text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full animate-premium-scale">
       <div class="px-8 pt-8 pb-6 sm:p-10 max-h-[85vh] overflow-y-auto">
         <h3 class="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-6" id="modal-title">Data Ingestion Engine</h3>
         
@@ -372,7 +372,7 @@
         {:else}
             <div class="space-y-10">
                 <!-- File Input -->
-                <div class="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-[2.5rem] p-10 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-all bg-gray-50/50 dark:bg-gray-800/30 group">
+                <div class="border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-[2.5rem] p-10 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-all bg-gray-50/50 dark:bg-slate-800/30 group">
                     <input 
                         type="file" 
                         id="file-upload"
@@ -381,11 +381,11 @@
                         class="hidden"
                     />
                     <label for="file-upload" class="cursor-pointer block">
-                      <div class="w-16 h-16 bg-white dark:bg-gray-800 rounded-3xl shadow-sm mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-3xl shadow-sm mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform">
                         <svg class="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                       </div>
                       <p class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Select Source File</p>
-                      <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-2 uppercase tracking-widest italic">Standard CSV / XLSX Protocol Supported</p>
+                      <p class="text-[10px] text-gray-400 dark:text-slate-400 mt-2 uppercase tracking-widest italic">Standard CSV / XLSX Protocol Supported</p>
                       {#if uploadFiles && uploadFiles.length > 0}
                         <div class="mt-4 px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-xl inline-block shadow-lg animate-premium-slide">
                           LOADED: {uploadFiles[0].name}
@@ -401,7 +401,7 @@
                         <select 
                             id="sheet-select" 
                             bind:value={selectedSheet}
-                            class="block w-full bg-white dark:bg-gray-950 border border-indigo-100 dark:border-indigo-800 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold rounded-2xl px-5 py-3 text-gray-900 dark:text-white transition-all shadow-sm"
+                            class="block w-full bg-white dark:bg-slate-950 border border-indigo-100 dark:border-indigo-800 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 text-sm font-bold rounded-2xl px-5 py-3 text-gray-900 dark:text-white transition-all shadow-sm"
                         >
                             {#each detectedSheets as sheet}
                                 <option value={sheet}>{sheet}</option>
@@ -414,20 +414,20 @@
                 {#if previewHeaders.length > 0}
                     <div class="animate-premium-fade">
                         <div class="flex justify-between items-center mb-4">
-                             <h4 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Data Stream Preview</h4>
+                             <h4 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Data Stream Preview</h4>
                              <span class="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter italic">Count: {totalPreviewRows} Entities</span>
                         </div>
-                        <div class="border border-gray-100 dark:border-gray-800 rounded-[2rem] overflow-hidden shadow-sm">
+                        <div class="border border-gray-100 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-sm">
                           <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
-                                <thead class="bg-gray-50/50 dark:bg-gray-800/50">
+                                <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                                     <tr>
                                         {#each previewHeaders as header}
                                             <th class="px-6 py-3 text-left text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest whitespace-nowrap">{header}</th>
                                         {/each}
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white/50 dark:bg-gray-900/50 divide-y divide-gray-50 dark:divide-gray-800/50">
+                                <tbody class="bg-white/50 dark:bg-slate-900/50 divide-y divide-gray-50 dark:divide-gray-800/50">
                                     {#each previewRows as row}
                                         <tr>
                                             {#each previewHeaders as header}
@@ -446,7 +446,7 @@
             </div>
         {/if}
       </div>
-      <div class="bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-md px-8 py-6 sm:px-10 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-gray-800 rounded-b-[3rem]">
+      <div class="bg-gray-50/80 dark:bg-slate-800/50 backdrop-blur-md px-8 py-6 sm:px-10 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800 rounded-b-[3rem]">
         <button 
             type="button" 
             onclick={uploadCsv}
@@ -458,7 +458,7 @@
         <button 
             type="button" 
             onclick={() => { showUploadModal = false; resetPreview(); }}
-            class="mt-3 w-full inline-flex justify-center rounded-2xl border border-gray-100 dark:border-gray-800 px-6 py-3 bg-white dark:bg-gray-900 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all sm:mt-0 sm:w-auto active:scale-95 shadow-sm"
+            class="mt-3 w-full inline-flex justify-center rounded-2xl border border-gray-100 dark:border-slate-800 px-6 py-3 bg-white dark:bg-slate-900 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all sm:mt-0 sm:w-auto active:scale-95 shadow-sm"
         >
           Abort Protocol
         </button>

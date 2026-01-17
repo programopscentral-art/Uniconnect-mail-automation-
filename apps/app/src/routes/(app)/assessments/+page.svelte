@@ -350,7 +350,7 @@
                         showSyncModal = true;
                         syncTargetBatchName = activeBatch?.name || '';
                     }}
-                    class="inline-flex items-center px-6 py-3 bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:border-indigo-600 transition-all shadow-lg shadow-indigo-500/5 active:scale-95"
+                    class="inline-flex items-center px-6 py-3 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl hover:border-indigo-600 transition-all shadow-lg shadow-indigo-500/5 active:scale-95"
                 >
                     <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                     Universal Sync
@@ -379,10 +379,10 @@
                 </div>
             </div>
             
-            <div class="flex items-center gap-4 bg-white/50 dark:bg-gray-900/50 p-2 rounded-2xl border border-gray-100 dark:border-gray-800">
-                <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-3">Switch Node</span>
+            <div class="flex items-center gap-4 bg-white/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-gray-100 dark:border-slate-800">
+                <span class="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest ml-3">Switch Node</span>
                 <select 
-                    class="bg-white dark:bg-gray-800 border-none text-[11px] font-black text-gray-900 dark:text-white rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                    class="bg-white dark:bg-slate-800 border-none text-[11px] font-black text-gray-900 dark:text-white rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 shadow-sm"
                     onchange={(e) => {
                         const params = new URLSearchParams();
                         params.set('universityId', e.currentTarget.value);
@@ -402,15 +402,15 @@
         <div class="space-y-6">
             <!-- Batches -->
             <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 300ms;">
-                <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
-                        <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Academic Batches</h3>
+                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Batches</h3>
                         <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Enrollment Cohorts</p>
                     </div>
                     <button 
                         onclick={() => showAddBatch = !showAddBatch}
                         aria-label="Toggle Add Batch Form"
-                        class="p-2.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm active:scale-95"
+                        class="p-2.5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm active:scale-95"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
                     </button>
@@ -422,7 +422,7 @@
                                 type="text" 
                                 bind:value={newBatchName}
                                 placeholder="e.g. 2022-2026 Batch"
-                                class="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
+                                class="w-full bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
                             />
                             <div class="flex gap-2">
                                 <button 
@@ -431,7 +431,7 @@
                                 >SAVE</button>
                                 <button 
                                     onclick={() => showAddBatch = false}
-                                    class="flex-1 py-2.5 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                                    class="flex-1 py-2.5 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black rounded-xl border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
                                 >CANCEL</button>
                             </div>
                         </div>
@@ -456,9 +456,9 @@
                             role="button"
                             tabindex="0"
                             class="w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left cursor-pointer group
-                            {selectedBatchId === batch.id ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white/50 dark:bg-gray-800/30 border-gray-100 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-500'}"
+                            {selectedBatchId === batch.id ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white/50 dark:bg-slate-800/30 border-gray-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500'}"
                         >
-                            <span class="text-xs font-bold {selectedBatchId === batch.id ? 'text-white' : 'text-gray-900 dark:text-gray-200'}">{batch.name}</span>
+                            <span class="text-xs font-bold {selectedBatchId === batch.id ? 'text-white' : 'text-gray-900 dark:text-white'}">{batch.name}</span>
                             <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
                                 <button 
                                     onclick={(e) => { e.stopPropagation(); deleteBatch(batch.id); }}
@@ -487,15 +487,15 @@
 
             <!-- Branches -->
             <div class="glass overflow-hidden rounded-[2.5rem] animate-premium-slide" style="animation-delay: 400ms;">
-                <div class="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/50">
+                <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
                     <div>
-                        <h3 class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Academic Departments</h3>
+                        <h3 class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">Academic Departments</h3>
                         <p class="text-[9px] text-gray-400 dark:text-gray-600 font-bold mt-1 italic">Streams of Study</p>
                     </div>
                     <button 
                         onclick={() => showAddBranch = !showAddBranch}
                         aria-label="Toggle Add Department Form"
-                        class="p-2.5 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm active:scale-95"
+                        class="p-2.5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all shadow-sm active:scale-95"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
                     </button>
@@ -513,13 +513,13 @@
                                     type="text" 
                                     bind:value={newBranchName}
                                     placeholder="Branch Name (e.g. Computer Science)"
-                                    class="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
+                                    class="w-full bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
                                 />
                                 <input 
                                     type="text" 
                                     bind:value={newBranchCode}
                                     placeholder="Code (e.g. CSE)"
-                                    class="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
+                                    class="w-full bg-white dark:bg-slate-800 border-gray-200 dark:border-gray-700 rounded-xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all text-gray-900 dark:text-white"
                                 />
                                 <div class="flex gap-2">
                                     <button 
@@ -528,7 +528,7 @@
                                     >SAVE</button>
                                     <button 
                                         onclick={() => showAddBranch = false}
-                                        class="flex-1 py-2.5 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+                                        class="flex-1 py-2.5 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black rounded-xl border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
                                     >CANCEL</button>
                                 </div>
                             </div>
@@ -541,10 +541,10 @@
                                 role="button"
                                 tabindex="0"
                                 class="w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-left cursor-pointer group
-                                {selectedBranchId === branch.id ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white/50 dark:bg-gray-800/30 border-gray-100 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-500'}"
+                                {selectedBranchId === branch.id ? 'bg-indigo-600 border-indigo-600 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white/50 dark:bg-slate-800/30 border-gray-100 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500'}"
                             >
                                 <div class="flex flex-col">
-                                    <span class="text-xs font-bold {selectedBranchId === branch.id ? 'text-white' : 'text-gray-900 dark:text-gray-200'}">{branch.name}</span>
+                                    <span class="text-xs font-bold {selectedBranchId === branch.id ? 'text-white' : 'text-gray-900 dark:text-white'}">{branch.name}</span>
                                     <span class="text-[9px] font-black {selectedBranchId === branch.id ? 'text-indigo-100' : 'text-indigo-400'} uppercase tracking-[0.1em] mt-1 italic">{branch.code}</span>
                                 </div>
                                 <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
@@ -584,12 +584,12 @@
         <!-- Subjects & Syllabus Column (Main) -->
         <div class="lg:col-span-2 space-y-6">
             <div class="bg-white rounded-3xl border border-gray-100 shadow-sm min-h-[600px] flex flex-col">
-                <div class="p-8 border-b border-gray-100 dark:border-gray-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gray-50/30 dark:bg-gray-800/20">
+                <div class="p-8 border-b border-gray-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gray-50/30 dark:bg-slate-800/20">
                     <div>
                         <h2 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">Syllabus <span class="text-indigo-600 dark:text-indigo-400">&</span> Catalog</h2>
                         {#if selectedBatchId && selectedBranchId}
                             <p class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] mt-2"> 
-                                <span class="text-gray-400 dark:text-gray-500">{activeBatch?.name}</span> • 
+                                <span class="text-gray-400 dark:text-slate-400">{activeBatch?.name}</span> • 
                                 {branches.find(b => b.id === selectedBranchId)?.name}
                             </p>
                         {:else}
@@ -623,7 +623,7 @@
                 <div class="flex-1 p-8">
                     {#if !selectedBatchId || !selectedBranchId}
                         <div class="h-full flex flex-col items-center justify-center text-center py-24 animate-premium-fade">
-                            <div class="w-24 h-24 glass rounded-[2.5rem] flex items-center justify-center text-indigo-500 mb-8 border border-white dark:border-gray-800 shadow-xl shadow-indigo-500/10">
+                            <div class="w-24 h-24 glass rounded-[2.5rem] flex items-center justify-center text-indigo-500 mb-8 border border-white dark:border-slate-800 shadow-xl shadow-indigo-500/10">
                                 <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
                             </div>
                             <h3 class="text-2xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tighter">Initialize Catalog</h3>
@@ -636,27 +636,27 @@
                     {:else}
                         <!-- Subjects List Organized by Semester -->
                         {#if showAddSubject}
-                            <div class="mb-10 p-8 glass rounded-[2.5rem] border border-white dark:border-gray-800 shadow-xl shadow-indigo-500/5" transition:slide>
+                            <div class="mb-10 p-8 glass rounded-[2.5rem] border border-white dark:border-slate-800 shadow-xl shadow-indigo-500/5" transition:slide>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                     <div class="space-y-2">
                                         <label for="subjectName" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Subject Identity</label>
-                                        <input id="subjectName" type="text" bind:value={newSubjectName} placeholder="e.g. Data Structures" class="w-full bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"/>
+                                        <input id="subjectName" type="text" bind:value={newSubjectName} placeholder="e.g. Data Structures" class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"/>
                                     </div>
                                     <div class="space-y-2">
                                         <label for="subjectCode" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Mapping Code</label>
-                                        <input id="subjectCode" type="text" bind:value={newSubjectCode} placeholder="e.g. CS201" class="w-full bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"/>
+                                        <input id="subjectCode" type="text" bind:value={newSubjectCode} placeholder="e.g. CS201" class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"/>
                                     </div>
                                     <div class="space-y-2">
                                         <label for="subjectSemester" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Academic Phase</label>
-                                        <select id="subjectSemester" bind:value={newSubjectSemester} class="w-full bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white">
+                                        <select id="subjectSemester" bind:value={newSubjectSemester} class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white">
                                             {#each [1,2,3,4,5,6,7,8] as sem}
                                                 <option value={sem}>Semester {sem}</option>
                                             {/each}
                                         </select>
                                     </div>
                                 </div>
-                                <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-gray-800">
-                                    <button onclick={() => showAddSubject = false} class="px-6 py-3 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
+                                <div class="flex justify-end gap-3 pt-6 border-t border-gray-100 dark:border-slate-800">
+                                    <button onclick={() => showAddSubject = false} class="px-6 py-3 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
                                     <button onclick={addSubject} class="px-8 py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20">COMMIT SUBJECT</button>
                                 </div>
                             </div>
@@ -667,14 +667,14 @@
                                 {#if subjects.filter(s => s.semester === sem).length > 0}
                                     <div class="space-y-6 animate-premium-slide" style="animation-delay: {sem * 50}ms;">
                                         <div class="flex items-center gap-5">
-                                            <div class="px-4 py-1.5 bg-gray-900 dark:bg-gray-800 text-white text-[11px] font-black rounded-xl shadow-lg border border-gray-800 dark:border-gray-700 uppercase tracking-widest">Phase {sem}</div>
+                                            <div class="px-4 py-1.5 bg-gray-900 dark:bg-slate-800 text-white text-[11px] font-black rounded-xl shadow-lg border border-gray-800 dark:border-gray-700 uppercase tracking-widest">Phase {sem}</div>
                                             <div class="h-px flex-1 bg-gradient-to-r from-gray-100 dark:from-gray-800 to-transparent"></div>
                                         </div>
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             {#each subjects.filter(s => s.semester === sem) as subject}
                                                 <div 
                                                     class="group p-6 rounded-[2rem] border transition-all cursor-pointer relative overflow-hidden
-                                                    {selectedSubjectIds.includes(subject.id) ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white dark:bg-gray-800/40 border-gray-100 dark:border-gray-800 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-xl hover:shadow-indigo-500/5'}"
+                                                    {selectedSubjectIds.includes(subject.id) ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20 text-white' : 'bg-white dark:bg-slate-800/40 border-gray-100 dark:border-slate-800 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-xl hover:shadow-indigo-500/5'}"
                                                     onclick={() => toggleSubjectSelection(subject.id)}
                                                     onkeydown={(e) => e.key === 'Enter' && toggleSubjectSelection(subject.id)}
                                                     role="button"
@@ -684,7 +684,7 @@
                                                         <div class="flex items-start gap-4">
                                                             <div 
                                                                 class="w-6 h-6 rounded-lg border flex items-center justify-center transition-all mt-0.5
-                                                                {selectedSubjectIds.includes(subject.id) ? 'bg-white border-white shadow-lg' : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700'}"
+                                                                {selectedSubjectIds.includes(subject.id) ? 'bg-white border-white shadow-lg' : 'bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-gray-700'}"
                                                             >
                                                                 {#if selectedSubjectIds.includes(subject.id)}
                                                                     <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"/></svg>
@@ -716,7 +716,7 @@
                                                     <div class="mt-4 flex items-center justify-between relative z-10">
                                                         <div class="flex -space-x-2 overflow-hidden">
                                                             {#each [1,2,3,4,5] as unit}
-                                                                <div class="inline-block h-7 w-7 rounded-xl ring-4 ring-white dark:ring-gray-800 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 text-[10px] font-black flex items-center justify-center text-gray-400 dark:text-gray-500 shadow-sm">U{unit}</div>
+                                                                <div class="inline-block h-7 w-7 rounded-xl ring-4 ring-white dark:ring-gray-800 bg-gray-50 dark:bg-slate-900 border border-gray-100 dark:border-gray-700 text-[10px] font-black flex items-center justify-center text-gray-400 dark:text-slate-400 shadow-sm">U{unit}</div>
                                                             {/each}
                                                         </div>
                                                         <a 
@@ -733,11 +733,11 @@
                                 {/if}
                             {:else}
                                 <div class="h-full flex flex-col items-center justify-center text-center py-24 opacity-30 animate-premium-fade">
-                                    <div class="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-[2rem] flex items-center justify-center text-gray-300 mb-6 border border-gray-100 dark:border-gray-800 shadow-inner">
+                                    <div class="w-20 h-20 bg-gray-50 dark:bg-slate-900 rounded-[2rem] flex items-center justify-center text-gray-300 mb-6 border border-gray-100 dark:border-slate-800 shadow-inner">
                                         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                                     </div>
                                     <h3 class="text-sm font-black text-gray-700 dark:text-white uppercase tracking-[0.2em]">Resource Void</h3>
-                                    <p class="text-[10px] text-gray-400 dark:text-gray-500 font-bold mt-2 uppercase tracking-widest italic">No subjects mapped to current stream node</p>
+                                    <p class="text-[10px] text-gray-400 dark:text-slate-400 font-bold mt-2 uppercase tracking-widest italic">No subjects mapped to current stream node</p>
                                 </div>
                             {/each}
                         </div>
@@ -751,15 +751,15 @@
 
 {#if showEditBatch && editingBatch}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" transition:fade>
-        <div class="glass rounded-[3rem] w-full max-w-md p-10 shadow-2xl border border-white dark:border-gray-800" transition:fly={{ y: 30, duration: 500 }}>
+        <div class="glass rounded-[3rem] w-full max-w-md p-10 shadow-2xl border border-white dark:border-slate-800" transition:fly={{ y: 30, duration: 500 }}>
             <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-8 uppercase tracking-tighter">Edit Cluster</h3>
             <div class="space-y-6">
                 <div class="space-y-2">
                     <label for="editBatchName" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Cohort Label</label>
-                    <input id="editBatchName" type="text" bind:value={editingBatch.name} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
+                    <input id="editBatchName" type="text" bind:value={editingBatch.name} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
                 </div>
                 <div class="flex gap-4 pt-4">
-                    <button onclick={() => showEditBatch = false} class="flex-1 py-4 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
+                    <button onclick={() => showEditBatch = false} class="flex-1 py-4 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
                     <button 
                         onclick={updateBatch} 
                         disabled={isSavingBatch}
@@ -775,19 +775,19 @@
 
 {#if showEditBranch && editingBranch}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" transition:fade>
-        <div class="glass rounded-[3rem] w-full max-w-md p-10 shadow-2xl border border-white dark:border-gray-800" transition:fly={{ y: 30, duration: 500 }}>
+        <div class="glass rounded-[3rem] w-full max-w-md p-10 shadow-2xl border border-white dark:border-slate-800" transition:fly={{ y: 30, duration: 500 }}>
             <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-8 uppercase tracking-tighter">Edit Stream</h3>
             <div class="space-y-6">
                 <div class="space-y-2">
                     <label for="editBranchName" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Stream Identity</label>
-                    <input id="editBranchName" type="text" bind:value={editingBranch.name} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
+                    <input id="editBranchName" type="text" bind:value={editingBranch.name} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
                 </div>
                 <div class="space-y-2">
                     <label for="editBranchCode" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Mapping Code</label>
-                    <input id="editBranchCode" type="text" bind:value={editingBranch.code} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
+                    <input id="editBranchCode" type="text" bind:value={editingBranch.code} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
                 </div>
                 <div class="flex gap-4 pt-4">
-                    <button onclick={() => showEditBranch = false} class="flex-1 py-4 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
+                    <button onclick={() => showEditBranch = false} class="flex-1 py-4 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
                     <button 
                         onclick={updateBranch} 
                         disabled={isSavingBranch}
@@ -803,28 +803,28 @@
 
 {#if showEditSubject && editingSubject}
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md" transition:fade>
-        <div class="glass rounded-[3rem] w-full max-w-2xl p-10 shadow-2xl border border-white dark:border-gray-800" transition:fly={{ y: 30, duration: 500 }}>
+        <div class="glass rounded-[3rem] w-full max-w-2xl p-10 shadow-2xl border border-white dark:border-slate-800" transition:fly={{ y: 30, duration: 500 }}>
             <h3 class="text-2xl font-black text-gray-900 dark:text-white mb-8 uppercase tracking-tighter">Subject Architecture</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="space-y-2">
                     <label for="editSubjectName" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Nomenclature</label>
-                    <input id="editSubjectName" type="text" bind:value={editingSubject.name} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
+                    <input id="editSubjectName" type="text" bind:value={editingSubject.name} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
                 </div>
                 <div class="space-y-2">
                     <label for="editSubjectCode" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Schema Code</label>
-                    <input id="editSubjectCode" type="text" bind:value={editingSubject.code} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
+                    <input id="editSubjectCode" type="text" bind:value={editingSubject.code} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"/>
                 </div>
                 <div class="space-y-2">
                     <label for="editSubjectSemester" class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2">Phase Vector</label>
-                    <select id="editSubjectSemester" bind:value={editingSubject.semester} class="w-full bg-white dark:bg-gray-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
+                    <select id="editSubjectSemester" bind:value={editingSubject.semester} class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
                         {#each [1,2,3,4,5,6,7,8] as sem}
                             <option value={sem}>Semester {sem}</option>
                         {/each}
                     </select>
                 </div>
             </div>
-            <div class="flex gap-4 pt-10 mt-6 border-t border-gray-100 dark:border-gray-800">
-                <button onclick={() => showEditSubject = false} class="flex-1 py-4 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
+            <div class="flex gap-4 pt-10 mt-6 border-t border-gray-100 dark:border-slate-800">
+                <button onclick={() => showEditSubject = false} class="flex-1 py-4 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">CANCEL</button>
                 <button 
                     onclick={updateSubject} 
                     disabled={isSavingSubject}
@@ -840,7 +840,7 @@
 
 {#if showSyncModal}
     <div class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-md" transition:fade>
-        <div class="glass rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl border border-white dark:border-gray-800" transition:fly={{ y: 30, duration: 500 }}>
+        <div class="glass rounded-[3rem] w-full max-w-2xl overflow-hidden shadow-2xl border border-white dark:border-slate-800" transition:fly={{ y: 30, duration: 500 }}>
             <div class="bg-indigo-600 p-10 text-white relative">
                 <h3 class="text-3xl font-black uppercase tracking-tighter">Universal Sync Pipeline</h3>
                 <p class="text-indigo-100 text-xs font-bold uppercase tracking-[0.2em] mt-2 opacity-80">Autonomous syllabus replication across institution nodes</p>
@@ -856,7 +856,7 @@
                         <span class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black border border-indigo-100 dark:border-indigo-800/50">01</span>
                         <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Select Source Subject Authority</h4>
                     </div>
-                    <select bind:value={syncSourceSubjectId} class="w-full bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
+                    <select bind:value={syncSourceSubjectId} class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white">
                         <option value="">-- Choose subject node --</option>
                         {#each subjects as s}
                             <option value={s.id}>{s.name} ({s.code || 'NO-REF'})</option>
@@ -874,7 +874,7 @@
                         type="text" 
                         bind:value={syncTargetBatchName} 
                         placeholder="e.g. 2024-2028 Cluster" 
-                        class="w-full bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"
+                        class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"
                     />
                 </div>
 
@@ -884,9 +884,9 @@
                         <span class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black border border-indigo-100 dark:border-indigo-800/50">03</span>
                         <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Target Institution Clusters</h4>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 dark:bg-gray-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800/50">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800/50">
                         {#each filteredSyncUnis as uni}
-                            <label class="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm">
+                            <label class="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm">
                                 <input 
                                     type="checkbox" 
                                     value={uni.id} 
@@ -898,7 +898,7 @@
                                             syncTargetUniIds = syncTargetUniIds.filter(id => id !== uni.id);
                                         }
                                     }}
-                                    class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-gray-900 border-gray-300 dark:border-gray-600"
+                                    class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
                                 />
                                 <span class="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{uni.name}</span>
                             </label>
@@ -907,15 +907,15 @@
                 </div>
             </div>
 
-            <div class="p-10 bg-gray-50/50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-6">
-                <div class="flex items-center gap-3 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl border border-gray-100 dark:border-gray-700">
+            <div class="p-10 bg-gray-50/50 dark:bg-slate-900/30 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border border-gray-100 dark:border-gray-700">
                     <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                     <p class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                         Selected: <span class="text-indigo-600 dark:text-indigo-400">{syncTargetUniIds.length} Nodes</span>
                     </p>
                 </div>
                 <div class="flex gap-4 w-full sm:w-auto">
-                    <button onclick={() => showSyncModal = false} class="flex-1 sm:flex-none px-8 py-4 bg-white dark:bg-gray-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-2xl border border-gray-200 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">ABORT</button>
+                    <button onclick={() => showSyncModal = false} class="flex-1 sm:flex-none px-8 py-4 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-2xl border border-gray-200 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all">ABORT</button>
                     <button 
                         onclick={runUniversalSync} 
                         disabled={isSyncing || !syncSourceSubjectId || !syncTargetBatchName || syncTargetUniIds.length === 0}
@@ -936,7 +936,7 @@
     }
 
     .glass {
-        @apply bg-white/80 dark:bg-gray-900/40 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 shadow-glass dark:shadow-2xl;
+        @apply bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 shadow-glass dark:shadow-2xl;
     }
 
     .custom-scrollbar::-webkit-scrollbar {
@@ -948,11 +948,11 @@
     }
     
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        @apply bg-gray-200 dark:bg-gray-800 rounded-full;
+        @apply bg-gray-200 dark:bg-slate-800 rounded-full;
     }
     
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        @apply bg-gray-300 dark:bg-gray-700;
+        @apply bg-gray-300 dark:bg-slate-950;
     }
 
     :global(.dark) .glass {

@@ -17,28 +17,28 @@
 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 class="text-3xl font-black text-gray-900 tracking-tight">Analytics & Reports</h1>
+            <h1 class="text-3xl font-bold dark:text-white tracking-tight">Analytics & Reports</h1>
             <p class="text-gray-500 mt-1">Comprehensive performance data for {new Date(data.report.date).toLocaleDateString()}.</p>
         </div>
         
-        <div class="flex items-center space-x-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
-            <span class="text-sm font-bold text-gray-700 ml-2">Select Date:</span>
+        <div class="flex items-center space-x-3 bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800">
+            <span class="text-sm font-bold text-gray-700 dark:text-slate-400 ml-2">Select Date:</span>
             <input 
                 type="date" 
                 bind:value={selectedDate} 
                 onchange={onDateChange}
-                class="block pl-3 pr-4 py-2 text-sm border-gray-200 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 font-bold"
+                class="block pl-3 pr-4 py-2 text-sm border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 dark:bg-slate-800 font-bold text-gray-900 dark:text-white"
             >
         </div>
     </div>
 
     <!-- Team Reports Table -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-8 py-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-            <h2 class="text-xl font-bold text-gray-900">Task Completion Report</h2>
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+        <div class="px-8 py-6 border-b border-gray-50 dark:border-slate-800 flex justify-between items-center bg-gray-50/50 dark:bg-slate-800/50">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Task Completion Report</h2>
             <div class="flex items-center space-x-2">
                 <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                <span class="text-xs font-bold text-gray-500 uppercase">Live Updates</span>
+                <span class="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase">Live Updates</span>
             </div>
         </div>
         
@@ -53,7 +53,7 @@
             </thead>
             <tbody class="divide-y divide-gray-50">
                 {#each data.report.user_reports as item}
-                    <tr class="hover:bg-gray-50/80 transition-all">
+                    <tr class="hover:bg-gray-50/80 dark:hover:bg-slate-950/80 transition-all">
                         <td class="px-8 py-5">
                             <div class="flex items-center">
                                 <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-sm mr-3 shadow-md">

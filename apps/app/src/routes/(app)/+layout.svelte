@@ -75,9 +75,9 @@
   });
 </script>
 
-<div class="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden transition-colors duration-500">
+<div class="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500">
   <!-- Mobile Header -->
-  <header class="lg:hidden h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800 px-6 flex items-center justify-between sticky top-0 z-50">
+  <header class="lg:hidden h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-50">
       <div class="flex items-center space-x-3">
         <div class="p-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-105 active:scale-95">
             <img src="/nxtwave-logo.png" alt="NxtWave" class="h-8 object-contain dark:invert">
@@ -98,9 +98,9 @@
   <div class="flex flex-1 relative">
   <!-- Sidebar -->
   <aside 
-    class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen ? 'translate-x-0 bubble-glow' : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
+    class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen ? 'translate-x-0 bubble-glow' : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
   >
-    <div class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-gray-800/50">
+    <div class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50">
       <div class="flex items-center space-x-4">
         <div class="p-2.5 bg-white dark:bg-gray-800 rounded-[1.25rem] border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-110 active:scale-95">
             <img src="/nxtwave-logo.png" alt="NxtWave Institutional" class="h-11 w-auto object-contain dark:invert">
@@ -188,7 +188,7 @@
       {/each}
     </nav>
 
-    <div class="px-8 py-10 border-t border-gray-100 dark:border-gray-800 bg-gray-50/10 dark:bg-gray-900/10">
+    <div class="px-8 py-10 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10">
       <div class="px-2 mb-4 flex justify-between items-center">
         <p class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-40">System Integrity</p>
       </div>
@@ -209,15 +209,15 @@
       ></div>
   {/if}
   <!-- Main Content -->
-  <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-gray-950 focus:outline-none flex flex-col transition-colors duration-500">
-    <div class="sticky top-0 z-40 bg-gray-50/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-gray-800/50 w-full flex justify-center">
+  <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500">
+    <div class="sticky top-0 z-40 bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center">
       <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
         <ThemeToggle bind:currentTheme />
         
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
-          <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm transition-all hover:shadow-md">
+          <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-sm transition-all hover:shadow-md">
             <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">Context:</span>
             <select 
               value={user.university_id || 'ALL'} 
@@ -236,7 +236,7 @@
           </div>
         {:else if user?.university_id}
           <!-- Single University Display (ReadOnly) -->
-           <div class="px-4 py-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl opacity-60">
+           <div class="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl opacity-60">
               <span class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
                 {user.universities?.find((u:any) => u.id === user.university_id)?.name || 'Member Access'}
               </span>
@@ -246,7 +246,7 @@
         <!-- Account Hub Header -->
         <a 
           href="/profile" 
-          class="flex items-center px-4 py-2 rounded-2xl bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
+          class="flex items-center px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
         >
           <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform">
             {#if user?.profile_picture_url}
@@ -262,7 +262,7 @@
         </a>
 
         <form action="/api/auth/logout" method="POST">
-          <button class="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-all flex items-center justify-center bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-100 dark:hover:border-red-800 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
+          <button class="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-all flex items-center justify-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-100 dark:hover:border-red-800 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </form>
