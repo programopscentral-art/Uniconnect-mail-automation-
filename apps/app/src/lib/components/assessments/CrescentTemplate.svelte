@@ -208,6 +208,10 @@
         isSwapSidebarOpen = true;
     }
 
+    let isSetsSidebarOpen = $state(false);
+    let isOutlineSidebarOpen = $state(false);
+
+
     function selectAlternate(question: any) {
         if (!swapContext) return;
         const { slotIndex, subPart } = swapContext;
@@ -478,38 +482,73 @@
     let is100m = $derived(Number(paperMeta.max_marks) === 100);
 </script>
 
-<div class="paper-container relative p-[1in] bg-white dark:bg-gray-100 text-black shadow-none border border-gray-100 dark:border-gray-800 transition-all duration-500 {mode === 'preview' ? 'scale-[0.5] origin-top' : ''}">
+<div class="h-full overflow-hidden flex flex-col xl:flex-row relative">
+    
+    <div class="paper-container-scroll flex-1 overflow-auto p-4 sm:p-8 bg-gray-50 dark:bg-slate-950/50 relative">
+        <div class="paper-container relative mx-auto bg-white dark:bg-gray-100 text-black shadow-2xl transition-all duration-500 {mode === 'preview' ? 'scale-[0.5] origin-top' : ''}" style="width: 8.27in; min-height: 11.69in; padding: 0.75in;">
     
     {#if isEditable}
-        <!-- Sets Sidebar -->
-        <div class="fixed left-4 top-24 w-16 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-2 flex flex-col gap-2 z-40 print:hidden no-print animate-premium-slide">
-            <div class="text-[8px] font-black text-gray-400 dark:text-gray-500 text-center uppercase mb-1">Sets</div>
-            {#each ['A', 'B', 'C', 'D'] as s}
-                <button 
-                    onclick={() => {
-                        const event = new CustomEvent('changeSet', { detail: s });
-                        window.dispatchEvent(event);
-                    }}
-                    class="w-12 h-12 rounded-xl text-[11px] font-black transition-all flex items-center justify-center 
-                    {activeSet === s ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800'}"
-                >
-                    {s}
+        <!-- Sets Sidebar - Responsive Toggle -->
+        <button 
+            onclick={() => isSetsSidebarOpen = !isSetsSidebarOpen}
+            class="xl:hidden fixed left-4 bottom-24 w-12 h-12 bg-white dark:bg-slate-900 rounded-full shadow-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-center z-[60] text-indigo-600 animate-bounce-subtle"
+        >
+            <span class="text-xs font-black">{activeSet}</span>
+        </button>
+
+        <div class="{isSetsSidebarOpen ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'} fixed xl:left-4 xl:top-24 left-0 top-0 bottom-0 xl:bottom-auto xl:w-16 w-64 bg-white/95 dark:bg-slate-900/95 xl:bg-white/70 xl:dark:bg-gray-900/70 backdrop-blur-md xl:rounded-2xl shadow-2xl xl:border border-gray-100 dark:border-gray-800 p-4 xl:p-2 flex flex-col gap-2 z-[70] xl:z-40 transition-transform duration-300 xl:duration-0 no-print">
+            <div class="flex items-center justify-between xl:justify-center mb-4 xl:mb-1">
+                <div class="text-[10px] xl:text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase">Sets</div>
+                <button onclick={() => isSetsSidebarOpen = false} class="xl:hidden p-1 text-gray-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-            {/each}
+            </div>
+            
+            <div class="flex xl:flex-col gap-2">
+                {#each ['A', 'B', 'C', 'D'] as s}
+                    <button 
+                        onclick={() => {
+                            const event = new CustomEvent('changeSet', { detail: s });
+                            window.dispatchEvent(event);
+                            if (window.innerWidth < 1280) isSetsSidebarOpen = false;
+                        }}
+                        class="flex-1 xl:w-12 h-12 rounded-xl text-[11px] font-black transition-all flex items-center justify-center 
+                        {activeSet === s ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 border border-gray-100 dark:border-slate-800 xl:border-0'}"
+                    >
+                        {s}
+                    </button>
+                {/each}
+            </div>
         </div>
 
-        <!-- Navigation Sidebar -->
-        <div class="fixed left-24 top-24 w-48 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 p-4 z-40 print:hidden no-print max-h-[70vh] overflow-y-auto animate-premium-slide" style="animation-delay: 100ms;">
-            <div class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-4">Paper Outline</div>
-            <div class="space-y-4">
+        <!-- Navigation Sidebar - Responsive Toggle -->
+        <button 
+            onclick={() => isOutlineSidebarOpen = !isOutlineSidebarOpen}
+            class="xl:hidden fixed right-4 bottom-24 w-12 h-12 bg-white dark:bg-slate-900 rounded-full shadow-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-center z-[60] text-indigo-600"
+        >
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
+        </button>
+
+        <div class="{isOutlineSidebarOpen ? 'translate-x-0' : 'translate-x-full xl:translate-x-0'} fixed xl:left-24 xl:top-24 right-0 top-0 bottom-0 xl:bottom-auto xl:w-48 w-80 bg-white/95 dark:bg-slate-900/95 xl:bg-white/70 xl:dark:bg-gray-900/70 backdrop-blur-md xl:rounded-2xl shadow-2xl xl:border border-gray-100 dark:border-gray-800 p-6 xl:p-4 z-[70] xl:z-40 transition-transform duration-300 xl:duration-0 no-print">
+            <div class="flex items-center justify-between mb-6 xl:mb-4">
+                <div class="text-[10px] xl:text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Paper Outline</div>
+                <button onclick={() => isOutlineSidebarOpen = false} class="xl:hidden p-1 text-gray-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="space-y-6 xl:space-y-4 h-[calc(100vh-100px)] xl:h-auto overflow-y-auto">
                 {#if questionsA.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part A</div>
-                        <div class="grid grid-cols-4 gap-1">
+                        <div class="text-[10px] xl:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-3 xl:mb-2">Part A</div>
+                        <div class="grid grid-cols-5 xl:grid-cols-4 gap-2 xl:gap-1">
                             {#each questionsA as q}
                                 <button 
-                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
+                                    onclick={() => {
+                                        document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (window.innerWidth < 1280) isOutlineSidebarOpen = false;
+                                    }}
+                                    class="w-10 h-10 xl:w-8 xl:h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[11px] xl:text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono border border-gray-100 dark:border-slate-800 xl:border-0"
                                 >
                                     {q.n1}
                                 </button>
@@ -519,12 +558,15 @@
                 {/if}
                 {#if questionsB.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part B</div>
-                        <div class="grid grid-cols-4 gap-1">
+                        <div class="text-[10px] xl:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-3 xl:mb-2">Part B</div>
+                        <div class="grid grid-cols-5 xl:grid-cols-4 gap-2 xl:gap-1">
                             {#each questionsB as q}
                                 <button 
-                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
+                                    onclick={() => {
+                                        document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (window.innerWidth < 1280) isOutlineSidebarOpen = false;
+                                    }}
+                                    class="w-10 h-10 xl:w-8 xl:h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[11px] xl:text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono border border-gray-100 dark:border-slate-800 xl:border-0"
                                 >
                                     {q.n1}
                                 </button>
@@ -534,12 +576,15 @@
                 {/if}
                 {#if questionsC.length > 0}
                     <div>
-                        <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Part C</div>
-                        <div class="grid grid-cols-4 gap-1">
+                        <div class="text-[10px] xl:text-[9px] font-bold text-gray-400 dark:text-gray-500 uppercase mb-3 xl:mb-2">Part C</div>
+                        <div class="grid grid-cols-5 xl:grid-cols-4 gap-2 xl:gap-1">
                             {#each questionsC as q}
                                 <button 
-                                    onclick={() => document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
-                                    class="w-8 h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono"
+                                    onclick={() => {
+                                        document.getElementById(`slot-${q.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        if (window.innerWidth < 1280) isOutlineSidebarOpen = false;
+                                    }}
+                                    class="w-10 h-10 xl:w-8 xl:h-8 rounded-lg bg-gray-50 dark:bg-gray-800 text-[11px] xl:text-[10px] font-bold text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all font-mono border border-gray-100 dark:border-slate-800 xl:border-0"
                                 >
                                     {q.n1}
                                 </button>
@@ -1115,6 +1160,7 @@
         </div>
     </div>
 </div>
+</div>
 
 {#if isSwapSidebarOpen && swapContext}
     <div 
@@ -1208,6 +1254,7 @@
         </div>
     </div>
 {/if}
+</div>
 
 <style>
     .paper-container {

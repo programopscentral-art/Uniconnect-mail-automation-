@@ -360,16 +360,16 @@
     <!-- Main Content Area (Left) -->
     <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div class="animate-premium-slide">
-                <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Main Dashboard <span class="text-xs font-normal text-gray-400 dark:text-slate-400 opacity-50 ml-2">(Build: 5000)</span></h1>
-                <p class="text-sm font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest">Real-time Overview</p>
+            <div class="animate-premium-slide w-full sm:w-auto">
+                <h1 class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Main Dashboard <span class="text-[10px] font-normal text-gray-400 dark:text-slate-400 opacity-50 ml-2">(Build: 5000)</span></h1>
+                <p class="text-[10px] sm:text-sm font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest leading-none">Real-time Overview</p>
             </div>
             {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
                 <div class="w-full sm:w-auto animate-premium-fade" style="animation-delay: 100ms;">
                    <select 
                         onchange={onUnivChange} 
                         value={data.selectedUniversityId || ''} 
-                        class="block w-full sm:w-72 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-black text-gray-700 dark:text-gray-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 focus:border-indigo-600 transition-all outline-none"
+                        class="block w-full sm:w-72 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-black text-gray-700 dark:text-gray-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 focus:border-indigo-600 transition-all outline-none"
                     >
                        <option value="">All Universities</option>
                        {#each data.universities as univ}
@@ -381,63 +381,72 @@
         </div>
 
         <!-- Task Stats -->
-        <div class="grid grid-cols-2 min-[500px]:grid-cols-3 min-[900px]:grid-cols-5 gap-4 lg:gap-6">
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 px-1 sm:px-0">
             {#each taskStats as stat, i}
                 <div 
-                    class="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-slate-800 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-xl hover:shadow-indigo-500/10 cursor-default group animate-premium-slide"
+                    class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl sm:rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-slate-800 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-xl hover:shadow-indigo-500/10 cursor-default group animate-premium-slide {i === 4 ? 'col-span-2 min-[500px]:col-span-1' : ''}"
                     style="animation-delay: {200 + i * 50}ms;"
                 >
-                    <div class="w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center text-xl {stat.color.replace('bg-', 'bg-').replace('text-', 'text-')} dark:bg-opacity-10 shadow-sm mb-4 group-hover:rotate-6 transition-transform">{stat.icon}</div>
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex-shrink-0 flex items-center justify-center text-lg sm:text-xl {stat.color.replace('bg-', 'bg-').replace('text-', 'text-')} dark:bg-opacity-10 shadow-sm mb-3 sm:mb-4 group-hover:rotate-6 transition-transform">{stat.icon}</div>
                     <div class="w-full">
-                        <div class="text-3xl font-black text-gray-900 dark:text-white leading-none mb-1">{stat.value}</div>
-                        <div class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">{stat.label}</div>
+                        <div class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-none mb-1">{stat.value}</div>
+                        <div class="text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.15em] sm:tracking-[0.2em]">{stat.label}</div>
                     </div>
                 </div>
             {/each}
         </div>
 
         <!-- Calendar Section -->
-        <div class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 p-8 animate-premium-fade" style="animation-delay: 500ms;">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-                <div class="flex items-center gap-6">
-                    <h2 class="text-xl font-black text-gray-900 dark:text-white">Task Calendar</h2>
-                    <div class="flex bg-gray-50/50 dark:bg-slate-800/50 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700">
-                        <button onclick={() => viewMode = 'MY_TASKS'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">All Tasks</button>
-                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="px-5 py-2 text-xs font-black rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">Student Schedule</button>
+        <div class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 p-4 sm:p-8 animate-premium-fade" style="animation-delay: 500ms;">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8">
+                <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                    <h2 class="text-lg sm:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Task Calendar</h2>
+                    <div class="flex bg-gray-50/50 dark:bg-slate-800/50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 w-full sm:w-auto">
+                        <button onclick={() => viewMode = 'MY_TASKS'} class="flex-1 sm:flex-none px-3 sm:px-5 py-2 text-[10px] sm:text-xs font-black rounded-lg sm:rounded-xl transition-all {viewMode === 'MY_TASKS' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">All Tasks</button>
+                        <button onclick={() => viewMode = 'STUDENT_SCHEDULE'} class="flex-1 sm:flex-none px-3 sm:px-5 py-2 text-[10px] sm:text-xs font-black rounded-lg sm:rounded-xl transition-all {viewMode === 'STUDENT_SCHEDULE' ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}">Schedule</button>
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-3">
-                    <button onclick={prevMonth} class="p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Previous Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
-                    <span class="text-sm font-black w-40 text-center text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-800 py-3 rounded-[18px] tracking-wide border border-transparent">{monthNames[currentMonth]} {currentYear}</span>
-                    <button onclick={nextMonth} class="p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Next Month"><svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+                <div class="flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
+                    <button onclick={prevMonth} class="p-2 sm:p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-xl sm:rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Previous Month"><svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+                    <span class="text-[11px] sm:text-sm font-black w-32 sm:w-40 text-center text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-800 py-2 sm:py-3 rounded-xl sm:rounded-[18px] tracking-wide border border-transparent">{monthNames[currentMonth]} {currentYear}</span>
+                    <button onclick={nextMonth} class="p-2 sm:p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-xl sm:rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600" aria-label="Next Month"><svg class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-7 gap-3">
+            <div class="grid grid-cols-7 gap-1 sm:gap-3 overflow-x-auto pb-2 sm:pb-0">
                 {#each ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as day}
-                    <div class="py-3 text-center text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em]">{day}</div>
+                    <div class="py-2 sm:py-3 text-center text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">{day}</div>
                 {/each}
                 {#each calendarDays as day}
-                    <div role="button" tabindex="0" class="bg-gray-50/30 dark:bg-slate-800/20 h-32 p-3 relative rounded-[24px] border border-transparent group hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 transition-all cursor-pointer" onclick={() => day && openDayModal(day)} onkeydown={(e) => e.key==='Enter' && day && openDayModal(day)}>
+                    <div role="button" tabindex="0" class="bg-gray-50/30 dark:bg-slate-800/20 h-16 sm:h-32 p-1 sm:p-3 relative rounded-xl sm:rounded-[24px] border border-transparent group hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 transition-all cursor-pointer min-w-[35px]" onclick={() => day && openDayModal(day)} onkeydown={(e) => e.key==='Enter' && day && openDayModal(day)}>
                         {#if day}
                             <div class="flex justify-between items-start">
-                                <span class="text-sm font-black {day === today.getDate() && currentMonth === today.getMonth() ? 'bg-indigo-600 text-white w-7 h-7 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200' : 'text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'} transition-colors">
+                                <span class="text-[10px] sm:text-sm font-black {day === today.getDate() && currentMonth === today.getMonth() ? 'bg-indigo-600 text-white w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200' : 'text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'} transition-colors">
                                     {day}
                                 </span>
                             </div>
-                            <div class="mt-2 space-y-1.5 overflow-y-auto max-h-[calc(100%-2rem)] scrollbar-hide">
+                            <div class="mt-1 sm:mt-2 space-y-1 overflow-y-auto max-h-[calc(100%-1.5rem)] scrollbar-hide hidden sm:block">
                                 {#each getEventsForDay(day).slice(0, 3) as event}
                                     <div 
-                                        class="text-[9px] px-2 py-1.5 rounded-xl border transition-all hover:scale-[1.02] font-black uppercase tracking-tighter {getEventColor(event)} dark:bg-opacity-10 dark:border-opacity-20 {event.isOverdue ? 'ring-2 ring-red-400/20 border-red-300 dark:border-red-500/50' : ''}"
+                                        class="text-[8px] sm:text-[9px] px-1 sm:px-2 py-1 rounded-lg sm:rounded-xl border transition-all hover:scale-[1.02] font-black uppercase tracking-tighter {getEventColor(event)} dark:bg-opacity-10 dark:border-opacity-20 {event.isOverdue ? 'ring-2 ring-red-400/20 border-red-300 dark:border-red-500/50' : ''}"
                                     >
                                         <div class="truncate max-w-[90%]">
-                                             {#if event.type === 'TASK'}{getStatusSymbol(event.status)}{/if} {event.title}
+                                             {event.title}
                                         </div>
                                     </div>
                                 {/each}
                                 {#if getEventsForDay(day).length > 3}
-                                    <div class="text-[8px] text-indigo-400 dark:text-indigo-500 pl-1 font-black uppercase tracking-widest">+ {getEventsForDay(day).length - 3} More</div>
+                                    <div class="text-[7px] sm:text-[8px] text-indigo-400 dark:text-indigo-500 pl-1 font-black uppercase tracking-widest">+{getEventsForDay(day).length - 3}</div>
+                                {/if}
+                            </div>
+                            <!-- Mobile indicator dots -->
+                            <div class="absolute bottom-1 left-1.5 flex gap-0.5 sm:hidden">
+                                {#each getEventsForDay(day).slice(0, 2) as _}
+                                    <div class="w-1 h-1 rounded-full bg-indigo-500"></div>
+                                {/each}
+                                {#if getEventsForDay(day).length > 2}
+                                    <div class="w-1 h-1 rounded-full bg-gray-400 opacity-50"></div>
                                 {/if}
                             </div>
                         {/if}
@@ -449,12 +458,12 @@
         <!-- Recent Campaigns Table -->
         {#if (data.user?.permissions || []).includes('campaigns')}
             <div class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 overflow-hidden animate-premium-fade" style="animation-delay: 700ms;">
-                <div class="p-8 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between bg-gray-50/30 dark:bg-slate-800/30">
+                <div class="p-6 sm:p-8 border-b border-gray-50 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/30 dark:bg-slate-800/30">
                     <div>
-                        <h2 class="text-xl font-black text-gray-900 dark:text-white leading-tight">Recent Activity</h2>
-                        <p class="text-xs font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest">Live statistics and updates</p>
+                        <h2 class="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tight">Recent Activity</h2>
+                        <p class="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest leading-none">Live statistics and updates</p>
                     </div>
-                    <a href="/campaigns" class="px-6 py-2.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shadow-sm">View All</a>
+                    <a href="/campaigns" class="w-full sm:w-auto text-center px-6 py-2.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shadow-sm">View All</a>
                 </div>
 
                 <div class="overflow-x-auto">

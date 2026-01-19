@@ -5,7 +5,7 @@
   import { untrack } from 'svelte';
   let { children, data } = $props();
   let user = $derived(data.user);
-  let currentTheme = $state<'light' | 'dark'>(data.theme || 'light');
+  let currentTheme = $state<'light' | 'dark'>(untrack(() => data.theme) || 'light');
 
   $effect(() => {
     // Root application of theme
@@ -95,17 +95,18 @@
 
 <div class="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500">
   <!-- Mobile Header -->
-  <header class="lg:hidden h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-6 flex items-center justify-between sticky top-0 z-50">
-      <div class="flex items-center space-x-3">
-        <div class="p-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-105 active:scale-95">
-            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-8 object-contain dark:invert">
+  <header class="lg:hidden h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50">
+      <div class="flex items-center space-x-2">
+        <div class="p-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-105 active:scale-95">
+            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-6 object-contain dark:invert">
         </div>
-        <span class="text-xl font-black text-gray-900 dark:text-white tracking-tight leading-none">UniConnect</span>
+        <span class="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none">UniConnect</span>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1">
+        <ThemeToggle bind:currentTheme />
         <button 
             onclick={() => isSidebarOpen = !isSidebarOpen} 
-            class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all"
+            class="p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl transition-all active:scale-90"
             aria-label="Toggle Sidebar"
         >
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -143,7 +144,7 @@
         </button>
 
         {#if showNotifications}
-          <div class="absolute left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2">
+          <div class="absolute left-0 lg:left-auto lg:right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2">
             <div class="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
               <h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Notifications</h3>
               {#if unreadCount > 0}
@@ -229,18 +230,19 @@
   <!-- Main Content -->
   <main class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500">
     <div class="sticky top-0 z-40 bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center">
-      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-3 flex justify-end items-center gap-4">
-        <ThemeToggle bind:currentTheme />
-        
+      <div class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-2 md:py-3 flex justify-end items-center gap-2 sm:gap-4">
+        <div class="hidden lg:block">
+            <ThemeToggle bind:currentTheme />
+        </div>
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
-          <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-sm transition-all hover:shadow-md">
-            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">University:</span>
+          <div class="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl sm:rounded-2xl shadow-sm transition-all hover:shadow-md">
+            <span class="text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">University:</span>
             <select 
               value={user.university_id || 'ALL'} 
               onchange={(e) => switchUniversity(e.currentTarget.value)}
-              class="bg-transparent border-none text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none"
+              class="bg-transparent border-none text-[9px] sm:text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none max-w-[120px] sm:max-w-[200px] truncate"
             >
               {#if user.role === 'ADMIN' || user.role === 'PROGRAM_OPS'}
                 <option value="ALL">All Institutions</option>
@@ -254,8 +256,8 @@
           </div>
         {:else if user?.university_id}
           <!-- Single University Display (ReadOnly) -->
-           <div class="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl opacity-60">
-              <span class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+           <div class="px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl sm:rounded-2xl opacity-60">
+              <span class="text-[8px] sm:text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest truncate max-w-[100px] sm:max-w-none block">
                 {user.universities?.find((u:any) => u.id === user.university_id)?.name || 'Member Access'}
               </span>
            </div>
@@ -264,24 +266,24 @@
         <!-- Account Hub Header -->
         <a 
           href="/profile" 
-          class="flex items-center px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
+          class="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
         >
-          <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform">
+          <div class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-xs sm:text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform">
             {#if user?.profile_picture_url}
-              <img src={user.profile_picture_url} alt={user.name} class="w-full h-full object-cover rounded-xl">
+              <img src={user.profile_picture_url} alt={user.name} class="w-full h-full object-cover rounded-lg sm:rounded-xl">
             {:else}
               {user?.name?.[0] || 'U'}
             {/if}
           </div>
-          <div class="text-right">
-            <div class="text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight">{user?.display_name || user?.name || 'User'}</div>
-            <div class="text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70">My Profile</div>
+          <div class="text-right hidden xs:block">
+            <div class="text-[9px] sm:text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight max-w-[60px] sm:max-w-[100px]">{user?.display_name || user?.name || 'User'}</div>
+            <div class="text-[7px] sm:text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70">My Profile</div>
           </div>
         </a>
 
         <form action="/api/auth/logout" method="POST">
-          <button class="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-all flex items-center justify-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-100 dark:hover:border-red-800 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <button class="p-2 sm:p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-all flex items-center justify-center bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg sm:rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-100 dark:hover:border-red-800 hover:shadow-lg hover:shadow-red-500/5 active:scale-95" title="Sign Out">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </form>
       </div>

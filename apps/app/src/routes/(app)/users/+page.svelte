@@ -176,27 +176,34 @@
     CMA: 'bg-rose-50 text-rose-700 border-rose-200',
     CMA_MANAGER: 'bg-pink-50 text-pink-700 border-pink-200'
   };
+
+  function getAvatarLetters(user: any) {
+    if (user.name) {
+        return user.name.split(' ').map((n:any)=>n[0]).join('').toUpperCase().substring(0,2);
+    }
+    return user.email[0].toUpperCase();
+  }
 </script>
 
 <div class="space-y-8 pb-12">
   <!-- Header & Navigation -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
     <div class="animate-premium-slide">
-      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Team Members <span class="text-xs font-normal text-gray-400 dark:text-slate-500 opacity-50 ml-2">v5.0.0</span></h1>
-      <p class="mt-1 text-gray-500 dark:text-slate-400 font-medium">Manage your team and their access.</p>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight leading-none">Team Members <span class="text-[10px] font-normal text-gray-400 dark:text-slate-500 opacity-50 ml-1">v5.0.0</span></h1>
+      <p class="mt-1 text-xs sm:text-sm text-gray-500 dark:text-slate-400 font-medium">Manage your team and their access.</p>
     </div>
     
-    <div class="flex flex-wrap items-center gap-4">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
         <div class="flex bg-gray-100 dark:bg-slate-800 p-1 rounded-xl shadow-inner">
             <button 
                 onclick={() => activeTab = 'users'}
-                class="px-5 py-2 rounded-lg text-sm font-bold transition-all {activeTab === 'users' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
+                class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all {activeTab === 'users' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
             >
                 Directory
             </button>
             <button 
                 onclick={() => activeTab = 'requests'}
-                class="px-5 py-2 rounded-lg text-sm font-bold transition-all relative {activeTab === 'requests' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
+                class="flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all relative {activeTab === 'requests' ? 'bg-white dark:bg-slate-900 shadow text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:text-slate-400'}"
             >
                 Requests
                 {#if accessRequests.filter(r => r.status === 'PENDING').length > 0}
@@ -209,31 +216,31 @@
 
         <button 
             onclick={() => { editingUserId = null; showModal = true; }}
-            class="inline-flex items-center px-6 py-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 font-bold hover:bg-indigo-700 transition-all active:scale-95"
+            class="flex items-center justify-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20 font-bold hover:bg-indigo-700 transition-all active:scale-95 text-sm"
         >
             <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
             </svg>
-            Add Team Member
+            Add Member
         </button>
     </div>
   </div>
 
   {#if activeTab === 'users'}
     <!-- Search & Filters -->
-    <div class="flex flex-wrap items-end gap-6 bg-gray-50/50 dark:bg-slate-900/40 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner animate-premium-fade stagger-1">
-        <div class="flex-1 min-w-[280px]">
-            <label for="u-search" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Search Members</label>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 bg-gray-50/50 dark:bg-slate-900/40 p-4 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner animate-premium-fade stagger-1">
+        <div class="col-span-1 sm:col-span-2 lg:col-span-1">
+            <label for="u-search" class="block text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 sm:mb-2 ml-1">Search Members</label>
             <div class="relative">
-                <input id="u-search" type="text" bind:value={searchQuery} placeholder="Search by name or email identity..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl pl-12 pr-6 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
-                <svg class="w-5 h-5 absolute left-4 top-3.5 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                <input id="u-search" type="text" bind:value={searchQuery} placeholder="Search identity..." class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl sm:rounded-2xl pl-10 sm:pl-12 pr-4 sm:pr-6 py-2.5 sm:py-3.5 text-xs sm:text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5 absolute left-3.5 sm:left-4 top-3 sm:top-3.5 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </div>
         </div>
         
         {#if data.isGlobalAdmin}
-            <div class="w-[240px]">
-                <label for="filter-univ" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">University Filter</label>
-                <select id="filter-univ" bind:value={filterUniversity} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+            <div>
+                <label for="filter-univ" class="block text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 sm:mb-2 ml-1">University</label>
+                <select id="filter-univ" bind:value={filterUniversity} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3.5 text-xs sm:text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm cursor-pointer">
                     <option value="" class="dark:bg-slate-900">All Universities</option>
                     {#each data.universities as univ}
                         <option value={univ.id} class="dark:bg-slate-900">{univ.name}</option>
@@ -242,9 +249,9 @@
             </div>
         {/if}
 
-        <div class="w-[220px]">
-            <label for="filter-role" class="block text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2 ml-1">Role Filter</label>
-            <select id="filter-role" bind:value={filterRole} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm">
+        <div>
+            <label for="filter-role" class="block text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 sm:mb-2 ml-1">Role</label>
+            <select id="filter-role" bind:value={filterRole} class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3.5 text-xs sm:text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm cursor-pointer">
                 <option value="" class="dark:bg-slate-900">All Roles</option>
                 <option value="ADMIN" class="dark:bg-slate-900">Admin</option>
                 <option value="UNIVERSITY_OPERATOR" class="dark:bg-slate-900">University Admin</option>
@@ -258,67 +265,67 @@
         </div>
     </div>
 
-    <!-- Users Grid/Table -->
-    <div class="flex gap-8 relative items-start">
-        <div class="flex-1 bg-white dark:bg-slate-900 shadow-floating dark:shadow-2xl rounded-[32px] border border-gray-100 dark:border-slate-800 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-100">
-                    <thead class="bg-gray-50/50">
+    <div class="flex flex-col xl:flex-row gap-8 relative items-start">
+        <div class="flex-1 w-full bg-white dark:bg-slate-900 shadow-floating dark:shadow-2xl rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 overflow-hidden">
+            <!-- Desktop Table View -->
+            <div class="hidden sm:block overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-100 dark:divide-slate-800">
+                    <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                         <tr>
-                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Name</th>
-                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Role</th>
-                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 uppercase tracking-widest">Status</th>
-                            <th class="px-6 py-4 text-right text-[11px] font-black text-gray-400 uppercase tracking-widest">Activity</th>
+                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Name</th>
+                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Role</th>
+                            <th class="px-6 py-4 text-left text-[11px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Status</th>
+                            <th class="px-6 py-4 text-right text-[11px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Activity</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-100">
+                    <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
                         {#each filteredUsers as user}
                             <tr 
                                 onclick={() => selectedUser = (selectedUser?.id === user.id ? null : user)}
-                                class="group transition-all duration-200 cursor-pointer {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-900'}"
+                                class="group transition-all duration-200 cursor-pointer {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
                             >
                                 <td class="px-6 py-4">
                                     <div class="flex items-center gap-4">
-                                        <div class="h-10 w-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-sm font-black text-gray-500 dark:text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                                            {user.name ? user.name.split(' ').map((n:any)=>n[0]).join('').toUpperCase().substring(0,2) : user.email[0].toUpperCase()}
+                                        <div class="h-10 w-10 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-sm font-black text-gray-500 dark:text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 dark:group-hover:bg-indigo-900/40 dark:group-hover:text-indigo-400 transition-colors">
+                                            {getAvatarLetters(user)}
                                         </div>
                                         <div>
-                                            <div class="text-sm font-bold text-gray-900">{user.name || 'Incomplete Profile'}</div>
-                                            <div class="text-[11px] font-medium text-gray-400">{user.email}</div>
+                                            <div class="text-sm font-bold text-gray-900 dark:text-gray-100">{user.name || 'Incomplete Profile'}</div>
+                                            <div class="text-[11px] font-medium text-gray-400 dark:text-slate-500">{user.email}</div>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
                                     <div class="flex flex-col gap-1">
-                                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border {roleColors[user.role] || roleColors.BOA} w-fit">
+                                        <span class="inline-flex px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border {roleColors[user.role] || roleColors.BOA} dark:bg-opacity-10 dark:border-opacity-20 w-fit">
                                             {user.role}
                                         </span>
                                         {#if user.universities && user.universities.length > 0}
                                             <div class="flex flex-col">
                                                 {#each user.universities as univ}
-                                                    <span class="text-[9px] font-bold text-indigo-400 leading-tight">• {univ.name}</span>
+                                                    <span class="text-[9px] font-bold text-indigo-400 dark:text-indigo-500 leading-tight">• {univ.name}</span>
                                                 {/each}
                                             </div>
                                         {:else if user.university_name}
-                                            <span class="text-[10px] font-bold text-indigo-400">{user.university_name}</span>
+                                            <span class="text-[10px] font-bold text-indigo-400 dark:text-indigo-500">{user.university_name}</span>
                                         {/if}
                                     </div>
                                 </td>
                                 <td class="px-6 py-4">
                                     {#if user.is_active}
-                                        <div class="flex items-center gap-1.5 text-xs font-bold text-green-600">
+                                        <div class="flex items-center gap-1.5 text-xs font-bold text-green-600 dark:text-green-500">
                                             <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                                             Active
                                         </div>
                                     {:else}
-                                        <div class="flex items-center gap-1.5 text-xs font-bold text-red-400">
+                                        <div class="flex items-center gap-1.5 text-xs font-bold text-red-400 dark:text-red-500">
                                             <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
                                             Suspended
                                         </div>
                                     {/if}
                                 </td>
                                 <td class="px-6 py-4 text-right">
-                                    <div class="text-xs font-bold text-gray-400 uppercase tracking-tighter">
+                                    <div class="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-tighter">
                                         {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : 'New Invite'}
                                     </div>
                                 </td>
@@ -327,69 +334,104 @@
                     </tbody>
                 </table>
             </div>
+
+            <!-- Mobile Card View -->
+            <div class="sm:hidden divide-y divide-gray-100 dark:divide-slate-800">
+                {#each filteredUsers as user}
+                    <div 
+                        onclick={() => selectedUser = (selectedUser?.id === user.id ? null : user)}
+                        class="p-4 flex flex-col gap-3 {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}"
+                    >
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="h-9 w-9 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-xs font-black text-gray-500">
+                                    {getAvatarLetters(user)}
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-sm font-bold text-gray-900 dark:text-white truncate">{user.name || 'New Member'}</div>
+                                    <div class="text-[10px] text-gray-400 dark:text-slate-500 truncate">{user.email}</div>
+                                </div>
+                            </div>
+                            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border {roleColors[user.role] || roleColors.BOA} dark:bg-opacity-10 dark:border-opacity-20 shrink-0">
+                                {user.role}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1">
+                            <div class="flex items-center gap-1.5 text-[10px] font-bold {user.is_active ? 'text-green-600' : 'text-red-400'}">
+                                <span class="w-1.5 h-1.5 rounded-full {user.is_active ? 'bg-green-500 animate-pulse' : 'bg-red-400'}"></span>
+                                {user.is_active ? 'Active' : 'Suspended'}
+                            </div>
+                            <div class="text-[9px] font-black text-gray-400 uppercase tracking-tighter">
+                                {user.last_login_at ? 'Seen: ' + new Date(user.last_login_at).toLocaleDateString() : 'Pending Invite'}
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
             {#if filteredUsers.length === 0}
-                <div class="p-16 flex flex-col items-center justify-center bg-gray-50/20 text-center">
-                    <div class="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center mb-4"><svg class="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4" /></svg></div>
-                    <p class="text-sm font-bold text-gray-900">No matching members</p>
-                    <p class="text-xs text-gray-400 mt-1">Try broadening your search or filters.</p>
+                <div class="p-12 sm:p-16 flex flex-col items-center justify-center bg-gray-50/20 dark:bg-slate-800/10 text-center">
+                    <div class="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center mb-4"><svg class="w-5 h-5 sm:w-6 sm:h-6 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 4v16m8-8H4" /></svg></div>
+                    <p class="text-xs sm:text-sm font-bold text-gray-900 dark:text-white">No matching members</p>
+                    <p class="text-[10px] sm:text-xs text-gray-400 dark:text-slate-500 mt-1">Try broadening your search or filters.</p>
                 </div>
             {/if}
         </div>
 
         <!-- Detail Side Panel -->
         {#if selectedUser}
-            <div class="w-80 h-fit sticky top-6 bg-white rounded-2xl border border-indigo-100 shadow-xl overflow-hidden animate-in slide-in-from-right-8 duration-300">
-                <div class="h-24 bg-gradient-to-br from-indigo-600 to-blue-700 relative">
+            <div class="w-full xl:w-80 h-fit xl:sticky xl:top-6 bg-white dark:bg-slate-900 rounded-2xl border border-indigo-100 dark:border-slate-800 shadow-xl overflow-hidden animate-in slide-in-from-bottom-8 xl:slide-in-from-right-8 duration-300 z-10">
+                <div class="h-20 sm:h-24 bg-gradient-to-br from-indigo-600 to-blue-700 relative">
                      <button onclick={() => selectedUser = null} class="absolute top-4 right-4 p-1.5 bg-black/10 hover:bg-black/20 rounded-full text-white transition-colors" aria-label="Close Details">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
                 <div class="px-6 pb-8 -mt-10 relative">
-                    <div class="h-20 w-20 rounded-2xl bg-white p-1 shadow-lg border border-gray-50 flex items-center justify-center mx-auto mb-4">
-                        <div class="w-full h-full rounded-xl bg-gray-100 flex items-center justify-center text-xl font-black text-indigo-600">
-                            {selectedUser.name ? selectedUser.name[0] : selectedUser.email[0]}
+                    <div class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-white dark:bg-slate-800 p-1 shadow-lg border border-gray-50 dark:border-slate-700 flex items-center justify-center mx-auto mb-4">
+                        <div class="w-full h-full rounded-xl bg-gray-100 dark:bg-slate-900 flex items-center justify-center text-lg sm:text-xl font-black text-indigo-600 dark:text-indigo-400">
+                            {getAvatarLetters(selectedUser)}
                         </div>
                     </div>
                     
                     <div class="text-center space-y-1">
-                        <h3 class="text-xl font-bold text-gray-900">{selectedUser.name || 'New Member'}</h3>
-                        <p class="text-xs font-bold text-indigo-500 uppercase tracking-widest">{selectedUser.role}</p>
+                        <h3 class="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">{selectedUser.name || 'New Member'}</h3>
+                        <p class="text-[10px] sm:text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest">{selectedUser.role}</p>
                     </div>
 
-                    <div class="mt-8 space-y-5">
+                    <div class="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
                         <div class="space-y-1">
-                            <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Contact Email</span>
-                            <p class="text-sm font-bold text-gray-700 break-all">{selectedUser.email}</p>
+                            <span class="block text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Contact Email</span>
+                            <p class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300 break-all">{selectedUser.email}</p>
                         </div>
                         
                         {#if selectedUser.university_name}
                             <div class="space-y-1">
-                                <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Institution</span>
-                                <p class="text-sm font-bold text-gray-700">{selectedUser.university_name}</p>
+                                <span class="block text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Institution</span>
+                                <p class="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300">{selectedUser.university_name}</p>
                             </div>
                         {/if}
 
                         <div class="space-y-1">
-                            <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Contact Options</span>
+                            <span class="block text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Contact Options</span>
                             <div class="flex gap-2 pt-1">
-                                <a href="mailto:{selectedUser.email}" class="flex-1 py-1.5 bg-gray-50 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg border border-gray-100 text-[10px] font-black text-center transition-all uppercase tracking-tighter">📧 Email</a>
+                                <a href="mailto:{selectedUser.email}" class="flex-1 py-1.5 bg-gray-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg border border-gray-100 dark:border-slate-700 text-[9px] sm:text-[10px] font-black text-center transition-all uppercase tracking-tighter">📧 Email</a>
                                 {#if selectedUser.phone}
-                                    <a href="https://wa.me/{selectedUser.phone.replace(/[^0-9]/g, '')}" target="_blank" class="flex-1 py-1.5 bg-gray-50 hover:bg-green-50 hover:text-green-600 rounded-lg border border-gray-100 text-[10px] font-black text-center transition-all uppercase tracking-tighter">💬 WhatsApp</a>
+                                    <a href="https://wa.me/{selectedUser.phone.replace(/[^0-9]/g, '')}" target="_blank" class="flex-1 py-1.5 bg-gray-50 dark:bg-slate-800 hover:bg-green-50 dark:hover:bg-green-900/40 hover:text-green-600 dark:hover:text-green-400 rounded-lg border border-gray-100 dark:border-slate-700 text-[9px] sm:text-[10px] font-black text-center transition-all uppercase tracking-tighter">💬 WhatsApp</a>
                                 {/if}
                             </div>
                         </div>
 
                         {#if selectedUser.bio}
                             <div class="space-y-1">
-                                <span class="block text-[9px] font-black text-gray-400 uppercase tracking-widest">About / Bio</span>
-                                <p class="text-[11px] font-medium text-gray-500 leading-relaxed italic border-l-2 border-gray-100 pl-3">"{selectedUser.bio}"</p>
+                                <span class="block text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">About / Bio</span>
+                                <p class="text-[10px] sm:text-[11px] font-medium text-gray-500 dark:text-slate-400 leading-relaxed italic border-l-2 border-gray-100 dark:border-slate-800 pl-3">"{selectedUser.bio}"</p>
                             </div>
                         {/if}
                     </div>
 
-                    <div class="mt-8 pt-6 border-t border-gray-50 flex flex-col gap-2">
-                        <button onclick={() => openEdit(selectedUser)} class="w-full py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-gray-200 hover:bg-black transition-all">Edit Permissions</button>
-                        <button onclick={() => deleteUser(selectedUser.id)} class="w-full py-2.5 text-red-500 hover:bg-red-50 rounded-xl text-xs font-bold transition-all">Remove from Team</button>
+                    <div class="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-50 dark:border-slate-800 flex flex-col gap-2">
+                        <button onclick={() => openEdit(selectedUser)} class="w-full py-2.5 bg-gray-900 dark:bg-slate-800 text-white rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest shadow-lg shadow-gray-200 dark:shadow-none hover:bg-black dark:hover:bg-slate-700 transition-all">Edit Permissions</button>
+                        <button onclick={() => deleteUser(selectedUser.id)} class="w-full py-2.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-[10px] sm:text-xs font-bold transition-all">Remove from Team</button>
                     </div>
                 </div>
             </div>
