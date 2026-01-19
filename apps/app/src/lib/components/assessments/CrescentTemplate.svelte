@@ -319,24 +319,30 @@
         return courseOutcomes.find((c: any) => c.id === coId)?.code || '';
     }
 
-    // UPDATED: Text update helper to avoid state_unsafe_mutation on derived state
     function updateText(e: Event, type: 'META' | 'QUESTION', key: string, slotId?: string, questionId?: string, subPart?: 'choice1' | 'choice2') {
-        const value = (e.target as HTMLElement).innerText;
+        const target = e.target as HTMLElement;
+        // Use innerHTML for questions to preserve subscripts/styling, innerText for meta
+        const value = type === 'QUESTION' ? target.innerHTML : target.innerText;
         
         if (type === 'META') {
+            if ((paperMeta as any)[key] === value) return;
             (paperMeta as any)[key] = value;
         } else if (type === 'QUESTION') {
             const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
             const slot = arr.find((s: any) => s.id === slotId);
             if (!slot) return;
 
+            let q: any = null;
             if (slot.type === 'SINGLE') {
-                const q = slot.questions.find((q: any) => q.id === questionId);
-                if (q) q.text = value;
+                q = slot.questions.find((q: any) => q.id === questionId);
             } else if (slot.type === 'OR_GROUP') {
                  const choice = subPart === 'choice1' ? slot.choice1 : slot.choice2;
-                 const q = choice.questions.find((q: any) => q.id === questionId);
-                 if (q) q.text = value;
+                 q = choice.questions.find((q: any) => q.id === questionId);
+            }
+
+            // Safety guard: only mutate if different to avoid triggering unnecessary reactive cycles
+            if (q && q.text !== value) {
+                q.text = value;
             }
         }
     }
@@ -600,7 +606,7 @@
         <div class="w-full text-center mb-6">
             <div 
                 contenteditable="true"
-                oninput={(e) => updateText(e, 'META', 'instructions')}
+                onblur={(e) => updateText(e, 'META', 'instructions')}
                 class="text-[11px] font-black uppercase text-gray-900 tracking-[0.2em] border-b-2 border-gray-900 inline-block pb-0.5 {isEditable ? 'outline-none focus:bg-indigo-50/50' : 'pointer-events-none'}"
                 style="color: black !important;"
             >
@@ -643,7 +649,7 @@
                                     <div class="flex justify-between items-start gap-4">
                                         <div 
                                             contenteditable="true" 
-                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
+                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                             class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
                                         >{@html q.text}</div>
                                         {#if q.type === 'MCQ'}
@@ -767,7 +773,7 @@
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                         <div 
                                             contenteditable="true" 
-                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
+                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
                                             class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
                                         >{@html q.text}</div>
                                         {#if isEditable}
@@ -804,7 +810,7 @@
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                         <div 
                                             contenteditable="true" 
-                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
+                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                             class={isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}
                                         >{@html q.text}</div>
                                         {#if isEditable}
@@ -849,9 +855,9 @@
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                         <div 
                                             contenteditable="true" 
-                                            oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
+                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                             class="flex-1 {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
-                                        >{q.text}</div>
+                                        >{@html q.text}</div>
                                         {#if isEditable}
                                             <button 
                                                 onclick={() => openSwapSidebar(slot, 'B')}
@@ -935,7 +941,7 @@
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed">
                                     <div 
                                         contenteditable="true" 
-                                        oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
+                                        onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
                                         class={isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'}
                                     >{@html q.text}</div>
                                     
@@ -980,7 +986,7 @@
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                     <div 
                                         contenteditable="true" 
-                                        oninput={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
+                                        onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                         class={isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'}
                                     >{@html q.text}</div>
                                     {#if isEditable}
