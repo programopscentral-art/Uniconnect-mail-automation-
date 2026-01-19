@@ -56,42 +56,62 @@
     let isSwapSidebarOpen = $state(false);
     let swapContext = $state<any>(null);
 
+    // CRITICAL: Greedy ID Injection
+    // Ensures every item in currentSetData has a permanent ID
+    $effect(() => {
+        const raw = currentSetData;
+        let arr = Array.isArray(raw) ? raw : (raw?.questions || []);
+        let changed = false;
+
+        const ensureId = (obj: any, prefix = 'id-') => {
+            if (!obj.id) {
+                obj.id = prefix + Math.random().toString(36).substr(2, 9);
+                changed = true;
+            }
+        };
+
+        arr.forEach((item: any) => {
+            ensureId(item, 'slot-');
+            if (item.questions) {
+                item.questions.forEach((q: any) => ensureId(q, 'q-'));
+            }
+            ['choice1', 'choice2'].forEach(c => {
+                if (item[c]?.questions) {
+                    item[c].questions.forEach((q: any) => ensureId(q, 'q-'));
+                }
+            });
+        });
+
+        if (changed) {
+            console.log('Greedy ID Injection triggered update');
+            if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+            else currentSetData.questions = [...currentSetData.questions];
+        }
+    });
+
     // Unified resolver for questions array
-    // This ensures even raw question objects from DB are wrapped into the "slot" structure expected by the UI
+    // Uses the permanent IDs injected by the effect above
     let safeQuestions = $derived.by(() => {
         const raw = currentSetData;
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
-        let currentLabelNum = 1;
-
-        const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
-        const getMarks = (q: any) => Number(q.marks || q.mark || 0);
-
-        return arr.map((item: any, idx: number) => {
-            // Use a stable ID if possible, otherwise derive one from index
-            const stableId = item.id || `slot-${activeSet}-${idx}`;
+        
+        return arr.map((item: any) => {
+            // No more index-based IDs! We rely purely on the persistent IDs
+            const stableId = item.id;
             
-            // We create a new object but we try to preserve the questions inside if they haven't changed
-            let n1 = 0, n2 = 0;
-            if (item.type === 'SINGLE' || !item.type) {
-                n1 = currentLabelNum++;
-            } else {
-                n1 = currentLabelNum++;
-                n2 = currentLabelNum++;
-            }
-
             let mappedSlot = { 
                 ...item, 
                 _raw: item, 
-                id: stableId,
-                n1,
-                n2
+                id: stableId
             };
             
+            const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
+            const getMarks = (q: any) => Number(q.marks || q.mark || 0);
+
             if (item.type === 'SINGLE' || !item.type) {
                 const qList = item.questions || [item];
-                mappedSlot.questions = qList.map((q: any, qi: number) => ({
+                mappedSlot.questions = qList.map((q: any) => ({
                     ...q,
-                    id: q.id || `q-${stableId}-${qi}`,
                     text: getTxt(q),
                     marks: getMarks(q)
                 }));
@@ -101,18 +121,16 @@
                 
                 mappedSlot.choice1 = {
                     ...choice1,
-                    questions: (choice1.questions || []).map((q: any, qi: number) => ({
+                    questions: (choice1.questions || []).map((q: any) => ({
                         ...q,
-                        id: q.id || `q1-${stableId}-${qi}`,
                         text: getTxt(q),
                         marks: getMarks(q)
                     }))
                 };
                 mappedSlot.choice2 = {
                     ...choice2,
-                    questions: (choice2.questions || []).map((q: any, qi: number) => ({
+                    questions: (choice2.questions || []).map((q: any) => ({
                         ...q,
-                        id: q.id || `q2-${stableId}-${qi}`,
                         text: getTxt(q),
                         marks: getMarks(q)
                     }))
@@ -361,10 +379,7 @@
         const target = e.target as HTMLElement;
         let value = type === 'QUESTION' ? target.innerHTML : target.innerText;
 
-        // Basic normalization to prevent feedback loops on negligible white-space/tag differences
-        if (type === 'QUESTION') {
-            value = value.trim();
-        }
+        if (type === 'QUESTION') value = value.trim();
         
         if (type === 'META') {
             if ((paperMeta as any)[key] === value) return;
@@ -372,36 +387,34 @@
         } else if (type === 'QUESTION') {
             const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
             
-            // Try ID first, fallback to index if ID is missing (should be fixed by source injection)
+            // Find slot by ID
             let slot = arr.find((s: any) => s.id === slotId);
-            if (!slot && slotId?.startsWith('slot-')) {
-                const idx = parseInt(slotId.split('-').pop() || '');
-                if (!isNaN(idx)) slot = arr[idx];
-            }
-
             if (!slot) return;
 
             let q: any = null;
             if (slot.type === 'SINGLE' || !slot.type) {
                 const subArr = slot.questions || [slot];
-                q = subArr.find((q: any) => q.id === questionId);
+                q = subArr.find((item: any) => item.id === questionId);
             } else if (slot.type === 'OR_GROUP') {
                  const choice = subPart === 'choice1' ? slot.choice1 : slot.choice2;
-                 q = choice.questions.find((q: any) => q.id === questionId);
+                 q = choice.questions.find((item: any) => item.id === questionId);
             }
 
-            // Safety guard: only mutate if different to avoid triggering unnecessary reactive cycles
             if (q && q.text !== value) {
                 q.text = value;
+                // Force reactivity on the bound prop
+                if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+                else currentSetData.questions = [...currentSetData.questions];
             }
         }
     }
 
     const isEditable = $derived(mode === 'edit');
 
-    // Part-Based filtering: NO INDEX SLICING
+    // Part-Based filtering: Dynamic Label Calculation
     let questionsA = $derived.by(() => {
-        return safeQuestions.filter((s: any) => s.part === 'A').map((s: any, idx: number) => ({ ...s, n1: idx + 1 }));
+        const slots = safeQuestions.filter((s: any) => s.part === 'A');
+        return slots.map((s: any, idx: number) => ({ ...s, n1: idx + 1 }));
     });
 
     let questionsB = $derived.by(() => {
@@ -422,7 +435,6 @@
     let questionsC = $derived.by(() => {
         const slots = safeQuestions.filter((s: any) => s.part === 'C');
         
-        // Calculate starting number
         let currentNum = questionsA.length + 1;
         questionsB.forEach((s: any) => {
             currentNum += (s.type === 'OR_GROUP' ? 2 : 1);
