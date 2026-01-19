@@ -21,6 +21,37 @@
         mode = 'view' 
     } = $props();
 
+    // Custom action for robust contenteditable management
+    function editable(node: HTMLElement, params: { value: string, onUpdate: (v: string) => void }) {
+        let { value, onUpdate } = params;
+        node.innerHTML = value || '';
+        let lastValue = value;
+
+        const handleBlur = () => {
+            const current = node.innerHTML;
+            if (current !== lastValue) {
+                lastValue = current;
+                onUpdate(current);
+            }
+        };
+
+        node.addEventListener('blur', handleBlur);
+
+        return {
+            update(newParams: { value: string }) {
+                // ONLY update the DOM if the value changed from an OUTSIDE source
+                // This prevents Svelte from resetting the DOM during focus/composition
+                if (newParams.value !== lastValue) {
+                    lastValue = newParams.value;
+                    node.innerHTML = newParams.value || '';
+                }
+            },
+            destroy() {
+                node.removeEventListener('blur', handleBlur);
+            }
+        };
+    }
+
     // Sidebar state
     let isSwapSidebarOpen = $state(false);
     let swapContext = $state<any>(null);
@@ -31,67 +62,63 @@
         const raw = currentSetData;
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
         let currentLabelNum = 1;
-        
-        return arr.map((item: any, idx: number) => {
-            const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
-            const getMarks = (q: any) => Number(q.marks || q.mark || 0);
 
+        const getTxt = (q: any) => q.text || q.question_text || 'Click to add question text...';
+        const getMarks = (q: any) => Number(q.marks || q.mark || 0);
+
+        return arr.map((item: any, idx: number) => {
             // Use a stable ID if possible, otherwise derive one from index
             const stableId = item.id || `slot-${activeSet}-${idx}`;
-            let mappedSlot = { ...item, _raw: item, id: stableId };
             
-            if (item.type === 'SINGLE' || item.type === 'OR_GROUP' || item.choices) {
-                 if (item.type === 'SINGLE' || !item.type) {
-                    mappedSlot.n1 = currentLabelNum;
-                    currentLabelNum++;
-                 } else {
-                    mappedSlot.n1 = currentLabelNum;
-                    mappedSlot.n2 = currentLabelNum + 1;
-                    currentLabelNum += 2;
-                 }
-
-                if ((item.type === 'SINGLE' || !item.type) && item.questions) {
-                    mappedSlot.questions = item.questions.map((q: any, qi: number) => ({ 
-                        ...q, 
-                        id: q.id || `q-${stableId}-${qi}`,
-                        text: getTxt(q), 
-                        marks: getMarks(q) 
-                    }));
-                } else if (item.type === 'OR_GROUP' || item.choices) {
-                    const choice1 = mappedSlot.choice1 || (item.choices?.[0] ? { questions: [item.choices[0]] } : { questions: [] });
-                    const choice2 = mappedSlot.choice2 || (item.choices?.[1] ? { questions: [item.choices[1]] } : { questions: [] });
-                    
-                    mappedSlot.choice1 = {
-                        ...choice1,
-                        questions: (choice1.questions || []).map((q: any, qi: number) => ({
-                            ...q,
-                            id: q.id || `q1-${stableId}-${qi}`,
-                            text: getTxt(q),
-                            marks: getMarks(q)
-                        }))
-                    };
-                    mappedSlot.choice2 = {
-                        ...choice2,
-                        questions: (choice2.questions || []).map((q: any, qi: number) => ({
-                            ...q,
-                            id: q.id || `q2-${stableId}-${qi}`,
-                            text: getTxt(q),
-                            marks: getMarks(q)
-                        }))
-                    };
-                }
-                return mappedSlot;
+            // We create a new object but we try to preserve the questions inside if they haven't changed
+            let n1 = 0, n2 = 0;
+            if (item.type === 'SINGLE' || !item.type) {
+                n1 = currentLabelNum++;
+            } else {
+                n1 = currentLabelNum++;
+                n2 = currentLabelNum++;
             }
-            
-            // Fallback for raw questions
-            const n = currentLabelNum;
-            currentLabelNum++;
-            return {
-                ...mappedSlot,
-                type: 'SINGLE',
-                n1: n,
-                questions: [{ ...item, id: item.id || `qi-${stableId}`, text: getTxt(item), marks: getMarks(item) }]
+
+            let mappedSlot = { 
+                ...item, 
+                _raw: item, 
+                id: stableId,
+                n1,
+                n2
             };
+            
+            if (item.type === 'SINGLE' || !item.type) {
+                const qList = item.questions || [item];
+                mappedSlot.questions = qList.map((q: any, qi: number) => ({
+                    ...q,
+                    id: q.id || `q-${stableId}-${qi}`,
+                    text: getTxt(q),
+                    marks: getMarks(q)
+                }));
+            } else if (item.type === 'OR_GROUP' || item.choices) {
+                const choice1 = item.choice1 || (item.choices?.[0] ? { questions: [item.choices[0]] } : { questions: [] });
+                const choice2 = item.choice2 || (item.choices?.[1] ? { questions: [item.choices[1]] } : { questions: [] });
+                
+                mappedSlot.choice1 = {
+                    ...choice1,
+                    questions: (choice1.questions || []).map((q: any, qi: number) => ({
+                        ...q,
+                        id: q.id || `q1-${stableId}-${qi}`,
+                        text: getTxt(q),
+                        marks: getMarks(q)
+                    }))
+                };
+                mappedSlot.choice2 = {
+                    ...choice2,
+                    questions: (choice2.questions || []).map((q: any, qi: number) => ({
+                        ...q,
+                        id: q.id || `q2-${stableId}-${qi}`,
+                        text: getTxt(q),
+                        marks: getMarks(q)
+                    }))
+                };
+            }
+            return mappedSlot;
         });
     });
 
@@ -207,32 +234,45 @@
     }
 
     function updateQuestionsFromDnd(items: any[], part: 'A' | 'B' | 'C') {
-        // Find indices for start/end of each part in the master list
-        // const partAIds = questionsA.map(q => q.id);
-        // const partBIds = questionsB.map(q => q.id);
-        // const partCIds = questionsC.map(q => q.id);
+        // Strip UI-specific metadata before saving back to source state
+        // This prevents state pollution and recursive derived loops
+        const cleanItems = items.map(item => {
+            if (item._raw) return item._raw;
+            const { _raw, n1, n2, id, ...rest } = item;
+            return rest;
+        });
 
-        let masterList = [...safeQuestions];
+        const masterList = Array.isArray(currentSetData) ? [...currentSetData] : [...currentSetData.questions];
         
-        // Update PART property of moved items if they switched parts? 
-        // For now let's assume DND is only within parts.
-        
+        let writeIdx = 0;
         if (part === 'A') {
-            const bAndC = masterList.filter(s => s.part !== 'A');
-            masterList = [...items.map(it => ({ ...it, part: 'A'})), ...bAndC];
+            writeIdx = masterList.findIndex(s => s.part === 'A');
         } else if (part === 'B') {
-            const aItems = masterList.filter(s => s.part === 'A');
-            const cItems = masterList.filter(s => s.part === 'C');
-            masterList = [...aItems, ...items.map(it => ({ ...it, part: 'B'})), ...cItems];
-        } else if (part === 'C') {
-            const aAndB = masterList.filter(s => s.part !== 'C');
-            masterList = [...aAndB, ...items.map(it => ({ ...it, part: 'C'}))];
+            writeIdx = masterList.findIndex(s => s.part === 'B');
+        } else {
+            writeIdx = masterList.findIndex(s => s.part === 'C');
+        }
+
+        if (writeIdx === -1) writeIdx = masterList.length;
+
+        const otherParts = masterList.filter(s => s.part !== part);
+        
+        // Reconstruct list based on part
+        let newList = [];
+        if (part === 'A') {
+            newList = [...cleanItems, ...otherParts];
+        } else if (part === 'B') {
+            const partA = otherParts.filter(s => s.part === 'A');
+            const partC = otherParts.filter(s => s.part === 'C');
+            newList = [...partA, ...cleanItems, ...partC];
+        } else {
+            newList = [...otherParts, ...cleanItems];
         }
 
         if (Array.isArray(currentSetData)) {
-            currentSetData = masterList;
+            currentSetData = newList;
         } else {
-            currentSetData.questions = masterList;
+            currentSetData.questions = newList;
         }
     }
 
@@ -564,10 +604,10 @@
                         <td class="border border-gray-900 p-2 text-center w-[2%] font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black uppercase">
                             <span 
+                                use:editable={{ value: paperMeta.paper_date, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'paper_date') }}
                                 contenteditable="true" 
-                                onblur={(e) => updateText(e, 'META', 'paper_date')}
                                 class={isEditable ? 'outline-none' : 'pointer-events-none'}
-                            >{paperMeta.paper_date}</span>
+                            ></span>
                             {#if paperMeta.exam_time}
                                 <span class="ml-2 text-[9px] font-bold text-gray-500">[{paperMeta.exam_time}]</span>
                             {/if}
@@ -579,14 +619,14 @@
                         <td class="border border-gray-900 p-2 text-center font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black uppercase" colspan="4">
                             <span 
+                                use:editable={{ value: paperMeta.course_code, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'course_code') }}
                                 contenteditable="true" 
-                                onblur={(e) => updateText(e, 'META', 'course_code')}
                                 class={isEditable ? 'outline-none' : 'pointer-events-none'}
-                            >{paperMeta.course_code}</span> - <span 
+                            ></span> - <span 
+                                use:editable={{ value: paperMeta.subject_name, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'subject_name') }}
                                 contenteditable="true" 
-                                onblur={(e) => updateText(e, 'META', 'subject_name')}
                                 class={isEditable ? 'outline-none' : 'pointer-events-none'}
-                            >{paperMeta.subject_name}</span>
+                            ></span>
                         </td>
                     </tr>
                     <!-- Row 4: Duration & Max Marks -->
@@ -595,19 +635,19 @@
                         <td class="border border-gray-900 p-2 text-center font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black w-[15%]">
                             <div 
+                                use:editable={{ value: paperMeta.duration_minutes, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'duration_minutes') }}
                                 contenteditable="true" 
-                                onblur={(e) => updateText(e, 'META', 'duration_minutes')}
                                 class={isEditable ? 'outline-none' : 'pointer-events-none'}
-                            >{paperMeta.duration_minutes} Minutes</div>
+                            ></div>
                         </td>
                         <td class="border border-gray-900 p-2 font-bold w-[25%] uppercase tracking-tighter border-l-2">Maximum Marks</td>
                         <td class="border border-gray-900 p-2 text-center w-[2%] font-bold">:</td>
                         <td class="border border-gray-900 p-2 font-black">
                             <div 
+                                use:editable={{ value: paperMeta.max_marks, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'max_marks') }}
                                 contenteditable="true" 
-                                onblur={(e) => updateText(e, 'META', 'max_marks')}
                                 class={isEditable ? 'outline-none' : 'pointer-events-none'}
-                            >{paperMeta.max_marks}</div>
+                            ></div>
                         </td>
                     </tr>
                 </tbody>
@@ -617,12 +657,11 @@
         <!-- Instructions -->
         <div class="w-full text-center mb-6">
             <div 
+                use:editable={{ value: paperMeta.instructions, onUpdate: (v) => updateText({target: {innerText: v}} as any, 'META', 'instructions') }}
                 contenteditable="true"
-                onblur={(e) => updateText(e, 'META', 'instructions')}
                 class="text-[11px] font-black uppercase text-gray-900 tracking-[0.2em] border-b-2 border-gray-900 inline-block pb-0.5 {isEditable ? 'outline-none focus:bg-indigo-50/50' : 'pointer-events-none'}"
                 style="color: black !important;"
             >
-                {paperMeta.instructions || 'ANSWER ALL QUESTIONS'}
             </div>
         </div>
     </div>
@@ -646,7 +685,7 @@
                 {#each questionsA as slot, i (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'SINGLE'}
-                        {#each slot.questions || [] as q}
+                        {#each slot.questions || [] as q (q.id)}
                             <div class="flex min-h-[40px] page-break-avoid relative group border-b border-black last:border-b-0">
                                 {#if isEditable}
                                     <div class="absolute -left-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity print:hidden cursor-grab active:cursor-grabbing">
@@ -661,10 +700,10 @@
                                     <div class="flex justify-between items-start gap-4">
                                         <div class="flex-1">
                                             <div 
+                                                use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id) }}
                                                 contenteditable="true" 
-                                                onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                                 class="w-full block {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
-                                            >{@html q.text}</div>
+                                            ></div>
                                         </div>
                                         {#if q.type === 'MCQ'}
                                             <div class="flex-shrink-0 font-black text-[11px] whitespace-nowrap">[&nbsp;&nbsp;&nbsp;&nbsp;]</div>
@@ -776,7 +815,7 @@
                                 </div>
                             {/if}
                             <!-- Choice 1 -->
-                            {#each slot.choice1?.questions || [] as q, subIdx}
+                            {#each slot.choice1?.questions || [] as q, subIdx (q.id)}
                                 <div class="flex border-b border-black last:border-b-0 min-h-[50px]">
                                 <div class="w-12 border-r border-black p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n1 + '.' : ''}
@@ -787,10 +826,10 @@
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                         <div class="w-full">
                                             <div 
+                                                use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id, 'choice1') }}
                                                 contenteditable="true" 
-                                                onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
                                                 class="w-full block {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
-                                            >{@html q.text}</div>
+                                            ></div>
                                         </div>
                                         {#if isEditable}
                                             <button 
@@ -815,7 +854,7 @@
                             </div>
 
                             <!-- Choice 2 -->
-                            {#each slot.choice2?.questions || [] as q, subIdx}
+                            {#each slot.choice2?.questions || [] as q, subIdx (q.id)}
                                 <div class="flex border-b border-black last:border-b-0 min-h-[50px]">
                                 <div class="w-12 border-r border-black p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n2 + '.' : ''}
@@ -826,10 +865,10 @@
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                         <div class="w-full">
                                             <div 
+                                                use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id, 'choice2') }}
                                                 contenteditable="true" 
-                                                onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                                 class="w-full block {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
-                                            >{@html q.text}</div>
+                                            ></div>
                                         </div>
                                         {#if isEditable}
                                             <button 
@@ -865,19 +904,17 @@
                                     </button>
                                 </div>
                             {/if}
-                            {#each slot.questions || [] as q}
+                            {#each slot.questions || [] as q (q.id)}
                                 <div class="flex min-h-[50px]">
                                     <div class="w-12 border-r border-black p-2 text-center text-[11px] font-black">
                                         {slot.n1 + '.'}
                                     </div>
                                     <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
-                                        <div class="w-full">
                                             <div 
+                                                use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id) }}
                                                 contenteditable="true" 
-                                                onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id)}
                                                 class="w-full block {isEditable ? 'outline-none focus:bg-gray-50' : 'pointer-events-none'}"
-                                            >{@html q.text}</div>
-                                        </div>
+                                            ></div>
                                         {#if isEditable}
                                             <button 
                                                 onclick={() => openSwapSidebar(slot, 'B')}
@@ -950,7 +987,7 @@
                                 </div>
                         {/if}
                         <!-- Choice 1 -->
-                        {#each slot.choice1.questions as q, subIdx}
+                        {#each slot.choice1.questions as q, subIdx (q.id)}
                             <div class="flex border-b border-black dark:border-gray-800 last:border-b-0 min-h-[50px]">
                                 <div class="w-12 border-r border-black dark:border-gray-800 p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n1 + '.' : ''}
@@ -961,10 +998,10 @@
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed">
                                     <div class="w-full">
                                         <div 
+                                            use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id, 'choice1') }}
                                             contenteditable="true" 
-                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice1')}
                                             class="w-full block {isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'}"
-                                        >{@html q.text}</div>
+                                        ></div>
                                     </div>
                                     
                                     {#if q.options && q.options.length > 0}
@@ -997,7 +1034,7 @@
                         </div>
 
                         <!-- Choice 2 -->
-                        {#each slot.choice2?.questions || [] as q, subIdx}
+                        {#each slot.choice2?.questions || [] as q, subIdx (q.id)}
                             <div class="flex border-b border-black dark:border-gray-800 last:border-b-0 min-h-[50px]">
                                 <div class="w-12 border-r border-black dark:border-gray-800 p-2 text-center text-[11px] font-black">
                                     {subIdx === 0 ? slot.n2 + '.' : ''}
@@ -1008,10 +1045,10 @@
                                 <div class="flex-1 p-3 text-[11px] leading-relaxed group relative">
                                     <div class="w-full">
                                         <div 
+                                            use:editable={{ value: q.text, onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'text', slot.id, q.id, 'choice2') }}
                                             contenteditable="true" 
-                                            onblur={(e) => updateText(e, 'QUESTION', 'text', slot.id, q.id, 'choice2')}
                                             class="w-full block {isEditable ? 'outline-none focus:bg-gray-50 dark:focus:bg-gray-800/50' : 'pointer-events-none'} "
-                                        >{@html q.text}</div>
+                                        ></div>
                                     </div>
                                     {#if isEditable}
                                         <button 
