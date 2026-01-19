@@ -94,7 +94,6 @@
         let arr = (Array.isArray(raw) ? raw : (raw?.questions || [])).filter(Boolean);
         
         return arr.map((item: any) => {
-            // No more index-based IDs! We rely purely on the persistent IDs
             const stableId = item.id;
             
             let mappedSlot = { 
@@ -136,6 +135,22 @@
             }
             return mappedSlot;
         });
+    });
+
+    // DND Reliability: Stable local buffers
+    // This prevents "not able to place" bugs caused by derived state thrashing
+    let dndItemsA = $state([]);
+    let dndItemsB = $state([]);
+    let dndItemsC = $state([]);
+    let isDragging = $state(false);
+
+    // Sync buffers when data changes, UNLESS we are dragging
+    $effect(() => {
+        if (!isDragging) {
+            dndItemsA = questionsA;
+            dndItemsB = questionsB;
+            dndItemsC = questionsC;
+        }
     });
 
     function removeQuestion(slot: any) {
@@ -240,13 +255,21 @@
     const dndFlipDurationMs = 300;
 
     function handleDndConsider(e: any, part: 'A' | 'B' | 'C') {
+        isDragging = true;
         const { items } = e.detail;
-        updateQuestionsFromDnd(items, part);
+        if (part === 'A') dndItemsA = items;
+        else if (part === 'B') dndItemsB = items;
+        else if (part === 'C') dndItemsC = items;
     }
 
     function handleDndFinalize(e: any, part: 'A' | 'B' | 'C') {
         const { items } = e.detail;
+        if (part === 'A') dndItemsA = items;
+        else if (part === 'B') dndItemsB = items;
+        else if (part === 'C') dndItemsC = items;
+        
         updateQuestionsFromDnd(items, part);
+        isDragging = false;
     }
 
     function updateQuestionsFromDnd(items: any[], part: 'A' | 'B' | 'C') {
@@ -678,12 +701,12 @@
         </div>
         <div 
             class="w-full border border-black dark:border-gray-800 divide-y divide-black dark:divide-gray-800"
-            use:dndzone={{items: questionsA, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
+            use:dndzone={{items: dndItemsA, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
             onconsider={(e) => handleDndConsider(e, 'A')}
             onfinalize={(e) => handleDndFinalize(e, 'A')}
         >
-            {#if questionsA.length > 0}
-                {#each questionsA as slot, i (slot.id)}
+            {#if dndItemsA.length > 0}
+                {#each dndItemsA as slot, i (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'SINGLE'}
                         {#each slot.questions || [] as q (q.id)}
@@ -792,12 +815,12 @@
         </div>
         <div 
             class="space-y-6"
-            use:dndzone={{items: questionsB, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
+            use:dndzone={{items: dndItemsB, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
             onconsider={(e) => handleDndConsider(e, 'B')}
             onfinalize={(e) => handleDndFinalize(e, 'B')}
         >
-            {#if questionsB.length > 0}
-                {#each questionsB as slot, idx (slot.id)}
+            {#if dndItemsB.length > 0}
+                {#each dndItemsB as slot, idx (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     {#if slot.type === 'OR_GROUP'}
                         <div class="border-2 border-black dark:border-gray-800 page-break-avoid mb-6 relative group">
@@ -966,11 +989,11 @@
             </div>
         <div 
             class="space-y-6"
-            use:dndzone={{items: questionsC, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
+            use:dndzone={{items: dndItemsC, flipDurationMs: dndFlipDurationMs, dragDisabled: !isEditable}}
             onconsider={(e) => handleDndConsider(e, 'C')}
             onfinalize={(e) => handleDndFinalize(e, 'C')}
         >
-                {#each questionsC as slot, idx (slot.id)}
+                {#each dndItemsC as slot, idx (slot.id)}
                     <div animate:flip={{duration: dndFlipDurationMs}} id="slot-{slot.id}">
                     <div class="border-2 border-black dark:border-gray-800 page-break-avoid relative group">
                         {#if isEditable}
