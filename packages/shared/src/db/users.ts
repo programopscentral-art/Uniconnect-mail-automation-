@@ -1,6 +1,6 @@
 import { db } from './client';
 
-export type UserRole = 'ADMIN' | 'PROGRAM_OPS' | 'UNIVERSITY_OPERATOR' | 'COS' | 'PM' | 'PMA' | 'BOA';
+export type UserRole = 'ADMIN' | 'PROGRAM_OPS' | 'UNIVERSITY_OPERATOR' | 'COS' | 'PM' | 'PMA' | 'BOA' | 'CMA' | 'CMA_MANAGER';
 
 export interface User {
     id: string;

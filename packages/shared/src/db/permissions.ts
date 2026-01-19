@@ -30,7 +30,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
     'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
     'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"]
+    'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
+    'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
+    'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"]
 };
 
 export async function seedDefaultPermissions(): Promise<void> {

@@ -172,7 +172,9 @@
     COS: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     PM: 'bg-amber-50 text-amber-700 border-amber-200',
     PMA: 'bg-orange-50 text-orange-700 border-orange-200',
-    BOA: 'bg-gray-50 text-gray-700 border-gray-200'
+    BOA: 'bg-gray-50 text-gray-700 border-gray-200',
+    CMA: 'bg-rose-50 text-rose-700 border-rose-200',
+    CMA_MANAGER: 'bg-pink-50 text-pink-700 border-pink-200'
   };
 </script>
 
@@ -250,6 +252,8 @@
                 <option value="PM" class="dark:bg-slate-900">PM</option>
                 <option value="PMA" class="dark:bg-slate-900">PMA</option>
                 <option value="BOA" class="dark:bg-slate-900">BOA</option>
+                <option value="CMA" class="dark:bg-slate-900">CMA</option>
+                <option value="CMA_MANAGER" class="dark:bg-slate-900">CMA Manager</option>
             </select>
         </div>
     </div>
@@ -482,6 +486,10 @@
                     <option value="PM">PM</option>
                     <option value="PMA">PMA</option>
                     <option value="BOA">BOA</option>
+                    {#if universityIds.includes('13f3513e-9ab1-4515-a97c-1d7ef7bba9fc')}
+                        <option value="CMA">CMA</option>
+                        <option value="CMA_MANAGER">CMA Manager</option>
+                    {/if}
                 </select>
             </div>
             
@@ -537,7 +545,7 @@
         <button onclick={closeModal} class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Discard</button>
         <button 
             onclick={saveUser}
-            disabled={isSubmitting || !email || (role !== 'ADMIN' && universityIds.length === 0 && data.isGlobalAdmin)}
+            disabled={isSubmitting || !email || (role !== 'ADMIN' && universityIds.length === 0 && data.isGlobalAdmin) || ((role === 'CMA' || role === 'CMA_MANAGER') && !universityIds.includes('13f3513e-9ab1-4515-a97c-1d7ef7bba9fc'))}
             class="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
         >
             {isSubmitting ? 'Syncing...' : (editingUserId ? 'Update Permissions' : 'Send Invitation')}
