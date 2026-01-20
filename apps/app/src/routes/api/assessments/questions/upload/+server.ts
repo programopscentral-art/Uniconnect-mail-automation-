@@ -138,7 +138,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             .replace(/[\u201C\u201D]/g, '"')
             .replace(/[\u2013\u2014]/g, '-');
 
-        const cos = await getCourseOutcomes(subjectId);
+        const subjectCos = await getCourseOutcomes(subjectId);
+        const coMap = new Map(subjectCos.map(co => [co.code.toUpperCase(), co.id]));
         const markers: { index: number, type: string, value: string, fullMatch: string }[] = [];
 
         const partRegex = /\bPART\s+([A-G])\b/gi;
@@ -146,12 +147,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const romanMarkerRegex = /(?:^|\s)(VIII|VII|VI|III|II|IV|IX|I|V|X)[\.\)]\s+/gi;
         const numericMarkerRegex = /(?:^|\s)(\d+|[I-X]+-\d+)[\.\)]\s+/gi;
         const optionMarkerRegex = /(?:^|\s|[\.!\?,]|\))(\([a-d]\)|[a-d][\.\)])(?:\s|$)/gi;
+        const unitMarkerRegex = /(?:^|\n)(?:Unit|Module|Chapter)[\s-]*(V|IV|III|II|I|1|2|3|4|5|One|Two|Three|Four|Five)[:\s]*/gi;
 
         let match;
         while ((match = partRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'PART', value: match[1].toUpperCase(), fullMatch: match[0] });
         while ((match = answerKeyRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'ANS_KEY', value: 'KEY', fullMatch: match[0] });
         while ((match = romanMarkerRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'ROMAN', value: match[1].toUpperCase(), fullMatch: match[0] });
         while ((match = numericMarkerRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'NUMBER', value: match[1], fullMatch: match[0] });
+        while ((match = unitMarkerRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'UNIT', value: match[1], fullMatch: match[0] });
 
         markers.sort((a, b) => a.index - b.index);
 
@@ -159,6 +162,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let currentType: 'NORMAL' | 'MCQ' | 'SHORT' | 'LONG' = mode === 'mcq' ? 'MCQ' : 'NORMAL';
         let currentRoman = '';
         let currentMarks = 1;
+
+        let currentDetectedUnitId = unitId;
+        const subjectUnitsRes = await db.query('SELECT * FROM assessment_units WHERE subject_id = $1 ORDER BY unit_number ASC', [subjectId]);
+        const allUnits = subjectUnitsRes.rows;
+
+        if (unitId === 'GLOBAL' && allUnits.length > 0) {
+            currentDetectedUnitId = allUnits[0].id;
+        }
+
+        const romanToNum: Record<string, number> = {
+            'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+            'ONE': 1, 'TWO': 2, 'THREE': 3, 'FOUR': 4, 'FIVE': 5
+        };
 
         for (let i = 0; i < markers.length; i++) {
             const marker = markers[i];
@@ -169,6 +185,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
             if (marker.type === 'ROMAN') {
                 currentRoman = marker.value;
+                continue;
+            }
+            if (marker.type === 'UNIT') {
+                const val = marker.value.toUpperCase();
+                const num = romanToNum[val] || parseInt(val) || 0;
+                if (num > 0) {
+                    let unit = allUnits.find(u => u.unit_number === num);
+                    if (!unit) {
+                        const res = await db.query(
+                            'INSERT INTO assessment_units (subject_id, unit_number, name) VALUES ($1, $2, $3) RETURNING *',
+                            [subjectId, num, `Unit ${num}`]
+                        );
+                        unit = res.rows[0];
+                        allUnits.push(unit);
+                    }
+                    currentDetectedUnitId = unit.id;
+                }
                 continue;
             }
 
@@ -204,9 +237,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const rawId = marker.value;
                 const hierarchicalId = (rawId.includes('-')) ? rawId.toUpperCase() : (currentRoman ? `${currentRoman}-${rawId}` : rawId);
 
-                // 3. AGGRESSIVE CLEANUP: Helper to scrub metadata
+                // 3. METADATA EXTRACTION
+                let bloomLevel = (blockText.match(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*(L[1-5])/i)?.[1] || 'L1').toUpperCase();
+
+                const coCodeMatch = blockText.match(/\b(CO[1-9])\b/i);
+                const coCode = coCodeMatch ? coCodeMatch[1].toUpperCase() : null;
+                const coId = coCode ? coMap.get(coCode) : null;
+
+                const topicMatch = blockText.match(/Topic:\s*([^\n\r\t,]+)/i);
+                let topicId = null;
+                if (topicMatch && currentDetectedUnitId !== 'GLOBAL') {
+                    const tName = topicMatch[1].trim();
+                    const topicCheck = await db.query('SELECT id FROM assessment_topics WHERE unit_id = $1 AND name = $2', [currentDetectedUnitId, tName]);
+                    if (topicCheck.rows.length > 0) {
+                        topicId = topicCheck.rows[0].id;
+                    } else {
+                        const newT = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING id', [currentDetectedUnitId, tName]);
+                        topicId = newT.rows[0].id;
+                    }
+                }
+
+                // 4. AGGRESSIVE CLEANUP: Helper to scrub metadata
                 const scrub = (t: string) => t
-                    .replace(/Bloom's\s*Taxonomy\s*Level:\s*L[1-4]/gi, '')
+                    .replace(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*L[1-5]/gi, '')
+                    .replace(/Topic:\s*[^\n\r\t,]+/gi, '')
                     .replace(/\bCO[1-9]\b/gi, '')
                     .replace(/Course\s*Outcome:\s*CO[1-9]/gi, '')
                     .trim();
@@ -223,11 +277,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 if (qText.length > 3 || options.length > 0) {
                     questionsToCreate.push({
-                        unit_id: unitId,
+                        unit_id: currentDetectedUnitId === 'GLOBAL' ? undefined : currentDetectedUnitId,
+                        topic_id: topicId,
                         question_text: qText || `Question ${rawId}`,
                         marks: mode === 'mcq' ? 1 : currentMarks,
-                        co_id: null,
-                        bloom_level: 'L1',
+                        co_id: coId || undefined,
+                        bloom_level: bloomLevel,
                         answer_key: '',
                         type: options.length > 0 ? 'MCQ' : currentType,
                         options: options,

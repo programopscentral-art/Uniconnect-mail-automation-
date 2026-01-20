@@ -94,18 +94,27 @@
     let mcqFileInput = $state<Record<string, HTMLInputElement>>({});
     let isUploadingQuestions = $state<Record<string, boolean>>({});
 
-    // Excel Modal State
-    let showExcelModal = $state(false);
+    // Import Modal State
+    let showImportModal = $state(false);
     let uploadFiles = $state<FileList | null>(null);
     let detectedSheets = $state<string[]>([]);
     let selectedSheet = $state('');
     let previewHeaders = $state<string[]>([]);
     let previewRows = $state<any[]>([]);
     let masterWorkbook: any = $state(null);
+    let isExcelFile = $derived(uploadFiles && uploadFiles.length > 0 && 
+        (uploadFiles[0].name.toLowerCase().endsWith('.xlsx') || uploadFiles[0].name.toLowerCase().endsWith('.xls')));
 
     $effect(() => {
         if (uploadFiles && uploadFiles.length > 0) {
-            loadWorkbook(uploadFiles[0]);
+            if (isExcelFile) {
+                loadWorkbook(uploadFiles[0]);
+            } else {
+                detectedSheets = [];
+                masterWorkbook = null;
+                previewHeaders = [];
+                previewRows = [];
+            }
         }
     });
 
@@ -140,7 +149,7 @@
         }
     }
 
-    async function confirmExcelUpload() {
+    async function confirmImport() {
         if (!uploadFiles || uploadFiles.length === 0) return;
         isUploadingQuestions['GLOBAL'] = true;
         const formData = new FormData();
@@ -157,7 +166,7 @@
             if (res.ok) {
                 const result = await res.json();
                 alert(`Successfully imported ${result.count} questions!`);
-                showExcelModal = false;
+                showImportModal = false;
                 uploadFiles = null;
                 detectedSheets = [];
                 selectedSheet = '';
@@ -665,33 +674,11 @@
                 </button>
 
                 <button 
-                    onclick={() => showExcelModal = true}
-                    class="inline-flex items-center px-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                    onclick={() => showImportModal = true}
+                    class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white text-[10px] font-black rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40 active:scale-95 disabled:opacity-50"
                 >
-                    <svg class="w-4 h-4 mr-2 text-indigo-400 dark:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 17v-2a4 4 0 014-4h2m3 3l-3-3m3 3l-3 3M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    IMPORT EXCEL BANK
-                </button>
-                 
-                 <input 
-                    type="file" 
-                    accept=".pdf,.docx" 
-                    class="hidden" 
-                    bind:this={fileInput}
-                    onchange={handleFileUpload}
-                 />
-                 
-                 <button 
-                    onclick={() => fileInput.click()}
-                    disabled={isUploading}
-                    class="inline-flex items-center px-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-400 text-[10px] font-black rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50"
-                >
-                    {#if isUploading}
-                        <div class="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent"></div>
-                        PARSING...
-                    {:else}
-                        <svg class="w-4 h-4 mr-2 text-indigo-400 dark:text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                        UPLOAD PDF
-                    {/if}
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    IMPORT QUESTION BANK
                 </button>
             </div>
         </div>
@@ -852,48 +839,8 @@
                                                 <p class="text-[9px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{getUnitQuestions(unit.id).length} Questions available</p>
                                             </div>
                                         {/if}
-                                        <div class="flex gap-3">
-                                            <input 
-                                                type="file" 
-                                                accept=".pdf,.docx" 
-                                                class="hidden" 
-                                                bind:this={qFileInput[unit.id]}
-                                                onchange={(e) => handleQuestionUpload(unit.id, e)}
-                                            />
-                                            <input 
-                                                type="file" 
-                                                accept=".pdf,.docx" 
-                                                class="hidden" 
-                                                bind:this={mcqFileInput[unit.id]}
-                                                onchange={(e) => handleQuestionUpload(unit.id, e, 'mcq')}
-                                            />
-                                            <button 
-                                                onclick={() => mcqFileInput[unit.id].click()}
-                                                disabled={isUploadingQuestions[unit.id]}
-                                                class="inline-flex items-center px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white text-[9px] font-black rounded-xl hover:bg-slate-800 dark:hover:bg-slate-700 transition-all shadow-lg shadow-slate-100 dark:shadow-slate-950 disabled:opacity-50"
-                                            >
-                                                {#if isUploadingQuestions[unit.id]}
-                                                    <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                                                    UPLOADING...
-                                                {:else}
-                                                    <svg class="w-3.5 h-3.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
-                                                    UPLOAD MCQS
-                                                {/if}
-                                            </button>
-
-                                            <button 
-                                                onclick={() => qFileInput[unit.id].click()}
-                                                disabled={isUploadingQuestions[unit.id]}
-                                                class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white text-[9px] font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-indigo-950/40 disabled:opacity-50"
-                                            >
-                                                {#if isUploadingQuestions[unit.id]}
-                                                    <div class="w-3 h-3 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                                                    UPLOADING...
-                                                {:else}
-                                                    <svg class="w-3 h-3 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                                                    UPLOAD BANK
-                                                {/if}
-                                            </button>
+                                         <div class="flex gap-3">
+                                            <!-- Unit-specific imports removed in favor of global import -->
                                         </div>
                                     </div>
 
@@ -1460,13 +1407,13 @@
 </div>
 {/if}
 
-{#if showExcelModal}
+{#if showImportModal}
 <div class="fixed z-[70] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
   <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
     <div 
       class="fixed inset-0 bg-gray-950/80 backdrop-blur-sm transition-opacity" 
-      onclick={() => showExcelModal = false}
-      onkeydown={(e) => e.key === 'Escape' && (showExcelModal = false)}
+      onclick={() => showImportModal = false}
+      onkeydown={(e) => e.key === 'Escape' && (showImportModal = false)}
       role="button"
       tabindex="-1"
       aria-label="Close Modal"
@@ -1481,16 +1428,16 @@
             <div class="border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-[2.5rem] p-10 text-center hover:border-indigo-500 dark:hover:border-indigo-400 transition-all bg-gray-50/50 dark:bg-slate-800/30 group">
                 <input 
                     type="file" 
-                    id="excel-upload"
-                    accept=".xlsx,.xls"
+                    id="import-upload"
+                    accept=".xlsx, .xls, .pdf, .docx, .doc"
                     bind:files={uploadFiles}
                     class="hidden"
                 />
-                <label for="excel-upload" class="cursor-pointer block">
+                <label for="import-upload" class="cursor-pointer block">
                   <div class="w-16 h-16 bg-white dark:bg-slate-800 rounded-3xl shadow-sm mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <svg class="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                   </div>
-                  <p class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Select Question Spreadsheet</p>
+                  <p class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Select Question Bank (PDF/DOCX/XLSX)</p>
                   {#if uploadFiles && uploadFiles.length > 0}
                     <div class="mt-4 px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-xl inline-block shadow-lg">
                       LOADED: {uploadFiles[0].name}
@@ -1553,7 +1500,7 @@
       <div class="bg-gray-50/80 dark:bg-slate-800/50 backdrop-blur-md px-8 py-6 sm:px-10 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800 rounded-b-[3rem]">
         <button 
             type="button" 
-            onclick={confirmExcelUpload}
+            onclick={confirmImport}
             disabled={isUploadingQuestions['GLOBAL'] || !uploadFiles}
             class="w-full inline-flex justify-center rounded-2xl border border-transparent shadow-lg px-6 py-3 bg-indigo-600 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-indigo-700 transition-all sm:ml-4 sm:w-auto active:scale-95 disabled:opacity-30"
         >
@@ -1561,7 +1508,7 @@
         </button>
         <button 
             type="button" 
-            onclick={() => { showExcelModal = false; uploadFiles = null; }}
+            onclick={() => { showImportModal = false; uploadFiles = null; }}
             class="mt-3 w-full inline-flex justify-center rounded-2xl border border-gray-100 dark:border-slate-800 px-6 py-3 bg-white dark:bg-slate-900 text-[11px] font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all sm:mt-0 sm:w-auto active:scale-95 shadow-sm"
         >
           CANCEL
