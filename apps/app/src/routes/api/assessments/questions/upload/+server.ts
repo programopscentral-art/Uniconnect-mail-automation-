@@ -40,11 +40,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const questionsToCreate: any[] = [];
 
-        // Helper for flexible header matching
-        const findVal = (row: any, keywords: string[]) => {
+        /**
+         * Refined header matcher
+         * Pass 1: Exact matches
+         * Pass 2: Partial matches (excluding numbering columns)
+         */
+        const findVal = (row: any, keywords: string[], isContent: boolean = false) => {
             const keys = Object.keys(row);
+
+            // Pass 1: Exact Match
             for (const kw of keywords) {
-                const found = keys.find(k => k.toLowerCase().trim() === kw.toLowerCase().trim() || k.toLowerCase().includes(kw.toLowerCase()));
+                const found = keys.find(k => k.toLowerCase().trim() === kw.toLowerCase().trim());
+                if (found) return row[found];
+            }
+
+            // Pass 2: Partial Match
+            for (const kw of keywords) {
+                const found = keys.find(k => {
+                    const lowK = k.toLowerCase();
+                    const lowKw = kw.toLowerCase();
+                    if (!lowK.includes(lowKw)) return false;
+
+                    // If we're looking for question content, avoid columns that sound like "No." or "Index"
+                    if (isContent) {
+                        if (lowK.includes('no.') || lowK.includes('number') || lowK.includes('index') || lowK.includes('sno') || lowK.includes('s.no')) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
                 if (found) return row[found];
             }
             return null;
@@ -64,8 +88,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         (sName.toLowerCase().includes('fill') ? 'FILL_IN_BLANK' : 'SHORT'));
 
                 for (const row of rows as any[]) {
-                    const qText = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question']);
-                    if (!qText || qText.toString().trim().length < 2) continue;
+                    // Look for question text, avoiding numbering columns
+                    const qText = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true);
+
+                    // Increased minimum length to 5 to filter out stray numbers like "23", "22"
+                    if (!qText || qText.toString().trim().length < 5) continue;
 
                     // Intelligent Unit Resolution
                     const rawModNum = findVal(row, ['Module Number', 'Unit Number', 'Module #', 'Unit #']);
@@ -79,11 +106,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     if (!unit && rawModName) {
                         const searchName = rawModName.toString().trim().toLowerCase();
-                        unit = allUnits.find(u => u.name?.toLowerCase().includes(searchName) || searchName.includes(u.name?.toLowerCase() || '---'));
+                        unit = allUnits.find(u => {
+                            const uName = u.name?.toLowerCase() || '';
+                            return uName.includes(searchName) || searchName.includes(uName);
+                        });
                     }
 
                     if (!unit) {
-                        // Fallback to the first unit if we're importing into a specific unit, or Unit 1
                         unit = (unitId !== 'GLOBAL') ? allUnits.find(u => u.id === unitId) : allUnits[0];
                         if (!unit) {
                             const res = await db.query('INSERT INTO assessment_units (subject_id, unit_number, name) VALUES ($1, 1, \'Unit 1\') RETURNING *', [subjectId]);
@@ -101,8 +130,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         allTopics.push(topic);
                     }
 
-                    const bloom = (findVal(row, ['Difficulty level', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
-                    const marks = parseInt(findVal(row, ['Marks', 'marks']) || (qType === 'MCQ' ? 1 : 2)) || 2;
+                    // Metadata Extraction
+                    const bloomRaw = (findVal(row, ['Difficulty level', 'Bloom Level', 'bloom_level', 'Difficulty']) || 'L1').toString().toUpperCase().trim();
+                    const bloom = ['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1';
+
+                    const marksRaw = findVal(row, ['Marks', 'marks', 'Points', 'Weightage']);
+                    const marks = parseInt(marksRaw) || (qType === 'MCQ' ? 1 : 2);
+
                     const coCode = (findVal(row, ['CO', 'Course Outcome', 'co_code']) || '').toString().toUpperCase().trim();
                     const coId = coCode ? coMap.get(coCode) : null;
 
@@ -110,7 +144,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         unit_id: unit.id,
                         topic_id: topic.id,
                         question_text: qText.toString().trim(),
-                        bloom_level: ['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloom) ? bloom : 'L1',
+                        bloom_level: bloom,
                         marks: marks,
                         type: qType,
                         co_id: coId || null,
