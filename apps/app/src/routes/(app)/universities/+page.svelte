@@ -69,7 +69,7 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-    {#each data.universities as univ, i}
+    {#each data.universities.filter(u => !u.is_team) as univ, i}
       {@const connectedMailboxes = data.mailboxes.filter(m => m.university_id === univ.id && m.status === 'ACTIVE')}
       {@const isConnected = connectedMailboxes.length > 0}
       <div 

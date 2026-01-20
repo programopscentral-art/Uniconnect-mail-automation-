@@ -15,6 +15,7 @@
   let editingUserId = $state<string | null>(null);
   let phone = $state('');
   let bio = $state('');
+  let selectedTeamId = $state(''); // Dedicated state for the user's primary team
   let displayName = $state('');
   let showUniversityDropdown = $state(false);  // For multi-select dropdown
 
@@ -56,7 +57,9 @@
             bio,
             display_name: displayName || name,
             role,
-            university_ids: (role !== 'ADMIN' && role !== 'PROGRAM_OPS') ? universityIds : []
+            university_ids: (role !== 'ADMIN' && role !== 'PROGRAM_OPS') 
+                ? [selectedTeamId, ...universityIds].filter(Boolean) 
+                : []
         };
         
         const method = editingUserId ? 'PATCH' : 'POST';
@@ -96,8 +99,12 @@
       bio = user.bio || '';
       displayName = user.display_name || '';
       role = user.role;
-      // Load universities from the universities array if available
-      universityIds = user.universities?.map((u: any) => u.id) || (user.university_id ? [user.university_id] : []);
+      
+      // Separate teams from institutions
+      const userTeams = user.universities?.filter((u: any) => u.is_team) || [];
+      selectedTeamId = userTeams[0]?.id || '';
+      universityIds = user.universities?.filter((u: any) => !u.is_team).map((u: any) => u.id) || [];
+      
       showModal = true;
   }
 
@@ -114,6 +121,7 @@
       displayName = '';
       role = 'UNIVERSITY_OPERATOR';
       universityIds = [];
+      selectedTeamId = '';
   }
 
   function toggleUniversity(univId: string) {
@@ -146,7 +154,7 @@
   let filteredUsers = $derived(data.users.filter((u: any) => {
     if (searchQuery && !u.name?.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterRole && u.role !== filterRole) return false;
-    if (filterUniversity && u.university_id !== filterUniversity) return false;
+    if (filterUniversity && !u.universities?.some((univ: any) => univ.id === filterUniversity) && u.university_id !== filterUniversity) return false;
     return true;
   }));
 
@@ -281,7 +289,10 @@
                     <tbody class="divide-y divide-gray-100 dark:divide-slate-800">
                         {#each filteredUsers as user}
                             <tr 
+                                role="button"
+                                tabindex="0"
                                 onclick={() => selectedUser = (selectedUser?.id === user.id ? null : user)}
+                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedUser = (selectedUser?.id === user.id ? null : user); } }}
                                 class="group transition-all duration-200 cursor-pointer {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
                             >
                                 <td class="px-6 py-4">
@@ -301,10 +312,15 @@
                                             {user.role}
                                         </span>
                                         {#if user.universities && user.universities.length > 0}
-                                            <div class="flex flex-col">
-                                                {#each user.universities as univ}
-                                                    <span class="text-[9px] font-bold text-indigo-400 dark:text-indigo-500 leading-tight">• {univ.name}</span>
+                                            <div class="flex flex-col gap-1">
+                                                {#each user.universities.filter((u: any) => u.is_team) as team}
+                                                    <span class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 leading-tight uppercase tracking-widest">Team: {team.name}</span>
                                                 {/each}
+                                                <div class="flex flex-wrap gap-1 mt-0.5">
+                                                    {#each user.universities.filter((u: any) => !u.is_team) as univ}
+                                                        <span class="text-[8px] font-bold text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-800/50 px-1.5 py-0.5 rounded border border-gray-100 dark:border-slate-700/50 shrink-0">{univ.name}</span>
+                                                    {/each}
+                                                </div>
                                             </div>
                                         {:else if user.university_name}
                                             <span class="text-[10px] font-bold text-indigo-400 dark:text-indigo-500">{user.university_name}</span>
@@ -339,7 +355,10 @@
             <div class="sm:hidden divide-y divide-gray-100 dark:divide-slate-800">
                 {#each filteredUsers as user}
                     <div 
+                        role="button"
+                        tabindex="0"
                         onclick={() => selectedUser = (selectedUser?.id === user.id ? null : user)}
+                        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedUser = (selectedUser?.id === user.id ? null : user); } }}
                         class="p-4 flex flex-col gap-3 {selectedUser?.id === user.id ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}"
                     >
                         <div class="flex items-center justify-between">
@@ -547,6 +566,17 @@
 
             {#if data.isGlobalAdmin}
             <div class="col-span-2">
+                <label for="f-team" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Assigned Team</label>
+                <select id="f-team" bind:value={selectedTeamId} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                    <option value="">No Team Assigned</option>
+                    {#each data.universities.filter((u:any) => u.is_team) as team}
+                        <option value={team.id}>{team.name}</option>
+                    {/each}
+                </select>
+                <p class="mt-1.5 ml-1 text-[9px] text-gray-400 font-medium">Members can assign tasks to others in the same team.</p>
+            </div>
+
+            <div class="col-span-2">
                 <div class="flex items-center justify-between mb-3 px-1">
                     <span id="assign-inst-label" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Assign to Institutions</span>
                     <div class="flex gap-3">
@@ -555,7 +585,7 @@
                     </div>
                 </div>
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-48 overflow-y-auto space-y-2 shadow-inner" aria-labelledby="assign-inst-label">
-                    {#each data.universities as univ}
+                    {#each data.universities.filter((u:any) => !u.is_team) as univ}
                         <label class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:bg-indigo-50/50 hover:border-indigo-100 cursor-pointer transition-all group">
                             <input
                                 type="checkbox"

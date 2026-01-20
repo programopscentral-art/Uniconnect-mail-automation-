@@ -48,7 +48,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
             u.id, u.email, u.role, u.university_id, u.name, u.is_active,
             COALESCE(
                 (
-                    SELECT json_agg(json_build_object('id', un.id, 'name', un.name) ORDER BY un.name)
+                    SELECT json_agg(json_build_object('id', un.id, 'name', un.name, 'is_team', un.is_team) ORDER BY un.name)
                     FROM user_universities uu
                     JOIN universities un ON uu.university_id = un.id
                     WHERE uu.user_id = u.id

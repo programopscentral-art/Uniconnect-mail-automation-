@@ -34,7 +34,7 @@ export async function getAllUsers(universityId?: string) {
            u_univ.name as university_name,
            COALESCE(
                json_agg(
-                   json_build_object('id', uu_univ.id, 'name', uu_univ.name)
+                   json_build_object('id', uu_univ.id, 'name', uu_univ.name, 'is_team', uu_univ.is_team)
                ) FILTER (WHERE uu_univ.id IS NOT NULL),
                '[]'::json
            ) as universities

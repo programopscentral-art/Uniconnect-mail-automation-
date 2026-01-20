@@ -129,60 +129,6 @@
             <span class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mt-1.5 tracking-widest uppercase opacity-70">Program Operations</span>
         </div>
       </div>
-      <!-- Notification Bell -->
-      <div class="relative">
-        <button 
-          onclick={() => showNotifications = !showNotifications}
-          class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors relative"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          {#if unreadCount > 0}
-            <span class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
-          {/if}
-        </button>
-
-        {#if showNotifications}
-          <div class="absolute left-0 lg:left-auto lg:right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2">
-            <div class="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
-              <h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Notifications</h3>
-              {#if unreadCount > 0}
-                <span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold">{unreadCount} New</span>
-              {/if}
-            </div>
-            <div class="max-h-96 overflow-y-auto">
-              {#each notifications as n}
-                <div class="p-4 border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group {n.is_read ? 'opacity-60' : ''}">
-                  <div class="flex justify-between items-start gap-2">
-                    <div>
-                      <div class="text-xs font-bold text-gray-900 dark:text-gray-100">{n.title}</div>
-                      <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
-                      <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-2">
-                        <span>{new Date(n.created_at).toLocaleDateString()}</span>
-                        {#if !n.is_read}
-                          <button 
-                            onclick={() => markRead(n.id)} 
-                            aria-label="Mark notification as read"
-                            class="text-blue-600 dark:text-blue-400 hover:underline font-bold"
-                          >
-                            Mark as Read
-                          </button>
-                        {/if}
-                      </div>
-                    </div>
-                    {#if n.link}
-                      <a href={n.link} class="text-xs text-blue-600 font-bold hover:underline">View</a>
-                    {/if}
-                  </div>
-                </div>
-              {:else}
-                <div class="p-8 text-center text-gray-400 text-xs">No notifications yet</div>
-              {/each}
-            </div>
-          </div>
-        {/if}
-      </div>
     </div>
 
     <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto">
@@ -234,21 +180,76 @@
         <div class="hidden lg:block">
             <ThemeToggle bind:currentTheme />
         </div>
+
+        <!-- Notification Bell -->
+        <div class="relative">
+          <button 
+            onclick={() => showNotifications = !showNotifications}
+            class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors relative"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            {#if unreadCount > 0}
+              <span class="absolute top-1 right-1 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white dark:ring-gray-900"></span>
+            {/if}
+          </button>
+
+          {#if showNotifications}
+            <div class="absolute right-0 mt-2 w-72 sm:w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 animate-in fade-in slide-in-from-top-2">
+              <div class="p-4 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Notifications</h3>
+                {#if unreadCount > 0}
+                  <span class="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold">{unreadCount} New</span>
+                {/if}
+              </div>
+              <div class="max-h-96 overflow-y-auto">
+                {#each notifications as n}
+                  <div class="p-4 border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group {n.is_read ? 'opacity-60' : ''}">
+                    <div class="flex justify-between items-start gap-2">
+                      <div>
+                        <div class="text-xs font-bold text-gray-900 dark:text-gray-100">{n.title}</div>
+                        <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                        <div class="text-[10px] text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-2">
+                          <span>{new Date(n.created_at).toLocaleDateString()}</span>
+                          {#if !n.is_read}
+                            <button 
+                              onclick={() => markRead(n.id)} 
+                              aria-label="Mark notification as read"
+                              class="text-blue-600 dark:text-blue-400 hover:underline font-bold"
+                            >
+                              Mark as Read
+                            </button>
+                          {/if}
+                        </div>
+                      </div>
+                      {#if n.link}
+                        <a href={n.link} class="text-xs text-blue-600 font-bold hover:underline">View</a>
+                      {/if}
+                    </div>
+                  </div>
+                {:else}
+                  <div class="p-8 text-center text-gray-400 text-xs">No notifications yet</div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </div>
         
         <!-- Institutional Context Selector -->
         {#if user && (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS' || (user.universities && user.universities.length > 1))}
           <div class="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl sm:rounded-2xl shadow-sm transition-all hover:shadow-md">
-            <span class="text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">University:</span>
+            <span class="text-[8px] sm:text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest hidden sm:block">Team:</span>
             <select 
               value={user.university_id || 'ALL'} 
               onchange={(e) => switchUniversity(e.currentTarget.value)}
               class="bg-transparent border-none text-[9px] sm:text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight focus:ring-0 cursor-pointer outline-none max-w-[120px] sm:max-w-[200px] truncate"
             >
               {#if user.role === 'ADMIN' || user.role === 'PROGRAM_OPS'}
-                <option value="ALL">All Institutions</option>
+                <option value="ALL">All Teams</option>
               {/if}
               {#if user.universities}
-                {#each user.universities as univ}
+                {#each user.universities.filter(u => u.is_team) as univ}
                   <option value={univ.id}>{univ.name}</option>
                 {/each}
               {/if}

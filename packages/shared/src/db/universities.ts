@@ -6,6 +6,7 @@ export interface University {
     slug: string;
     short_name: string | null;
     email_domain: string | null;
+    is_team: boolean;
     created_at: Date;
     updated_at: Date;
 }

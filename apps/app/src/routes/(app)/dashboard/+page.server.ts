@@ -1,4 +1,4 @@
-import { getDashboardStats, getTaskStats, getAllUniversities, getTasks, getScheduleEvents, getDayPlans } from '@uniconnect/shared';
+import { getDashboardStats, getTaskStats, getAllUniversities, getTasks, getScheduleEvents, getDayPlans, getAllUsers } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const hasTasks = locals.user.permissions?.includes('tasks');
 
     try {
-        const [stats, rawTaskStats, universities, tasks, scheduleEvents, dayPlans] = await Promise.all([
+        const [stats, rawTaskStats, universities, tasks, scheduleEvents, dayPlans, allUsers] = await Promise.all([
             hasCampaigns ? getDashboardStats(effectiveUniversityId) : Promise.resolve({
                 total_campaigns: 0, active_campaigns: 0, total_emails_sent: 0,
                 avg_open_rate: 0, remaining_credits: 0, recent_campaigns: [],
@@ -35,7 +35,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             // Upcoming tasks: only show self-assigned tasks
             hasTasks ? getTasks({ assigned_to: locals.user.id }) : Promise.resolve([]),
             getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined),
-            getDayPlans(locals.user.id, today)
+            getDayPlans(locals.user.id, today),
+            hasTasks ? getAllUsers(effectiveUniversityId || undefined) : Promise.resolve([])
         ]);
 
         console.log('[DASHBOARD_LOAD] Stats Fetched Successfully');
@@ -54,13 +55,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             taskStats,
             universities,
             tasks: tasks || [],
+            allUsers: allUsers || [],
             scheduleEvents: scheduleEvents || [],
             dayPlans: dayPlans || [],
             selectedUniversityId: universityId,
             userRole: locals.user.role,
             userId: locals.user.id,
             defaultUniversityId: locals.user.university_id,
-            userPermissions: locals.user.permissions || [] // Added for permission check in Svelte component
+            userPermissions: locals.user.permissions || []
         };
     } catch (err: any) {
         console.error('[DASHBOARD_LOAD] CRITICAL ERROR:', err);
@@ -73,6 +75,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             taskStats: { total: 0, completed: 0, pending: 0, in_progress: 0, overdue: 0 },
             universities: [],
             tasks: [],
+            allUsers: [],
             scheduleEvents: [],
             dayPlans: [],
             selectedUniversityId: universityId,

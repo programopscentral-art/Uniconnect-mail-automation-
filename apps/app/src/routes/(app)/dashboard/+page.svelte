@@ -37,8 +37,16 @@
         priority: 'MEDIUM',
         assigned_to: '',
         university_id: '',
-        due_date: new Date().toISOString().slice(0, 16)
+        due_date: new Date().toISOString().slice(0, 16),
+        status: 'PENDING'
     });
+
+    const statusLabels: Record<string, string> = {
+        PENDING: 'Pending',
+        IN_PROGRESS: 'Processing',
+        COMPLETED: 'Completed',
+        CANCELLED: 'Cancelled'
+    };
 
     $effect(() => {
         if (!taskForm.assigned_to) taskForm.assigned_to = data.userId;
@@ -229,7 +237,8 @@
                     priority: 'MEDIUM',
                     assigned_to: data.userId,
                     university_id: data.defaultUniversityId || '',
-                    due_date: new Date().toISOString().slice(0, 16)
+                    due_date: new Date().toISOString().slice(0, 16),
+                    status: 'PENDING'
                 };
                 await invalidateAll();
             } else {
@@ -781,7 +790,7 @@
                             </div>
                             
                             <div class="flex flex-col items-end gap-2">
-                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-white border font-black uppercase tracking-widest">{event.status || event.type}</span>
+                                <span class="text-[9px] px-2 py-0.5 rounded-full bg-white border font-black uppercase tracking-widest">{statusLabels[event.status] || event.status || event.type}</span>
                                 <div class="flex gap-2">
                                     {#if event.type === 'TASK' && event.status !== 'COMPLETED'}
                                         <button onclick={() => toggleStatus(event)} class="px-2 py-1 bg-green-600 text-white rounded text-[10px] font-bold shadow-sm hover:bg-green-700 transition-colors">Mark Done</button>
@@ -854,6 +863,35 @@
             <div>
                 <label for="task-due" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1">Due Date</label>
                 <input id="task-due" type="datetime-local" bind:value={taskForm.due_date} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+            </div>
+        </div>
+        <div class="grid grid-cols-1 gap-4">
+            <div>
+                <label for="task-assign" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1">Assign To (Team Member)</label>
+                <select id="task-assign" bind:value={taskForm.assigned_to} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                    <option value="">Self (Me)</option>
+                    {#each data.allUsers.filter((u:any) => u.id !== data.userId) as teamUser}
+                        <option value={teamUser.id}>{teamUser.name || teamUser.email}</option>
+                    {/each}
+                </select>
+            </div>
+            <div>
+                <label for="task-univ" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1">Institutional Context (Optional)</label>
+                <select id="task-univ" bind:value={taskForm.university_id} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                    <option value="">None / General</option>
+                    {#each data.universities as univ}
+                        <option value={univ.id}>{univ.name}</option>
+                    {/each}
+                </select>
+            </div>
+            <div>
+                <label for="task-status" class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1">Initial Status</label>
+                <select id="task-status" bind:value={taskForm.status} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                    <option value="PENDING">Pending</option>
+                    <option value="IN_PROGRESS">Processing</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                </select>
             </div>
         </div>
       </div>
