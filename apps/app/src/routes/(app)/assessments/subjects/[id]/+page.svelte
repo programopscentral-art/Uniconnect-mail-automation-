@@ -119,33 +119,44 @@
     });
 
     async function loadWorkbook(file: File) {
-        const XLSX = await import('xlsx');
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const data = new Uint8Array(e.target?.result as ArrayBuffer);
-            const workbook = XLSX.read(data, { type: 'array' });
-            masterWorkbook = workbook;
-            detectedSheets = workbook.SheetNames;
-            if (detectedSheets.length > 0) selectedSheet = detectedSheets[0];
-        };
-        reader.readAsArrayBuffer(file);
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const res = await fetch('/api/assessments/questions/analyze', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                detectedSheets = data.sheetNames;
+                if (detectedSheets.length > 0) selectedSheet = detectedSheets[0];
+                previewHeaders = data.headers;
+                previewRows = data.previewRows;
+            }
+        } catch (err) {
+            console.error('Analysis failed', err);
+        }
     }
 
-    $effect(() => {
-        if (masterWorkbook && selectedSheet) {
-            updatePreview(masterWorkbook, selectedSheet);
-        }
-    });
-
     async function updatePreview(workbook: any, sheetName: string) {
-        const XLSX = await import('xlsx');
-        const sheet = workbook.Sheets[sheetName];
-        if (!sheet) return;
-        const rawData = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1 });
-        const jsonData = rawData.filter(row => row && row.length > 0 && row.some(cell => cell !== null && cell !== ''));
-        if (jsonData.length > 0) {
-            previewHeaders = (jsonData[0] as string[]) || [];
-            previewRows = jsonData.slice(1, 6);
+        if (!uploadFiles || uploadFiles.length === 0) return;
+        const formData = new FormData();
+        formData.append('file', uploadFiles[0]);
+        formData.append('sheetName', sheetName);
+        
+        try {
+            const res = await fetch('/api/assessments/questions/analyze', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                previewHeaders = data.headers;
+                previewRows = data.previewRows;
+            }
+        } catch (err) {
+            console.error('Preview update failed', err);
         }
     }
 
@@ -323,6 +334,36 @@
     let showSmartParser = $state(false);
     let smartSyllabusText = $state('');
     let isImporting = $state(false);
+    let syllabusFileInput = $state<HTMLInputElement | null>(null);
+
+    async function handleSyllabusFileUpload(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) return;
+
+        isImporting = true;
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/assessments/parse-pdf', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                const { text } = await res.json();
+                smartSyllabusText = text;
+            } else {
+                const err = await res.json();
+                alert(`Error: ${err.message || 'Failed to parse file'}`);
+            }
+        } catch (err) {
+            alert('Failed to parse file. Ensure it is a valid PDF/DOCX/XLSX.');
+        } finally {
+            isImporting = false;
+            target.value = '';
+        }
+    }
 
     let showSettings = $state(false);
     let editedDifficultyLevels = $state<string[]>([]);
@@ -1125,7 +1166,26 @@
                 </div>
 
                 <div class="space-y-2">
-                    <label for="syllabusText" class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest ml-1">Syllabus Text Chunk</label>
+                    <div class="flex justify-between items-center">
+                        <label for="syllabusText" class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest ml-1">Syllabus Text Chunk</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="file" 
+                                accept=".pdf,.docx,.doc,.xlsx,.xls" 
+                                class="hidden" 
+                                bind:this={syllabusFileInput}
+                                onchange={handleSyllabusFileUpload}
+                            />
+                            <button 
+                                onclick={() => syllabusFileInput?.click()}
+                                disabled={isImporting}
+                                class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-800/50 rounded-xl text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase flex items-center gap-2 hover:bg-indigo-50 transition-all shadow-sm"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                LOAD PORTION FILE
+                            </button>
+                        </div>
+                    </div>
                     <textarea 
                         id="syllabusText"
                         bind:value={smartSyllabusText}
@@ -1453,6 +1513,7 @@
                     <select 
                         id="excel-sheet-select" 
                         bind:value={selectedSheet}
+                        onchange={() => updatePreview(null, selectedSheet)}
                         class="block w-full bg-white dark:bg-slate-950 border border-indigo-100 dark:border-indigo-800 text-sm font-bold rounded-2xl px-5 py-3 text-gray-900 dark:text-white"
                     >
                         {#if detectedSheets.length > 1}
