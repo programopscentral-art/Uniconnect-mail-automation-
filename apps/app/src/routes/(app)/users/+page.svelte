@@ -547,7 +547,7 @@
                     <option value="PM">PM</option>
                     <option value="PMA">PMA</option>
                     <option value="BOA">BOA</option>
-                    {#if universityIds.includes('13f3513e-9ab1-4515-a97c-1d7ef7bba9fc')}
+                    {#if universityIds.includes('13f3513e-9ab1-4515-a97c-1d7ef7bba9fc') || selectedTeamId === '13f3513e-9ab1-4515-a97c-1d7ef7bba9fc'}
                         <option value="CMA">CMA</option>
                         <option value="CMA_MANAGER">CMA Manager</option>
                     {/if}
