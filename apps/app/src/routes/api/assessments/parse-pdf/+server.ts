@@ -19,8 +19,6 @@ type XLSXModule = {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     const require = createRequire(import.meta.url);
-    const pdf = require('pdf-parse') as PDFParseModule;
-    const XLSX = require('xlsx') as XLSXModule; // Moved and typed
     if (!locals.user) throw error(401);
 
     try {
@@ -35,6 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const buffer = Buffer.from(await file.arrayBuffer());
 
         if (file.name.toLowerCase().endsWith('.pdf')) {
+            const pdf = require('pdf-parse') as PDFParseModule;
             const result = await pdf({ data: buffer });
             text = result.text;
         } else if (file.name.toLowerCase().endsWith('.docx')) {
@@ -43,7 +42,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const result = await extractor({ buffer });
             text = result.value;
         } else if (file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls')) {
-            const XLSX = require('xlsx');
+            const XLSX = require('xlsx') as XLSXModule;
             const workbook = XLSX.read(buffer, { type: 'buffer' });
             let allText = '';
             for (const sName of workbook.SheetNames) {

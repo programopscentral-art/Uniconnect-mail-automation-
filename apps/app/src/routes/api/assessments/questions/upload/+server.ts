@@ -5,9 +5,8 @@ import { createRequire } from 'module';
 import mammoth from 'mammoth';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    const require = createRequire(import.meta.url);
-    const pdf = require('pdf-parse');
     if (!locals.user) throw error(401);
+    const require = createRequire(import.meta.url);
 
     try {
         const formData = await request.formData();
@@ -25,6 +24,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const buffer = Buffer.from(await file.arrayBuffer());
 
         if (file.name.toLowerCase().endsWith('.pdf')) {
+            const pdf = require('pdf-parse');
             const data = await pdf(buffer);
             rawText = data.text;
         } else if (file.name.toLowerCase().endsWith('.docx')) {
