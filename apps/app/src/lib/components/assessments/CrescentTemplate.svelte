@@ -110,7 +110,8 @@
                 mappedSlot.questions = qList.map((q: any) => ({
                     ...q,
                     text: getTxt(q),
-                    marks: getMarks(q)
+                    marks: getMarks(q),
+                    co_id: q.co_id || q.course_outcome_id || null
                 }));
             } else if (item.type === 'OR_GROUP' || item.choices) {
                 const choice1 = item.choice1 || (item.choices?.[0] ? { questions: [item.choices[0]] } : { questions: [] });
@@ -121,7 +122,8 @@
                     questions: (choice1.questions || []).map((q: any) => ({
                         ...q,
                         text: getTxt(q),
-                        marks: getMarks(q)
+                        marks: getMarks(q),
+                        co_id: q.co_id || q.course_outcome_id || null
                     }))
                 };
                 mappedSlot.choice2 = {
@@ -129,7 +131,8 @@
                     questions: (choice2.questions || []).map((q: any) => ({
                         ...q,
                         text: getTxt(q),
-                        marks: getMarks(q)
+                        marks: getMarks(q),
+                        co_id: q.co_id || q.course_outcome_id || null
                     }))
                 };
             }
@@ -236,7 +239,8 @@
             marks: question.marks,
             type: question.type,
             options: question.options,
-            co_id: question.co_id,
+            co_id: question.co_id || question.course_outcome_id,
+            course_outcome_id: question.co_id || question.course_outcome_id,
             bloom: question.bloom_level
         };
 
@@ -396,9 +400,9 @@
     }
 
     function getCOCode(coId: string | number | undefined) {
-        if (!coId) return '';
-        const code = courseOutcomes.find((c: any) => String(c.id) === String(coId))?.code;
-        return (code === '0' || !code) ? '' : code;
+        if (!coId || !courseOutcomes) return '';
+        const co = courseOutcomes.find((c: any) => String(c.id) === String(coId));
+        return (co?.code === '0' || !co?.code) ? '' : co.code;
     }
 
     function updateText(e: Event, type: 'META' | 'QUESTION', key: string, slotId?: string, questionId?: string, subPart?: 'choice1' | 'choice2') {
@@ -487,6 +491,7 @@
 
         if (q) {
             q.co_id = coId;
+            q.course_outcome_id = coId;
             // Force reactivity
             if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
             else currentSetData.questions = [...currentSetData.questions];
@@ -898,7 +903,7 @@
                                                     onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each [1, 2, 5, 8, 10, 16] as m}
                                                         <option value={m}>{m} M</option>
                                                     {/each}
@@ -911,7 +916,7 @@
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value)}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each courseOutcomes as co}
                                                         <option value={co.id}>{co.code}</option>
                                                     {/each}
@@ -1233,7 +1238,7 @@
                                                         onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
                                                         class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                     >
-                                                        <option value="">Select</option>
+                                                        <option value="">Outcome?</option>
                                                         {#each [1, 2, 5, 8, 10, 16] as m}
                                                             <option value={m}>{m} M</option>
                                                         {/each}
@@ -1246,7 +1251,7 @@
                                                         onchange={(e: any) => updateCO(slot.id, q.id, e.target.value)}
                                                         class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                     >
-                                                        <option value="">Select</option>
+                                                        <option value="">Outcome?</option>
                                                         {#each courseOutcomes as co}
                                                             <option value={co.id}>{co.code}</option>
                                                         {/each}
@@ -1361,7 +1366,7 @@
                                                     onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each [1, 2, 5, 8, 10, 16] as m}
                                                         <option value={m}>{m} M</option>
                                                     {/each}
@@ -1374,7 +1379,7 @@
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice1')}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each courseOutcomes as co}
                                                         <option value={co.id}>{co.code}</option>
                                                     {/each}
@@ -1458,7 +1463,7 @@
                                                     onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each [1, 2, 5, 8, 10, 16] as m}
                                                         <option value={m}>{m} M</option>
                                                     {/each}
@@ -1471,7 +1476,7 @@
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice2')}
                                                     class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
                                                 >
-                                                    <option value="">Select</option>
+                                                    <option value="">Outcome?</option>
                                                     {#each courseOutcomes as co}
                                                         <option value={co.id}>{co.code}</option>
                                                     {/each}
