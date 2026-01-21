@@ -544,7 +544,7 @@
         <div class="{isSetsSidebarOpen ? 'translate-x-0' : '-translate-x-full xl:translate-x-0'} fixed xl:left-4 xl:top-24 left-0 top-0 bottom-0 xl:bottom-auto xl:w-16 w-64 bg-white/95 dark:bg-slate-900/95 xl:bg-white/70 xl:dark:bg-gray-900/70 backdrop-blur-md xl:rounded-2xl shadow-2xl xl:border border-gray-100 dark:border-gray-800 p-4 xl:p-2 flex flex-col gap-2 z-[70] xl:z-40 transition-transform duration-300 xl:duration-0 no-print">
             <div class="flex items-center justify-between xl:justify-center mb-4 xl:mb-1">
                 <div class="text-[10px] xl:text-[8px] font-black text-gray-400 dark:text-gray-500 uppercase">Sets</div>
-                <button onclick={() => isSetsSidebarOpen = false} class="xl:hidden p-1 text-gray-400">
+                <button onclick={() => isSetsSidebarOpen = false} aria-label="Close Sets Sidebar" class="xl:hidden p-1 text-gray-400">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
@@ -569,6 +569,7 @@
         <!-- Navigation Sidebar - Responsive Toggle -->
         <button 
             onclick={() => isOutlineSidebarOpen = !isOutlineSidebarOpen}
+            aria-label="Toggle Outline Sidebar"
             class="xl:hidden fixed right-4 bottom-24 w-12 h-12 bg-white dark:bg-slate-900 rounded-full shadow-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-center z-[60] text-indigo-600"
         >
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" /></svg>
@@ -577,7 +578,7 @@
         <div class="{isOutlineSidebarOpen ? 'translate-x-0' : 'translate-x-full xl:translate-x-0'} fixed xl:left-24 xl:top-24 right-0 top-0 bottom-0 xl:bottom-auto xl:w-48 w-80 bg-white/95 dark:bg-slate-900/95 xl:bg-white/70 xl:dark:bg-gray-900/70 backdrop-blur-md xl:rounded-2xl shadow-2xl xl:border border-gray-100 dark:border-gray-800 p-6 xl:p-4 z-[70] xl:z-40 transition-transform duration-300 xl:duration-0 no-print">
             <div class="flex items-center justify-between mb-6 xl:mb-4">
                 <div class="text-[10px] xl:text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Paper Outline</div>
-                <button onclick={() => isOutlineSidebarOpen = false} class="xl:hidden p-1 text-gray-400">
+                <button onclick={() => isOutlineSidebarOpen = false} aria-label="Close Outline Sidebar" class="xl:hidden p-1 text-gray-400">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
