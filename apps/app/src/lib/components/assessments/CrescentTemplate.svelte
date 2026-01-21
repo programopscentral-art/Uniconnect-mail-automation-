@@ -840,6 +840,7 @@
                                                 <option value="NORMAL">SHORT</option>
                                                 <option value="MCQ">MCQ</option>
                                                 <option value="FILL_IN_BLANK">FIB</option>
+                                                <option value="PARAGRAPH">PARAGRAPH</option>
                                             </select>
                                         </div>
                                     {/if}

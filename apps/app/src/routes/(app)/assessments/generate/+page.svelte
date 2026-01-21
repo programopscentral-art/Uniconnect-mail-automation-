@@ -821,6 +821,8 @@
                                                             <option value="SHORT" class="dark:bg-slate-800">Short</option>
                                                             <option value="LONG" class="dark:bg-slate-800">Long</option>
                                                             <option value="MCQ" class="dark:bg-slate-800">MCQ</option>
+                                                            <option value="FILL_IN_BLANK" class="dark:bg-slate-800">Fill in Blanks</option>
+                                                            <option value="PARAGRAPH" class="dark:bg-slate-800">Paragraph</option>
                                                         </select>
                                                     </div>
 
@@ -950,6 +952,8 @@
                                                                         <option value="SHORT" class="dark:bg-slate-800">Short</option>
                                                                         <option value="LONG" class="dark:bg-slate-800">Long</option>
                                                                         <option value="MCQ" class="dark:bg-slate-800">MCQ</option>
+                                                                        <option value="FILL_IN_BLANK" class="dark:bg-slate-800">Fill in Blanks</option>
+                                                                        <option value="PARAGRAPH" class="dark:bg-slate-800">Paragraph</option>
                                                                     </select>
                                                                 </div>
                                                                 <div class="space-y-2">
