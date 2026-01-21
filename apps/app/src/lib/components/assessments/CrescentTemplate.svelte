@@ -418,12 +418,27 @@
                  q = choice.questions.find((item: any) => item.id === questionId);
             }
 
-            if (q && q.text !== value) {
-                q.text = value;
+            if (q && (q.text !== value || q.question_text !== value)) {
+                if (key === 'text') { q.text = value; q.question_text = value; }
+                else if (key === 'marks') { q.marks = Number(value); q.mark = Number(value); }
+                else if (key === 'type') { q.type = value; }
+
                 // Force reactivity on the bound prop
                 if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
                 else currentSetData.questions = [...currentSetData.questions];
             }
+        }
+    }
+
+    function updatePartAType(slotId: string, type: string) {
+        const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
+        let slot = arr.find((s: any) => s.id === slotId);
+        if (slot) {
+            slot.qType = type;
+            if (slot.questions?.[0]) slot.questions[0].type = type;
+            // Force reactivity
+            if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+            else currentSetData.questions = [...currentSetData.questions];
         }
     }
 
@@ -806,9 +821,28 @@
                                         </div>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black p-2 text-center text-[8px] font-black text-gray-400 flex flex-col justify-center gap-1">
+                                <div class="w-20 border-l border-black p-2 text-center text-[8px] font-black text-gray-400 flex flex-col justify-center gap-1 group/mark relative">
                                     <span class="uppercase">({getCOCode(q.co_id) || ''})</span>
-                                    <span class="text-black font-black">({q.marks})</span>
+                                    <div 
+                                        contenteditable="true"
+                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
+                                        class="text-black font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none' : 'pointer-events-none'}"
+                                    >
+                                        {q.marks}
+                                    </div>
+                                    {#if isEditable}
+                                        <div class="absolute -right-2 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-0.5 z-20 print:hidden">
+                                            <select 
+                                                value={slot.qType || q.type || 'NORMAL'}
+                                                onchange={(e: any) => updatePartAType(slot.id, e.target.value)}
+                                                class="text-[7px] font-black bg-white border border-gray-200 rounded p-0.5 outline-none shadow-sm"
+                                            >
+                                                <option value="NORMAL">SHORT</option>
+                                                <option value="MCQ">MCQ</option>
+                                                <option value="FILL_IN_BLANK">FIB</option>
+                                            </select>
+                                        </div>
+                                    {/if}
                                 </div>
                             </div>
                         {/each}
@@ -912,7 +946,13 @@
                                     </div>
                                     <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
-                                        <span class="text-[10px] font-black">({q.marks})</span>
+                                        <div 
+                                            contenteditable="true"
+                                            onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
+                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                        >
+                                            {q.marks}
+                                        </div>
                                     </div>
                                 </div>
                             {/each}
@@ -951,7 +991,13 @@
                                     </div>
                                     <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
-                                        <span class="text-[10px] font-black">({q.marks})</span>
+                                        <div 
+                                            contenteditable="true"
+                                            onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
+                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                        >
+                                            {q.marks}
+                                        </div>
                                     </div>
                                 </div>
                             {/each}
@@ -994,9 +1040,15 @@
                                             </button>
                                         {/if}
                                     </div>
-                                    <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
+                                    <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
-                                        <span class="text-[10px] font-black">({q.marks})</span>
+                                        <div 
+                                            contenteditable="true"
+                                            onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
+                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                        >
+                                            {q.marks}
+                                        </div>
                                     </div>
                                 </div>
                             {/each}
@@ -1081,9 +1133,15 @@
                                         </div>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
+                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
-                                    <span class="text-[10px] font-black">({q.marks})</span>
+                                    <div 
+                                        contenteditable="true"
+                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
+                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                    >
+                                        {q.marks}
+                                    </div>
                                     {#if isEditable}
                                         <button 
                                             onclick={() => openSwapSidebar(slot, 'C', 'q1')}
@@ -1129,9 +1187,15 @@
                                         </button>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/btn relative">
+                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
-                                    <span class="text-[10px] font-black">({q.marks})</span>
+                                    <div 
+                                        contenteditable="true"
+                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
+                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none' : 'pointer-events-none text-black'}"
+                                    >
+                                        {q.marks}
+                                    </div>
                                 </div>
                             </div>
                         {/each}

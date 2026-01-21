@@ -22,7 +22,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         throw error(400, 'Subject and Units are required');
     }
 
+    const sets_config = body.sets_config || {}; // Per-set difficulty profiles
+
     try {
+        // ... (rest of the fetching logic)
         // 1. Fetch available questions
         let allQuestions = await getQuestionsByUnits(unit_ids);
 
@@ -75,9 +78,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         } else {
             const is100 = Number(max_marks) === 100;
             const isMCQ = part_a_type === 'MCQ';
+            const isMixed = part_a_type === 'Mixed';
             const countA = is100 ? (isMCQ ? 20 : 10) : (isMCQ ? 10 : 5);
             const marksA = isMCQ ? 1 : 2;
-            const typeA = isMCQ ? 'MCQ' : 'NORMAL';
+            const typeA = isMixed ? 'MIXED' : (isMCQ ? 'MCQ' : 'NORMAL');
 
             for (let i = 1; i <= countA; i++) {
                 slotsToProcess.push({
@@ -125,7 +129,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const globalUsageCount: Record<string, number> = {};
 
         // Helper to pick a single question with preference
-        function pickOne(targetMarks: number, unitId: string, excludeInSet: Set<string>, qType?: string, bloom?: string, co_id?: string) {
+        function pickOne(targetMarks: number, unitId: string, excludeInSet: Set<string>, qType?: string, bloomArr?: string[], co_id?: string) {
             const isShortOrMcq = (q: any) => {
                 const text = (q.question_text || '').toLowerCase();
                 const hasBlank = text.includes('___') || text.includes('____') || text.includes('.....');
@@ -141,14 +145,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
 
                 if (qType && qType !== 'ANY') {
-                    filtered = filtered.filter(q => q.type === qType);
-                    if (qType === 'NORMAL') filtered = filtered.filter(q => !isShortOrMcq(q));
+                    if (qType === 'MIXED') {
+                        filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'SHORT'].includes(q.type || '') || isShortOrMcq(q));
+                    } else {
+                        filtered = filtered.filter(q => q.type === qType);
+                        if (qType === 'NORMAL') filtered = filtered.filter(q => !isShortOrMcq(q));
+                    }
                 } else if (targetMarks >= 5) {
                     filtered = filtered.filter(q => q.type !== 'MCQ' && !isShortOrMcq(q));
                 }
 
-                if (bloom && bloom !== 'ANY' && filtered.length > 0) {
-                    const bFiltered = filtered.filter(q => q.bloom_level === bloom);
+                if (bloomArr && bloomArr.length > 0 && !bloomArr.includes('ANY') && filtered.length > 0) {
+                    const bFiltered = filtered.filter(q => bloomArr.includes(q.bloom_level));
                     if (bFiltered.length > 0) filtered = bFiltered;
                 }
                 if (co_id && filtered.length > 0) {
@@ -197,15 +205,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         // Helper to pick questions for a choice (can be sub-questions)
-        function pickQuestionsForChoice(marks: number, unitId: string, hasSubGroups: boolean, excludeInSet: Set<string>, manualMarks?: number[], qType?: string, bloom?: string, co_id?: string) {
+        function pickQuestionsForChoice(marks: number, unitId: string, hasSubGroups: boolean, excludeInSet: Set<string>, manualMarks?: number[], qType?: string, bloomArr?: string[], co_id?: string) {
             if (!hasSubGroups) {
-                const q = pickOne(marks, unitId, excludeInSet, qType, bloom, co_id);
+                const q = pickOne(marks, unitId, excludeInSet, qType, bloomArr, co_id);
                 return q ? [q] : [];
             } else {
                 const splitMarks = manualMarks || [Number((marks / 2).toFixed(1)), Number((marks / 2).toFixed(1))];
                 const picked: any[] = [];
                 splitMarks.forEach((m, idx) => {
-                    const q = pickOne(m, unitId, excludeInSet, qType, bloom, co_id);
+                    const q = pickOne(m, unitId, excludeInSet, qType, bloomArr, co_id);
                     if (q) picked.push({ ...q, sub_label: `(${String.fromCharCode(idx + 97)})` }); // (a), (b)
                 });
                 return picked;
@@ -216,6 +224,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const setQuestions: any[] = [];
             const excludeInSet = new Set<string>();
             let autoUnitCounter = 0;
+            const setDifficulty = sets_config[setName] || ['ANY'];
 
             for (const slot of slotsToProcess) {
                 if (slot.type === 'SINGLE') {
@@ -227,7 +236,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     const manualMarks = slot.hasSubQuestions ? [slot.marks_a, slot.marks_b] : undefined;
-                    const questions = pickQuestionsForChoice(slot.marks, unitId, slot.hasSubQuestions, excludeInSet, manualMarks, slot.qType, slot.bloom, slot.co_id);
+                    const questions = pickQuestionsForChoice(slot.marks, unitId, slot.hasSubQuestions, excludeInSet, manualMarks, slot.qType, setDifficulty, slot.co_id);
 
                     setQuestions.push({
                         id: slot.id, // STABLE ID
@@ -265,8 +274,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const m1 = c1.hasSubQuestions ? [c1.marks_a, c1.marks_b] : undefined;
                     const m2 = c2.hasSubQuestions ? [c2.marks_a, c2.marks_b] : undefined;
 
-                    const questions1 = pickQuestionsForChoice(c1.marks, u1, c1.hasSubQuestions, excludeInSet, m1, c1.qType, c1.bloom, c1.co_id);
-                    const questions2 = pickQuestionsForChoice(c2.marks, u2, c2.hasSubQuestions, excludeInSet, m2, c2.qType, c2.bloom, c2.co_id);
+                    const questions1 = pickQuestionsForChoice(c1.marks, u1, c1.hasSubQuestions, excludeInSet, m1, c1.qType, setDifficulty, c1.co_id);
+                    const questions2 = pickQuestionsForChoice(c2.marks, u2, c2.hasSubQuestions, excludeInSet, m2, c2.qType, setDifficulty, c2.co_id);
 
                     setQuestions.push({
                         id: slot.id, // STABLE ID

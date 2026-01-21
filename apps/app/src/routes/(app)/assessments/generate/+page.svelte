@@ -7,7 +7,7 @@
     let { data } = $props();
 
     let currentStep = $state(1);
-    const steps = ['Context', 'Department', 'Question Bank', 'Preview', 'Generate'];
+    const steps = ['Context', 'Department', 'Question Bank', 'Preview', 'Sets', 'Generate'];
 
     // Selections
     let selectedUniversityId = $state('');
@@ -29,6 +29,12 @@
     let generationMode = $state('Standard');
     let partAType = $state('Normal'); 
     let paperStructure = $state<any[]>([]);
+    let setsConfig = $state<Record<string, string[]>>({
+        'A': ['L1', 'L2'],
+        'B': ['L1', 'L3'],
+        'C': ['L2', 'L3'],
+        'D': ['L1', 'L2', 'L3']
+    });
 
     // Metadata
     let examDate = $state(new Date().toISOString().split('T')[0]);
@@ -259,7 +265,8 @@
                 instructions: paperInstructions,
                 generation_mode: generationMode,
                 part_a_type: partAType,
-                template_config: generationMode === 'Modifiable' ? paperStructure : null
+                template_config: generationMode === 'Modifiable' ? paperStructure : null,
+                sets_config: setsConfig
             }),
             headers: { 'Content-Type': 'application/json' }
         });
@@ -386,7 +393,7 @@
         if (currentStep === 3) {
             initializeStructure(); // Only initializes if empty
         }
-        if (currentStep < 5) currentStep++; 
+        if (currentStep < 6) currentStep++; 
     }
     function prevStep() { if (currentStep > 1) currentStep--; }
 
@@ -686,7 +693,7 @@
                     <div class="flex flex-col items-center gap-3">
                         <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Part A Question Type</span>
                         <div class="flex bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
-                            {#each ['Normal', 'MCQ'] as type}
+                            {#each ['Normal', 'MCQ', 'Mixed'] as type}
                                 <button 
                                     onclick={() => {
                                         partAType = type;
@@ -1124,6 +1131,55 @@
                 </div>
             </div>
         {:else if currentStep === 5}
+            <div class="space-y-8" in:fly={{ y: 20, duration: 400 }}>
+                <div class="text-center">
+                    <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Set Configuration</h2>
+                    <p class="text-sm font-bold text-gray-400 dark:text-slate-500 mt-1 uppercase tracking-widest">Assign difficulty profiles for each paper set</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {#each ['A', 'B', 'C', 'D'] as setName}
+                        <div class="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
+                            <div class="flex items-center justify-between">
+                                <div class="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-xl font-black shadow-lg">
+                                    {setName}
+                                </div>
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Set {setName}</span>
+                            </div>
+
+                            <div class="space-y-4">
+                                <h4 class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Difficulty Levels</h4>
+                                <div class="flex flex-col gap-2">
+                                    {#each ['L1', 'L2', 'L3', 'L4', 'L5'] as level}
+                                        <button 
+                                            onclick={() => {
+                                                if (setsConfig[setName].includes(level)) {
+                                                    setsConfig[setName] = setsConfig[setName].filter(l => l !== level);
+                                                } else {
+                                                    setsConfig[setName] = [...setsConfig[setName], level];
+                                                }
+                                                // Ensure at least one level is selected or "ANY"
+                                                if (setsConfig[setName].length === 0) setsConfig[setName] = ['ANY'];
+                                                else if (setsConfig[setName].includes('ANY') && setsConfig[setName].length > 1) {
+                                                    setsConfig[setName] = setsConfig[setName].filter(l => l !== 'ANY');
+                                                }
+                                            }}
+                                            class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
+                                            {setsConfig[setName].includes(level) ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-600 shadow-sm' : 'bg-gray-50 dark:bg-slate-800/50 border-transparent hover:border-gray-200 dark:hover:border-slate-700'}"
+                                        >
+                                            <span class="text-[10px] font-black {setsConfig[setName].includes(level) ? 'text-indigo-700 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-500'}">{level}</span>
+                                            {#if setsConfig[setName].includes(level)}
+                                                <svg class="w-3 h-3 text-indigo-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                            {/if}
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {:else if currentStep === 6}
             <div class="flex flex-col items-center justify-center py-20 space-y-8" in:fly={{ y: 20, duration: 400 }}>
                 <div class="w-32 h-32 bg-indigo-50 dark:bg-indigo-900/20 rounded-[2.5rem] flex items-center justify-center text-indigo-600 dark:text-indigo-400 animate-pulse relative">
                      <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.022.547l-2.387 2.387a2 2 0 001.414 3.414h15.828a2 2 0 001.414-3.414l-2.387-2.387zM12 9V3m0 0l-3 3m3-3l3 3"/></svg>
@@ -1163,7 +1219,7 @@
         
         <button 
             onclick={nextStep}
-            disabled={currentStep === 5}
+            disabled={currentStep === 6}
             class="px-10 py-3 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 dark:shadow-indigo-950/40 uppercase tracking-widest active:scale-95 disabled:opacity-0"
         >CONTINUE</button>
     </div>
