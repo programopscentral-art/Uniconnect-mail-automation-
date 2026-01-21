@@ -104,15 +104,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     const bloomRaw = (findVal(row, ['Difficulty level', 'Bloom Level', 'bloom_level', 'Difficulty']) || 'L1').toString().toUpperCase().trim();
-                    const marksRaw = findVal(row, ['Marks', 'marks', 'Points', 'Weightage']);
+                    const bloomMatch = bloomRaw.match(/L\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*([1-5])/i);
+                    const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
+
+                    const marksRaw = findVal(row, ['Marks', 'marks', 'Points', 'Weightage', 'Mark', 'marks_per_q']);
+                    const marksNum = parseFloat(marksRaw?.toString());
+                    const marks = !isNaN(marksNum) ? marksNum : (qType === 'MCQ' ? 1 : (qType === 'LONG' ? 5 : 2));
+
                     const coCode = (findVal(row, ['CO', 'Course Outcome', 'co_code']) || '').toString().toUpperCase().trim();
 
                     questionsToCreate.push({
                         unit_id: unit.id,
                         topic_id: topic.id,
                         question_text: qText.toString().trim(),
-                        bloom_level: ['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1',
-                        marks: parseInt(marksRaw) || (qType === 'MCQ' ? 1 : 2),
+                        bloom_level: bloomLevel,
+                        marks: marks,
                         type: qType,
                         co_id: coCode ? coMap.get(coCode) : null,
                         answer_key: (findVal(row, ['Solution', 'Answer', 'answer_key', 'Correct Answer']) || '').toString().trim(),
@@ -147,8 +153,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 rawText = result.value.replace(/<tr>/g, '\n[ROW_START]\n').replace(/<\/tr>/g, '\n[ROW_END]\n').replace(/<td>/g, ' [COL] ').replace(/<\/td>/g, ' [/COL] ').replace(/<\/p>/g, '\n').replace(/<br\s*\/?>/g, '\n').replace(/<\/?[^>]+(>|$)/g, " ");
 
                 // Post-process to attach images to questions
-                // This is tricky because rawText is now a string. 
-                // We'll look for [IMG_X] and assign it to the next question in the loop.
                 (globalThis as any)._lastDocxImageMap = imageMap;
             } else {
                 throw error(400, 'Unsupported file format. Please upload PDF, DOCX, or XLSX.');
@@ -216,7 +220,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         }
                     }
 
-                    const scrub = (t: string) => t.replace(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*L[1-5]/gi, '').replace(/Topic:\s*[^\n\r\t,]+/gi, '').replace(/\bCO[1-9]\b/gi, '').replace(/Course\s*Outcome:\s*CO[1-9]/gi, '').trim();
+                    // Extract Bloom and Marks from text
+                    const bMatch = bText.match(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*(L[1-5])/i);
+                    const bloomLevelText = bMatch ? bMatch[1].toUpperCase() : 'L1';
+
+                    const mMatch = bText.match(/\((?:Marks?|Pts?|Points?):\s*(\d+)\)/i) || bText.match(/\b(\d+)\s*Marks?\b/i) || bText.match(/\((\d+)\)$/);
+                    const marksFromText = mMatch ? parseInt(mMatch[1]) : (options.length > 0 ? 1 : 2);
+
+                    const scrub = (t: string) => t.replace(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*L[1-5]/gi, '').replace(/Topic:\s*[^\n\r\t,]+/gi, '').replace(/\bCO[1-9]\b/gi, '').replace(/Course\s*Outcome:\s*CO[1-9]/gi, '').replace(/\((\d+)\)$/, '').replace(/\b\d+\s*Marks?\b/gi, '').trim();
                     qText = scrub(qText);
                     options = options.map(scrub);
 
@@ -233,8 +244,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         questionsToCreate.push({
                             unit_id: currentDetectedUnitId === 'GLOBAL' ? allUnits[0].id : currentDetectedUnitId,
                             question_text: qText || (imageUrl ? 'Image-based Question' : `Question ${marker.value}`),
-                            marks: options.length > 0 ? 1 : 2,
-                            bloom_level: (bText.match(/Bloom(?:'s)?\s*(?:Taxonomy\s*)?Level:\s*(L[1-5])/i)?.[1] || 'L1').toUpperCase(),
+                            marks: marksFromText,
+                            bloom_level: bloomLevelText,
                             type: options.length > 0 ? 'MCQ' : currentType,
                             options: options.length > 0 ? options : null,
                             hierarchicalId: currentRoman ? `${currentRoman}-${marker.value}` : marker.value,
