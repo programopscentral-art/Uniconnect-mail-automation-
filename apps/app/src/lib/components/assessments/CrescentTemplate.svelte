@@ -821,26 +821,26 @@
                                         </div>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black p-2 text-center text-[8px] font-black text-gray-400 flex flex-col justify-center gap-1 group/mark relative">
-                                    <span class="uppercase">({getCOCode(q.co_id) || ''})</span>
+                                <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
+                                    <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                     <div 
+                                        use:editable={{ value: q.marks.toString(), onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'marks', slot.id, q.id) }}
                                         contenteditable="true"
-                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
-                                        class="text-black font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none' : 'pointer-events-none'}"
+                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-2 min-w-[25px] outline-none focus:bg-indigo-100' : 'pointer-events-none text-black'}"
                                     >
-                                        {q.marks}
                                     </div>
                                     {#if isEditable}
-                                        <div class="absolute -right-2 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-0.5 z-20 print:hidden">
+                                        <div class="absolute -right-14 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-0.5 z-20 print:hidden transition-all duration-200">
+                                            <div class="text-[6px] font-black text-gray-400 uppercase mb-0.5">Type</div>
                                             <select 
                                                 value={slot.qType || q.type || 'NORMAL'}
                                                 onchange={(e: any) => updatePartAType(slot.id, e.target.value)}
-                                                class="text-[7px] font-black bg-white border border-gray-200 rounded p-0.5 outline-none shadow-sm"
+                                                class="text-[8px] font-black bg-white border border-indigo-100 rounded p-1 outline-none shadow-xl hover:border-indigo-500 transition-colors"
                                             >
                                                 <option value="NORMAL">SHORT</option>
                                                 <option value="MCQ">MCQ</option>
                                                 <option value="FILL_IN_BLANK">FIB</option>
-                                                <option value="PARAGRAPH">PARAGRAPH</option>
+                                                <option value="PARAGRAPH">PARA</option>
                                             </select>
                                         </div>
                                     {/if}
@@ -948,11 +948,10 @@
                                     <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                         <div 
+                                            use:editable={{ value: q.marks.toString(), onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'marks', slot.id, q.id, 'choice1') }}
                                             contenteditable="true"
-                                            onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
-                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none focus:bg-indigo-100' : 'pointer-events-none text-black'}"
                                         >
-                                            {q.marks}
                                         </div>
                                     </div>
                                 </div>
@@ -993,11 +992,10 @@
                                     <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                         <div 
+                                            use:editable={{ value: q.marks.toString(), onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'marks', slot.id, q.id, 'choice2') }}
                                             contenteditable="true"
-                                            onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
-                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                            class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none focus:bg-indigo-100' : 'pointer-events-none text-black'}"
                                         >
-                                            {q.marks}
                                         </div>
                                     </div>
                                 </div>
@@ -1137,11 +1135,10 @@
                                 <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                     <div 
+                                        use:editable={{ value: q.marks.toString(), onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'marks', slot.id, q.id, 'choice1') }}
                                         contenteditable="true"
-                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
-                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1' : 'pointer-events-none text-black'}"
+                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none focus:bg-indigo-100' : 'pointer-events-none text-black'}"
                                     >
-                                        {q.marks}
                                     </div>
                                     {#if isEditable}
                                         <button 
@@ -1191,11 +1188,10 @@
                                 <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
                                     <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id) || ''})</span>
                                     <div 
+                                        use:editable={{ value: q.marks.toString(), onUpdate: (v) => updateText({target: {innerHTML: v}} as any, 'QUESTION', 'marks', slot.id, q.id, 'choice2') }}
                                         contenteditable="true"
-                                        onblur={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
-                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none' : 'pointer-events-none text-black'}"
+                                        class="text-[10px] font-black {isEditable ? 'bg-indigo-50/50 rounded px-1 min-w-[20px] outline-none focus:bg-indigo-100' : 'pointer-events-none text-black'}"
                                     >
-                                        {q.marks}
                                     </div>
                                 </div>
                             </div>

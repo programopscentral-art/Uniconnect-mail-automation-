@@ -146,13 +146,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 if (qType && qType !== 'ANY') {
                     if (qType === 'MIXED') {
-                        filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'SHORT'].includes(q.type || '') || isShortOrMcq(q));
+                        filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'SHORT', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));
+                    } else if (qType === 'NORMAL') {
+                        // NORMAL slots should allow anything NOT explicitly MCQ/FIB
+                        filtered = filtered.filter(q => !['MCQ', 'FILL_IN_BLANK'].includes(q.type || ''));
+                        // Only exclude blanks if marks are low (Aptitude often uses blanks for 5 marks)
+                        if (targetMarks < 5) {
+                            filtered = filtered.filter(q => !isShortOrMcq(q));
+                        }
                     } else {
+                        // Strict type matching for specific types like MCQ, FIB, PARAGRAPH
                         filtered = filtered.filter(q => q.type === qType);
-                        if (qType === 'NORMAL') filtered = filtered.filter(q => !isShortOrMcq(q));
                     }
                 } else if (targetMarks >= 5) {
-                    filtered = filtered.filter(q => q.type !== 'MCQ' && !isShortOrMcq(q));
+                    // For descriptive Parts B/C, allow anything not MCQ
+                    filtered = filtered.filter(q => q.type !== 'MCQ');
                 }
 
                 if (bloomArr && bloomArr.length > 0 && !bloomArr.includes('ANY') && filtered.length > 0) {
