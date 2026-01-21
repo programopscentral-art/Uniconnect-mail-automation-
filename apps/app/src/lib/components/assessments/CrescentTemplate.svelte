@@ -55,6 +55,19 @@
     // Sidebar state
     let isSwapSidebarOpen = $state(false);
     let swapContext = $state<any>(null);
+    let activeMenuId = $state<string | null>(null);
+
+    // Global click listener to close menus
+    $effect(() => {
+        const handleClick = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            if (!target.closest('.group\\/mark') && !target.closest('.group\\/btn')) {
+                activeMenuId = null;
+            }
+        };
+        window.addEventListener('click', handleClick);
+        return () => window.removeEventListener('click', handleClick);
+    });
 
     // CRITICAL: Greedy ID Injection
     // Ensures every item in currentSetData has a permanent ID
@@ -878,7 +891,13 @@
                                         </div>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
+                                <div 
+                                    role="button"
+                                    tabindex="0"
+                                    onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                    onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                    class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                >
                                     {#if getCOCode(q.co_id)}
                                         <div class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</div>
                                     {:else if isEditable}
@@ -891,10 +910,8 @@
                                     >
                                         {q.marks}
                                     </div>
-                                    {#if isEditable}
-                                        <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                            <!-- Hover Bridge: Large hit area to keep hover active -->
-                                            <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                    {#if activeMenuId === q.id && isEditable}
+                                        <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                             <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
                                             <div class="flex flex-col gap-0.5">
                                                 <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
@@ -1045,7 +1062,13 @@
                                             </button>
                                         {/if}
                                     </div>
-                                    <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
+                                    <div 
+                                        role="button"
+                                        tabindex="0"
+                                        onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                        onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                        class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                    >
                                         {#if getCOCode(q.co_id)}
                                             <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</span>
                                         {/if}
@@ -1056,31 +1079,35 @@
                                         >
                                             {q.marks}
                                         </div>
-                                        {#if isEditable}
-                                            <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                                <!-- Hover Bridge: Large hit area to keep hover active -->
-                                                <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                        {#if activeMenuId === q.id && isEditable}
+                                            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                                 <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
-                                                <select 
-                                                    value={q.marks.toString()} 
-                                                    onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
-                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
-                                                >
-                                                    <option value="">Marks?</option>
-                                                    {#each [1, 2, 5, 8, 10, 16] as m}
-                                                        <option value={m}>{m} M</option>
-                                                    {/each}
-                                                </select>
-                                                <select 
-                                                    value={q.co_id || ''} 
-                                                    onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice1')}
-                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
-                                                >
-                                                    <option value="">CO?</option>
-                                                    {#each courseOutcomes as co}
-                                                        <option value={co.id}>{co.code}</option>
-                                                    {/each}
-                                                </select>
+                                                <div class="flex flex-col gap-0.5">
+                                                    <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
+                                                    <select 
+                                                        value={q.marks.toString()} 
+                                                        onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
+                                                        class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                    >
+                                                        <option value="">Outcome?</option>
+                                                        {#each [1, 2, 5, 8, 10, 16] as m}
+                                                            <option value={m}>{m} M</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                                <div class="flex flex-col gap-0.5">
+                                                    <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Outcome</div>
+                                                    <select 
+                                                        value={q.co_id || ''} 
+                                                        onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice1')}
+                                                        class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                    >
+                                                        <option value="">Outcome?</option>
+                                                        {#each courseOutcomes as co}
+                                                            <option value={co.id}>{co.code}</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
                                             </div>
                                         {/if}
                                     </div>
@@ -1127,7 +1154,13 @@
                                             </button>
                                         {/if}
                                     </div>
-                                    <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1">
+                                    <div 
+                                        role="button"
+                                        tabindex="0"
+                                        onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                        onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                        class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                    >
                                         {#if getCOCode(q.co_id)}
                                             <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</span>
                                         {/if}
@@ -1138,31 +1171,35 @@
                                         >
                                             {q.marks}
                                         </div>
-                                        {#if isEditable}
-                                            <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                                <!-- Hover Bridge: Large hit area to keep hover active -->
-                                                <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                        {#if activeMenuId === q.id && isEditable}
+                                            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                                 <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
-                                                <select 
-                                                    value={q.marks.toString()} 
-                                                    onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
-                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
-                                                >
-                                                    <option value="">Marks?</option>
-                                                    {#each [1, 2, 5, 8, 10, 16] as m}
-                                                        <option value={m}>{m} M</option>
-                                                    {/each}
-                                                </select>
-                                                <select 
-                                                    value={q.co_id || ''} 
-                                                    onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice2')}
-                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
-                                                >
-                                                    <option value="">CO?</option>
-                                                    {#each courseOutcomes as co}
-                                                        <option value={co.id}>{co.code}</option>
-                                                    {/each}
-                                                </select>
+                                                <div class="flex flex-col gap-0.5">
+                                                    <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
+                                                    <select 
+                                                        value={q.marks.toString()} 
+                                                        onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
+                                                        class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                    >
+                                                        <option value="">Outcome?</option>
+                                                        {#each [1, 2, 5, 8, 10, 16] as m}
+                                                            <option value={m}>{m} M</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
+                                                <div class="flex flex-col gap-0.5">
+                                                    <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Outcome</div>
+                                                    <select 
+                                                        value={q.co_id || ''} 
+                                                        onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice2')}
+                                                        class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                    >
+                                                        <option value="">Outcome?</option>
+                                                        {#each courseOutcomes as co}
+                                                            <option value={co.id}>{co.code}</option>
+                                                        {/each}
+                                                    </select>
+                                                </div>
                                             </div>
                                         {/if}
                                     </div>
@@ -1215,7 +1252,13 @@
                                                 </button>
                                             {/if}
                                         </div>
-                                    <div class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
+                                    <div 
+                                        role="button"
+                                        tabindex="0"
+                                        onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                        onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                        class="w-20 border-l border-black p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                    >
                                         {#if getCOCode(q.co_id)}
                                             <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</span>
                                         {/if}
@@ -1226,10 +1269,8 @@
                                         >
                                             {q.marks}
                                         </div>
-                                        {#if isEditable}
-                                            <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                                <!-- Hover Bridge: Large hit area to keep hover active -->
-                                                <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                        {#if activeMenuId === q.id && isEditable}
+                                            <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                                 <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
                                                 <div class="flex flex-col gap-0.5">
                                                     <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
@@ -1343,7 +1384,13 @@
                                         {/if}
                                     </div>
                                 </div>
-                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
+                                <div 
+                                    role="button"
+                                    tabindex="0"
+                                    onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                    onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                    class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                >
                                     {#if getCOCode(q.co_id)}
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</span>
                                     {/if}
@@ -1354,10 +1401,8 @@
                                     >
                                         {q.marks}
                                     </div>
-                                    {#if isEditable}
-                                        <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                            <!-- Hover Bridge: Large hit area to keep hover active -->
-                                            <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                    {#if activeMenuId === q.id && isEditable}
+                                        <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                             <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
                                             <div class="flex flex-col gap-0.5">
                                                 <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
@@ -1440,7 +1485,13 @@
                                         </button>
                                     {/if}
                                 </div>
-                                <div class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative">
+                                <div 
+                                    role="button"
+                                    tabindex="0"
+                                    onclick={(e) => { e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
+                                    onkeydown={(e) => e.key === 'Enter' && (activeMenuId = q.id)}
+                                    class="w-20 border-l border-black dark:border-gray-800 p-2 text-center flex flex-col items-center justify-center gap-1 group/mark relative cursor-pointer hover:bg-slate-50 transition-colors"
+                                >
                                     {#if getCOCode(q.co_id)}
                                         <span class="text-[8px] font-black text-gray-400 uppercase">({getCOCode(q.co_id)})</span>
                                     {/if}
@@ -1451,10 +1502,8 @@
                                     >
                                         {q.marks}
                                     </div>
-                                    {#if isEditable}
-                                        <div class="absolute left-[80%] top-1/2 -translate-y-1/2 ml-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
-                                            <!-- Hover Bridge: Large hit area to keep hover active -->
-                                            <div class="absolute -left-12 -top-10 w-12 h-[calc(100%+80px)]"></div>
+                                    {#if activeMenuId === q.id && isEditable}
+                                        <div class="absolute left-1/2 -translate-x-1/2 top-full mt-1 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white shadow-2xl border border-indigo-200 p-2 rounded-lg min-w-[100px]">
                                             <div class="text-[7px] font-black text-indigo-500 uppercase tracking-tighter mb-1 border-b border-indigo-50 pb-1">Edit Info</div>
                                             <div class="flex flex-col gap-0.5">
                                                 <div class="text-[5px] font-bold text-gray-400 uppercase ml-0.5">Marks</div>
