@@ -869,6 +869,16 @@
                                         <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
                                             <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
                                             <select 
+                                                value={q.marks.toString()} 
+                                                onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
+                                                class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                            >
+                                                <option value="">Marks?</option>
+                                                {#each [1, 2, 5, 8, 10, 16] as m}
+                                                    <option value={m}>{m} M</option>
+                                                {/each}
+                                            </select>
+                                            <select 
                                                 value={q.co_id || ''} 
                                                 onchange={(e: any) => updateCO(slot.id, q.id, e.target.value)}
                                                 class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
@@ -1011,7 +1021,17 @@
                                         </div>
                                         {#if isEditable}
                                             <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
-                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit CO</div>
+                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
+                                                <select 
+                                                    value={q.marks.toString()} 
+                                                    onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
+                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                >
+                                                    <option value="">Marks?</option>
+                                                    {#each [1, 2, 5, 8, 10, 16] as m}
+                                                        <option value={m}>{m} M</option>
+                                                    {/each}
+                                                </select>
                                                 <select 
                                                     value={q.co_id || ''} 
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice1')}
@@ -1081,7 +1101,17 @@
                                         </div>
                                         {#if isEditable}
                                             <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
-                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit CO</div>
+                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
+                                                <select 
+                                                    value={q.marks.toString()} 
+                                                    onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
+                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                >
+                                                    <option value="">Marks?</option>
+                                                    {#each [1, 2, 5, 8, 10, 16] as m}
+                                                        <option value={m}>{m} M</option>
+                                                    {/each}
+                                                </select>
                                                 <select 
                                                     value={q.co_id || ''} 
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice2')}
@@ -1157,7 +1187,17 @@
                                         </div>
                                         {#if isEditable}
                                             <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
-                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit CO</div>
+                                                <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
+                                                <select 
+                                                    value={q.marks.toString()} 
+                                                    onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id)}
+                                                    class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                                >
+                                                    <option value="">Marks?</option>
+                                                    {#each [1, 2, 5, 8, 10, 16] as m}
+                                                        <option value={m}>{m} M</option>
+                                                    {/each}
+                                                </select>
                                                 <select 
                                                     value={q.co_id || ''} 
                                                     onchange={(e: any) => updateCO(slot.id, q.id, e.target.value)}
@@ -1267,7 +1307,17 @@
                                     </div>
                                     {#if isEditable}
                                         <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
-                                            <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit CO</div>
+                                            <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
+                                            <select 
+                                                value={q.marks.toString()} 
+                                                onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice1')}
+                                                class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                            >
+                                                <option value="">Marks?</option>
+                                                {#each [1, 2, 5, 8, 10, 16] as m}
+                                                    <option value={m}>{m} M</option>
+                                                {/each}
+                                            </select>
                                             <select 
                                                 value={q.co_id || ''} 
                                                 onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice1')}
@@ -1346,7 +1396,17 @@
                                     </div>
                                     {#if isEditable}
                                         <div class="absolute -right-16 top-0 opacity-0 group-hover/mark:opacity-100 flex flex-col gap-1 z-[100] print:hidden transition-all duration-200 bg-white/95 backdrop-blur-sm border border-indigo-100 p-1.5 rounded-lg shadow-xl min-w-[60px]">
-                                            <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit CO</div>
+                                            <div class="text-[6px] font-black text-indigo-400 uppercase tracking-tighter mb-0.5">Edit Info</div>
+                                            <select 
+                                                value={q.marks.toString()} 
+                                                onchange={(e: any) => updateText(e, 'QUESTION', 'marks', slot.id, q.id, 'choice2')}
+                                                class="text-[8px] font-bold bg-gray-50 border border-gray-100 rounded px-1 py-0.5 outline-none hover:border-indigo-300 transition-colors uppercase cursor-pointer"
+                                            >
+                                                <option value="">Marks?</option>
+                                                {#each [1, 2, 5, 8, 10, 16] as m}
+                                                    <option value={m}>{m} M</option>
+                                                {/each}
+                                            </select>
                                             <select 
                                                 value={q.co_id || ''} 
                                                 onchange={(e: any) => updateCO(slot.id, q.id, e.target.value, 'choice2')}
