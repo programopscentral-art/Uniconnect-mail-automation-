@@ -106,7 +106,7 @@
             instructions: meta.instructions || paper.instructions || 'ANSWER ALL QUESTIONS',
             univ_line_1: meta.univ_line_1 || 'CHAITANYA',
             univ_line_2: meta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)',
-            colWidths: meta.colWidths || { sno: 40, marks: 55 }
+            colWidths: meta.colWidths || { sno: 40 }
         };
     }
 

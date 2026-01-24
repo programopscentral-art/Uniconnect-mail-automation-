@@ -19,13 +19,12 @@
 
     // Column Widths (State-backed, persistent in meta)
     let snoWidth = $derived(Number(paperMeta.colWidths?.sno || 40));
-    let marksWidth = $derived(Number(paperMeta.colWidths?.marks || 55));
-    let isResizing = $state<null | 'sno' | 'marks'>(null);
+    let isResizing = $state<null | 'sno'>(null);
 
     // Initialize colWidths in meta if missing
     $effect(() => {
         if (!paperMeta.colWidths) {
-            paperMeta.colWidths = { sno: 40, marks: 55 };
+            paperMeta.colWidths = { sno: 40 };
         }
     });
 
@@ -102,7 +101,7 @@
     }
 
     // Resizing Logics
-    function onResizeStart(col: 'sno' | 'marks', e: MouseEvent) {
+    function onResizeStart(col: 'sno', e: MouseEvent) {
         if (!isEditable) return;
         isResizing = col;
         document.body.classList.add('cursor-col-resize');
@@ -115,8 +114,6 @@
         const delta = e.movementX;
         if (isResizing === 'sno') {
             paperMeta.colWidths.sno = Math.max(30, Math.min(100, (paperMeta.colWidths.sno || 40) + delta));
-        } else {
-            paperMeta.colWidths.marks = Math.max(40, Math.min(120, (paperMeta.colWidths.marks || 55) - delta));
         }
     }
 
@@ -289,19 +286,19 @@
             </div>
 
             <!-- Main Interactive Content (Div-Grid based) -->
-            <div class="flex flex-col border-t-[1.5pt] border-black">
+            <div class="flex flex-col border-t-[1.5pt] border-x-[1.5pt] border-b-[1.5pt] border-black -mx-[5mm] print:mx-0">
                 {#each sectionKeys as section}
                     <!-- Section Header Row -->
-                    <div class="w-full text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm cursor-text hover:bg-slate-50" use:editable={{ value: getSectionConfig(section)?.title || `SECTION - ${section}`, onUpdate: (v) => updateSectionTitle(section, v) }}>
+                    <div class="w-full text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm cursor-text hover:bg-slate-50" use:editable={{ value: getSectionConfig(section)?.title?.replace('PART', 'SECTION') || `SECTION - ${section}`, onUpdate: (v) => updateSectionTitle(section, v) }}>
                         {getSectionConfig(section)?.title?.replace('PART', 'SECTION') || `SECTION - ${section}`}
                     </div>
 
                     <!-- Instructions Row -->
-                    <div class="w-full flex items-center border-b border-black divide-x-[1.5pt] divide-black" style="font-weight: bold; font-style: italic;">
-                         <div class="flex-1 px-1 py-1 text-xs cursor-text hover:bg-slate-50" use:editable={{ value: getSectionConfig(section)?.instructions || 'Answer the following Questions.', onUpdate: (v) => updateInstructions(section, v) }}>
+                    <div class="w-full flex items-center justify-between border-b border-black px-1 py-1 font-bold italic text-xs min-h-[22px] bg-white">
+                         <div class="flex-1 cursor-text hover:bg-slate-50 mr-4" use:editable={{ value: getSectionConfig(section)?.instructions || 'Answer the following Questions.', onUpdate: (v) => updateInstructions(section, v) }}>
                             {getSectionConfig(section)?.instructions || 'Answer the following Questions.'}
                          </div>
-                         <div class="px-4 py-1 text-xs tabular-nums cursor-text hover:bg-slate-50 no-print" style="width: 80px; text-align: center;" use:editable={{ value: getSectionConfig(section)?.instructions_marks || '6 x 2 = 12', onUpdate: (v) => { const cfg = getSectionConfig(section); if(cfg) cfg.instructions_marks = v; } }}>
+                         <div class="tabular-nums cursor-text hover:bg-slate-50 no-print text-right pl-4" use:editable={{ value: getSectionConfig(section)?.instructions_marks || '6 x 2 = 12', onUpdate: (v) => { const cfg = getSectionConfig(section); if(cfg) cfg.instructions_marks = v; } }}>
                              {getSectionConfig(section)?.instructions_marks || '6 x 2 = 12'}
                          </div>
                     </div>
@@ -340,16 +337,12 @@
                                                 </div>
                                             {/if}
                                         </div>
-                                        <div class="flex items-center justify-center font-bold text-sm tabular-nums cursor-text hover:bg-slate-50" style="width: {marksWidth}px" use:editable={{ value: q.choice1?.questions?.[0]?.marks || '4', onUpdate: (v) => { q.choice1.questions[0].marks = v; } }}>
-                                            [{q.choice1?.questions?.[0]?.marks || 4}]
-                                        </div>
                                     </div>
 
                                     <!-- OR Row -->
                                     <div class="flex divide-x-[1.5pt] divide-black border-y border-black">
                                          <div style="width: {snoWidth}px"></div>
                                          <div class="flex-1 text-center font-black uppercase text-[11px] tracking-[0.5em] py-0.5">OR</div>
-                                         <div style="width: {marksWidth}px"></div>
                                     </div>
 
                                     <!-- Choice 2 Row -->
@@ -368,9 +361,6 @@
                                                     {/each}
                                                 </div>
                                             {/if}
-                                        </div>
-                                        <div class="flex items-center justify-center font-bold text-sm tabular-nums cursor-text hover:bg-slate-50" style="width: {marksWidth}px" use:editable={{ value: q.choice2?.questions?.[0]?.marks || '4', onUpdate: (v) => { q.choice2.questions[0].marks = v; } }}>
-                                            [{q.choice2?.questions?.[0]?.marks || 4}]
                                         </div>
                                     </div>
                                 {:else}
@@ -398,27 +388,6 @@
                                                 </div>
                                             {/if}
                                         </div>
-                                        <div class="flex flex-col items-center justify-center font-bold text-sm tabular-nums group/mark relative" style="width: {marksWidth}px">
-                                            <div 
-                                                role="button"
-                                                tabindex="0"
-                                                class="cursor-text hover:bg-slate-50 px-1 rounded transition-colors {isEditable ? 'border-b border-dotted border-gray-300' : ''}"
-                                                onclick={(e) => { if (!isEditable) return; e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
-                                                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { if (!isEditable) return; e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); } }}
-                                                use:editable={{ value: q.questions?.[0]?.marks || '2', onUpdate: (v) => { q.questions[0].marks = v; } }}
-                                            >
-                                                [{q.questions?.[0]?.marks || 2}]
-                                            </div>
-                                            {#if activeMenuId === q.id && isEditable}
-                                                <div transition:fade={{ duration: 100 }} onclick={(e) => e.stopPropagation()} role="none" class="absolute right-0 top-10 w-32 bg-white rounded-lg shadow-xl border border-gray-100 p-2 z-[100] no-print">
-                                                    <div class="text-[9px] font-black uppercase text-gray-400 mb-2 px-1">Map Outcome</div>
-                                                    <select value={q.questions?.[0]?.co_id} onchange={(e: any) => updateCO(q.id, q.questions?.[0]?.id, e.target.value)} class="w-full text-[10px] font-bold border-none bg-gray-50 focus:ring-0 rounded-lg">
-                                                        <option value="">No CO</option>
-                                                        {#each courseOutcomes as co}<option value={co.id}>{co.code}</option>{/each}
-                                                    </select>
-                                                </div>
-                                            {/if}
-                                        </div>
                                     </div>
                                 {/if}
                             </div>
@@ -432,14 +401,6 @@
                         class="absolute top-0 bottom-0 w-3 cursor-col-resize hover:bg-indigo-500/20 group transition-all no-print flex items-center justify-center p-0" 
                         style="left: {snoWidth}px; transform: translateX(-50%); z-index: 60;"
                         onmousedown={(e) => onResizeStart('sno', e)}
-                        role="none"
-                    >
-                        <div class="h-8 w-1 bg-indigo-200 group-hover:bg-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    </div>
-                    <div 
-                        class="absolute top-0 bottom-0 w-3 cursor-col-resize hover:bg-indigo-500/20 group transition-all no-print flex items-center justify-center p-0" 
-                        style="right: {marksWidth}px; transform: translateX(50%); z-index: 60;"
-                        onmousedown={(e) => onResizeStart('marks', e)}
                         role="none"
                     >
                         <div class="h-8 w-1 bg-indigo-200 group-hover:bg-indigo-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
