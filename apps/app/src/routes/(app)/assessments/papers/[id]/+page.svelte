@@ -3,12 +3,16 @@
     import { slide, fade, fly } from 'svelte/transition';
     import { invalidateAll } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
+    import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
 
     let { data } = $props();
 
     // Local state for editing
     let activeSet = $state('A');
     const availableSets = $state(['A', 'B', 'C', 'D']);
+    
+    // Template Selection
+    let selectedTemplate = $state(data?.paper?.sets_data?.metadata?.selected_template || 'crescent');
     
     // We deep clone paper data to allow local edits
     let editableSets = $state<any>(initializeSets());
@@ -137,6 +141,7 @@
                         ...editableSets,
                         metadata: {
                             ...paperMeta,
+                            selected_template: selectedTemplate,
                             max_marks: Number(paperMeta.max_marks),
                             duration_minutes: Number(paperMeta.duration_minutes)
                         }
@@ -581,15 +586,45 @@
     <!-- Paper View (Crescent Template) -->
     <div id="paper-content" class="bg-white rounded-[1rem] shadow-2xl overflow-hidden print:shadow-none print:m-0 print:p-0 border border-gray-100 min-h-screen">
         {#if editableSets[activeSet]}
-            <CrescentTemplate 
-                bind:paperMeta 
-                bind:currentSetData={editableSets[activeSet]} 
-                paperStructure={paperStructure}
-                activeSet={activeSet}
-                courseOutcomes={data.courseOutcomes}
-                questionPool={data.questionPool}
-                mode="edit"
-            />
+            <!-- Paper Preview -->
+            <div class="lg:col-span-3 space-y-6">
+                <!-- Template Switcher -->
+                <div class="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm print:hidden">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Paper Format:</span>
+                    <button 
+                        onclick={() => selectedTemplate = 'crescent'}
+                        class="px-6 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest
+                        {selectedTemplate === 'crescent' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+                    >
+                        Standard
+                    </button>
+                    <button 
+                        onclick={() => selectedTemplate = 'cdu'}
+                        class="px-6 py-2 rounded-xl text-[10px] font-black transition-all uppercase tracking-widest
+                        {selectedTemplate === 'cdu' ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'}"
+                    >
+                        Chaitanya (CDU)
+                    </button>
+                </div>
+
+                {#if selectedTemplate === 'cdu'}
+                    <CDUTemplate 
+                        bind:paperMeta={paperMeta}
+                        currentSetData={editableSets[activeSet]}
+                        courseOutcomes={data.courseOutcomes}
+                        isEditable={true}
+                        activeSet={activeSet}
+                    />
+                {:else}
+                    <CrescentTemplate 
+                        bind:paperMeta={paperMeta}
+                        currentSetData={editableSets[activeSet]}
+                        courseOutcomes={data.courseOutcomes}
+                        isEditable={true}
+                        activeSet={activeSet}
+                    />
+                {/if}
+            </div>
         {:else}
             <div class="p-32 text-center space-y-6">
                 <div class="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
