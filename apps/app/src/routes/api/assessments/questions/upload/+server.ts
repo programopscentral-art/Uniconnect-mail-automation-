@@ -226,7 +226,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const optionMarkerRegex = /(?:^|\s|[\.!\?,]|\))(\([a-d]\)|[a-dA-D][\.\)])(?:\s|$)/gi;
             const unitMarkerRegex = /(?:^|\n)(?:Unit|Module|Chapter)[\s-]*(V|IV|III|II|I|1|2|3|4|5|One|Two|Three|Four|Five)[:\s]*/gi;
             const metaPipeRegex = /(?:^|\n)Q(\d+)\s*\|\s*M(\d+)\s*\|\s*(L[1-5])\s*\|\s*([^|]+)\|\s*(CO[1-9])\s*\|\s*([^|]+)\|\s*([^|\n]+)/gi;
-            const headerRegex = /(?:^|\n)(FILL IN THE BLANKS|SHORT QUESTIONS|LONG QUESTIONS|VERY SHORT|MCQ QUESTIONS|PROGRAMMING|PRACTICALS)(?:[:\s]|$)/gi;
+            const headerRegex = /(?:^|\n)\s*(FILL\s*IN\s*THE\s*BLANKS|SHORT\s*QUESTIONS|LONG\s*QUESTIONS|VERY\s*SHORT|MCQ\s*QUESTIONS|PROGRAMMING|PRACTICALS|DESCRIPTIVE|ESSAY|MATCH\s*THE\s*FOLLOWING)(?:[:\s]|$)/gi;
 
             let match;
             while ((match = headerRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'HEADER', value: match[1].toUpperCase(), fullMatch: match[0] });
@@ -273,15 +273,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     continue;
                 }
                 if (marker.type === 'HEADER') {
-                    const h = marker.value;
+                    const h = marker.value.replace(/\s+/g, ' ');
                     if (h.includes('FILL')) currentType = 'FILL_IN_BLANK';
                     else if (h.includes('MCQ')) currentType = 'MCQ';
                     else if (h.includes('VERY SHORT')) currentType = 'VERY_SHORT';
-                    else if (h.includes('LONG')) currentType = 'LONG';
+                    else if (h.includes('LONG') || h.includes('DESCRIPTIVE') || h.includes('ESSAY')) currentType = 'LONG';
                     else if (h.includes('SHORT')) currentType = 'SHORT';
+                    else currentType = 'SHORT';
                     continue;
                 }
-                if (marker.type === 'ROMAN') { currentRoman = marker.value; continue; }
+                if (marker.type === 'ROMAN') {
+                    currentRoman = marker.value;
+                    // When starting a new Roman part, reset type to SHORT if it's not explicitly MCQ/Fill
+                    if (currentType !== 'MCQ' && currentType !== 'FILL_IN_BLANK') currentType = 'SHORT';
+                    continue;
+                }
                 if (marker.type === 'UNIT') {
                     const n = r2n[marker.value.toUpperCase()] || parseInt(marker.value) || 0;
                     if (n > 0) {
@@ -408,7 +414,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     options = options.map(cleanText);
 
                     let finalType = options.length > 0 ? 'MCQ' : currentType;
-                    if (qText.includes('___') || qText.toLowerCase().includes('fill in')) finalType = 'FILL_IN_BLANK';
+                    if (qText.includes('___') || qText.toLowerCase().includes('fill in the blank')) finalType = 'FILL_IN_BLANK';
 
                     if (qText.length > 3 || options.length > 0 || imageUrl) {
                         questionsToCreate.push({

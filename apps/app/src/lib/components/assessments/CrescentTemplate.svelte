@@ -43,8 +43,21 @@
             const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
             const slot = arr.find((s: any) => s.id === slotId);
             if (!slot) return;
-            const q = (slot.questions || slot.choice1?.questions || slot.choice2?.questions || [slot]).find((item: any) => item.id === qId);
-            if (q) { q.text = val; q.question_text = val; if(Array.isArray(currentSetData)) currentSetData = [...currentSetData]; else currentSetData.questions = [...currentSetData.questions]; }
+            
+            let q: any = null;
+            if (slot.type === 'OR_GROUP') {
+                 q = (slot.choice1?.questions || []).find((item: any) => item.id === qId) || 
+                     (slot.choice2?.questions || []).find((item: any) => item.id === qId);
+            } else {
+                 q = (slot.questions || [slot]).find((item: any) => item.id === qId);
+            }
+            
+            if (q) { 
+                q.text = val; 
+                q.question_text = val; 
+                if(Array.isArray(currentSetData)) currentSetData = [...currentSetData]; 
+                else currentSetData.questions = [...currentSetData.questions]; 
+            }
         }
     }
 
@@ -56,9 +69,18 @@
 
     function openSwapSidebar(slot: any, part: string, subPart?: 'q1' | 'q2') {
         const cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
-        const marks = Number(cQ?.marks || (part === 'A' ? 2 : 16));
-        const index = (Array.isArray(currentSetData) ? currentSetData : currentSetData.questions).indexOf(slot);
-        swapContext = { slotIndex: index, part, subPart, alternates: (questionPool || []).filter((q: any) => Number(q.marks) === marks && q.id !== cQ?.id) };
+        // NO HARDCODED MARKS: Use the question's actual marks or fallback to slot marks
+        const marks = Number(cQ?.marks || slot.marks || (part === 'A' ? 2 : 16));
+        const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
+        const index = arr.indexOf(slot);
+        
+        swapContext = { 
+            slotIndex: index, 
+            part, 
+            subPart, 
+            currentMark: marks,
+            alternates: (questionPool || []).filter((q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id) 
+        };
         isSwapSidebarOpen = true;
     }
 
@@ -73,8 +95,14 @@
         isSwapSidebarOpen = false;
     }
 
-    let totalMarksB = $derived(questionsB.reduce((s, q) => s + (q.type === 'OR_GROUP' ? (q.choice1?.questions?.[0]?.marks || 0) : (q.questions?.[0]?.marks || 0)), 0));
-    let totalMarksC = $derived(questionsC.reduce((s, q) => s + (q.type === 'OR_GROUP' ? (q.choice1?.questions?.[0]?.marks || 0) : (q.questions?.[0]?.marks || 0)), 0));
+    const calcTotal = (qs: any[]) => qs.reduce((s, slot) => {
+        const marks = Number(slot.marks || (slot.type === 'OR_GROUP' ? (slot.choice1?.questions?.[0]?.marks || 0) : (slot.questions?.[0]?.marks || 0)));
+        return s + (slot.type === 'OR_GROUP' ? marks * 2 : marks);
+    }, 0);
+
+    let totalMarksA = $derived(calcTotal(questionsA));
+    let totalMarksB = $derived(calcTotal(questionsB));
+    let totalMarksC = $derived(calcTotal(questionsC));
 </script>
 
 <div class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-100 dark:bg-slate-900/50">
@@ -83,27 +111,27 @@
             <div class="flex justify-between items-start mb-6">
                 <img src="/crescent-logo.png" alt="Logo" class="h-16" />
                 <div class="text-right">
-                    <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v) => updateText(v, 'META', 'course_code')} class="font-bold border px-1" />
+                    <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} class="font-bold border px-1" />
                     <div class="text-[10px] mt-1">RRN: [ _ _ _ _ _ _ _ _ _ _ ]</div>
                 </div>
             </div>
 
             <div class="text-center mb-8 border-y-2 border-black py-2">
-                <AssessmentEditable bind:value={paperMeta.exam_title} onUpdate={(v) => updateText(v, 'META', 'exam_title')} class="text-xl font-black uppercase" />
+                <AssessmentEditable bind:value={paperMeta.exam_title} onUpdate={(v: string) => updateText(v, 'META', 'exam_title')} class="text-xl font-black uppercase" />
                 <div class="grid grid-cols-2 text-sm mt-4 text-left border-t border-black pt-2">
-                    <div><b>Programme:</b> <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v) => updateText(v, 'META', 'programme')} /></div>
-                    <div><b>Semester:</b> <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v) => updateText(v, 'META', 'semester')} /></div>
+                    <div><b>Programme:</b> <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} /></div>
+                    <div><b>Semester:</b> <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} /></div>
                 </div>
             </div>
 
             <div class="space-y-12">
                 <!-- PART A -->
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART A ({questionsA.length} x 2 = {questionsA.length*2} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART A ({questionsA.length} x 2 = {totalMarksA} Marks)</div>
                     <div use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', e.detail.items)} onfinalize={(e) => handleDndSync('A', e.detail.items)}>
                         {#each questionsA as q, i (q.id)}
                             <div animate:flip={{duration: 200}} class="border-b border-black last:border-b-0">
-                                <AssessmentSlotSingle slot={q} qNumber={i+1} {isEditable} snoWidth={30} onSwap={() => openSwapSidebar(q, 'A')} onRemove={() => removeQuestion(q)} onUpdateText={(v, qid) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
+                                <AssessmentSlotSingle slot={q} qNumber={i+1} {isEditable} snoWidth={35} onSwap={() => openSwapSidebar(q, 'A')} onRemove={() => removeQuestion(q)} onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
                             </div>
                         {/each}
                     </div>
@@ -111,19 +139,37 @@
 
                 <!-- PART B -->
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART B ({questionsB.length} x 16 = {totalMarksB} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART B ({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</div>
                     <div use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', e.detail.items)} onfinalize={(e) => handleDndSync('B', e.detail.items)}>
                         {#each questionsB as q, i (q.id)}
                             <div animate:flip={{duration: 200}} class="border-2 border-black mb-6">
-                                <AssessmentSlotOrGroup slot={q} qNumber={questionsA.length + (i*2) + 1} {isEditable} snoWidth={30}
+                                <AssessmentSlotOrGroup slot={q} qNumber={questionsA.length + (i*2) + 1} {isEditable} snoWidth={35}
                                     onSwap1={() => openSwapSidebar(q, 'B', 'q1')} onSwap2={() => openSwapSidebar(q, 'B', 'q2')}
                                     onRemove={() => removeQuestion(q)}
-                                    onUpdateText1={(v, qid) => updateText(v, 'QUESTION', 'text', q.id, qid)}
-                                    onUpdateText2={(v, qid) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
+                                    onUpdateText1={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)}
+                                    onUpdateText2={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
                             </div>
                         {/each}
                     </div>
                 </div>
+
+                <!-- PART C -->
+                {#if questionsC.length > 0}
+                <div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART C ({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</div>
+                    <div use:dndzone={{ items: questionsC, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('C', e.detail.items)} onfinalize={(e) => handleDndSync('C', e.detail.items)}>
+                        {#each questionsC as q, i (q.id)}
+                            <div animate:flip={{duration: 200}} class="border-2 border-black mb-6">
+                                <AssessmentSlotOrGroup slot={q} qNumber={questionsA.length + (questionsB.length*2) + (i*2) + 1} {isEditable} snoWidth={35}
+                                    onSwap1={() => openSwapSidebar(q, 'C', 'q1')} onSwap2={() => openSwapSidebar(q, 'C', 'q2')}
+                                    onRemove={() => removeQuestion(q)}
+                                    onUpdateText1={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)}
+                                    onUpdateText2={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+                {/if}
             </div>
         </div>
     </div>
