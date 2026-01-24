@@ -610,18 +610,22 @@
                 {#if selectedTemplate === 'cdu'}
                     <CDUTemplate 
                         bind:paperMeta={paperMeta}
-                        currentSetData={editableSets[activeSet]}
-                        courseOutcomes={data.courseOutcomes}
-                        isEditable={true}
+                        bind:currentSetData={editableSets[activeSet]}
+                        {paperStructure}
                         activeSet={activeSet}
+                        courseOutcomes={data.courseOutcomes}
+                        questionPool={data.questionPool}
+                        mode="edit"
                     />
                 {:else}
                     <CrescentTemplate 
                         bind:paperMeta={paperMeta}
-                        currentSetData={editableSets[activeSet]}
-                        courseOutcomes={data.courseOutcomes}
-                        isEditable={true}
+                        bind:currentSetData={editableSets[activeSet]}
+                        {paperStructure}
                         activeSet={activeSet}
+                        courseOutcomes={data.courseOutcomes}
+                        questionPool={data.questionPool}
+                        mode="edit"
                     />
                 {/if}
             </div>
