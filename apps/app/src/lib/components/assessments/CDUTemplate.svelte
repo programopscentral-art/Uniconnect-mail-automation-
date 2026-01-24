@@ -243,135 +243,155 @@
 
 <div class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-50 dark:bg-slate-950/50">
     <div class="flex-1 overflow-auto p-4 sm:p-8 relative">
-        <div id="crescent-paper-actual" class="mx-auto bg-white min-h-[297mm] p-[10mm] shadow-2xl print:shadow-none print:p-0 transition-all duration-500 font-serif text-black relative" style="width: 210mm;">
+        <div id="crescent-paper-actual" class="mx-auto bg-white min-h-[297mm] p-[5mm] shadow-2xl print:shadow-none print:p-0 transition-all duration-500 font-serif text-black relative border-[1.5pt] border-black" style="width: 210mm; box-sizing: border-box;">
             
             <!-- Header Section -->
-            <header class="text-center space-y-1 mb-4 relative z-10 font-bold">
-                <div class="text-[10px] font-bold mb-1">Set - {activeSet}</div>
-                <div class="text-[17pt] font-black uppercase tracking-widest hover:bg-slate-50 transition-colors" use:editable={{ value: paperMeta.univ_line_1 || 'CHAITANYA', onUpdate: (v) => updateTextValue(v, 'META', 'univ_line_1') }}>{paperMeta.univ_line_1 || 'CHAITANYA'}</div>
-                <div class="text-[11pt] font-bold uppercase tracking-tight hover:bg-slate-50 transition-colors" use:editable={{ value: paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)', onUpdate: (v) => updateTextValue(v, 'META', 'univ_line_2') }}>{paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)'}</div>
-                <div class="text-[11pt] font-bold uppercase transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.exam_title || 'I INTERNAL EXAMINATIONS - NOV 2024', onUpdate: (v) => updateTextValue(v, 'META', 'exam_title') }}>{paperMeta.exam_title || 'I INTERNAL EXAMINATIONS - NOV 2024'}</div>
-                <div class="text-[11pt] font-bold uppercase text-red-600 print:text-black transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.programme || 'B.Tech(CSE) - I SEMESTER', onUpdate: (v) => updateTextValue(v, 'META', 'programme') }}>{paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'}</div>
-                <div class="text-[11pt] font-black uppercase text-red-600 print:text-black transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.subject_name || 'SUBJECT NAME', onUpdate: (v) => updateTextValue(v, 'META', 'subject_name') }}>{paperMeta.subject_name || 'SUBJECT NAME'}</div>
+            <header class="text-center font-bold mb-4">
+                <div class="text-[10px] mb-1">Set - {activeSet}</div>
+                <div class="text-[17pt] font-black uppercase tracking-widest cursor-text hover:bg-slate-50 transition-colors" use:editable={{ value: paperMeta.univ_line_1 || 'CHAITANYA', onUpdate: (v) => updateTextValue(v, 'META', 'univ_line_1') }}>{paperMeta.univ_line_1 || 'CHAITANYA'}</div>
+                <div class="text-[11pt] font-bold uppercase tracking-tight cursor-text hover:bg-slate-50 transition-colors" use:editable={{ value: paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)', onUpdate: (v) => updateTextValue(v, 'META', 'univ_line_2') }}>{paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)'}</div>
+                <div class="text-[11pt] font-bold uppercase cursor-text transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.exam_title || 'I INTERNAL EXAMINATIONS - NOV 2024', onUpdate: (v) => updateTextValue(v, 'META', 'exam_title') }}>{paperMeta.exam_title || 'I INTERNAL EXAMINATIONS - NOV 2024'}</div>
+                <div class="text-[11pt] font-bold uppercase text-red-600 print:text-black cursor-text transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.programme || 'B.Tech(CSE) - I SEMESTER', onUpdate: (v) => updateTextValue(v, 'META', 'programme') }}>{paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'}</div>
+                <div class="text-[11pt] font-black uppercase text-red-600 print:text-black cursor-text transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.subject_name || 'SUBJECT NAME', onUpdate: (v) => updateTextValue(v, 'META', 'subject_name') }}>{paperMeta.subject_name || 'SUBJECT NAME'}</div>
                 
                 <div class="mt-2 border-y-[1.2pt] border-black">
                     <div class="flex justify-between items-center py-0.5 px-0.5 font-bold text-[10.5pt]">
                         <div class="flex gap-1 items-center">
                             <span>Time:</span>
-                            <span class="px-0.5 transition-colors hover:bg-slate-50" use:editable={{ value: String((Number(paperMeta.duration_minutes)/60).toFixed(1)), onUpdate: (v) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes') }}>{(Number(paperMeta.duration_minutes)/60).toFixed(1)}</span>
+                            <span class="px-2 cursor-text transition-colors hover:bg-slate-50 border-b border-dotted border-gray-300" use:editable={{ value: String((Number(paperMeta.duration_minutes)/60).toFixed(1)), onUpdate: (v) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes') }}>{(Number(paperMeta.duration_minutes)/60).toFixed(1)}</span>
                             <span>Hrs.]</span>
                         </div>
                         <div class="flex gap-1 items-center">
                             <span>[Max. Marks:</span>
-                            <span class="px-0.5 transition-colors hover:bg-slate-50" use:editable={{ value: paperMeta.max_marks, onUpdate: (v) => updateTextValue(v, 'META', 'max_marks') }}>{paperMeta.max_marks}</span>
+                            <span class="px-2 cursor-text transition-colors hover:bg-slate-50 border-b border-dotted border-gray-300" use:editable={{ value: paperMeta.max_marks || '20', onUpdate: (v) => updateTextValue(v, 'META', 'max_marks') }}>{paperMeta.max_marks || '20'}</span>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <!-- Content -->
-            <main class="space-y-4 relative z-10">
-                {#each sections as [part, questions], sIdx}
-                    <section class="space-y-2">
-                        <!-- Section Divider -->
-                        <div class="text-center border-y border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm transition-colors hover:bg-slate-50" use:editable={{ value: getSectionConfig(part)?.title || `Section - ${part}`, onUpdate: (v) => updateSectionTitle(part, v) }}>
-                            {getSectionConfig(part)?.title || `Section - ${part}`}
-                        </div>
-                        
-                        <!-- Instructions -->
-                        <div class="flex justify-between items-center px-1 italic font-bold border-b border-black text-xs min-h-[1.5rem]">
-                            <div class="flex-1 transition-colors hover:bg-slate-50" use:editable={{ value: getSectionConfig(part)?.instructions || (part === 'A' ? 'Answer any six Questions.' : 'Answer the following Questions.'), onUpdate: (v) => updateInstructions(part, v) }}>
-                                {getSectionConfig(part)?.instructions || (part === 'A' ? 'Answer any six Questions.' : 'Answer the following Questions.')}
-                            </div>
-                            <div class="no-print">
-                              {#if part === 'A'}
-                                <span class="pl-4">6 x 2 = 12</span>
-                              {:else if part === 'B'}
-                                <span class="pl-4">2 x 4 = 8</span>
-                              {/if}
-                            </div>
-                        </div>
+            <!-- Table Structure for Content -->
+            <div class="border-t-[1.5pt] border-black -mx-[5mm] print:mx-0">
+                <table class="w-full border-collapse border-b-[1.5pt] border-black">
+                    <tbody>
+                        {#each sections as [part, questions], sIdx}
+                            <!-- Section Row -->
+                            <tr>
+                                <td colspan="3" class="text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm cursor-text hover:bg-slate-50" use:editable={{ value: getSectionConfig(part)?.title || `Section - ${part}`, onUpdate: (v) => updateSectionTitle(part, v) }}>
+                                    {getSectionConfig(part)?.title || `Section - ${part}`}
+                                </td>
+                            </tr>
+                            
+                            <!-- Instructions Row -->
+                            <tr>
+                                <td colspan="3" class="border-b border-black">
+                                    <div class="flex justify-between items-center px-1 italic font-bold text-xs min-h-[1.5rem]">
+                                        <div class="flex-1 cursor-text transition-colors hover:bg-slate-50" use:editable={{ value: getSectionConfig(part)?.instructions || (part === 'A' ? 'Answer any six Questions.' : 'Answer the following Questions.'), onUpdate: (v) => updateInstructions(part, v) }}>
+                                            {getSectionConfig(part)?.instructions || (part === 'A' ? 'Answer any six Questions.' : 'Answer the following Questions.')}
+                                        </div>
+                                        <div class="no-print tabular-nums">
+                                        {#if part === 'A'}
+                                            <span class="pl-4">6 x 2 = 12</span>
+                                        {:else if part === 'B'}
+                                            <span class="pl-4">2 x 4 = 8</span>
+                                        {/if}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
 
-                        <div class="space-y-1">
+                            <!-- Questions -->
                             {#each questions as q, qIdx}
                                 {#if q.type === 'OR_GROUP'}
-                                    <div class="space-y-3 pt-2">
-                                        <!-- Choice 1 -->
-                                        <div class="group relative flex gap-4 hover:bg-slate-50 transition-colors">
+                                    <!-- Choice 1 Row -->
+                                    <tr class="group relative hover:bg-slate-50/50">
+                                        <td class="w-[30pt] border-r border-black font-bold text-center align-top py-2 text-sm tabular-nums">
+                                            {getQuestionNumber(sIdx, qIdx, 'OR_A')}.
+                                        </td>
+                                        <td class="px-2 py-2 text-sm leading-relaxed align-top relative">
                                             {#if isEditable}
-                                                <div class="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                                <div class="absolute -left-10 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                                     <button onclick={() => openSwapSidebar(q, part, 'q1')} title="Swap Question" class="w-7 h-7 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow hover:bg-indigo-700"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
                                                 </div>
                                             {/if}
-                                            <div class="flex flex-col items-center">
-                                                <span class="font-bold min-w-[20px] text-sm">{getQuestionNumber(sIdx, qIdx, 'OR_A')}.</span>
-                                            </div>
-                                            <div class="flex-1 text-sm leading-relaxed outline-none min-h-[1.5em] px-1" use:editable={{ value: q.choice1?.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.choice1?.questions?.[0]?.id, 'choice1') }}>
+                                            <div class="outline-none cursor-text min-h-[1.5em]" use:editable={{ value: q.choice1?.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.choice1?.questions?.[0]?.id, 'choice1') }}>
                                                 {@html q.choice1?.questions?.[0]?.text || ''}
                                             </div>
-                                            <div class="min-w-[30px] text-right font-bold text-xs pt-1">[{q.choice1?.questions?.[0]?.marks || 4}]</div>
-                                        </div>
+                                        </td>
+                                        <td class="w-[40pt] border-l border-black text-center align-top py-2 font-bold text-sm tabular-nums">
+                                            [{q.choice1?.questions?.[0]?.marks || 4}]
+                                        </td>
+                                    </tr>
 
-                                         <!-- OR separator -->
-                                         <div class="text-center font-black uppercase text-[11px] tracking-[0.5em] py-1 border-y border-black mb-2">OR</div>
+                                    <!-- OR Row -->
+                                    <tr>
+                                        <td class="w-[30pt] border-r border-black"></td>
+                                        <td class="text-center font-black uppercase text-[11px] tracking-[0.5em] py-1 border-y border-black">OR</td>
+                                        <td class="w-[40pt] border-l border-black"></td>
+                                    </tr>
 
-                                        <!-- Choice 2 -->
-                                        <div class="group relative flex gap-4 hover:bg-slate-50 transition-colors">
+                                    <!-- Choice 2 Row -->
+                                    <tr class="group relative hover:bg-slate-50/50 border-b border-black">
+                                        <td class="w-[30pt] border-r border-black font-bold text-center align-top py-2 text-sm tabular-nums">
+                                            {getQuestionNumber(sIdx, qIdx, 'OR_B')}.
+                                        </td>
+                                        <td class="px-2 py-2 text-sm leading-relaxed align-top relative">
                                             {#if isEditable}
-                                                <div class="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                                <div class="absolute -left-10 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                                     <button onclick={() => openSwapSidebar(q, part, 'q2')} title="Swap Question" class="w-7 h-7 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow hover:bg-indigo-700"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
                                                 </div>
                                             {/if}
-                                            <div class="flex flex-col items-center">
-                                                <span class="font-bold min-w-[20px] text-sm">{getQuestionNumber(sIdx, qIdx, 'OR_B')}.</span>
-                                            </div>
-                                            <div class="flex-1 text-sm leading-relaxed outline-none min-h-[1.5em] px-1" use:editable={{ value: q.choice2?.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.choice2?.questions?.[0]?.id, 'choice2') }}>
+                                            <div class="outline-none cursor-text min-h-[1.5em]" use:editable={{ value: q.choice2?.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.choice2?.questions?.[0]?.id, 'choice2') }}>
                                                 {@html q.choice2?.questions?.[0]?.text || ''}
                                             </div>
-                                            <div class="min-w-[30px] text-right font-bold text-xs pt-1">[{q.choice2?.questions?.[0]?.marks || 4}]</div>
-                                        </div>
-                                    </div>
-                                    <div class="border-b border-black/10 my-2"></div>
+                                        </td>
+                                        <td class="w-[40pt] border-l border-black text-center align-top py-2 font-bold text-sm tabular-nums">
+                                            [{q.choice2?.questions?.[0]?.marks || 4}]
+                                        </td>
+                                    </tr>
                                 {:else}
-                                    <div class="group relative flex gap-4 min-h-[40px] hover:bg-slate-50 transition-colors border-b border-black py-2 last:border-0 items-start">
-                                        {#if isEditable}
-                                            <div class="absolute -left-10 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
-                                                <button onclick={() => openSwapSidebar(q, part)} title="Swap Question" class="w-7 h-7 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow hover:bg-indigo-700 animate-in fade-in"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
-                                                <button onclick={() => removeQuestion(q)} title="Delete Question" class="w-7 h-7 bg-red-500 text-white rounded-lg flex items-center justify-center shadow hover:bg-red-600 animate-in fade-in"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                    <!-- Single Question Row -->
+                                    <tr class="group relative hover:bg-slate-50/50 border-b border-black last:border-b-0">
+                                        <td class="w-[30pt] border-r border-black font-bold text-center align-top py-2 text-sm tabular-nums">
+                                            {getQuestionNumber(sIdx, qIdx)}.
+                                        </td>
+                                        <td class="px-2 py-2 text-sm leading-relaxed align-top relative">
+                                            {#if isEditable}
+                                                <div class="absolute -left-10 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                                    <button onclick={() => openSwapSidebar(q, part)} title="Swap Question" class="w-7 h-7 bg-indigo-600 text-white rounded-lg flex items-center justify-center shadow hover:bg-indigo-700 animate-in fade-in"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg></button>
+                                                    <button onclick={() => removeQuestion(q)} title="Delete Question" class="w-7 h-7 bg-red-500 text-white rounded-lg flex items-center justify-center shadow hover:bg-red-600 animate-in fade-in"><svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                                </div>
+                                            {/if}
+                                            <div class="outline-none cursor-text min-h-[1.5em]" use:editable={{ value: q.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.questions?.[0]?.id) }}>
+                                                {@html q.questions?.[0]?.text || ''}
                                             </div>
-                                        {/if}
-                                        <div class="flex flex-col items-center">
-                                            <span class="font-bold min-w-[20px] text-sm">{getQuestionNumber(sIdx, qIdx)}.</span>
-                                        </div>
-                                        <div class="flex-1 text-sm leading-relaxed outline-none min-h-[1.5em] px-1" use:editable={{ value: q.questions?.[0]?.text || '', onUpdate: (v) => updateTextValue(v, 'QUESTION', 'text', q.id, q.questions?.[0]?.id) }}>
-                                            {@html q.questions?.[0]?.text || ''}
-                                        </div>
-                                        <div class="min-w-[30px] text-right font-bold text-xs pt-1 group/mark relative">
+                                        </td>
+                                        <td class="w-[40pt] border-l border-black text-center align-top py-2 group/mark relative tabular-nums">
                                             <div 
                                                 role="button"
                                                 tabindex="0"
-                                                class="cursor-pointer hover:bg-indigo-50 px-1 rounded transition-colors {isEditable ? 'border-b border-dotted border-gray-300' : ''}"
+                                                class="cursor-pointer hover:bg-indigo-50 px-1 rounded transition-colors font-bold text-sm {isEditable ? 'border-b border-dotted border-gray-300' : ''}"
                                                 onclick={(e) => { if (!isEditable) return; e.stopPropagation(); activeMenuId = (activeMenuId === q.id ? null : q.id); }}
                                                 onkeydown={(e) => e.key === 'Enter' && isEditable && (activeMenuId = (activeMenuId === q.id ? null : q.id))}
                                             >
                                                 [{q.questions?.[0]?.marks || 2}]
-                                            </div>
+                                        </div>
                                             {#if activeMenuId === q.id && isEditable}
-                                                <div transition:fade={{ duration: 100 }} onclick={(e) => e.stopPropagation()} role="none" class="absolute right-0 top-6 w-32 bg-white rounded-lg shadow-xl border border-gray-100 p-2 z-50 no-print">
-                                                    <select value={q.questions?.[0]?.co_id} onchange={(e: any) => updateCO(q.id, q.questions?.[0]?.id, e.target.value)} class="w-full text-[10px] font-bold border-none bg-gray-50 focus:ring-0">
+                                                <div transition:fade={{ duration: 100 }} onclick={(e) => e.stopPropagation()} role="none" class="absolute right-0 top-10 w-32 bg-white rounded-lg shadow-xl border border-gray-100 p-2 z-50 no-print">
+                                                    <div class="text-[9px] font-black uppercase text-gray-400 mb-2 px-1">Map Outcome</div>
+                                                    <select value={q.questions?.[0]?.co_id} onchange={(e: any) => updateCO(q.id, q.questions?.[0]?.id, e.target.value)} class="w-full text-[10px] font-bold border-none bg-gray-50 focus:ring-0 rounded-lg">
                                                         <option value="">No CO</option>
                                                         {#each courseOutcomes as co}<option value={co.id}>{co.code}</option>{/each}
                                                     </select>
                                                 </div>
                                             {/if}
-                                        </div>
-                                    </div>
+                                        </td>
+                                    </tr>
                                 {/if}
                             {/each}
-                        </div>
-                    </section>
-                {/each}
-            </main>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -417,4 +437,6 @@
         display: block;
         margin: 10px 0;
     }
+    .cursor-text { cursor: text; }
+    table { table-layout: fixed; }
 </style>
