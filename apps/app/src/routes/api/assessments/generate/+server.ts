@@ -327,7 +327,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     metadata: {
                         unit_ids, exam_type, semester, paper_date, exam_time,
                         duration_minutes, max_marks, course_code, exam_title, instructions,
-                        generation_mode, template_config
+                        generation_mode, template_config, selected_template: body.selected_template
                     }
                 })
             ]

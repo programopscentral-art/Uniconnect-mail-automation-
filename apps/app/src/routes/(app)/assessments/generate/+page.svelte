@@ -3,6 +3,7 @@
     import { slide, fade, fly } from 'svelte/transition';
     import { invalidateAll, goto } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
+    import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
 
     let { data } = $props();
 
@@ -27,6 +28,7 @@
     let selectedUnitIds = $state<string[]>([]);
 
     let generationMode = $state('Standard');
+    let selectedTemplate = $state('crescent');
     let partAType = $state('Normal'); 
     let paperStructure = $state<any[]>([]);
     let setsConfig = $state<Record<string, string[]>>({
@@ -118,6 +120,58 @@
         }
         structure.push(partB);
         
+        if (generationMode === 'Chaitanya') {
+            const partA = { 
+                title: 'Section - A', 
+                part: 'A',
+                answered_count: 6,
+                marks_per_q: 2,
+                slots: [] as any[] 
+            };
+            for(let i=1; i<=10; i++) {
+                partA.slots.push({ 
+                    id: `A-${i}-${Math.random()}`, 
+                    label: `${i}`, 
+                    part: 'A',
+                    type: 'SINGLE',
+                    marks: 2, 
+                    unit: 'Auto', 
+                    qType: 'NORMAL',
+                    hasSubQuestions: false,
+                    bloom: 'ANY'
+                });
+            }
+            structure.push(partA);
+
+            const partB = { 
+                title: 'Section - B', 
+                part: 'B',
+                answered_count: 2,
+                marks_per_q: 4,
+                slots: [] as any[] 
+            };
+            for(let i=0; i<2; i++) {
+                const qNum = 11 + i*2;
+                partB.slots.push({ 
+                    id: `B-${i}-${Math.random()}`, 
+                    label: `${qNum}`, 
+                    displayLabel: `${qNum} or ${qNum + 1}`,
+                    part: 'B',
+                    type: 'OR_GROUP',
+                    marks: 4,
+                    choices: [
+                        { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 4, bloom: 'ANY' },
+                        { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 4, bloom: 'ANY' }
+                    ]
+                });
+            }
+            structure.push(partB);
+            
+            paperStructure = structure;
+            refreshLabels();
+            return;
+        }
+
         if (is100) {
             const partC = {
                 title: 'PART C',
@@ -265,6 +319,7 @@
                 instructions: paperInstructions,
                 generation_mode: generationMode,
                 part_a_type: partAType,
+                selected_template: selectedTemplate,
                 template_config: generationMode === 'Modifiable' ? paperStructure : null,
                 sets_config: setsConfig
             }),
@@ -428,6 +483,16 @@
             fetchTopics();
             const sub = data.subjects.find(s => s.id === selectedSubjectId);
             if (sub) courseCodeManual = sub.code || '';
+        }
+    });
+
+    // Auto-detect template for Chaitanya
+    $effect(() => {
+        if (activeUniversity?.name?.toLowerCase().includes('chaitanya')) {
+            selectedTemplate = 'cdu';
+            generationMode = 'Chaitanya';
+        } else {
+            selectedTemplate = 'crescent';
         }
     });
 </script>
@@ -681,12 +746,15 @@
                     </div>
 
                     <div class="flex bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-xl shadow-indigo-100/50 dark:shadow-indigo-950/50 border border-indigo-100 dark:border-indigo-800">
-                        {#each ['Standard', 'Modifiable'] as mode}
+                        {#each ['Standard', 'Chaitanya', 'Modifiable'] as mode}
                             <button 
-                                onclick={() => generationMode = mode}
+                                onclick={() => {
+                                    generationMode = mode;
+                                    if (mode === 'Chaitanya') initializeStructure(true);
+                                }}
                                 class="px-10 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest
                                 {generationMode === mode ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}"
-                            >{mode}</button>
+                            >{mode === 'Chaitanya' ? 'Chaitanya' : mode}</button>
                         {/each}
                     </div>
 
@@ -1088,22 +1156,53 @@
 
                     <div class="flex-1 w-full overflow-y-auto overflow-x-hidden max-h-[650px] bg-slate-100/30 dark:bg-slate-900/50 rounded-[2rem] p-6 border border-indigo-100/20 custom-scrollbar">
                         <div class="scale-100 origin-top w-full mx-auto shadow-2xl">
-                            <CrescentTemplate 
-                                paperMeta={{
-                                    paper_date: examDate,
-                                    duration_minutes: String(examDuration),
-                                    max_marks: String(maxMarks),
-                                    course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
-                                    exam_title: examTitleHeader,
-                                    programme: activeBranch?.name || 'B.Tech CSE',
-                                    semester: String(selectedSemester),
-                                    instructions: paperInstructions,
-                                    subject_name: activeSubject?.name
-                                }}
-                                {paperStructure}
-                                {courseOutcomes}
-                                mode="preview"
-                            />
+                            <div class="mb-4 flex gap-2 justify-center">
+                                <button 
+                                    onclick={() => selectedTemplate = 'crescent'}
+                                    class="px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
+                                    {selectedTemplate === 'crescent' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500 hover:text-white'}"
+                                >Standard</button>
+                                <button 
+                                    onclick={() => selectedTemplate = 'cdu'}
+                                    class="px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
+                                    {selectedTemplate === 'cdu' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500 hover:text-white'}"
+                                >Chaitanya</button>
+                            </div>
+
+                            {#if selectedTemplate === 'cdu'}
+                                <CDUTemplate 
+                                    paperMeta={{
+                                        paper_date: examDate,
+                                        duration_minutes: String(examDuration),
+                                        max_marks: String(maxMarks),
+                                        course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
+                                        exam_title: examTitleHeader,
+                                        programme: activeBranch?.name || 'B.Tech CSE',
+                                        semester: String(selectedSemester),
+                                        instructions: paperInstructions,
+                                        subject_name: activeSubject?.name
+                                    }}
+                                    currentSetData={{ questions: [] }} 
+                                    {courseOutcomes}
+                                />
+                            {:else}
+                                <CrescentTemplate 
+                                    paperMeta={{
+                                        paper_date: examDate,
+                                        duration_minutes: String(examDuration),
+                                        max_marks: String(maxMarks),
+                                        course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
+                                        exam_title: examTitleHeader,
+                                        programme: activeBranch?.name || 'B.Tech CSE',
+                                        semester: String(selectedSemester),
+                                        instructions: paperInstructions,
+                                        subject_name: activeSubject?.name
+                                    }}
+                                    {paperStructure}
+                                    {courseOutcomes}
+                                    mode="preview"
+                                />
+                            {/if}
                         </div>
                     </div>
                     
