@@ -5,9 +5,9 @@ import { error } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
-    const universityId = url.searchParams.get('universityId') || locals.user.university_id;
-    const batchId = url.searchParams.get('batchId');
-    const branchId = url.searchParams.get('branchId');
+    const universityId = url.searchParams.get('universityId') || url.searchParams.get('universityid') || locals.user.university_id;
+    const batchId = url.searchParams.get('batchId') || url.searchParams.get('batchid');
+    const branchId = url.searchParams.get('branchId') || url.searchParams.get('branchid');
 
     try {
         console.log('[GENERATE_LOAD] universityId:', universityId, 'batchId:', batchId);

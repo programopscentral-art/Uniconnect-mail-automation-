@@ -551,17 +551,29 @@
     });
 
     // Absolute Template Enforcement for Chaitanya
-    const isChaitanya = $derived(activeUniversity?.name?.toLowerCase().includes('chaitanya'));
+    const isChaitanya = $derived(
+        activeUniversity?.name?.toLowerCase().includes('chaitanya') || 
+        selectedUniversityId === '8e5403f9-505a-44d4-add4-aae3efaa9248' ||
+        (typeof window !== 'undefined' && window.location.search.toLowerCase().includes('8e5403f9'))
+    );
+    const isCrescent = $derived(activeUniversity?.name?.toLowerCase().includes('crescent'));
     
     $effect(() => {
         if (isChaitanya) {
             selectedTemplate = 'cdu';
-            maxMarks = 20; // Default requested for CDU
+            maxMarks = 20; 
+            examDuration = 90;
+        } else if (isCrescent) {
+            selectedTemplate = 'crescent';
+            maxMarks = 50;
             examDuration = 90;
         } else {
-            selectedTemplate = 'crescent';
+            selectedTemplate = 'crescent'; // Final fallback template
         }
     });
+
+    // Determine the user-facing label for the "Standard" mode
+    let universityLabel = $derived(isChaitanya ? 'Chaitanya (CDU)' : (isCrescent ? 'Crescent (IST)' : 'University Standard'));
 
     let sectionLabel = $derived(selectedTemplate === 'cdu' ? 'Section' : 'Part');
 </script>
@@ -1235,22 +1247,10 @@
                     <div class="flex-1 w-full overflow-y-auto overflow-x-hidden max-h-[650px] bg-slate-100/30 dark:bg-slate-900/50 rounded-[2rem] p-6 border border-indigo-100/20 custom-scrollbar">
                         <div class="scale-100 origin-top w-full mx-auto shadow-2xl">
                             <div class="mb-4 flex gap-2 justify-center">
-                                {#if isChaitanya}
-                                    <div class="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">
-                                        University Format: Chaitanya (CDU)
-                                    </div>
-                                {:else}
-                                    <button 
-                                        onclick={() => selectedTemplate = 'crescent'}
-                                        class="px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
-                                        {selectedTemplate === 'crescent' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500 hover:text-white'}"
-                                    >Standard (Crescent)</button>
-                                    <button 
-                                        onclick={() => selectedTemplate = 'cdu'}
-                                        class="px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all
-                                        {selectedTemplate === 'cdu' ? 'bg-indigo-600 text-white' : 'bg-gray-800 text-gray-500 hover:text-white'}"
-                                    >Chaitanya (CDU)</button>
-                                {/if}
+                                <div class="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A9 9 0 112.182 17.82L3 21l3.18-.818A8.966 8.966 0 0012 21a9 9 0 008.94-6.94l1.1-3.32z"/></svg>
+                                    Format: {universityLabel}
+                                </div>
                             </div>
 
                             {#if selectedTemplate === 'cdu'}
@@ -1291,7 +1291,7 @@
                     </div>
                     
                     <div class="mt-4 flex flex-col items-center gap-2">
-                        <div class="text-[10px] text-indigo-300 font-black uppercase tracking-widest">Live Crescent Template Preview</div>
+                        <div class="text-[10px] text-indigo-300 font-black uppercase tracking-widest">University Template Preview</div>
                         
                         {#if poolDeficiency().length > 0}
                             <div class="mt-2 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-left w-full" in:slide>

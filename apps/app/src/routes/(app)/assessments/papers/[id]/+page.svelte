@@ -12,13 +12,20 @@
     const availableSets = $state(['A', 'B', 'C', 'D']);
     
     // Absolute Template Enforcement
-    // The university name is the ultimate source of truth
+    // The university name and ID are the ultimate source of truth
     let selectedTemplate = $derived.by(() => {
         const uniName = data?.paper?.university_name?.toLowerCase() || '';
-        if (uniName.includes('chaitanya')) return 'cdu';
+        const uniId = data?.paper?.university_id;
+        
+        if (uniName.includes('chaitanya') || uniId === '8e5403f9-505a-44d4-add4-aae3efaa9248') {
+            return 'cdu';
+        }
         if (uniName.includes('crescent')) return 'crescent';
+        
         return data?.paper?.sets_data?.metadata?.selected_template || 'crescent';
     });
+    
+    let universityLabel = $derived(selectedTemplate === 'cdu' ? 'Chaitanya (CDU)' : (selectedTemplate === 'crescent' ? 'Crescent (IST)' : 'University Standard'));
     
     // We deep clone paper data to allow local edits
     let editableSets = $state<any>(initializeSets());
@@ -600,9 +607,9 @@
                 <!-- Template Info -->
                 <div class="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm print:hidden">
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Paper Format:</span>
-                    <div class="px-6 py-2 rounded-xl text-[10px] font-black bg-indigo-600 text-white uppercase tracking-widest flex items-center gap-2">
+                    <div class="px-6 py-2 rounded-xl text-[10px] font-black bg-indigo-600 text-white uppercase tracking-widest flex items-center gap-2 shadow-sm">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A9 9 0 112.182 17.82L3 21l3.18-.818A8.966 8.966 0 0012 21a9 9 0 008.94-6.94l1.1-3.32z"/></svg>
-                        University Standard ({selectedTemplate === 'cdu' ? 'Chaitanya CDU' : 'Crescent IST'})
+                        University Standard ({universityLabel})
                     </div>
                 </div>
 
