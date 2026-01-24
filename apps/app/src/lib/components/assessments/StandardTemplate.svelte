@@ -69,7 +69,6 @@
 
     function openSwapSidebar(slot: any, part: string, subPart?: 'q1' | 'q2') {
         const cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
-        // NO HARDCODED MARKS: Use the question's actual marks or fallback to slot marks
         const marks = Number(cQ?.marks || slot.marks || (part === 'A' ? 2 : 16));
         const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
         const index = arr.indexOf(slot);
@@ -107,27 +106,25 @@
 
 <div class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-100 dark:bg-slate-900/50">
     <div class="flex-1 overflow-auto p-4 sm:p-8">
-        <div id="crescent-paper-actual" class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative" style="width: 8.27in; min-height: 11.69in;">
-            <div class="flex justify-between items-start mb-6">
-                <img src="/crescent-logo.png" alt="Logo" class="h-16" />
-                <div class="text-right">
-                    <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} class="font-bold border px-1" />
-                    <div class="text-[10px] mt-1">RRN: [ _ _ _ _ _ _ _ _ _ _ ]</div>
-                </div>
+        <div id="standard-paper-actual" class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative" style="width: 8.27in; min-height: 11.69in;">
+            <div class="text-center mb-8 border-b-2 border-black pb-4">
+                <h1 class="text-2xl font-black uppercase tracking-tighter mb-1">Examination Paper</h1>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">University Standard Assessment</p>
             </div>
 
-            <div class="text-center mb-8 border-y-2 border-black py-2">
-                <AssessmentEditable bind:value={paperMeta.exam_title} onUpdate={(v: string) => updateText(v, 'META', 'exam_title')} class="text-xl font-black uppercase" />
-                <div class="grid grid-cols-2 text-sm mt-4 text-left border-t border-black pt-2">
-                    <div><b>Programme:</b> <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} /></div>
-                    <div><b>Semester:</b> <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} /></div>
-                </div>
+            <div class="grid grid-cols-2 gap-y-4 text-sm mb-8 border-b-2 border-black pb-4">
+                 <div><b>Course:</b> <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} /></div>
+                 <div><b>Subject:</b> <AssessmentEditable bind:value={paperMeta.subject_name} onUpdate={(v: string) => updateText(v, 'META', 'subject_name')} /></div>
+                 <div><b>Programme:</b> <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} /></div>
+                 <div><b>Semester:</b> <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} /></div>
+                 <div><b>Duration:</b> {paperMeta.duration_minutes} Minutes</div>
+                 <div><b>Max Marks:</b> {paperMeta.max_marks}</div>
             </div>
 
             <div class="space-y-12">
-                <!-- PART A -->
+                {#if questionsA.length > 0}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART A ({questionsA.length} x 2 = {totalMarksA} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART A ({questionsA.length} x {questionsA[0]?.marks || 2} = {totalMarksA} Marks)</div>
                     <div use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', e.detail.items)} onfinalize={(e) => handleDndSync('A', e.detail.items)}>
                         {#each questionsA as q, i (q.id)}
                             <div animate:flip={{duration: 200}} class="border-b border-black last:border-b-0">
@@ -136,13 +133,14 @@
                         {/each}
                     </div>
                 </div>
+                {/if}
 
-                <!-- PART B -->
+                {#if questionsB.length > 0}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART B ({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART B ({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</div>
                     <div use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', e.detail.items)} onfinalize={(e) => handleDndSync('B', e.detail.items)}>
                         {#each questionsB as q, i (q.id)}
-                            <div animate:flip={{duration: 200}} class="border-b border-black last:border-b-0">
+                            <div animate:flip={{duration: 200}} class="border-2 border-black mb-6 shadow-sm">
                                 <AssessmentSlotOrGroup slot={q} qNumber={questionsA.length + (i*2) + 1} {isEditable} snoWidth={35}
                                     onSwap1={() => openSwapSidebar(q, 'B', 'q1')} onSwap2={() => openSwapSidebar(q, 'B', 'q2')}
                                     onRemove={() => removeQuestion(q)}
@@ -152,14 +150,14 @@
                         {/each}
                     </div>
                 </div>
+                {/if}
 
-                <!-- PART C -->
                 {#if questionsC.length > 0}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest">PART C ({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART C ({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</div>
                     <div use:dndzone={{ items: questionsC, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('C', e.detail.items)} onfinalize={(e) => handleDndSync('C', e.detail.items)}>
                         {#each questionsC as q, i (q.id)}
-                            <div animate:flip={{duration: 200}} class="border-b border-black last:border-b-0">
+                            <div animate:flip={{duration: 200}} class="border-2 border-black mb-6 shadow-sm">
                                 <AssessmentSlotOrGroup slot={q} qNumber={questionsA.length + (questionsB.length*2) + (i*2) + 1} {isEditable} snoWidth={35}
                                     onSwap1={() => openSwapSidebar(q, 'C', 'q1')} onSwap2={() => openSwapSidebar(q, 'C', 'q2')}
                                     onRemove={() => removeQuestion(q)}
@@ -192,7 +190,14 @@
                     </div>
                     <div class="text-xs font-medium text-gray-700 dark:text-slate-300 leading-relaxed line-clamp-3">{@html q.question_text}</div>
                 </button>
+            {:else}
+                <div class="text-center py-20 text-gray-400 text-xs font-black uppercase tracking-widest">No matching questions found in pool.</div>
             {/each}
          </div>
     {/if}
 </div>
+
+<style>
+    @font-face { font-family: 'Times New Roman'; font-display: swap; src: local('Times New Roman'); }
+    #standard-paper-actual { font-family: 'Times New Roman', Times, serif; }
+</style>

@@ -4,6 +4,7 @@
     import { invalidateAll } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
     import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
+    import StandardTemplate from '$lib/components/assessments/StandardTemplate.svelte';
 
     let { data } = $props();
 
@@ -22,7 +23,7 @@
         }
         if (uniName.includes('crescent')) return 'crescent';
         
-        return data?.paper?.sets_data?.metadata?.selected_template || 'crescent';
+        return data?.paper?.sets_data?.metadata?.selected_template || 'standard';
     });
     
     let universityLabel = $derived(selectedTemplate === 'cdu' ? 'Chaitanya (CDU)' : (selectedTemplate === 'crescent' ? 'Crescent (IST)' : 'University Standard'));
@@ -626,8 +627,18 @@
                         questionPool={data.questionPool}
                         mode="edit"
                     />
-                {:else}
+                {:else if selectedTemplate === 'crescent'}
                     <CrescentTemplate 
+                        bind:paperMeta={paperMeta}
+                        bind:currentSetData={editableSets[activeSet]}
+                        {paperStructure}
+                        activeSet={activeSet}
+                        courseOutcomes={data.courseOutcomes}
+                        questionPool={data.questionPool}
+                        mode="edit"
+                    />
+                {:else}
+                    <StandardTemplate 
                         bind:paperMeta={paperMeta}
                         bind:currentSetData={editableSets[activeSet]}
                         {paperStructure}
