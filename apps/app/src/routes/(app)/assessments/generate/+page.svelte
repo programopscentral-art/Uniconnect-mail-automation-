@@ -172,6 +172,58 @@
             return;
         }
 
+        if (activeUniversity?.name?.toLowerCase().includes('chaitanya')) {
+            const partA = { 
+                title: 'Section - A', 
+                part: 'A',
+                answered_count: 6,
+                marks_per_q: 2,
+                slots: [] as any[] 
+            };
+            for(let i=1; i<=10; i++) {
+                partA.slots.push({ 
+                    id: `A-${i}-${Math.random()}`, 
+                    label: `${i}`, 
+                    part: 'A',
+                    type: 'SINGLE',
+                    marks: 2, 
+                    unit: 'Auto', 
+                    qType: 'NORMAL',
+                    hasSubQuestions: false,
+                    bloom: 'ANY'
+                });
+            }
+            structure.push(partA);
+
+            const partB = { 
+                title: 'Section - B', 
+                part: 'B',
+                answered_count: 2,
+                marks_per_q: 4,
+                slots: [] as any[] 
+            };
+            for(let i=0; i<2; i++) {
+                const qNum = 11 + i*2;
+                partB.slots.push({ 
+                    id: `B-${i}-${Math.random()}`, 
+                    label: `${qNum}`, 
+                    displayLabel: `${qNum} or ${qNum + 1}`,
+                    part: 'B',
+                    type: 'OR_GROUP',
+                    marks: 4,
+                    choices: [
+                        { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 4, bloom: 'ANY' },
+                        { label: ``, unit: 'Auto', qType: 'NORMAL', hasSubQuestions: false, marks: 4, bloom: 'ANY' }
+                    ]
+                });
+            }
+            structure.push(partB);
+            
+            paperStructure = structure;
+            refreshLabels();
+            return;
+        }
+
         if (is100) {
             const partC = {
                 title: 'PART C',
@@ -438,6 +490,18 @@
         refreshLabels();
     }
 
+    function addSection() {
+        const char = String.fromCharCode(65 + paperStructure.length); // Next char
+        paperStructure.push({
+            title: `SECTION ${char}`,
+            part: char,
+            answered_count: 5,
+            marks_per_q: 2,
+            slots: []
+        });
+        paperStructure = [...paperStructure];
+    }
+
     // Wizard Navigation
     function nextStep() { 
         if (currentStep === 1 && (!selectedUniversityId || !selectedBatchId)) return;
@@ -490,11 +554,16 @@
     $effect(() => {
         if (activeUniversity?.name?.toLowerCase().includes('chaitanya')) {
             selectedTemplate = 'cdu';
-            generationMode = 'Chaitanya';
+            if (activeUniversity?.name?.toLowerCase().includes('chaitanya')) {
+              maxMarks = 20;
+              examDuration = 90;
+            }
         } else {
             selectedTemplate = 'crescent';
         }
     });
+
+    let sectionLabel = $derived(selectedTemplate === 'cdu' ? 'Section' : 'Part');
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 pb-32">
@@ -746,15 +815,15 @@
                     </div>
 
                     <div class="flex bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-xl shadow-indigo-100/50 dark:shadow-indigo-950/50 border border-indigo-100 dark:border-indigo-800">
-                        {#each ['Standard', 'Chaitanya', 'Modifiable'] as mode}
+                        {#each ['Standard', 'Modifiable'] as mode}
                             <button 
                                 onclick={() => {
                                     generationMode = mode;
-                                    if (mode === 'Chaitanya') initializeStructure(true);
+                                    if (mode === 'Standard') initializeStructure(true);
                                 }}
                                 class="px-10 py-3 rounded-xl text-xs font-black transition-all uppercase tracking-widest
                                 {generationMode === mode ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'}"
-                            >{mode === 'Chaitanya' ? 'Chaitanya' : mode}</button>
+                            >{mode}</button>
                         {/each}
                     </div>
 
@@ -1079,7 +1148,15 @@
                                     {/each}
                                 </div>
                             </div>
-                        {/each}
+                        <div class="pt-8 border-t border-indigo-100 dark:border-slate-800 flex justify-center">
+                            <button 
+                                onclick={addSection}
+                                class="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 flex items-center gap-3"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                                Add Another Section
+                            </button>
+                        </div>
                     </div>
                 </div>
             {/if}
