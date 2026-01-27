@@ -9,7 +9,7 @@
     let { 
         paperMeta = $bindable({}), 
         currentSetData = $bindable({ questions: [] }),
-        paperStructure = [],
+        paperStructure = $bindable([]),
         activeSet = 'A',
         courseOutcomes = [],
         questionPool = [],

@@ -575,24 +575,35 @@
     // Determine the user-facing label for the "Standard" mode
     let universityLabel = $derived(isChaitanya ? 'Chaitanya (CDU)' : (isCrescent ? 'Crescent (IST)' : 'University Standard'));
 
-    let previewPaperMeta = $state<any>({ colWidths: { sno: 40 } });
+    let previewPaperMeta = $state<any>({ 
+        paper_date: '',
+        duration_minutes: '90',
+        max_marks: '50',
+        course_code: 'CS-XXXX',
+        exam_title: 'SEMESTER END EXAMINATIONS - NOV/DEC 2025',
+        programme: 'B.Tech CSE',
+        semester: '1',
+        instructions: 'ANSWER ALL QUESTIONS',
+        subject_name: 'Subject Name',
+        univ_line_1: 'UNIVERSITY',
+        univ_line_2: '',
+        colWidths: { sno: 40 }
+    });
     let previewSetData = $state({ questions: [] });
 
     $effect(() => {
-        previewPaperMeta = {
-            paper_date: examDate,
-            duration_minutes: String(examDuration),
-            max_marks: String(maxMarks),
-            course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
-            exam_title: examTitleHeader,
-            programme: activeBranch?.name || 'B.Tech CSE',
-            semester: String(selectedSemester),
-            instructions: paperInstructions,
-            subject_name: activeSubject?.name,
-            univ_line_1: isChaitanya ? 'CHAITANYA DEEMED TO BE UNIVERSITY' : 'UNIVERSITY',
-            univ_line_2: isChaitanya ? 'KISHANPURA, HANAMKONDA - 506001 (TS)' : '',
-            colWidths: { sno: 40 }
-        };
+        previewPaperMeta.paper_date = examDate;
+        previewPaperMeta.duration_minutes = String(examDuration);
+        previewPaperMeta.max_marks = String(maxMarks);
+        previewPaperMeta.course_code = courseCodeManual || activeSubject?.code || 'CS-XXXX';
+        previewPaperMeta.exam_title = examTitleHeader;
+        previewPaperMeta.programme = activeBranch?.name || 'B.Tech CSE';
+        previewPaperMeta.semester = String(selectedSemester);
+        previewPaperMeta.instructions = paperInstructions;
+        previewPaperMeta.subject_name = activeSubject?.name || 'Subject Name';
+        previewPaperMeta.univ_line_1 = isChaitanya ? 'CHAITANYA DEEMED TO BE UNIVERSITY' : (isCrescent ? 'BS ABDUR RAHMAN' : 'UNIVERSITY');
+        previewPaperMeta.univ_line_1_2 = isCrescent ? 'CRESCENT INSTITUTE OF SCIENCE & TECHNOLOGY' : '';
+        previewPaperMeta.univ_line_2 = isChaitanya ? 'KISHANPURA, HANAMKONDA - 506001 (TS)' : (isCrescent ? 'Deemed to be University u/s 3 of the UGC Act, 1956' : '');
     });
 </script>
 
@@ -1274,17 +1285,25 @@
 
                             {#if selectedTemplate === 'cdu'}
                                 <CDUTemplate 
-                                    bind:paperMeta={previewPaperMeta}
-                                    bind:paperStructure={paperStructure}
-                                    bind:currentSetData={previewSetData} 
+                                    paperMeta={previewPaperMeta}
+                                    paperStructure={paperStructure}
+                                    currentSetData={previewSetData} 
+                                    {courseOutcomes}
+                                    mode="preview"
+                                />
+                            {:else if selectedTemplate === 'crescent'}
+                                <CrescentTemplate 
+                                    paperMeta={previewPaperMeta}
+                                    paperStructure={paperStructure}
+                                    currentSetData={previewSetData}
                                     {courseOutcomes}
                                     mode="preview"
                                 />
                             {:else}
-                                <CrescentTemplate 
-                                    bind:paperMeta={previewPaperMeta}
-                                    bind:paperStructure={paperStructure}
-                                    bind:currentSetData={previewSetData}
+                                <StandardTemplate 
+                                    paperMeta={previewPaperMeta}
+                                    paperStructure={paperStructure}
+                                    currentSetData={previewSetData}
                                     {courseOutcomes}
                                     mode="preview"
                                 />
