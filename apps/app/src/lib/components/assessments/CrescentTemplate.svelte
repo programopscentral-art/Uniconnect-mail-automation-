@@ -120,7 +120,7 @@
     }
 
     const calcTotal = (part: string) => {
-        const arr = (Array.isArray(currentSetData) ? currentSetData : (currentSetData.questions || [])).filter(Boolean);
+        const arr = (Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter(Boolean);
         const qs = arr.filter((q: any) => q && q.part === part);
         return qs.reduce((s: number, slot: any) => {
             const m = slot.marks || (slot.type === 'OR_GROUP' ? (slot.choice1?.questions?.[0]?.marks || 0) : (slot.questions?.[0]?.marks || 0));
@@ -137,15 +137,15 @@
         return ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'][n] || String(n + 1);
     }
 
-    const allQuestions = $derived(Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || []));
+    const allQuestions = $derived((Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter(Boolean));
     
     // Part A takes questions explicitly marked 'A' OR the first 10 questions if none are marked 'A'
-    const questionsA = $derived(allQuestions.some(q => q.part === 'A') 
-        ? allQuestions.filter(q => q.part === 'A')
+    const questionsA = $derived(allQuestions.some(q => q?.part === 'A') 
+        ? allQuestions.filter(q => q?.part === 'A')
         : allQuestions.slice(0, 10));
         
-    const questionsB = $derived(allQuestions.filter(q => q.part === 'B'));
-    const questionsC = $derived(allQuestions.filter(q => q.part === 'C'));
+    const questionsB = $derived(allQuestions.filter(q => q?.part === 'B'));
+    const questionsC = $derived(allQuestions.filter(q => q?.part === 'C'));
 </script>
 
 <div class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-100 dark:bg-slate-900/50">
