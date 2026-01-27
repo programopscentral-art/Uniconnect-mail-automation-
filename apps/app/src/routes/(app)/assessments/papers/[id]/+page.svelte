@@ -634,7 +634,7 @@
                     <!-- Version Tag -->
                     <div class="ml-auto px-4 py-1.5 rounded-lg text-[9px] font-black bg-green-100 text-green-700 border border-green-200 uppercase tracking-[0.2em] flex items-center gap-2">
                         <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        V2.2.3 - DEP FIXED
+                        V2.2.4 - STACK FIXED
                     </div>
                 </div>
 
