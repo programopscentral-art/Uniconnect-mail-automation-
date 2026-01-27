@@ -85,7 +85,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 export const handleError: HandleServerError = ({ error }) => {
     const err = error as any;
-    // Log concisely to avoid crashing dev terminal with huge Pool/Socket objects
+
+    // Silence favicon 404 noise in production logs
+    if (err.message?.includes('/favicon.ico')) return;
+
     console.error('SERVER_ERROR:', {
         message: err.message || 'Internal Error',
         code: err.code,
