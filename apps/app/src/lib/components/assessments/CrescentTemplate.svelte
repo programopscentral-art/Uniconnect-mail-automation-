@@ -289,8 +289,10 @@
                                     <AssessmentMcqOptions options={q.options} />
                                 </div>
                             </div>
-                            <div class="w-16 border-l border-black text-center py-1 font-bold text-[8.5pt] flex items-center justify-center">
-                                ( <AssessmentEditable value={String(q.marks || 2)} onUpdate={(v: string) => { q.marks = Number(v); updateText(v, 'QUESTION', 'marks', q.id, q.id); }} class="inline-block min-w-0" /> )
+                            <div class="w-16 border-l border-black text-center py-1 font-bold text-[8.5pt] flex items-center justify-center gap-1">
+                                <span>(</span>
+                                <AssessmentEditable value={String(q.marks || 2)} onUpdate={(v: string) => { q.marks = Number(v); updateText(v, 'QUESTION', 'marks', q.id, q.id); }} class="inline-block min-w-[8px] text-center" />
+                                <span>)</span>
                             </div>
                         </div>
                     {/each}
@@ -318,7 +320,11 @@
                 <!-- PART B -->
                 <div class="border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
                     <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
-                    <span>({questionsB.length} X {questionsB[0]?.marks || 16} = {totalMarksB} MARKS)</span>
+                    <div class="flex items-center gap-1 no-print">
+                        <span>(</span>
+                        <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} X ${questionsB[0]?.marks || 16} = ${totalMarksB} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
+                        <span>)</span>
+                    </div>
                 </div>
                 <div class="border-x border-black">
                     {#each questionsB as slot, i (slot.id)}
