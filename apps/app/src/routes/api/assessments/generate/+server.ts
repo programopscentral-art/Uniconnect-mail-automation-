@@ -165,20 +165,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         filtered = filtered.filter(q => q.type === qType);
                     }
                 } else if (targetMarks >= 5) {
-                    // For descriptive Parts B/C, allow anything not MCQ if marks are low (usually Part A)
-                    // But for high-mark slots, if they are still empty, we shouldn't be too restrictive
-                    // (The check above for qType === 'NORMAL' usually handles this, but this is a fallback)
-                    // Recommendation: allow MCQs if they have the target marks
+                    // Part B/C 
+                } else if (targetMarks < 5 && (!qType || qType === 'NORMAL')) {
+                    // PART A fallback protection: if marks are small, prefer NORMAL/MCQ mixed if pool is dry
+                    const tight = filtered.filter(q => !['MCQ', 'FILL_IN_BLANK'].includes(q.type || '') && !isShortOrMcq(q));
+                    if (tight.length > 0) filtered = tight;
                 }
 
                 if (bloomArr && bloomArr.length > 0 && !bloomArr.includes('ANY') && filtered.length > 0) {
                     const bFiltered = filtered.filter(q => bloomArr.includes(q.bloom_level));
                     if (bFiltered.length > 0) filtered = bFiltered;
+                    // FALLBACK: If bloom filter kills all results, revert to filtered pool
                 }
                 if (co_id && filtered.length > 0) {
                     const cFiltered = filtered.filter(q => q.co_id === co_id);
                     if (cFiltered.length > 0) filtered = cFiltered;
                 }
+
+                // FINAL SAFETY: If qType filter killed all results, fallback to everything
+                if (filtered.length === 0 && pool.length > 0) {
+                    return pool.filter(q => !excludeInSet.has(q.id));
+                }
+
                 return filtered;
             };
 
@@ -256,6 +264,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const excludeInSet = new Set<string>();
             let autoUnitCounter = 0;
             const setDifficulty = sets_config[setName] || ['ANY'];
+
+            // Shuffle poolByUnitAndMarks internally for each set to ensure diversity
+            Object.values(poolByUnitAndMarks).forEach(marksMap => {
+                Object.values(marksMap).forEach(pool => {
+                    for (let i = pool.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [pool[i], pool[j]] = [pool[j], pool[i]];
+                    }
+                });
+            });
 
             for (const slot of slotsToProcess) {
                 if (slot.type === 'SINGLE') {

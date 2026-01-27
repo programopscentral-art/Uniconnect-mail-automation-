@@ -188,21 +188,21 @@
                     {@const cfg = getSectionConfig(section)}
                     {#if cfg}
                         <div class="w-full text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm {sIdx > 0 ? 'border-t-[1.5pt]' : ''}">
-                            <AssessmentEditable value={cfg.title} onUpdate={(v: string) => updateSectionTitle(section, v)} class="w-full" />
+                            <AssessmentEditable value={cfg.title} onUpdate={(v) => updateSectionTitle(section, v)} class="w-full text-center" />
                         </div>
                         <div class="w-full flex items-center justify-between border-b border-black px-1 py-1 font-bold italic text-xs min-h-[22px] bg-white">
                              <div class="flex-1">
                                 <AssessmentEditable value={cfg.instructions} onUpdate={(v: string) => updateInstructions(section, v)} class="w-full" />
                              </div>
                              <div class="tabular-nums no-print text-right pl-4">
-                                 <AssessmentEditable value={getInstructionsMarks(section)} onUpdate={(v: string) => { cfg.instructions_marks = v; }} class="text-right" />
+                                 <AssessmentEditable value={cfg.instructions_marks || getInstructionsMarks(section)} onUpdate={(v: string) => { cfg.instructions_marks = v; paperStructure = [...paperStructure]; }} class="text-right" />
                              </div>
                         </div>
                     {/if}
                     <div class="w-full flex flex-col min-h-[50px]" use:dndzone={{ items: (currentSetData?.questions || []).filter((q: any) => q && q.part === section), flipDurationMs: 200 }} onconsider={(e) => handleDndSync(section, (e.detail as any).items)} onfinalize={(e) => handleDndSync(section, (e.detail as any).items)}>
                         {#each (currentSetData?.questions || []) as q (q.id)}
                             {#if q && q.part === section}
-                                <div class="w-full border-b border-black last:border-b-0 hover:bg-indigo-50/10 transition-colors">
+                                <div class="w-full border-b border-black hover:bg-indigo-50/10 transition-colors">
                                     {#if q.type === 'OR_GROUP'}
                                         <AssessmentSlotOrGroup slot={q} qNumber={getQuestionNumber(q.id)} {isEditable} {snoWidth}
                                             onSwap1={() => openSwapSidebar(q, section, 'q1')}

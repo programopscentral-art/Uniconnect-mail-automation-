@@ -31,7 +31,6 @@
         <AssessmentEditable 
             value={slot.questions[0].text}
             onUpdate={(v: string) => {
-                // Mutate state directly through reference (allowed in Svelte 5)
                 slot.questions[0].text = v;
                 slot.questions[0].question_text = v;
                 if (onUpdateText) onUpdateText(v, slot.questions[0].id);
@@ -39,5 +38,8 @@
             multiline={true}
         />
         <AssessmentMcqOptions options={slot.questions[0].options} />
+    </div>
+    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l-[1.5pt] border-black min-w-[50px] print:border-l-[1.5pt]">
+        ( {slot.questions[0].marks || slot.marks || ''} )
     </div>
 </div>

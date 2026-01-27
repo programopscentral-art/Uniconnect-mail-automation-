@@ -258,12 +258,16 @@
 
                 <!-- PART A -->
                 <div class="border-b border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
-                    <AssessmentEditable value={paperMeta.partA_title} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" /> 
-                    <span>({questionsA.length} X {questionsA[0]?.marks || 2} = {totalMarksA} MARKS)</span>
+                    <AssessmentEditable value={paperMeta.partA_title || 'PART A'} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" /> 
+                    <div class="flex items-center gap-1 no-print">
+                        <span>(</span>
+                        <AssessmentEditable value={paperMeta.totalMarksA_text || `${questionsA.length} X ${questionsA[0]?.marks || 2} = ${totalMarksA} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksA_text')} class="inline-block" />
+                        <span>)</span>
+                    </div>
                 </div>
                 <div class="border-x border-b border-black">
                     {#each questionsA as q, i (q.id)}
-                        <div class="border-b border-black last:border-b-0 min-h-[30px] flex group relative">
+                        <div class="border-b border-black min-h-[30px] flex group relative">
                             <div class="px-2 py-1 border-r border-black w-10 text-center font-bold text-[9pt] flex items-center justify-center">{i + 1}.</div>
                             <div class="flex-1 px-4 py-1 relative min-h-[30px] flex flex-col justify-center">
                                 <AssessmentRowActions 
@@ -319,7 +323,7 @@
                 <div class="border-x border-black">
                     {#each questionsB as slot, i (slot.id)}
                         {@const currentNum = questionsA.length + (i * 2) + 1}
-                        <div class="border-b border-black last:border-b-0">
+                        <div class="border-b border-black">
                             <!-- Choice 1 -->
                             <div class="flex group relative">
                                 <div class="w-10 border-r border-black flex items-center justify-center font-bold text-[9pt]">{currentNum}.</div>
@@ -445,7 +449,7 @@
                 <div class="border-x border-b border-black">
                     {#each questionsC as slot, i (slot.id)}
                         {@const currentNum = questionsA.length + (questionsB.length * 2) + (i * 2) + 1}
-                        <div class="border-b border-black last:border-b-0">
+                        <div class="border-b border-black">
                             <div class="flex group relative">
                                 <div class="w-10 border-r border-black flex items-center justify-center font-bold text-[9pt]">{currentNum}.</div>
                                 <div class="flex-1 px-4 py-2 relative">

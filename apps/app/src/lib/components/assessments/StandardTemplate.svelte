@@ -129,12 +129,16 @@
                 <div>
                     <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
                         <AssessmentEditable value={paperMeta.partA_title || 'PART A'} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" />
-                        <span>({questionsA.length} x {questionsA[0]?.marks || 2} = {totalMarksA} Marks)</span>
+                        <div class="flex items-center gap-1">
+                            <span>(</span>
+                            <AssessmentEditable value={paperMeta.totalMarksA_text || `${questionsA.length} x ${questionsA[0]?.marks || 2} = ${totalMarksA} Marks`} onUpdate={(v) => updateText(v, 'META', 'totalMarksA_text')} class="inline-block" />
+                            <span>)</span>
+                        </div>
                     </div>
                     <div use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
                             {#if q && q.part === 'A'}
-                                <div class="border-b border-black last:border-b-0">
+                                <div class="border-b border-black">
                                     <AssessmentSlotSingle slot={q} qNumber={questionsA.findIndex(x => x.id === q.id)+1} {isEditable} snoWidth={35} onSwap={() => openSwapSidebar(q, 'A')} onRemove={() => removeQuestion(q)} onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
                                 </div>
                             {/if}
@@ -147,7 +151,11 @@
                 <div>
                     <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
                          <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
-                         <span>({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</span>
+                         <div class="flex items-center gap-1">
+                             <span>(</span>
+                             <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} x ${questionsB[0]?.marks || 5} = ${totalMarksB} Marks`} onUpdate={(v) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
+                             <span>)</span>
+                         </div>
                     </div>
                     <div use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
@@ -170,7 +178,11 @@
                 <div>
                     <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
                         <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
-                        <span>({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</span>
+                        <div class="flex items-center gap-1">
+                            <span>(</span>
+                            <AssessmentEditable value={paperMeta.totalMarksC_text || `${questionsC.length} x ${questionsC[0]?.marks || 16} = ${totalMarksC} Marks`} onUpdate={(v) => updateText(v, 'META', 'totalMarksC_text')} class="inline-block" />
+                            <span>)</span>
+                        </div>
                     </div>
                     <div use:dndzone={{ items: questionsC, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('C', (e.detail as any).items)} onfinalize={(e) => handleDndSync('C', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
