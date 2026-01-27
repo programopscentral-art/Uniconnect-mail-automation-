@@ -7,6 +7,10 @@ process.env.DATABASE_URL = env.DATABASE_URL;
 process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = env.NODE_TLS_REJECT_UNAUTHORIZED || '0';
 
+console.log("-----------------------------------------");
+console.log("!!! UNICONNECT BOOTING VERSION 2.0.7 !!!");
+console.log("-----------------------------------------");
+
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');
     const theme = event.cookies.get('theme') || 'light';
