@@ -4,13 +4,13 @@
 [[services]]
 name = "app"
 source = "."
-build.command = "pnpm install && pnpm run build --filter app"
+build.command = "pnpm install && pnpm build --filter app"
 start.command = "node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
 source = "."
-build.command = "pnpm install && pnpm run build --filter worker"
+build.command = "pnpm install && pnpm build --filter worker"
 start.command = "node apps/worker/dist/index.js"
 
 [[services]]

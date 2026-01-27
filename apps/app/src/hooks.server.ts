@@ -90,18 +90,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 export const handleError: HandleServerError = ({ error }) => {
     const err = error as any;
 
-    // NUCLEAR SILENCE: Stop ALL 404 and favicon noise from hitting logs
-    if (err && (err.status === 404 || (err.message || '').toLowerCase().includes('favicon') || (err.message || '').includes('Not found'))) {
+    // NUCLEAR SILENCE: Completely stop ALL 404 and favicon noise from hitting logs
+    const msg = (err?.message || '').toLowerCase();
+    const is404 = err?.status === 404 || msg.includes('not found') || msg.includes('favicon');
+
+    if (is404) {
         return { message: 'Not Found', code: '404' };
     }
 
-    console.error('SERVER_ERROR_V207:', {
-        message: err.message || 'Internal Error',
-        code: err.code,
-        stack: err.stack?.split('\n').slice(0, 5).join('\n')
+    console.error('SERVER_ERROR_V214:', {
+        message: err?.message || 'Internal Error',
+        code: err?.code,
+        stack: err?.stack?.split('\n').slice(0, 5).join('\n')
     });
     return {
-        message: err.message || 'Internal Error',
-        code: err.code
+        message: err?.message || 'Internal Error',
+        code: err?.code
     };
 };

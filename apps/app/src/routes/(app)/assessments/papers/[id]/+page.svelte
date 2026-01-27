@@ -634,7 +634,7 @@
                     <!-- Version Tag -->
                     <div class="ml-auto px-4 py-1.5 rounded-lg text-[9px] font-black bg-green-100 text-green-700 border border-green-200 uppercase tracking-[0.2em] flex items-center gap-2">
                         <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                        V2.1.3 - DEPLOYED
+                        V2.1.4 - ACTIVE
                     </div>
                 </div>
 

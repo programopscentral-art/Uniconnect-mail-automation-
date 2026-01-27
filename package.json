@@ -1,13 +1,13 @@
 {
     "name": "uniconnect-mail-automation",
-    "version": "2.1.3",
+    "version": "2.1.4",
     "private": true,
     "packageManager": "pnpm@8.15.4",
     "scripts": {
-        "dev": "npx pnpm -r --parallel run dev",
-        "build": "npx pnpm -r run build",
-        "test": "npx pnpm -r run test",
-        "seed": "npx pnpm -F @uniconnect/shared run seed"
+        "dev": "pnpm -r --parallel dev",
+        "build": "pnpm -r build",
+        "test": "pnpm -r test",
+        "seed": "pnpm -F @uniconnect/shared seed"
     },
     "engines": {
         "node": ">=18"
