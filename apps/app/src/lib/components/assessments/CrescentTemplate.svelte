@@ -154,13 +154,10 @@
 
     const allQuestions = $derived((Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter(Boolean));
     
-    // Part A takes questions explicitly marked 'A' OR the first 10 questions if none are marked 'A'
-    const questionsA = $derived(allQuestions.some((q: any) => q?.part === 'A') 
-        ? allQuestions.filter((q: any) => q?.part === 'A')
-        : allQuestions.slice(0, 10));
-        
-    const questionsB = $derived(allQuestions.filter((q: any) => q?.part === 'B'));
-    const questionsC = $derived(allQuestions.filter((q: any) => q?.part === 'C'));
+    // CRITICAL FIX: Filter by slot.part, not q.part, because questions are nested inside slots
+    const questionsA = $derived(allQuestions.filter((slot: any) => slot?.part === 'A'));
+    const questionsB = $derived(allQuestions.filter((slot: any) => slot?.part === 'B'));
+    const questionsC = $derived(allQuestions.filter((slot: any) => slot?.part === 'C'));
 </script>
 
 <div class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-100 dark:bg-slate-900/50">
