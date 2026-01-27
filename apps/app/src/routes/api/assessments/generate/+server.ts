@@ -41,8 +41,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (allQuestions.length === 0) {
             console.warn('[GENERATE] No questions found for units:', unit_ids);
         } else {
-            // SHUFFLE the entire pool to ensure different sets
-            allQuestions = allQuestions.sort(() => Math.random() - 0.5);
+            // Robust Fisher-Yates Shuffle
+            for (let i = allQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+            }
         }
 
         // Group pool for balanced picking
@@ -66,15 +69,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const slotsToProcess: any[] = [];
         if (generation_mode === 'Modifiable' && template_config) {
             template_config.forEach((section: any) => {
-                const partTitle = section.title?.toUpperCase() || '';
-                const part = partTitle.includes('PART A') ? 'A' : (partTitle.includes('PART B') ? 'B' : 'C');
+                // Use stable 'part' property from section if available, otherwise fallback to title parsing
+                const part = section.part || (section.title?.toUpperCase()?.includes('PART A') ? 'A' : (section.title?.toUpperCase()?.includes('PART B') ? 'B' : 'C'));
 
                 section.slots.forEach((slot: any) => {
                     slotsToProcess.push({
                         ...slot,
                         id: slot.id || uuidv4(),
                         marks: slot.marks || section.marks_per_q,
-                        part: part // Explicitly assign part from section
+                        part: part
                     });
                 });
             });
@@ -180,6 +183,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             };
 
             const finalize = (pool: any[]) => {
+                // 1. Internal shuffle to randomize candidates with equal priority
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+
+                // 2. Sort by preference (marks diff first, then global usage count)
                 const sorted = pool.sort((a, b) => {
                     const diffA = Math.abs(a.marks - targetMarks);
                     const diffB = Math.abs(b.marks - targetMarks);
@@ -187,10 +197,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     const usageA = globalUsageCount[a.id] || 0;
                     const usageB = globalUsageCount[b.id] || 0;
-                    if (usageA !== usageB) return usageA - usageB;
-
-                    return Math.random() - 0.5; // Tie-breaker for same usage
+                    return usageA - usageB;
                 });
+
                 const q = sorted[0];
                 excludeInSet.add(q.id);
                 globalUsageCount[q.id] = (globalUsageCount[q.id] || 0) + 1;

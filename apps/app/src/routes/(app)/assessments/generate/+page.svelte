@@ -604,6 +604,9 @@
         previewPaperMeta.univ_line_1 = isChaitanya ? 'CHAITANYA DEEMED TO BE UNIVERSITY' : (isCrescent ? 'BS ABDUR RAHMAN' : 'UNIVERSITY');
         previewPaperMeta.univ_line_1_2 = isCrescent ? 'CRESCENT INSTITUTE OF SCIENCE & TECHNOLOGY' : '';
         previewPaperMeta.univ_line_2 = isChaitanya ? 'KISHANPURA, HANAMKONDA - 506001 (TS)' : (isCrescent ? 'Deemed to be University u/s 3 of the UGC Act, 1956' : '');
+        previewPaperMeta.partA_title = previewPaperMeta.partA_title || 'PART A';
+        previewPaperMeta.partB_title = previewPaperMeta.partB_title || 'PART B';
+        previewPaperMeta.partC_title = previewPaperMeta.partC_title || 'PART C';
     });
 </script>
 

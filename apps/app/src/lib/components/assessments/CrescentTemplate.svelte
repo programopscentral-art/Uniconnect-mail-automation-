@@ -20,7 +20,7 @@
 
     let isSwapSidebarOpen = $state(false);
     let swapContext = $state<any>(null);
-    const isEditable = $derived(mode === 'edit');
+    const isEditable = $derived(mode === 'edit' || mode === 'preview');
 
     // DO NOT iterate over derived filtered lists in Svelte 5 if you need to bind/mutate deeply.
     // Instead, iterate over the main list and use #if for part filtering.

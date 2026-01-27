@@ -26,7 +26,7 @@
         if (!paperMeta.colWidths) paperMeta.colWidths = { sno: 40 };
     });
 
-    const isEditable = $derived(mode === 'edit');
+    const isEditable = $derived(mode === 'edit' || mode === 'preview');
     
     // We iterate over this derived list for UI logic
     const sectionKeys = $derived.by(() => {

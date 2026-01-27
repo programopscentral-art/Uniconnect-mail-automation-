@@ -560,7 +560,7 @@
                     <div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                     Editor State: Ready
                 </div>
-                <h1 class="text-xl font-black tracking-tight uppercase leading-none">{data.paper?.subject_name || 'Question Paper'}</h1>
+                <h1 class="text-xl font-black tracking-tight uppercase leading-none">{paperMeta.subject_name || data.paper?.subject_name || 'Question Paper'}</h1>
             </div>
             
             <div class="h-8 w-px bg-white/10 hidden md:block"></div>
