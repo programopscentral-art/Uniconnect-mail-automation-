@@ -575,7 +575,25 @@
     // Determine the user-facing label for the "Standard" mode
     let universityLabel = $derived(isChaitanya ? 'Chaitanya (CDU)' : (isCrescent ? 'Crescent (IST)' : 'University Standard'));
 
-    let sectionLabel = $derived(selectedTemplate === 'cdu' ? 'Section' : 'Part');
+    let previewPaperMeta = $state<any>({ colWidths: { sno: 40 } });
+    let previewSetData = $state({ questions: [] });
+
+    $effect(() => {
+        previewPaperMeta = {
+            paper_date: examDate,
+            duration_minutes: String(examDuration),
+            max_marks: String(maxMarks),
+            course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
+            exam_title: examTitleHeader,
+            programme: activeBranch?.name || 'B.Tech CSE',
+            semester: String(selectedSemester),
+            instructions: paperInstructions,
+            subject_name: activeSubject?.name,
+            univ_line_1: isChaitanya ? 'CHAITANYA DEEMED TO BE UNIVERSITY' : 'UNIVERSITY',
+            univ_line_2: isChaitanya ? 'KISHANPURA, HANAMKONDA - 506001 (TS)' : '',
+            colWidths: { sno: 40 }
+        };
+    });
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 pb-32">
@@ -1256,38 +1274,17 @@
 
                             {#if selectedTemplate === 'cdu'}
                                 <CDUTemplate 
-                                    paperMeta={{
-                                        paper_date: examDate,
-                                        duration_minutes: String(examDuration),
-                                        max_marks: String(maxMarks),
-                                        course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
-                                        exam_title: examTitleHeader,
-                                        programme: activeBranch?.name || 'B.Tech CSE',
-                                        semester: String(selectedSemester),
-                                        instructions: paperInstructions,
-                                        subject_name: activeSubject?.name,
-                                        univ_line_1: 'CHAITANYA DEEMED TO BE UNIVERSITY',
-                                        univ_line_2: 'KISHANPURA, HANAMKONDA - 506001 (TS)'
-                                    }}
-                                    {paperStructure}
-                                    currentSetData={{ questions: [] }} 
+                                    bind:paperMeta={previewPaperMeta}
+                                    bind:paperStructure={paperStructure}
+                                    bind:currentSetData={previewSetData} 
                                     {courseOutcomes}
                                     mode="preview"
                                 />
                             {:else}
                                 <CrescentTemplate 
-                                    paperMeta={{
-                                        paper_date: examDate,
-                                        duration_minutes: String(examDuration),
-                                        max_marks: String(maxMarks),
-                                        course_code: courseCodeManual || activeSubject?.code || 'CS-XXXX',
-                                        exam_title: examTitleHeader,
-                                        programme: activeBranch?.name || 'B.Tech CSE',
-                                        semester: String(selectedSemester),
-                                        instructions: paperInstructions,
-                                        subject_name: activeSubject?.name
-                                    }}
-                                    {paperStructure}
+                                    bind:paperMeta={previewPaperMeta}
+                                    bind:paperStructure={paperStructure}
+                                    bind:currentSetData={previewSetData}
                                     {courseOutcomes}
                                     mode="preview"
                                 />
