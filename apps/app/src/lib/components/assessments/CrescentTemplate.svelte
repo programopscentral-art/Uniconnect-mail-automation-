@@ -419,7 +419,6 @@
                     {/each}
                 </div>
                 {/if}
-            </div>
 
              <!-- Signature Boxes (Exact Match) -->
             <div class="mt-20 flex justify-between px-4 gap-8 mb-8">
@@ -435,7 +434,6 @@
             <div class="border-t border-black w-full mt-4"></div>
         </div>
         <div class="text-center mt-8 text-[8pt] text-gray-400">***********</div>
-    </div>
     </div>
 
     <!-- Swap Sidebar (Fixed Right Overlay) -->
