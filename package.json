@@ -1,6 +1,6 @@
 {
     "name": "uniconnect-mail-automation",
-    "version": "2.2.5",
+    "version": "2.2.6",
     "private": true,
     "packageManager": "pnpm@8.15.4",
     "scripts": {
