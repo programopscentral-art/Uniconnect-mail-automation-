@@ -169,6 +169,7 @@
             
             <!-- Header -->
             <div class="header-container flex flex-col items-center mb-1 pt-1 relative">
+                 <div class="absolute top-0 left-0 text-[10pt] font-black border border-black px-2 py-0.5">SET - {activeSet}</div>
                  <img src="/crescent-logo.png" alt="Crescent Logo" class="h-14 mb-1" />
                  
                  <!-- RRN & Course Code Header (Top Right) -->
@@ -312,7 +313,7 @@
 
                 <!-- PART B -->
                 <div class="border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
-                    <AssessmentEditable bind:value={paperMeta.partB_title} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
+                    <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
                     <span>({questionsB.length} X {questionsB[0]?.marks || 16} = {totalMarksB} MARKS)</span>
                 </div>
                 <div class="border-x border-black">
@@ -436,9 +437,9 @@
                 </div>
 
                 <!-- PART C -->
-                {#if questionsC.length > 0}
+                {#if questionsC.length > 0 || (mode === 'preview' && paperStructure.some(s => s.part === 'C'))}
                 <div class="border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
-                    <AssessmentEditable value="PART C" onUpdate={(v: string) => {}} class="inline-block" />
+                    <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
                     <span>({questionsC.length} X {questionsC[0]?.marks || 8} = {totalMarksC} MARKS)</span>
                 </div>
                 <div class="border-x border-b border-black">

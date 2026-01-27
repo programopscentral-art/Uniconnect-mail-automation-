@@ -40,6 +40,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (allQuestions.length === 0) {
             console.warn('[GENERATE] No questions found for units:', unit_ids);
+        } else {
+            // SHUFFLE the entire pool to ensure different sets
+            allQuestions = allQuestions.sort(() => Math.random() - 0.5);
         }
 
         // Group pool for balanced picking
@@ -181,7 +184,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const diffA = Math.abs(a.marks - targetMarks);
                     const diffB = Math.abs(b.marks - targetMarks);
                     if (diffA !== diffB) return diffA - diffB;
-                    return (globalUsageCount[a.id] || 0) - (globalUsageCount[b.id] || 0) || Math.random() - 0.5;
+
+                    const usageA = globalUsageCount[a.id] || 0;
+                    const usageB = globalUsageCount[b.id] || 0;
+                    if (usageA !== usageB) return usageA - usageB;
+
+                    return Math.random() - 0.5; // Tie-breaker for same usage
                 });
                 const q = sorted[0];
                 excludeInSet.add(q.id);

@@ -92,7 +92,7 @@
     const calcTotal = (part: string) => {
         const arr = (Array.isArray(currentSetData) ? currentSetData : (currentSetData.questions || [])).filter(Boolean);
         const qs = arr.filter((q: any) => q && q.part === part);
-        return qs.reduce((s, slot) => {
+        return qs.reduce((s: number, slot: any) => {
             const marks = Number(slot.marks || (slot.type === 'OR_GROUP' ? (slot.choice1?.questions?.[0]?.marks || 0) : (slot.questions?.[0]?.marks || 0)));
             return s + (slot.type === 'OR_GROUP' ? marks * 2 : marks);
         }, 0);
@@ -125,9 +125,12 @@
             </div>
 
             <div class="space-y-12">
-                {#if questionsA.length > 0}
+                {#if questionsA.length > 0 || (mode === 'preview' && paperStructure.some((s: any) => s.part === 'A'))}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART A ({questionsA.length} x {questionsA[0]?.marks || 2} = {totalMarksA} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
+                        <AssessmentEditable value={paperMeta.partA_title || 'PART A'} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" />
+                        <span>({questionsA.length} x {questionsA[0]?.marks || 2} = {totalMarksA} Marks)</span>
+                    </div>
                     <div use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
                             {#if q && q.part === 'A'}
@@ -140,9 +143,12 @@
                 </div>
                 {/if}
 
-                {#if questionsB.length > 0}
+                {#if questionsB.length > 0 || (mode === 'preview' && paperStructure.some((s: any) => s.part === 'B'))}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART B ({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
+                         <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
+                         <span>({questionsB.length} x {questionsB[0]?.marks || 5} = {totalMarksB} Marks)</span>
+                    </div>
                     <div use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
                             {#if q && q.part === 'B'}
@@ -160,9 +166,12 @@
                 </div>
                 {/if}
 
-                {#if questionsC.length > 0}
+                {#if questionsC.length > 0 || (mode === 'preview' && paperStructure.some((s: any) => s.part === 'C'))}
                 <div>
-                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50">PART C ({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</div>
+                    <div class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-1">
+                        <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
+                        <span>({questionsC.length} x {questionsC[0]?.marks || 16} = {totalMarksC} Marks)</span>
+                    </div>
                     <div use:dndzone={{ items: questionsC, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('C', (e.detail as any).items)} onfinalize={(e) => handleDndSync('C', (e.detail as any).items)}>
                         {#each (currentSetData.questions || []) as q, i (q.id)}
                             {#if q && q.part === 'C'}
