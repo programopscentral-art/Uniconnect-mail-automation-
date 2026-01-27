@@ -86,10 +86,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 export const handleError: HandleServerError = ({ error }) => {
     const err = error as any;
 
-    // Aggressively silence favicon and general 404 noise in logs
-    if (err.message?.toLowerCase().includes('favicon') || err.status === 404 || err.message?.includes('Not found')) return;
+    // NUCLEAR SILENCE: Stop ALL 404 and favicon noise from hitting logs
+    if (err.status === 404 || (err.message || '').toLowerCase().includes('favicon') || (err.message || '').includes('Not found')) {
+        return { message: 'Not Found', code: '404' };
+    }
 
-    console.error('SERVER_ERROR:', {
+    console.error('SERVER_ERROR_V207:', {
         message: err.message || 'Internal Error',
         code: err.code,
         stack: err.stack?.split('\n').slice(0, 5).join('\n')
