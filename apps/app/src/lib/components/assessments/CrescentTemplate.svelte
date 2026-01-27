@@ -9,9 +9,9 @@
     import AssessmentMcqOptions from './shared/AssessmentMcqOptions.svelte';
 
     let { 
-        paperMeta = $bindable({}), 
-        currentSetData = $bindable({ questions: [] }),
-        paperStructure = $bindable([]),
+        paperMeta = {}, 
+        currentSetData = { questions: [] },
+        paperStructure = [],
         activeSet = 'A',
         courseOutcomes = [],
         questionPool = [],
@@ -99,7 +99,14 @@
         const nQ = { id: question.id, text: question.question_text, question_text: question.question_text, marks: question.marks, options: question.options, part: swapContext.part };
         
         if (swapContext.part === 'A') {
-            arr[swapContext.slotIndex] = nQ;
+            const result = [...arr];
+            result[swapContext.slotIndex] = nQ;
+            if (Array.isArray(currentSetData)) {
+                // This shouldn't happen with our normalization but for safety:
+                Object.assign(currentSetData, result);
+            } else {
+                currentSetData.questions = result;
+            }
         } else {
             if (slot.type === 'OR_GROUP') {
                 const choice = swapContext.subPart === 'q1' ? slot.choice1 : slot.choice2;
@@ -114,8 +121,11 @@
             }
         }
         
-        if(Array.isArray(currentSetData)) currentSetData = [...currentSetData]; 
-        else currentSetData.questions = [...currentSetData.questions];
+        if (Array.isArray(currentSetData)) {
+             // Not recommended anymore
+        } else {
+            currentSetData.questions = [...currentSetData.questions];
+        }
         isSwapSidebarOpen = false;
     }
 
@@ -162,9 +172,9 @@
                  <img src="/crescent-logo.png" alt="Crescent Logo" class="h-14 mb-1" />
                  
                  <!-- RRN & Course Code Header (Top Right) -->
-                 <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
+                  <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
                     <div class="flex items-center gap-2">
-                        <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} class="font-bold px-1 min-w-[70px] text-right text-[10pt]" />
+                        <AssessmentEditable value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} class="font-bold px-1 min-w-[70px] text-right text-[10pt]" />
                     </div>
                     <div class="flex items-center gap-1 mt-1">
                         <span class="text-[8pt] font-bold text-right">RRN</span>
@@ -179,7 +189,7 @@
 
             <!-- Title -->
             <div class="text-center my-6 font-bold uppercase text-[11pt]">
-                <AssessmentEditable bind:value={paperMeta.exam_title} onUpdate={(v: string) => updateText(v, 'META', 'exam_title')} class="w-full text-center" />
+                <AssessmentEditable value={paperMeta.exam_title} onUpdate={(v: string) => updateText(v, 'META', 'exam_title')} class="w-full text-center" />
             </div>
 
             <!-- Metadata Table (Exact Match) -->
@@ -190,7 +200,7 @@
                         <td colspan="3" class="border border-black p-1 text-[9pt]">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} class="flex-1" />
+                                <AssessmentEditable value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} class="flex-1" />
                             </div>
                         </td>
                     </tr>
@@ -199,14 +209,14 @@
                         <td class="border border-black p-1 w-[30%]">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} />
+                                <AssessmentEditable value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} />
                             </div>
                         </td>
                         <td class="border border-black p-1 w-[20%] font-bold">Date & Session</td>
                         <td class="border border-black p-1 w-[30%]">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.paper_date} onUpdate={(v: string) => updateText(v, 'META', 'paper_date')} />
+                                <AssessmentEditable value={paperMeta.paper_date} onUpdate={(v: string) => updateText(v, 'META', 'paper_date')} />
                             </div>
                         </td>
                     </tr>
@@ -215,7 +225,7 @@
                         <td colspan="3" class="border border-black p-1">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.subject_name} onUpdate={(v: string) => updateText(v, 'META', 'subject_name')} />
+                                <AssessmentEditable value={paperMeta.subject_name} onUpdate={(v: string) => updateText(v, 'META', 'subject_name')} />
                             </div>
                         </td>
                     </tr>
@@ -224,7 +234,7 @@
                         <td class="border border-black p-1">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.duration_minutes} onUpdate={(v: string) => updateText(v, 'META', 'duration_minutes')} />
+                                <AssessmentEditable value={paperMeta.duration_minutes} onUpdate={(v: string) => updateText(v, 'META', 'duration_minutes')} />
                                 <span>minutes</span>
                             </div>
                         </td>
@@ -232,7 +242,7 @@
                         <td class="border border-black p-1">
                             <div class="flex gap-2">
                                 <span>:</span>
-                                <AssessmentEditable bind:value={paperMeta.max_marks} onUpdate={(v: string) => updateText(v, 'META', 'max_marks')} />
+                                <AssessmentEditable value={paperMeta.max_marks} onUpdate={(v: string) => updateText(v, 'META', 'max_marks')} />
                             </div>
                         </td>
                     </tr>
@@ -241,13 +251,13 @@
 
             <!-- Instructions -->
             <div class="text-center font-bold italic py-1 text-[9.5pt]">
-                <AssessmentEditable bind:value={paperMeta.instructions} onUpdate={(v: string) => updateText(v, 'META', 'instructions')} class="w-full text-center" />
+                <AssessmentEditable value={paperMeta.instructions} onUpdate={(v: string) => updateText(v, 'META', 'instructions')} class="w-full text-center" />
             </div>
 
 
                 <!-- PART A -->
                 <div class="border-b border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
-                    <AssessmentEditable bind:value={paperMeta.partA_title} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" /> 
+                    <AssessmentEditable value={paperMeta.partA_title} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" /> 
                     <span>({questionsA.length} X {questionsA[0]?.marks || 2} = {totalMarksA} MARKS)</span>
                 </div>
                 <div class="border-x border-b border-black">

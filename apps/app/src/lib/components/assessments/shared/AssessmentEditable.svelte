@@ -3,7 +3,7 @@
      * Reusable, robust contenteditable cell.
      * Prevents common focus/composition bugs in Svelte 5.
      */
-    let { value = $bindable(''), onUpdate, class: className = '', isEditable = true, multiline = false } = $props();
+    let { value = '', onUpdate, class: className = '', isEditable = true, multiline = false } = $props();
 
     function editable(node: HTMLElement) {
         node.innerHTML = value || '';

@@ -7,9 +7,9 @@
     import AssessmentSlotOrGroup from './shared/AssessmentSlotOrGroup.svelte';
 
     let { 
-        paperMeta = $bindable({}), 
-        currentSetData = $bindable({ questions: [] }), 
-        paperStructure = $bindable([]),
+        paperMeta = {}, 
+        currentSetData = { questions: [] }, 
+        paperStructure = [],
         courseOutcomes = [],
         questionPool = [],
         mode = 'view',
@@ -160,12 +160,12 @@
             <div class="cdu-full-box border-[1.5pt] border-black -mx-[5mm] print:mx-0 flex flex-col bg-white">
                 <div class="paper-header text-center font-bold pb-4 pt-2">
                     <div class="text-[10px] mb-1">Set - {activeSet}</div>
-                    <AssessmentEditable bind:value={paperMeta.univ_line_1} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-black uppercase tracking-widest" />
-                    <AssessmentEditable bind:value={paperMeta.univ_line_2} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase tracking-tight" />
-                    <AssessmentEditable bind:value={paperMeta.exam_title} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase" />
+                    <AssessmentEditable value={paperMeta.univ_line_1} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-black uppercase tracking-widest" />
+                    <AssessmentEditable value={paperMeta.univ_line_2} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase tracking-tight" />
+                    <AssessmentEditable value={paperMeta.exam_title} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase" />
                     <div class="py-1">
-                        <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-[#dc2626] print-force-red" />
-                        <AssessmentEditable bind:value={paperMeta.subject_name} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-black uppercase text-[#dc2626] print-force-red" />
+                        <AssessmentEditable value={paperMeta.programme} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-[#dc2626] print-force-red" />
+                        <AssessmentEditable value={paperMeta.subject_name} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-black uppercase text-[#dc2626] print-force-red" />
                     </div>
                     <div class="mt-2 border-y-[1.2pt] border-black">
                         <div class="flex justify-between items-center py-0.5 px-2 font-bold text-[10.5pt]">
@@ -176,7 +176,7 @@
                             </div>
                             <div class="flex gap-1 items-center">
                                 <span>[Max. Marks:</span>
-                                <AssessmentEditable bind:value={paperMeta.max_marks} onUpdate={(v: string) => updateTextValue(v, 'META', 'max_marks')} class="px-2 border-b border-dotted border-gray-300" />
+                                <AssessmentEditable value={paperMeta.max_marks} onUpdate={(v: string) => updateTextValue(v, 'META', 'max_marks')} class="px-2 border-b border-dotted border-gray-300" />
                                 <span>]</span>
                             </div>
                         </div>
@@ -188,11 +188,11 @@
                     {@const cfg = getSectionConfig(section)}
                     {#if cfg}
                         <div class="w-full text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm {sIdx > 0 ? 'border-t-[1.5pt]' : ''}">
-                            <AssessmentEditable bind:value={cfg.title} onUpdate={(v: string) => updateSectionTitle(section, v)} class="w-full" />
+                            <AssessmentEditable value={cfg.title} onUpdate={(v: string) => updateSectionTitle(section, v)} class="w-full" />
                         </div>
                         <div class="w-full flex items-center justify-between border-b border-black px-1 py-1 font-bold italic text-xs min-h-[22px] bg-white">
                              <div class="flex-1">
-                                <AssessmentEditable bind:value={cfg.instructions} onUpdate={(v: string) => updateInstructions(section, v)} class="w-full" />
+                                <AssessmentEditable value={cfg.instructions} onUpdate={(v: string) => updateInstructions(section, v)} class="w-full" />
                              </div>
                              <div class="tabular-nums no-print text-right pl-4">
                                  <AssessmentEditable value={getInstructionsMarks(section)} onUpdate={(v: string) => { cfg.instructions_marks = v; }} class="text-right" />

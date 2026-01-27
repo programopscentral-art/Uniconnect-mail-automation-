@@ -7,9 +7,9 @@
     import AssessmentSlotOrGroup from './shared/AssessmentSlotOrGroup.svelte';
 
     let { 
-        paperMeta = $bindable({}), 
-        currentSetData = $bindable({ questions: [] }),
-        paperStructure = $bindable([]),
+        paperMeta = {}, 
+        currentSetData = { questions: [] },
+        paperStructure = [],
         activeSet = 'A',
         courseOutcomes = [],
         questionPool = [],
@@ -116,10 +116,10 @@
             </div>
 
             <div class="grid grid-cols-2 gap-y-4 text-sm mb-8 border-b-2 border-black pb-4">
-                 <div><b>Course:</b> <AssessmentEditable bind:value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} /></div>
-                 <div><b>Subject:</b> <AssessmentEditable bind:value={paperMeta.subject_name} onUpdate={(v: string) => updateText(v, 'META', 'subject_name')} /></div>
-                 <div><b>Programme:</b> <AssessmentEditable bind:value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} /></div>
-                 <div><b>Semester:</b> <AssessmentEditable bind:value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} /></div>
+                 <div><b>Course:</b> <AssessmentEditable value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} /></div>
+                 <div><b>Subject:</b> <AssessmentEditable value={paperMeta.subject_name} onUpdate={(v: string) => updateText(v, 'META', 'subject_name')} /></div>
+                 <div><b>Programme:</b> <AssessmentEditable value={paperMeta.programme} onUpdate={(v: string) => updateText(v, 'META', 'programme')} /></div>
+                 <div><b>Semester:</b> <AssessmentEditable value={paperMeta.semester} onUpdate={(v: string) => updateText(v, 'META', 'semester')} /></div>
                  <div><b>Duration:</b> {paperMeta.duration_minutes} Minutes</div>
                  <div><b>Max Marks:</b> {paperMeta.max_marks}</div>
             </div>
