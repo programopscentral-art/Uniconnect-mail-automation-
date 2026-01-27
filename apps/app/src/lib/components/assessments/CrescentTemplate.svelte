@@ -288,7 +288,7 @@
                                     <AssessmentMcqOptions options={q.questions?.[0]?.options || q.options} />
                                 </div>
                             </div>
-                            <div class="w-16 border-l border-black text-center py-1 font-bold text-[8.5pt] flex items-center justify-center gap-1">
+                            <div class="w-16 border-l border-black text-center py-1 font-bold text-[8.5pt] flex items-center justify-between px-2">
                                 <span>(</span>
                                 <AssessmentEditable value={String(q.questions?.[0]?.marks || q.marks || 2)} onUpdate={(v: string) => { 
                                     if (q.questions?.[0]) {

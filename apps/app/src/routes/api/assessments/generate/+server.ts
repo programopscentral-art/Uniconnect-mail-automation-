@@ -197,7 +197,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     [pool[i], pool[j]] = [pool[j], pool[i]];
                 }
 
-                // 2. Sort by preference (marks diff first, then global usage count)
+                // 2. Sort by preference with STRONG randomization
                 const sorted = pool.sort((a, b) => {
                     const diffA = Math.abs(a.marks - targetMarks);
                     const diffB = Math.abs(b.marks - targetMarks);
@@ -205,7 +205,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     const usageA = globalUsageCount[a.id] || 0;
                     const usageB = globalUsageCount[b.id] || 0;
-                    return usageA - usageB;
+                    if (usageA !== usageB) return usageA - usageB;
+
+                    // STRONG random tie-breaker
+                    return Math.random() - 0.5;
                 });
 
                 const q = sorted[0];
