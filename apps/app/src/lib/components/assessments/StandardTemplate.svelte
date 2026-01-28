@@ -64,7 +64,7 @@
 
     function openSwapSidebar(slot: any, part: string, subPart?: 'q1' | 'q2') {
         const cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
-        const marks = Number(cQ?.marks || slot.marks || (part === 'A' ? 2 : 16));
+        const marks = Number(cQ?.marks || slot.marks || paperStructure.find((s: any)=>s.part===part)?.marks_per_q || 0);
         const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
         const index = arr.indexOf(slot);
         
@@ -180,7 +180,7 @@
                         <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
                         <div class="flex items-center gap-1">
                             <span>(</span>
-                            <AssessmentEditable value={paperMeta.totalMarksC_text || `${questionsC.length} x ${questionsC[0]?.marks || paperStructure.find(s=>s.part==='C')?.marks_per_q || 16} = ${totalMarksC} Marks`} onUpdate={(v) => updateText(v, 'META', 'totalMarksC_text')} class="inline-block" />
+                            <AssessmentEditable value={paperMeta.totalMarksC_text || `${questionsC.length} x ${questionsC[0]?.marks || paperStructure.find((s: any)=>s.part==='C')?.marks_per_q || 0} = ${totalMarksC} Marks`} onUpdate={(v: string) => updateText(v, 'META', 'totalMarksC_text')} class="inline-block" />
                             <span>)</span>
                         </div>
                     </div>

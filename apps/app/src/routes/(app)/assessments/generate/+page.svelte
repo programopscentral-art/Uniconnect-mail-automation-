@@ -504,16 +504,44 @@
     }
 
     // Wizard Navigation
-    function nextStep() { 
+    async function nextStep() { 
         if (currentStep === 1 && (!selectedUniversityId || !selectedBatchId)) return;
         if (currentStep === 2 && (!selectedBranchId || !selectedSemester)) return;
         if (currentStep === 3 && (!selectedSubjectId || selectedUnitIds.length === 0)) {
             return alert('Select a Subject and at least one unit');
         }
         if (currentStep === 3) {
-            initializeStructure(); // Only initializes if empty
+            initializeStructure();
+            // Fetch preview data
+            fetchPreview();
         }
         if (currentStep < 6) currentStep++; 
+    }
+
+    async function fetchPreview() {
+        try {
+            const res = await fetch('/api/assessments/generate', {
+                method: 'POST',
+                body: JSON.stringify({
+                    university_id: selectedUniversityId,
+                    batch_id: selectedBatchId,
+                    branch_id: selectedBranchId,
+                    subject_id: selectedSubjectId,
+                    unit_ids: selectedUnitIds,
+                    max_marks: maxMarks,
+                    template_config: paperStructure,
+                    generation_mode: 'Standard', // Use standard for preview to get 1 set
+                    preview_only: true
+                }),
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                previewSetData = data.A; // API returns { A: ... }
+            }
+        } catch (e) {
+            console.error('Preview fetch failed', e);
+        }
     }
     function prevStep() { if (currentStep > 1) currentStep--; }
 

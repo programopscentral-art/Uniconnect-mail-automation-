@@ -31,12 +31,13 @@
     // We iterate over this derived list for UI logic
     const sectionKeys = $derived.by(() => {
         const keys = new Set<string>();
-        if (mode === 'preview') {
-            paperStructure.forEach((s: any) => keys.add(s.part));
-        } else {
-            const qs = (Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter(Boolean);
-            qs.forEach((q: any) => keys.add(q.part || 'A'));
+        if (mode === 'preview' || mode === 'edit') {
+            (paperStructure || []).forEach((s: any) => { if(s.part) keys.add(s.part); });
         }
+        const qs = (Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter(Boolean);
+        qs.forEach((q: any) => { if(q.part) keys.add(q.part); });
+        
+        if (keys.size === 0) return ['A', 'B']; // Robust fallback
         return Array.from(keys).sort();
     });
 
@@ -124,7 +125,7 @@
         const index = currentSetData.questions.findIndex((s: any) => s.id === slot.id);
         if (index === -1) return;
         let cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
-        const marks = Number(cQ?.marks || slot.marks || (part === 'A' ? 2 : 4));
+        const marks = Number(cQ?.marks || slot.marks || getSectionConfig(part)?.marks_per_q || 0);
         const alternates = (questionPool || []).filter((q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id);
         swapContext = { slotIndex: index, part, subPart, currentMark: marks, alternates };
         isSwapSidebarOpen = true;
@@ -160,8 +161,8 @@
             <div class="cdu-full-box border-[1.5pt] border-black -mx-[5mm] print:mx-0 flex flex-col bg-white">
                 <div class="paper-header text-center font-bold pb-4 pt-2">
                     <div class="text-[10px] mb-1">Set - {activeSet}</div>
-                    <AssessmentEditable value={paperMeta.univ_line_1} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-black uppercase tracking-widest" />
-                    <AssessmentEditable value={paperMeta.univ_line_2} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase tracking-tight" />
+                    <AssessmentEditable value={paperMeta.univ_line_1 || 'CHAITANYA'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-black uppercase tracking-widest" />
+                    <AssessmentEditable value={paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase tracking-tight" />
                     <AssessmentEditable value={paperMeta.exam_title} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase" />
                     <div class="py-1">
                         <AssessmentEditable value={paperMeta.programme} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-[#dc2626] print-force-red" />
@@ -171,12 +172,12 @@
                         <div class="flex justify-between items-center py-0.5 px-2 font-bold text-[10.5pt]">
                             <div class="flex gap-1 items-center">
                                 <span>Time:</span>
-                                <AssessmentEditable value={String((Number(paperMeta.duration_minutes || 0)/60).toFixed(1))} onUpdate={(v: string) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes')} class="px-2 border-b border-dotted border-gray-300" />
+                                <AssessmentEditable value={String((Number(paperMeta.duration_minutes || 180)/60).toFixed(1))} onUpdate={(v: string) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes')} class="px-2 border-b border-dotted border-gray-300" />
                                 <span>Hrs.]</span>
                             </div>
                             <div class="flex gap-1 items-center">
                                 <span>[Max. Marks:</span>
-                                <AssessmentEditable value={paperMeta.max_marks} onUpdate={(v: string) => updateTextValue(v, 'META', 'max_marks')} class="px-2 border-b border-dotted border-gray-300" />
+                                <AssessmentEditable value={paperMeta.max_marks || '100'} onUpdate={(v: string) => updateTextValue(v, 'META', 'max_marks')} class="px-2 border-b border-dotted border-gray-300" />
                                 <span>]</span>
                             </div>
                         </div>
@@ -188,7 +189,7 @@
                     {@const cfg = getSectionConfig(section)}
                     {#if cfg}
                         <div class="w-full text-center border-b border-black py-1 uppercase font-black italic tracking-[0.2em] text-sm {sIdx > 0 ? 'border-t-[1.5pt]' : ''}">
-                            <AssessmentEditable value={cfg.title} onUpdate={(v) => updateSectionTitle(section, v)} class="w-full text-center" />
+                            <AssessmentEditable value={cfg.title} onUpdate={(v: string) => updateSectionTitle(section, v)} class="w-full text-center" />
                         </div>
                         <div class="w-full flex items-center justify-between border-b border-black px-1 py-1 font-bold italic text-xs min-h-[22px] bg-white">
                              <div class="flex-1">
@@ -251,7 +252,7 @@
                     <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Swap Question</h3>
                     <p class="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Available Alternatives</p>
                 </div>
-                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-xl transition-colors"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-xl transition-colors" aria-label="Close Preview"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-4">
                 {#each swapContext?.alternates || [] as q}

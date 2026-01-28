@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         exam_type, semester, unit_ids,
         paper_date, exam_time, duration_minutes, max_marks,
         course_code, exam_title, instructions,
-        generation_mode, part_a_type
+        generation_mode, part_a_type, preview_only
     } = body;
 
     let template_config = body.template_config;
@@ -294,7 +294,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 };
 
                 const filterPool = (pool: any[], strictMarks: boolean = false) => {
-                    let filtered = pool.filter(q => !exclude.has(q.id));
+                    let filtered = pool.filter(q => !exclude.has(q.id) && !globalExcluded.has(q.id));
+                    if (filtered.length === 0) filtered = pool.filter(q => !exclude.has(q.id)); // Fallback to set-level exclude
                     if (strictMarks) filtered = filtered.filter(q => Number(q.marks) === Number(targetMarks));
                     if (qType && qType !== 'ANY') {
                         if (qType === 'MIXED') filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));
@@ -385,6 +386,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
             }
             generatedSets[setName] = { questions: setQuestions };
+        }
+
+        if (preview_only) {
+            return json(generatedSets);
         }
 
         // 3. Save to DB

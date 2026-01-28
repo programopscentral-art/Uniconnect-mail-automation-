@@ -77,7 +77,7 @@
              targetQuestion = slot.questions[0];
         }
 
-        const marks = Number(targetQuestion?.marks || slot.marks || (part === 'A' ? 2 : 16));
+        const marks = Number(targetQuestion?.marks || slot.marks || paperStructure.find(s=>s.part===part)?.marks_per_q || 0);
         const arr = Array.isArray(currentSetData) ? currentSetData : currentSetData.questions;
         const index = arr.indexOf(slot);
         
@@ -326,7 +326,7 @@
                     <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
                     <div class="flex items-center gap-1 no-print">
                         <span>(</span>
-                        <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} X ${questionsB[0]?.marks || paperStructure.find(s=>s.part==='B')?.marks_per_q || 16} = ${totalMarksB} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
+                        <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} X ${questionsB[0]?.marks || paperStructure.find((s: any)=>s.part==='B')?.marks_per_q || 0} = ${totalMarksB} MARKS`} onUpdate={(v: string) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
                         <span>)</span>
                     </div>
                 </div>
@@ -374,7 +374,7 @@
                                     {/if}
                                 </div>
                                 <div class="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt]">
-                                    ( <AssessmentEditable value={String(slot.choice1?.questions?.[0]?.marks || slot.marks || 16)} onUpdate={(v: string) => { if(slot.choice1?.questions?.[0]) slot.choice1.questions[0].marks = Number(v); }} class="inline-block min-w-0" /> )
+                                    ( <AssessmentEditable value={String(slot.choice1?.questions?.[0]?.marks || slot.marks || paperStructure.find(s=>s.part==='B')?.marks_per_q || 5)} onUpdate={(v: string) => { if(slot.choice1?.questions?.[0]) slot.choice1.questions[0].marks = Number(v); }} class="inline-block min-w-0" /> )
                                 </div>
                             </div>
                             <!-- OR -->
@@ -419,7 +419,7 @@
                                     {/if}
                                 </div>
                                 <div class="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt]">
-                                    ( <AssessmentEditable value={String(slot.choice2?.questions?.[0]?.marks || slot.marks || 16)} onUpdate={(v: string) => { if(slot.choice2?.questions?.[0]) slot.choice2.questions[0].marks = Number(v); }} class="inline-block min-w-0" /> )
+                                    ( <AssessmentEditable value={String(slot.choice2?.questions?.[0]?.marks || slot.marks || paperStructure.find(s=>s.part==='B')?.marks_per_q || 5)} onUpdate={(v: string) => { if(slot.choice2?.questions?.[0]) slot.choice2.questions[0].marks = Number(v); }} class="inline-block min-w-0" /> )
                                 </div>
                             </div>
                         </div>
@@ -454,7 +454,7 @@
                 {#if questionsC.length > 0 || (mode === 'preview' && paperStructure.some(s => s.part === 'C'))}
                 <div class="border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
                     <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
-                    <span>({questionsC.length} X {questionsC[0]?.marks || paperStructure.find(s=>s.part==='C')?.marks_per_q || 8} = {totalMarksC} MARKS)</span>
+                    <span>({questionsC.length} X {questionsC[0]?.marks || paperStructure.find((s: any)=>s.part==='C')?.marks_per_q || 0} = {totalMarksC} MARKS)</span>
                 </div>
                 <div class="border-x border-b border-black">
                     {#each questionsC as slot, i (slot.id)}
@@ -494,7 +494,7 @@
                                     {/if}
                                 </div>
                                 <div class="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt]">
-                                    ( {slot.choice1?.questions?.[0]?.marks || slot.marks || 8} )
+                                    ( {slot.choice1?.questions?.[0]?.marks || slot.marks || paperStructure.find(s=>s.part==='C')?.marks_per_q || 8} )
                                 </div>
                             </div>
                             <div class="text-center font-bold italic py-0.5 bg-gray-50/50 text-[8.5pt] border-y border-black">(OR)</div>
@@ -532,7 +532,7 @@
                                     {/if}
                                 </div>
                                 <div class="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt]">
-                                    ( {slot.choice2?.questions?.[0]?.marks || slot.marks || 8} )
+                                    ( {slot.choice2?.questions?.[0]?.marks || slot.marks || paperStructure.find(s=>s.part==='C')?.marks_per_q || 8} )
                                 </div>
                             </div>
                         </div>
