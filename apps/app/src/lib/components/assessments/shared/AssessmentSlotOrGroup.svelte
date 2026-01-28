@@ -40,6 +40,7 @@
                         if (onUpdateText1) onUpdateText1(v, slot.choice1.questions[0].id);
                     }}
                     multiline={true}
+                    class="question-text-content"
                 />
                 <AssessmentMcqOptions options={slot.choice1.questions[0].options} />
             {/if}
@@ -81,6 +82,7 @@
                         if (onUpdateText2) onUpdateText2(v, slot.choice2.questions[0].id);
                     }}
                     multiline={true}
+                    class="question-text-content"
                 />
                 <AssessmentMcqOptions options={slot.choice2.questions[0].options} />
             {/if}

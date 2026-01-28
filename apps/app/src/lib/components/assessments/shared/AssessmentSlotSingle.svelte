@@ -36,6 +36,7 @@
                 if (onUpdateText) onUpdateText(v, slot.questions[0].id);
             }}
             multiline={true}
+            class="question-text-content"
         />
         <AssessmentMcqOptions options={slot.questions[0].options} />
     </div>

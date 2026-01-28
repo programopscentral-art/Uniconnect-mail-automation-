@@ -237,7 +237,9 @@
             <!-- PART A -->
             <div class="border-b border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1">
                 <AssessmentEditable value={paperMeta.partA_title || 'PART A'} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block" /> 
-                <span class="font-normal text-[8.5pt]">({questionsA.length} X {questionsA[0]?.marks || paperStructure.find((s: any)=>s.part==='A')?.marks_per_q || 2} = {totalMarksA} MARKS)</span>
+                <span class="font-normal text-[8.5pt]">
+                    ( <AssessmentEditable value={paperMeta.partA_marks_label || `${questionsA.length} X ${questionsA[0]?.marks || paperStructure.find((s: any)=>s.part==='A')?.marks_per_q || 2} = ${totalMarksA}`} onUpdate={(v: string) => updateText(v, 'META', 'partA_marks_label')} class="inline-block" /> MARKS )
+                </span>
             </div>
             <div class="border-x border-b border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
                 {#each questionsA as q, i (q.id)}
@@ -266,7 +268,9 @@
             <!-- PART B -->
             <div class="mt-4 border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1">
                 <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block" />
-                <span class="font-normal text-[8.5pt]">({questionsB.length} X {questionsB[0]?.marks || paperStructure.find((s: any)=>s.part==='B')?.marks_per_q || 5} = {totalMarksB} MARKS)</span>
+                <span class="font-normal text-[8.5pt]">
+                    ( <AssessmentEditable value={paperMeta.partB_marks_label || `${questionsB.length} X ${questionsB[0]?.marks || paperStructure.find((s: any)=>s.part==='B')?.marks_per_q || 5} = ${totalMarksB}`} onUpdate={(v: string) => updateText(v, 'META', 'partB_marks_label')} class="inline-block" /> MARKS )
+                </span>
             </div>
             <div class="border-x border-black" use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
                 {#each questionsB as slot, i (slot.id)}
@@ -326,7 +330,9 @@
             {#if questionsC.length > 0 || (mode === 'preview' && paperStructure.some((s: any) => s.part === 'C'))}
                 <div class="mt-4 border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1">
                     <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block" />
-                    <span>({questionsC.length} X {questionsC[0]?.marks || 8} = {totalMarksC} MARKS)</span>
+                    <span class="font-normal text-[8.5pt]">
+                        ( <AssessmentEditable value={paperMeta.partC_marks_label || `${questionsC.length} X ${questionsC[0]?.marks || 8} = ${totalMarksC}`} onUpdate={(v: string) => updateText(v, 'META', 'partC_marks_label')} class="inline-block" /> MARKS )
+                    </span>
                 </div>
                 <div class="border-x border-b border-black">
                      <!-- C Loop logic here similar to B -->
@@ -369,10 +375,19 @@
 
 <style>
     @font-face { font-family: 'Times New Roman'; font-display: swap; src: local('Times New Roman'); }
-    #crescent-paper-actual { font-family: 'Times New Roman', Times, serif; }
+    #crescent-paper-actual { font-family: 'Times New Roman', Times, serif; color: black; }
     #crescent-paper-actual * { box-sizing: border-box; }
+    #crescent-paper-actual :global(.assessment-editable-container) { font-weight: 600; }
+    
+    /* Improve visibility of question text */
+    :global(.question-text-content) {
+        font-weight: 500 !important;
+        color: #000 !important;
+    }
+
     :global(.no-print) { display: block; }
     @media print {
         :global(.no-print) { display: none !important; }
+        #crescent-paper-actual { color: black !important; }
     }
 </style>

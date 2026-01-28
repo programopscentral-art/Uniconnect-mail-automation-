@@ -284,13 +284,19 @@
 
 <style>
     @font-face { font-family: 'Times New Roman'; font-display: swap; src: local('Times New Roman'); }
-    #cdu-paper-container { font-family: 'Times New Roman', Times, serif; }
+    #cdu-paper-container { font-family: 'Times New Roman', Times, serif; color: black; }
     
+    /* Improve visibility of question text */
+    :global(.question-text-content) {
+        font-weight: 500 !important;
+        color: #000 !important;
+    }
+
     :global(.print-red) { color: #dc2626 !important; }
     
     @media print {
         .no-print { display: none !important; }
-        #cdu-paper-container { padding: 0 !important; margin: 0 !important; width: 100% !important; box-shadow: none !important; }
+        #cdu-paper-container { padding: 0 !important; margin: 0 !important; width: 100% !important; box-shadow: none !important; color: black !important; }
         .print-red { color: #dc2626 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 </style>

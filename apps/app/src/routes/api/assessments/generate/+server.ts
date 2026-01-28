@@ -121,12 +121,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const sets = ['A', 'B', 'C', 'D'];
         const generatedSets: Record<string, any> = {};
         const globalExcluded = new Set<string>(); // Tracking VARIETY across sets
-        let autoUnitCounter = 0; // PERSIST ACROSS SETS for true variety
 
         for (const setName of sets) {
             const setQuestions: any[] = [];
             const setDifficulty = sets_config[setName] || ['ANY'];
             const excludeInSet = new Set<string>();
+
+            // Randomize unit order for each set to ensure different question distribution
+            const shuffledUnitIds = [...unit_ids].sort(() => Math.random() - 0.5);
+            let setUnitCounter = 0;
 
             const pickOne = (targetMarks: number, unitId: string, qType?: string, bloomArr?: string[], co_id?: string) => {
                 const isShortOrMcq = (q: any) => {
@@ -135,15 +138,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 };
 
                 const filterPool = (pool: any[], strictMarks: boolean) => {
-                    // Variety Logic: Prefer questions NOT used in previous sets (globalExcluded)
-                    // and prioritize variety based on set name (A/B/C/D) via set-specific offset
+                    // Stage 1: Prefer questions NOT used in ANY set yet (true variety)
                     let filtered = pool.filter(q => !excludeInSet.has(q.id) && !globalExcluded.has(q.id));
 
-                    // Shuffle filtered to avoid ordered bias
-                    filtered = filtered.sort(() => Math.random() - 0.5);
-
                     // Stage 2: If pool is dry, fallback to cross-set reuse (variety is preferred but not at cost of generation)
-                    if (filtered.length === 0) filtered = pool.filter(q => !excludeInSet.has(q.id));
+                    if (filtered.length === 0) {
+                        filtered = pool.filter(q => !excludeInSet.has(q.id));
+                    }
+
+                    // Shuffle filtered to maintain randomness within the same category
+                    filtered = filtered.sort(() => Math.random() - 0.5);
 
                     if (strictMarks) {
                         const sFiltered = filtered.filter(q => Number(q.marks) === Number(targetMarks));
@@ -162,7 +166,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         else filtered = filtered.filter(q => q.type === qType);
                     }
 
-                    // Bloom Filter with Fallback
+                    // Bloom Filter (Difficulty) - CRITICAL: Prioritize this
                     if (bloomArr && bloomArr.length > 0 && !bloomArr.includes('ANY') && filtered.length > 0) {
                         const bFiltered = filtered.filter(q => bloomArr.includes(q.bloom_level));
                         if (bFiltered.length > 0) filtered = bFiltered;
@@ -189,19 +193,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 // Fallback Chain
                 // 1. Strict Unit + Strict Marks
-                let p = filterPool(shuffledPool.filter(q => q.unit_id === unitId), true);
+                let p = filterPool(allQuestions.filter(q => q.unit_id === unitId), true);
                 if (p.length > 0) return finalize(p);
 
                 // 2. Strict Unit + Any Marks
-                p = filterPool(shuffledPool.filter(q => q.unit_id === unitId), false);
+                p = filterPool(allQuestions.filter(q => q.unit_id === unitId), false);
                 if (p.length > 0) return finalize(p);
 
                 // 3. Any Unit + Strict Marks
-                p = filterPool(shuffledPool, true);
+                p = filterPool(allQuestions, true);
                 if (p.length > 0) return finalize(p);
 
                 // 4. Ultimate Fallback (Anything available)
-                p = filterPool(shuffledPool, false);
+                p = filterPool(allQuestions, false);
                 if (p.length > 0) return finalize(p);
 
                 return null;
@@ -224,7 +228,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             };
 
             for (const slot of slotsToProcess) {
-                const uToUse = slot.unit === 'Auto' ? (unit_ids[autoUnitCounter++ % unit_ids.length] || allPossibleUnitIdsArr[0]) : slot.unit;
+                // Use shuffled units for this set
+                const uToUse = slot.unit === 'Auto' ? (shuffledUnitIds[setUnitCounter++ % shuffledUnitIds.length] || allPossibleUnitIdsArr[0]) : slot.unit;
 
                 if (slot.type === 'OR_GROUP') {
                     const c1 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[0]?.manualMarks, slot.qType, slot.bloom, slot.co);
