@@ -223,16 +223,16 @@
 <div class="space-y-6">
     <div class="flex justify-between items-center bg-white dark:bg-slate-900 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800">
         <div>
-            <h1 class="text-2xl font-bold dark:text-white">{data.campaign.name}</h1>
-            <p class="text-sm dark:text-slate-400">ID: {data.campaign.id}</p>
+            <h1 class="text-2xl font-bold text-gray-900">{data.campaign.name}</h1>
+            <p class="text-sm text-gray-500">ID: {data.campaign.id}</p>
         </div>
         <div class="flex items-center space-x-4">
-            <span class="px-3 py-1 rounded-full text-sm font-medium 
-                {data.campaign.status === 'DRAFT' ? 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-400' : 
-                 data.campaign.status === 'COMPLETED' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
-                 data.campaign.status === 'STOPPED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                 data.campaign.status === 'FAILED' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
-                 'bg-blue-100 text-blue-800 animate-pulse border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50'}">
+            <span class="px-3 py-1 rounded-full text-sm font-bold 
+                {data.campaign.status === 'DRAFT' ? 'bg-gray-100 text-gray-800' : 
+                 data.campaign.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                 data.campaign.status === 'STOPPED' ? 'bg-red-100 text-red-800' :
+                 data.campaign.status === 'FAILED' ? 'bg-red-100 text-red-800' :
+                 'bg-blue-100 text-blue-800 animate-pulse border border-blue-200'}">
                 {data.campaign.status}
             </span>
             
@@ -288,7 +288,7 @@
                         >
                             Schedule
                         </button>
-                        <button onclick={() => showScheduleInput = false} class="text-sm dark:text-slate-400">Cancel</button>
+                        <button onclick={() => showScheduleInput = false} class="text-sm text-gray-500 font-bold">Cancel</button>
                     </div>
                 {/if}
             {/if}
@@ -297,7 +297,7 @@
 
     {#if data.campaign.status === 'DRAFT'}
         <div class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 shadow-sm">
-            <h2 class="text-xl font-bold text-indigo-900 mb-2">Production Readiness Check 🧪</h2>
+            <h2 class="text-xl font-bold mb-2" style="color: #312e81 !important">Production Readiness Check 🧪</h2>
             <p class="text-sm text-indigo-700 mb-5 font-medium">
                 Verify your layout, NIAT branding, and dynamic placeholders using real student data before the official launch.
             </p>
@@ -306,7 +306,7 @@
                     type="email" 
                     bind:value={testEmail}
                     placeholder="Enter your email address"
-                    class="block w-72 px-4 py-2.5 text-sm border-indigo-200 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 rounded-xl outline-none transition-all text-gray-900 font-bold"
+                    class="block w-72 px-4 py-2.5 text-sm border-indigo-200 focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 rounded-xl outline-none transition-all text-gray-900 font-bold bg-white"
                 />
                 <button 
                     onclick={sendTestEmail}
@@ -323,8 +323,8 @@
         <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
             <div class="flex justify-between items-end">
                 <div>
-                    <h3 class="text-sm font-black text-gray-500 uppercase tracking-widest">Global Sending Progress</h3>
-                    <div class="text-2xl font-black text-gray-900 mt-1">{progress}% <span class="text-sm font-bold text-gray-400">({(data.campaign.sent_count || 0) + (data.campaign.failed_count || 0)} / {data.campaign.total_recipients})</span></div>
+                    <h3 class="text-sm font-black uppercase tracking-widest" style="color: #6b7280 !important">Global Sending Progress</h3>
+                    <div class="text-2xl font-black mt-1" style="color: #111827 !important">{progress}% <span class="text-sm font-bold text-gray-400">({(data.campaign.sent_count || 0) + (data.campaign.failed_count || 0)} / {data.campaign.total_recipients})</span></div>
                 </div>
                 <div class="text-xs font-bold text-indigo-600 animate-pulse">
                     {#if progress >= 100 && data.campaign.status === 'IN_PROGRESS'}
@@ -349,28 +349,28 @@
             onclick={() => loadRecipients(false, 'ALL')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'ALL' ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-gray-100'} hover:border-indigo-200 transition-all text-left group"
         >
-            <h3 class="text-sm font-bold text-gray-500 group-hover:text-indigo-600">Total Recipients</h3>
-            <p class="mt-2 text-3xl font-black text-gray-900">{data.campaign.total_recipients}</p>
+            <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">Total Recipients</h3>
+            <p class="mt-2 text-3xl font-black" style="color: #111827 !important">{data.campaign.total_recipients}</p>
         </button>
         <button 
             onclick={() => loadRecipients(false, 'SENT')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'SENT' ? 'border-blue-500 ring-4 ring-blue-50' : 'border-gray-100'} hover:border-blue-200 transition-all text-left group"
         >
-            <h3 class="text-sm font-bold text-gray-500 group-hover:text-blue-600">Sent</h3>
-            <p class="mt-2 text-3xl font-black text-gray-900">{data.campaign.sent_count}</p>
+            <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">Sent</h3>
+            <p class="mt-2 text-3xl font-black" style="color: #111827 !important">{data.campaign.sent_count}</p>
         </button>
         <button 
             onclick={() => loadRecipients(false, 'OPENED')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'OPENED' ? 'border-cyan-500 ring-4 ring-cyan-50' : 'border-gray-100'} hover:border-cyan-200 transition-all text-left group"
         >
-            <h3 class="text-sm font-bold text-gray-500 group-hover:text-cyan-600">Opened</h3>
+            <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">Opened</h3>
             <p class="mt-2 text-3xl font-black text-blue-600">{data.campaign.open_count}</p>
         </button>
         <button 
             onclick={() => loadRecipients(false, 'FAILED')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'FAILED' ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-100'} hover:border-red-200 transition-all text-left relative group"
         >
-            <h3 class="text-sm font-bold text-gray-500 group-hover:text-red-600">Failed</h3>
+            <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">Failed</h3>
             <div class="flex items-end justify-between">
                 <p class="mt-2 text-3xl font-black text-red-600">{data.campaign.failed_count || 0}</p>
                 {#if data.campaign.failed_count > 0}
@@ -384,7 +384,7 @@
     <div class="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         <div class="px-8 py-6 flex justify-between items-center bg-gray-50/50">
             <div>
-                <h3 class="text-lg font-black text-gray-900 uppercase tracking-tight">Recipient Details</h3>
+                <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
                 <div class="flex gap-2 mt-2">
                     {#each ['ALL', 'SENT', 'OPENED', 'FAILED'] as filter}
                         <button 
@@ -452,7 +452,7 @@
                                     </tr>
                                 {/each}
                                 {#if recipients.length === 0}
-                                    <tr><td colspan="4" class="p-4 text-center dark:text-slate-400">No recipients found.</td></tr>
+                                    <tr><td colspan="4" class="p-4 text-center text-gray-500 font-medium">No recipients found.</td></tr>
                                 {/if}
                             </tbody>
                         </table>
@@ -478,7 +478,7 @@
     <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
     <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
       <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-        <h3 class="text-lg leading-6 font-medium dark:text-white mb-4">Edit Student Data</h3>
+        <h3 class="text-lg leading-6 font-black mb-4" style="color: #111827 !important">Edit Student Data</h3>
         
         <div class="space-y-4">
             <div>

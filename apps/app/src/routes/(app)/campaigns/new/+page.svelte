@@ -41,29 +41,29 @@
 </script>
 
 <div class="max-w-3xl mx-auto">
-    <h1 class="text-2xl font-bold text-gray-900 mb-6">Create Campaign Wizard</h1>
+    <h1 class="text-2xl font-bold mb-6" style="color: #111827 !important">Create Campaign Wizard</h1>
     
     <div class="bg-white shadow sm:rounded-lg p-6">
         <!-- Steps -->
         <ol class="flex items-center w-full mb-8 space-x-4">
-             <li class="flex items-center text-blue-600 dark:text-blue-500 space-x-2.5">
+             <li class="flex items-center text-blue-600 space-x-2.5 font-bold">
                 <span class="flex items-center justify-center w-8 h-8 border border-blue-600 rounded-full shrink-0">1</span>
-                <span>Details</span>
+                <span style="color: #2563eb !important">Details</span>
             </li>
-             <li class="flex items-center text-gray-500 dark:text-gray-400 space-x-2.5">
-                <span class="flex items-center justify-center w-8 h-8 border border-gray-500 rounded-full shrink-0">2</span>
-                <span>Review</span>
+             <li class="flex items-center text-gray-400 space-x-2.5 font-bold">
+                <span class="flex items-center justify-center w-8 h-8 border border-gray-400 rounded-full shrink-0">2</span>
+                <span style="color: #9ca3af !important">Review</span>
             </li>
         </ol>
 
         <div class="space-y-6">
             <div>
-                <label for="campaign-name" class="block text-sm font-medium text-gray-700">Campaign Name</label>
+                <label for="campaign-name" class="block text-sm font-bold" style="color: #374151 !important">Campaign Name</label>
                 <input id="campaign-name" type="text" bind:value={name} class="mt-1 block w-full border-gray-300 rounded-md shadow-sm text-sm focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-bold px-4 py-2" placeholder="e.g. November Fees Reminder">
             </div>
 
             <div>
-                <label for="template-select" class="block text-sm font-medium text-gray-700">Select Template</label>
+                <label for="template-select" class="block text-sm font-bold" style="color: #374151 !important">Select Template</label>
                 <select id="template-select" bind:value={templateId} class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-900 font-medium bg-white">
                     <option value="">Choose a template...</option>
                     {#each data.templates as t}
@@ -76,7 +76,7 @@
             </div>
 
             <div>
-                <label for="mailbox-select" class="block text-sm font-medium text-gray-700">Select Sender Mailbox</label>
+                <label for="mailbox-select" class="block text-sm font-bold" style="color: #374151 !important">Select Sender Mailbox</label>
                 <select id="mailbox-select" bind:value={mailboxId} class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-900 font-medium bg-white">
                     <option value="">Choose a mailbox...</option>
                     {#each data.mailboxes as m}
@@ -90,7 +90,7 @@
 
             <div class="border-t border-gray-200 pt-6">
                 <div class="flex items-center justify-between mb-2">
-                    <label for="recipient-select" class="block text-sm font-medium text-gray-700">Recipient Email Column</label>
+                    <label for="recipient-select" class="block text-sm font-bold" style="color: #374151 !important">Recipient Email Column</label>
                     {#if data.emailMetadataKeys.length > 0}
                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                            <svg class="mr-1 h-2 w-2 text-green-400" fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
@@ -98,7 +98,7 @@
                         </span>
                     {/if}
                 </div>
-                <p class="text-xs text-gray-500 mb-2">Choose which column contains the email addresses. The system automatically scanned your sheet for "Mail" or "Email" tags.</p>
+                <p class="text-xs mb-2 font-medium" style="color: #4b5563 !important">Choose which column contains the email addresses. The system automatically scanned your sheet for "Mail" or "Email" tags.</p>
                 <select id="recipient-select" bind:value={recipientEmailKey} class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md text-gray-900 font-medium bg-white">
                     <option value="">Default Student Email (Primary)</option>
                     {#each data.emailMetadataKeys as key}
@@ -114,8 +114,8 @@
             
             <div class="flex items-center justify-between p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
                 <div>
-                    <label for="include-ack" class="block text-sm font-bold text-gray-900">Include "I Acknowledge & Agree" Button</label>
-                    <p class="text-xs text-blue-700/70 mt-0.5">Appends a confirmation button at the bottom of the email.</p>
+                    <label for="include-ack" class="block text-sm font-bold" style="color: #111827 !important">Include "I Acknowledge & Agree" Button</label>
+                    <p class="text-xs mt-0.5 font-medium" style="color: #1d4ed8 !important">Appends a confirmation button at the bottom of the email.</p>
                 </div>
                 <button 
                     type="button" 
