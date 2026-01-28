@@ -106,9 +106,9 @@
         
         if (swapContext.part === 'A') {
             const nArr = [...arr];
-            nArr[swapContext.slotIndex] = nQ;
-            const updated = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
-            currentSetData = updated;
+            const oldSlot = nArr[swapContext.slotIndex];
+            nArr[swapContext.slotIndex] = { ...oldSlot, questions: [nQ] };
+            currentSetData = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
         } else {
             const nArr = [...arr];
             let nSlot = { ...nArr[swapContext.slotIndex] };
@@ -129,8 +129,7 @@
                 nSlot.questions = [nQ];
             }
             nArr[swapContext.slotIndex] = nSlot;
-            const updated = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
-            currentSetData = updated;
+            currentSetData = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
         }
         
         isSwapSidebarOpen = false;
@@ -260,15 +259,15 @@
                 </span>
             </div>
             <div class="border-x border-b border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
-                {#each questionsA as q, i (q.id + activeSet)}
+                {#each questionsA as slot, i (slot.id + activeSet)}
                     <div class="border-b border-black">
-                        <AssessmentSlotSingle slot={q} qNumber={i + 1} {isEditable} snoWidth={40} 
-                            onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} 
-                            onSwap={() => openSwapSidebar(q, 'A')}
-                            onRemove={() => removeQuestion(q)}
+                        <AssessmentSlotSingle {slot} qNumber={i + 1} {isEditable} snoWidth={40} 
+                            onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', slot.id, qid)} 
+                            onSwap={() => openSwapSidebar(slot, 'A')}
+                            onRemove={() => removeQuestion(slot)}
                             borderClass="divide-x border-black"
                             textClass="text-[9pt]"
-                            marksClass="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt] py-2"
+                            marksClass="w-16 flex items-center justify-center font-bold text-[8.5pt] py-2"
                         />
                     </div>
                 {:else}
@@ -379,9 +378,12 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
                 {#each swapContext?.alternates || [] as q}
-                    <button onclick={() => selectAlternate(q)} class="text-left p-3 bg-gray-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-xl transition-all h-24 flex flex-col justify-between overflow-hidden text-black">
+                    <button onclick={() => selectAlternate(q)} class="text-left p-2 bg-gray-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-xl transition-all min-h-[100px] flex flex-col gap-2 overflow-hidden text-black">
                         <div class="text-[10px] font-bold line-clamp-3">{@html q.question_text || q.text}</div>
-                        <div class="flex items-center justify-between mt-1">
+                        {#if q.image_url}
+                            <img src={q.image_url} alt="Preview" class="h-12 w-full object-contain bg-white rounded border border-gray-100" />
+                        {/if}
+                        <div class="flex items-center justify-between mt-auto">
                             <span class="text-[8px] font-black uppercase text-indigo-600 bg-white px-1 rounded">{q.type}</span>
                         </div>
                     </button>

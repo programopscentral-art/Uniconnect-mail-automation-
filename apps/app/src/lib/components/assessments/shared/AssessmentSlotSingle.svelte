@@ -22,7 +22,7 @@
 </script>
 
 <div class="flex {borderClass} min-h-[40px] {className}">
-    <div class="flex items-center justify-center font-bold {textClass} tabular-nums no-print print:border-none" style="width: {snoWidth}px">
+    <div class="flex items-center justify-center font-bold {textClass} tabular-nums" style="width: {snoWidth}px">
         {qNumber}.
     </div>
     <div class="flex-1 px-4 py-2 {textClass} leading-relaxed relative group whitespace-pre-wrap">

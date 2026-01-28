@@ -286,9 +286,12 @@
             </div>
             <div class="grid grid-cols-2 gap-3">
                 {#each swapContext?.alternates || [] as q}
-                    <button onclick={() => selectAlternate(q)} class="text-left p-3 bg-gray-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-xl transition-all h-24 flex flex-col justify-between overflow-hidden">
+                    <button onclick={() => selectAlternate(q)} class="text-left p-2 bg-gray-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-xl transition-all min-h-[100px] flex flex-col gap-2 overflow-hidden text-black">
                         <div class="text-[10px] font-bold text-gray-700 line-clamp-3">{@html q.question_text}</div>
-                        <div class="flex items-center justify-between mt-1">
+                        {#if q.image_url}
+                            <img src={q.image_url} alt="Preview" class="h-12 w-full object-contain bg-white rounded border border-gray-100" />
+                        {/if}
+                        <div class="flex items-center justify-between mt-auto">
                             <span class="text-[8px] font-black uppercase text-indigo-600 bg-white px-1 rounded">{q.type}</span>
                         </div>
                     </button>
