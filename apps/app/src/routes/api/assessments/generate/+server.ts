@@ -8,12 +8,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         const {
             subject_id,
+            university_id,
+            batch_id,
+            branch_id,
+            exam_type,
+            semester,
+            paper_date,
+            exam_time,
+            duration_minutes,
+            course_code,
+            exam_title,
+            instructions,
             template_id,
             unit_ids = [],
             generation_mode = 'Automatic', // 'Automatic' or 'Modifiable'
             max_marks = 50,
             part_a_type = 'Mixed',
             sets_config = {}, // { 'A': ['L1'], 'B': ['L2'], ... }
+            selected_template = 'standard',
             template_config: incoming_template_config
         } = await request.json();
 
@@ -61,7 +73,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             for (let i = 1; i <= countA; i++) {
                 slotsToProcess.push({
-                    id: uuidv4(),
+                    id: crypto.randomUUID(),
                     label: `${i}`,
                     marks: marksA,
                     type: 'SINGLE',
@@ -76,7 +88,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             for (let i = 0; i < realCountB; i++) {
                 const marksB = is100 ? 16 : 5;
                 slotsToProcess.push({
-                    id: uuidv4(),
+                    id: crypto.randomUUID(),
                     label: `${countA + 1 + i}`,
                     marks: marksB,
                     type: 'OR_GROUP',
@@ -206,7 +218,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             generatedSets[setName] = { questions: setQuestions };
         }
 
-        return json({ sets: generatedSets, template_config });
+        // 3. PERSIST THE PAPER
+        const paperRes = await db.query(
+            `INSERT INTO assessment_papers (
+                university_id, batch_id, branch_id, subject_id, 
+                exam_type, semester, paper_date, exam_time, 
+                duration_minutes, max_marks, course_code, 
+                exam_title, instructions, template_name, 
+                sets_data, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            RETURNING id`,
+            [
+                university_id, batch_id, branch_id, subject_id,
+                exam_type, semester, paper_date, exam_time,
+                duration_minutes, max_marks, course_code,
+                exam_title, instructions, selected_template,
+                JSON.stringify({
+                    ...generatedSets,
+                    metadata: {
+                        unit_ids,
+                        generation_mode,
+                        part_a_type,
+                        sets_config
+                    }
+                }),
+                locals.user.id
+            ]
+        );
+
+        return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config });
     } catch (err: any) {
         console.error('Generation Error:', err);
         throw error(500, err.message || 'Failed to generate paper');

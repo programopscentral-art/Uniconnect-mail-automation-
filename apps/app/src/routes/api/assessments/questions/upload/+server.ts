@@ -237,12 +237,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const numericMarkerRegex = /(?:^|\s)(\d+|[I-X]+-\d+)[\.\)]\s+/gi;
             const optionMarkerRegex = /(?:^|\s|[\.!\?,]|\))(\([a-d]\)|[a-dA-D][\.\)])(?:\s|$)/gi;
             const unitMarkerRegex = /(?:^|\n)(?:Unit|Module|Chapter)[\s-]*(V|IV|III|II|I|1|2|3|4|5|One|Two|Three|Four|Five)[:\s]*/gi;
-            const metaPipeRegex = /(?:^|\n)Q(\d+)\s*\|\s*M(\d+)\s*\|\s*(L[1-5])\s*\|\s*([^|]+)\|\s*(CO[1-9])\s*\|\s*([^|]+)\|\s*([^|\n]+)/gi;
+
+            // Re-designed Meta Pipe Regex for extreme flexibility:
+            // Matches Q# followed by pipes or spaces with variable metadata
+            // Format: Q1 | M1 | L2 | Medium | CO1 | Topic
+            const metaPipeRegex = /(?:^|\n)Q(\d+)\s*[|]\s*(?:M|Module|Unit)?\s*(\d+)\s*[|]\s*(?:L|Level)?\s*([1-5]|Easy|Medium|Hard)\s*[|]?\s*([^|]*)[|]?\s*(CO[1-9])?\s*[|]?\s*([^|]*)[|]?\s*([^|\n]*)/gi;
             const headerRegex = /(?:^|\n)\s*(FILL\s*IN\s*THE\s*BLANKS?|SHORT\s*(?:QUESTIONS?|ANSWERS?)|LONG\s*(?:QUESTIONS?|ANSWERS?)|VERY\s*SHORT|MCQ\s*(?:QUESTIONS?|ANSWERS?)|PROGRAMMING|PRACTICALS|DESCRIPTIVE|ESSAY|MATCH\s*THE\s*FOLLOWING)(?:[:\s]|$)/gi;
 
             let match;
             while ((match = headerRegex.exec(text)) !== null) markers.push({ index: match.index, type: 'HEADER', value: match[1].toUpperCase(), fullMatch: match[0] });
             while ((match = metaPipeRegex.exec(text)) !== null) {
+                const rawBloom = match[3]?.toUpperCase().trim();
+                let bloom = 'L1';
+                if (['1', 'EASY'].includes(rawBloom)) bloom = 'L1';
+                else if (['2', 'MEDIUM'].includes(rawBloom)) bloom = 'L2';
+                else if (['3', 'HARD'].includes(rawBloom)) bloom = 'L3';
+                else if (rawBloom && rawBloom.startsWith('L')) bloom = rawBloom;
+
                 markers.push({
                     index: match.index,
                     type: 'META_PIPE',
@@ -250,11 +261,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     fullMatch: match[0],
                     metadata: {
                         module: match[2],
-                        bloom: match[3],
-                        difficulty: match[4].trim(),
-                        co: match[5].toUpperCase(),
-                        unitName: match[6].trim(),
-                        topicName: match[7].trim()
+                        bloom: bloom,
+                        difficulty: match[4]?.trim() || rawBloom,
+                        co: match[5]?.toUpperCase(),
+                        unitName: match[6]?.trim(),
+                        topicName: (match[7] || match[6] || 'General').trim()
                     }
                 });
             }
