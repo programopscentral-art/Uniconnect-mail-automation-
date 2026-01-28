@@ -149,8 +149,8 @@
             <!-- Header -->
             <div class="header-container flex flex-col items-center mb-1 pt-1 relative">
                  <div class="absolute top-0 left-0 text-[10pt] font-black border border-black px-2 py-0.5">SET - {activeSet}</div>
-                 <img src="/nxtwave-logo.png" alt="NxtWave Logo" class="h-14 mb-1" />
-                <h1 class="text-xs font-black uppercase tracking-tighter">NxtWave Institution</h1>
+                  <div class="mb-1"></div>
+                <h1 class="text-xs font-black uppercase tracking-tighter"><AssessmentEditable value={paperMeta.univ_line_1} onUpdate={(v: string) => updateText(v, 'META', 'univ_line_1')} /></h1>
                   <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
                     <div class="flex items-center gap-2">
                         <AssessmentEditable value={paperMeta.course_code} onUpdate={(v: string) => updateText(v, 'META', 'course_code')} class="font-bold px-1 min-w-[70px] text-right text-[10pt]" />

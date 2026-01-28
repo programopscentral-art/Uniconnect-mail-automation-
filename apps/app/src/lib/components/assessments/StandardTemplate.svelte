@@ -112,8 +112,8 @@
     <div class="flex-1 overflow-auto p-4 sm:p-8">
         <div id="standard-paper-actual" class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative" style="width: 8.27in; min-height: 11.69in;">
             <div class="text-center mb-8 border-b-2 border-black pb-4">
-                <h1 class="text-2xl font-black uppercase tracking-tighter mb-1">UniConnect Assessment</h1>
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">Powered by NxtWave</p>
+                <h1 class="text-2xl font-black uppercase tracking-tighter mb-1">Assessment Report</h1>
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest leading-none">Institutional Quality Assurance</p>
             </div>
 
             <div class="grid grid-cols-2 gap-y-4 text-sm mb-8 border-b-2 border-black pb-4">

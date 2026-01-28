@@ -146,7 +146,7 @@
             programme: meta.programme || paper.branch_name || 'B.Tech(CSE) - I SEMESTER',
             semester: String(meta.semester || paper.semester || 1),
             instructions: meta.instructions || paper.instructions || 'ANSWER ALL QUESTIONS',
-            univ_line_1: meta.univ_line_1 || 'CHAITANYA',
+            univ_line_1: meta.univ_line_1 || paper.university_name || 'UNIVERSITY NAME',
             univ_line_2: meta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)',
             colWidths: meta.colWidths || { sno: 40 },
             template_config: structure
@@ -643,6 +643,8 @@
 
                 {#if selectedTemplate === 'cdu'}
                     <CDUTemplate 
+                        bind:paperMeta={paperMeta}
+                        bind:currentSetData={editableSets[activeSet]}
                         bind:paperStructure={paperMeta.template_config}
                         activeSet={activeSet}
                         courseOutcomes={data.courseOutcomes}

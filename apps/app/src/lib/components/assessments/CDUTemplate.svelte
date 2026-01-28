@@ -161,11 +161,10 @@
                 <!-- Header -->
                 <div class="text-center pb-4 pt-2 border-b-[1.5pt] border-black">
                     <div class="mb-2">
-                        <img src="/nxtwave-logo.png" alt="NxtWave Logo" class="h-14 mx-auto" />
                     </div>
-                    <AssessmentEditable value={paperMeta.univ_line_1 || 'NxtWave Institution'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-bold uppercase tracking-[0.1em]" />
-                    <AssessmentEditable value={paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase" />
-                    <AssessmentEditable value={paperMeta.exam_title || 'I INTERNAL EXAMINATIONS-NOV -2024'} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase" />
+                    <AssessmentEditable value={paperMeta.univ_line_1} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[17pt] font-bold uppercase tracking-[0.1em]" />
+                    <AssessmentEditable value={paperMeta.univ_line_2} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase" />
+                    <AssessmentEditable value={paperMeta.exam_title} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase" />
                     
                     <div class="mt-1 flex flex-col items-center">
                         <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-red-600 print-red" />

@@ -220,11 +220,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             let text = rawText
                 .replace(/\[ROW_START\]/g, '\n')
                 .replace(/\[ROW_END\]/g, '\n')
-                .replace(/\[COL\]/g, '      ') // Larger gap for matrix alignment (6 spaces)
+                .replace(/\[COL\]/g, '      ') // Matrix-friendly 6-space gap
                 .replace(/\[\/COL\]/g, ' ')
                 .replace(/\u00A0/g, ' ')
-                .replace(/[\t]/g, '    ') // Expand tabs to 4 spaces
-                .replace(/[ \t]{8,}/g, '        ') // Relaxed capping to 8 spaces to preserve matrices
+                .replace(/[\t]/g, '    ')
+                .replace(/[ \t]{8,}/g, '        ')
+                .replace(/\s*[|]\s*/g, ' | ') // Normalize pipes for meta detection
                 .replace(/\n\s+\n/g, '\n\n')
                 .replace(/[\u2018\u2019]/g, "'")
                 .replace(/[\u201C\u201D]/g, '"')
