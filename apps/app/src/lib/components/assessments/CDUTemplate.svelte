@@ -18,6 +18,7 @@
 
     let isSwapSidebarOpen = $state(false);
     let swapContext = $state<any>(null);
+    let swapCounter = $state(0);
 
     let snoWidth = $derived(Number(paperMeta.colWidths?.sno || 35));
     let isResizing = $state<string | null>(null);
@@ -166,7 +167,8 @@
         }
         
         nArr[slotIndex] = nSlot;
-        currentSetData = { ...currentSetData, questions: nArr };
+        currentSetData = { ...currentSetData, questions: [...nArr] };
+        swapCounter++;
         isSwapSidebarOpen = false;
     }
 
@@ -203,7 +205,8 @@
 
                     <!-- Time & Marks Row -->
                     <div class="mt-2 border-t-[1.5pt] border-black flex justify-between px-2 py-0.5 font-bold text-[10.5pt]">
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1 group relative">
+                            <span class="text-[8pt] text-gray-400 opacity-0 group-hover:opacity-100 absolute -top-4 left-0 transition-opacity">V.2.3.1</span>
                             <span>Time:</span>
                             <AssessmentEditable value={paperMeta.duration_label || '1 ½ Hrs.'} onUpdate={(v: string) => updateTextValue(v, 'META', 'duration_label')} class="min-w-[40px] border-b border-dotted" />
                             <span>]</span>
@@ -233,38 +236,43 @@
 
                         <!-- Questions -->
                         <div class="flex flex-col min-h-[50px]" use:dndzone={{ items: (currentSetData?.questions || []).filter((q: any) => q && q.part === section), flipDurationMs: 200 }} onconsider={(e) => handleDndSync(section, (e.detail as any).items)} onfinalize={(e) => handleDndSync(section, (e.detail as any).items)}>
-                            {#each (currentSetData?.questions || []) as q (q.id + activeSet)}
-                                {#if q && q.part === section}
-                                    <div class="border-b border-black">
-                                        {#if q.type === 'OR_GROUP'}
-                                            <AssessmentSlotOrGroup slot={q} qNumber={getQuestionNumber(q.id)} {isEditable} snoWidth={snoWidth}
-                                                onSwap1={() => openSwapSidebar(q, section, 'q1')}
-                                                onSwap2={() => openSwapSidebar(q, section, 'q2')}
-                                                onRemove={() => removeQuestion(q)}
-                                                onUpdateText1={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid, 'choice1')}
-                                                onUpdateText2={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid, 'choice2')}
-                                            />
-                                        {:else}
-                                            <AssessmentSlotSingle slot={q} qNumber={getQuestionNumber(q.id)} {isEditable} snoWidth={snoWidth}
-                                                onSwap={() => openSwapSidebar(q, section)}
-                                                onRemove={() => removeQuestion(q)}
-                                                onUpdateText={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid)}
-                                            />
-                                        {/if}
-                                    </div>
-                                {/if}
-                            {:else}
-                                {#if mode === 'preview' && cfg}
-                                    {#each cfg.slots as slot}
-                                        <div class="flex border-b border-black min-h-[30px] opacity-40 italic text-gray-400 font-bold bg-gray-50/20">
-                                            <div class="border-r border-black flex items-center justify-center font-bold" style="width: {snoWidth}px">{slot.label}.</div>
-                                            <div class="px-2 py-1 flex-1">[ {slot.type === 'OR_GROUP' ? 'OR Pair' : 'Single Question'} ] - {slot.marks} Marks</div>
+                            {#key activeSet + swapCounter}
+                                {#each (currentSetData?.questions || []) as q (q.id + activeSet)}
+                                    {#if q && q.part === section}
+                                        <div class="border-b border-black">
+                                            {#if q.type === 'OR_GROUP'}
+                                                <AssessmentSlotOrGroup slot={q} qNumber={getQuestionNumber(q.id)} {isEditable} snoWidth={snoWidth}
+                                                    onSwap1={() => openSwapSidebar(q, section, 'q1')}
+                                                    onSwap2={() => openSwapSidebar(q, section, 'q2')}
+                                                    onRemove={() => removeQuestion(q)}
+                                                    onUpdateText1={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid, 'choice1')}
+                                                    onUpdateText2={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid, 'choice2')}
+                                                />
+                                            {:else}
+                                                <AssessmentSlotSingle slot={q} qNumber={getQuestionNumber(q.id)} {isEditable} snoWidth={snoWidth}
+                                                    onSwap={() => openSwapSidebar(q, section)}
+                                                    onRemove={() => removeQuestion(q)}
+                                                    onUpdateText={(v: string, qid: string) => updateTextValue(v, 'QUESTION', 'text', q.id, qid)}
+                                                />
+                                            {/if}
                                         </div>
-                                    {/each}
-                                {/if}
-                            {/each}
+                                    {/if}
+                                {:else}
+                                    {#if mode === 'preview' && cfg}
+                                        {#each cfg.slots as slot}
+                                            <div class="flex border-b border-black min-h-[30px] opacity-40 italic text-gray-400 font-bold bg-gray-50/20">
+                                                <div class="border-r border-black flex items-center justify-center font-bold" style="width: {snoWidth}px">{slot.label}.</div>
+                                                <div class="px-2 py-1 flex-1">[ {slot.type === 'OR_GROUP' ? 'OR Pair' : 'Single Question'} ] - {slot.marks} Marks</div>
+                                            </div>
+                                        {/each}
+                                    {/if}
+                                {/each}
+                            {/key}
                         </div>
-                    {/each}
+                </div>
+
+                <div class="mt-4 border-t border-black/10 pt-1 text-[8pt] text-center opacity-50 no-print">
+                    V.2.3.1 - FINAL SYNC
                 </div>
             </div>
             

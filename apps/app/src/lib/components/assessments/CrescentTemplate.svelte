@@ -260,7 +260,7 @@
                     ( <AssessmentEditable value={paperMeta.partA_marks_label || `${questionsA.length} X ${questionsA[0]?.marks || paperStructure.find((s: any)=>s.part==='A')?.marks_per_q || 2} = ${totalMarksA}`} onUpdate={(v: string) => updateText(v, 'META', 'partA_marks_label')} class="inline-block" /> MARKS )
                 </span>
             </div>
-            <div class="border-x border-t border-black">
+            <div class="border-x border-t border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
                 {#key activeSet + swapCounter}
                     {#each questionsA as slot, i (String(slot.questions?.[0]?.id || slot.id) + activeSet)}
                         <AssessmentSlotSingle {slot} qNumber={i + 1} {isEditable} snoWidth={40} 
@@ -293,7 +293,7 @@
                     ( <AssessmentEditable value={paperMeta.partB_marks_label || `${questionsB.length} X ${questionsB[0]?.marks || paperStructure.find((s: any)=>s.part==='B')?.marks_per_q || 5} = ${totalMarksB}`} onUpdate={(v: string) => updateText(v, 'META', 'partB_marks_label')} class="inline-block" /> MARKS )
                 </span>
             </div>
-            <div class="border-x border-black">
+            <div class="border-x border-black" use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
                 {#key activeSet + swapCounter}
                     {#each questionsB as slot, i (slot.id + activeSet)}
                         {@const currentNum = questionsA.length + (i * 2) + 1}
