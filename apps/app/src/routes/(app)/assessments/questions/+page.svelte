@@ -22,7 +22,7 @@
     let newIsImportant = $state(false);
     let newType = $state<'NORMAL' | 'MCQ' | 'SHORT' | 'LONG' | 'FILL_IN_BLANK'>('NORMAL');
 
-    let bulkCount = $derived(bulkQuestionsText.match(/(?:^|\n|\r\n)\s*(?:[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[\s.:-]+)/gi)?.length || 0);
+    let bulkCount = $derived(bulkQuestionsText.match(/(?:^|\n|\r\n)\s*(?:[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[.)]\s+)/gi)?.length || 0);
 
     // Helpers for Visual Editor (contenteditable)
     function mdToHtml(md: string) {
@@ -272,14 +272,14 @@
         // Robust split: Handles Q1:, Question 1:, 1., etc. at the start of blocks
         // We look for markers at the start of lines.
         const blocks = bulkQuestionsText.trim()
-            .split(/(?:\n|\r\n)\s*(?=[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[\s.:-]+)/i)
+            .split(/(?:\n|\r\n)\s*(?=[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[.)]\s+)/i)
             .map(b => b.trim())
             .filter(b => b.length > 5);
         
         let count = 0;
         for (const block of blocks) {
             // Remove leading question marker (e.g., Q1:, Question 1:, 1.)
-            const cleanBlock = block.replace(/^(?:[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[\s.:-]+)+/i, '').trim();
+            const cleanBlock = block.replace(/^(?:[Qq](?:uestion)?\s*\d*[:\s.-]+|\d+[.)]\s+)+/i, '').trim();
             
             // Split Question and Answer (Robust)
             // Look for "Ans:", "Answer:", "Ans -", etc.

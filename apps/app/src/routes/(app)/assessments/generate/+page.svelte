@@ -4,6 +4,7 @@
     import { invalidateAll, goto } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
     import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
+    import StandardTemplate from '$lib/components/assessments/StandardTemplate.svelte';
 
     let { data } = $props();
 
