@@ -89,9 +89,8 @@
     function getInstructionsMarks(section: string) {
         const cfg = getSectionConfig(section);
         if (cfg?.instructions_marks && cfg.instructions_marks !== 'auto') return cfg.instructions_marks;
-        const qs = (Array.isArray(currentSetData) ? currentSetData : (currentSetData?.questions || [])).filter((q: any) => q && q.part === section);
-        const count = cfg?.answered_count || qs.length || 0;
-        const m = cfg?.marks_per_q || 0;
+        const m = cfg?.marks_per_q || 2;
+        const count = cfg?.answered_count || 6;
         return `${count} x ${m} = ${count * m}`;
     }
 
@@ -123,6 +122,7 @@
         const index = currentSetData.questions.findIndex((s: any) => s.id === slot.id);
         if (index === -1) return;
         let cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
+        const marks = Number(cQ?.marks || slot.marks || getSectionConfig(part)?.marks_per_q || 0);
         let alternates = (questionPool || []).filter((q: any) => q.id !== cQ?.id);
         
         // If Part A (1-2 Marks), include MCQs and Fill-ins regardless of exact mark match if marks are close
@@ -169,12 +169,14 @@
             <!-- Main Border Box -->
             <div class="border-[1.5pt] border-black flex flex-col h-full bg-white">
                 <!-- Header -->
-                <div class="text-center pb-4 pt-2 border-b-[1.5pt] border-black">
-                    <div class="mb-2">
-                        <div class="text-[28pt] font-black text-blue-800 tracking-tighter leading-none mb-1">CHAITANYA</div>
+                <div class="text-center pb-4 pt-2 border-b-[1.5pt] border-black relative">
+                    <div class="absolute top-2 left-2 border border-black px-2 py-0.5 font-bold text-sm">SET - {activeSet}</div>
+                    
+                    <div class="mb-4 mt-2">
+                        <div class="text-[14pt] font-black text-black tracking-[0.2em] leading-none mb-1">CHAITANYA</div>
                     </div>
-                    <AssessmentEditable value={paperMeta.univ_line_1 || 'CHAITANYA DEEMED TO BE UNIVERSITY'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[14pt] font-bold uppercase tracking-[0.1em]" />
-                    <AssessmentEditable value={paperMeta.univ_line_2 || '(DEEMED TO BE UNIVERSITY)'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_2')} class="text-[11pt] font-bold uppercase" />
+                    <AssessmentEditable value={paperMeta.univ_line_1 || '(DEEMED TO BE UNIVERSITY)'} onUpdate={(v: string) => updateTextValue(v, 'META', 'univ_line_1')} class="text-[9pt] font-bold uppercase" />
+                    <AssessmentEditable value={paperMeta.exam_title || 'I INTERNAL EXAMINATIONS-NOV -2024'} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[9pt] font-bold uppercase mt-1" />
                     
                     <div class="mt-1 flex flex-col items-center">
                         <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-red-600 print-red" />
@@ -207,7 +209,7 @@
 
                         <!-- Instruction Bar -->
                         <div class="flex justify-between items-center px-2 py-0.5 border-b border-black font-bold italic text-[10.5pt] bg-white">
-                            <AssessmentEditable value={cfg?.instructions || 'Answer any six Questions.'} onUpdate={(v: string) => updateInstructions(section, v)} class="flex-1" />
+                            <AssessmentEditable value={cfg?.instructions || (section === 'B' ? 'Answer the following Questions.' : 'Answer any six Questions.')} onUpdate={(v: string) => updateInstructions(section, v)} class="flex-1" />
                             <AssessmentEditable value={cfg?.instructions_marks || getInstructionsMarks(section)} onUpdate={(v: string) => { if(cfg) { cfg.instructions_marks = v; paperStructure = [...paperStructure]; } }} class="text-right" />
                         </div>
 

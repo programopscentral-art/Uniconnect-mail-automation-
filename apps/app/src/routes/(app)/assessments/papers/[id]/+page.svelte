@@ -124,13 +124,13 @@
             const isMCQ = meta.part_a_type === 'MCQ';
             if (is100) {
                 structure = [
-                    { title: 'PART A', marks_per_q: isMCQ ? 1 : 2, count: isMCQ ? 20 : 10, answered_count: isMCQ ? 20 : 10 },
-                    { title: 'PART B', marks_per_q: 16, count: 5, answered_count: 5 }
+                    { title: 'PART A', marks_per_q: isMCQ ? 1 : 2, count: isMCQ ? 20 : 10, answered_count: isMCQ ? 20 : 10, section: 'A' },
+                    { title: 'PART B', marks_per_q: 16, count: 5, answered_count: 5, section: 'B' }
                 ];
             } else {
                 structure = [
-                    { title: 'PART A', marks_per_q: isMCQ ? 1 : 2, count: isMCQ ? 10 : 5, answered_count: isMCQ ? 10 : 5 },
-                    { title: 'PART B', marks_per_q: 5, count: 8, answered_count: 8 }
+                    { title: 'PART A', marks_per_q: 2, count: 10, answered_count: 6, section: 'A' },
+                    { title: 'PART B', marks_per_q: 4, count: 2, answered_count: 2, section: 'B' }
                 ];
             }
         }

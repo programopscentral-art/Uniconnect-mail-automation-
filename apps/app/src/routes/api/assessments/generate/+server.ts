@@ -64,11 +64,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
             });
         } else {
+            const isChaitanya = university_id === '8e5403f9-505a-44d4-add4-aae3efaa9248' || String(selected_template).toLowerCase() === 'cdu';
             const is100 = Number(max_marks) === 100;
             const isMCQ = part_a_type === 'MCQ';
             const isMixed = part_a_type === 'Mixed';
-            const countA = is100 ? (isMCQ ? 20 : 10) : (isMCQ ? 10 : 5);
-            const marksA = isMCQ ? 1 : 2;
+
+            const countA = isChaitanya ? 10 : (is100 ? (isMCQ ? 20 : 10) : (isMCQ ? 10 : 5));
+            const marksA = isChaitanya ? 2 : (isMCQ ? 1 : 2);
             const typeA = isMixed ? 'MIXED' : (isMCQ ? 'MCQ' : 'NORMAL');
 
             for (let i = 1; i <= countA; i++) {
@@ -84,12 +86,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
             }
 
-            const realCountB = is100 ? 5 : 8;
+            const realCountB = isChaitanya ? 2 : (is100 ? 5 : 8);
             for (let i = 0; i < realCountB; i++) {
-                const marksB = is100 ? 16 : 5;
+                const marksB = isChaitanya ? 4 : (is100 ? 16 : 5);
                 slotsToProcess.push({
                     id: crypto.randomUUID(),
-                    label: `${countA + 1 + i}`,
+                    label: `${countA + 1 + i * 2}`,
                     marks: marksB,
                     type: 'OR_GROUP',
                     unit: 'Auto',
@@ -97,8 +99,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     qType: 'NORMAL',
                     part: 'B',
                     choices: [
-                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) },
-                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL', marks_a: Number((marksB / 2).toFixed(1)), marks_b: Number((marksB / 2).toFixed(1)) }
+                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL' },
+                        { label: ``, unit: 'Auto', marks: marksB, hasSubQuestions: false, qType: 'NORMAL' }
                     ]
                 });
             }
@@ -141,7 +143,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     // Stage 2: If pool is dry, fallback to cross-set reuse (variety is preferred but not at cost of generation)
                     if (filtered.length === 0) filtered = pool.filter(q => !excludeInSet.has(q.id));
 
-                    if (strictMarks) filtered = filtered.filter(q => Number(q.marks) === Number(targetMarks));
+                    if (strictMarks) {
+                        const sFiltered = filtered.filter(q => Number(q.marks) === Number(targetMarks));
+                        if (sFiltered.length > 0) filtered = sFiltered;
+                        else {
+                            // Lenient Fallback: Try +/- 1 mark if strict fails
+                            const lFiltered = filtered.filter(q => Math.abs(Number(q.marks) - Number(targetMarks)) <= 1);
+                            if (lFiltered.length > 0) filtered = lFiltered;
+                        }
+                    }
 
                     if (qType && qType !== 'ANY') {
                         if (qType === 'MIXED') filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));

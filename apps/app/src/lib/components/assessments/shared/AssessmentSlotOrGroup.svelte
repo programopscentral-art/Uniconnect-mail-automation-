@@ -44,9 +44,13 @@
                 <AssessmentMcqOptions options={slot.choice1.questions[0].options} />
             {/if}
         </div>
-        <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1.5">
+        <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1">
             <span>(</span>
-            <span class="text-center min-w-[1ch]">{slot.choice1?.questions?.[0]?.marks || slot.marks || ''}</span>
+            <AssessmentEditable 
+                value={String(slot.choice1?.questions?.[0]?.marks || slot.marks || '')} 
+                onUpdate={(v: string) => { if(slot.choice1?.questions?.[0]) slot.choice1.questions[0].marks = Number(v); }} 
+                class="inline-block min-w-[1ch] text-center" 
+            />
             <span>)</span>
         </div>
     </div>
@@ -81,9 +85,13 @@
                 <AssessmentMcqOptions options={slot.choice2.questions[0].options} />
             {/if}
         </div>
-        <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1.5">
+        <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1">
             <span>(</span>
-            <span class="text-center min-w-[1ch]">{slot.choice2?.questions?.[0]?.marks || slot.marks || ''}</span>
+            <AssessmentEditable 
+                value={String(slot.choice2?.questions?.[0]?.marks || slot.marks || '')} 
+                onUpdate={(v: string) => { if(slot.choice2?.questions?.[0]) slot.choice2.questions[0].marks = Number(v); }} 
+                class="inline-block min-w-[1ch] text-center" 
+            />
             <span>)</span>
         </div>
     </div>

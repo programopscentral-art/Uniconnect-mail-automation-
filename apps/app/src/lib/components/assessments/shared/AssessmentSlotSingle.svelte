@@ -39,9 +39,16 @@
         />
         <AssessmentMcqOptions options={slot.questions[0].options} />
     </div>
-    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l-[1.5pt] border-black min-w-[50px] print:border-l-[1.5pt] gap-1.5">
+    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l-[1.5pt] border-black min-w-[50px] print:border-l-[1.5pt] gap-1">
         <span>(</span>
-        <span class="text-center min-w-[1ch]">{slot.questions[0].marks || slot.marks || ''}</span>
+        <AssessmentEditable 
+            value={String(slot.questions[0].marks || slot.marks || '')} 
+            onUpdate={(v: string) => { 
+                slot.questions[0].marks = Number(v); 
+                slot.marks = Number(v);
+            }} 
+            class="inline-block min-w-[1ch] text-center" 
+        />
         <span>)</span>
     </div>
 </div>
