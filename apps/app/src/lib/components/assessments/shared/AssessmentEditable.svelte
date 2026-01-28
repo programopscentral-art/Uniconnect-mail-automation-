@@ -49,7 +49,7 @@
 <div 
     use:editable
     class="outline-none focus:bg-indigo-50/10 min-w-[20px] transition-colors rounded {className} {isEditable ? 'cursor-text hover:bg-slate-50' : 'pointer-events-none'}"
-    style="white-space: pre-wrap;"
+    style="white-space: pre-wrap; font-family: {value?.includes('      ') || value?.includes('    ') ? 'monospace' : 'inherit'};"
     role="textbox"
     aria-multiline={multiline}
     tabindex="0"

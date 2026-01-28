@@ -136,7 +136,7 @@
         }
 
         return {
-            paper_date: meta.paper_date || paper.paper_date?.split('T')[0] || new Date().toISOString().split('T')[0],
+            paper_date: meta.paper_date || (typeof paper.paper_date === 'string' ? paper.paper_date.split('T')[0] : paper.paper_date?.toISOString?.().split('T')[0]) || new Date().toISOString().split('T')[0],
             exam_time: meta.exam_time || '',
             duration_minutes: String(meta.duration_minutes || paper.duration_minutes || 180),
             max_marks: String(meta.max_marks || paper.max_marks || 100),
