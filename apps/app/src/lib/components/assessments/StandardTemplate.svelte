@@ -137,7 +137,7 @@
                         </div>
                     </div>
                     <div use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
-                        {#each (currentSetData.questions || []) as q, i (q.id)}
+                        {#each (currentSetData.questions || []) as q, i (q.id + activeSet)}
                             {#if q && q.part === 'A'}
                                 <div class="border-b border-black">
                                     <AssessmentSlotSingle slot={q} qNumber={questionsA.findIndex(x => x.id === q.id)+1} {isEditable} snoWidth={35} onSwap={() => openSwapSidebar(q, 'A')} onRemove={() => removeQuestion(q)} onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} />
@@ -159,7 +159,7 @@
                          </div>
                     </div>
                     <div use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
-                        {#each (currentSetData.questions || []) as q, i (q.id)}
+                        {#each (currentSetData.questions || []) as q, i (q.id + activeSet)}
                             {#if q && q.part === 'B'}
                                 {@const bIdx = questionsB.findIndex(x => x.id === q.id)}
                                 <div class="border-2 border-black mb-6 shadow-sm">
@@ -186,7 +186,7 @@
                         </div>
                     </div>
                     <div use:dndzone={{ items: questionsC, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('C', (e.detail as any).items)} onfinalize={(e) => handleDndSync('C', (e.detail as any).items)}>
-                        {#each (currentSetData.questions || []) as q, i (q.id)}
+                        {#each (currentSetData.questions || []) as q, i (q.id + activeSet)}
                             {#if q && q.part === 'C'}
                                 {@const cIdx = questionsC.findIndex(x => x.id === q.id)}
                                 <div class="border-2 border-black mb-6 shadow-sm">
@@ -210,7 +210,7 @@
          <div transition:slide={{ axis: 'x' }} class="w-96 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl p-6 overflow-y-auto no-print z-[100]">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="font-black text-gray-900 dark:text-white uppercase tracking-tight">SWAP QUESTION</h3>
-                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors" aria-label="Close Swap Sidebar">
                     <svg class="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>

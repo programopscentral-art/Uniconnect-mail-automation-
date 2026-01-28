@@ -178,8 +178,8 @@
                     <AssessmentEditable value={paperMeta.exam_title || 'I INTERNAL EXAMINATIONS-NOV -2024'} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase mt-1" />
                     
                     <div class="mt-1 flex flex-col items-center">
-                        <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-red-600 print-red" />
-                        <AssessmentEditable value={paperMeta.subject_name || 'SUBJECT NAME'} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-bold uppercase text-red-600 print-red" />
+                        <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]" />
+                        <AssessmentEditable value={paperMeta.subject_name || 'SUBJECT NAME'} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]" />
                     </div>
 
                     <!-- Time & Marks Row -->
@@ -214,7 +214,7 @@
 
                         <!-- Questions -->
                         <div class="flex flex-col min-h-[50px]" use:dndzone={{ items: (currentSetData?.questions || []).filter((q: any) => q && q.part === section), flipDurationMs: 200 }} onconsider={(e) => handleDndSync(section, (e.detail as any).items)} onfinalize={(e) => handleDndSync(section, (e.detail as any).items)}>
-                            {#each (currentSetData?.questions || []) as q (q.id)}
+                            {#each (currentSetData?.questions || []) as q (q.id + activeSet)}
                                 {#if q && q.part === section}
                                     <div class="border-b border-black">
                                         {#if q.type === 'OR_GROUP'}
@@ -263,7 +263,7 @@
          <div transition:slide={{ axis: 'x' }} class="fixed right-0 top-0 bottom-0 w-[500px] bg-white dark:bg-slate-900 border-l border-gray-200 shadow-2xl p-4 overflow-y-auto no-print z-[210]">
             <div class="flex items-center justify-between mb-4 border-b pb-4">
                 <h3 class="font-black text-sm uppercase tracking-widest">SWAP QUESTION ({swapContext.currentMark}M)</h3>
-                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-lg"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-lg" aria-label="Close Swap Sidebar"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 {#each swapContext?.alternates || [] as q}
@@ -292,11 +292,8 @@
         color: #000 !important;
     }
 
-    :global(.print-red) { color: #dc2626 !important; }
-    
     @media print {
         .no-print { display: none !important; }
         #cdu-paper-container { padding: 0 !important; margin: 0 !important; width: 100% !important; box-shadow: none !important; color: black !important; }
-        .print-red { color: #dc2626 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 </style>

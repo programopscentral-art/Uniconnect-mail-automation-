@@ -116,7 +116,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         // 2a. Shuffle pool for variety
-        const globalShuffledPool = allQuestions.sort(() => Math.random() - 0.5);
+        // 2a. Shuffle pool for variety (Fisher-Yates)
+        const globalShuffledPool = [...allQuestions];
+        for (let i = globalShuffledPool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [globalShuffledPool[i], globalShuffledPool[j]] = [globalShuffledPool[j], globalShuffledPool[i]];
+        }
 
         const sets = ['A', 'B', 'C', 'D'];
         const generatedSets: Record<string, any> = {};
@@ -127,8 +132,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const setDifficulty = sets_config[setName] || ['ANY'];
             const excludeInSet = new Set<string>();
 
-            // Randomize unit order for each set to ensure different question distribution
-            const shuffledUnitIds = [...unit_ids].sort(() => Math.random() - 0.5);
+            // Randomize unit order for each set to ensure different question distribution (Fisher-Yates)
+            const shuffledUnitIds = [...unit_ids];
+            for (let i = shuffledUnitIds.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledUnitIds[i], shuffledUnitIds[j]] = [shuffledUnitIds[j], shuffledUnitIds[i]];
+            }
             let setUnitCounter = 0;
 
             const pickOne = (targetMarks: number, unitId: string, qType?: string, bloomArr?: string[], co_id?: string) => {
@@ -252,7 +261,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setQuestions.push({ id: slot.id, type: 'SINGLE', part: slot.part, questions: qs, marks: slot.marks });
                 }
             }
-            generatedSets[setName] = { questions: setQuestions };
+            generatedSets[setName] = { questions: setQuestions, setName };
         }
 
         // 3. PERSIST THE PAPER

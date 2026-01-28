@@ -242,7 +242,7 @@
                 </span>
             </div>
             <div class="border-x border-b border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
-                {#each questionsA as q, i (q.id)}
+                {#each questionsA as q, i (q.id + activeSet)}
                     <div class="border-b border-black">
                         <AssessmentSlotSingle slot={q} qNumber={i + 1} {isEditable} snoWidth={40} 
                             onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', q.id, qid)} 
@@ -273,7 +273,7 @@
                 </span>
             </div>
             <div class="border-x border-black" use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
-                {#each questionsB as slot, i (slot.id)}
+                {#each questionsB as slot, i (slot.id + activeSet)}
                     {@const currentNum = questionsA.length + (i * 2) + 1}
                     <div class="border-b border-black">
                         <div class="flex">
@@ -354,7 +354,7 @@
          <div transition:slide={{ axis: 'x' }} class="fixed right-0 top-0 bottom-0 w-[500px] bg-white border-l border-gray-200 shadow-2xl p-4 overflow-y-auto no-print z-[210]">
             <div class="flex items-center justify-between mb-4 border-b pb-4 text-black">
                 <h3 class="font-black text-sm uppercase tracking-widest">SWAP QUESTION ({swapContext.currentMark}M)</h3>
-                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-lg text-black"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <button onclick={() => isSwapSidebarOpen = false} class="p-2 hover:bg-gray-100 rounded-lg text-black" aria-label="Close Swap Sidebar"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg></button>
             </div>
             <div class="grid grid-cols-2 gap-3">
                 {#each swapContext?.alternates || [] as q}
