@@ -258,14 +258,14 @@
                     ( <AssessmentEditable value={paperMeta.partA_marks_label || `${questionsA.length} X ${questionsA[0]?.marks || paperStructure.find((s: any)=>s.part==='A')?.marks_per_q || 2} = ${totalMarksA}`} onUpdate={(v: string) => updateText(v, 'META', 'partA_marks_label')} class="inline-block" /> MARKS )
                 </span>
             </div>
-            <div class="border-x border-b border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
-                {#each questionsA as slot, i (slot.id + activeSet)}
+            <div class="border-x border-black border-t border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
+                {#each questionsA as slot, i (String(slot.questions?.[0]?.id || slot.id) + activeSet)}
                     <div class="border-b border-black">
                         <AssessmentSlotSingle {slot} qNumber={i + 1} {isEditable} snoWidth={40} 
                             onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', slot.id, qid)} 
                             onSwap={() => openSwapSidebar(slot, 'A')}
                             onRemove={() => removeQuestion(slot)}
-                            borderClass="divide-x border-black"
+                            borderClass="border-black"
                             textClass="text-[9pt]"
                             marksClass="w-16 flex items-center justify-center font-bold text-[8.5pt] py-2"
                         />

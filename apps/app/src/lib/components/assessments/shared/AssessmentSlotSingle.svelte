@@ -21,39 +21,41 @@
     // Instead, we access slot.questions[0] directly in the template and use callbacks for updates.
 </script>
 
-<div class="flex {borderClass} min-h-[40px] {className}">
-    <div class="flex items-center justify-center font-bold {textClass} tabular-nums" style="width: {snoWidth}px">
+<div class="flex {borderClass} {className}">
+    <div class="flex items-center justify-center font-bold {textClass} tabular-nums border-r border-black" style="width: {snoWidth}px">
         {qNumber}.
     </div>
-    <div class="flex-1 px-4 py-2 {textClass} leading-relaxed relative group whitespace-pre-wrap">
+    <div class="flex-1 px-4 py-2 {textClass} relative group whitespace-pre-wrap">
         <AssessmentRowActions 
             {isEditable}
             onSwap={onSwap}
             onDelete={onRemove}
         />
         <AssessmentEditable 
-            value={slot.questions[0].text}
+            value={slot.questions?.[0]?.text || slot.text || ''}
             onUpdate={(v: string) => {
-                slot.questions[0].text = v;
-                slot.questions[0].question_text = v;
-                if (onUpdateText) onUpdateText(v, slot.questions[0].id);
+                const target = slot.questions?.[0] || slot;
+                target.text = v;
+                target.question_text = v;
+                if (onUpdateText) onUpdateText(v, target.id);
             }}
             multiline={true}
             class="question-text-content"
         />
-        <AssessmentMcqOptions options={slot.questions[0].options} />
-        {#if slot.questions[0].image_url}
+        <AssessmentMcqOptions options={slot.questions?.[0]?.options || slot.options} />
+        {#if (slot.questions?.[0]?.image_url || slot.image_url)}
             <div class="mt-2 max-w-full overflow-hidden">
-                <img src={slot.questions[0].image_url} alt="Question" class="max-h-[300px] object-contain" />
+                <img src={slot.questions?.[0]?.image_url || slot.image_url} alt="Question" class="max-h-[300px] object-contain" />
             </div>
         {/if}
     </div>
-    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 {marksClass} gap-1">
+    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l border-black {marksClass} gap-1">
         <span>(</span>
         <AssessmentEditable 
-            value={String(slot.questions[0].marks || slot.marks || '')} 
+            value={String(slot.questions?.[0]?.marks || slot.marks || '')} 
             onUpdate={(v: string) => { 
-                slot.questions[0].marks = Number(v); 
+                const target = slot.questions?.[0] || slot;
+                target.marks = Number(v); 
                 slot.marks = Number(v);
             }} 
             class="inline-block min-w-[1ch] text-center" 
