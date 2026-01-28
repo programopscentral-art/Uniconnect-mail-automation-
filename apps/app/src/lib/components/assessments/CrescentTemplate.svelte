@@ -152,11 +152,8 @@
                   <div class="mb-1">
                       <img src="/crescent-logo.png" alt="University Logo" class="h-20 mb-1" />
                   </div>
-                <h1 class="text-xs font-black uppercase tracking-tighter">
-                    <AssessmentEditable value={paperMeta.univ_line_1 || 'BS ABDUR RAHMAN'} onUpdate={(v: string) => updateText(v, 'META', 'univ_line_1')} />
-                </h1>
-                <div class="text-[10pt] font-bold uppercase tracking-widest text-blue-900 leading-tight">
-                    <AssessmentEditable value={paperMeta.univ_line_1_2 || 'CRESCENT INSTITUTE OF SCIENCE & TECHNOLOGY'} onUpdate={(v: string) => updateText(v, 'META', 'univ_line_1_2')} />
+                <div class="text-[10pt] font-extrabold uppercase tracking-[0.2em] text-blue-900 leading-tight mt-1">
+                    <AssessmentEditable value={paperMeta.exam_title} onUpdate={(v: string) => updateText(v, 'META', 'exam_title')} />
                 </div>
                   <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
                     <div class="flex items-center gap-2">

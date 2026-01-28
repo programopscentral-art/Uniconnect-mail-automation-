@@ -117,10 +117,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const sets = ['A', 'B', 'C', 'D'];
         const generatedSets: Record<string, any> = {};
         const globalExcluded = new Set<string>(); // Tracking VARIETY across sets
+        let autoUnitCounter = 0; // PERSIST ACROSS SETS for true variety
 
         for (const setName of sets) {
             const setQuestions: any[] = [];
-            let autoUnitCounter = 0;
             const setDifficulty = sets_config[setName] || ['ANY'];
             const excludeInSet = new Set<string>();
 
@@ -145,6 +145,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     if (qType && qType !== 'ANY') {
                         if (qType === 'MIXED') filtered = filtered.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));
+                        else if (qType === 'MCQ') filtered = filtered.filter(q => q.type === 'MCQ' || isShortOrMcq(q));
                         else if (qType === 'NORMAL' && targetMarks < 5) filtered = filtered.filter(q => !['MCQ', 'FILL_IN_BLANK'].includes(q.type || '') && !isShortOrMcq(q));
                         else filtered = filtered.filter(q => q.type === qType);
                     }

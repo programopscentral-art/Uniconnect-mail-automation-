@@ -123,8 +123,18 @@
         const index = currentSetData.questions.findIndex((s: any) => s.id === slot.id);
         if (index === -1) return;
         let cQ = slot.type === 'OR_GROUP' ? (subPart === 'q1' ? slot.choice1?.questions?.[0] : slot.choice2?.questions?.[0]) : (slot.questions?.[0] || slot);
-        const marks = Number(cQ?.marks || slot.marks || getSectionConfig(part)?.marks_per_q || 0);
-        const alternates = (questionPool || []).filter((q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id);
+        let alternates = (questionPool || []).filter((q: any) => q.id !== cQ?.id);
+        
+        // If Part A (1-2 Marks), include MCQs and Fill-ins regardless of exact mark match if marks are close
+        if (part === 'A' && marks <= 2) {
+            alternates = alternates.filter((q: any) => 
+                (Number(q.marks || q.mark) <= marks) && 
+                (['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT'].includes(q.type) || (q.question_text || '').includes('___'))
+            );
+        } else {
+            alternates = alternates.filter((q: any) => Number(q.marks || q.mark) === marks);
+        }
+
         swapContext = { slotIndex: index, part, subPart, currentMark: marks, alternates };
         isSwapSidebarOpen = true;
     }
