@@ -183,9 +183,11 @@ const worker = new Worker('email-sending', async (job: Job) => {
   }
 });
 
-worker.on('error', err => console.error('[WORKER_ERROR]', err));
-worker.on('failed', (job, err) => console.error('[JOB_FAILED]', job?.id, err));
-worker.on('completed', job => console.log(`[WORKER_SUCCESS] Job ${job?.id} finished.`));
+worker.on('error', err => console.error('[WORKER_ERROR] ❌', err));
+worker.on('failed', (job, err) => console.error(`[JOB_FAILED] ❌ Job ${job?.id} failed:`, err));
+worker.on('completed', job => console.log(`[WORKER_SUCCESS] ✅ Job ${job?.id} finished.`));
+worker.on('active', job => console.log(`[WORKER_ACTIVE] 🔄 Job ${job?.id} started processing`));
+worker.on('stalled', jobId => console.warn(`[WORKER_STALLED] ⚠️  Job ${jobId} stalled`));
 
 // 2. System Notification Worker
 const systemWorker = new Worker('system-notifications', async (job: Job) => {
