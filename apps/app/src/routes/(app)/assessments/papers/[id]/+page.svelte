@@ -17,13 +17,16 @@
     let selectedTemplate = $derived.by(() => {
         const uniName = data?.paper?.university_name?.toLowerCase() || '';
         const uniId = data?.paper?.university_id;
-        
-        if (uniName.includes('chaitanya') || uniId === '8e5403f9-505a-44d4-add4-aae3efaa9248') {
+        const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
+
+        if (metaTemplate === 'cdu' || uniName.includes('chaitanya') || uniId === '8e5403f9-505a-44d4-add4-aae3efaa9248') {
             return 'cdu';
         }
-        if (uniName.includes('crescent')) return 'crescent';
+        if (metaTemplate === 'crescent' || uniName.includes('crescent')) {
+            return 'crescent';
+        }
         
-        return data?.paper?.sets_data?.metadata?.selected_template || 'standard';
+        return metaTemplate || 'standard';
     });
     
     let universityLabel = $derived(selectedTemplate === 'cdu' ? 'Chaitanya (CDU)' : (selectedTemplate === 'crescent' ? 'Crescent (IST)' : 'University Standard'));
@@ -629,7 +632,7 @@
                     <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4">Paper Format:</span>
                     <div class="px-6 py-2 rounded-xl text-[10px] font-black bg-indigo-600 text-white uppercase tracking-widest flex items-center gap-2 shadow-sm">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A9 9 0 112.182 17.82L3 21l3.18-.818A8.966 8.966 0 0012 21a9 9 0 008.94-6.94l1.1-3.32z"/></svg>
-                        University Standard ({universityLabel})
+                        {universityLabel}
                     </div>
                     <!-- Version Tag -->
                     <div class="ml-auto px-4 py-1.5 rounded-lg text-[9px] font-black bg-green-100 text-green-700 border border-green-200 uppercase tracking-[0.2em] flex items-center gap-2">

@@ -258,7 +258,7 @@
                     <AssessmentEditable value={paperMeta.partA_title || 'PART A'} onUpdate={(v: string) => updateText(v, 'META', 'partA_title')} class="inline-block font-bold" /> 
                     <div class="flex items-center gap-1 no-print">
                         <span>(</span>
-                        <AssessmentEditable value={paperMeta.totalMarksA_text || `${questionsA.length} X ${questionsA[0]?.marks || 2} = ${totalMarksA} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksA_text')} class="inline-block" />
+                        <AssessmentEditable value={paperMeta.totalMarksA_text || `${questionsA.length} X ${questionsA[0]?.marks || paperStructure.find(s=>s.part==='A')?.marks_per_q || 2} = ${totalMarksA} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksA_text')} class="inline-block" />
                         <span>)</span>
                     </div>
                 </div>
@@ -326,7 +326,7 @@
                     <AssessmentEditable value={paperMeta.partB_title || 'PART B'} onUpdate={(v: string) => updateText(v, 'META', 'partB_title')} class="inline-block font-bold" />
                     <div class="flex items-center gap-1 no-print">
                         <span>(</span>
-                        <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} X ${questionsB[0]?.marks || 16} = ${totalMarksB} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
+                        <AssessmentEditable value={paperMeta.totalMarksB_text || `${questionsB.length} X ${questionsB[0]?.marks || paperStructure.find(s=>s.part==='B')?.marks_per_q || 16} = ${totalMarksB} MARKS`} onUpdate={(v) => updateText(v, 'META', 'totalMarksB_text')} class="inline-block" />
                         <span>)</span>
                     </div>
                 </div>
@@ -454,7 +454,7 @@
                 {#if questionsC.length > 0 || (mode === 'preview' && paperStructure.some(s => s.part === 'C'))}
                 <div class="border-y border-black py-0.5 text-center font-bold uppercase tracking-wider text-[9.5pt] flex items-center justify-center gap-1 whitespace-nowrap overflow-hidden">
                     <AssessmentEditable value={paperMeta.partC_title || 'PART C'} onUpdate={(v: string) => updateText(v, 'META', 'partC_title')} class="inline-block font-bold" />
-                    <span>({questionsC.length} X {questionsC[0]?.marks || 8} = {totalMarksC} MARKS)</span>
+                    <span>({questionsC.length} X {questionsC[0]?.marks || paperStructure.find(s=>s.part==='C')?.marks_per_q || 8} = {totalMarksC} MARKS)</span>
                 </div>
                 <div class="border-x border-b border-black">
                     {#each questionsC as slot, i (slot.id)}

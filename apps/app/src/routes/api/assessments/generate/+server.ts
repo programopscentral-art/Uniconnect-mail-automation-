@@ -358,7 +358,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             };
 
             for (const slot of slotsToProcess) {
-                let unitId = slot.unit === 'Auto' ? unit_ids[autoUnitCounter++ % unit_ids.length] : slot.unit;
+                // Randomize unit order for each slot to ensure variety across sets
+                const shuffledUnits = [...unit_ids].sort(() => Math.random() - 0.5);
+                let unitId = slot.unit === 'Auto' ? shuffledUnits[autoUnitCounter++ % shuffledUnits.length] : slot.unit;
 
                 if (slot.type === 'SINGLE') {
                     const qArr = localPickQuestionsForChoice(slot.marks, unitId, slot.hasSubQuestions, excludeInSet, slot.hasSubQuestions ? [slot.marks_a, slot.marks_b] : undefined, slot.qType, slot.bloom, slot.co_id);

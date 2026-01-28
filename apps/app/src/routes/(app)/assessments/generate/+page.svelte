@@ -373,7 +373,7 @@
                 generation_mode: generationMode,
                 part_a_type: partAType,
                 selected_template: activeUniversity?.name?.toLowerCase()?.includes('chaitanya') ? 'cdu' : selectedTemplate,
-                template_config: generationMode === 'Modifiable' ? paperStructure : null,
+                template_config: paperStructure,
                 sets_config: setsConfig
             }),
             headers: { 'Content-Type': 'application/json' }
@@ -560,6 +560,10 @@
     const isCrescent = $derived(activeUniversity?.name?.toLowerCase()?.includes('crescent'));
     
     $effect(() => {
+        if (!selectedUniversityId) return;
+        
+        // Only trigger defaults if the university actually changed
+        // We use a local tracking variable or just check the last processed ID
         if (isChaitanya) {
             selectedTemplate = 'cdu';
             maxMarks = 20; 
@@ -569,7 +573,7 @@
             maxMarks = 50;
             examDuration = 90;
         } else {
-            selectedTemplate = 'standard'; // Final fallback template
+            selectedTemplate = 'standard';
         }
     });
 
@@ -1283,7 +1287,7 @@
                             <div class="mb-4 flex gap-2 justify-center">
                                 <div class="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2">
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A9 9 0 112.182 17.82L3 21l3.18-.818A8.966 8.966 0 0012 21a9 9 0 008.94-6.94l1.1-3.32z"/></svg>
-                                    Format: {universityLabel}
+                                    {universityLabel}
                                 </div>
                             </div>
 

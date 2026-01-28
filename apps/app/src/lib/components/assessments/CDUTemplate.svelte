@@ -171,7 +171,7 @@
                         <div class="flex justify-between items-center py-0.5 px-2 font-bold text-[10.5pt]">
                             <div class="flex gap-1 items-center">
                                 <span>Time:</span>
-                                <AssessmentEditable value={String((Number(paperMeta.duration_minutes)/60).toFixed(1))} onUpdate={(v: string) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes')} class="px-2 border-b border-dotted border-gray-300" />
+                                <AssessmentEditable value={String((Number(paperMeta.duration_minutes || 0)/60).toFixed(1))} onUpdate={(v: string) => updateTextValue(String(Number(v)*60), 'META', 'duration_minutes')} class="px-2 border-b border-dotted border-gray-300" />
                                 <span>Hrs.]</span>
                             </div>
                             <div class="flex gap-1 items-center">
