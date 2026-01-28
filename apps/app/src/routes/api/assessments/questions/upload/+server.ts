@@ -241,7 +241,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // Re-designed Meta Pipe Regex for extreme flexibility:
             // Matches Q# followed by pipes or spaces with variable metadata
             // Format: Q1 | M1 | L2 | Medium | CO1 | Topic
-            const metaPipeRegex = /(?:^|\n)Q(\d+)\s*[|]\s*(?:M|Module|Unit)?\s*(\d+)\s*[|]\s*(?:L|Level)?\s*([1-5]|Easy|Medium|Hard)\s*[|]?\s*([^|]*)[|]?\s*(CO[1-9])?\s*[|]?\s*([^|]*)[|]?\s*([^|\n]*)/gi;
+            // Now relaxed to allow starting anywhere (not just start of line)
+            const metaPipeRegex = /\bQ(\d+)\s*[|]\s*(?:M|Module|Unit)?\s*(\d+)\s*[|]\s*(?:L|Level)?\s*([1-5]|Easy|Medium|Hard)\s*[|]?\s*([^|]*)[|]?\s*(CO[1-9])?\s*[|]?\s*([^|]*)[|]?\s*([^|\n]*)/gi;
             const headerRegex = /(?:^|\n)\s*(FILL\s*IN\s*THE\s*BLANKS?|SHORT\s*(?:QUESTIONS?|ANSWERS?)|LONG\s*(?:QUESTIONS?|ANSWERS?)|VERY\s*SHORT|MCQ\s*(?:QUESTIONS?|ANSWERS?)|PROGRAMMING|PRACTICALS|DESCRIPTIVE|ESSAY|MATCH\s*THE\s*FOLLOWING)(?:[:\s]|$)/gi;
 
             let match;

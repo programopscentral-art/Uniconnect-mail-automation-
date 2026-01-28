@@ -222,27 +222,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const paperRes = await db.query(
             `INSERT INTO assessment_papers (
                 university_id, batch_id, branch_id, subject_id, 
-                exam_type, semester, paper_date, exam_time, 
-                duration_minutes, max_marks, course_code, 
-                exam_title, instructions, template_name, 
-                sets_data, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                exam_type, semester, paper_date, 
+                duration_minutes, max_marks, sets_data
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING id`,
             [
                 university_id, batch_id, branch_id, subject_id,
-                exam_type, semester, paper_date, exam_time,
-                duration_minutes, max_marks, course_code,
-                exam_title, instructions, selected_template,
+                exam_type, semester, paper_date,
+                duration_minutes, max_marks,
                 JSON.stringify({
                     ...generatedSets,
                     metadata: {
                         unit_ids,
                         generation_mode,
                         part_a_type,
-                        sets_config
+                        sets_config,
+                        selected_template,
+                        exam_time,
+                        course_code,
+                        exam_title,
+                        instructions
                     }
-                }),
-                locals.user.id
+                })
             ]
         );
 

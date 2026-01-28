@@ -98,7 +98,7 @@
   <header class="lg:hidden h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50">
       <div class="flex items-center space-x-2">
         <div class="p-1.5 bg-white dark:bg-gray-800 rounded-lg border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-105 active:scale-95">
-            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-6 object-contain dark:invert">
+            <img src="/nxtwave-logo.png" alt="NxtWave" class="h-6 object-contain dark:invert" style="height: 24px; width: auto;">
         </div>
         <span class="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none">UniConnect</span>
       </div>
@@ -122,7 +122,7 @@
     <div class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50">
       <div class="flex items-center space-x-4">
         <div class="p-2.5 bg-white dark:bg-gray-800 rounded-[1.25rem] border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-110 active:scale-95">
-            <img src="/nxtwave-logo.png" alt="NxtWave Institutional" class="h-11 w-auto object-contain dark:invert">
+            <img src="/nxtwave-logo.png" alt="NxtWave Institutional" class="h-11 w-auto object-contain dark:invert" style="height: 44px; width: auto;">
         </div>
         <div class="flex flex-col">
             <span class="text-xl font-black text-gray-900 dark:text-white leading-none">UniConnect</span>
