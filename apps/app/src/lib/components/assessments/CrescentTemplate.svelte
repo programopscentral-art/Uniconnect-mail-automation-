@@ -269,6 +269,8 @@
                 <span class="font-normal text-[8.5pt]">({questionsB.length} X {questionsB[0]?.marks || paperStructure.find((s: any)=>s.part==='B')?.marks_per_q || 5} = {totalMarksB} MARKS)</span>
             </div>
             <div class="border-x border-black" use:dndzone={{ items: questionsB, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('B', (e.detail as any).items)} onfinalize={(e) => handleDndSync('B', (e.detail as any).items)}>
+                {#each questionsB as slot, i (slot.id)}
+                    {@const currentNum = questionsA.length + (i * 2) + 1}
                     <div class="border-b border-black">
                         <div class="flex">
                             <div class="w-10 border-r border-black flex items-center justify-center font-bold text-[9pt]">{currentNum}.</div>
