@@ -43,6 +43,11 @@
                     class="question-text-content"
                 />
                 <AssessmentMcqOptions options={slot.choice1.questions[0].options} />
+                {#if slot.choice1.questions[0].image_url}
+                    <div class="mt-2 max-w-full overflow-hidden">
+                <img src={slot.choice1.questions[0].image_url} alt="Question" class="max-h-[300px] object-contain" />
+                    </div>
+                {/if}
             {/if}
         </div>
         <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1">
@@ -85,6 +90,11 @@
                     class="question-text-content"
                 />
                 <AssessmentMcqOptions options={slot.choice2.questions[0].options} />
+                {#if slot.choice2.questions[0].image_url}
+                    <div class="mt-2 max-w-full overflow-hidden">
+                <img src={slot.choice2.questions[0].image_url} alt="Question" class="max-h-[300px] object-contain" />
+                    </div>
+                {/if}
             {/if}
         </div>
         <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 min-w-[50px] gap-1">

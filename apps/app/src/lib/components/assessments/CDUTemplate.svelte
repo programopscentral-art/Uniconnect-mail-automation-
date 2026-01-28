@@ -142,13 +142,31 @@
     function selectAlternate(question: any) {
         if (!swapContext) return;
         const { slotIndex, subPart } = swapContext;
-        const slot = currentSetData.questions[slotIndex];
-        const nQ = { id: question.id, text: question.question_text, marks: question.marks, type: question.type, options: question.options, bloom: question.bloom_level, part: swapContext.part };
-        if (slot.type === 'OR_GROUP') {
-            if (subPart === 'q1') slot.choice1.questions = [nQ];
-            else slot.choice2.questions = [nQ];
-        } else slot.questions = [nQ];
-        currentSetData.questions = [...currentSetData.questions];
+        const nArr = [...currentSetData.questions];
+        let nSlot = { ...nArr[slotIndex] };
+        
+        const nQ = { 
+            id: question.id, 
+            text: question.question_text, 
+            marks: question.marks, 
+            type: question.type, 
+            options: question.options, 
+            bloom: question.bloom_level, 
+            part: swapContext.part,
+            image_url: question.image_url
+        };
+
+        if (nSlot.type === 'OR_GROUP') {
+            const choice = subPart === 'q1' ? { ...nSlot.choice1 } : { ...nSlot.choice2 };
+            choice.questions = [nQ];
+            if (subPart === 'q1') nSlot.choice1 = choice;
+            else nSlot.choice2 = choice;
+        } else {
+            nSlot.questions = [nQ];
+        }
+        
+        nArr[slotIndex] = nSlot;
+        currentSetData.questions = nArr;
         isSwapSidebarOpen = false;
     }
 
@@ -171,15 +189,16 @@
                 <!-- Header -->
                 <div class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative">
                     <div class="flex flex-col items-center mb-1">
-                         <div class="border border-black px-2 py-0.5 font-bold text-[10pt] mb-2">SET - {activeSet}</div>
+                         <div class="font-bold text-[11pt] mb-1">Set - {activeSet}</div>
                          <div class="text-[12pt] font-black text-black tracking-[0.2em] leading-none mb-1 uppercase">CHAITANYA</div>
+                         <div class="text-[10pt] font-bold text-black leading-none mb-2 uppercase">(DEEMED TO BE UNIVERSITY)</div>
                     </div>
                     
                     <AssessmentEditable value={paperMeta.exam_title || 'I INTERNAL EXAMINATIONS-NOV -2024'} onUpdate={(v: string) => updateTextValue(v, 'META', 'exam_title')} class="text-[11pt] font-bold uppercase mt-1" />
                     
                     <div class="mt-1 flex flex-col items-center">
-                        <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]" />
-                        <AssessmentEditable value={paperMeta.subject_name || 'SUBJECT NAME'} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]" />
+                        <AssessmentEditable value={paperMeta.programme || 'B.Tech(CSE) - I SEMESTER'} onUpdate={(v: string) => updateTextValue(v, 'META', 'programme')} class="text-[11pt] font-bold uppercase !text-red-600 print:!text-[#dc2626]" />
+                        <AssessmentEditable value={paperMeta.subject_name || 'SUBJECT NAME'} onUpdate={(v: string) => updateTextValue(v, 'META', 'subject_name')} class="text-[11pt] font-bold uppercase !text-red-600 print:!text-[#dc2626]" />
                     </div>
 
                     <!-- Time & Marks Row -->

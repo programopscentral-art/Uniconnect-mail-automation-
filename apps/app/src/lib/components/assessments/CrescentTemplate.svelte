@@ -97,23 +97,33 @@
         const nQ = { id: question.id, text: question.question_text, question_text: question.question_text, marks: question.marks, options: question.options, part: swapContext.part };
         
         if (swapContext.part === 'A') {
-            arr[swapContext.slotIndex] = nQ;
+            const nArr = [...arr];
+            nArr[swapContext.slotIndex] = nQ;
+            if (Array.isArray(currentSetData)) currentSetData = nArr;
+            else currentSetData.questions = nArr;
         } else {
-            if (slot.type === 'OR_GROUP') {
-                const choice = swapContext.subPart === 'q1' ? slot.choice1 : slot.choice2;
+            const nArr = [...arr];
+            let nSlot = { ...nArr[swapContext.slotIndex] };
+            if (nSlot.type === 'OR_GROUP') {
+                const choice = swapContext.subPart === 'q1' ? { ...nSlot.choice1 } : { ...nSlot.choice2 };
                 if (swapContext.subQuestionId) {
-                    const idx = choice.questions.findIndex((q: any) => q.id === swapContext.subQuestionId);
-                    if (idx !== -1) choice.questions[idx] = nQ;
+                    const qIdx = choice.questions.findIndex((q: any) => q.id === swapContext.subQuestionId);
+                    if (qIdx !== -1) {
+                        choice.questions = [...choice.questions];
+                        choice.questions[qIdx] = nQ;
+                    }
                 } else {
                     choice.questions = [nQ];
                 }
+                if (swapContext.subPart === 'q1') nSlot.choice1 = choice;
+                else nSlot.choice2 = choice;
             } else {
-                slot.questions = [nQ];
+                nSlot.questions = [nQ];
             }
+            nArr[swapContext.slotIndex] = nSlot;
+            if (Array.isArray(currentSetData)) currentSetData = nArr;
+            else currentSetData.questions = nArr;
         }
-        
-        if (Array.isArray(currentSetData)) currentSetData = [...arr];
-        else currentSetData.questions = [...arr];
         
         isSwapSidebarOpen = false;
     }
@@ -278,7 +288,7 @@
                     <div class="border-b border-black">
                         <div class="flex">
                             <div class="w-10 border-r border-black flex items-center justify-center font-bold text-[9pt]">{currentNum}.</div>
-                            <div class="flex-1 px-4 py-2 relative">
+                            <div class="flex-1 px-4 py-2 relative group">
                                 <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, 'B', 'q1')} onDelete={() => removeQuestion(slot)} />
                                 {#if slot.choice1?.questions?.[0]}
                                     <AssessmentEditable value={slot.choice1.questions[0].text} onUpdate={(v: string) => updateText(v, 'QUESTION', 'text', slot.id, slot.choice1.questions[0].id)} multiline={true} class="text-[9pt]" />
@@ -292,7 +302,7 @@
                         <div class="text-center font-bold italic py-0.5 bg-gray-50/50 text-[8.5pt] border-y border-black uppercase">(OR)</div>
                         <div class="flex">
                             <div class="w-10 border-r border-black flex items-center justify-center font-bold text-[9pt]">{currentNum + 1}.</div>
-                            <div class="flex-1 px-4 py-2 relative">
+                            <div class="flex-1 px-4 py-2 relative group">
                                 <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, 'B', 'q2')} onDelete={() => removeQuestion(slot)} />
                                 {#if slot.choice2?.questions?.[0]}
                                     <AssessmentEditable value={slot.choice2.questions[0].text} onUpdate={(v: string) => updateText(v, 'QUESTION', 'text', slot.id, slot.choice2.questions[0].id)} multiline={true} class="text-[9pt]" />

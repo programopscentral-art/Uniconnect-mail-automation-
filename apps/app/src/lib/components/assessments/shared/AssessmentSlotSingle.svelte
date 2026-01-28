@@ -39,6 +39,11 @@
             class="question-text-content"
         />
         <AssessmentMcqOptions options={slot.questions[0].options} />
+        {#if slot.questions[0].image_url}
+            <div class="mt-2 max-w-full overflow-hidden">
+                <img src={slot.questions[0].image_url} alt="Question" class="max-height-[300px] object-contain" />
+            </div>
+        {/if}
     </div>
     <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l-[1.5pt] border-black min-w-[50px] print:border-l-[1.5pt] gap-1">
         <span>(</span>
