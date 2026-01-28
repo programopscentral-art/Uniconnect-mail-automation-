@@ -339,16 +339,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return p.length > 0 ? finalize(p) : null;
             };
 
-            const localPickQuestionsForChoice = (mTotal: number, uId: string, hasSub: boolean, exclude: Set<string>, mManual?: (number | undefined)[], _slotType?: string, _bloom?: string[], _co?: string) => {
+            const localPickQuestionsForChoice = (mTotal: number, uId: string, hasSub: boolean, exclude: Set<string>, mManual?: (number | undefined)[], _slotType?: string, _bloomArr?: string[], _co?: string) => {
+                // Determine difficulty: Use set-specific profile from sets_config[setName] 
+                // but allow slot-level _bloom to override if it's specific (not ANY)
+                let finalBloom = _bloomArr || [];
+                if ((!finalBloom.length || finalBloom.includes('ANY')) && sets_config[setName]) {
+                    finalBloom = sets_config[setName];
+                }
+
                 if (!hasSub) {
-                    const q = localPickOne(mTotal, uId, exclude, _slotType, _bloom, _co);
-                    if (q) globalExcluded.add(q.id); // Prevent this question from appearing in NEXT sets
+                    const q = localPickOne(mTotal, uId, exclude, _slotType, finalBloom, _co);
+                    if (q) globalExcluded.add(q.id);
                     return q ? [q] : [];
                 } else {
                     const split = (mManual as number[]) || [Number((mTotal / 2).toFixed(1)), Number((mTotal / 2).toFixed(1))];
                     const picked: any[] = [];
                     split.forEach((m, idx) => {
-                        const q = localPickOne(m, uId, exclude, _slotType, _bloom, _co);
+                        const q = localPickOne(m, uId, exclude, _slotType, finalBloom, _co);
                         if (q) {
                             globalExcluded.add(q.id);
                             picked.push({ ...q, sub_label: `(${String.fromCharCode(idx + 97)})` });

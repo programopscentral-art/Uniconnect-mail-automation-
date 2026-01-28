@@ -347,7 +347,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     // Improved Option Detection (Supports embedded options)
-                    const normalizedText = qText.replace(/\s+/g, ' ');
+                    const normalizedText = qText.replace(/[ \t]+/g, ' ');
                     const optRegex = /(?:\s|^|\()([A-Da-d])[\.\)]\s+/g;
                     const allMatches = [...normalizedText.matchAll(optRegex)];
 

@@ -25,7 +25,7 @@
         <div class="flex items-center justify-center font-bold text-sm tabular-nums" style="width: {snoWidth}px">
             {qNumber}.
         </div>
-        <div class="flex-1 px-2 py-2 text-sm leading-relaxed relative group">
+        <div class="flex-1 px-2 py-2 text-sm leading-relaxed relative group whitespace-pre-wrap">
             <AssessmentRowActions 
                 {isEditable}
                 onSwap={onSwap1}
@@ -62,7 +62,7 @@
         <div class="flex items-center justify-center font-bold text-sm tabular-nums" style="width: {snoWidth}px">
             {qNumber + 1}.
         </div>
-        <div class="flex-1 px-2 py-2 text-sm leading-relaxed relative group">
+        <div class="flex-1 px-2 py-2 text-sm leading-relaxed relative group whitespace-pre-wrap">
             <AssessmentRowActions 
                 {isEditable}
                 onSwap={onSwap2}
