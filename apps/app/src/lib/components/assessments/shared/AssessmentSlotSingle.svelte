@@ -21,8 +21,8 @@
     // Instead, we access slot.questions[0] directly in the template and use callbacks for updates.
 </script>
 
-<div class="flex {borderClass} {className}">
-    <div class="flex items-center justify-center font-bold {textClass} tabular-nums border-r border-black" style="width: {snoWidth}px">
+<div class="flex border-b border-black {className}">
+    <div class="w-10 border-r border-black flex items-center justify-center font-bold {textClass} tabular-nums" style="width: {snoWidth}px">
         {qNumber}.
     </div>
     <div class="flex-1 px-4 py-2 {textClass} relative group whitespace-pre-wrap">
@@ -49,7 +49,7 @@
             </div>
         {/if}
     </div>
-    <div class="flex items-center justify-center font-bold text-xs tabular-nums px-2 border-l border-black {marksClass} gap-1">
+    <div class="w-16 border-l border-black flex items-center justify-center font-bold text-[8.5pt] tabular-nums px-2 gap-1 {marksClass}">
         <span>(</span>
         <AssessmentEditable 
             value={String(slot.questions?.[0]?.marks || slot.marks || '')} 

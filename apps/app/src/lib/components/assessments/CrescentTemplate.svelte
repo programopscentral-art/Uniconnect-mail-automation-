@@ -108,7 +108,7 @@
             const nArr = [...arr];
             const oldSlot = nArr[swapContext.slotIndex];
             nArr[swapContext.slotIndex] = { ...oldSlot, questions: [nQ] };
-            currentSetData = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
+            currentSetData = Array.isArray(currentSetData) ? [...nArr] : { ...currentSetData, questions: [...nArr] };
         } else {
             const nArr = [...arr];
             let nSlot = { ...nArr[swapContext.slotIndex] };
@@ -129,7 +129,7 @@
                 nSlot.questions = [nQ];
             }
             nArr[swapContext.slotIndex] = nSlot;
-            currentSetData = Array.isArray(currentSetData) ? nArr : { ...currentSetData, questions: nArr };
+            currentSetData = Array.isArray(currentSetData) ? [...nArr] : { ...currentSetData, questions: [...nArr] };
         }
         
         isSwapSidebarOpen = false;
@@ -258,18 +258,15 @@
                     ( <AssessmentEditable value={paperMeta.partA_marks_label || `${questionsA.length} X ${questionsA[0]?.marks || paperStructure.find((s: any)=>s.part==='A')?.marks_per_q || 2} = ${totalMarksA}`} onUpdate={(v: string) => updateText(v, 'META', 'partA_marks_label')} class="inline-block" /> MARKS )
                 </span>
             </div>
-            <div class="border-x border-black border-t border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
+            <div class="border-x border-t border-black" use:dndzone={{ items: questionsA, flipDurationMs: 200 }} onconsider={(e) => handleDndSync('A', (e.detail as any).items)} onfinalize={(e) => handleDndSync('A', (e.detail as any).items)}>
                 {#each questionsA as slot, i (String(slot.questions?.[0]?.id || slot.id) + activeSet)}
-                    <div class="border-b border-black">
-                        <AssessmentSlotSingle {slot} qNumber={i + 1} {isEditable} snoWidth={40} 
-                            onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', slot.id, qid)} 
-                            onSwap={() => openSwapSidebar(slot, 'A')}
-                            onRemove={() => removeQuestion(slot)}
-                            borderClass="border-black"
-                            textClass="text-[9pt]"
-                            marksClass="w-16 flex items-center justify-center font-bold text-[8.5pt] py-2"
-                        />
-                    </div>
+                    <AssessmentSlotSingle {slot} qNumber={i + 1} {isEditable} snoWidth={40} 
+                        onUpdateText={(v: string, qid: string) => updateText(v, 'QUESTION', 'text', slot.id, qid)} 
+                        onSwap={() => openSwapSidebar(slot, 'A')}
+                        onRemove={() => removeQuestion(slot)}
+                        textClass="text-[9pt]"
+                        marksClass="py-2"
+                    />
                 {:else}
                     {#if mode === 'preview'}
                         {@const secA = paperStructure.find((s: any) => s.part === 'A')}
@@ -363,7 +360,7 @@
                  <div class="border border-black p-8 flex-1 text-center font-bold text-[9pt]">Name & Signature <br/> of DAAC Member</div>
                  <div class="border border-black p-8 flex-1 text-center font-bold text-[9pt]">Name & Signature <br/> of DAAC Member</div>
             </div>
-            <div class="border-t-2 border-black w-full mt-4"></div>
+            <div class="border-t-2 border-black w-full mt-4 text-[8pt] text-center opacity-50">V2.2.9 - FINAL UI SYNC</div>
         </div>
         <div class="text-center mt-8 text-[10pt] font-bold text-black no-print">***********</div>
     </div>

@@ -24,8 +24,8 @@
 
 <div class="flex flex-col border-black {className}">
     <!-- Choice 1 Row -->
-    <div class="flex {borderClass}">
-        <div class="flex items-center justify-center font-bold {textClass} tabular-nums border-r border-black" style="width: {snoWidth}px">
+    <div class="flex border-b border-black">
+        <div class="w-10 border-r border-black flex items-center justify-center font-bold {textClass} tabular-nums" style="width: {snoWidth}px">
             {qNumber}.
         </div>
         <div class="flex-1 px-4 py-2 {textClass} relative group whitespace-pre-wrap">
@@ -76,8 +76,8 @@
     </div>
 
     <!-- Choice 2 Row -->
-    <div class="flex {borderClass}">
-        <div class="flex items-center justify-center font-bold {textClass} tabular-nums border-r border-black" style="width: {snoWidth}px">
+    <div class="flex">
+        <div class="w-10 border-r border-black flex items-center justify-center font-bold {textClass} tabular-nums" style="width: {snoWidth}px">
             {qNumber + 1}.
         </div>
         <div class="flex-1 px-4 py-2 {textClass} relative group whitespace-pre-wrap">
