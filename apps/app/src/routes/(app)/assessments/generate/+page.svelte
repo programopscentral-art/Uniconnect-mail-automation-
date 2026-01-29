@@ -4,7 +4,6 @@
     import { invalidateAll, goto } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
     import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
-    import ADYPUTemplate from '$lib/components/assessments/ADYPUTemplate.svelte';
     import StandardTemplate from '$lib/components/assessments/StandardTemplate.svelte';
 
     let { data } = $props();
@@ -599,53 +598,8 @@
 
     // Absolute Template Enforcement for Chaitanya
     const isChaitanya = $derived(
-        data.selectedUniversityName?.toLowerCase()?.includes('chaitanya') || false
+        data.universities.find(u => u.id === selectedUniversityId)?.name?.toLowerCase().includes('chaitanya') || false
     );
-
-    const isADYPU = $derived(
-        data.selectedUniversityName?.toLowerCase()?.includes('ajeenkya') || false
-    );
-
-    $effect(() => {
-        if (isADYPU && selectedTemplate !== 'adypu') {
-            selectedTemplate = 'adypu';
-            maxMarks = 20;
-            examDuration = 60;
-            initializeStructureADYPU();
-        }
-    });
-
-    function initializeStructureADYPU() {
-        const structure = [];
-        // Section A: Attempt any two, 5x2=10
-        const secA = {
-            title: 'Section A (Attempt any two)',
-            part: 'A',
-            answered_count: 2,
-            marks_per_q: 5,
-            slots: [
-                { id: `A-1-${Math.random()}`, label: '1', part: 'A', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'MCQ', bloom: 'ANY' },
-                { id: `A-2-${Math.random()}`, label: '2', part: 'A', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'NORMAL', bloom: 'ANY' },
-                { id: `A-3-${Math.random()}`, label: '3', part: 'A', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'NORMAL', bloom: 'ANY' }
-            ]
-        };
-        structure.push(secA);
-
-        // Section B: Attempt any two, 5x2=10
-        const secB = {
-            title: 'Section B (Attempt any two)',
-            part: 'B',
-            answered_count: 2,
-            marks_per_q: 5,
-            slots: [
-                { id: `B-1-${Math.random()}`, label: '4', part: 'B', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'NORMAL', bloom: 'ANY' },
-                { id: `B-2-${Math.random()}`, label: '5', part: 'B', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'NORMAL', bloom: 'ANY' },
-                { id: `B-3-${Math.random()}`, label: '6', part: 'B', type: 'SINGLE', marks: 5, unit: 'Auto', qType: 'NORMAL', bloom: 'ANY' }
-            ]
-        };
-        structure.push(secB);
-        paperStructure = structure;
-    }
 
     $effect(() => {
         if (isChaitanya && selectedTemplate !== 'cdu') {
@@ -1397,14 +1351,6 @@
                                 />
                             {:else if selectedTemplate === 'crescent'}
                                 <CrescentTemplate 
-                                    paperMeta={previewPaperMeta}
-                                    paperStructure={paperStructure}
-                                    currentSetData={previewSetData}
-                                    {courseOutcomes}
-                                    mode="preview"
-                                />
-                            {:else if selectedTemplate === 'adypu'}
-                                <ADYPUTemplate 
                                     paperMeta={previewPaperMeta}
                                     paperStructure={paperStructure}
                                     currentSetData={previewSetData}

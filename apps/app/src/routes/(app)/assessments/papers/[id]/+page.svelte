@@ -4,7 +4,6 @@
     import { invalidateAll } from '$app/navigation';
     import CrescentTemplate from '$lib/components/assessments/CrescentTemplate.svelte';
     import CDUTemplate from '$lib/components/assessments/CDUTemplate.svelte';
-    import ADYPUTemplate from '$lib/components/assessments/ADYPUTemplate.svelte';
     import StandardTemplate from '$lib/components/assessments/StandardTemplate.svelte';
 
     let { data } = $props();
@@ -15,31 +14,22 @@
     
     // Absolute Template Enforcement
     // The university name and ID are the ultimate source of truth
-    const selectedTemplate = $derived.by(() => {
-        // Use university_name directly from the paper data (loaded via SQL join)
-        const uniName = (data?.paper?.university_name || '').toLowerCase();
+    let selectedTemplate = $derived.by(() => {
+        const uniName = data?.paper?.university_name?.toLowerCase() || '';
         const uniId = data?.paper?.university_id;
         const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
-        const paperTemplateId = data?.paper?.template_id; 
 
-        if (paperTemplateId === 'adypu' || uniName.includes('ajeenkya')) {
-            return 'adypu';
-        }
-        if (paperTemplateId === 'cdu' || uniName.includes('chaitanya') || uniId === '8e5403f9-505a-44d4-add4-aae3efaa9248') {
+        if (metaTemplate === 'cdu' || uniName.includes('chaitanya') || uniId === '8e5403f9-505a-44d4-add4-aae3efaa9248') {
             return 'cdu';
         }
         if (metaTemplate === 'crescent' || uniName.includes('crescent')) {
             return 'crescent';
         }
-        return 'standard';
+        
+        return metaTemplate || 'standard';
     });
     
-    const universityLabel = $derived(
-        selectedTemplate === 'adypu' ? 'ADYPU (Ajeenkya)' :
-        selectedTemplate === 'cdu' ? 'Chaitanya (CDU)' : 
-        selectedTemplate === 'crescent' ? 'Crescent (IST)' : 
-        'University Standard'
-    );
+    let universityLabel = $derived(selectedTemplate === 'cdu' ? 'Chaitanya (CDU)' : (selectedTemplate === 'crescent' ? 'Crescent (IST)' : 'University Standard'));
     
     // We deep clone paper data to allow local edits
     let editableSets = $state<any>(initializeSets());
@@ -663,16 +653,6 @@
                     />
                 {:else if selectedTemplate === 'crescent'}
                     <CrescentTemplate 
-                        bind:paperMeta={paperMeta}
-                        bind:currentSetData={editableSets[activeSet]}
-                        {paperStructure}
-                        activeSet={activeSet}
-                        courseOutcomes={data.courseOutcomes}
-                        questionPool={data.questionPool}
-                        mode="edit"
-                    />
-                {:else if selectedTemplate === 'adypu'}
-                    <ADYPUTemplate 
                         bind:paperMeta={paperMeta}
                         bind:currentSetData={editableSets[activeSet]}
                         {paperStructure}
