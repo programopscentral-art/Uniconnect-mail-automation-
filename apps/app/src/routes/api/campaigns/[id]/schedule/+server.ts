@@ -66,112 +66,136 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         await createRecipients(campaignId, students, campaign.recipient_email_key);
         const recipients = await getCampaignRecipients(campaignId);
 
-        // 6. Update campaign status
+        // 6. Update campaign status to indicate it has started
         await db.query(
             `UPDATE campaigns SET status = 'IN_PROGRESS', started_at = NOW() WHERE id = $1`,
             [campaignId]
         );
 
-        // 7. Send emails directly to all PENDING recipients
-        let sentCount = 0;
-        let failedCount = 0;
+        // --- BACKGROUND SENDING PROCESS ---
+        // We're firing this and NOT awaiting it so the user sees immediate "Started" status
+        // and the frontend polling handles the "live" progress bar.
+        (async () => {
+            let sentCount = 0;
+            let failedCount = 0;
 
-        for (const recipient of recipients.filter(r => r.status === 'PENDING')) {
-            try {
-                const student = students.find(s => s.id === recipient.student_id);
-                if (!student) continue;
+            const pendingRecipients = recipients.filter(r => r.status === 'PENDING');
+            console.log(`[BACKGROUND_SEND] Processing ${pendingRecipients.length} recipients for campaign ${campaignId}`);
 
-                // Prepare variables
-                const variables = {
-                    studentName: student.name,
-                    STUDENT_NAME: student.name,
-                    studentExternalId: student.external_id,
-                    metadata: student.metadata,
-                    ...(student.metadata || {})
-                };
+            for (const recipient of pendingRecipients) {
+                try {
+                    // Check if campaign was STOPPED in the meantime
+                    const { rows: currentCampaign } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
+                    if (currentCampaign[0]?.status === 'STOPPED') {
+                        console.log(`[BACKGROUND_SEND] Campaign ${campaignId} STOPPED. Aborting loop.`);
+                        break;
+                    }
 
-                // Render template
-                const subject = TemplateRenderer.render(template.subject, variables, {
-                    config: template.config,
-                    noLayout: true
-                }).replace(/<[^>]*>/g, '').trim();
+                    const student = students.find(s => s.id === recipient.student_id);
+                    if (!student) continue;
 
-                const htmlBody = TemplateRenderer.render(template.html, variables, {
-                    includeAck: campaign.include_ack,
-                    trackingToken: recipient.tracking_token,
-                    baseUrl: env.PUBLIC_BASE_URL,
-                    config: template.config
-                });
+                    // Prepare variables
+                    const variables = {
+                        studentName: student.name,
+                        STUDENT_NAME: student.name,
+                        studentExternalId: student.external_id,
+                        metadata: student.metadata,
+                        ...(student.metadata || {})
+                    };
 
-                // Send via Gmail API
-                const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-                const messageParts = [
-                    `MIME-Version: 1.0`,
-                    `To: ${recipient.to_email}`,
-                    `From: "NIAT Support" <${mailbox.email}>`,
-                    `Subject: ${utf8Subject}`,
-                    `X-UniConnect-Token: ${recipient.tracking_token}`,
-                    `Content-Type: text/html; charset=utf-8`,
-                    `Content-Transfer-Encoding: base64`,
-                    '',
-                    Buffer.from(htmlBody).toString('base64')
-                ];
+                    // Render template
+                    const subject = TemplateRenderer.render(template.subject, variables, {
+                        config: template.config,
+                        noLayout: true
+                    }).replace(/<[^>]*>/g, '').trim();
 
-                const rawMessage = messageParts.join('\r\n');
-                const encodedMail = Buffer.from(rawMessage).toString('base64')
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_')
-                    .replace(/=+$/, '');
+                    const htmlBody = TemplateRenderer.render(template.html, variables, {
+                        includeAck: campaign.include_ack,
+                        trackingToken: recipient.tracking_token,
+                        baseUrl: env.PUBLIC_BASE_URL,
+                        config: template.config
+                    });
 
-                const res = await gmail.users.messages.send({
-                    userId: 'me',
-                    requestBody: { raw: encodedMail }
-                });
+                    // Send via Gmail API
+                    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+                    const messageParts = [
+                        `MIME-Version: 1.0`,
+                        `To: ${recipient.to_email}`,
+                        `From: "NIAT Support" <${mailbox.email}>`,
+                        `Subject: ${utf8Subject}`,
+                        `X-UniConnect-Token: ${recipient.tracking_token}`,
+                        `Content-Type: text/html; charset=utf-8`,
+                        `Content-Transfer-Encoding: base64`,
+                        '',
+                        Buffer.from(htmlBody).toString('base64')
+                    ];
 
-                // Update recipient status
-                await db.query(
-                    `UPDATE campaign_recipients 
-                     SET status = 'SENT', sent_at = NOW(), gmail_message_id = $1, updated_at = NOW() 
-                     WHERE id = $2`,
-                    [res.data.id, recipient.id]
-                );
+                    const rawMessage = messageParts.join('\r\n');
+                    const encodedMail = Buffer.from(rawMessage).toString('base64')
+                        .replace(/\+/g, '-')
+                        .replace(/\//g, '_')
+                        .replace(/=+$/, '');
 
-                sentCount++;
-                console.log(`[CAMPAIGN_SEND] ✅ Sent to ${recipient.to_email} (${sentCount}/${recipients.length})`);
+                    const res = await gmail.users.messages.send({
+                        userId: 'me',
+                        requestBody: { raw: encodedMail }
+                    });
 
-                // Small delay to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 100));
+                    // Update recipient status
+                    await db.query(
+                        `UPDATE campaign_recipients 
+                         SET status = 'SENT', sent_at = NOW(), gmail_message_id = $1, updated_at = NOW() 
+                         WHERE id = $2`,
+                        [res.data.id, recipient.id]
+                    );
 
-            } catch (err: any) {
-                console.error(`[CAMPAIGN_SEND] ❌ Failed to send to ${recipient.to_email}:`, err.message);
+                    // Update campaign counters in real-time
+                    await db.query(
+                        `UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`,
+                        [campaignId]
+                    );
 
-                // Update recipient as failed
-                await db.query(
-                    `UPDATE campaign_recipients 
-                     SET status = 'FAILED', error_message = $1, updated_at = NOW() 
-                     WHERE id = $2`,
-                    [err.message, recipient.id]
-                );
+                    sentCount++;
+                    console.log(`[BACKGROUND_SEND] ✅ Sent to ${recipient.to_email} (${sentCount}/${pendingRecipients.length})`);
 
-                failedCount++;
+                    // Small delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                } catch (err: any) {
+                    console.error(`[BACKGROUND_SEND] ❌ Failed to send to ${recipient.to_email}:`, err.message);
+
+                    await db.query(
+                        `UPDATE campaign_recipients 
+                         SET status = 'FAILED', error_message = $1, updated_at = NOW() 
+                         WHERE id = $2`,
+                        [err.message, recipient.id]
+                    );
+
+                    await db.query(
+                        `UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`,
+                        [campaignId]
+                    );
+
+                    failedCount++;
+                }
             }
-        }
 
-        // 8. Update campaign stats
-        await db.query(
-            `UPDATE campaigns 
-             SET sent_count = $1, failed_count = $2, status = 'COMPLETED', completed_at = NOW() 
-             WHERE id = $3`,
-            [sentCount, failedCount, campaignId]
-        );
-
-        console.log(`[CAMPAIGN_COMPLETE] Campaign ${campaignId} finished: ${sentCount} sent, ${failedCount} failed`);
+            // Final completion update
+            const { rows: finalCampaign } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
+            if (finalCampaign[0]?.status === 'IN_PROGRESS') {
+                await db.query(
+                    `UPDATE campaigns 
+                     SET status = 'COMPLETED', completed_at = NOW() 
+                     WHERE id = $1`,
+                    [campaignId]
+                );
+            }
+            console.log(`[BACKGROUND_SEND_COMPLETE] Campaign ${campaignId} finished.`);
+        })();
 
         return json({
             success: true,
-            message: `Campaign completed! Sent: ${sentCount}, Failed: ${failedCount}`,
-            sent: sentCount,
-            failed: failedCount
+            message: 'Campaign started successfully in background!'
         });
 
     } catch (err: any) {
