@@ -37,15 +37,26 @@ export class TemplateRenderer {
             }
 
             if (tableRows && tableRows.length > 0) {
-                // Process placeholders in row values
-                const processedRows = tableRows.map((r: any) => ({
-                    label: r.label,
-                    value: String(r.value || '').replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
-                        const key = rawKey.trim();
-                        const val = this.getValueByPath(vars, key);
-                        return val !== undefined && val !== null ? String(val) : m;
-                    })
-                }));
+                // Process placeholders in row values recursively (up to 2 levels)
+                const processedRows = tableRows.map((r: any) => {
+                    let label = String(r.label || '');
+                    let value = String(r.value || '');
+
+                    const resolve = (s: string) => {
+                        return s.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
+                            const key = rawKey.trim();
+                            const val = this.getValueByPath(vars, key);
+                            return val !== undefined && val !== null ? String(val) : m;
+                        });
+                    };
+
+                    // Pass 1
+                    value = resolve(value);
+                    // Pass 2 (in case of nested placeholders)
+                    value = resolve(value);
+
+                    return { label, value };
+                });
                 const tableHtml = this.buildTable(processedRows);
                 rendered = rendered.replace(tableMarker, tableHtml);
                 rendered = rendered.replace(legacyTableMarker, tableHtml);
@@ -176,15 +187,15 @@ export class TemplateRenderer {
 
         const normalize = (s: string) => {
             if (!s) return '';
-            return s.toLowerCase()
+            const step1 = s.toLowerCase()
                 .replace(/<[^>]*>/g, ' ')            // Strip HTML tags
                 .replace(/&nbsp;/g, ' ')             // Resolve entities
-                .replace(/&amp;/g, '&')
-                .replace(/&lt;/g, '<')
-                .replace(/&gt;/g, '>')
-                .replace(/&quot;/g, '"')
-                .replace(/[\n\r\t\s\xa0]+/g, ' ')    // Standardize all whitespace (including non-breaking)
+                .replace(/[\n\r\t\s\xa0]+/g, ' ')    // Standardize all whitespace
                 .trim();
+
+            // HYPER-NORMALIZATION: Ignore everything except alphanumeric
+            // This ensures "Total Fee (Paid)" matches "TotalFeePaid", etc.
+            return step1.replace(/[^a-z0-9]/g, '');
         };
         const searchPath = normalize(path);
 
