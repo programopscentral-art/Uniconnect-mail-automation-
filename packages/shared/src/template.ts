@@ -204,6 +204,7 @@ export class TemplateRenderer {
             const key = keys.find(k => normalize(k) === searchPath);
             if (key) return target[key];
 
+            // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
             const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
             const searchAlpha = alphaOnly(searchPath);
 
@@ -212,33 +213,39 @@ export class TemplateRenderer {
                 if (alphaKey) return target[alphaKey];
 
                 // 1.3 Substring Match (for long descriptive keys)
-                if (searchAlpha.length > 10) {
+                if (searchAlpha.length > 8) {
                     const subKey = keys.find(k => {
                         const ka = alphaOnly(k);
-                        return ka.length > 8 && (searchAlpha.includes(ka) || ka.includes(searchAlpha));
+                        return ka.length > 5 && (searchAlpha.includes(ka) || ka.includes(searchAlpha));
                     });
                     if (subKey) return target[subKey];
                 }
 
-                // 1.4 Word Intersection (the "Typos-be-gone" logic)
-                const getWords = (s: string) => s.split(/[ \-_()]/).map(w => w.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(w => w.length > 2);
+                // 1.4 Word Intersection (the "Deep Fuzzy" logic)
+                // We split by any non-alphanumeric to get clean tokens
+                const getWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 1);
                 const searchWords = getWords(path);
-                if (searchWords.length >= 2) {
-                    const bestMatch = keys.map(k => {
+
+                if (searchWords.length >= 1) {
+                    const matches = keys.map(k => {
                         const kWords = getWords(k);
                         const intersection = searchWords.filter(w => kWords.includes(w));
+                        // High weight for matching short critical tokens like '1', '2', 'os'
                         const score = intersection.length / Math.max(searchWords.length, kWords.length);
 
-                        // Special Case: Metadata key is a significant subset of the path
-                        const allMetadataWordsMatch = kWords.length >= 2 && kWords.every(kw => searchWords.includes(kw));
-                        const finalScore = allMetadataWordsMatch ? Math.max(score, 0.8) : score;
+                        // Boost if metadata key is a significant meaning subset
+                        const isSubset = kWords.length >= 2 && kWords.every(kw => searchWords.includes(kw));
+                        const finalScore = isSubset ? Math.max(score, 0.85) : score;
 
                         return { key: k, score: finalScore };
                     })
-                        .filter(m => m.score > 0.5) // Lowered to 50% for high resilience
-                        .sort((a, b) => b.score - a.score)[0];
+                        .filter(m => m.score > 0.45) // Very permissive but ranked
+                        .sort((a, b) => b.score - a.score);
 
-                    if (bestMatch) return target[bestMatch.key];
+                    if (matches.length > 0) {
+                        console.log(`[TEMPLATE_FUZZY] Best match for "${path}": "${matches[0].key}" (Score: ${matches[0].score})`);
+                        return target[matches[0].key];
+                    }
                 }
 
                 // 1.5 Singular match
