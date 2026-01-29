@@ -2,7 +2,7 @@ const NIAT_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5Y
 
 export class TemplateRenderer {
     public static render(template: string, variables: any, options: { includeAck?: boolean, trackingToken?: string, baseUrl?: string, config?: any, noLayout?: boolean } = {}): string {
-        console.log(`[TEMPLATE_RENDER_V2.5] Rendering template...`);
+        console.log(`[TEMPLATE_RENDER_V4.0] Vars dump: ${JSON.stringify(variables).slice(0, 1000)}...`);
         if (!template) return '';
         // Robustly parse metadata if it comes in as a string
         let metaObj = variables.metadata || {};
