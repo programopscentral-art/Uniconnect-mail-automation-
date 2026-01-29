@@ -599,11 +599,11 @@
 
     // Absolute Template Enforcement for Chaitanya
     const isChaitanya = $derived(
-        data.universities.find(u => u.id === selectedUniversityId)?.name?.toLowerCase().includes('chaitanya') || false
+        data.selectedUniversityName?.toLowerCase()?.includes('chaitanya') || false
     );
 
     const isADYPU = $derived(
-        data.universities.find(u => u.id === selectedUniversityId)?.name?.toLowerCase().includes('ajeenkya') || false
+        data.selectedUniversityName?.toLowerCase()?.includes('ajeenkya') || false
     );
 
     $effect(() => {

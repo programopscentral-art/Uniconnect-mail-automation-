@@ -1,4 +1,4 @@
-import { getAllUniversities, getAssessmentBatches, getAssessmentBranches, getAssessmentSubjects } from '@uniconnect/shared';
+import { db, getAllUniversities, getAssessmentBatches, getAssessmentBranches, getAssessmentSubjects } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -23,6 +23,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         }
 
         let subjects: any[] = [];
+        let selectedUniversityName = '';
+
+        if (universityId) {
+            const { rows: uniDetails } = await db.query('SELECT name FROM universities WHERE id = $1', [universityId]);
+            if (uniDetails[0]) selectedUniversityName = uniDetails[0].name;
+        }
+
         if (branchId) {
             subjects = await getAssessmentSubjects(branchId, undefined, batchId || undefined);
         }
@@ -33,6 +40,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             branches,
             subjects,
             selectedUniversityId: universityId,
+            selectedUniversityName,
             selectedBatchId: batchId,
             selectedBranchId: branchId
         };
