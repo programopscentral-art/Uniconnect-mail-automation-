@@ -471,7 +471,10 @@
     <div class="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         <div class="px-8 py-6 flex justify-between items-center bg-gray-50/50">
             <div class="flex-1">
-                <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
+                <div class="flex items-center gap-3">
+                    <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
+                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black border border-indigo-200">BUILD: JAN-29-5PM-V3.5</span>
+                </div>
                 <div class="mt-4 space-y-4">
                     <div class="flex flex-wrap gap-2">
                         {#each ['ALL', 'SENT', 'OPENED', 'ACKNOWLEDGED', 'FAILED'] as filter}
