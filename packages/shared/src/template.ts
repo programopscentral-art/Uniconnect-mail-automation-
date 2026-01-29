@@ -19,9 +19,8 @@ export class TemplateRenderer {
 
         // STEP 1: Auto-inject Dynamic Table (ONLY if placeholder exists)
         const tableRegex = /\{\{\s*(TABLE|FEE_TABLE)\s*\}\}/gi;
-        const hasTable = tableRegex.test(rendered);
-
-        if (hasTable) {
+        // Use a non-global regex for the test to avoid moving lastIndex
+        if (/\{\{\s*(TABLE|FEE_TABLE)\s*\}\}/i.test(rendered)) {
             let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
 
             // If explicit empty array was passed, treat as empty, but if undefined, try to fallback
@@ -64,7 +63,7 @@ export class TemplateRenderer {
 
         // STEP 2: Auto-inject Payment Button (BEFORE general placeholder replacement)
         const buttonRegex = /\{\{\s*(ACTION_BUTTON|PAY_LINK)\s*\}\}/gi;
-        if (buttonRegex.test(rendered)) {
+        if (/\{\{\s*(ACTION_BUTTON|PAY_LINK)\s*\}\}/i.test(rendered)) {
             const btnText = options?.config?.payButton?.text || '💳 Pay Fee Online';
             let btnUrl = options?.config?.payButton?.url || '';
 
@@ -81,12 +80,19 @@ export class TemplateRenderer {
                 btnUrl = meta['Payment link'] || meta['pay_link'] || meta['PAY_LINK'] || meta['PAYMENT_LINK'] || '#';
             }
 
+            console.log(`[TEMPLATE_RENDER] Resolved Action Button: text="${btnText}", url="${btnUrl}"`);
+
             // Verify we have a valid URL before injecting button
             if (btnUrl && btnUrl !== '#') {
                 const cleanUrl = btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl;
                 const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${cleanUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
+                const oldContent = rendered;
                 rendered = rendered.replace(buttonRegex, btnHtml);
+                if (rendered === oldContent) {
+                    console.error(`[TEMPLATE_RENDER] FAILED to replace button markers even though test passed!`);
+                }
             } else {
+                console.warn(`[TEMPLATE_RENDER] Skipping Action Button: No valid URL found.`);
                 rendered = rendered.replace(buttonRegex, '');
             }
         }
