@@ -134,35 +134,28 @@
   async function saveStudentEdit() {
       isSavingEdit = true;
       try {
-          // 1. Update Student Table (Global record)
           const meta = JSON.parse(editingRecipient.metadata_str);
-          const studentRes = await fetch(`/api/students/${editingRecipient.student_id}`, {
+          
+          // CONSOLIDATED ATOMIC UPDATE: This single call updates student, recipient, AND triggers immediate send
+          const res = await fetch(`/api/campaigns/${data.campaign.id}/recipients/${editingRecipient.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
-                  name: editingRecipient.student_name, 
                   email: editingRecipient.to_email,
+                  name: editingRecipient.student_name,
                   metadata: meta
               })
           });
 
-          // 2. Update Specific Recipient for this Campaign (Local record)
-          const recipientRes = await fetch(`/api/campaigns/${data.campaign.id}/recipients/${editingRecipient.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: editingRecipient.to_email })
-          });
-
-          if (studentRes.ok && recipientRes.ok) {
-              alert('Recipient updated and queued for retry!');
+          if (res.ok) {
+              alert('Student updated and email triggered successfully!');
               showEditModal = false;
               invalidateAll();
               if (showRecipients) loadRecipients(true);
           } else {
-              const sErr = !studentRes.ok ? await studentRes.text() : 'OK';
-              const rErr = !recipientRes.ok ? await recipientRes.text() : 'OK';
-              console.error('Update failed:', { student: sErr, recipient: rErr });
-              alert(`Failed to update recipient. Student: ${studentRes.status}, Recipient: ${recipientRes.status}`);
+              const err = await res.text();
+              console.error('Update failed:', err);
+              alert(`Failed to update. Server returned: ${res.status}`);
           }
       } catch(e) {
           alert('Invalid JSON in metadata or network error');

@@ -8,7 +8,7 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
     const campaignId = params.id;
     const recipientId = params.rid;
-    const { email } = await request.json();
+    const { email, name, metadata } = await request.json();
 
     if (!email || !email.includes('@')) {
         throw error(400, 'Invalid email address');
@@ -23,31 +23,28 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
     }
 
     try {
+        // 1. Update Recipient Table (campaign context)
         const updated = await updateCampaignRecipientEmail(recipientId, email);
 
-        // Reset campaign status to IN_PROGRESS so it polls and shows STOP button
+        // 2. Update Student Table (Global record) - ATOMIC SYNC
+        if (updated.student_id) {
+            await db.query(
+                `UPDATE students SET email = $1, name = $2, metadata = $3, updated_at = NOW() WHERE id = $4`,
+                [email.toLowerCase().trim(), name, JSON.stringify(metadata || {}), updated.student_id]
+            );
+        }
+
+        // 3. Reset campaign status to IN_PROGRESS (so it polls)
         await db.query(
             `UPDATE campaigns SET status = 'IN_PROGRESS', failed_count = GREATEST(0, failed_count - 1), updated_at = NOW() WHERE id = $1`,
             [campaignId]
         );
 
-        // Also update the student record to ensure future campaigns use the correct email
-        if (updated.student_id) {
-            await db.query(
-                'UPDATE students SET email = $1 WHERE id = $2',
-                [email.toLowerCase().trim(), updated.student_id]
-            );
-        }
-
-        // Fetch student name and external_id for the job (kept for compatibility in sender)
-
-        // TRIGGER IMMEDIATE SEND
+        // 4. TRIGGER IMMEDIATE SEND with fresh data
         // We only trigger if the campaign is already active (IN_PROGRESS) or was COMPLETED (re-sending to corrected)
         if (['IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED'].includes(campaign.status)) {
-            console.log(`[RECIPIENT_PATCH] Triggering immediate send for ${recipientId}`);
+            console.log(`[RECIPIENT_PATCH] Triggering immediate send for ${recipientId} with fresh metadata`);
 
-            // We await it here to ensure the user gets feedback if it fails immediately (e.g. SMTP error)
-            // but we don't throw error if it fails because the DB update was successful.
             try {
                 const result = await sendToRecipient(campaignId, updated.id);
                 console.log(`[RECIPIENT_PATCH] Send result for ${recipientId}:`, result);

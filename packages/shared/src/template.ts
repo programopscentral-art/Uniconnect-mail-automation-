@@ -90,8 +90,17 @@ export class TemplateRenderer {
         });
 
         // STEP 3: Process remaining placeholders {{key}}
-        rendered = resolveStr(rendered); // Pass 1
-        rendered = resolveStr(rendered); // Pass 2 (nested)
+        // Hande both {{key}} and {{key}}} cases gracefully
+        const resolveBody = (content: string) => {
+            return content.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
+                const key = rawKey.replace(/\}$/, '').trim(); // Remove trailing } if it's a triple brace case
+                const value = this.getValueByPath(vars, key);
+                return value !== undefined && value !== null ? String(value) : match;
+            });
+        };
+
+        rendered = resolveBody(rendered); // Pass 1
+        rendered = resolveBody(rendered); // Pass 2 (nested)
 
         // STEP 4: Wrap in NIAT Layout
         if (options.noLayout) return rendered;
@@ -197,8 +206,9 @@ export class TemplateRenderer {
             const key = keys.find(k => normalize(k) === searchPath);
             if (key) return target[key];
 
-            // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
-            // This is the CRITICAL fix for keys like "Total Fee (Paid)"
+            const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const searchAlpha = alphaOnly(searchPath);
+
             if (searchAlpha) {
                 const alphaKey = keys.find(k => alphaOnly(k) === searchAlpha);
                 if (alphaKey) return target[alphaKey];
