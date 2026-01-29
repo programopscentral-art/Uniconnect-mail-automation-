@@ -370,7 +370,7 @@
     <div class="flex-1 space-y-8">
         <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
             <div class="animate-premium-slide w-full sm:w-auto">
-                <h1 class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Main Dashboard <span class="text-[10px] font-normal text-gray-400 dark:text-slate-400 opacity-50 ml-2">(Build: 5000)</span></h1>
+                <h1 class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight">Main Dashboard <span class="text-[10px] font-normal text-gray-400 dark:text-slate-400 opacity-50 ml-2">(Build: 5.0)</span></h1>
                 <p class="text-[10px] sm:text-sm font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest leading-none">Real-time Overview</p>
             </div>
             {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
