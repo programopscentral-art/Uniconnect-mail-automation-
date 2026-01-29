@@ -17,8 +17,25 @@ export class TemplateRenderer {
         };
         const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+        // Helper to resolve placeholders inside a specific string
+        const resolveStr = (s: string) => {
+            if (!s) return '';
+            return String(s).replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
+                const key = rawKey.trim();
+                const value = this.getValueByPath(vars, key);
+                return value !== undefined && value !== null ? String(value) : match;
+            });
+        };
+
+        const ensureProtocol = (url: string) => {
+            if (!url || url === '#' || url === 'undefined') return '#';
+            const trimmed = url.trim();
+            if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
+            if (trimmed.includes('.') || trimmed.includes('/')) return `https://${trimmed}`;
+            return trimmed;
+        };
+
         // STEP 1 & 2: REFACTORED COMPONENT INJECTION (Fuzzy Detection)
-        // This regex matches ALL {{ ... }} blocks and checking if they are component markers
         const markerRegex = /\{\{\s*(.*?)\s*\}\}/gi;
 
         let rendered = template.replace(markerRegex, (match, rawMarkerContent) => {
@@ -34,16 +51,13 @@ export class TemplateRenderer {
                 }
 
                 if (tableRows && tableRows.length > 0) {
-                    const processedRows = tableRows.map((r: any) => {
-                        const resolve = (s: string) => String(s).replace(/\{\{(.*?)\}\}/gs, (m, k) => {
-                            const val = this.getValueByPath(vars, k.trim());
-                            return val !== undefined && val !== null ? String(val) : m;
-                        });
-                        return { label: resolve(r.label), value: resolve(r.value) };
-                    });
+                    const processedRows = tableRows.map((r: any) => ({
+                        label: resolveStr(r.label),
+                        value: resolveStr(r.value)
+                    }));
                     return this.buildTable(processedRows);
                 }
-                return ''; // Remove if no data
+                return '';
             }
 
             // 2. Is it a BUTTON marker? (Aggressive List)
@@ -53,23 +67,15 @@ export class TemplateRenderer {
                 const btnText = config?.payButton?.text || '💳 Pay Fee Online';
                 let btnUrl = config?.payButton?.url || '';
 
-                const ensureProtocol = (url: string) => {
-                    if (!url || url === '#' || url === 'undefined') return '#';
-                    // If it contains a placeholder, we let it be resolved in Step 3
-                    if (url.includes('{{')) return url;
-                    const trimmed = url.trim();
-                    if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
-                    // Fuzzy check: if it looks like a domain or path, add https
-                    if (trimmed.includes('.') || trimmed.includes('/')) return `https://${trimmed}`;
-                    return trimmed;
-                };
+                // Immediate Resolution
+                btnUrl = resolveStr(btnUrl);
 
-                // Aggressive Fallback Lookup (if config is missing or expects placeholder)
-                if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
+                // Aggressive Fallback Lookup (if config is missing or resolved to empty/placeholder)
+                if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{') || btnUrl.includes('example.com')) {
                     const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
                     for (const sk of searchKeys) {
                         const found = this.getValueByPath(vars, sk);
-                        if (found && typeof found === 'string' && found.length > 5) {
+                        if (found && typeof found === 'string' && found.length > 5 && !found.includes('{{')) {
                             btnUrl = found;
                             break;
                         }
@@ -77,29 +83,15 @@ export class TemplateRenderer {
                 }
 
                 const finalUrl = ensureProtocol(btnUrl);
-
                 return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
             }
 
             return match; // Not a component marker, leave for Step 3
         });
 
-        // STEP 3: Process remaining placeholders {{key}} (AFTER components are injected)
-        const resolveBody = (content: string) => {
-            return content.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
-                const key = rawKey.trim();
-                const value = this.getValueByPath(vars, key);
-                if (value === undefined) {
-                    // console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}"`);
-                }
-                const resolved = value !== undefined && value !== null ? String(value) : match;
-                // Recursive check for protocol if this resolved into a URL inside an href
-                return resolved;
-            });
-        };
-
-        rendered = resolveBody(rendered); // Pass 1
-        rendered = resolveBody(rendered); // Pass 2 for nested variables (e.g. {{custom_msg}} containing {{name}})
+        // STEP 3: Process remaining placeholders {{key}}
+        rendered = resolveStr(rendered); // Pass 1
+        rendered = resolveStr(rendered); // Pass 2 (nested)
 
         // STEP 4: Wrap in NIAT Layout
         if (options.noLayout) return rendered;
