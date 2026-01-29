@@ -70,20 +70,6 @@ async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED' | 'CA
   }
 }
 
-if (stats[0]) {
-  const { total_recipients, sent_count, failed_count } = stats[0];
-  if (sent_count + failed_count >= total_recipients) {
-    await db.query(
-      `UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() 
-           WHERE id = $1 AND status = 'IN_PROGRESS'`,
-      [campaignId]
-    );
-    console.log(`[WORKER] Campaign ${campaignId} marked as COMPLETED.`);
-  }
-}
-  }
-}
-
 // 1. Email Campaign Worker
 console.log('[WORKER_INIT] 🚀 Starting email-sending worker...');
 const worker = new Worker('email-sending', async (job: Job) => {

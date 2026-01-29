@@ -90,7 +90,7 @@ export async function sendToRecipient(
         const messageParts = [
             `MIME-Version: 1.0`,
             `To: ${recipient.to_email}`,
-            `From: "UniConnect Support" <${mailboxEmail || 'support@uniconnect.com'}>`, // Best effort or dynamic
+            `From: "NIAT Program Operations" <${mailboxEmail || 'programops@uniconnect.com'}>`, // Standardized Branding
             `Subject: ${utf8Subject}`,
             `X-UniConnect-Token: ${recipient.tracking_token}`,
             `Content-Type: text/html; charset=utf-8`,
