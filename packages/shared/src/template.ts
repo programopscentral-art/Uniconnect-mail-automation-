@@ -4,10 +4,16 @@ export class TemplateRenderer {
     public static render(template: string, variables: any, options: { includeAck?: boolean, trackingToken?: string, baseUrl?: string, config?: any, noLayout?: boolean } = {}): string {
         console.log(`[TEMPLATE_RENDER_V2.5] Rendering template...`);
         if (!template) return '';
+        // Robustly parse metadata if it comes in as a string
+        let metaObj = variables.metadata || {};
+        if (typeof metaObj === 'string') {
+            try { metaObj = JSON.parse(metaObj); } catch (e) { metaObj = {}; }
+        }
+
         // Flatten variables to ensure metadata keys are treated as root keys for matching
         const vars = {
             ...variables,
-            ...(variables.metadata || {})
+            ...metaObj
         };
         let rendered = template;
 

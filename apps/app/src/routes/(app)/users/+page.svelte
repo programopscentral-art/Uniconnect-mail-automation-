@@ -515,30 +515,30 @@
 <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
   <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onclick={closeModal} onkeydown={(e) => e.key === 'Escape' && closeModal()} role="button" tabindex="-1" aria-label="Close modal background"></div>
   <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-100 animate-in zoom-in-95 duration-200">
-    <div class="bg-gradient-to-br from-emerald-600 to-emerald-800 px-8 py-6 text-white">
+    <div class="bg-gradient-to-br from-indigo-700 to-indigo-900 px-8 py-6 text-white border-b border-indigo-500/30">
         <h3 class="text-2xl font-black tracking-tight flex items-center justify-between" id="modal-title">
           <span>{editingUserId ? 'Edit Member' : 'Invite Member'}</span>
           <div class="flex items-center gap-2">
-            <span class="text-[9px] bg-white/20 px-2 py-1 rounded-full border border-white/20 animate-pulse uppercase tracking-widest">Multi-Select Active</span>
-            <span class="text-[10px] bg-black/20 px-2 py-1 rounded-lg">Build: 1600</span>
+            <span class="text-[9px] bg-white/20 px-2 py-1 rounded-full border border-white/20 uppercase tracking-widest font-black">Admin Mode</span>
+            <span class="text-[10px] bg-black/30 px-2 py-1 rounded-lg font-bold">Build: 1605</span>
           </div>
         </h3>
-        <p class="text-indigo-100 text-sm opacity-80 mt-1">Set user details and assigned roles.</p>
+        <p class="text-indigo-100 text-sm font-medium mt-1">Configure access permissions and team roles.</p>
     </div>
     
     <div class="p-8 space-y-6 max-h-[65vh] overflow-y-auto">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="col-span-2">
-                <label for="f-email" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
-                <input type="email" id="f-email" bind:value={email} disabled={!!editingUserId} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all disabled:opacity-50">
+                <label for="f-email" class="block text-[10px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Email Address</label>
+                <input type="email" id="f-email" bind:value={email} disabled={!!editingUserId} class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all disabled:opacity-50">
             </div>
             <div class="col-span-1">
-                <label for="f-name" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
-                <input type="text" id="f-name" bind:value={name} placeholder="John Doe" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                <label for="f-name" class="block text-[10px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
+                <input type="text" id="f-name" bind:value={name} placeholder="John Doe" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all">
             </div>
             <div class="col-span-1">
-                <label for="f-role" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Member Role</label>
-                <select id="f-role" bind:value={role} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                <label for="f-role" class="block text-[10px] font-black text-gray-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Member Role</label>
+                <select id="f-role" bind:value={role} class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all">
                     {#if data.isGlobalAdmin}
                         <option value="ADMIN">Program Ops (Admin)</option>
                     {/if}
@@ -555,30 +555,30 @@
             </div>
             
             <div class="col-span-1">
-                <label for="f-phone" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">WhatsApp / Phone</label>
-                <input type="text" id="f-phone" bind:value={phone} placeholder="+91 9876543210" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                <label for="f-phone" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">WhatsApp / Phone</label>
+                <input type="text" id="f-phone" bind:value={phone} placeholder="+91 9876543210" class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all">
             </div>
 
             <div class="col-span-2">
-                <label for="f-bio" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Short Bio</label>
-                <textarea id="f-bio" bind:value={bio} placeholder="e.g. Managing institutional outreach and student coordination." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all" rows="2"></textarea>
+                <label for="f-bio" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Short Bio</label>
+                <textarea id="f-bio" bind:value={bio} placeholder="e.g. Managing institutional outreach and student coordination." class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all" rows="2"></textarea>
             </div>
 
             {#if data.isGlobalAdmin}
             <div class="col-span-2">
-                <label for="f-team" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Assigned Team</label>
-                <select id="f-team" bind:value={selectedTeamId} class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all">
+                <label for="f-team" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Assigned Team</label>
+                <select id="f-team" bind:value={selectedTeamId} class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all">
                     <option value="">No Team Assigned</option>
                     {#each data.universities.filter((u:any) => u.is_team) as team}
                         <option value={team.id}>{team.name}</option>
                     {/each}
                 </select>
-                <p class="mt-1.5 ml-1 text-[9px] text-gray-400 font-medium">Members can assign tasks to others in the same team.</p>
+                <p class="mt-1.5 ml-1 text-[9px] text-slate-400 dark:text-slate-500 font-medium tracking-tight">Members can assign tasks to others in the same team.</p>
             </div>
 
             <div class="col-span-2">
                 <div class="flex items-center justify-between mb-3 px-1">
-                    <span id="assign-inst-label" class="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Assign to Institutions</span>
+                    <span id="assign-inst-label" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Assign to Institutions</span>
                     <div class="flex gap-3">
                         <button type="button" onclick={selectAll} class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors">Select All</button>
                         <button type="button" onclick={clearSelection} class="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors">Clear</button>
@@ -605,7 +605,7 @@
                         <div class="h-1 invisible"></div> <!-- Extra spacer for scroll bottom -->
                     {/each}
                 </div>
-                <div class="mt-2 ml-1 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                <div class="mt-2 ml-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                     Selected: {universityIds.length} institutions
                 </div>
             </div>

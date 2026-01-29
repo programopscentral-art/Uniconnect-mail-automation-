@@ -43,29 +43,38 @@ export const POST: RequestHandler = async ({ params, locals }) => {
         [campaignId]
     );
 
-    // 4. Enqueue jobs
-    for (const r of recipientsToResume) {
-        const student = students.find(s => s.id === r.student_id);
-        if (student) {
-            await addEmailJob({
-                recipientId: r.id,
-                campaignId: campaign.id,
-                email: r.to_email,
-                trackingToken: r.tracking_token,
-                templateId: campaign.template_id,
-                mailboxId: campaign.mailbox_id,
-                includeAck: campaign.include_ack,
-                variables: {
-                    studentName: student.name,
-                    studentExternalId: student.external_id,
-                    metadata: student.metadata
-                }
-            }, 0); // Resume immediately
+    // 4. Trigger High-Speed Background Loop (using loop-ready sender)
+    (async () => {
+        try {
+            console.log(`[RESUME] Starting high-speed loop for ${recipientsToResume.length} recipients`);
 
-            // Set to QUEUED
-            await db.query(`UPDATE campaign_recipients SET status = 'QUEUED', error_message = NULL WHERE id = $1`, [r.id]);
+            // Re-setup Gmail
+            const mailbox = await getMailboxCredentials(campaign.mailbox_id);
+            const refreshToken = decryptString(mailbox.refresh_token_enc);
+            const oauth2Client = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET
+            );
+            oauth2Client.setCredentials({ refresh_token: refreshToken });
+            const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+
+            for (const r of recipientsToResume) {
+                // Check if STOPPED again in the meantime
+                const { rows } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
+                if (rows[0]?.status === 'STOPPED') break;
+
+                await sendToRecipient(campaignId, r.id, gmail);
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            const { rows: final } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
+            if (final[0]?.status === 'IN_PROGRESS') {
+                await db.query(`UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() WHERE id = $1`, [campaignId]);
+            }
+        } catch (err) {
+            console.error('[RESUME_LOOP_ERROR]', err);
         }
-    }
+    })();
 
     return json({
         success: true,
