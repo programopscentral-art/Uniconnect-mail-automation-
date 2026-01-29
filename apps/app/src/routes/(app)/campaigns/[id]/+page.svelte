@@ -17,6 +17,15 @@
   $effect.pre(() => {
     testEmail = data.user?.email || '';
   });
+
+  // CRITICAL: Reset state when switching campaigns to prevent stale data
+  $effect(() => {
+      const _id = data.campaign.id;
+      recipients = [];
+      lastRecipientUpdate = null;
+      showRecipients = false;
+      statusFilter = 'ALL';
+  });
   let isSendingTest = $state(false);
 
   let isRetrying = $state(false);
@@ -68,15 +77,18 @@
       isLoadingRecipients = !force && !lastRecipientUpdate; 
       try {
           let url = `/api/campaigns/${data.campaign.id}/recipients`;
-          if (force && lastRecipientUpdate) {
+          // Use delta fetch ONLY if we already have data and are forcing a refresh
+          if (force && lastRecipientUpdate && recipients.length > 0) {
               url += `?updatedSince=${encodeURIComponent(lastRecipientUpdate)}`;
           }
 
+          console.log(`[UI] Fetching recipients from: ${url}`);
           const res = await fetch(url);
           if (res.ok) {
               const delta: any[] = await res.json();
-              
-              if (force && lastRecipientUpdate) {
+              console.log(`[UI] Received ${delta.length} recipients (isDelta: ${force && !!lastRecipientUpdate})`);
+
+              if (force && lastRecipientUpdate && recipients.length > 0) {
                   // Merge delta into existing recipients
                   const newRecipients = [...recipients];
                   delta.forEach(newR => {
@@ -90,6 +102,8 @@
               }
               lastRecipientUpdate = new Date().toISOString();
           }
+      } catch (err) {
+          console.error('[UI] Failed to load recipients:', err);
       } finally {
           isLoadingRecipients = false;
       }
