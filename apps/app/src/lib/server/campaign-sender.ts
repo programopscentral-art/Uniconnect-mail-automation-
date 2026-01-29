@@ -60,13 +60,14 @@ export async function sendToRecipient(
         const variables = {
             studentName: recipient.student_name,
             STUDENT_NAME: recipient.student_name,
-            name: recipient.student_name, // Added 'name' for common usage
+            name: recipient.student_name,
             studentExternalId: recipient.external_id,
             metadata: metaObj,
             ...metaObj
         };
 
-        console.log(`[CAMPAIGN_SENDER] Variables for ${recipient.to_email}:`, JSON.stringify(variables));
+        console.log(`[CAMPAIGN_SENDER] Keys found in Metadata:`, Object.keys(metaObj));
+        console.log(`[CAMPAIGN_SENDER] Variables Keys:`, Object.keys(variables));
 
         const subject = TemplateRenderer.render(template.subject, variables, {
             config: template.config,

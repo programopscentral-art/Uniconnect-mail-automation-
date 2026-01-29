@@ -177,8 +177,7 @@ export class TemplateRenderer {
                 .replace(/&lt;/g, '<')
                 .replace(/&gt;/g, '>')
                 .replace(/&quot;/g, '"')
-                .replace(/[\n\r\t]+/g, ' ')          // NEW: Explicitly replace newlines/tabs with spaces
-                .replace(/[\s_]+/g, ' ')             // Standardize remaining whitespace/underscores
+                .replace(/[\n\r\t\s\xa0]+/g, ' ')    // Standardize all whitespace (including non-breaking)
                 .trim();
         };
         const searchPath = normalize(path);
@@ -194,17 +193,17 @@ export class TemplateRenderer {
             if (key) return target[key];
 
             // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
-            // This bridges: "COUPON_CODE", "coupon codes", "CouponCode", "Coupon Code"
+            // This is the CRITICAL fix for keys like "Total Fee (Paid)"
             const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const searchAlpha = alphaOnly(searchPath); // FIX: Use searchPath instead of raw path
+            const searchAlpha = alphaOnly(searchPath);
 
             if (searchAlpha) {
                 const alphaKey = keys.find(k => alphaOnly(k) === searchAlpha);
                 if (alphaKey) return target[alphaKey];
 
-                // 1.3 Pluralization-aware Alphanumeric match (ignores trailing 's')
+                // 1.3 Singular match
                 const singularAlpha = (s: string) => alphaOnly(s).replace(/s$/, '');
-                const searchSingular = singularAlpha(searchPath); // FIX: Use searchPath
+                const searchSingular = singularAlpha(searchPath);
                 const singularKey = keys.find(k => singularAlpha(k) === searchSingular);
                 if (singularKey) return target[singularKey];
             }
@@ -213,10 +212,16 @@ export class TemplateRenderer {
         };
 
         const fromRoot = checkObj(obj);
-        if (fromRoot !== undefined) return fromRoot;
+        if (fromRoot !== undefined) {
+            console.log(`[TEMPLATE_MATCH] Found "${path}" in root`);
+            return fromRoot === null ? '' : fromRoot;
+        }
 
         const fromMetadata = checkObj(obj.metadata);
-        if (fromMetadata !== undefined) return fromMetadata;
+        if (fromMetadata !== undefined) {
+            console.log(`[TEMPLATE_MATCH] Found "${path}" in metadata`);
+            return fromMetadata === null ? '' : fromMetadata;
+        }
 
         // 2. Deep path match (a.b.c)
         const parts = path.split('.');
