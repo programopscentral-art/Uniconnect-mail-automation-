@@ -244,7 +244,7 @@
                     }
                 }
             }
-        }, 3000); // Polling every 3 seconds to reduce load
+        }, 2000); // Increased polling frequency to 2s for active campaigns
         return () => clearInterval(interval);
     });
 
@@ -274,8 +274,10 @@
             pollInterval = setInterval(() => {
                 invalidateAll();
                 // If showing recipients, refresh them too
-                if (showRecipients) loadRecipients(true);
-            }, 1000); // 1s polling for "live" feel
+                if (showRecipients) {
+                    loadRecipients(true);
+                }
+            }, 2000); // 2s polling for "live" feel
         }
         return () => clearInterval(pollInterval);
     });

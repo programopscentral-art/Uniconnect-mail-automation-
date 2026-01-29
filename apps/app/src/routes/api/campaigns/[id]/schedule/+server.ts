@@ -77,7 +77,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         (async () => {
             console.log(`[BACKGROUND_SEND] Processing ${recipients.length} recipients for campaign ${campaignId}`);
 
-            for (const recipient of recipients.filter(r => r.status === 'PENDING')) {
+            for (const recipient of recipients.filter(r => ['PENDING', 'QUEUED', 'CANCELLED'].includes(r.status))) {
                 // Check if campaign was STOPPED in the meantime
                 const { rows: currentCampaign } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
                 if (currentCampaign[0]?.status === 'STOPPED') {
