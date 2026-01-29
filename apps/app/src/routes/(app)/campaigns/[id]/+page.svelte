@@ -470,26 +470,30 @@
     <!-- Recipients -->
     <div class="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         <div class="px-8 py-6 flex justify-between items-center bg-gray-50/50">
-            <div class="flex-1 max-w-2xl">
+            <div class="flex-1">
                 <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
-                <div class="flex flex-wrap gap-2 mt-3">
-                    {#each ['ALL', 'SENT', 'OPENED', 'ACKNOWLEDGED', 'FAILED'] as filter}
-                        <button 
-                            onclick={() => statusFilter = filter as any}
-                            class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
-                            {statusFilter === filter ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-gray-700 border border-gray-100 hover:border-indigo-200 font-bold'}"
-                        >
-                            {filter}
-                        </button>
-                    {/each}
-                    <div class="relative ml-2 flex-1 min-w-[200px]">
+                <div class="mt-4 space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        {#each ['ALL', 'SENT', 'OPENED', 'ACKNOWLEDGED', 'FAILED'] as filter}
+                            <button 
+                                onclick={() => statusFilter = filter as any}
+                                class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
+                                {statusFilter === filter ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-white text-gray-700 border border-gray-100 hover:border-indigo-200 font-bold'}"
+                            >
+                                {filter}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="relative max-w-md">
                         <input 
                             type="text" 
                             bind:value={recipientSearch}
-                            placeholder="Search by name or email..."
-                            class="w-full px-4 py-1 rounded-lg text-[10px] font-bold border border-gray-100 focus:border-indigo-600 outline-none shadow-inner bg-white/50"
+                            placeholder="Search by student name, email, or ID..."
+                            class="w-full px-12 py-3 rounded-2xl text-xs font-bold border-2 border-gray-100 dark:border-slate-800 focus:border-indigo-500 outline-none shadow-sm bg-white/50 backdrop-blur-sm transition-all text-gray-900"
                         />
-                        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </div>
                 </div>
             </div>

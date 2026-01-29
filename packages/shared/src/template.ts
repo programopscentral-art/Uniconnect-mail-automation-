@@ -216,21 +216,31 @@ export class TemplateRenderer {
                     const kWords = getWords(k);
                     const intersection = searchWords.filter(w => kWords.includes(w));
 
-                    // Score = matches / number of words in the metadata key
-                    // We also account for the length of words to favor specific matches
-                    const score = (intersection.join('').length) / (kWords.join('').length || 1);
+                    if (intersection.length === 0) return { key: k, score: 0 };
 
-                    // Boost if ALL metadata words are present in the search path (extremely likely match)
-                    const allMetaPresent = kWords.length >= 1 && kWords.every(kw => searchWords.includes(kw));
-                    const finalScore = allMetaPresent ? Math.max(score, 0.95) : score;
+                    // HEURISTIC 1: How much of the METADATA KEY is found in the template?
+                    // This is for matching "fee" -> "Term 2 Fee Payment"
+                    const metaOverlap = intersection.length / kWords.length;
 
-                    return { key: k, score: finalScore };
+                    // HEURISTIC 2: How much of the TEMPLATE placeholder is found in the key?
+                    // This is for matching "Term 2 Fee" -> "Fee"
+                    const templateOverlap = intersection.length / searchWords.length;
+
+                    // Final Score is weighted towards the best overlap
+                    let score = Math.max(metaOverlap, templateOverlap);
+
+                    // BOOST: If the metadata key is a core subset of the search path (e.g. key "fee" in search "Total Fee Paid")
+                    // We give this a high score because it's almost certainly the intended variable.
+                    const isKeySubsetOfSearch = kWords.every(kw => searchWords.includes(kw));
+                    if (isKeySubsetOfSearch) score = Math.max(score, 0.9);
+
+                    return { key: k, score };
                 })
-                    .filter(m => m.score > 0.35) // Lower threshold for long descriptions
+                    .filter(m => m.score > 0.25) // High resilience for long descriptive paths
                     .sort((a, b) => b.score - a.score);
 
-                if (candidates.length > 0) {
-                    console.log(`[RESOLVE] Fuzzy match found for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score})`);
+                if (candidates.length > 0 && candidates[0].score > 0.3) {
+                    console.log(`[RESOLVE] Fuzzy match for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score.toFixed(2)})`);
                     return target[candidates[0].key];
                 }
             }

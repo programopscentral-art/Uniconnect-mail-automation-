@@ -81,6 +81,10 @@ export async function sendToRecipient(
             config: template.config
         });
 
+        console.log(`[CAMPAIGN_SENDER] Rendered Body Length: ${htmlBody.length} bytes`);
+        console.log(`[CAMPAIGN_SENDER] Body Snippet: ${htmlBody.slice(0, 500)}...`);
+        console.log(`[CAMPAIGN_SENDER] To: ${recipient.to_email}, From: ${mailboxEmail || 'support@uniconnect.com'}`);
+
         // 4. Send via Gmail API
         const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const messageParts = [
@@ -106,35 +110,47 @@ export async function sendToRecipient(
             requestBody: { raw: encodedMail }
         });
 
-        // 5. Update DB
-        await db.query(
+        // 5. Update DB Atomically
+        const updateRes = await db.query(
             `UPDATE campaign_recipients 
-             SET status = 'SENT', sent_at = NOW(), gmail_message_id = $1, error_message = NULL, updated_at = NOW() 
-             WHERE id = $2`,
+             SET status = 'SENT', 
+                 sent_at = NOW(), 
+                 gmail_message_id = $1, 
+                 error_message = NULL, 
+                 updated_at = NOW() 
+             WHERE id = $2 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
+             RETURNING campaign_id`,
             [res.data.id, recipientId]
         );
 
-        await db.query(
-            `UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`,
-            [campaignId]
-        );
+        if (updateRes.rows[0]) {
+            await db.query(
+                `UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`,
+                [campaignId]
+            );
+        }
 
         return { success: true, messageId: res.data.id };
 
     } catch (err: any) {
         console.error(`[CAMPAIGN_SENDER] Error for recipient ${recipientId}:`, err.message);
 
-        await db.query(
+        const updateRes = await db.query(
             `UPDATE campaign_recipients 
-             SET status = 'FAILED', error_message = $1, updated_at = NOW() 
-             WHERE id = $2`,
+             SET status = 'FAILED', 
+                 error_message = $1, 
+                 updated_at = NOW() 
+             WHERE id = $2 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
+             RETURNING campaign_id`,
             [err.message, recipientId]
         );
 
-        await db.query(
-            `UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`,
-            [campaignId]
-        );
+        if (updateRes.rows[0]) {
+            await db.query(
+                `UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`,
+                [campaignId]
+            );
+        }
 
         return { success: false, error: err.message };
     }

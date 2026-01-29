@@ -36,42 +36,51 @@ console.log(`[WORKER_INIT] Database Host: ${dbHost}`);
 // Queues (for adding jobs from worker if needed)
 const systemNotificationQueue = new Queue('system-notifications', { connection });
 
-// Updates status of individual recipient
+// Updates status of individual recipient atomically
 async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED' | 'CANCELLED', messageId?: string, error?: string) {
-  await db.query(
-    `UPDATE campaign_recipients SET status = $1, sent_at = CASE WHEN $1 = 'SENT' THEN NOW() ELSE sent_at END, gmail_message_id = $2, error_message = $3, updated_at = NOW() WHERE id = $4`,
+  // Use a transaction/subquery to ensure we only increment if the status actually changed FROM a non-terminal state
+  const res = await db.query(
+    `UPDATE campaign_recipients 
+     SET status = $1, 
+         sent_at = CASE WHEN $1 = 'SENT' THEN NOW() ELSE sent_at END, 
+         gmail_message_id = $2, 
+         error_message = $3, 
+         updated_at = NOW() 
+     WHERE id = $4 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
+     RETURNING campaign_id`,
     [status, messageId, error, id]
   );
 
-  // Update campaign stats
-  const res = await db.query(`SELECT campaign_id FROM campaign_recipients WHERE id = $1`, [id]);
   if (res.rows[0]) {
     const campaignId = res.rows[0].campaign_id;
-
     if (status === 'SENT') {
       await db.query(`UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = $1`, [campaignId]);
     } else if (status === 'FAILED') {
       await db.query(`UPDATE campaigns SET failed_count = failed_count + 1 WHERE id = $1`, [campaignId]);
     }
 
-    // Check if fully completed
+    // Check completion
     const { rows: stats } = await db.query(
-      `SELECT total_recipients, sent_count, failed_count 
-       FROM campaigns WHERE id = $1`,
+      `SELECT total_recipients, sent_count, failed_count FROM campaigns WHERE id = $1`,
       [campaignId]
     );
-
-    if (stats[0]) {
-      const { total_recipients, sent_count, failed_count } = stats[0];
-      if (sent_count + failed_count >= total_recipients) {
-        await db.query(
-          `UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() 
-           WHERE id = $1 AND status = 'IN_PROGRESS'`,
-          [campaignId]
-        );
-        console.log(`[WORKER] Campaign ${campaignId} marked as COMPLETED.`);
-      }
+    if (stats[0] && stats[0].sent_count + stats[0].failed_count >= stats[0].total_recipients) {
+      await db.query(`UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() WHERE id = $1 AND status = 'IN_PROGRESS'`, [campaignId]);
     }
+  }
+}
+
+if (stats[0]) {
+  const { total_recipients, sent_count, failed_count } = stats[0];
+  if (sent_count + failed_count >= total_recipients) {
+    await db.query(
+      `UPDATE campaigns SET status = 'COMPLETED', completed_at = NOW() 
+           WHERE id = $1 AND status = 'IN_PROGRESS'`,
+      [campaignId]
+    );
+    console.log(`[WORKER] Campaign ${campaignId} marked as COMPLETED.`);
+  }
+}
   }
 }
 
