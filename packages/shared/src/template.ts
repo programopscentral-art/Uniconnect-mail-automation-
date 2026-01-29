@@ -199,14 +199,41 @@ export class TemplateRenderer {
 
             // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
             // This is the CRITICAL fix for keys like "Total Fee (Paid)"
-            const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const searchAlpha = alphaOnly(searchPath);
-
             if (searchAlpha) {
                 const alphaKey = keys.find(k => alphaOnly(k) === searchAlpha);
                 if (alphaKey) return target[alphaKey];
 
-                // 1.3 Singular match
+                // 1.3 Substring Match (for long descriptive keys)
+                if (searchAlpha.length > 10) {
+                    const subKey = keys.find(k => {
+                        const ka = alphaOnly(k);
+                        return ka.length > 8 && (searchAlpha.includes(ka) || ka.includes(searchAlpha));
+                    });
+                    if (subKey) return target[subKey];
+                }
+
+                // 1.4 Word Intersection (the "Typos-be-gone" logic)
+                const getWords = (s: string) => s.split(/[ \-_()]/).map(w => w.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(w => w.length > 2);
+                const searchWords = getWords(path);
+                if (searchWords.length >= 2) {
+                    const bestMatch = keys.map(k => {
+                        const kWords = getWords(k);
+                        const intersection = searchWords.filter(w => kWords.includes(w));
+                        const score = intersection.length / Math.max(searchWords.length, kWords.length);
+
+                        // Special Case: Metadata key is a significant subset of the path
+                        const allMetadataWordsMatch = kWords.length >= 2 && kWords.every(kw => searchWords.includes(kw));
+                        const finalScore = allMetadataWordsMatch ? Math.max(score, 0.8) : score;
+
+                        return { key: k, score: finalScore };
+                    })
+                        .filter(m => m.score > 0.5) // Lowered to 50% for high resilience
+                        .sort((a, b) => b.score - a.score)[0];
+
+                    if (bestMatch) return target[bestMatch.key];
+                }
+
+                // 1.5 Singular match
                 const singularAlpha = (s: string) => alphaOnly(s).replace(/s$/, '');
                 const searchSingular = singularAlpha(searchPath);
                 const singularKey = keys.find(k => singularAlpha(k) === searchSingular);
