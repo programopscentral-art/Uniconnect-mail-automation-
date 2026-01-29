@@ -516,7 +516,11 @@
                                             </div>
                                             <div class="flex flex-col">
                                                 <span class="text-green-600 dark:text-green-400 font-black">{campaign.open_count}</span>
-                                                <span class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter">Impact</span>
+                                                <span class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter">Opened</span>
+                                            </div>
+                                            <div class="flex flex-col">
+                                                <span class="text-emerald-600 dark:text-emerald-400 font-black">{campaign.ack_count || 0}</span>
+                                                <span class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter">Acknowledged</span>
                                             </div>
                                         </div>
                                     </td>

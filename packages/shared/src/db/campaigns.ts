@@ -166,7 +166,7 @@ export async function updateCampaignRecipientEmail(id: string, email: string) {
 }
 
 export async function getCampaignRecipients(campaignId: string, updatedSince?: Date) {
-    let query = `SELECT r.*, s.name as student_name, s.external_id FROM campaign_recipients r LEFT JOIN students s ON r.student_id = s.id WHERE campaign_id = $1`;
+    let query = `SELECT r.*, s.name as student_name, s.external_id, s.metadata FROM campaign_recipients r LEFT JOIN students s ON r.student_id = s.id WHERE campaign_id = $1`;
     const params: any[] = [campaignId];
 
     if (updatedSince) {

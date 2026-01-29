@@ -11,17 +11,19 @@ export class TemplateRenderer {
         }
         metaObj = metaObj || {};
 
-        // Flatten variables - root level takes precedence, then metadata
+        // Flatten variables - EVERYTHING goes to root for lookup
         const vars = { ...metaObj, ...variables };
-
-        // Aggressive normalization for reliable matching
-        const clean = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
             const value = this.getValueByPath(vars, key);
-            if (value !== undefined && value !== null) return String(value);
+
+            if (value !== undefined && value !== null) {
+                // Return string representation but avoid [object Object]
+                if (typeof value === 'object' && !Array.isArray(value)) return '';
+                return String(value);
+            }
 
             console.warn(`[TEMPLATE_RENDER] FAIL: "${key}".`);
             return `{{${key}}}`; // Return original if not found
@@ -29,8 +31,8 @@ export class TemplateRenderer {
 
         // STEP 1: Handle Components (TABLE, BUTTON)
         const componentRegex = /\{\{\s*(.*?)\s*\}\}/gis;
-        let rendered = template.replace(componentRegex, (match, rawMarkerContent) => {
-            const norm = clean(rawMarkerContent.replace(/\}$/, ''));
+        let rendered = template.replace(componentRegex, (match: string, rawMarkerContent: string) => {
+            const norm = rawMarkerContent.replace(/\}$/, '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
             // A. TABLE component
             if (['table', 'feetable', 'feesummary', 'summarrytable', 'feetablerows', 'tabledata'].includes(norm)) {
@@ -44,8 +46,8 @@ export class TemplateRenderer {
 
                 if (tableRows && tableRows.length > 0) {
                     const processedRows = tableRows.map((r: any) => ({
-                        label: r.label.includes('{{') ? r.label.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k)) : r.label,
-                        value: r.value.includes('{{') ? r.value.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k)) : r.value
+                        label: r.label.includes('{{') ? r.label.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k)) : r.label,
+                        value: r.value.includes('{{') ? r.value.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k)) : r.value
                     }));
                     return this.buildTable(processedRows);
                 }
@@ -60,7 +62,7 @@ export class TemplateRenderer {
                 let btnUrl = config?.payButton?.url || '';
 
                 // Resolve URL placeholders
-                btnUrl = btnUrl.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k));
+                btnUrl = btnUrl.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k));
 
                 // Aggressive fallback for payment links
                 if (!btnUrl || btnUrl === '#' || btnUrl === 'undefined' || btnUrl.includes('example.com')) {
@@ -91,7 +93,7 @@ export class TemplateRenderer {
         });
 
         // STEP 2: Final recursive pass for any remaining markers
-        rendered = rendered.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k));
+        rendered = rendered.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k));
 
         // STEP 4: Wrap in Layout
         if (options.noLayout) return rendered;
@@ -164,54 +166,61 @@ export class TemplateRenderer {
         return `<table class="fee-table"><thead><tr><th>Description</th><th style="text-align:right">Amount (₹)</th></tr></thead><tbody>${processedRows.join('')}</tbody></table>`;
     }
 
-    private static getValueByPath(target: any, path: string): any {
-        if (!target || !path) return undefined;
+    private static getValueByPath(vars: any, path: string): any {
+        if (!vars || !path) return undefined;
 
-        const clean = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-        const searchNorm = clean(path);
-        if (!searchNorm) return undefined;
+        // 1. Literal Match (Case Insensitive)
+        const keys = Object.keys(vars);
+        const lMatch = keys.find(k => k.toLowerCase() === path.toLowerCase());
+        if (lMatch) return vars[lMatch];
 
-        // 0. Path support (a.b.c)
-        if (path.includes('.')) {
-            const parts = path.split('.');
-            let current = target;
-            for (const part of parts) {
-                if (current === null || current === undefined) return undefined;
-                const keys = Object.keys(current);
-                const normPart = clean(part);
-                const match = keys.find(k => clean(k) === normPart || k.toLowerCase() === part.toLowerCase());
-                current = match ? current[match] : undefined;
-            }
-            return current;
-        }
+        // 2. Normalized Match (Alpha-Numeric only)
+        const normalize = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const sNorm = normalize(path);
+        const nMatch = keys.find(k => normalize(k) === sNorm);
+        if (nMatch) return vars[nMatch];
 
-        const keys = Object.keys(target);
-
-        // 1. Direct Normalized Match (Aggressive)
-        // Works for: {{Term 1 Fee}} -> "Term 1 Fee" or "term_1_fee" or "term1fee"
-        const exactMatchKey = keys.find(k => clean(k) === searchNorm || k.toLowerCase() === path.toLowerCase());
-        if (exactMatchKey) return target[exactMatchKey];
-
-        // 2. Smart Fuzzy (Last Resort)
+        // 3. HYPER-FUZZY (Word-for-Word similarity)
         const getWords = (s: string) => s.toLowerCase()
             .replace(/\(.*?\)/g, ' ')
             .split(/[^a-z0-9]+/)
-            .filter(w => w.length > 1 || /^\d$/.test(w));
+            .filter(w => w.length > 2);
 
-        const searchWords = getWords(path);
-        if (searchWords.length > 0) {
+        const isSimilar = (a: string, b: string) => {
+            if (a === b) return true;
+            if (Math.abs(a.length - b.length) > 2) return false;
+            let d = 0;
+            for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) d++;
+            return d <= 2; // Allow 2 character differences (e.g. Payabale vs Payable)
+        };
+
+        const sWords = getWords(path);
+        if (sWords.length > 0) {
             const candidates = keys.map(k => {
                 const kWords = getWords(k);
-                const intersection = kWords.filter(kw => searchWords.some(sw => kw === sw));
-                if (intersection.length === 0) return { key: k, score: 0 };
-
-                const score = Math.max(intersection.length / kWords.length, intersection.length / searchWords.length);
+                const intersection = kWords.filter(kw => sWords.some(sw => isSimilar(kw, sw)));
+                const score = intersection.length / Math.max(kWords.length, sWords.length);
                 return { key: k, score };
             })
-                .filter(m => m.score > 0.5)
+                .filter(m => m.score >= 0.5)
                 .sort((a, b) => b.score - a.score);
 
-            if (candidates.length > 0) return target[candidates[0].key];
+            if (candidates.length > 0) {
+                console.log(`[HYPER_FUZZY] Resolved "${path}" to "${candidates[0].key}" (Score: ${candidates[0].score})`);
+                return vars[candidates[0].key];
+            }
+        }
+
+        // 4. Dot Path (Fallback)
+        if (path.includes('.')) {
+            const parts = path.split('.');
+            let current = vars;
+            for (const part of parts) {
+                if (current === null || current === undefined) return undefined;
+                const match = Object.keys(current).find(k => normalize(k) === normalize(part));
+                current = match ? current[match] : undefined;
+            }
+            return current;
         }
 
         return undefined;
