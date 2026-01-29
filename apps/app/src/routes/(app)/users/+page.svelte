@@ -581,7 +581,7 @@
                     <span id="assign-inst-label" class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Assign to Institutions</span>
                     <div class="flex gap-3">
                         <button type="button" onclick={selectAll} class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 uppercase tracking-widest transition-colors">Select All</button>
-                        <button type="button" onclick={clearSelection} class="text-[10px] font-bold text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors">Clear</button>
+                        <button type="button" onclick={clearSelection} class="text-[10px] font-bold text-slate-500 hover:text-red-600 uppercase tracking-widest transition-colors">Clear</button>
                     </div>
                 </div>
                 <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-48 overflow-y-auto space-y-2 shadow-inner" aria-labelledby="assign-inst-label">
@@ -605,7 +605,7 @@
                         <div class="h-1 invisible"></div> <!-- Extra spacer for scroll bottom -->
                     {/each}
                 </div>
-                <div class="mt-2 ml-1 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                <div class="mt-2 ml-1 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">
                     Selected: {universityIds.length} institutions
                 </div>
             </div>
@@ -614,7 +614,7 @@
     </div>
 
     <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-        <button onclick={closeModal} class="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">Discard</button>
+        <button onclick={closeModal} class="text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors uppercase tracking-widest">Discard</button>
         <button 
             onclick={saveUser}
             disabled={isSubmitting || !email || (role !== 'ADMIN' && universityIds.length === 0 && data.isGlobalAdmin) || ((role === 'CMA' || role === 'CMA_MANAGER') && !universityIds.includes('13f3513e-9ab1-4515-a97c-1d7ef7bba9fc'))}

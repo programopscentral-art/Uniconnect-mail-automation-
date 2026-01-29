@@ -14,17 +14,17 @@
 
   let testEmail = $state('');
 
-  $effect.pre(() => {
-    testEmail = data.user?.email || '';
-  });
-
-  // CRITICAL: Reset state when switching campaigns to prevent stale data
+  // CRITICAL: Reset state ONLY when switching to a different campaign
+  let activeCampaignId = $state<string | null>(null);
   $effect(() => {
-      const _id = data.campaign.id;
-      recipients = [];
-      lastRecipientUpdate = null;
-      showRecipients = false;
-      statusFilter = 'ALL';
+      const currentId = data.campaign.id;
+      if (activeCampaignId !== currentId) {
+          activeCampaignId = currentId;
+          recipients = [];
+          lastRecipientUpdate = null;
+          showRecipients = false;
+          statusFilter = 'ALL';
+      }
   });
   let isSendingTest = $state(false);
 

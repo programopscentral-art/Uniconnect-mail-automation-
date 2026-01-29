@@ -43,12 +43,17 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
         // TRIGGER IMMEDIATE SEND
         // We only trigger if the campaign is already active (IN_PROGRESS) or was COMPLETED (re-sending to corrected)
-        if (['IN_PROGRESS', 'COMPLETED', 'FAILED'].includes(campaign.status)) {
+        if (['IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED'].includes(campaign.status)) {
             console.log(`[RECIPIENT_PATCH] Triggering immediate send for ${recipientId}`);
-            // Fire and forget send so response is fast
-            sendToRecipient(campaignId, updated.id).catch(err => {
+
+            // We await it here to ensure the user gets feedback if it fails immediately (e.g. SMTP error)
+            // but we don't throw error if it fails because the DB update was successful.
+            try {
+                const result = await sendToRecipient(campaignId, updated.id);
+                console.log(`[RECIPIENT_PATCH] Send result for ${recipientId}:`, result);
+            } catch (err) {
                 console.error(`[RECIPIENT_PATCH] Background send failed for ${recipientId}:`, err);
-            });
+            }
         }
 
         return json({ success: true, recipient: updated, triggered: true });
