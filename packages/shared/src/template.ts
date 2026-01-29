@@ -97,14 +97,19 @@ export class TemplateRenderer {
         }
 
         // STEP 3: Process remaining placeholders {{key}} (AFTER components are injected)
-        rendered = rendered.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
-            const key = rawKey.trim();
-            const value = this.getValueByPath(vars, key);
-            if (value === undefined) {
-                console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}" (normalized: "${key.trim()}")`);
-            }
-            return value !== undefined && value !== null ? String(value) : match;
-        });
+        const resolveBody = (content: string) => {
+            return content.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
+                const key = rawKey.trim();
+                const value = this.getValueByPath(vars, key);
+                if (value === undefined) {
+                    console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}" (normalized: "${key.trim()}")`);
+                }
+                return value !== undefined && value !== null ? String(value) : match;
+            });
+        };
+
+        rendered = resolveBody(rendered); // Pass 1
+        rendered = resolveBody(rendered); // Pass 2 for nested variables (e.g. {{custom_msg}} containing {{name}})
 
         // STEP 4: Wrap in NIAT Layout
         if (options.noLayout) return rendered;
