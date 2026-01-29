@@ -1,5 +1,5 @@
 import { db, updateCampaignRecipientEmail, getCampaignById } from '@uniconnect/shared';
-import { addEmailJob } from '$lib/server/queue';
+import { sendToRecipient } from '$lib/server/campaign-sender';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -39,26 +39,19 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
             );
         }
 
-        // Fetch student name and external_id for the job
-        const studentRes = await db.query('SELECT name, external_id, metadata FROM students WHERE id = $1', [updated.student_id]);
-        const student = studentRes.rows[0];
+        // Fetch student name and external_id for the job (kept for compatibility in sender)
 
-        // Add job back to queue
-        await addEmailJob({
-            recipientId: updated.id,
-            campaignId: campaignId,
-            email: updated.to_email,
-            trackingToken: updated.tracking_token,
-            templateId: campaign.template_id,
-            mailboxId: campaign.mailbox_id,
-            variables: {
-                studentName: student?.name,
-                studentExternalId: student?.external_id,
-                metadata: student?.metadata
-            }
-        });
+        // TRIGGER IMMEDIATE SEND
+        // We only trigger if the campaign is already active (IN_PROGRESS) or was COMPLETED (re-sending to corrected)
+        if (['IN_PROGRESS', 'COMPLETED', 'FAILED'].includes(campaign.status)) {
+            console.log(`[RECIPIENT_PATCH] Triggering immediate send for ${recipientId}`);
+            // Fire and forget send so response is fast
+            sendToRecipient(campaignId, updated.id).catch(err => {
+                console.error(`[RECIPIENT_PATCH] Background send failed for ${recipientId}:`, err);
+            });
+        }
 
-        return json({ success: true, recipient: updated });
+        return json({ success: true, recipient: updated, triggered: true });
     } catch (err: any) {
         console.error('[RECIPIENT_PATCH] Error:', err);
         throw error(500, err.message);

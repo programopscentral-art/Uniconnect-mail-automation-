@@ -1,5 +1,5 @@
 import { db, getCampaignById, getStudents, getTemplateById, getCampaignRecipients } from '@uniconnect/shared';
-import { addEmailJob } from '$lib/server/queue';
+import { sendToRecipient } from '$lib/server/campaign-sender';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -38,23 +38,15 @@ export const POST: RequestHandler = async ({ params, locals }) => {
         [campaignId]
     );
 
-    // 4. Re-enqueue jobs
-    console.log(`[RETRY] Re-enqueuing ${failedRecipients.length} jobs...`);
-    for (const r of failedRecipients) {
-        await addEmailJob({
-            recipientId: r.id,
-            campaignId: campaign.id,
-            email: r.to_email,
-            trackingToken: r.tracking_token,
-            templateId: campaign.template_id,
-            mailboxId: campaign.mailbox_id,
-            variables: {
-                studentName: r.student_name,
-                studentExternalId: r.external_id,
-                metadata: r.metadata
-            }
-        });
-    }
+    // 4. Trigger Background Sending for failed ones
+    (async () => {
+        console.log(`[RETRY] Starting background send for ${failedRecipients.length} recipients...`);
+        for (const r of failedRecipients) {
+            await sendToRecipient(campaignId, r.id);
+            // Small stagger
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    })();
 
     return json({ success: true, count: failedRecipients.length });
 };
