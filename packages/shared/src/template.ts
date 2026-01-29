@@ -53,13 +53,18 @@ export class TemplateRenderer {
                 const btnText = config?.payButton?.text || '💳 Pay Fee Online';
                 let btnUrl = config?.payButton?.url || '';
 
-                // Resolve placeholders in the URL
-                btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m, k) => {
-                    const val = this.getValueByPath(vars, k.trim());
-                    return val !== undefined && val !== null ? String(val) : m;
-                });
+                const ensureProtocol = (url: string) => {
+                    if (!url || url === '#' || url === 'undefined') return '#';
+                    // If it contains a placeholder, we let it be resolved in Step 3
+                    if (url.includes('{{')) return url;
+                    const trimmed = url.trim();
+                    if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
+                    // Fuzzy check: if it looks like a domain or path, add https
+                    if (trimmed.includes('.') || trimmed.includes('/')) return `https://${trimmed}`;
+                    return trimmed;
+                };
 
-                // Aggressive Fallback Lookup
+                // Aggressive Fallback Lookup (if config is missing or expects placeholder)
                 if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
                     const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
                     for (const sk of searchKeys) {
@@ -71,11 +76,9 @@ export class TemplateRenderer {
                     }
                 }
 
-                const finalUrl = (btnUrl && btnUrl !== '#')
-                    ? (btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl)
-                    : '#';
+                const finalUrl = ensureProtocol(btnUrl);
 
-                return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
+                return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
             }
 
             return match; // Not a component marker, leave for Step 3
@@ -89,7 +92,9 @@ export class TemplateRenderer {
                 if (value === undefined) {
                     // console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}"`);
                 }
-                return value !== undefined && value !== null ? String(value) : match;
+                const resolved = value !== undefined && value !== null ? String(value) : match;
+                // Recursive check for protocol if this resolved into a URL inside an href
+                return resolved;
             });
         };
 
@@ -140,7 +145,7 @@ export class TemplateRenderer {
                 ${options.includeAck ? `
                 <div style="background:#f0f7ff; border:1px solid #e0effe; border-radius:12px; padding:24px; margin-top:24px; text-align:center;">
                     <p style="font-size:14px;color:#1e40af;margin-bottom:16px; font-weight: 500;">By clicking below, I acknowledge reading this message:</p>
-                    <a href="${ackLink}" style="background:#2563eb; color:#ffffff !important; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:600; display:inline-block;">✓ I Acknowledge & Agree</a>
+                    <a href="${ackLink}" target="_blank" rel="noopener noreferrer" style="background:#2563eb; color:#ffffff !important; padding:12px 28px; border-radius:8px; text-decoration:none; font-weight:600; display:inline-block;">✓ I Acknowledge & Agree</a>
                 </div>` : ''}
             </div>
             <div class="footer">
