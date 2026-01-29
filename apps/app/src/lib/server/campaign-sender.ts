@@ -13,7 +13,11 @@ export async function sendToRecipient(
     recipientId: string,
     gmailInstance?: any
 ): Promise<SendResult> {
+    // Prepare environment for decryption
+    process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
+
     try {
+
         // 1. Fetch Fresh Data
         const [campaignArr, recipientArr] = await Promise.all([
             db.query('SELECT * FROM campaigns WHERE id = $1', [campaignId]),
@@ -46,13 +50,23 @@ export async function sendToRecipient(
         const template = await getTemplateById(campaign.template_id);
         if (!template) throw new Error('Template not found');
 
+        // Robust Metadata Handling
+        let metaObj = recipient.metadata;
+        if (typeof metaObj === 'string') {
+            try { metaObj = JSON.parse(metaObj); } catch (e) { metaObj = {}; }
+        }
+        metaObj = metaObj || {};
+
         const variables = {
             studentName: recipient.student_name,
             STUDENT_NAME: recipient.student_name,
+            name: recipient.student_name, // Added 'name' for common usage
             studentExternalId: recipient.external_id,
-            metadata: recipient.metadata,
-            ...(recipient.metadata || {})
+            metadata: metaObj,
+            ...metaObj
         };
+
+        console.log(`[CAMPAIGN_SENDER] Variables for ${recipient.to_email}:`, JSON.stringify(variables));
 
         const subject = TemplateRenderer.render(template.subject, variables, {
             config: template.config,
