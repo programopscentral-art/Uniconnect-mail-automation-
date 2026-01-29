@@ -29,7 +29,7 @@ export class TemplateRenderer {
                 if (value !== undefined && value !== null) return String(value);
 
                 // If not found, log it and return the original match (defensive)
-                console.warn(`[TEMPLATE_RENDER] Resolution failed for key: "${key}"`);
+                console.warn(`[TEMPLATE_RENDER] FAIL: "${key}". Available Keys (vars): ${Object.keys(vars).slice(0, 20).join(', ')}...`);
                 return match;
             });
         };
