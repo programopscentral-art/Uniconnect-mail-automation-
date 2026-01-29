@@ -68,12 +68,21 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         }
 
         // 5. Prepare variables
+        let metaObj = sampleStudent.metadata || {};
+        if (typeof metaObj === 'string') {
+            try { metaObj = JSON.parse(metaObj); } catch (e) { metaObj = {}; }
+        }
+
         const variables = {
             studentName: sampleStudent.name,
             STUDENT_NAME: sampleStudent.name,
+            name: sampleStudent.name,
             studentExternalId: sampleStudent.external_id,
-            metadata: sampleStudent.metadata,
-            ...(sampleStudent.metadata || {})
+            metadata: metaObj,
+            ...metaObj,
+            // Add helpful fallbacks for test emails
+            'TERM_FEE': metaObj['TERM_FEE'] || metaObj['Fee Amount'] || '150,000',
+            'Payment link': metaObj['Payment link'] || template.config?.payButton?.url || 'https://example.com/pay'
         };
 
         // 6. Render template

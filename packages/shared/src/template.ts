@@ -86,8 +86,14 @@ export class TemplateRenderer {
             }
 
             // Verify we have a valid URL before injecting button
-            if (btnUrl && btnUrl !== '#' && !btnUrl.includes('{{')) {
-                const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${btnUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
+            // During testing/crawling, we might have unresolved placeholders; 
+            // We want the button to show up regardless so the user can see the layout.
+            if (btnUrl && btnUrl !== '#') {
+                // If it still has placeholders like {{...}}, it might be a test mail without full data.
+                // We'll keep the button but clean the URL of raw tags if possible, or just leave it.
+                const cleanUrl = btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl;
+
+                const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${cleanUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
                 rendered = rendered.replace('{{ACTION_BUTTON}}', btnHtml);
                 rendered = rendered.replace('{{PAY_LINK}}', btnHtml);
             } else {

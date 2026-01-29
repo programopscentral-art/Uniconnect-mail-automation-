@@ -8,12 +8,9 @@ export const POST: RequestHandler = async ({ params }) => {
 
     try {
         const res = await markRecipientAck(token);
-        if (res) {
-            return json({ success: true });
-        } else {
-            // Already acked or invalid
-            return json({ success: false, message: 'Invalid or already acknowledged' }, { status: 404 });
-        }
+        // We return success even if previously acked (res will be null because of status != 'ACKNOWLEDGED' check)
+        // to prevent users from seeing an "Error" page on a second click.
+        return json({ success: true, alreadyAcked: !res });
     } catch (e) {
         console.error(e);
         return json({ error: 'Internal Error' }, { status: 500 });

@@ -414,6 +414,13 @@
             <p class="mt-2 text-3xl font-black text-blue-600">{data.campaign.open_count}</p>
         </button>
         <button 
+            onclick={() => loadRecipients(false, 'ACKNOWLEDGED')}
+            class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'ACKNOWLEDGED' ? 'border-green-500 ring-4 ring-green-50' : 'border-gray-100'} hover:border-green-200 transition-all text-left group"
+        >
+            <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">Acknowledged</h3>
+            <p class="mt-2 text-3xl font-black text-green-600">{data.campaign.ack_count || 0}</p>
+        </button>
+        <button 
             onclick={() => loadRecipients(false, 'FAILED')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'FAILED' ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-100'} hover:border-red-200 transition-all text-left relative group"
         >
@@ -433,7 +440,7 @@
             <div>
                 <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
                 <div class="flex gap-2 mt-2">
-                    {#each ['ALL', 'SENT', 'OPENED', 'FAILED'] as filter}
+                    {#each ['ALL', 'SENT', 'OPENED', 'ACKNOWLEDGED', 'FAILED'] as filter}
                         <button 
                             onclick={() => statusFilter = filter as any}
                             class="px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all
