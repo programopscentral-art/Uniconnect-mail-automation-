@@ -178,114 +178,85 @@ export class TemplateRenderer {
     }
 
     private static getValueByPath(obj: any, path: string): any {
-        if (!path) return undefined;
+        if (!path || !obj) return undefined;
 
-        const normalize = (s: string) => {
+        console.log(`[RESOLVE] Attempting to find match for: "${path}"`);
+
+        const clean = (s: string) => {
             if (!s) return '';
-            const step1 = s.toLowerCase()
-                .replace(/<[^>]*>/g, ' ')            // Strip HTML tags
-                .replace(/&nbsp;/g, ' ')             // Resolve entities
-                .replace(/[\n\r\t\s\xa0]+/g, ' ')    // Standardize all whitespace
+            return String(s).toLowerCase()
+                .replace(/<[^>]*>/g, ' ')            // Strip HTML
+                .replace(/&nbsp;/g, ' ')             // Resolve non-breaking space
+                .replace(/[\u200B-\u200D\uFEFF]/g, '') // Strip zero-width characters
+                .replace(/[^a-z0-9]/g, '')           // Keep only alphanumeric
                 .trim();
-
-            // HYPER-NORMALIZATION: Ignore everything except alphanumeric
-            // This ensures "Total Fee (Paid)" matches "TotalFeePaid", etc.
-            return step1.replace(/[^a-z0-9]/g, '');
         };
-        const searchPath = normalize(path);
 
-        // 1. Full path match (Fuzzy whitespace & Case-insensitive)
-        const checkObj = (target: any) => {
+        const searchPath = clean(path);
+        if (!searchPath) return undefined;
+
+        const checkObj = (target: any): any => {
             if (!target || typeof target !== 'object') return undefined;
 
             const keys = Object.keys(target);
 
-            // 1.1 Direct fuzzy match (normalized whitespace and underscores)
-            const key = keys.find(k => normalize(k) === searchPath);
-            if (key) return target[key];
+            // 1. Direct Alphanumeric Match (The most reliable)
+            const exactKey = keys.find(k => clean(k) === searchPath);
+            if (exactKey) {
+                console.log(`[RESOLVE] Exact Alphanumeric match found for "${path}" -> "${exactKey}"`);
+                return target[exactKey];
+            }
 
-            // 1.2 Aggressive Alphanumeric match (ignores everything except letters and numbers)
-            const alphaOnly = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const searchAlpha = alphaOnly(searchPath);
+            // 2. Word Intersection (The "Smart Fuzzy" Logic)
+            const getWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 0);
+            const searchWords = getWords(path);
 
-            if (searchAlpha) {
-                const alphaKey = keys.find(k => alphaOnly(k) === searchAlpha);
-                if (alphaKey) return target[alphaKey];
+            if (searchWords.length > 0) {
+                const candidates = keys.map(k => {
+                    const kWords = getWords(k);
+                    const intersection = searchWords.filter(w => kWords.includes(w));
 
-                // 1.3 Substring Match (for long descriptive keys)
-                if (searchAlpha.length > 8) {
-                    const subKey = keys.find(k => {
-                        const ka = alphaOnly(k);
-                        return ka.length > 5 && (searchAlpha.includes(ka) || ka.includes(searchAlpha));
-                    });
-                    if (subKey) return target[subKey];
+                    // Score = matches / number of words in the metadata key
+                    // We also account for the length of words to favor specific matches
+                    const score = (intersection.join('').length) / (kWords.join('').length || 1);
+
+                    // Boost if ALL metadata words are present in the search path (extremely likely match)
+                    const allMetaPresent = kWords.length >= 1 && kWords.every(kw => searchWords.includes(kw));
+                    const finalScore = allMetaPresent ? Math.max(score, 0.95) : score;
+
+                    return { key: k, score: finalScore };
+                })
+                    .filter(m => m.score > 0.35) // Lower threshold for long descriptions
+                    .sort((a, b) => b.score - a.score);
+
+                if (candidates.length > 0) {
+                    console.log(`[RESOLVE] Fuzzy match found for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score})`);
+                    return target[candidates[0].key];
                 }
-
-                // 1.4 Word Intersection (the "Deep Fuzzy" logic)
-                // We split by any non-alphanumeric to get clean tokens
-                const getWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length >= 1);
-                const searchWords = getWords(path);
-
-                if (searchWords.length >= 1) {
-                    const matches = keys.map(k => {
-                        const kWords = getWords(k);
-                        const intersection = searchWords.filter(w => kWords.includes(w));
-                        // High weight for matching short critical tokens like '1', '2', 'os'
-                        const score = intersection.length / Math.max(searchWords.length, kWords.length);
-
-                        // Boost if metadata key is a significant meaning subset
-                        const isSubset = kWords.length >= 2 && kWords.every(kw => searchWords.includes(kw));
-                        const finalScore = isSubset ? Math.max(score, 0.85) : score;
-
-                        return { key: k, score: finalScore };
-                    })
-                        .filter(m => m.score > 0.45) // Very permissive but ranked
-                        .sort((a, b) => b.score - a.score);
-
-                    if (matches.length > 0) {
-                        console.log(`[TEMPLATE_FUZZY] Best match for "${path}": "${matches[0].key}" (Score: ${matches[0].score})`);
-                        return target[matches[0].key];
-                    }
-                }
-
-                // 1.5 Singular match
-                const singularAlpha = (s: string) => alphaOnly(s).replace(/s$/, '');
-                const searchSingular = singularAlpha(searchPath);
-                const singularKey = keys.find(k => singularAlpha(k) === searchSingular);
-                if (singularKey) return target[singularKey];
             }
 
             return undefined;
         };
 
-        const fromRoot = checkObj(obj);
-        if (fromRoot !== undefined) {
-            console.log(`[TEMPLATE_MATCH] Found "${path}" in root`);
-            return fromRoot === null ? '' : fromRoot;
-        }
+        // Try root level, then metadata level
+        let result = checkObj(obj);
+        if (result === undefined && obj.metadata) result = checkObj(obj.metadata);
 
-        const fromMetadata = checkObj(obj.metadata);
-        if (fromMetadata !== undefined) {
-            console.log(`[TEMPLATE_MATCH] Found "${path}" in metadata`);
-            return fromMetadata === null ? '' : fromMetadata;
-        }
-
-        // 2. Deep path match (a.b.c)
-        const parts = path.split('.');
-        if (parts.length > 1) {
+        // Deep nested fallback (a.b.c)
+        if (result === undefined && path.includes('.')) {
+            const parts = path.split('.');
             let current = obj;
-            for (const part of parts) {
-                if (current && typeof current === 'object') {
-                    const key = Object.keys(current).find(k => normalize(k) === normalize(part));
-                    current = key ? current[key] : undefined;
-                } else {
-                    current = undefined;
-                    break;
-                }
+            for (const p of parts) {
+                current = checkObj(current);
+                if (current === undefined) break;
             }
-            if (current !== undefined) return current;
+            result = current;
         }
 
-        return undefined;
+        if (result === undefined) {
+            console.warn(`[RESOLVE] NO MATCH found for "${path}". Keys searched: ${Object.keys(obj.metadata || {}).join(', ')}`);
+        }
+
+        return result === null ? '' : result;
     }
 }

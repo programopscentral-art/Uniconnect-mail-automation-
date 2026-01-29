@@ -5,11 +5,7 @@
   // @ts-ignore
   let { data } = $props();
 
-  let selectedUniversityId = $state('');
-
-  $effect.pre(() => {
-    selectedUniversityId = data.selectedUniversityId || '';
-  });
+  let selectedUniversityId = $state(data.selectedUniversityId || '');
   let campaigns = $derived(data.campaigns);
 
   onMount(() => {

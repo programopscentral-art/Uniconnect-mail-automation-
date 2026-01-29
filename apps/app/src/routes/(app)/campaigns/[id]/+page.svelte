@@ -30,10 +30,22 @@
 
   let isRetrying = $state(false);
   let statusFilter = $state<'ALL' | 'FAILED' | 'SENT' | 'OPENED' | 'ACKNOWLEDGED'>('ALL');
+  let recipientSearch = $state('');
 
   let filteredRecipients = $derived.by(() => {
-      if (statusFilter === 'ALL') return recipients;
-      return recipients.filter(r => r.status === statusFilter);
+      let result = recipients;
+      if (statusFilter !== 'ALL') {
+          result = result.filter(r => r.status === statusFilter);
+      }
+      if (recipientSearch) {
+          const s = recipientSearch.toLowerCase();
+          result = result.filter(r => 
+              (r.student_name && r.student_name.toLowerCase().includes(s)) ||
+              (r.to_email && r.to_email.toLowerCase().includes(s)) ||
+              (r.external_id && r.external_id.toLowerCase().includes(s))
+          );
+      }
+      return result;
   });
 
   // Edit Student Modal
@@ -458,9 +470,9 @@
     <!-- Recipients -->
     <div class="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-100">
         <div class="px-8 py-6 flex justify-between items-center bg-gray-50/50">
-            <div>
+            <div class="flex-1 max-w-2xl">
                 <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
-                <div class="flex gap-2 mt-2">
+                <div class="flex flex-wrap gap-2 mt-3">
                     {#each ['ALL', 'SENT', 'OPENED', 'ACKNOWLEDGED', 'FAILED'] as filter}
                         <button 
                             onclick={() => statusFilter = filter as any}
@@ -470,6 +482,15 @@
                             {filter}
                         </button>
                     {/each}
+                    <div class="relative ml-2 flex-1 min-w-[200px]">
+                        <input 
+                            type="text" 
+                            bind:value={recipientSearch}
+                            placeholder="Search by name or email..."
+                            class="w-full px-4 py-1 rounded-lg text-[10px] font-bold border border-gray-100 focus:border-indigo-600 outline-none shadow-inner bg-white/50"
+                        />
+                        <svg class="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-4">
