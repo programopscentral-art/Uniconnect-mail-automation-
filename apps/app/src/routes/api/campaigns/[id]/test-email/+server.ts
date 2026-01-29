@@ -81,8 +81,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             metadata: metaObj,
             ...metaObj,
             // Add helpful fallbacks for test emails
-            'TERM_FEE': metaObj['TERM_FEE'] || metaObj['Fee Amount'] || '150,000',
-            'Payment link': metaObj['Payment link'] || template.config?.payButton?.url || 'https://example.com/pay'
+            'TERM_FEE': metaObj['TERM_FEE'] || metaObj['Fee Amount'] || metaObj['2nd Sem Fee'] || '150,000',
+            'Payment link': metaObj['Payment link'] || metaObj['pay_link'] || metaObj['PAY_LINK'] || template.config?.payButton?.url || ''
         };
 
         // 6. Render template

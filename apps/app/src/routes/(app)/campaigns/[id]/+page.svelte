@@ -232,8 +232,8 @@
         const interval = setInterval(async () => {
             // Only poll if campaign is active AND not locally overridden (to avoid lag)
             const currentStatus = localStatusOverride || data.campaign.status;
-            if (currentStatus === 'RUNNING' || currentStatus === 'QUEUED' || currentStatus === 'SCHEDULED') {
-                const res = await fetch(`/api/campaigns/${data.campaign.id}/progress`);
+            if (currentStatus === 'IN_PROGRESS' || currentStatus === 'QUEUED' || currentStatus === 'SCHEDULED') {
+                const res = await fetch(`/api/campaigns/${data.campaign.id}`);
                 if (res.ok) {
                     const stats = await res.json();
                     data.campaign = { ...data.campaign, ...stats };
@@ -244,7 +244,7 @@
                     }
                 }
             }
-        }, 1000);
+        }, 3000); // Polling every 3 seconds to reduce load
         return () => clearInterval(interval);
     });
 
