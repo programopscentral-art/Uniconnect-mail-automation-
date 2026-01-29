@@ -66,8 +66,14 @@ export class TemplateRenderer {
         const buttonRegex = /\{\{\s*(ACTION_BUTTON|PAY_LINK|PAY_BUTTON|PAY_FEE_BUTTON)\s*\}\}/gi;
 
         if (/\{\{\s*(ACTION_BUTTON|PAY_LINK|PAY_BUTTON|PAY_FEE_BUTTON)\s*\}\}/i.test(rendered)) {
-            const btnText = options?.config?.payButton?.text || '💳 Pay Fee Online';
-            let btnUrl = options?.config?.payButton?.url || '';
+            // Defensive config parsing
+            let config = options?.config || {};
+            if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
+
+            const btnText = config?.payButton?.text || '💳 Pay Fee Online';
+            let btnUrl = config?.payButton?.url || '';
+
+            console.log(`[TEMPLATE_RENDER] Button marker found. Initial URL from config: "${btnUrl}"`);
 
             // Resolve placeholders in the URL itself if it's a dynamic field
             btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
@@ -76,20 +82,45 @@ export class TemplateRenderer {
                 return val !== undefined && val !== null ? String(val) : m;
             });
 
-            // Special fallback for the legacy markers if still used
-            if (!btnUrl || btnUrl === '#') {
-                const meta = variables.metadata || variables || {};
-                btnUrl = meta['Payment link'] || meta['pay_link'] || meta['PAY_LINK'] || meta['PAYMENT_LINK'] || '#';
+            // HYPER-AGGRESSIVE URL LOOKUP
+            // If No URL from config, search the entire vars object for anything resembling a payment link
+            if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
+                const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
+                for (const sk of searchKeys) {
+                    const found = this.getValueByPath(vars, sk);
+                    if (found && typeof found === 'string' && found.length > 5) {
+                        btnUrl = found;
+                        console.log(`[TEMPLATE_RENDER] Found URL via aggressive search key "${sk}": ${btnUrl}`);
+                        break;
+                    }
+                }
             }
 
-            // Verify we have a valid URL before injecting button
-            if (btnUrl && btnUrl !== '#') {
-                const cleanUrl = btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl;
-                const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${cleanUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
-                rendered = rendered.replace(buttonRegex, btnHtml);
-            } else {
-                rendered = rendered.replace(buttonRegex, '');
+            // Still No URL? Try a generic "contains link" search in all keys
+            if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
+                const allKeys = Object.keys(vars);
+                const likelyKey = allKeys.find(k => {
+                    const low = k.toLowerCase();
+                    return (low.includes('pay') && low.includes('link')) || (low.includes('payment') && low.includes('url'));
+                });
+                if (likelyKey) {
+                    btnUrl = vars[likelyKey];
+                    console.log(`[TEMPLATE_RENDER] Found URL via "contains" search in key "${likelyKey}": ${btnUrl}`);
+                }
             }
+
+            // Safety cleanup
+            const cleanUrl = (btnUrl && btnUrl !== '#')
+                ? (btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl)
+                : '';
+
+            // FINAL DECISION: If we have ANY marker, we MUST show a button.
+            // If the URL is missing, we use a placeholder instead of hiding it, so the user sees the layout.
+            const finalUrl = cleanUrl || '#';
+            const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
+
+            console.log(`[TEMPLATE_RENDER] Injecting button with final URL: ${finalUrl}`);
+            rendered = rendered.replace(buttonRegex, btnHtml);
         }
 
         // STEP 3: Process remaining placeholders {{key}} (AFTER components are injected)
