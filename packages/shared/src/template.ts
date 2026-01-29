@@ -17,15 +17,25 @@ export class TemplateRenderer {
         };
         const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // Helper to resolve placeholders inside a specific string
-        const resolveStr = (s: string) => {
-            if (!s) return '';
-            return String(s).replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
-                const key = rawKey.trim();
+        // UNIFIED PLACEHOLDER RESOLVER
+        const resolve = (content: string) => {
+            if (!content) return '';
+            // Match {{...}} including newlines, handle extra closing braces
+            return content.replace(/\{\{(.+?)\}\}/gs, (match, rawKey) => {
+                // Clean the key: remove trailing } if it was a triple-brace, and trim
+                const key = rawKey.replace(/\}$/, '').trim();
                 const value = this.getValueByPath(vars, key);
-                return value !== undefined && value !== null ? String(value) : match;
+
+                if (value !== undefined && value !== null) return String(value);
+
+                // If not found, log it and return the original match (defensive)
+                console.warn(`[TEMPLATE_RENDER] Resolution failed for key: "${key}"`);
+                return match;
             });
         };
+
+        // STEP 1 & 2: REFACTORED COMPONENT INJECTION
+        const componentRegex = /\{\{\s*(.*?)\s*\}\}/gis;
 
         const ensureProtocol = (url: string) => {
             if (!url || url === '#' || url === 'undefined') return '#';
@@ -35,42 +45,39 @@ export class TemplateRenderer {
             return trimmed;
         };
 
-        // STEP 1 & 2: REFACTORED COMPONENT INJECTION (Fuzzy Detection)
-        const markerRegex = /\{\{\s*(.*?)\s*\}\}/gi;
-
-        let rendered = template.replace(markerRegex, (match, rawMarkerContent) => {
-            const norm = normKey(rawMarkerContent);
+        let rendered = template.replace(componentRegex, (match, rawMarkerContent) => {
+            const norm = normKey(rawMarkerContent.replace(/\}$/, '')); // Handle triple brace in components too
 
             // 1. Is it a TABLE marker?
             if (['table', 'feetable', 'feesummary', 'summarrytable'].includes(norm)) {
                 let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
                 if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
                     const meta = variables.metadata || variables || {};
-                    const feeAmount = meta['2nd Sem Fee'] || meta['fee'] || meta['TERM_FEE'] || meta['Fee Amount'] || '';
+                    const feeAmount = this.getValueByPath(vars, '2nd Sem Fee') || this.getValueByPath(vars, 'fee') || '';
                     if (feeAmount) tableRows = [{ label: 'Academic & Term Fee', value: feeAmount }];
                 }
 
                 if (tableRows && tableRows.length > 0) {
                     const processedRows = tableRows.map((r: any) => ({
-                        label: resolveStr(r.label),
-                        value: resolveStr(r.value)
+                        label: resolve(r.label),
+                        value: resolve(r.value)
                     }));
                     return this.buildTable(processedRows);
                 }
                 return '';
             }
 
-            // 2. Is it a BUTTON marker? (Aggressive List)
+            // 2. Is it a BUTTON marker?
             if (['actionbutton', 'paylink', 'paybutton', 'payfeebutton', 'payfeeonline', 'paymentlink', 'payfee'].includes(norm)) {
                 let config = options?.config || {};
                 if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
                 const btnText = config?.payButton?.text || '💳 Pay Fee Online';
                 let btnUrl = config?.payButton?.url || '';
 
-                // Immediate Resolution
-                btnUrl = resolveStr(btnUrl);
+                // Resolve any placeholders inside the URL
+                btnUrl = resolve(btnUrl);
 
-                // Aggressive Fallback Lookup (if config is missing or resolved to empty/placeholder)
+                // Aggressive Fallback Lookup
                 if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{') || btnUrl.includes('example.com')) {
                     const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
                     for (const sk of searchKeys) {
@@ -86,21 +93,12 @@ export class TemplateRenderer {
                 return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
             }
 
-            return match; // Not a component marker, leave for Step 3
+            return match; // Not a component, leave for Step 3
         });
 
-        // STEP 3: Process remaining placeholders {{key}}
-        // Hande both {{key}} and {{key}}} cases gracefully
-        const resolveBody = (content: string) => {
-            return content.replace(/\{\{(.*?)\}\}/gs, (match, rawKey) => {
-                const key = rawKey.replace(/\}$/, '').trim(); // Remove trailing } if it's a triple brace case
-                const value = this.getValueByPath(vars, key);
-                return value !== undefined && value !== null ? String(value) : match;
-            });
-        };
-
-        rendered = resolveBody(rendered); // Pass 1
-        rendered = resolveBody(rendered); // Pass 2 (nested)
+        // STEP 3: Final Resolution (recursive for nested tags)
+        rendered = resolve(rendered);
+        rendered = resolve(rendered);
 
         // STEP 4: Wrap in NIAT Layout
         if (options.noLayout) return rendered;
