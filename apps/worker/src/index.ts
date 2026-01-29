@@ -326,5 +326,3 @@ checkTaskDeadlines();
 console.log('✅ Worker started with Campaign, System, and Reminder support.');
 console.log('📬 Listening for jobs on queue: email-sending');
 console.log('🔔 Listening for jobs on queue: system-notifications');
-/ /   T R A C E R :   0 1 / 2 9 / 2 0 2 6   1 7 : 1 1 : 5 3  
- 

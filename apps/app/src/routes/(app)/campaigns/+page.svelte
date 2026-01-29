@@ -4,8 +4,14 @@
   import { fade } from 'svelte/transition';
   // @ts-ignore
   let { data } = $props();
+  let selectedUniversityId = $state('');
 
-  let selectedUniversityId = $state(data.selectedUniversityId || '');
+  $effect(() => {
+    if (data.selectedUniversityId) {
+      selectedUniversityId = data.selectedUniversityId;
+    }
+  });
+
   let campaigns = $derived(data.campaigns);
 
   onMount(() => {

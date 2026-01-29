@@ -1,0 +1,15 @@
+// vite.config.ts
+import { sveltekit } from "file:///C:/Desktop/uniconnect-mail-automation/node_modules/.pnpm/@sveltejs+kit@2.50.1_@sveltejs+vite-plugin-svelte@4.0.4_svelte@5.48.5_typescript@5.9.3_vite@5.4.21/node_modules/@sveltejs/kit/src/exports/vite/index.js";
+import { defineConfig } from "file:///C:/Desktop/uniconnect-mail-automation/node_modules/.pnpm/vite@5.4.21_@types+node@20.19.30/node_modules/vite/dist/node/index.js";
+var vite_config_default = defineConfig({
+  plugins: [sveltekit()],
+  server: {
+    host: "0.0.0.0",
+    port: 3001,
+    strictPort: true
+  }
+});
+export {
+  vite_config_default as default
+};
+//# sourceMappingURL=data:application/json;base64,ewogICJ2ZXJzaW9uIjogMywKICAic291cmNlcyI6IFsidml0ZS5jb25maWcudHMiXSwKICAic291cmNlc0NvbnRlbnQiOiBbImNvbnN0IF9fdml0ZV9pbmplY3RlZF9vcmlnaW5hbF9kaXJuYW1lID0gXCJDOlxcXFxEZXNrdG9wXFxcXHVuaWNvbm5lY3QtbWFpbC1hdXRvbWF0aW9uXFxcXGFwcHNcXFxcYXBwXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ZpbGVuYW1lID0gXCJDOlxcXFxEZXNrdG9wXFxcXHVuaWNvbm5lY3QtbWFpbC1hdXRvbWF0aW9uXFxcXGFwcHNcXFxcYXBwXFxcXHZpdGUuY29uZmlnLnRzXCI7Y29uc3QgX192aXRlX2luamVjdGVkX29yaWdpbmFsX2ltcG9ydF9tZXRhX3VybCA9IFwiZmlsZTovLy9DOi9EZXNrdG9wL3VuaWNvbm5lY3QtbWFpbC1hdXRvbWF0aW9uL2FwcHMvYXBwL3ZpdGUuY29uZmlnLnRzXCI7aW1wb3J0IHsgc3ZlbHRla2l0IH0gZnJvbSAnQHN2ZWx0ZWpzL2tpdC92aXRlJztcbmltcG9ydCB7IGRlZmluZUNvbmZpZyB9IGZyb20gJ3ZpdGUnO1xuXG5leHBvcnQgZGVmYXVsdCBkZWZpbmVDb25maWcoe1xuXHRwbHVnaW5zOiBbc3ZlbHRla2l0KCldLFxuXHRzZXJ2ZXI6IHtcblx0XHRob3N0OiAnMC4wLjAuMCcsXG5cdFx0cG9ydDogMzAwMSxcblx0XHRzdHJpY3RQb3J0OiB0cnVlXG5cdH1cbn0pOyJdLAogICJtYXBwaW5ncyI6ICI7QUFBc1UsU0FBUyxpQkFBaUI7QUFDaFcsU0FBUyxvQkFBb0I7QUFFN0IsSUFBTyxzQkFBUSxhQUFhO0FBQUEsRUFDM0IsU0FBUyxDQUFDLFVBQVUsQ0FBQztBQUFBLEVBQ3JCLFFBQVE7QUFBQSxJQUNQLE1BQU07QUFBQSxJQUNOLE1BQU07QUFBQSxJQUNOLFlBQVk7QUFBQSxFQUNiO0FBQ0QsQ0FBQzsiLAogICJuYW1lcyI6IFtdCn0K
