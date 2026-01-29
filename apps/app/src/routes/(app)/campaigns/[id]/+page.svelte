@@ -213,6 +213,7 @@
         try {
             const res = await fetch(`/api/campaigns/${data.campaign.id}/stop`, { method: 'POST' });
             if (res.ok) {
+                localStatusOverride = 'STOPPED';
                 data.campaign.status = 'STOPPED';
                 alert('Campaign Stopped!');
                 invalidateAll();
@@ -225,11 +226,34 @@
         }
     }
 
+    let localStatusOverride = $state<string | null>(null);
+
+    $effect(() => {
+        const interval = setInterval(async () => {
+            // Only poll if campaign is active AND not locally overridden (to avoid lag)
+            const currentStatus = localStatusOverride || data.campaign.status;
+            if (currentStatus === 'RUNNING' || currentStatus === 'QUEUED' || currentStatus === 'SCHEDULED') {
+                const res = await fetch(`/api/campaigns/${data.campaign.id}/progress`);
+                if (res.ok) {
+                    const stats = await res.json();
+                    data.campaign = { ...data.campaign, ...stats };
+                    
+                    // Clear override if the polled status finally matches what we expect
+                    if (data.campaign.status === localStatusOverride) {
+                        localStatusOverride = null;
+                    }
+                }
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    });
+
     async function resumeCampaign() {
         if (!confirm('▶️ Are you sure you want to RESUME this campaign? Emails will start sending to remaining recipients.')) return;
         try {
             const res = await fetch(`/api/campaigns/${data.campaign.id}/resume`, { method: 'POST' });
             if (res.ok) {
+                localStatusOverride = 'QUEUED';
                 data.campaign.status = 'QUEUED';
                 const result = await res.json();
                 alert(result.message);

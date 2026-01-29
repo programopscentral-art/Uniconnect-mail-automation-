@@ -15,113 +15,71 @@ export class TemplateRenderer {
             ...variables,
             ...metaObj
         };
-        let rendered = template;
+        const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        // STEP 1: Auto-inject Dynamic Table (ONLY if placeholder exists)
-        const tableRegex = /\{\{\s*(TABLE|FEE_TABLE)\s*\}\}/gi;
-        // Use a non-global regex for the test to avoid moving lastIndex
-        if (/\{\{\s*(TABLE|FEE_TABLE)\s*\}\}/i.test(rendered)) {
-            let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
+        // STEP 1 & 2: REFACTORED COMPONENT INJECTION (Fuzzy Detection)
+        // This regex matches ALL {{ ... }} blocks and checking if they are component markers
+        const markerRegex = /\{\{\s*(.*?)\s*\}\}/gi;
 
-            // If explicit empty array was passed, treat as empty, but if undefined, try to fallback
-            if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
-                const meta = variables.metadata || variables || {};
-                const feeAmount = meta['2nd Sem Fee'] || meta['fee'] || meta['TERM_FEE'] || meta['Fee Amount'] || '';
-                if (feeAmount) {
-                    tableRows = [{ label: 'Academic & Term Fee', value: feeAmount }];
+        let rendered = template.replace(markerRegex, (match, rawMarkerContent) => {
+            const norm = normKey(rawMarkerContent);
+
+            // 1. Is it a TABLE marker?
+            if (['table', 'feetable', 'feesummary', 'summarrytable'].includes(norm)) {
+                let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
+                if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
+                    const meta = variables.metadata || variables || {};
+                    const feeAmount = meta['2nd Sem Fee'] || meta['fee'] || meta['TERM_FEE'] || meta['Fee Amount'] || '';
+                    if (feeAmount) tableRows = [{ label: 'Academic & Term Fee', value: feeAmount }];
                 }
-            }
 
-            if (tableRows && tableRows.length > 0) {
-                // Process placeholders in row values recursively (up to 2 levels)
-                const processedRows = tableRows.map((r: any) => {
-                    let label = String(r.label || '');
-                    let value = String(r.value || '');
-
-                    const resolve = (s: string) => {
-                        return s.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
-                            const key = rawKey.trim();
-                            const val = this.getValueByPath(vars, key);
+                if (tableRows && tableRows.length > 0) {
+                    const processedRows = tableRows.map((r: any) => {
+                        const resolve = (s: string) => String(s).replace(/\{\{(.*?)\}\}/gs, (m, k) => {
+                            const val = this.getValueByPath(vars, k.trim());
                             return val !== undefined && val !== null ? String(val) : m;
                         });
-                    };
-
-                    // Pass 1
-                    value = resolve(value);
-                    // Pass 2 (in case of nested placeholders)
-                    value = resolve(value);
-
-                    return { label, value };
-                });
-                const tableHtml = this.buildTable(processedRows);
-                rendered = rendered.replace(tableRegex, tableHtml);
-            } else {
-                // IMPORTANT: If no data found, remove the marker so it doesn't show as raw text
-                rendered = rendered.replace(tableRegex, '');
+                        return { label: resolve(r.label), value: resolve(r.value) };
+                    });
+                    return this.buildTable(processedRows);
+                }
+                return ''; // Remove if no data
             }
-        }
 
-        // STEP 2: Auto-inject Payment Button (BEFORE general placeholder replacement)
-        // Expanded to cover any case-insensitive variation of ACTION_BUTTON, PAY_LINK, or PAY_BUTTON
-        const buttonRegex = /\{\{\s*(ACTION_BUTTON|PAY_LINK|PAY_BUTTON|PAY_FEE_BUTTON)\s*\}\}/gi;
+            // 2. Is it a BUTTON marker? (Aggressive List)
+            if (['actionbutton', 'paylink', 'paybutton', 'payfeebutton', 'payfeeonline', 'paymentlink', 'payfee'].includes(norm)) {
+                let config = options?.config || {};
+                if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
+                const btnText = config?.payButton?.text || '💳 Pay Fee Online';
+                let btnUrl = config?.payButton?.url || '';
 
-        if (/\{\{\s*(ACTION_BUTTON|PAY_LINK|PAY_BUTTON|PAY_FEE_BUTTON)\s*\}\}/i.test(rendered)) {
-            // Defensive config parsing
-            let config = options?.config || {};
-            if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
+                // Resolve placeholders in the URL
+                btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m, k) => {
+                    const val = this.getValueByPath(vars, k.trim());
+                    return val !== undefined && val !== null ? String(val) : m;
+                });
 
-            const btnText = config?.payButton?.text || '💳 Pay Fee Online';
-            let btnUrl = config?.payButton?.url || '';
-
-            console.log(`[TEMPLATE_RENDER] Button marker found. Initial URL from config: "${btnUrl}"`);
-
-            // Resolve placeholders in the URL itself if it's a dynamic field
-            btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
-                const key = rawKey.trim();
-                const val = this.getValueByPath(vars, key);
-                return val !== undefined && val !== null ? String(val) : m;
-            });
-
-            // HYPER-AGGRESSIVE URL LOOKUP
-            // If No URL from config, search the entire vars object for anything resembling a payment link
-            if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
-                const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
-                for (const sk of searchKeys) {
-                    const found = this.getValueByPath(vars, sk);
-                    if (found && typeof found === 'string' && found.length > 5) {
-                        btnUrl = found;
-                        console.log(`[TEMPLATE_RENDER] Found URL via aggressive search key "${sk}": ${btnUrl}`);
-                        break;
+                // Aggressive Fallback Lookup
+                if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
+                    const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
+                    for (const sk of searchKeys) {
+                        const found = this.getValueByPath(vars, sk);
+                        if (found && typeof found === 'string' && found.length > 5) {
+                            btnUrl = found;
+                            break;
+                        }
                     }
                 }
+
+                const finalUrl = (btnUrl && btnUrl !== '#')
+                    ? (btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl)
+                    : '#';
+
+                return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
             }
 
-            // Still No URL? Try a generic "contains link" search in all keys
-            if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{')) {
-                const allKeys = Object.keys(vars);
-                const likelyKey = allKeys.find(k => {
-                    const low = k.toLowerCase();
-                    return (low.includes('pay') && low.includes('link')) || (low.includes('payment') && low.includes('url'));
-                });
-                if (likelyKey) {
-                    btnUrl = vars[likelyKey];
-                    console.log(`[TEMPLATE_RENDER] Found URL via "contains" search in key "${likelyKey}": ${btnUrl}`);
-                }
-            }
-
-            // Safety cleanup
-            const cleanUrl = (btnUrl && btnUrl !== '#')
-                ? (btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl)
-                : '';
-
-            // FINAL DECISION: If we have ANY marker, we MUST show a button.
-            // If the URL is missing, we use a placeholder instead of hiding it, so the user sees the layout.
-            const finalUrl = cleanUrl || '#';
-            const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
-
-            console.log(`[TEMPLATE_RENDER] Injecting button with final URL: ${finalUrl}`);
-            rendered = rendered.replace(buttonRegex, btnHtml);
-        }
+            return match; // Not a component marker, leave for Step 3
+        });
 
         // STEP 3: Process remaining placeholders {{key}} (AFTER components are injected)
         const resolveBody = (content: string) => {
