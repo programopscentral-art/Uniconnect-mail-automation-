@@ -2,111 +2,103 @@ const NIAT_LOGO_URL = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5Y
 
 export class TemplateRenderer {
     public static render(template: string, variables: any, options: { includeAck?: boolean, trackingToken?: string, baseUrl?: string, config?: any, noLayout?: boolean } = {}): string {
-        console.log(`[TEMPLATE_RENDER_V4.0] Vars dump: ${JSON.stringify(variables).slice(0, 1000)}...`);
         if (!template) return '';
-        // Robustly parse metadata if it comes in as a string
+
+        // 1. Prepare Metadata & Variables
         let metaObj = variables.metadata || {};
         if (typeof metaObj === 'string') {
             try { metaObj = JSON.parse(metaObj); } catch (e) { metaObj = {}; }
         }
+        metaObj = metaObj || {};
 
-        // Flatten variables to ensure metadata keys are treated as root keys for matching
-        const vars = {
-            ...variables,
-            ...metaObj
-        };
-        const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // Flatten variables - root level takes precedence, then metadata
+        const vars = { ...metaObj, ...variables };
+
+        // Aggressive normalization for reliable matching
+        const clean = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
 
         // UNIFIED PLACEHOLDER RESOLVER
-        const resolve = (content: string) => {
-            if (!content) return '';
-            // Match {{...}} including newlines, handle extra closing braces
-            return content.replace(/\{\{(.+?)\}\}/gs, (match, rawKey) => {
-                // Clean the key: remove trailing } if it was a triple-brace, and trim
-                const key = rawKey.replace(/\}$/, '').trim();
-                const value = this.getValueByPath(vars, key);
+        const resolvePlaceholder = (rawKey: string) => {
+            const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
+            const value = this.getValueByPath(vars, key);
+            if (value !== undefined && value !== null) return String(value);
 
-                if (value !== undefined && value !== null) return String(value);
-
-                // If not found, log it and return the original match (defensive)
-                console.warn(`[TEMPLATE_RENDER] FAIL: "${key}". Available Keys (vars): ${Object.keys(vars).slice(0, 20).join(', ')}...`);
-                return match;
-            });
+            console.warn(`[TEMPLATE_RENDER] FAIL: "${key}".`);
+            return `{{${key}}}`; // Return original if not found
         };
 
-        // STEP 1 & 2: REFACTORED COMPONENT INJECTION
+        // STEP 1: Handle Components (TABLE, BUTTON)
         const componentRegex = /\{\{\s*(.*?)\s*\}\}/gis;
-
-        const ensureProtocol = (url: string) => {
-            if (!url || url === '#' || url === 'undefined') return '#';
-            const trimmed = url.trim();
-            if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
-            if (trimmed.includes('.') || trimmed.includes('/')) return `https://${trimmed}`;
-            return trimmed;
-        };
-
         let rendered = template.replace(componentRegex, (match, rawMarkerContent) => {
-            const norm = normKey(rawMarkerContent.replace(/\}$/, '')); // Handle triple brace in components too
+            const norm = clean(rawMarkerContent.replace(/\}$/, ''));
 
-            // 1. Is it a TABLE marker?
+            // A. TABLE component
             if (['table', 'feetable', 'feesummary', 'summarrytable', 'feetablerows', 'tabledata'].includes(norm)) {
-                let tableRows = options?.config?.tableRows || vars.fee_table_rows || vars.feeTableRows || variables.fee_table_rows || [];
+                let tableRows = options?.config?.tableRows || vars.fee_table_rows || vars.feeTableRows || [];
+
+                // Fallback for students with simple fee data
                 if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
-                    const meta = variables.metadata || variables || {};
                     const feeAmount = this.getValueByPath(vars, '2nd Sem Fee') || this.getValueByPath(vars, 'fee') || '';
                     if (feeAmount) tableRows = [{ label: 'Academic & Term Fee', value: feeAmount }];
                 }
 
                 if (tableRows && tableRows.length > 0) {
                     const processedRows = tableRows.map((r: any) => ({
-                        label: resolve(r.label),
-                        value: resolve(r.value)
+                        label: r.label.includes('{{') ? r.label.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k)) : r.label,
+                        value: r.value.includes('{{') ? r.value.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k)) : r.value
                     }));
                     return this.buildTable(processedRows);
                 }
                 return '';
             }
 
-            // 2. Is it a BUTTON marker?
+            // B. BUTTON component
             if (['actionbutton', 'paylink', 'paybutton', 'payfeebutton', 'payfeeonline', 'paymentlink', 'payfee'].includes(norm)) {
                 let config = options?.config || {};
                 if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
                 const btnText = config?.payButton?.text || '💳 Pay Fee Online';
                 let btnUrl = config?.payButton?.url || '';
 
-                // Resolve any placeholders inside the URL
-                btnUrl = resolve(btnUrl);
+                // Resolve URL placeholders
+                btnUrl = btnUrl.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k));
 
-                // Aggressive Fallback Lookup
-                if (!btnUrl || btnUrl === '#' || btnUrl.includes('{{') || btnUrl.includes('example.com')) {
+                // Aggressive fallback for payment links
+                if (!btnUrl || btnUrl === '#' || btnUrl === 'undefined' || btnUrl.includes('example.com')) {
                     const searchKeys = ['Payment link', 'pay_link', 'PAY_LINK', 'PAYMENT_LINK', 'Fee Link', 'Fee Payment Link', 'Action URL', 'Action Link'];
                     for (const sk of searchKeys) {
                         const found = this.getValueByPath(vars, sk);
-                        if (found && typeof found === 'string' && found.length > 5 && !found.includes('{{')) {
+                        if (found && typeof found === 'string' && found.length > 5) {
                             btnUrl = found;
                             break;
                         }
                     }
                 }
 
-                const finalUrl = ensureProtocol(btnUrl);
-                return `<div style="margin: 20px 0; text-align: center;"><a href="${finalUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
+                if (!btnUrl || btnUrl === '#' || btnUrl === 'undefined') return '';
+
+                const ensureProtocol = (url: string) => {
+                    const trimmed = url.trim();
+                    if (/^(https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
+                    if (trimmed.includes('.') || trimmed.includes('/')) return `https://${trimmed}`;
+                    return trimmed;
+                };
+
+                return `<div style="margin: 20px 0; text-align: center;"><a href="${ensureProtocol(btnUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
             }
 
-            return match; // Not a component, leave for Step 3
+            // C. STANDARD Marker (Step 1 pass)
+            return resolvePlaceholder(rawMarkerContent);
         });
 
-        // STEP 3: Final Resolution (recursive for nested tags)
-        rendered = resolve(rendered);
-        rendered = resolve(rendered);
+        // STEP 2: Final recursive pass for any remaining markers
+        rendered = rendered.replace(/\{\{(.+?)\}\}/gs, (_, k) => resolvePlaceholder(k));
 
-        // STEP 4: Wrap in NIAT Layout
+        // STEP 4: Wrap in Layout
         if (options.noLayout) return rendered;
 
         const baseUrl = options.baseUrl || 'https://uniconnect-app.up.railway.app';
         const ackLink = options.trackingToken ? `${baseUrl}/ack/${options.trackingToken}` : '#';
 
-        // Improve newline handling to reduce gaps
         const bodyContent = rendered.split('\n').map(line => {
             if (!line.trim()) return '<div style="height: 12px; line-height: 12px;">&nbsp;</div>';
             return `<div style="margin-bottom: 4px;">${line}</div>`;
@@ -128,7 +120,6 @@ export class TemplateRenderer {
         .fee-table { border-collapse:collapse; width:100%; margin:16px 0; border: 1px solid #cbd5e1; border-radius: 12px; overflow: hidden; }
         .fee-table th { padding:14px 16px; border: 1px solid #cbd5e1; background:#f8fafc; text-align:left; font-weight: 600; color: #4b5563; font-size: 13px; text-transform: uppercase; letter-spacing: 0.025em; }
         .fee-table td { padding:14px 16px; border: 1px solid #cbd5e1; color: #374151; font-size: 15px; }
-        .fee-table tr:last-child td { border-bottom: none; }
         .fee-table .amount { text-align:right; font-weight: 700; color: #111827; }
         a { color: #2563eb; text-decoration: none; }
     </style>
@@ -156,7 +147,6 @@ export class TemplateRenderer {
 </body>
 </html>`.trim();
 
-        // STEP 5: Add Tracking Pixel
         if (options.trackingToken && options.baseUrl) {
             const pixel = `<img src="${options.baseUrl}/api/track/open/${options.trackingToken}" width="1" height="1" style="display:none; visibility:hidden;" alt="" />`;
             finalHtml = finalHtml.replace('</body>', `${pixel}</body>`);
@@ -168,118 +158,62 @@ export class TemplateRenderer {
     private static buildTable(rows: { label: string; value: string }[]): string {
         const processedRows = rows.map(r => {
             let val = String(r.value || '').trim();
-            // Automatically add currency symbol if it looks like a number and doesn't have one
-            if (/^\d+(\.\d+)?$/.test(val.replace(/,/g, ''))) {
-                val = `₹ ${val}`;
-            }
+            if (/^\d+(\.\d+)?$/.test(val.replace(/,/g, ''))) val = `₹ ${val}`;
             return `<tr><td>${r.label}</td><td class="amount">${val}</td></tr>`;
         });
         return `<table class="fee-table"><thead><tr><th>Description</th><th style="text-align:right">Amount (₹)</th></tr></thead><tbody>${processedRows.join('')}</tbody></table>`;
     }
 
-    private static getValueByPath(obj: any, path: string): any {
-        if (!path || !obj) return undefined;
+    private static getValueByPath(target: any, path: string): any {
+        if (!target || !path) return undefined;
 
-        console.log(`[RESOLVE] Attempting to find match for: "${path}"`);
+        const clean = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const searchNorm = clean(path);
+        if (!searchNorm) return undefined;
 
-        const clean = (s: string) => {
-            if (!s) return '';
-            return String(s).toLowerCase()
-                .replace(/<[^>]*>/g, ' ')            // Strip HTML
-                .replace(/&nbsp;/g, ' ')             // Resolve non-breaking space
-                .replace(/[\u200B-\u200D\uFEFF]/g, '') // Strip zero-width characters
-                .replace(/[^a-z0-9]/g, '')           // Keep only alphanumeric
-                .trim();
-        };
-
-        const searchPath = clean(path);
-        if (!searchPath) return undefined;
-
-        const checkObj = (target: any): any => {
-            if (!target || typeof target !== 'object') return undefined;
-
-            const keys = Object.keys(target);
-
-            // 1. Direct Alphanumeric Match (The most reliable)
-            const exactKey = keys.find(k => clean(k) === searchPath);
-            if (exactKey) {
-                console.log(`[RESOLVE] Exact Alphanumeric match found for "${path}" -> "${exactKey}"`);
-                return target[exactKey];
-            }
-
-            // 2. Word Intersection (The "Smart Fuzzy" Logic)
-            const getWords = (s: string) => s.toLowerCase()
-                .replace(/\(.*?\)/g, ' ') // Strip parentheses content
-                .split(/[^a-z0-9]+/)      // Split on anything non-alphanumeric
-                .filter(w => w.length > 1 || /^\d$/.test(w)); // Preserve indices/numbers
-            const searchWords = getWords(path);
-
-            if (searchWords.length > 0) {
-                const candidates = keys.map(k => {
-                    const kWords = getWords(k);
-
-                    // Simple Similarity Match: A word matches if it's identical OR very similar (1 char diff)
-                    const isSimilar = (w1: string, w2: string) => {
-                        if (w1 === w2) return true;
-                        if (Math.abs(w1.length - w2.length) > 1) return false;
-                        let diffs = 0;
-                        const len = Math.min(w1.length, w2.length);
-                        for (let i = 0; i < len; i++) if (w1[i] !== w2[i]) diffs++;
-                        return diffs <= 1;
-                    };
-
-                    const intersection = kWords.filter(kw =>
-                        searchWords.some(sw => isSimilar(kw, sw))
-                    );
-
-                    if (intersection.length === 0) return { key: k, score: 0 };
-
-                    // HEURISTIC 1: How much of the METADATA KEY is found in the template?
-                    const metaOverlap = intersection.length / kWords.length;
-
-                    // HEURISTIC 2: How much of the TEMPLATE placeholder is found in the key?
-                    const templateOverlap = intersection.length / searchWords.length;
-
-                    // Final Score
-                    let score = Math.max(metaOverlap, templateOverlap);
-
-                    // BOOST: If the metadata key is a core subset of the search path
-                    const allMetaPresent = kWords.every(kw => searchWords.some(sw => isSimilar(kw, sw)));
-                    if (allMetaPresent) score = Math.max(score, 0.95);
-
-                    return { key: k, score };
-                })
-                    .filter(m => m.score > 0.2) // High resilience
-                    .sort((a, b) => b.score - a.score);
-
-                if (candidates.length > 0 && candidates[0].score > 0.25) {
-                    console.log(`[RESOLVE] Hyper-Fuzzy match for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score.toFixed(2)})`);
-                    return target[candidates[0].key];
-                }
-            }
-
-            return undefined;
-        };
-
-        // Try root level, then metadata level
-        let result = checkObj(obj);
-        if (result === undefined && obj.metadata) result = checkObj(obj.metadata);
-
-        // Deep nested fallback (a.b.c)
-        if (result === undefined && path.includes('.')) {
+        // 0. Path support (a.b.c)
+        if (path.includes('.')) {
             const parts = path.split('.');
-            let current = obj;
-            for (const p of parts) {
-                current = checkObj(current);
-                if (current === undefined) break;
+            let current = target;
+            for (const part of parts) {
+                if (current === null || current === undefined) return undefined;
+                const keys = Object.keys(current);
+                const normPart = clean(part);
+                const match = keys.find(k => clean(k) === normPart || k.toLowerCase() === part.toLowerCase());
+                current = match ? current[match] : undefined;
             }
-            result = current;
+            return current;
         }
 
-        if (result === undefined) {
-            console.warn(`[RESOLVE] NO MATCH found for "${path}". Keys searched: ${Object.keys(obj.metadata || {}).join(', ')}`);
+        const keys = Object.keys(target);
+
+        // 1. Direct Normalized Match (Aggressive)
+        // Works for: {{Term 1 Fee}} -> "Term 1 Fee" or "term_1_fee" or "term1fee"
+        const exactMatchKey = keys.find(k => clean(k) === searchNorm || k.toLowerCase() === path.toLowerCase());
+        if (exactMatchKey) return target[exactMatchKey];
+
+        // 2. Smart Fuzzy (Last Resort)
+        const getWords = (s: string) => s.toLowerCase()
+            .replace(/\(.*?\)/g, ' ')
+            .split(/[^a-z0-9]+/)
+            .filter(w => w.length > 1 || /^\d$/.test(w));
+
+        const searchWords = getWords(path);
+        if (searchWords.length > 0) {
+            const candidates = keys.map(k => {
+                const kWords = getWords(k);
+                const intersection = kWords.filter(kw => searchWords.some(sw => kw === sw));
+                if (intersection.length === 0) return { key: k, score: 0 };
+
+                const score = Math.max(intersection.length / kWords.length, intersection.length / searchWords.length);
+                return { key: k, score };
+            })
+                .filter(m => m.score > 0.5)
+                .sort((a, b) => b.score - a.score);
+
+            if (candidates.length > 0) return target[candidates[0].key];
         }
 
-        return result === null ? '' : result;
+        return undefined;
     }
 }
