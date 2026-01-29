@@ -473,7 +473,7 @@
             <div class="flex-1">
                 <div class="flex items-center gap-3">
                     <h3 class="text-lg font-black uppercase tracking-tight" style="color: #111827 !important">Recipient Details</h3>
-                    <span class="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black border border-indigo-200">BUILD: V5.0-HYPER-FUZZY</span>
+                    <span class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 text-[10px] font-black border border-red-200 animate-pulse">BUILD: V6.0-DEBUG-ENABLED</span>
                 </div>
                 <div class="mt-4 space-y-4">
                     <div class="flex flex-wrap gap-2">

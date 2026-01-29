@@ -181,10 +181,10 @@ export class TemplateRenderer {
         if (nMatch) return vars[nMatch];
 
         // 3. HYPER-FUZZY (Word-for-Word similarity)
-        const getWords = (s: string) => s.toLowerCase()
+        const getWords = (s: string) => String(s || '').toLowerCase()
             .replace(/\(.*?\)/g, ' ')
             .split(/[^a-z0-9]+/)
-            .filter(w => w.length > 2);
+            .filter(w => w.length >= 2);
 
         const isSimilar = (a: string, b: string) => {
             if (a === b) return true;
@@ -202,7 +202,7 @@ export class TemplateRenderer {
                 const score = intersection.length / Math.max(kWords.length, sWords.length);
                 return { key: k, score };
             })
-                .filter(m => m.score >= 0.5)
+                .filter(m => m.score >= 0.3)
                 .sort((a, b) => b.score - a.score);
 
             if (candidates.length > 0) {
