@@ -16,8 +16,8 @@
     // Absolute Template Enforcement
     // The university name and ID are the ultimate source of truth
     const selectedTemplate = $derived.by(() => {
-        const university = data.universities.find(u => u.id === data.paper.university_id);
-        const uniName = (university?.name || '').toLowerCase();
+        // Use university_name directly from the paper data (loaded via SQL join)
+        const uniName = (data?.paper?.university_name || '').toLowerCase();
         const uniId = data?.paper?.university_id;
         const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
         const paperTemplateId = data?.paper?.template_id; 
