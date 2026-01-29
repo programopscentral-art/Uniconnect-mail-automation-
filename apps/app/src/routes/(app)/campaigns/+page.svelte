@@ -4,10 +4,11 @@
   import { fade } from 'svelte/transition';
   // @ts-ignore
   let { data } = $props();
+
   let selectedUniversityId = $state('');
 
   $effect(() => {
-    if (data.selectedUniversityId) {
+    if (data.selectedUniversityId && selectedUniversityId === '') {
       selectedUniversityId = data.selectedUniversityId;
     }
   });
