@@ -49,8 +49,8 @@ export class TemplateRenderer {
             const norm = normKey(rawMarkerContent.replace(/\}$/, '')); // Handle triple brace in components too
 
             // 1. Is it a TABLE marker?
-            if (['table', 'feetable', 'feesummary', 'summarrytable'].includes(norm)) {
-                let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
+            if (['table', 'feetable', 'feesummary', 'summarrytable', 'feetablerows', 'tabledata'].includes(norm)) {
+                let tableRows = options?.config?.tableRows || vars.fee_table_rows || vars.feeTableRows || variables.fee_table_rows || [];
                 if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
                     const meta = variables.metadata || variables || {};
                     const feeAmount = this.getValueByPath(vars, '2nd Sem Fee') || this.getValueByPath(vars, 'fee') || '';
@@ -209,10 +209,9 @@ export class TemplateRenderer {
 
             // 2. Word Intersection (The "Smart Fuzzy" Logic)
             const getWords = (s: string) => s.toLowerCase()
-                .replace(/\(.*?\)/g, ' ') // Remove parentheses content
-                .split(/[^a-z0-9]+/)
-                .filter(w => w.length > 1 || /^\d$/.test(w)); // Keep words > 1 char OR single digits
-
+                .replace(/\(.*?\)/g, ' ') // Strip parentheses content
+                .split(/[^a-z0-9]+/)      // Split on anything non-alphanumeric
+                .filter(w => w.length > 1 || /^\d$/.test(w)); // Preserve indices/numbers
             const searchWords = getWords(path);
 
             if (searchWords.length > 0) {
