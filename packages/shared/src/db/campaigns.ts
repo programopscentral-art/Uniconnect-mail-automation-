@@ -165,15 +165,23 @@ export async function updateCampaignRecipientEmail(id: string, email: string) {
     return rows[0];
 }
 
-export async function getCampaignRecipients(campaignId: string) {
-    const result = await db.query(`SELECT r.*, s.name as student_name, s.external_id FROM campaign_recipients r LEFT JOIN students s ON r.student_id = s.id WHERE campaign_id = $1`, [campaignId]);
+export async function getCampaignRecipients(campaignId: string, updatedSince?: Date) {
+    let query = `SELECT r.*, s.name as student_name, s.external_id FROM campaign_recipients r LEFT JOIN students s ON r.student_id = s.id WHERE campaign_id = $1`;
+    const params: any[] = [campaignId];
+
+    if (updatedSince) {
+        query += ` AND r.updated_at > $2`;
+        params.push(updatedSince);
+    }
+
+    const result = await db.query(query, params);
     return result.rows;
 }
 
 export async function markRecipientOpen(token: string) {
     const res = await db.query(
         `UPDATE campaign_recipients 
-         SET status = 'OPENED', opened_at = NOW(), open_count = open_count + 1 
+         SET status = 'OPENED', opened_at = NOW(), open_count = open_count + 1, updated_at = NOW() 
          WHERE tracking_token = $1 RETURNING id, campaign_id, open_count`,
         [token]
     );
@@ -187,7 +195,7 @@ export async function markRecipientOpen(token: string) {
 export async function markRecipientAck(token: string) {
     const res = await db.query(
         `UPDATE campaign_recipients 
-         SET status = 'ACKNOWLEDGED', acknowledged_at = NOW() 
+         SET status = 'ACKNOWLEDGED', acknowledged_at = NOW(), updated_at = NOW() 
          WHERE tracking_token = $1 AND status != 'ACKNOWLEDGED'
          RETURNING id, campaign_id`,
         [token]

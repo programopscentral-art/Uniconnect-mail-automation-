@@ -14,11 +14,11 @@
 
   onMount(() => {
     const interval = setInterval(() => {
-      // Refresh data if any campaign is in progress
-      if (data.campaigns.some((c: any) => c.status === 'IN_PROGRESS' || c.status === 'PENDING')) {
+      // Refresh data if any campaign is active
+      if (data.campaigns.some((c: any) => ['IN_PROGRESS', 'QUEUED', 'SCHEDULED'].includes(c.status))) {
         invalidateAll();
       }
-    }, 5000);
+    }, 1500); // 1.5s polling for live feel
     return () => clearInterval(interval);
   });
 
@@ -151,8 +151,15 @@
                     </td>
                     <td class="px-8 py-6 whitespace-nowrap">
                       <div class="flex items-center space-x-4">
-                          <div class="flex-1 w-32 bg-gray-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner">
-                              <div class="bg-indigo-600 dark:bg-indigo-500 h-full transition-all duration-700 shadow-lg shadow-indigo-500/20" style="width: {(cam.sent_count / cam.total_recipients) * 100}%"></div>
+                          <div class="flex-1 w-32 bg-gray-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden shadow-inner relative">
+                              <div 
+                                class="bg-indigo-600 dark:bg-indigo-500 h-full transition-all duration-700 shadow-lg shadow-indigo-500/20 relative" 
+                                style="width: {(cam.sent_count / cam.total_recipients) * 100}%"
+                              >
+                                {#if cam.status === 'IN_PROGRESS'}
+                                    <div class="absolute inset-0 bg-white/30 animate-pulse"></div>
+                                {/if}
+                              </div>
                           </div>
                           <span class="text-[11px] font-black text-gray-900 dark:text-white font-mono tracking-tighter">
                             {cam.sent_count}<span class="text-gray-400 mx-1">/</span>{cam.total_recipients}

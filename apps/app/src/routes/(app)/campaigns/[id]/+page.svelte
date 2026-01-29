@@ -8,6 +8,7 @@
   let showScheduleInput = $state(false);
 
   let recipients = $state<any[]>([]);
+  let lastRecipientUpdate = $state<string | null>(null);
   let isLoadingRecipients = $state(false);
   let showRecipients = $state(false);
 
@@ -64,11 +65,30 @@
       if (!force) showRecipients = true;
       if (!force && recipients.length > 0 && !filterToSet) return;
       
-      isLoadingRecipients = !force; // Only show loader on initial click
+      isLoadingRecipients = !force && !lastRecipientUpdate; 
       try {
-          const res = await fetch(`/api/campaigns/${data.campaign.id}/recipients`);
+          let url = `/api/campaigns/${data.campaign.id}/recipients`;
+          if (force && lastRecipientUpdate) {
+              url += `?updatedSince=${encodeURIComponent(lastRecipientUpdate)}`;
+          }
+
+          const res = await fetch(url);
           if (res.ok) {
-              recipients = await res.json();
+              const delta: any[] = await res.json();
+              
+              if (force && lastRecipientUpdate) {
+                  // Merge delta into existing recipients
+                  const newRecipients = [...recipients];
+                  delta.forEach(newR => {
+                      const idx = newRecipients.findIndex(r => r.id === newR.id);
+                      if (idx > -1) newRecipients[idx] = newR;
+                      else newRecipients.push(newR);
+                  });
+                  recipients = newRecipients;
+              } else {
+                  recipients = delta;
+              }
+              lastRecipientUpdate = new Date().toISOString();
           }
       } finally {
           isLoadingRecipients = false;
@@ -165,6 +185,11 @@
           alert('Error');
       } finally {
           isScheduling = false;
+          // Trigger immediate update after starting
+          setTimeout(() => {
+              invalidateAll();
+              if (showRecipients) loadRecipients(true);
+          }, 500);
       }
     }
 
@@ -201,14 +226,15 @@
         }
     }
 
-    // Polling for progress if IN_PROGRESS
+    // Polling for progress if ACTIVE
     let pollInterval: any;
     $effect(() => {
-        if (data.campaign.status === 'IN_PROGRESS' || data.campaign.status === 'QUEUED' || data.campaign.status === 'SCHEDULED') {
+        if (['IN_PROGRESS', 'QUEUED', 'SCHEDULED'].includes(data.campaign.status)) {
             pollInterval = setInterval(() => {
                 invalidateAll();
+                // If showing recipients, refresh them too
                 if (showRecipients) loadRecipients(true);
-            }, 3000);
+            }, 1000); // 1s polling for "live" feel
         }
         return () => clearInterval(pollInterval);
     });
@@ -335,11 +361,16 @@
                     {/if}
                 </div>
             </div>
-            <div class="w-full bg-gray-100 h-4 rounded-full overflow-hidden border border-gray-50 shadow-inner">
+            <div class="w-full bg-gray-100 h-5 rounded-full overflow-hidden border border-gray-50 shadow-inner relative">
                 <div 
-                    class="bg-gradient-to-r from-indigo-500 to-blue-500 h-full transition-all duration-1000 ease-out" 
+                    class="bg-gradient-to-r from-indigo-500 via-blue-500 to-indigo-600 h-full transition-all duration-500 ease-out relative" 
                     style="width: {progress}%"
-                ></div>
+                >
+                    <!-- Glossy effect for active progress -->
+                    {#if data.campaign.status === 'IN_PROGRESS'}
+                        <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                    {/if}
+                </div>
             </div>
         </div>
     {/if}

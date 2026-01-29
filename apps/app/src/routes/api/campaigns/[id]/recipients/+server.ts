@@ -14,7 +14,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         throw error(403);
     }
 
-    const recipients = await getCampaignRecipients(campaignId);
-    console.log(`[API] Found ${recipients.length} recipients for campaign ${campaignId}`);
+    const updatedSinceParam = url.searchParams.get('updatedSince');
+    const updatedSince = updatedSinceParam ? new Date(updatedSinceParam) : undefined;
+
+    const recipients = await getCampaignRecipients(campaignId, updatedSince);
+    console.log(`[API] Found ${recipients.length} recipients for campaign ${campaignId}${updatedSince ? ' updated since ' + updatedSince.toISOString() : ''}`);
     return json(recipients);
 };
