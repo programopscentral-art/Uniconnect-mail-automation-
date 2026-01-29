@@ -208,39 +208,53 @@ export class TemplateRenderer {
             }
 
             // 2. Word Intersection (The "Smart Fuzzy" Logic)
-            const getWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 0);
+            const getWords = (s: string) => s.toLowerCase()
+                .replace(/\(.*?\)/g, ' ') // Remove parentheses content as it's often descriptive
+                .split(/[^a-z0-9]+/)
+                .filter(w => w.length > 1); // Ignore single characters/numbers for matching
+
             const searchWords = getWords(path);
 
             if (searchWords.length > 0) {
                 const candidates = keys.map(k => {
                     const kWords = getWords(k);
-                    const intersection = searchWords.filter(w => kWords.includes(w));
+
+                    // Simple Similarity Match: A word matches if it's identical OR very similar (1 char diff)
+                    const isSimilar = (w1: string, w2: string) => {
+                        if (w1 === w2) return true;
+                        if (Math.abs(w1.length - w2.length) > 1) return false;
+                        let diffs = 0;
+                        const len = Math.min(w1.length, w2.length);
+                        for (let i = 0; i < len; i++) if (w1[i] !== w2[i]) diffs++;
+                        return diffs <= 1;
+                    };
+
+                    const intersection = kWords.filter(kw =>
+                        searchWords.some(sw => isSimilar(kw, sw))
+                    );
 
                     if (intersection.length === 0) return { key: k, score: 0 };
 
                     // HEURISTIC 1: How much of the METADATA KEY is found in the template?
-                    // This is for matching "fee" -> "Term 2 Fee Payment"
                     const metaOverlap = intersection.length / kWords.length;
 
                     // HEURISTIC 2: How much of the TEMPLATE placeholder is found in the key?
-                    // This is for matching "Term 2 Fee" -> "Fee"
                     const templateOverlap = intersection.length / searchWords.length;
 
-                    // Final Score is weighted towards the best overlap
+                    // Final Score
                     let score = Math.max(metaOverlap, templateOverlap);
 
-                    // BOOST: If the metadata key is a core subset of the search path (e.g. key "fee" in search "Total Fee Paid")
-                    // We give this a high score because it's almost certainly the intended variable.
-                    const isKeySubsetOfSearch = kWords.every(kw => searchWords.includes(kw));
-                    if (isKeySubsetOfSearch) score = Math.max(score, 0.9);
+                    // BOOST: If the metadata key is a core subset of the search path
+                    const allMetaPresent = kWords.every(kw => searchWords.some(sw => isSimilar(kw, sw)));
+                    if (allMetaPresent) score = Math.max(score, 0.95);
 
                     return { key: k, score };
                 })
-                    .filter(m => m.score > 0.25) // High resilience for long descriptive paths
+                    .filter(m => m.score > 0.2) // High resilience
                     .sort((a, b) => b.score - a.score);
 
-                if (candidates.length > 0 && candidates[0].score > 0.3) {
-                    console.log(`[RESOLVE] Fuzzy match for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score.toFixed(2)})`);
+                if (candidates.length > 0 && candidates[0].score > 0.25) {
+                    console.log(`[RESOLVE] Hyper-Fuzzy match for "${path}" -> "${candidates[0].key}" (Score: ${candidates[0].score.toFixed(2)})`);
                     return target[candidates[0].key];
                 }
             }
