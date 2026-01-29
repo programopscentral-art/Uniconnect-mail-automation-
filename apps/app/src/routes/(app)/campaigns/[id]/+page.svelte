@@ -213,6 +213,7 @@
         try {
             const res = await fetch(`/api/campaigns/${data.campaign.id}/stop`, { method: 'POST' });
             if (res.ok) {
+                data.campaign.status = 'STOPPED';
                 alert('Campaign Stopped!');
                 invalidateAll();
             } else {
@@ -229,6 +230,7 @@
         try {
             const res = await fetch(`/api/campaigns/${data.campaign.id}/resume`, { method: 'POST' });
             if (res.ok) {
+                data.campaign.status = 'QUEUED';
                 const result = await res.json();
                 alert(result.message);
                 invalidateAll();
