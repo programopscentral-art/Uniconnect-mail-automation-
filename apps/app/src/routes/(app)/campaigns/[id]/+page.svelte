@@ -104,6 +104,7 @@
           }
       } catch (err) {
           console.error('[UI] Failed to load recipients:', err);
+          alert('Failed to load recipient list. Please check your connection or redeploy.');
       } finally {
           isLoadingRecipients = false;
       }

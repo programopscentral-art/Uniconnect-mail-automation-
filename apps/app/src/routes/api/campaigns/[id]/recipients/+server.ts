@@ -2,7 +2,7 @@ import { getCampaignRecipients, getCampaignById } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, url }) => {
     if (!locals.user) throw error(401);
     const campaignId = params.id;
 
