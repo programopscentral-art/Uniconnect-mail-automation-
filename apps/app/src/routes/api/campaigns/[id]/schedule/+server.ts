@@ -79,10 +79,9 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             let sentCount = 0;
             let failedCount = 0;
 
-            const pendingRecipients = recipients.filter(r => r.status === 'PENDING');
-            console.log(`[BACKGROUND_SEND] Processing ${pendingRecipients.length} recipients for campaign ${campaignId}`);
+            console.log(`[BACKGROUND_SEND] Processing ${recipients.length} recipients for campaign ${campaignId}`);
 
-            for (const recipient of pendingRecipients) {
+            for (const recipient of recipients.filter(r => r.status === 'PENDING')) {
                 try {
                     // Check if campaign was STOPPED in the meantime
                     const { rows: currentCampaign } = await db.query('SELECT status FROM campaigns WHERE id = $1', [campaignId]);
@@ -156,7 +155,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
                     );
 
                     sentCount++;
-                    console.log(`[BACKGROUND_SEND] ✅ Sent to ${recipient.to_email} (${sentCount}/${pendingRecipients.length})`);
+                    console.log(`[BACKGROUND_SEND] ✅ Sent to ${recipient.to_email} (${sentCount}/${recipients.length})`);
 
                     // Small delay to avoid rate limiting
                     await new Promise(resolve => setTimeout(resolve, 100));

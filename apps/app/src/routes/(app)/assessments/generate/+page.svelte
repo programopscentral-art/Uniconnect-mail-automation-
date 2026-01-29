@@ -598,15 +598,10 @@
 
     // Absolute Template Enforcement for Chaitanya
     const isChaitanya = $derived(
-        data.universities.find(u => u.id === selectedUniversityId)?.name?.toLowerCase().includes('chaitanya') || false
+        activeUniversity?.name?.toLowerCase()?.includes('chaitanya') || 
+        selectedUniversityId === '8e5403f9-505a-44d4-add4-aae3efaa9248' ||
+        (typeof window !== 'undefined' && window.location.search.toLowerCase().includes('8e5403f9'))
     );
-
-    $effect(() => {
-        if (isChaitanya && selectedTemplate !== 'cdu') {
-            selectedTemplate = 'cdu';
-            initializeStructure(true);
-        }
-    });
     const isCrescent = $derived(activeUniversity?.name?.toLowerCase()?.includes('crescent'));
     
     $effect(() => {
