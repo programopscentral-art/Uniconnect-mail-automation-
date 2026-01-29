@@ -209,9 +209,9 @@ export class TemplateRenderer {
 
             // 2. Word Intersection (The "Smart Fuzzy" Logic)
             const getWords = (s: string) => s.toLowerCase()
-                .replace(/\(.*?\)/g, ' ') // Remove parentheses content as it's often descriptive
+                .replace(/\(.*?\)/g, ' ') // Remove parentheses content
                 .split(/[^a-z0-9]+/)
-                .filter(w => w.length > 1); // Ignore single characters/numbers for matching
+                .filter(w => w.length > 1 || /^\d$/.test(w)); // Keep words > 1 char OR single digits
 
             const searchWords = getWords(path);
 
