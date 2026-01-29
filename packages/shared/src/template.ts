@@ -18,11 +18,8 @@ export class TemplateRenderer {
         let rendered = template;
 
         // STEP 1: Auto-inject Dynamic Table (ONLY if placeholder exists)
-        const tableMarker = "{{TABLE}}";
-        const legacyTableMarker = "{{FEE_TABLE}}";
-        // Convert to lowercase for loose check since markers are case sensitive but we want to fail safe
-        // Or better: just check both
-        const hasTable = rendered.includes(tableMarker) || rendered.includes(legacyTableMarker);
+        const tableRegex = /\{\{\s*(TABLE|FEE_TABLE)\s*\}\}/gi;
+        const hasTable = tableRegex.test(rendered);
 
         if (hasTable) {
             let tableRows = options?.config?.tableRows || variables.fee_table_rows || [];
@@ -58,19 +55,18 @@ export class TemplateRenderer {
                     return { label, value };
                 });
                 const tableHtml = this.buildTable(processedRows);
-                rendered = rendered.replace(tableMarker, tableHtml);
-                rendered = rendered.replace(legacyTableMarker, tableHtml);
+                rendered = rendered.replace(tableRegex, tableHtml);
             } else {
                 // IMPORTANT: If no data found, remove the marker so it doesn't show as raw text
-                rendered = rendered.replace(tableMarker, '');
-                rendered = rendered.replace(legacyTableMarker, '');
+                rendered = rendered.replace(tableRegex, '');
             }
         }
 
         // STEP 2: Auto-inject Payment Button (BEFORE general placeholder replacement)
-        if (rendered.includes('{{ACTION_BUTTON}}') || rendered.includes('{{PAY_LINK}}')) {
+        const buttonRegex = /\{\{\s*(ACTION_BUTTON|PAY_LINK)\s*\}\}/gi;
+        if (buttonRegex.test(rendered)) {
             const btnText = options?.config?.payButton?.text || '💳 Pay Fee Online';
-            let btnUrl = options?.config?.payButton?.url || '{{ACTION_BUTTON}}';
+            let btnUrl = options?.config?.payButton?.url || '';
 
             // Resolve placeholders in the URL itself if it's a dynamic field
             btnUrl = btnUrl.replace(/\{\{(.*?)\}\}/gs, (m: string, rawKey: string) => {
@@ -80,25 +76,18 @@ export class TemplateRenderer {
             });
 
             // Special fallback for the legacy markers if still used
-            if (!options?.config?.payButton?.url && (btnUrl === '{{ACTION_BUTTON}}' || btnUrl === '{{PAY_LINK}}' || btnUrl === '#')) {
+            if (!btnUrl || btnUrl === '#') {
                 const meta = variables.metadata || variables || {};
                 btnUrl = meta['Payment link'] || meta['pay_link'] || meta['PAY_LINK'] || meta['PAYMENT_LINK'] || '#';
             }
 
             // Verify we have a valid URL before injecting button
-            // During testing/crawling, we might have unresolved placeholders; 
-            // We want the button to show up regardless so the user can see the layout.
             if (btnUrl && btnUrl !== '#') {
-                // If it still has placeholders like {{...}}, it might be a test mail without full data.
-                // We'll keep the button but clean the URL of raw tags if possible, or just leave it.
                 const cleanUrl = btnUrl.includes('{{') ? btnUrl.replace(/\{\{.*?\}\}/g, '') : btnUrl;
-
                 const btnHtml = `<div style="margin: 20px 0; text-align: center;"><a href="${cleanUrl}" style="display:inline-block; padding:12px 28px; background-color:#2563eb; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size: 15px;">${btnText}</a></div>`;
-                rendered = rendered.replace('{{ACTION_BUTTON}}', btnHtml);
-                rendered = rendered.replace('{{PAY_LINK}}', btnHtml);
+                rendered = rendered.replace(buttonRegex, btnHtml);
             } else {
-                rendered = rendered.replace('{{ACTION_BUTTON}}', '');
-                rendered = rendered.replace('{{PAY_LINK}}', '');
+                rendered = rendered.replace(buttonRegex, '');
             }
         }
 
@@ -108,7 +97,7 @@ export class TemplateRenderer {
                 const key = rawKey.trim();
                 const value = this.getValueByPath(vars, key);
                 if (value === undefined) {
-                    console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}" (normalized: "${key.trim()}")`);
+                    // console.warn(`[TEMPLATE_RENDER] Tag not found: "{{${key}}}"`);
                 }
                 return value !== undefined && value !== null ? String(value) : match;
             });
@@ -120,7 +109,8 @@ export class TemplateRenderer {
         // STEP 4: Wrap in NIAT Layout
         if (options.noLayout) return rendered;
 
-        const ackLink = options.trackingToken && options.baseUrl ? `${options.baseUrl}/ack/${options.trackingToken}` : '#';
+        const baseUrl = options.baseUrl || 'https://uniconnect-app.up.railway.app';
+        const ackLink = options.trackingToken ? `${baseUrl}/ack/${options.trackingToken}` : '#';
 
         // Improve newline handling to reduce gaps
         const bodyContent = rendered.split('\n').map(line => {

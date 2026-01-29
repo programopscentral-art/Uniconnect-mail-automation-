@@ -391,7 +391,7 @@
     {/if}
 
     <!-- Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <button 
             onclick={() => loadRecipients(false, 'ALL')}
             class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'ALL' ? 'border-indigo-500 ring-4 ring-indigo-50' : 'border-gray-100'} hover:border-indigo-200 transition-all text-left group"
