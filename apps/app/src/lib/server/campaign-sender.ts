@@ -110,13 +110,15 @@ export async function sendToRecipient(
 
         console.log(`[CAMPAIGN_SENDER] Rendered Body Length: ${htmlBody.length} bytes`);
         console.log(`[CAMPAIGN_SENDER] Body Snippet: ${htmlBody.slice(0, 500)}...`);
+
+        // 4. Send via Gmail API
+        const targetEmail = String(recipient.to_email || '').trim();
+
         console.log(`[CAMPAIGN_SENDER] Preparing to send email...`);
         console.log(`[CAMPAIGN_SENDER] To: ${targetEmail}, From: ${mailboxEmail || 'support@uniconnect.com'}`);
         console.log(`[CAMPAIGN_SENDER] Subject: ${subject.slice(0, 50)}...`);
         console.log(`[CAMPAIGN_SENDER] Recipient ID: ${recipientId}, Tracking Token: ${recipient.tracking_token}`);
 
-        // 4. Send via Gmail API
-        const targetEmail = String(recipient.to_email || '').trim();
         const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const messageParts = [
             `MIME-Version: 1.0`,
