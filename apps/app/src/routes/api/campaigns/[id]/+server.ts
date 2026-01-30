@@ -1,4 +1,4 @@
-import { deleteCampaign, getCampaignById } from '@uniconnect/shared';
+import { db, deleteCampaign, getCampaignById } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
