@@ -253,7 +253,7 @@ export class TemplateRenderer {
             let current = vars;
             for (const part of parts) {
                 if (current === null || current === undefined) return undefined;
-                const match = Object.keys(current).find(k => normalize(k) === normalize(part));
+                const match = Object.keys(current).find(k => normalizeAlpha(k) === normalizeAlpha(part));
                 current = match ? current[match] : undefined;
             }
             return current;
