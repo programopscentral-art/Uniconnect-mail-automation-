@@ -2,6 +2,7 @@
   import { dndzone } from "svelte-dnd-action";
   import { flip } from "svelte/animate";
   import { fade, fly, slide } from "svelte/transition";
+  import { Plus } from "lucide-svelte";
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
@@ -185,6 +186,21 @@
     }
     return count + 1;
   };
+
+  let activeTab = $state("components"); // 'components' | 'properties'
+
+  function resetTemplate() {
+    if (
+      !confirm(
+        "Are you sure you want to reset the template? This action cannot be undone.",
+      )
+    )
+      return;
+    paperStructure = [];
+    currentSetData.questions = [];
+    paperMeta = {};
+    layoutSchema = {};
+  }
 </script>
 
 <div
@@ -524,8 +540,28 @@
       {/if}
 
       <!-- Dynamic Sections -->
-      <div class="space-y-10">
-        {#each paperStructure || [] as section}
+      <div class="space-y-[1cm] relative z-10">
+        {#if (paperStructure || []).length === 0}
+          <div
+            class="py-20 flex flex-col items-center justify-center text-center opacity-30 select-none"
+          >
+            <div
+              class="w-32 h-32 rounded-[40px] border-4 border-dashed border-slate-300 flex items-center justify-center mb-6"
+            >
+              <Plus class="w-12 h-12 text-slate-300" />
+            </div>
+            <h2
+              class="text-2xl font-black uppercase tracking-widest text-slate-400"
+            >
+              Your Canvas is Empty
+            </h2>
+            <p class="text-sm font-medium text-slate-400 mt-2">
+              Add components from the library to start designing.
+            </p>
+          </div>
+        {/if}
+
+        {#each paperStructure || [] as section, idx}
           {@const questions = getQuestionsByPart(section.part)}
           {#if questions.length > 0 || mode === "preview"}
             <div>

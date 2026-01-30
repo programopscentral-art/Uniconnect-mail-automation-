@@ -12,13 +12,19 @@
     ArrowUp,
     ArrowDown,
     GripVertical,
-    Type,
-    Paintbrush,
-    Maximize,
     Save,
     ChevronLeft,
+    Info,
+    RotateCcw,
+    HelpCircle,
+    Type,
+    MousePointer2,
+    Sparkles,
+    Grid,
+    Maximize2,
+    Maximize,
   } from "lucide-svelte";
-  import { dndzone } from "svelte-dnd-action";
+  import { dndzone, type DndEvent } from "svelte-dnd-action";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -107,6 +113,26 @@
     );
   }
 
+  function resetTemplate() {
+    if (
+      confirm(
+        "Are you sure you want to start from scratch? This will remove all sections and reset layout settings.",
+      )
+    ) {
+      template.config = [];
+      template.layout_schema = {
+        style: "standard",
+        fontFamily: "serif",
+        primaryColor: "#000000",
+        showRRN: true,
+        showMetadataTable: false,
+        watermarkText: "",
+        pageMargin: "normal",
+        showBorder: false,
+      };
+    }
+  }
+
   function handleDndConsider(e: CustomEvent<DndEvent<any>>) {
     template.config = e.detail.items;
   }
@@ -149,15 +175,24 @@
           Design Studio
         </h1>
         <p
-          class="text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+          class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5"
         >
+          <Sparkles class="w-2.5 h-2.5 text-indigo-400" />
           {template.name} • v{template.version}
         </p>
       </div>
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="h-8 w-[1px] bg-gray-100 dark:bg-slate-800 mx-2"></div>
+      <button
+        onclick={resetTemplate}
+        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+      >
+        <RotateCcw class="w-3.5 h-3.5" />
+        Start Fresh
+      </button>
+
+      <div class="h-8 w-[1px] bg-gray-100 dark:bg-slate-800 mx-1"></div>
 
       <select
         bind:value={template.status}
@@ -212,219 +247,334 @@
       </div>
 
       <!-- Tab Content -->
-      <div class="flex-1 overflow-y-auto p-6 space-y-8">
+      <div class="flex-1 overflow-y-auto p-5 space-y-8 custom-scrollbar">
         {#if activeTab === "branding"}
-          <div in:fade={{ duration: 200 }}>
-            <h3
-              class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4"
-            >
-              University Branding
-            </h3>
-            <div class="space-y-4">
-              <div class="space-y-1.5">
-                <span class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >University Name</span
-                >
+          <div in:fade={{ duration: 200 }} class="space-y-6">
+            <header>
+              <h3
+                class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.15em]"
+              >
+                University Identity
+              </h3>
+              <p
+                class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1"
+              >
+                Configure the official branding for your assessment paper.
+              </p>
+            </header>
+
+            <div class="space-y-5">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <label
+                    for="univ-name"
+                    class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2"
+                  >
+                    University Name
+                    <button
+                      class="text-slate-400 hover:text-indigo-500 transition-colors"
+                      title="The primary name of the institution"
+                    >
+                      <HelpCircle class="w-3 h-3" />
+                    </button>
+                  </label>
+                </div>
                 <input
                   id="univ-name"
                   bind:value={template.layout_schema.universityName}
-                  placeholder="CHAITANYA"
-                  class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  placeholder="e.g. HARVARD UNIVERSITY"
+                  class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                 />
               </div>
-              <div class="space-y-1.5">
-                <span class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Sub-Header</span
+
+              <div class="space-y-2">
+                <label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2"
                 >
+                  Sub-Header / Tagline
+                  <button
+                    class="text-slate-400 hover:text-indigo-500 transition-colors"
+                    title="Additional info like '(Deemed to be University)'"
+                  >
+                    <HelpCircle class="w-3 h-3" />
+                  </button>
+                </label>
                 <input
                   bind:value={template.layout_schema.universitySubName}
-                  placeholder="(DEEMED TO BE UNIVERSITY)"
-                  class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  placeholder="e.g. (ESTABLISHED UNDER ACT...)"
+                  class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                 />
               </div>
-              <div class="space-y-1.5">
+
+              <div class="space-y-2">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Address / Tagline</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2"
                 >
+                  Campus Address
+                </label>
                 <input
                   bind:value={template.layout_schema.universityAddress}
-                  class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  placeholder="e.g. Vandalur, Kelambakam Crescent"
+                  class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                 />
               </div>
-              <div class="space-y-1.5">
+              <div class="space-y-2">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Logo URL</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2"
                 >
-                <div class="flex gap-2">
-                  <input
-                    bind:value={template.layout_schema.logoUrl}
-                    placeholder="/crescent-logo.png"
-                    class="flex-1 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
-                  />
+                  Branding Logo
+                </label>
+                <div class="flex gap-3">
+                  <div class="flex-1 relative group">
+                    <input
+                      bind:value={template.layout_schema.logoUrl}
+                      placeholder="e.g. /university-logo.png"
+                      class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                    />
+                    <Layout
+                      class="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 pointer-events-none group-focus-within:text-indigo-500 transition-colors"
+                    />
+                  </div>
                   {#if template.layout_schema.logoUrl}
                     <div
-                      class="w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm"
+                      class="w-[52px] h-[52px] bg-white dark:bg-slate-800 rounded-2xl border-2 border-slate-100 dark:border-slate-700 flex items-center justify-center p-2.5 overflow-hidden shrink-0 shadow-sm transition-all hover:scale-105"
                     >
                       <img
                         src={template.layout_schema.logoUrl}
                         class="max-w-full max-h-full object-contain"
-                        alt="Preview"
+                        alt="Logo Preview"
                       />
                     </div>
                   {/if}
                 </div>
+                <p
+                  class="text-[10px] font-medium text-slate-400 dark:text-slate-500 px-1"
+                >
+                  Tip: Use a transparent PNG logo for best results.
+                </p>
               </div>
 
-              <div class="space-y-1.5 pt-2">
+              <div class="space-y-2 pt-2">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Watermark Text</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2"
                 >
+                  Watermark Text
+                  <button
+                    class="text-slate-400 hover:text-indigo-500 transition-colors"
+                    title="Subtle text displayed behind the assessment content"
+                  >
+                    <HelpCircle class="w-3 h-3" />
+                  </button>
+                </label>
                 <input
                   bind:value={template.layout_schema.watermarkText}
-                  placeholder="CONFIDENTIAL"
-                  class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+                  placeholder="e.g. CONFIDENTIAL / DRAFT"
+                  class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                 />
               </div>
 
-              <div class="grid grid-cols-1 gap-3 pt-2">
+              <div class="grid grid-cols-1 gap-3 pt-4">
                 <div
-                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
+                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-indigo-100 dark:hover:border-indigo-900/30 transition-all group"
                 >
-                  <div>
-                    <p
-                      class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600"
                     >
-                      Metadata Grid
-                    </p>
-                    <p
-                      class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
-                    >
-                      Boxed table for paper info
-                    </p>
+                      <Grid class="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p
+                        class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                      >
+                        Metadata Grid
+                      </p>
+                      <p
+                        class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                      >
+                        Boxed table layout for details
+                      </p>
+                    </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    bind:checked={template.layout_schema.showMetadataTable}
-                    class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                  />
+                  <label
+                    class="relative inline-flex items-center cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      bind:checked={template.layout_schema.showMetadataTable}
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-11 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"
+                    ></div>
+                  </label>
                 </div>
 
                 <div
-                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
+                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-[24px] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-indigo-100 dark:hover:border-indigo-900/30 transition-all group"
                 >
-                  <div>
-                    <p
-                      class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center text-slate-600 dark:text-slate-400"
                     >
-                      Roll No Box
-                    </p>
-                    <p
-                      class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
-                    >
-                      Display RRN entry field
-                    </p>
+                      <Type class="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p
+                        class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                      >
+                        Roll Number Box
+                      </p>
+                      <p
+                        class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                      >
+                        Display RRN entry field
+                      </p>
+                    </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    bind:checked={template.layout_schema.showRRN}
-                    class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                  />
+                  <label
+                    class="relative inline-flex items-center cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      bind:checked={template.layout_schema.showRRN}
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-11 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"
+                    ></div>
+                  </label>
                 </div>
               </div>
             </div>
           </div>
         {:else if activeTab === "design"}
           <div in:fade={{ duration: 200 }} class="space-y-8">
-            <div class="space-y-4">
+            <header>
               <h3
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+                class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.15em]"
               >
-                <Paintbrush class="w-3.5 h-3.5" />
-                Visual Styling
+                Global Aesthetics
               </h3>
+              <p
+                class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1"
+              >
+                Refine the visual tone and spacing of the document.
+              </p>
+            </header>
 
-              <div class="space-y-1.5 text-left">
+            <div class="space-y-6">
+              <div class="space-y-3">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Accent Theme Color</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
+                  >Primary Accent Color</label
                 >
                 <div
-                  class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm"
+                  class="flex items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:border-indigo-100 dark:hover:border-indigo-900/30"
                 >
-                  <input
-                    type="color"
-                    bind:value={template.layout_schema.primaryColor}
-                    class="w-10 h-10 rounded-lg border-none bg-transparent cursor-pointer"
-                  />
-                  <input
-                    type="text"
-                    bind:value={template.layout_schema.primaryColor}
-                    class="flex-1 bg-transparent border-none text-xs font-black uppercase outline-none"
-                  />
+                  <div class="relative w-12 h-12 shrink-0">
+                    <input
+                      type="color"
+                      bind:value={template.layout_schema.primaryColor}
+                      class="absolute inset-0 w-full h-full rounded-2xl border-none p-0 cursor-pointer overflow-hidden"
+                      style="background-color: {template.layout_schema
+                        .primaryColor}"
+                    />
+                  </div>
+                  <div class="flex-1">
+                    <input
+                      type="text"
+                      bind:value={template.layout_schema.primaryColor}
+                      class="w-full bg-transparent border-none text-sm font-black uppercase outline-none text-slate-900 dark:text-white"
+                    />
+                    <p
+                      class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight"
+                    >
+                      Hex Code
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div class="space-y-1.5 text-left">
+              <div class="space-y-3">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Typography</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
+                  >Typography Pair</label
                 >
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-3">
                   <button
                     onclick={() =>
                       (template.layout_schema.fontFamily = "serif")}
-                    class="p-3 rounded-xl border-2 transition-all text-center {template
+                    class="group p-4 rounded-[28px] border-2 transition-all flex flex-col items-center gap-2 {template
                       .layout_schema.fontFamily === 'serif'
-                      ? 'border-indigo-600 bg-indigo-50/50'
-                      : 'border-gray-50 bg-white'}"
+                      ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20'
+                      : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-800 shadow-sm'}"
                   >
-                    <span class="text-sm font-serif decoration-indigo-200"
-                      >Aa</span
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-serif {template
+                        .layout_schema.fontFamily === 'serif'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}"
                     >
-                    <p class="text-[8px] font-black uppercase mt-1">Serif</p>
+                      Aa
+                    </div>
+                    <p
+                      class="text-[10px] font-black uppercase tracking-tight {template
+                        .layout_schema.fontFamily === 'serif'
+                        ? 'text-indigo-600'
+                        : 'text-slate-500'}"
+                    >
+                      Classic Serif
+                    </p>
                   </button>
                   <button
                     onclick={() =>
                       (template.layout_schema.fontFamily = "sans-serif")}
-                    class="p-3 rounded-xl border-2 transition-all text-center {template
+                    class="group p-4 rounded-[28px] border-2 transition-all flex flex-col items-center gap-2 {template
                       .layout_schema.fontFamily === 'sans-serif'
-                      ? 'border-indigo-600 bg-indigo-50/50'
-                      : 'border-gray-50 bg-white'}"
+                      ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20'
+                      : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-800 shadow-sm'}"
                   >
-                    <span class="text-sm font-sans">Aa</span>
-                    <p class="text-[8px] font-black uppercase mt-1">Sans</p>
+                    <div
+                      class="w-10 h-10 rounded-full flex items-center justify-center text-xl font-sans {template
+                        .layout_schema.fontFamily === 'sans-serif'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}"
+                    >
+                      Aa
+                    </div>
+                    <p
+                      class="text-[10px] font-black uppercase tracking-tight {template
+                        .layout_schema.fontFamily === 'sans-serif'
+                        ? 'text-indigo-600'
+                        : 'text-slate-500'}"
+                    >
+                      Modern Sans
+                    </p>
                   </button>
                 </div>
               </div>
             </div>
 
             <div
-              class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800"
+              class="space-y-6 pt-6 border-t border-slate-100 dark:border-slate-800"
             >
-              <h3
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
-              >
-                <Maximize class="w-3.5 h-3.5" />
-                Layout Settings
-              </h3>
-
-              <div class="space-y-1.5 text-left">
+              <div class="space-y-3">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
                   >Page Margins</label
                 >
-                <div class="flex gap-1.5">
+                <div
+                  class="flex p-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700"
+                >
                   {#each ["narrow", "normal", "wide"] as margin}
                     <button
                       onclick={() =>
                         (template.layout_schema.pageMargin = margin)}
-                      class="flex-1 py-2 text-[8px] font-black uppercase rounded-lg border-2 transition-all {template
+                      class="flex-1 py-2 text-[9px] font-black uppercase rounded-xl transition-all {template
                         .layout_schema.pageMargin === margin
-                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-600'
-                        : 'border-gray-50 bg-white text-gray-400'}"
+                        ? 'bg-white dark:bg-slate-700 shadow-md text-indigo-600'
+                        : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'}"
                     >
                       {margin}
                     </button>
@@ -432,66 +582,97 @@
                 </div>
               </div>
 
-              <div class="space-y-1.5 text-left">
+              <div class="space-y-3">
                 <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Preview Zoom ({Math.round(previewScale * 100)}%)</label
+                  class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
+                  >Preview Scale</label
                 >
-                <input
-                  type="range"
-                  min="0.5"
-                  max="1.5"
-                  step="0.05"
-                  bind:value={previewScale}
-                  class="w-full h-1.5 bg-gray-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 shadow-inner"
-                />
+                <div class="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="1.5"
+                    step="0.05"
+                    bind:value={previewScale}
+                    class="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 shadow-inner"
+                  />
+                  <span class="text-[10px] font-black text-slate-400 w-8"
+                    >{Math.round(previewScale * 100)}%</span
+                  >
+                </div>
               </div>
 
               <div
-                class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm"
+                class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-[28px] border border-slate-100 dark:border-slate-700 shadow-sm hover:border-indigo-100 dark:hover:border-indigo-900/30 transition-all"
               >
-                <div>
-                  <p
-                    class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-900/50 flex items-center justify-center text-slate-600 dark:text-slate-400"
                   >
-                    Page Border
-                  </p>
-                  <p
-                    class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
-                  >
-                    Decorative double line
-                  </p>
+                    <Maximize2 class="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p
+                      class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                    >
+                      Page Border
+                    </p>
+                    <p
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                    >
+                      Decorative theme outline
+                    </p>
+                  </div>
                 </div>
-                <input
-                  type="checkbox"
-                  bind:checked={template.layout_schema.showBorder}
-                  class="w-5 h-5 rounded-md border-gray-100 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                />
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    bind:checked={template.layout_schema.showBorder}
+                    class="sr-only peer"
+                  />
+                  <div
+                    class="w-11 h-6 bg-slate-200 peer-focus:outline-none dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"
+                  ></div>
+                </label>
               </div>
             </div>
 
             <div
-              class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800 text-left"
+              class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800"
             >
-              <h3
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+              <label
+                class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
+                >Style Preset</label
               >
-                <Component class="w-3.5 h-3.5" />
-                Style Presets
-              </h3>
-              <div class="grid grid-cols-1 gap-2">
-                {#each [{ id: "standard", name: "Modern Clear", desc: "Grid-based minimalist" }, { id: "crescent", name: "Crescent Official", desc: "Boxed metadata & seal" }, { id: "cdu", name: "CDU Academic", desc: "Red labels & centered header" }] as style}
+              <div class="grid grid-cols-1 gap-2.5">
+                {#each [{ id: "standard", name: "Modern Clear", desc: "Grid-based minimalist", icon: Layout }, { id: "crescent", name: "Crescent Official", desc: "Boxed metadata & seal", icon: Grid }, { id: "cdu", name: "CDU Academic", desc: "Red labels & centered header", icon: Type }] as style}
                   <button
                     onclick={() => (template.layout_schema.style = style.id)}
-                    class="p-3.5 rounded-2xl border-2 transition-all text-left {template
+                    class="p-4 rounded-[28px] border-2 transition-all text-left flex items-start gap-4 {template
                       .layout_schema.style === style.id
-                      ? 'border-indigo-600 bg-indigo-50/20'
-                      : 'border-gray-100 hover:border-gray-200 bg-white'}"
+                      ? 'border-indigo-500 bg-indigo-50/20 dark:bg-indigo-950/20'
+                      : 'border-slate-50 dark:border-slate-800 bg-white dark:bg-slate-800 hover:border-slate-100 dark:hover:border-slate-700'}"
                   >
-                    <p class="text-[10px] font-black uppercase">{style.name}</p>
-                    <p class="text-[8px] font-bold text-gray-400">
-                      {style.desc}
-                    </p>
+                    <div
+                      class="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center text-slate-400 {template
+                        .layout_schema.style === style.id
+                        ? 'text-indigo-500'
+                        : ''}"
+                    >
+                      <style.icon class="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p
+                        class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                      >
+                        {style.name}
+                      </p>
+                      <p
+                        class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                      >
+                        {style.desc}
+                      </p>
+                    </div>
                   </button>
                 {/each}
               </div>
@@ -499,126 +680,156 @@
           </div>
         {:else if activeTab === "structure"}
           <div in:fade={{ duration: 200 }} class="space-y-6">
-            <div
-              class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800"
-            >
-              <h3
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-              >
-                Canvas Components
-              </h3>
+            <header class="flex items-center justify-between">
+              <div>
+                <h3
+                  class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.15em]"
+                >
+                  Document Structure
+                </h3>
+                <p
+                  class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1"
+                >
+                  Organize and reorder your paper sections.
+                </p>
+              </div>
               <button
                 onclick={addSection}
-                class="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-[9px] font-black uppercase rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20"
+                class="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
               >
-                <Plus class="w-3.5 h-3.5" />
+                <Plus class="w-4 h-4" />
                 Add Part
               </button>
-            </div>
+            </header>
 
             <div
-              class="space-y-4"
+              class="space-y-5"
               use:dndzone={{ items: template.config, flipDurationMs: 200 }}
               onconsider={handleDndConsider}
               onfinalize={handleDndFinalize}
             >
               {#each template.config || [] as section, idx (section.id)}
                 <div
-                  class="bg-white dark:bg-slate-800 rounded-2xl p-4 border-2 border-gray-50 dark:border-slate-800 space-y-4 shadow-sm group hover:border-indigo-100 transition-all relative overflow-hidden"
+                  class="bg-white dark:bg-slate-800 rounded-[32px] p-5 border-2 border-slate-50 dark:border-slate-800 space-y-5 shadow-sm group hover:border-indigo-100 dark:hover:border-indigo-900/30 transition-all relative"
                 >
                   <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-3">
                       <div
-                        class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-indigo-400 p-1"
+                        class="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-xl transition-colors"
                       >
                         <GripVertical class="w-4 h-4" />
                       </div>
-                      <span
-                        class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg uppercase"
-                      >
-                        Part {section.part}
-                      </span>
+                      <div>
+                        <span
+                          class="text-[10px] font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-lg uppercase tracking-wider"
+                        >
+                          Part {section.part}
+                        </span>
+                      </div>
                     </div>
                     <button
                       onclick={() => removeSection(idx)}
-                      class="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      class="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-2xl transition-all"
+                      title="Remove Section"
                     >
                       <Trash2 class="w-4 h-4" />
                     </button>
                   </div>
-                  <input
-                    bind:value={section.title}
-                    class="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold px-3 py-2 outline-none"
-                  />
-                  <div
-                    class="grid grid-cols-2 gap-3 pb-4 border-b border-gray-100 dark:border-slate-700"
-                  >
-                    <div class="space-y-1">
+
+                  <div class="space-y-2">
+                    <label
+                      class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase ml-1 tracking-widest"
+                      >Section Title</label
+                    >
+                    <input
+                      bind:value={section.title}
+                      class="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-transparent focus:border-indigo-500/20 rounded-2xl text-xs font-bold px-4 py-3 outline-none transition-all"
+                    />
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4 pt-2">
+                    <div class="space-y-2">
                       <label
-                        class="text-[8px] font-black text-gray-400 uppercase ml-1"
-                        >Marks/Q</label
+                        class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase ml-1 tracking-widest"
+                        >Marks per Q</label
                       >
-                      <input
-                        type="number"
-                        bind:value={section.marks_per_q}
-                        class="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold px-3 py-2 outline-none"
-                      />
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={section.marks_per_q}
+                          class="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-transparent focus:border-indigo-500/20 rounded-2xl text-xs font-bold px-4 py-3 outline-none transition-all"
+                        />
+                        <Type
+                          class="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300"
+                        />
+                      </div>
                     </div>
-                    <div class="space-y-1">
+                    <div class="space-y-2">
                       <label
-                        class="text-[8px] font-black text-gray-400 uppercase ml-1"
+                        class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase ml-1 tracking-widest"
                         >Answer Limit</label
                       >
-                      <input
-                        type="number"
-                        bind:value={section.answered_count}
-                        class="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold px-3 py-2 outline-none"
-                      />
+                      <div class="relative">
+                        <input
+                          type="number"
+                          bind:value={section.answered_count}
+                          class="w-full bg-slate-50 dark:bg-slate-900/50 border-2 border-transparent focus:border-indigo-500/20 rounded-2xl text-xs font-bold px-4 py-3 outline-none transition-all"
+                        />
+                        <MousePointer2
+                          class="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300"
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <!-- Slots -->
-                  <div class="space-y-2">
+                  <div
+                    class="space-y-4 pt-5 border-t border-slate-50 dark:border-slate-700/50"
+                  >
                     <div class="flex items-center justify-between">
-                      <span
-                        class="text-[8px] font-black text-gray-400 uppercase tracking-widest"
-                        >Question Slots</span
-                      >
+                      <div class="flex items-center gap-2">
+                        <Layers class="w-3.5 h-3.5 text-slate-400" />
+                        <span
+                          class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]"
+                          >Question Slots</span
+                        >
+                      </div>
                       <button
                         onclick={() => {
                           section.slots = [
                             ...(section.slots || []),
                             {
                               label: String((section.slots?.length || 0) + 1),
-                              qType: "ANY",
+                              type: "SINGLE",
                               marks: section.marks_per_q,
                             },
                           ];
                         }}
-                        class="text-[8px] font-black text-indigo-600 hover:underline uppercase"
-                        >+ Add Slot</button
+                        class="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black uppercase rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all"
                       >
+                        + Add Slot
+                      </button>
                     </div>
-                    <div class="space-y-1.5">
+                    <div class="space-y-2">
                       {#each section.slots || [] as slot, sIdx}
                         <div
-                          class="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 p-2 rounded-lg group"
+                          class="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-2xl group/slot relative border border-transparent hover:border-indigo-500/10 transition-all"
                         >
                           <input
                             bind:value={slot.label}
-                            class="w-8 bg-transparent border-none text-[10px] font-black text-center outline-none"
+                            class="w-10 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-[10px] font-black text-center outline-none focus:border-indigo-500/30 transition-all py-1.5"
                             placeholder="#"
                           />
                           <select
                             bind:value={slot.type}
-                            class="bg-white dark:bg-slate-800 border-none rounded-md text-[8px] font-black uppercase px-2 py-1 outline-none"
+                            class="bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase px-2 py-1.5 outline-none focus:border-indigo-500/30 transition-all"
                           >
                             <option value="SINGLE">Single</option>
                             <option value="OR_GROUP">OR Pair</option>
                           </select>
                           <select
                             bind:value={slot.target_co}
-                            class="flex-1 bg-white dark:bg-slate-800 border-none rounded-md text-[8px] font-black uppercase px-2 py-1 outline-none"
+                            class="flex-1 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase px-2 py-1.5 outline-none focus:border-indigo-500/30 transition-all"
                           >
                             <option value={undefined}>No CO</option>
                             {#each [1, 2, 3, 4, 5, 6] as n}
@@ -628,7 +839,7 @@
                           <input
                             type="number"
                             bind:value={slot.marks}
-                            class="w-12 bg-white dark:bg-slate-800 border-none rounded-md text-[10px] font-black px-2 py-1 outline-none"
+                            class="w-14 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-xl text-[10px] font-black px-2 py-1.5 outline-none focus:border-indigo-500/30 transition-all"
                           />
                           <button
                             onclick={() => {
@@ -636,20 +847,9 @@
                                 (_: any, i: number) => i !== sIdx,
                               );
                             }}
-                            class="ml-auto opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-all"
+                            class="p-1.5 text-slate-300 hover:text-red-500 transition-all"
                           >
-                            <svg
-                              class="w-3 h-3"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              ><path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2.5"
-                                d="M6 18L18 6M6 6l12 12"
-                              /></svg
-                            >
+                            <Trash2 class="w-3.5 h-3.5" />
                           </button>
                         </div>
                       {/each}
@@ -660,22 +860,55 @@
             </div>
           </div>
         {:else if activeTab === "components"}
-          <div in:fade={{ duration: 200 }} class="space-y-6">
-            <h3
-              class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-            >
-              Building Library
-            </h3>
+          <div in:fade={{ duration: 200 }} class="space-y-8">
+            <header>
+              <h3
+                class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.15em]"
+              >
+                Element Library
+              </h3>
+              <p
+                class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1"
+              >
+                Add pre-configured sections to your canvas.
+              </p>
+            </header>
 
             <div class="grid grid-cols-1 gap-4">
+              <button
+                onclick={resetTemplate}
+                class="group p-5 bg-white dark:bg-slate-800 rounded-[32px] border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-red-500/50 hover:bg-red-50/30 dark:hover:bg-red-950/10 transition-all text-left relative overflow-hidden"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-12 h-12 rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform"
+                  >
+                    <RotateCcw class="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p
+                      class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                    >
+                      Blank Slate
+                    </p>
+                    <p
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                    >
+                      Reset and start from scratch
+                    </p>
+                  </div>
+                </div>
+              </button>
+
               <button
                 onclick={() => {
                   const part = String.fromCharCode(65 + template.config.length);
                   template.config = [
                     ...template.config,
                     {
+                      id: crypto.randomUUID(),
                       part,
-                      title: `PART ${part} (2M Questions)`,
+                      title: `PART ${part} (Short Answers)`,
                       marks_per_q: 2,
                       answered_count: 5,
                       slots: Array(5)
@@ -688,14 +921,27 @@
                     },
                   ];
                 }}
-                class="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 hover:border-indigo-500 transition-all text-left"
+                class="group p-5 bg-white dark:bg-slate-800 rounded-[32px] border-2 border-slate-50 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all text-left"
               >
-                <p class="text-xs font-black uppercase">
-                  Standard Part A (Short)
-                </p>
-                <p class="text-[9px] font-bold text-gray-400">
-                  5 Questions x 2 Marks each
-                </p>
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 group-hover:rotate-12 transition-transform"
+                  >
+                    <Type class="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p
+                      class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                    >
+                      Quick Shorts
+                    </p>
+                    <p
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                    >
+                      5 Questions x 2 Marks each
+                    </p>
+                  </div>
+                </div>
               </button>
 
               <button
@@ -704,8 +950,9 @@
                   template.config = [
                     ...template.config,
                     {
+                      id: crypto.randomUUID(),
                       part,
-                      title: `PART ${part} (Essay-type with choices)`,
+                      title: `PART ${part} (Descriptive Questions)`,
                       marks_per_q: 15,
                       answered_count: 3,
                       slots: Array(3)
@@ -718,14 +965,27 @@
                     },
                   ];
                 }}
-                class="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 hover:border-indigo-500 transition-all text-left"
+                class="group p-5 bg-white dark:bg-slate-800 rounded-[32px] border-2 border-slate-50 dark:border-slate-800 hover:border-emerald-500/50 hover:shadow-xl hover:shadow-emerald-500/5 transition-all text-left"
               >
-                <p class="text-xs font-black uppercase">
-                  Standard Part B (Long)
-                </p>
-                <p class="text-[9px] font-bold text-gray-400">
-                  3 Pairs of OR-Questions x 15 Marks each
-                </p>
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center text-emerald-600 group-hover:rotate-12 transition-transform"
+                  >
+                    <Layers class="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p
+                      class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                    >
+                      Standard Essays
+                    </p>
+                    <p
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                    >
+                      3 Pairs of 15-Mark OR questions
+                    </p>
+                  </div>
+                </div>
               </button>
 
               <button
@@ -734,8 +994,9 @@
                   template.config = [
                     ...template.config,
                     {
+                      id: crypto.randomUUID(),
                       part,
-                      title: `SECTION ${part} (Fill in the blanks)`,
+                      title: `SECTION ${part} (Technical)`,
                       marks_per_q: 1,
                       answered_count: 10,
                       slots: Array(10)
@@ -749,44 +1010,71 @@
                     },
                   ];
                 }}
-                class="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 hover:border-indigo-500 transition-all text-left"
+                class="group p-5 bg-white dark:bg-slate-800 rounded-[32px] border-2 border-slate-50 dark:border-slate-800 hover:border-orange-500/50 hover:shadow-xl hover:shadow-orange-500/5 transition-all text-left"
               >
-                <p class="text-xs font-black uppercase">
-                  Fill in the Blanks Section
-                </p>
-                <p class="text-[9px] font-bold text-gray-400">
-                  10 Questions x 1 Mark each
-                </p>
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-12 h-12 rounded-2xl bg-orange-50 dark:bg-orange-950/30 flex items-center justify-center text-orange-600 group-hover:rotate-12 transition-transform"
+                  >
+                    <Maximize class="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p
+                      class="text-[11px] font-black uppercase text-slate-800 dark:text-slate-100"
+                    >
+                      Objective Section
+                    </p>
+                    <p
+                      class="text-[10px] font-medium text-slate-400 dark:text-slate-500"
+                    >
+                      10 Fill-in-the-blanks (1M each)
+                    </p>
+                  </div>
+                </div>
               </button>
             </div>
 
-            <div class="pt-6 border-t border-gray-100 dark:border-slate-800">
-              <h3 class="text-[10px] font-black text-gray-400 uppercase mb-4">
-                Paper Properties
-              </h3>
-              <div class="space-y-4">
-                <div class="space-y-1.5 text-left">
+            <div class="pt-8 border-t border-slate-100 dark:border-slate-800">
+              <header class="mb-5">
+                <h3
+                  class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-[0.15em]"
+                >
+                  Paper Properties
+                </h3>
+                <p
+                  class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mt-1"
+                >
+                  Core settings for this assessment template.
+                </p>
+              </header>
+              <div class="space-y-5">
+                <div class="space-y-2">
                   <label
-                    class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                    class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
                     >Template Name</label
                   >
                   <input
                     bind:value={template.name}
-                    class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    placeholder="e.g. End Semester V1"
+                    class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                   />
                 </div>
-                <div class="space-y-1.5 text-left">
+                <div class="space-y-2">
                   <label
-                    class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                    class="text-[10px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider"
                     >Exam Category</label
                   >
                   <select
                     bind:value={template.exam_type}
-                    class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                    class="w-full bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-xs font-bold px-4 py-3.5 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                   >
-                    <option value="Semester">Semester End</option>
-                    <option value="Internal">Continuous Assessment</option>
-                    <option value="Assignment">Home Assignment</option>
+                    <option value="Semester">Semester End Examination</option>
+                    <option value="Internal"
+                      >Continuous Internal Assessment</option
+                    >
+                    <option value="Assignment"
+                      >Practical / Home Assignment</option
+                    >
                   </select>
                 </div>
               </div>
