@@ -68,6 +68,8 @@ export class TemplateRenderer {
             if (['table', 'feetable', 'feesummary', 'summarrytable', 'feetablerows', 'tabledata'].includes(norm)) {
                 let tableRows = options?.config?.tableRows || vars.fee_table_rows || vars.feeTableRows || [];
 
+                console.log(`[TEMPLATE_RENDER] TABLE component detected. TableRows count: ${Array.isArray(tableRows) ? tableRows.length : 'NOT_ARRAY'}`);
+
                 // Fallback for students with simple fee data
                 if (!tableRows || (Array.isArray(tableRows) && tableRows.length === 0)) {
                     const feeAmount = this.getValueByPath(vars, '2nd Sem Fee') || this.getValueByPath(vars, 'fee') || '';
@@ -75,12 +77,39 @@ export class TemplateRenderer {
                 }
 
                 if (tableRows && tableRows.length > 0) {
-                    const processedRows = tableRows.map((r: any) => ({
-                        label: r.label.includes('{{') ? r.label.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k)) : r.label,
-                        value: r.value.includes('{{') ? r.value.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k)) : r.value
-                    }));
+                    console.log(`[TEMPLATE_RENDER] Processing ${tableRows.length} table rows...`);
+                    const processedRows = tableRows.map((r: any, idx: number) => {
+                        // CRITICAL FIX: Ensure label and value are strings before checking for placeholders
+                        const labelStr = String(r.label || '');
+                        const valueStr = String(r.value || '');
+
+                        const hasLabelPlaceholder = labelStr.includes('{{');
+                        const hasValuePlaceholder = valueStr.includes('{{');
+
+                        console.log(`[TEMPLATE_RENDER] Row ${idx}: label="${labelStr.slice(0, 40)}${labelStr.length > 40 ? '...' : ''}", value="${valueStr.slice(0, 40)}${valueStr.length > 40 ? '...' : ''}", hasPlaceholders: label=${hasLabelPlaceholder}, value=${hasValuePlaceholder}`);
+
+                        const processedLabel = hasLabelPlaceholder
+                            ? labelStr.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => {
+                                const resolved = resolvePlaceholder(k);
+                                console.log(`[TEMPLATE_RENDER] Row ${idx} label placeholder "{{${k.slice(0, 30)}...}}" => "${resolved.slice(0, 30)}..."`);
+                                return resolved;
+                            })
+                            : labelStr;
+
+                        const processedValue = hasValuePlaceholder
+                            ? valueStr.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => {
+                                const resolved = resolvePlaceholder(k);
+                                console.log(`[TEMPLATE_RENDER] Row ${idx} value placeholder "{{${k.slice(0, 30)}...}}" => "${resolved.slice(0, 30)}..."`);
+                                return resolved;
+                            })
+                            : valueStr;
+
+                        return { label: processedLabel, value: processedValue };
+                    });
+                    console.log(`[TEMPLATE_RENDER] Table processing complete. Building HTML table...`);
                     return this.buildTable(processedRows);
                 }
+                console.log(`[TEMPLATE_RENDER] No table rows to process, returning empty string`);
                 return '';
             }
 

@@ -72,6 +72,25 @@ export async function sendToRecipient(
         console.log(`[CAMPAIGN_SENDER] Keys found in Metadata:`, Object.keys(metaObj));
         console.log(`[CAMPAIGN_SENDER] Variables Keys for Merge:`, Object.keys(variables));
 
+        // Log template config to verify tableRows structure
+        console.log(`[CAMPAIGN_SENDER] Template config type:`, typeof template.config);
+        if (template.config) {
+            let configObj = template.config;
+            if (typeof configObj === 'string') {
+                try { configObj = JSON.parse(configObj); } catch (e) { console.error('[CAMPAIGN_SENDER] Failed to parse template.config:', e); }
+            }
+            if (configObj && typeof configObj === 'object') {
+                console.log(`[CAMPAIGN_SENDER] Template config has tableRows:`, !!configObj.tableRows);
+                if (configObj.tableRows && Array.isArray(configObj.tableRows)) {
+                    console.log(`[CAMPAIGN_SENDER] TableRows count: ${configObj.tableRows.length}`);
+                    configObj.tableRows.forEach((row: any, idx: number) => {
+                        console.log(`[CAMPAIGN_SENDER] TableRow ${idx}: label type=${typeof row.label}, value type=${typeof row.value}`);
+                        console.log(`[CAMPAIGN_SENDER] TableRow ${idx}: label="${String(row.label).slice(0, 50)}...", value="${String(row.value).slice(0, 50)}..."`);
+                    });
+                }
+            }
+        }
+
         // SPECIFIC DEBUGGING REQUESTED BY USER
         const key1 = "Term 1 Fee adjustment (O/S +ve and Excess -Ve)";
         const key2 = "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)";
@@ -168,7 +187,7 @@ export async function sendToRecipient(
             );
         }
 
-        return { success: true, messageId: res.data.id };
+        return { success: true, messageId: sendResult.data.id };
 
     } catch (err: any) {
         console.error(`[CAMPAIGN_SENDER] Error for recipient ${recipientId}: `, err.message);
