@@ -92,9 +92,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
 
             // Create cleaned metadata by trimming all keys and values
+            // CRITICAL FIX: Replace newlines in keys with spaces to match template placeholders
             const metadata: any = {};
             Object.entries(row).forEach(([k, v]) => {
-                metadata[k.trim()] = typeof v === 'string' ? v.trim() : v;
+                const normalizedKey = k.replace(/[\r\n]+/g, ' ').trim(); // Replace newlines with space, then trim
+                metadata[normalizedKey] = typeof v === 'string' ? v.trim() : v;
             });
 
             // Note: We used to delete matched keys from metadata here. 

@@ -1,0 +1,187 @@
+﻿=== Checking Student Metadata Keys ===
+
+Found 5 students with metadata:
+
+
+--- Student 1: Akarsh B (b.akarsh2007@gmail.com) ---
+Total keys: 13
+
+Metadata keys:
+  "User ID": "88c833ea-5590-408a-8f27-8101bc3804ce"
+  "__EMPTY": "0"
+  "University": "SGU"
+  "student msg": "≡ƒôó *Term 2 Fee Payment ΓÇôReminder* 
+
+Greetings from NIAT! ≡ƒîƒ
+
+Dear "&H2&",
+
+The Term 2 fee payment deadline has already passed. We request you to complete the Term 2 fee payment at the earliest to ensure smooth access to the learning portal and academic access.
+Fee verification and Term 2 registration are currently open. Please visit the Registration Help Desk on campus to complete your registration.
+
+≡ƒÆ│ *Fee Payment Details:*
+Fee Amount: "&E2&"
+Payment Link: https://accounts.ccbp.in/register/sgu-term-two-fee
+Dues from Previous Term (If any): "&D2&"
+Coupon Code: "&F2&"
+
+Warm regards,
+Team┬áNIAT"
+  "coupon codes": "KOF09Z"
+  "Father Mail ID": "b.vinayak1979@gmail.com"
+  "parent message": "≡ƒôó *Term 2 Fee Payment ΓÇôReminder* 
+
+Greetings from NIAT! ≡ƒîƒ
+
+Dear Parents,
+
+The Term 2 fee payment deadline has already passed. We request you to complete the Term 2 fee payment at the earliest to ensure smooth access to the learning portal and academic access.
+Fee verification and Term 2 registration are currently open. Please visit the Registration Help Desk on campus to complete your registration.
+
+≡ƒÆ│ *Fee Payment Details:*
+Fee Amount: "&E2&"
+Payment Link: https://accounts.ccbp.in/register/sgu-term-two-fee
+Dues from Previous Term (If any): "&D2&"
+Coupon Code: "&F2&"
+
+Warm regards,
+Team┬áNIAT"
+  "Mother Email ID": "bshwetha1986@gmail.com"
+  "Student Full Name": "Akarsh B"
+  "Student Personal Mail ID": "b.akarsh2007@gmail.com"
+  "Term 2 Fee after discount": "100000"
+  "Total Term 2 Fee (Payable - Paid)": "100000"
+  "Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)": "0"
+
+≡ƒöì Checking for expected keys:
+  Γ¥î "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payable (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Semester 2 General Fee Amount"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+
+--- Student 2: Kushal Vr (kushalkushi0305@gmail.com) ---
+Total keys: 9
+
+Metadata keys:
+  "User ID": "dc663e8e-7e0b-4098-88b7-083fe83d0d48"
+  "__EMPTY": "0"
+  "University": "SGU"
+  "coupon codes": "UB15TF"
+  "Student Full Name": "Kushal Vr"
+  "Student Personal Mail ID": "Kushalkushi0305@gmail.com"
+  "Term 2 Fee after discount": "100000"
+  "Total Term 2 Fee (Payable - Paid)": "100000"
+  "Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)": "0"
+
+≡ƒöì Checking for expected keys:
+  Γ¥î "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payable (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Semester 2 General Fee Amount"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+
+--- Student 3: Varsani Harsh Hiteshbhai (harshvarsani043@gmail.com) ---
+Total keys: 11
+
+Metadata keys:
+  "User ID": "65c9e1a0-a7c8-4860-af85-dd33c57e49dc"
+  "__EMPTY": "0"
+  "University": "SGU"
+  "coupon codes": "GAKO3P"
+  "Father Mail ID": "varasanihg@gmail.com"
+  "Mother Email ID": "princevarshani@gmail.com"
+  "Student Full Name": "Varsani Harsh Hiteshbhai"
+  "Student Personal Mail ID": "harshvarsani043@gmail.com"
+  "Term 2 Fee after discount": "100000"
+  "Total Term 2 Fee (Payable - Paid)": "100000"
+  "Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)": "0"
+
+≡ƒöì Checking for expected keys:
+  Γ¥î "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payable (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Semester 2 General Fee Amount"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+
+--- Student 4: Murugesha Rao Dv (murugesharaodv8@gmail.com) ---
+Total keys: 9
+
+Metadata keys:
+  "User ID": "0a2bcb8c-5118-4783-99e9-33d8f8df36c9"
+  "__EMPTY": "0"
+  "University": "SGU"
+  "coupon codes": "F82V5Q"
+  "Student Full Name": "Murugesha Rao Dv"
+  "Student Personal Mail ID": "murugesharaodv8@gmail.com"
+  "Term 2 Fee after discount": "100000"
+  "Total Term 2 Fee (Payable - Paid)": "100000"
+  "Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)": "0"
+
+≡ƒöì Checking for expected keys:
+  Γ¥î "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payable (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Semester 2 General Fee Amount"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+
+--- Student 5: Lomte Yashraj Nitin (lomteyashraj@gmail.com) ---
+Total keys: 9
+
+Metadata keys:
+  "User ID": "158ee1cf-6a39-4a39-a185-332ec946a2f5"
+  "__EMPTY": "0"
+  "University": "SGU"
+  "coupon codes": "RUJI02"
+  "Student Full Name": "Lomte Yashraj Nitin"
+  "Student Personal Mail ID": "lomteyashraj@gmail.com"
+  "Term 2 Fee after discount": "92857"
+  "Total Term 2 Fee (Payable - Paid)": "92857"
+  "Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)": "0"
+
+≡ƒöì Checking for expected keys:
+  Γ¥î "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Total Term 2 Fee Payable (Includes Term 2 & Term 1 adjustments)"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)
+  Γ¥î "Semester 2 General Fee Amount"
+     Similar keys found: Term 2 Fee after discount, Total Term 2 Fee (Payable - Paid), Term 1 Fee adjustment
+(O/S +ve and Excess -Ve)

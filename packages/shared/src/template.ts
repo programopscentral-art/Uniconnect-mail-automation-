@@ -17,9 +17,14 @@ export class TemplateRenderer {
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
-            // STEP 0: EXACT LITERAL MATCH (case-insensitive, no normalization)
+
+            // STEP 0: EXACT LITERAL MATCH (case-insensitive + whitespace normalized)
             // This handles keys with special chars like "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
-            const exactMatch = Object.keys(vars).find(k => k.toLowerCase() === key.toLowerCase());
+            // CRITICAL: Normalize whitespace (including newlines) for comparison
+            const normalizeKey = (k: string) => k.toLowerCase().replace(/\s+/g, ' ').trim();
+            const normalizedSearchKey = normalizeKey(key);
+
+            const exactMatch = Object.keys(vars).find(k => normalizeKey(k) === normalizedSearchKey);
             if (exactMatch !== undefined && vars[exactMatch] !== undefined && vars[exactMatch] !== null) {
                 const value = vars[exactMatch];
                 if (typeof value === 'object' && !Array.isArray(value)) return '';
