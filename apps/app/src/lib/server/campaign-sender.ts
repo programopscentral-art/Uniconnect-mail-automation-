@@ -113,10 +113,11 @@ export async function sendToRecipient(
         console.log(`[CAMPAIGN_SENDER] To: ${recipient.to_email}, From: ${mailboxEmail || 'support@uniconnect.com'}`);
 
         // 4. Send via Gmail API
+        const targetEmail = String(recipient.to_email || '').trim();
         const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const messageParts = [
             `MIME-Version: 1.0`,
-            `To: ${recipient.to_email}`,
+            `To: ${targetEmail}`,
             `From: "NIAT Program Operations" <${mailboxEmail || 'programops@uniconnect.com'}>`, // Standardized Branding
             `Subject: ${utf8Subject}`,
             `X-UniConnect-Token: ${recipient.tracking_token}`,
