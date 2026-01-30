@@ -9,6 +9,8 @@
     class: className = "",
     isEditable = true,
     multiline = false,
+    placeholder = "",
+    style = "",
   } = $props();
 
   function editable(node: HTMLElement) {
@@ -57,7 +59,7 @@
   class="outline-none focus:bg-indigo-50/10 dark:focus:bg-indigo-900/20 min-w-[20px] transition-colors rounded {className} {isEditable
     ? 'cursor-text hover:bg-slate-50 dark:hover:bg-slate-800'
     : 'pointer-events-none'}"
-  style="white-space: pre-wrap; color: inherit; font-family: {(() => {
+  style="{style}; white-space: pre-wrap; color: inherit; font-family: {(() => {
     const v = String(value || '');
     return (
       v.includes('      ') ||
@@ -68,7 +70,14 @@
   })()
     ? 'monospace'
     : 'inherit'};"
-  role="textbox"
-  aria-multiline={multiline}
   tabindex="0"
+  data-placeholder={placeholder}
 ></div>
+
+<style>
+  div:empty:before {
+    content: attr(data-placeholder);
+    color: #94a3b8; /* text-slate-400 */
+    font-weight: 500;
+  }
+</style>
