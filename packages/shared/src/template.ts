@@ -11,8 +11,16 @@ export class TemplateRenderer {
         }
         metaObj = metaObj || {};
 
+        // CRITICAL FIX: Normalize metadata keys by replacing newlines with spaces
+        // This handles existing student data where CSV headers had newlines
+        const normalizedMeta: any = {};
+        Object.entries(metaObj).forEach(([key, value]) => {
+            const normalizedKey = String(key).replace(/[\r\n]+/g, ' ').trim();
+            normalizedMeta[normalizedKey] = value;
+        });
+
         // Flatten variables - EVERYTHING goes to root for lookup
-        const vars = { ...metaObj, ...variables };
+        const vars = { ...normalizedMeta, ...variables };
 
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
