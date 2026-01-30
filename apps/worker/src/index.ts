@@ -106,11 +106,28 @@ const worker = new Worker('email-sending', async (job: Job) => {
     if (!token) throw new Error('Failed to get access token');
 
     // Prepare extended variables
+    let metaObj = variables.metadata || {};
+    if (typeof metaObj === 'string') {
+      try { metaObj = JSON.parse(metaObj); } catch (e) { metaObj = {}; }
+    }
+    metaObj = metaObj || {};
+
+    // CRITICAL FIX: Normalize metadata keys in the worker too
+    const normalizedMeta: any = {};
+    Object.entries(metaObj).forEach(([key, value]) => {
+      const normalizedKey = String(key).replace(/[\r\n]+/g, ' ').trim();
+      normalizedMeta[normalizedKey] = value;
+    });
+
     const extendedVars = {
       ...variables,
       STUDENT_NAME: variables.studentName,
-      ...(variables.metadata || {})
+      ...normalizedMeta
     };
+
+    console.log(`[WORKER] Extended Vars Keys: ${Object.keys(extendedVars).filter(k => !k.includes('html') && !k.includes('text')).join(', ')}`);
+    console.log(`[WORKER] Sample Metadata Resolution Check: ${extendedVars['Term 1 Fee adjustment (O/S +ve and Excess -Ve)'] || 'NOT_FOUND'}`);
+
 
     // Render subject and final HTML with branding
     const subject = TemplateRenderer.render(template.subject, extendedVars, { config: template.config, noLayout: true }).replace(/<[^>]*>/g, '').trim();

@@ -11,89 +11,69 @@ export class TemplateRenderer {
         }
         metaObj = metaObj || {};
 
-        // CRITICAL FIX: Normalize metadata keys by replacing newlines with spaces
-        // This handles existing student data where CSV headers had newlines
-        console.log('[TEMPLATE_RENDER] === METADATA NORMALIZATION START ===');
-        console.log('[TEMPLATE_RENDER] Original metadata keys:', Object.keys(metaObj));
+        // CRITICAL FIX: Hyper-aggressive key normalization
+        const normalizeKey = (k: string) => {
+            if (!k) return '';
+            return String(k)
+                .toLowerCase()
+                .replace(/[\r\n\t]+/gs, ' ') // Replace newlines/tabs with space
+                .replace(/[^\w\s\(\)\+\-\/\.,]/g, '') // Remove non-printable/weird chars but keep common punctuation
+                .replace(/\s+/g, ' ') // Collapse multiple spaces
+                .trim();
+        };
 
         const normalizedMeta: any = {};
         Object.entries(metaObj).forEach(([key, value]) => {
-            const normalizedKey = String(key).replace(/[\r\n]+/g, ' ').trim();
-            if (key !== normalizedKey) {
-                console.log(`[TEMPLATE_RENDER] NORMALIZED KEY: "${key}" => "${normalizedKey}"`);
-            }
-            normalizedMeta[normalizedKey] = value;
+            const nKey = normalizeKey(key);
+            normalizedMeta[nKey] = value;
+            // Also keep original key to avoid missing anything
+            normalizedMeta[key] = value;
         });
-
-        console.log('[TEMPLATE_RENDER] Normalized metadata keys:', Object.keys(normalizedMeta));
-        console.log('[TEMPLATE_RENDER] === METADATA NORMALIZATION END ===');
 
         // Flatten variables - EVERYTHING goes to root for lookup
         const vars = { ...normalizedMeta, ...variables };
 
-        console.log('[TEMPLATE_RENDER] Final vars keys available for lookup:', Object.keys(vars).filter(k => k.toLowerCase().includes('fee') || k.toLowerCase().includes('term')));
-
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
-
-            console.log(`[TEMPLATE_RENDER] Resolving placeholder: "{{${key}}}"`);
-
-            // STEP 0: EXACT LITERAL MATCH (case-insensitive + whitespace normalized)
-            // This handles keys with special chars like "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
-            // CRITICAL: Normalize whitespace (including newlines) for comparison
-            const normalizeKey = (k: string) => k.toLowerCase().replace(/\s+/g, ' ').trim();
             const normalizedSearchKey = normalizeKey(key);
 
-            console.log(`[TEMPLATE_RENDER] Normalized search key: "${normalizedSearchKey}"`);
+            // 1. Exact Match (Normalized)
+            const match = Object.keys(vars).find(k => normalizeKey(k) === normalizedSearchKey);
 
-            const exactMatch = Object.keys(vars).find(k => normalizeKey(k) === normalizedSearchKey);
-            if (exactMatch !== undefined && vars[exactMatch] !== undefined && vars[exactMatch] !== null) {
-                const value = vars[exactMatch];
-                if (typeof value === 'object' && !Array.isArray(value)) {
-                    console.log(`[TEMPLATE_RENDER] SKIPPED (object): "${key}"`);
-                    return '';
-                }
-                console.log(`[TEMPLATE_RENDER] ✅ SUCCESS (EXACT): "${key}" => "${String(value).slice(0, 50)}"`);
-                return String(value);
+            if (match !== undefined && vars[match] !== undefined && vars[match] !== null) {
+                const val = vars[match];
+                if (typeof val === 'object' && !Array.isArray(val)) return '';
+                console.log(`[TEMPLATE_RENDER] ✅ SUCCESS: "${key}" matched to "${match}"`);
+                return String(val);
             }
 
-            // STEP 1: Try via getValueByPath (which has its own matching logic)
-            const value = this.getValueByPath(vars, key);
-
-            if (value !== undefined && value !== null) {
-                // Return string representation but avoid [object Object]
-                if (typeof value === 'object' && !Array.isArray(value)) return '';
-                console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved "${key.slice(0, 30)}${key.length > 30 ? '...' : ''}"`);
-                return String(value);
-            }
-
-            // Normalization before failure
-            const normKey = key.replace(/\s+/g, ' ').trim();
-            if (normKey !== key) {
-                const altValue = this.getValueByPath(vars, normKey);
-                if (altValue !== undefined && altValue !== null) {
-                    console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved via normalization "${normKey.slice(0, 30)}..."`);
-                    return String(altValue);
+            // 2. Fuzzy Fallback (Ignore punctuation)
+            const simplify = (s: string) => s.toLowerCase().replace(/[^\w]/g, '');
+            const simplifiedSearch = simplify(key);
+            if (simplifiedSearch.length > 3) {
+                const fuzzyMatch = Object.keys(vars).find(k => simplify(k) === simplifiedSearch);
+                if (fuzzyMatch !== undefined && vars[fuzzyMatch] !== undefined) {
+                    console.log(`[TEMPLATE_RENDER] ⚠️ FUZZY MATCH: "${key}" matched to "${fuzzyMatch}"`);
+                    return String(vars[fuzzyMatch]);
                 }
             }
 
-            if (key.length > 10) {
-                console.warn(`[TEMPLATE_RENDER] FAIL: Variable "${key}" not found.`);
-                const matches = Object.keys(vars).filter(k =>
-                    k.toLowerCase().includes('fee') || k.toLowerCase().includes('term') || k.toLowerCase().includes('adjustment')
-                );
-                if (matches.length > 0) {
-                    console.log(`[TEMPLATE_RENDER] Potential related keys in data:`, matches.join(', '));
-                }
+            // 3. Fallback to getValueByPath (for dotted notation)
+            const pathValue = this.getValueByPath(vars, key);
+            if (pathValue !== undefined && pathValue !== null) {
+                return String(pathValue);
             }
-            return `{{${key}}}`; // Return original if not found
+
+            console.log(`[TEMPLATE_RENDER] ❌ FAILED: "${key}" (normalized: "${normalizedSearchKey}")`);
+            return `{{${key}}}`; // Return original to identify unmerged in output
         };
 
         // STEP 1: Handle Components (TABLE, BUTTON)
         const componentRegex = /\{\{\s*(.*?)\s*\}\}/gis;
         let rendered = template.replace(componentRegex, (match: string, rawMarkerContent: string) => {
             const norm = rawMarkerContent.replace(/\}$/, '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
 
             // A. TABLE component
             if (['table', 'feetable', 'feesummary', 'summarrytable', 'feetablerows', 'tabledata'].includes(norm)) {
