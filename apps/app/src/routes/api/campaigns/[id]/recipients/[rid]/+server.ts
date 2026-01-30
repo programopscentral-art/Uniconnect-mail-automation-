@@ -23,11 +23,13 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
     }
 
     try {
+        console.log(`[RECIPIENT_PATCH] Starting update for recipient: ${recipientId}, campaign: ${campaignId}`);
         const client = await db.pool.connect();
         let updatedRecipient;
 
         try {
             await client.query('BEGIN');
+            console.log(`[RECIPIENT_PATCH] Transaction started`);
 
             // 1. Update Recipient Table (campaign context)
             const { rows: recipientRows } = await client.query(
@@ -37,28 +39,33 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
                 [email.toLowerCase().trim(), recipientId]
             );
             updatedRecipient = recipientRows[0];
+            console.log(`[RECIPIENT_PATCH] Recipient updated. Found: ${!!updatedRecipient}`);
 
             if (!updatedRecipient) {
-                throw new Error('Recipient not found');
+                throw new Error(`Recipient with ID ${recipientId} not found in campaign ${campaignId}`);
             }
 
             // 2. Update Student Table (Global record) - ATOMIC SYNC
             if (updatedRecipient.student_id) {
+                console.log(`[RECIPIENT_PATCH] Updating student: ${updatedRecipient.student_id}`);
+                const metaJson = typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {});
                 await client.query(
                     `UPDATE students SET email = $1, name = $2, metadata = $3, updated_at = NOW() WHERE id = $4`,
-                    [email.toLowerCase().trim(), name, typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}), updatedRecipient.student_id]
+                    [email.toLowerCase().trim(), name, metaJson, updatedRecipient.student_id]
                 );
             }
 
-            // 3. Reset campaign status to IN_PROGRESS (so it polls)
+            // 3. Reset campaign status to IN_PROGRESS
             await client.query(
                 `UPDATE campaigns SET status = 'IN_PROGRESS', failed_count = GREATEST(0, failed_count - 1), updated_at = NOW() WHERE id = $1`,
                 [campaignId]
             );
 
             await client.query('COMMIT');
-        } catch (err) {
-            await client.query('ROLLBACK');
+            console.log(`[RECIPIENT_PATCH] Transaction committed successfully`);
+        } catch (err: any) {
+            console.error(`[RECIPIENT_PATCH] Transaction error:`, err);
+            await client.query('ROLLBACK').catch(e => console.error('[RECIPIENT_PATCH] Rollback failed:', e));
             throw err;
         } finally {
             client.release();
@@ -66,9 +73,13 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
         // 4. TRIGGER IMMEDIATE SEND with fresh data (After COMMIT to ensure visibility)
         if (['IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED'].includes(campaign.status)) {
-            console.log(`[RECIPIENT_PATCH] RowId: ${recipientId}. Triggering immediate resend with fresh metadata.`);
+            console.log(`[RECIPIENT_PATCH] Triggering immediate resend for ${recipientId}`);
 
-            // We don't await this to keep the UI responsive, BUT we log it
+            // Log if we are missing any critical data
+            if (!email || !name) {
+                console.warn(`[RECIPIENT_PATCH] Missing email or name for resend. Email: ${email}, Name: ${name}`);
+            }
+
             sendToRecipient(campaignId, recipientId).then(result => {
                 console.log(`[RECIPIENT_PATCH] Async Resend Result for ${recipientId}:`, result);
             }).catch(err => {
@@ -78,7 +89,12 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
         return json({ success: true, recipient: updatedRecipient, triggered: true });
     } catch (err: any) {
-        console.error('[RECIPIENT_PATCH] Error:', err);
-        throw error(500, err.message);
+        console.error('[RECIPIENT_PATCH] Top-level Error:', {
+            message: err.message,
+            code: (err as any).code,
+            detail: (err as any).detail,
+            stack: err.stack
+        });
+        throw error(500, { message: err.message || 'Internal Server Error' });
     }
 };
