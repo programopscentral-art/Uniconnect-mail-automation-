@@ -110,7 +110,10 @@ export async function sendToRecipient(
 
         console.log(`[CAMPAIGN_SENDER] Rendered Body Length: ${htmlBody.length} bytes`);
         console.log(`[CAMPAIGN_SENDER] Body Snippet: ${htmlBody.slice(0, 500)}...`);
-        console.log(`[CAMPAIGN_SENDER] To: ${recipient.to_email}, From: ${mailboxEmail || 'support@uniconnect.com'}`);
+        console.log(`[CAMPAIGN_SENDER] Preparing to send email...`);
+        console.log(`[CAMPAIGN_SENDER] To: ${targetEmail}, From: ${mailboxEmail || 'support@uniconnect.com'}`);
+        console.log(`[CAMPAIGN_SENDER] Subject: ${subject.slice(0, 50)}...`);
+        console.log(`[CAMPAIGN_SENDER] Recipient ID: ${recipientId}, Tracking Token: ${recipient.tracking_token}`);
 
         // 4. Send via Gmail API
         const targetEmail = String(recipient.to_email || '').trim();
@@ -133,20 +136,20 @@ export async function sendToRecipient(
             .replace(/\//g, '_')
             .replace(/=+$/, '');
 
-        const res = await gmail.users.messages.send({
+        console.log(`[CAMPAIGN_SENDER] Sending via Gmail API to: ${targetEmail}`);
+        const sendResult = await gmail.users.messages.send({
             userId: 'me',
-            requestBody: { raw: encodedMail }
+            requestBody: {
+                raw: encodedMail
+            }
         });
 
+        const gmailMessageId = sendResult.data.id;
+        console.log(`[CAMPAIGN_SENDER] ✅ Gmail API Success! Message ID: ${gmailMessageId}`);
         // 5. Update DB Atomically
         const updateRes = await db.query(
-            `UPDATE campaign_recipients 
-             SET status = 'SENT', 
-                 sent_at = NOW(), 
-                 gmail_message_id = $1, 
-                 error_message = NULL, 
-                 updated_at = NOW() 
-             WHERE id = $2 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
+            updated_at = NOW() 
+             WHERE id = $2 AND status NOT IN('SENT', 'FAILED', 'CANCELLED')
              RETURNING campaign_id`,
             [res.data.id, recipientId]
         );
@@ -161,14 +164,14 @@ export async function sendToRecipient(
         return { success: true, messageId: res.data.id };
 
     } catch (err: any) {
-        console.error(`[CAMPAIGN_SENDER] Error for recipient ${recipientId}:`, err.message);
+        console.error(`[CAMPAIGN_SENDER] Error for recipient ${ recipientId }: `, err.message);
 
         const updateRes = await db.query(
             `UPDATE campaign_recipients 
-             SET status = 'FAILED', 
-                 error_message = $1, 
-                 updated_at = NOW() 
-             WHERE id = $2 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
+             SET status = 'FAILED',
+            error_message = $1,
+            updated_at = NOW() 
+             WHERE id = $2 AND status NOT IN('SENT', 'FAILED', 'CANCELLED')
              RETURNING campaign_id`,
             [err.message, recipientId]
         );
