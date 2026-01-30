@@ -26,10 +26,23 @@ export class TemplateRenderer {
                 return String(value);
             }
 
-            if (key.length > 20) {
-                console.warn(`[TEMPLATE_RENDER] FAIL: Long key "${key}" not found. Available keys count: ${Object.keys(vars).length}`);
-                if (key.includes('Fee') || key.includes('Term')) {
-                    console.log(`[TEMPLATE_RENDER] Related keys find attempt:`, Object.keys(vars).filter(k => k.includes('Fee') || k.includes('Term')).join(', '));
+            // Normalization before failure
+            const normKey = key.replace(/\s+/g, ' ').trim();
+            if (normKey !== key) {
+                const altValue = this.getValueByPath(vars, normKey);
+                if (altValue !== undefined && altValue !== null) {
+                    console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved via normalization "${normKey.slice(0, 30)}..."`);
+                    return String(altValue);
+                }
+            }
+
+            if (key.length > 10) {
+                console.warn(`[TEMPLATE_RENDER] FAIL: Variable "${key}" not found.`);
+                const matches = Object.keys(vars).filter(k =>
+                    k.toLowerCase().includes('fee') || k.toLowerCase().includes('term') || k.toLowerCase().includes('adjustment')
+                );
+                if (matches.length > 0) {
+                    console.log(`[TEMPLATE_RENDER] Potential related keys in data:`, matches.join(', '));
                 }
             }
             return `{{${key}}}`; // Return original if not found
@@ -175,15 +188,18 @@ export class TemplateRenderer {
     private static getValueByPath(vars: any, path: string): any {
         if (!vars || !path) return undefined;
 
-        // 1. Literal Match (Case Insensitive)
+        // 1. Literal Match (Case Insensitive + Whitespace Normalized)
         const keys = Object.keys(vars);
-        const lMatch = keys.find(k => k.toLowerCase() === path.toLowerCase());
+        const normalizeWS = (s: string) => String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const nPath = normalizeWS(path);
+
+        const lMatch = keys.find(k => normalizeWS(k) === nPath);
         if (lMatch) return vars[lMatch];
 
         // 2. Normalized Match (Alpha-Numeric only)
-        const normalize = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-        const sNorm = normalize(path);
-        const nMatch = keys.find(k => normalize(k) === sNorm);
+        const normalizeAlpha = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        const sNorm = normalizeAlpha(path);
+        const nMatch = keys.find(k => normalizeAlpha(k) === sNorm);
         if (nMatch) return vars[nMatch];
 
         // 3. HYPER-FUZZY (Word-for-Word similarity)

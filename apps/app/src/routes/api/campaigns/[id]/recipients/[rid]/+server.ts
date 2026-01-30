@@ -48,7 +48,15 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
             // 2. Update Student Table (Global record) - ATOMIC SYNC
             if (updatedRecipient.student_id) {
                 console.log(`[RECIPIENT_PATCH] Updating student: ${updatedRecipient.student_id}`);
-                const metaJson = typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {});
+
+                // Fetch current metadata to avoid accidental wipe if UI sends empty object
+                const { rows: currentStudent } = await client.query('SELECT metadata FROM students WHERE id = $1', [updatedRecipient.student_id]);
+                const existingMeta = currentStudent[0]?.metadata || {};
+
+                // Smart Merge: Only use new metadata if it's not empty, otherwise keep existing
+                const finalMeta = (metadata && Object.keys(metadata).length > 0) ? metadata : existingMeta;
+
+                const metaJson = typeof finalMeta === 'string' ? finalMeta : JSON.stringify(finalMeta);
                 await client.query(
                     `UPDATE students SET email = $1, name = $2, metadata = $3, updated_at = NOW() WHERE id = $4`,
                     [email.toLowerCase().trim(), name, metaJson, updatedRecipient.student_id]
@@ -94,6 +102,9 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
         return json({ success: true, recipient: updatedRecipient, triggered: true });
     } catch (err: any) {
+        // If it's already a SvelteKit error, re-throw it!
+        if (err.status && err.body) throw err;
+
         console.error('[RECIPIENT_PATCH] Top-level Error:', {
             message: err.message,
             code: (err as any).code,
