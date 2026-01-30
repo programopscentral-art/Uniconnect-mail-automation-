@@ -13,18 +13,31 @@ export class TemplateRenderer {
 
         // CRITICAL FIX: Normalize metadata keys by replacing newlines with spaces
         // This handles existing student data where CSV headers had newlines
+        console.log('[TEMPLATE_RENDER] === METADATA NORMALIZATION START ===');
+        console.log('[TEMPLATE_RENDER] Original metadata keys:', Object.keys(metaObj));
+
         const normalizedMeta: any = {};
         Object.entries(metaObj).forEach(([key, value]) => {
             const normalizedKey = String(key).replace(/[\r\n]+/g, ' ').trim();
+            if (key !== normalizedKey) {
+                console.log(`[TEMPLATE_RENDER] NORMALIZED KEY: "${key}" => "${normalizedKey}"`);
+            }
             normalizedMeta[normalizedKey] = value;
         });
+
+        console.log('[TEMPLATE_RENDER] Normalized metadata keys:', Object.keys(normalizedMeta));
+        console.log('[TEMPLATE_RENDER] === METADATA NORMALIZATION END ===');
 
         // Flatten variables - EVERYTHING goes to root for lookup
         const vars = { ...normalizedMeta, ...variables };
 
+        console.log('[TEMPLATE_RENDER] Final vars keys available for lookup:', Object.keys(vars).filter(k => k.toLowerCase().includes('fee') || k.toLowerCase().includes('term')));
+
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
+
+            console.log(`[TEMPLATE_RENDER] Resolving placeholder: "{{${key}}}"`);
 
             // STEP 0: EXACT LITERAL MATCH (case-insensitive + whitespace normalized)
             // This handles keys with special chars like "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
@@ -32,11 +45,16 @@ export class TemplateRenderer {
             const normalizeKey = (k: string) => k.toLowerCase().replace(/\s+/g, ' ').trim();
             const normalizedSearchKey = normalizeKey(key);
 
+            console.log(`[TEMPLATE_RENDER] Normalized search key: "${normalizedSearchKey}"`);
+
             const exactMatch = Object.keys(vars).find(k => normalizeKey(k) === normalizedSearchKey);
             if (exactMatch !== undefined && vars[exactMatch] !== undefined && vars[exactMatch] !== null) {
                 const value = vars[exactMatch];
-                if (typeof value === 'object' && !Array.isArray(value)) return '';
-                console.log(`[TEMPLATE_RENDER] SUCCESS (EXACT): Resolved "${key.slice(0, 30)}${key.length > 30 ? '...' : ''}"`);
+                if (typeof value === 'object' && !Array.isArray(value)) {
+                    console.log(`[TEMPLATE_RENDER] SKIPPED (object): "${key}"`);
+                    return '';
+                }
+                console.log(`[TEMPLATE_RENDER] ✅ SUCCESS (EXACT): "${key}" => "${String(value).slice(0, 50)}"`);
                 return String(value);
             }
 
