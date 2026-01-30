@@ -209,12 +209,28 @@
         invalidateAll();
         if (showRecipients) loadRecipients(true);
       } else {
-        const err = await res.text();
-        console.error("Update failed:", err);
-        alert(`Failed to update. Server returned: ${res.status}`);
+        // Parse the actual error message from the server
+        let errorMessage = `Failed to update (Status: ${res.status})`;
+        try {
+          const errorData = await res.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // If JSON parsing fails, try to get text
+          try {
+            const errorText = await res.text();
+            if (errorText) errorMessage = errorText;
+          } catch (e2) {
+            // Keep default error message
+          }
+        }
+        console.error("Update failed:", errorMessage);
+        alert(errorMessage);
       }
-    } catch (e) {
-      alert("Invalid JSON in metadata or network error");
+    } catch (e: any) {
+      console.error("Save error:", e);
+      alert(e.message || "Invalid JSON in metadata or network error");
     } finally {
       isSavingEdit = false;
     }
