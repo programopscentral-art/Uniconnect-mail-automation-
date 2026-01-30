@@ -1,15 +1,23 @@
 <script lang="ts">
   import { fade, fly, slide } from "svelte/transition";
-  import { invalidateAll } from "$app/navigation";
+  import { invalidateAll, goto } from "$app/navigation";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
+  import type { PageData } from "./$types";
 
-  let { data } = $props();
+  let { data }: { data: PageData } = $props();
 
   let showImportModal = $state(false);
   let isImporting = $state(false);
   let importName = $state("");
   let importFile = $state<File | null>(null);
   let importLogo = $state<File | null>(null);
+
+  function handleUniversityChange(e: Event) {
+    const target = e.target as HTMLSelectElement;
+    const url = new URL(window.location.href);
+    url.searchParams.set("universityId", target.value);
+    goto(url.toString(), { invalidateAll: true });
+  }
 
   async function handleImport(e: SubmitEvent) {
     e.preventDefault();
@@ -82,7 +90,9 @@
   }
 
   const activeUniversity = $derived(
-    data.universities?.find((u) => u.id === data.selectedUniversityId),
+    data.universities?.find(
+      (u: { id: string }) => u.id === data.selectedUniversityId,
+    ),
   );
 </script>
 
@@ -93,6 +103,7 @@
       <div class="flex items-center gap-3 mb-2">
         <a
           href="/assessments"
+          title="Back to Assessments"
           class="p-2 bg-white dark:bg-slate-800 rounded-xl text-gray-400 hover:text-indigo-600 transition-all border border-gray-100 dark:border-slate-800"
         >
           <svg
@@ -166,6 +177,26 @@
         </p>
       </div>
     </div>
+
+    {#if data.universities.length > 1}
+      <div class="flex flex-col gap-1.5 min-w-[240px]">
+        <label
+          for="uni-select"
+          class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
+          >Switch University</label
+        >
+        <select
+          id="uni-select"
+          value={data.selectedUniversityId}
+          onchange={handleUniversityChange}
+          class="bg-white dark:bg-slate-800 border-gray-100 dark:border-slate-700 rounded-xl text-xs font-bold px-4 py-2.5 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+        >
+          {#each data.universities as uni}
+            <option value={uni.id}>{uni.name}</option>
+          {/each}
+        </select>
+      </div>
+    {/if}
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
