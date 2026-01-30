@@ -227,46 +227,142 @@
       </div>
 
       <!-- Paper Metadata -->
-      <div
-        class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-8 border-b-2 border-black pb-4"
-      >
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Course Code:</span>
-          <AssessmentEditable
-            value={paperMeta.course_code}
-            onUpdate={(v: string) => updateText(v, "META", "course_code")}
-          />
+      {#if layoutSchema?.showMetadataTable}
+        <table
+          class="w-full border-collapse border border-black text-[9pt] mb-8"
+        >
+          <tbody>
+            <tr>
+              <td
+                class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
+                >Programme & Branch</td
+              >
+              <td colspan="3" class="border border-black p-2">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.programme}
+                    onUpdate={(v: string) => updateText(v, "META", "programme")}
+                    class="flex-1"
+                  />
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="border border-black p-2 font-bold bg-gray-50/10"
+                >Semester</td
+              >
+              <td class="border border-black p-2 w-[30%]">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.semester}
+                    onUpdate={(v: string) => updateText(v, "META", "semester")}
+                  />
+                </div>
+              </td>
+              <td
+                class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
+                >Date & Session</td
+              >
+              <td class="border border-black p-2 w-[30%]">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.paper_date}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "paper_date")}
+                  />
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="border border-black p-2 font-bold bg-gray-50/10"
+                >Course Code & Name</td
+              >
+              <td colspan="3" class="border border-black p-2">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.subject_name}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "subject_name")}
+                  />
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="border border-black p-2 font-bold bg-gray-50/10"
+                >Duration</td
+              >
+              <td class="border border-black p-2">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.duration_minutes}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "duration_minutes")}
+                  />
+                  <span>minutes</span>
+                </div>
+              </td>
+              <td class="border border-black p-2 font-bold bg-gray-50/10"
+                >Maximum Marks</td
+              >
+              <td class="border border-black p-2">
+                <div class="flex gap-2">
+                  <span>:</span>
+                  <AssessmentEditable
+                    value={paperMeta.max_marks}
+                    onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+                  />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      {:else}
+        <div
+          class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-8 border-b-2 border-black pb-4"
+        >
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Course Code:</span>
+            <AssessmentEditable
+              value={paperMeta.course_code}
+              onUpdate={(v: string) => updateText(v, "META", "course_code")}
+            />
+          </div>
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Semester:</span>
+            <AssessmentEditable
+              value={paperMeta.semester}
+              onUpdate={(v: string) => updateText(v, "META", "semester")}
+            />
+          </div>
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Subject Name:</span>
+            <AssessmentEditable
+              value={paperMeta.subject_name}
+              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+            />
+          </div>
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Max Marks:</span>
+            <span>{paperMeta.max_marks}</span>
+          </div>
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Programme:</span>
+            <AssessmentEditable
+              value={paperMeta.programme}
+              onUpdate={(v: string) => updateText(v, "META", "programme")}
+            />
+          </div>
+          <div class="flex justify-between border-b border-black/10 pb-1">
+            <span class="font-bold">Duration:</span>
+            <span>{paperMeta.duration_minutes} Mins</span>
+          </div>
         </div>
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Semester:</span>
-          <AssessmentEditable
-            value={paperMeta.semester}
-            onUpdate={(v: string) => updateText(v, "META", "semester")}
-          />
-        </div>
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Subject Name:</span>
-          <AssessmentEditable
-            value={paperMeta.subject_name}
-            onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-          />
-        </div>
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Max Marks:</span>
-          <span>{paperMeta.max_marks}</span>
-        </div>
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Programme:</span>
-          <AssessmentEditable
-            value={paperMeta.programme}
-            onUpdate={(v: string) => updateText(v, "META", "programme")}
-          />
-        </div>
-        <div class="flex justify-between border-b border-black/10 pb-1">
-          <span class="font-bold">Duration:</span>
-          <span>{paperMeta.duration_minutes} Mins</span>
-        </div>
-      </div>
+      {/if}
 
       <!-- Dynamic Sections -->
       <div class="space-y-10">
