@@ -148,10 +148,15 @@ export async function sendToRecipient(
         console.log(`[CAMPAIGN_SENDER] ✅ Gmail API Success! Message ID: ${gmailMessageId}`);
         // 5. Update DB Atomically
         const updateRes = await db.query(
-            updated_at = NOW() 
-             WHERE id = $2 AND status NOT IN('SENT', 'FAILED', 'CANCELLED')
+            `UPDATE campaign_recipients 
+             SET status = 'SENT', 
+                 sent_at = NOW(), 
+                 gmail_message_id = $1, 
+                 error_message = NULL, 
+                 updated_at = NOW() 
+             WHERE id = $2 AND status NOT IN ('SENT', 'FAILED', 'CANCELLED')
              RETURNING campaign_id`,
-            [res.data.id, recipientId]
+            [gmailMessageId, recipientId]
         );
 
         if (updateRes.rows[0]) {
@@ -164,7 +169,7 @@ export async function sendToRecipient(
         return { success: true, messageId: res.data.id };
 
     } catch (err: any) {
-        console.error(`[CAMPAIGN_SENDER] Error for recipient ${ recipientId }: `, err.message);
+        console.error(`[CAMPAIGN_SENDER] Error for recipient ${recipientId}: `, err.message);
 
         const updateRes = await db.query(
             `UPDATE campaign_recipients 
