@@ -75,8 +75,14 @@ export interface AssessmentTemplate {
     id: string;
     university_id: string;
     name: string;
+    slug?: string;
     exam_type: string;
+    version: number;
+    status: 'draft' | 'published' | 'archived';
     config: any;
+    layout_schema: any;
+    created_by?: string;
+    updated_by?: string;
     created_at: Date;
     updated_at: Date;
 }
@@ -362,16 +368,35 @@ export async function deleteCourseOutcome(id: string): Promise<void> {
 // Assessment Templates
 export async function getAssessmentTemplates(universityId: string): Promise<AssessmentTemplate[]> {
     const { rows } = await db.query(
-        'SELECT * FROM assessment_templates WHERE university_id = $1 ORDER BY created_at DESC',
+        'SELECT * FROM assessment_templates WHERE university_id = $1 AND (status IS NULL OR status != \'archived\') ORDER BY created_at DESC',
         [universityId]
     );
     return rows;
 }
 
+export async function getAssessmentTemplateById(id: string): Promise<AssessmentTemplate | null> {
+    const { rows } = await db.query('SELECT * FROM assessment_templates WHERE id = $1', [id]);
+    return rows[0] || null;
+}
+
 export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>): Promise<AssessmentTemplate> {
+    const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
-        'INSERT INTO assessment_templates (university_id, name, exam_type, config) VALUES ($1, $2, $3, $4) RETURNING *',
-        [data.university_id, data.name, data.exam_type, data.config]
+        `INSERT INTO assessment_templates
+        (university_id, name, slug, exam_type, config, layout_schema, version, status, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING *`,
+        [
+            data.university_id,
+            data.name,
+            slug,
+            data.exam_type,
+            data.config || {},
+            data.layout_schema || {},
+            data.version || 1,
+            data.status || 'published',
+            data.created_by
+        ]
     );
     return rows[0];
 }
@@ -382,8 +407,13 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     let i = 1;
 
     if (data.name) { fields.push(`name = $${i++}`); params.push(data.name); }
+    if (data.slug) { fields.push(`slug = $${i++}`); params.push(data.slug); }
     if (data.exam_type) { fields.push(`exam_type = $${i++}`); params.push(data.exam_type); }
     if (data.config) { fields.push(`config = $${i++}`); params.push(data.config); }
+    if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(data.layout_schema); }
+    if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
+    if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
+    if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
 
     fields.push(`updated_at = NOW()`);
     params.push(id);
@@ -392,7 +422,36 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
         `UPDATE assessment_templates SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
         params
     );
+
+    // Create revision history record
+    if (rows[0]) {
+        await db.query(
+            `INSERT INTO assessment_template_revisions (template_id, version, config, layout_schema, changed_by)
+            VALUES ($1, $2, $3, $4, $5)`,
+            [id, rows[0].version, rows[0].config, rows[0].layout_schema, data.updated_by]
+        );
+    }
+
     return rows[0];
+}
+
+export async function cloneAssessmentTemplate(id: string, universityId?: string): Promise<AssessmentTemplate> {
+    const source = await getAssessmentTemplateById(id);
+    if (!source) throw new Error('Source template not found');
+
+    // Deep clone by removing IDs and resetting version
+    const newData: Partial<AssessmentTemplate> = {
+        university_id: universityId || source.university_id,
+        name: universityId ? source.name : `${source.name} (Copy)`,
+        slug: universityId ? source.slug : `${source.slug}-copy-${Date.now()}`,
+        exam_type: source.exam_type,
+        config: JSON.parse(JSON.stringify(source.config)),
+        layout_schema: JSON.parse(JSON.stringify(source.layout_schema || {})),
+        version: 1,
+        status: 'published'
+    };
+
+    return createAssessmentTemplate(newData);
 }
 
 export async function deleteAssessmentTemplate(id: string): Promise<void> {

@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import {
     getAssessmentTemplates,
+    getAssessmentTemplateById,
     createAssessmentTemplate,
     updateAssessmentTemplate,
     deleteAssessmentTemplate
@@ -20,6 +21,7 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
     const body = await request.json();
 
     if (!body.university_id) body.university_id = locals.user.university_id;
+    body.created_by = locals.user.id;
 
     const template = await createAssessmentTemplate(body);
     return json(template);
@@ -30,7 +32,17 @@ export const PATCH = async ({ request, locals }: { request: Request, locals: any
     const body = await request.json();
     if (!body.id) throw error(400, 'ID is required');
 
-    const template = await updateAssessmentTemplate(body.id, body);
+    // SECURITY CHECK: Hard Isolation
+    const existing = await getAssessmentTemplateById(body.id);
+    if (!existing) throw error(404, 'Template not found');
+    if (locals.user.role !== 'ADMIN' && existing.university_id !== locals.user.university_id) {
+        throw error(403, 'Unauthorized: Template belongs to another university');
+    }
+
+    const template = await updateAssessmentTemplate(body.id, {
+        ...body,
+        updated_by: locals.user.id
+    });
     return json(template);
 };
 
