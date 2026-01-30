@@ -44,12 +44,25 @@
     document.execCommand(command, false, value || undefined);
     handleInput();
   }
+
+  export function focus() {
+    if (editorNode) {
+      editorNode.focus();
+      // Move caret to end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editorNode);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={editorNode}
-  contenteditable="true"
+  contenteditable={active ? "true" : "false"}
   class="w-full h-full outline-none p-1 min-h-[1em] relative"
   class:cursor-text={active}
   oninput={handleInput}

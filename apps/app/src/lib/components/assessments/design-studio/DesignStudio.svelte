@@ -41,6 +41,20 @@
   import { fade } from "svelte/transition";
   import ElementWrapper from "./ElementWrapper.svelte";
 
+  // Import Google Fonts for the canvas
+  let fontLink = $state<HTMLLinkElement | null>(null);
+  onMount(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@400;700;900&family=JetBrains+Mono:wght@400;700&family=Dancing+Script:wght@400;700&family=Outfit:wght@400;700;900&family=Cinzel:wght@400;700;900&family=Pacifico&display=swap";
+    document.head.appendChild(link);
+    fontLink = link;
+    return () => {
+      if (fontLink) document.head.removeChild(fontLink);
+    };
+  });
+
   let { template = $bindable(), universityId, onSave } = $props();
 
   // --- Types ---
@@ -57,13 +71,22 @@
   }
 
   // --- Initialization Logic ---
-  if (!template.layout_schema) template.layout_schema = {};
-  if (!template.layout_schema.pages) {
+  if (!template.layout_schema) template.layout_schema = { pages: [] };
+  if (
+    !template.layout_schema.pages ||
+    template.layout_schema.pages.length === 0
+  ) {
     template.layout_schema.pages = [{ id: "p1", elements: [] }];
   }
 
   let layout = $state(template.layout_schema);
   let activePageId = $state(layout.pages[0].id);
+
+  // Keep template sync'd with local layout state for saving
+  $effect(() => {
+    template.layout_schema = layout;
+  });
+
   let activeTab = $state("elements"); // elements | layers | assets | pages
   let activeCellId = $state<string | null>(null);
   let onboardingActive = $state(false);
@@ -89,7 +112,7 @@
       target: "header",
     },
   ];
-  let assets = $state([
+  let baseAssets = $state([
     {
       id: "logo-1",
       name: "University Logo",
@@ -103,6 +126,28 @@
       type: "image",
     },
   ]);
+
+  // Dynamically find all images used in the template
+  let templateAssets = $derived.by(() => {
+    const images: any[] = [];
+    const seenUrls = new Set();
+
+    layout.pages.forEach((page: any) => {
+      page.elements.forEach((el: any) => {
+        if (el.type === "image" && el.src && !seenUrls.has(el.src)) {
+          images.push({
+            id: el.id,
+            name: el.content || "Template Image",
+            url: el.src,
+            type: "image",
+          });
+          seenUrls.add(el.src);
+        }
+      });
+    });
+
+    return [...baseAssets, ...images];
+  });
   let library = $state([
     {
       id: "lib-1",
@@ -192,7 +237,7 @@
         url: URL.createObjectURL(file), // Mock local URL for now
         type: "image" as const,
       };
-      assets = [newAsset, ...assets];
+      baseAssets = [newAsset, ...baseAssets];
       isUploading = false;
     }, 1000);
   }
@@ -319,10 +364,14 @@
   function addRow(where: "above" | "below") {
     if (!selectedElement || selectedElement.type !== "table") return;
     const data = selectedElement.tableData;
-    const activeCell = getActiveCell(selectedElement);
-    let rowIndex = data.rows.findIndex((r: any) =>
-      r.cells.some((c: any) => c.id === activeCellId),
-    );
+
+    let rowIndex = -1;
+    if (activeCellId) {
+      rowIndex = data.rows.findIndex((r: any) =>
+        r.cells.some((c: any) => c.id === activeCellId),
+      );
+    }
+
     if (rowIndex === -1) rowIndex = data.rows.length - 1;
 
     const insertAt = where === "below" ? rowIndex + 1 : rowIndex;
@@ -339,17 +388,21 @@
     };
     data.rows.splice(insertAt, 0, newRow);
     selectedElement.tableData = { ...data };
+    template.layout_schema = layout;
   }
 
   function addColumn(where: "left" | "right") {
     if (!selectedElement || selectedElement.type !== "table") return;
     const data = selectedElement.tableData;
-    const activeCell = getActiveCell(selectedElement);
+
     let colIndex = -1;
-    data.rows.forEach((r: any) => {
-      const idx = r.cells.findIndex((c: any) => c.id === activeCellId);
-      if (idx !== -1) colIndex = idx;
-    });
+    if (activeCellId) {
+      data.rows.forEach((r: any) => {
+        const idx = r.cells.findIndex((c: any) => c.id === activeCellId);
+        if (idx !== -1) colIndex = idx;
+      });
+    }
+
     if (colIndex === -1) colIndex = data.rows[0].cells.length - 1;
 
     const insertAt = where === "right" ? colIndex + 1 : colIndex;
@@ -363,34 +416,46 @@
       });
     });
     selectedElement.tableData = { ...data };
+    template.layout_schema = layout;
   }
 
   function deleteRow() {
-    if (!selectedElement || selectedElement.type !== "table") return;
+    if (!selectedElement || selectedElement.type !== "table" || !activeCellId)
+      return;
     const data = selectedElement.tableData;
     if (data.rows.length <= 1) return;
+
     const rowIndex = data.rows.findIndex((r: any) =>
       r.cells.some((c: any) => c.id === activeCellId),
     );
     if (rowIndex === -1) return;
+
     data.rows.splice(rowIndex, 1);
     activeCellId = null;
     selectedElement.tableData = { ...data };
+    template.layout_schema = layout;
   }
 
   function deleteColumn() {
-    if (!selectedElement || selectedElement.type !== "table") return;
+    if (!selectedElement || selectedElement.type !== "table" || !activeCellId)
+      return;
     const data = selectedElement.tableData;
     if (data.rows[0].cells.length <= 1) return;
+
     let colIndex = -1;
     data.rows.forEach((r: any) => {
       const idx = r.cells.findIndex((c: any) => c.id === activeCellId);
       if (idx !== -1) colIndex = idx;
     });
+
     if (colIndex === -1) return;
-    data.rows.forEach((r: any) => r.cells.splice(colIndex, 1));
+
+    data.rows.forEach((r: any) => {
+      r.cells.splice(colIndex, 1);
+    });
     activeCellId = null;
     selectedElement.tableData = { ...data };
+    template.layout_schema = layout;
   }
 
   function triggerFormat(cmd: string, val: string | null = null) {
@@ -411,10 +476,9 @@
 
   function autoFit() {
     if (typeof window === "undefined") return;
-    const sidebarWidth = 72 + 288 + 320; // rail + nav + properties
-    const viewerWidth =
-      window.innerWidth - (fullScreen ? 0 : sidebarWidth) - 100;
-    const viewerHeight = window.innerHeight - 56 - 100; // header + padding
+    const sidebarWidth = fullScreen ? 0 : 72 + 288 + 320; // rail + nav + properties
+    const viewerWidth = window.innerWidth - sidebarWidth - 100;
+    const viewerHeight = window.innerHeight - 56 - 100; // header height 56px
 
     const paperPxW = A4_WIDTH_MM * MM_TO_PX;
     const paperPxH = A4_HEIGHT_MM * MM_TO_PX;
@@ -428,10 +492,44 @@
     }
   }
 
+  function handleKeyDown(e: KeyboardEvent) {
+    // Ignore if typing in an input
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLTextAreaElement ||
+      (e.target as HTMLElement).isContentEditable
+    ) {
+      if (e.key === "Escape") {
+        (e.target as HTMLElement).blur();
+      }
+      return;
+    }
+
+    if (e.key === "Delete" || e.key === "Backspace") {
+      if (selectedElementId) {
+        deleteElement(selectedElementId);
+      }
+    }
+
+    if (e.key === "Escape") {
+      selectedElementId = null;
+      activeCellId = null;
+    }
+
+    if (e.ctrlKey && e.key === "s") {
+      e.preventDefault();
+      onSave();
+    }
+  }
+
   onMount(() => {
     autoFit();
     window.addEventListener("resize", autoFit);
-    return () => window.removeEventListener("resize", autoFit);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("resize", autoFit);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   });
 </script>
 
@@ -502,7 +600,7 @@
     >
       <select
         value={zoomMode === "percent" ? zoomLevel : zoomMode}
-        onchange={(e) => {
+        onchange={(e: Event) => {
           const val = (e.target as HTMLSelectElement).value;
           if (val === "fit-page" || val === "fit-width") setZoom(val);
           else setZoom(parseFloat(val));
@@ -547,7 +645,15 @@
         REVISIONS
       </button>
       <button
-        onclick={onSave}
+        onclick={() => {
+          // Validate layout before saving
+          try {
+            JSON.stringify(layout);
+            onSave();
+          } catch (err) {
+            alert("Invalid template data. Please check for errors.");
+          }
+        }}
         disabled={isSaving}
         class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-[10px] font-black transition-all shadow-xl shadow-indigo-600/20 active:scale-95 leading-none"
       >
@@ -683,7 +789,7 @@
         {:else if activeTab === "library"}
           <div class="space-y-4">
             <h3
-              class="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-2"
+              class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] mb-4"
             >
               Saved Blocks
             </h3>
@@ -755,7 +861,7 @@
                   >
                 </label>
 
-                {#each assets as asset}
+                {#each templateAssets as asset}
                   <button
                     onclick={() => selectAsset(asset)}
                     class="aspect-square rounded-2xl border border-white/5 bg-white/5 overflow-hidden group relative hover:border-indigo-500 transition-all"
@@ -960,9 +1066,7 @@
                       bind:value={selectedElement.styles.fontFamily}
                       class="w-full bg-black/30 border border-white/5 rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-indigo-500/50"
                     >
-                      <option value="Inter, sans-serif"
-                        >Sans Serif (Inter)</option
-                      >
+                      <option value="Inter, sans-serif">Sans (Inter)</option>
                       <option value="'Playfair Display', serif"
                         >Serif (Playfair)</option
                       >
@@ -972,6 +1076,11 @@
                       <option value="'Dancing Script', cursive"
                         >Handwriting</option
                       >
+                      <option value="'Outfit', sans-serif"
+                        >Modern (Outfit)</option
+                      >
+                      <option value="'Cinzel', serif">Antique (Cinzel)</option>
+                      <option value="'Pacifico', cursive">Pacifico</option>
                     </select>
                   </div>
 
@@ -997,6 +1106,7 @@
                         >Color</label
                       >
                       <input
+                        id="font-color"
                         type="color"
                         bind:value={selectedElement.styles.color}
                         class="w-full h-8 bg-black/30 border border-white/5 rounded-xl px-1 py-1 cursor-pointer"

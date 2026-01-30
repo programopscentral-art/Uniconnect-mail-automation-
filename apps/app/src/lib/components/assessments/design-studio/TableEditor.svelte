@@ -97,7 +97,7 @@
             onclick={() => handleCellClick(cell.id)}
           >
             <div
-              contenteditable="true"
+              contenteditable={selected ? "true" : "false"}
               class="w-full h-full outline-none focus:bg-indigo-50/20 transition-colors cursor-text min-h-[1.5em]"
               oninput={(e) => handleInput(e, cell)}
             >

@@ -14,6 +14,7 @@
 
   let isDragging = $state(false);
   let isResizing = $state(false);
+  let isEditing = $state(false);
   let startX = $state(0);
   let startY = $state(0);
   let startW = $state(0);
@@ -22,6 +23,20 @@
   let startMouseY = $state(0);
   let activeHandle = $state<string | null>(null);
   let editorRef = $state<any>(null);
+
+  // Focus the editor when entering edit mode
+  $effect(() => {
+    if (isEditing && editorRef?.focus) {
+      editorRef.focus();
+    }
+  });
+
+  // Reset editing mode when deselected
+  $effect(() => {
+    if (!selected) {
+      isEditing = false;
+    }
+  });
 
   // Public method to proxy formatting to the editor
   export function format(cmd: string, val: string | null = null) {
@@ -33,6 +48,8 @@
     type: "move" | "resize",
     handle?: string,
   ) {
+    if (isEditing) return; // Prevent drag/resize while typing
+
     e.stopPropagation();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
 
@@ -87,11 +104,18 @@
     isResizing = false;
     activeHandle = null;
   }
+
+  function handleDoubleClick(e: MouseEvent) {
+    if (element.type === "text" || element.type === "table") {
+      isEditing = true;
+    }
+  }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="absolute group cursor-move select-none"
+  class="absolute group select-none"
+  class:cursor-move={!isEditing}
   class:ring-2={selected}
   class:ring-indigo-500={selected}
   class:z-50={selected}
@@ -104,14 +128,19 @@
   onpointerdown={(e) => handlePointerDown(e, "move")}
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}
+  ondblclick={handleDoubleClick}
 >
   <!-- Content Slot -->
-  <div class="w-full h-full overflow-hidden pointer-events-none">
+  <div
+    class="w-full h-full overflow-hidden {selected || isEditing
+      ? 'pointer-events-auto'
+      : 'pointer-events-none'}"
+  >
     {@render children()}
   </div>
 
   <!-- Resize Handles -->
-  {#if selected}
+  {#if selected && !isEditing}
     <div
       class="absolute -inset-0.5 border border-indigo-500 pointer-events-none"
     ></div>
@@ -174,11 +203,11 @@
       <RichTextEditor
         bind:this={editorRef}
         bind:value={element.content}
-        active={selected}
+        active={isEditing}
         onUpdate={() => {}}
       />
     {:else if element.type === "table"}
-      <TableEditor bind:element {selected} bind:activeCellId />
+      <TableEditor bind:element selected={isEditing} bind:activeCellId />
     {:else if element.type === "image"}
       <img
         src={element.src || "https://via.placeholder.com/150?text=Upload+Image"}
