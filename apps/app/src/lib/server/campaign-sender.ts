@@ -72,10 +72,29 @@ export async function sendToRecipient(
         console.log(`[CAMPAIGN_SENDER] Keys found in Metadata:`, Object.keys(metaObj));
         console.log(`[CAMPAIGN_SENDER] Variables Keys for Merge:`, Object.keys(variables));
 
+        // SPECIFIC DEBUGGING REQUESTED BY USER
+        const key1 = "Term 1 Fee adjustment (O/S +ve and Excess -Ve)";
+        const key2 = "Total Term 2 Fee Payabale (Includes Term 2 & Term 1 adjustments)";
+
+        console.log(`\n--- [DEBUG_MERGE_REPORT] ---`);
+        console.log(`RecipientId: ${recipientId}`);
+        console.log(`StudentId/RowId: ${recipient.student_id}`);
+        console.log(`Flow Context: ${gmailInstance ? 'BULK/RESUME' : 'SINGLE_RESEND'}`); // Best guess based on gmailInstance presence
+        console.log(`All Metadata Keys (${Object.keys(metaObj).length}):`, JSON.stringify(Object.keys(metaObj)));
+
+        console.log(`Target Key 1: ["${key1}"]`);
+        console.log(`Value in metaObj: ${metaObj[key1] !== undefined ? JSON.stringify(metaObj[key1]) : 'MISSING'}`);
+        console.log(`Value in variables: ${variables[key1] !== undefined ? JSON.stringify(variables[key1]) : 'MISSING'}`);
+
+        console.log(`Target Key 2: ["${key2}"]`);
+        console.log(`Value in metaObj: ${metaObj[key2] !== undefined ? JSON.stringify(metaObj[key2]) : 'MISSING'}`);
+        console.log(`Value in variables: ${variables[key2] !== undefined ? JSON.stringify(variables[key2]) : 'MISSING'}`);
+        console.log(`--- [END_DEBUG_MERGE_REPORT] ---\n`);
+
         // Log all variables except large ones for debugging
         const logVars = { ...variables };
         delete (logVars as any).metadata;
-        console.log(`[CAMPAIGN_SENDER] Resolved Variables Map:`, JSON.stringify(logVars, null, 2));
+        // console.log(`[CAMPAIGN_SENDER] Resolved Variables Map:`, JSON.stringify(logVars, null, 2));
 
         const subject = TemplateRenderer.render(template.subject, variables, {
             config: template.config,

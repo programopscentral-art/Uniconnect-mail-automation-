@@ -45,8 +45,8 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
             // 2. Update Student Table (Global record) - ATOMIC SYNC
             if (updatedRecipient.student_id) {
                 await client.query(
-                    `UPDATE students SET name = $1, metadata = $2, updated_at = NOW() WHERE id = $3`,
-                    [name, typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}), updatedRecipient.student_id]
+                    `UPDATE students SET email = $1, name = $2, metadata = $3, updated_at = NOW() WHERE id = $4`,
+                    [email.toLowerCase().trim(), name, typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}), updatedRecipient.student_id]
                 );
             }
 

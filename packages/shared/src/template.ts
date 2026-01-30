@@ -22,11 +22,16 @@ export class TemplateRenderer {
             if (value !== undefined && value !== null) {
                 // Return string representation but avoid [object Object]
                 if (typeof value === 'object' && !Array.isArray(value)) return '';
-                console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved "${key}" -> "${String(value).slice(0, 50)}${String(value).length > 50 ? '...' : ''}"`);
+                console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved "${key.slice(0, 30)}${key.length > 30 ? '...' : ''}"`);
                 return String(value);
             }
 
-            console.warn(`[TEMPLATE_RENDER] FAIL: Could not resolve variable "${key}". Available keys: ${Object.keys(vars).join(', ')}`);
+            if (key.length > 20) {
+                console.warn(`[TEMPLATE_RENDER] FAIL: Long key "${key}" not found. Available keys count: ${Object.keys(vars).length}`);
+                if (key.includes('Fee') || key.includes('Term')) {
+                    console.log(`[TEMPLATE_RENDER] Related keys find attempt:`, Object.keys(vars).filter(k => k.includes('Fee') || k.includes('Term')).join(', '));
+                }
+            }
             return `{{${key}}}`; // Return original if not found
         };
 
