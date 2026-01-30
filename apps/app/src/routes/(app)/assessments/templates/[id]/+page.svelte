@@ -2,6 +2,7 @@
   import { fade, fly, slide } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
+  import DesignStudio from "$lib/components/assessments/design-studio/DesignStudio.svelte";
   import {
     Layout,
     Layers,
@@ -37,6 +38,7 @@
 
   let isSaving = $state(false);
   let activeTab = $state("branding"); // branding | design | structure | components
+  let studioMode = $state(false);
   let previewScale = $state(0.85);
 
   const TABS = [
@@ -152,7 +154,16 @@
   });
 </script>
 
-<div class="h-screen flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
+{#if studioMode}
+  <div in:fade={{duration: 200}} class="h-screen">
+    <DesignStudio 
+      bind:template={template} 
+      universityId={template.university_id} 
+      onSave={saveTemplate}
+    />
+  </div>
+{:else}
+  <div in:fade={{duration: 200}} class="h-screen flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
   <!-- Header -->
   <header
     class="h-16 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md z-20"
@@ -185,11 +196,11 @@
 
     <div class="flex items-center gap-3">
       <button
-        onclick={resetTemplate}
-        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
+        onclick={() => studioMode = !studioMode}
+        class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 {studioMode ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20' : 'text-indigo-600 border-indigo-100 hover:bg-indigo-50 dark:border-indigo-900/30'}"
       >
-        <RotateCcw class="w-3.5 h-3.5" />
-        Start Fresh
+        <Sparkles class="w-3.5 h-3.5" />
+        {studioMode ? "Standard Editor" : "Free-Form Studio"}
       </button>
 
       <div class="h-8 w-[1px] bg-gray-100 dark:bg-slate-800 mx-1"></div>
@@ -1101,7 +1112,7 @@
       </div>
     </main>
   </div>
-</div>
+{/if}
 
 <style>
   :global(.glass) {
