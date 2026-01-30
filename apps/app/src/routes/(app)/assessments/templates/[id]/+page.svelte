@@ -2,21 +2,21 @@
   import { fade, fly, slide } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
-  import { 
-    Layout, 
-    Layers, 
-    Palette, 
-    Component, 
-    Plus, 
-    Trash2, 
-    ArrowUp, 
-    ArrowDown, 
-    GripVertical, 
-    Type, 
+  import {
+    Layout,
+    Layers,
+    Palette,
+    Component,
+    Plus,
+    Trash2,
+    ArrowUp,
+    ArrowDown,
+    GripVertical,
+    Type,
     Paintbrush,
     Maximize,
     Save,
-    ChevronLeft
+    ChevronLeft,
   } from "lucide-svelte";
   import { dndzone } from "svelte-dnd-action";
   import type { PageData } from "./$types";
@@ -32,7 +32,7 @@
   let isSaving = $state(false);
   let activeTab = $state("branding"); // branding | design | structure | components
   let previewScale = $state(0.85);
-  
+
   const TABS = [
     { id: "branding", label: "Identity", icon: Layout },
     { id: "design", label: "Design", icon: Palette },
@@ -118,10 +118,10 @@
   // Ensure config has IDs for DND
   $effect(() => {
     if (template.config && template.config.length > 0) {
-        template.config = template.config.map((s: any, idx: number) => ({
-            ...s,
-            id: s.id || `section-${idx}-${Date.now()}`
-        }));
+      template.config = template.config.map((s: any, idx: number) => ({
+        ...s,
+        id: s.id || `section-${idx}-${Date.now()}`,
+      }));
     }
   });
 </script>
@@ -137,7 +137,9 @@
         class="p-2.5 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-2xl transition-all group"
         title="Go Back"
       >
-        <ChevronLeft class="w-5 h-5 text-gray-500 group-hover:text-indigo-600 transition-colors" />
+        <ChevronLeft
+          class="w-5 h-5 text-gray-500 group-hover:text-indigo-600 transition-colors"
+        />
       </button>
       <div>
         <h1
@@ -156,7 +158,7 @@
 
     <div class="flex items-center gap-3">
       <div class="h-8 w-[1px] bg-gray-100 dark:bg-slate-800 mx-2"></div>
-      
+
       <select
         bind:value={template.status}
         class="bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase px-4 py-2.5 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all cursor-pointer shadow-inner"
@@ -202,7 +204,9 @@
               : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800'}"
           >
             <tab.icon class="w-4 h-4" />
-            <span class="text-[8px] font-black uppercase tracking-[0.1em]">{tab.label}</span>
+            <span class="text-[8px] font-black uppercase tracking-[0.1em]"
+              >{tab.label}</span
+            >
           </button>
         {/each}
       </div>
@@ -254,182 +258,250 @@
                   >Logo URL</label
                 >
                 <div class="flex gap-2">
-                    <input
-                        bind:value={template.layout_schema.logoUrl}
-                        placeholder="/crescent-logo.png"
-                        class="flex-1 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
-                    />
-                    {#if template.layout_schema.logoUrl}
-                        <div class="w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                            <img src={template.layout_schema.logoUrl} class="max-w-full max-h-full object-contain" alt="Preview"/>
-                        </div>
-                    {/if}
+                  <input
+                    bind:value={template.layout_schema.logoUrl}
+                    placeholder="/crescent-logo.png"
+                    class="flex-1 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+                  />
+                  {#if template.layout_schema.logoUrl}
+                    <div
+                      class="w-10 h-10 bg-white rounded-xl border border-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm"
+                    >
+                      <img
+                        src={template.layout_schema.logoUrl}
+                        class="max-w-full max-h-full object-contain"
+                        alt="Preview"
+                      />
+                    </div>
+                  {/if}
                 </div>
               </div>
 
               <div class="space-y-1.5 pt-2">
-                 <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Watermark Text</label>
-                 <input
-                    bind:value={template.layout_schema.watermarkText}
-                    placeholder="CONFIDENTIAL"
-                    class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
-                 />
+                <label
+                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Watermark Text</label
+                >
+                <input
+                  bind:value={template.layout_schema.watermarkText}
+                  placeholder="CONFIDENTIAL"
+                  class="w-full bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold px-4 py-3 outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
+                />
               </div>
 
               <div class="grid grid-cols-1 gap-3 pt-2">
-                  <div
-                    class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
-                  >
-                    <div>
-                      <p
-                        class="text-xs font-black uppercase text-gray-900 dark:text-white"
-                      >
-                        Metadata Grid
-                      </p>
-                      <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tight">
-                        Boxed table for paper info
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      bind:checked={template.layout_schema.showMetadataTable}
-                      class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                    />
+                <div
+                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                    >
+                      Metadata Grid
+                    </p>
+                    <p
+                      class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
+                    >
+                      Boxed table for paper info
+                    </p>
                   </div>
+                  <input
+                    type="checkbox"
+                    bind:checked={template.layout_schema.showMetadataTable}
+                    class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
 
-                  <div
-                    class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
-                  >
-                    <div>
-                      <p
-                        class="text-xs font-black uppercase text-gray-900 dark:text-white"
-                      >
-                        Roll No Box
-                      </p>
-                      <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tight">
-                        Display RRN entry field
-                      </p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      bind:checked={template.layout_schema.showRRN}
-                      class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                    />
+                <div
+                  class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm hover:border-indigo-200 transition-all"
+                >
+                  <div>
+                    <p
+                      class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                    >
+                      Roll No Box
+                    </p>
+                    <p
+                      class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
+                    >
+                      Display RRN entry field
+                    </p>
                   </div>
+                  <input
+                    type="checkbox"
+                    bind:checked={template.layout_schema.showRRN}
+                    class="w-5 h-5 rounded-md border-gray-200 text-indigo-600 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
               </div>
             </div>
           </div>
         {:else if activeTab === "design"}
           <div in:fade={{ duration: 200 }} class="space-y-8">
-             <div class="space-y-4">
-                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <Paintbrush class="w-3.5 h-3.5" />
-                    Visual Styling
-                </h3>
-                
-                <div class="space-y-1.5 text-left">
-                   <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Accent Theme Color</label>
-                   <div class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm">
-                      <input 
-                        type="color" 
-                        bind:value={template.layout_schema.primaryColor}
-                        class="w-10 h-10 rounded-lg border-none bg-transparent cursor-pointer"
-                      />
-                      <input 
-                        type="text" 
-                        bind:value={template.layout_schema.primaryColor}
-                        class="flex-1 bg-transparent border-none text-xs font-black uppercase outline-none"
-                      />
-                   </div>
+            <div class="space-y-4">
+              <h3
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+              >
+                <Paintbrush class="w-3.5 h-3.5" />
+                Visual Styling
+              </h3>
+
+              <div class="space-y-1.5 text-left">
+                <label
+                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Accent Theme Color</label
+                >
+                <div
+                  class="flex items-center gap-3 bg-white dark:bg-slate-800 p-3 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm"
+                >
+                  <input
+                    type="color"
+                    bind:value={template.layout_schema.primaryColor}
+                    class="w-10 h-10 rounded-lg border-none bg-transparent cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    bind:value={template.layout_schema.primaryColor}
+                    class="flex-1 bg-transparent border-none text-xs font-black uppercase outline-none"
+                  />
                 </div>
+              </div>
 
-                <div class="space-y-1.5 text-left">
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Typography</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button 
-                            onclick={() => template.layout_schema.fontFamily = 'serif'}
-                            class="p-3 rounded-xl border-2 transition-all text-center {template.layout_schema.fontFamily === 'serif' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-50 bg-white'}"
-                        >
-                            <span class="text-sm font-serif decoration-indigo-200">Aa</span>
-                            <p class="text-[8px] font-black uppercase mt-1">Serif</p>
-                        </button>
-                        <button 
-                            onclick={() => template.layout_schema.fontFamily = 'sans-serif'}
-                            class="p-3 rounded-xl border-2 transition-all text-center {template.layout_schema.fontFamily === 'sans-serif' ? 'border-indigo-600 bg-indigo-50/50' : 'border-gray-50 bg-white'}"
-                        >
-                            <span class="text-sm font-sans">Aa</span>
-                            <p class="text-[8px] font-black uppercase mt-1">Sans</p>
-                        </button>
-                    </div>
-                </div>
-             </div>
-
-             <div class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800">
-                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <Maximize class="w-3.5 h-3.5" />
-                    Layout Settings
-                </h3>
-
-                <div class="space-y-1.5 text-left">
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Page Margins</label>
-                    <div class="flex gap-1.5">
-                        {#each ['narrow', 'normal', 'wide'] as margin}
-                            <button 
-                                onclick={() => template.layout_schema.pageMargin = margin}
-                                class="flex-1 py-2 text-[8px] font-black uppercase rounded-lg border-2 transition-all {template.layout_schema.pageMargin === margin ? 'border-indigo-600 bg-indigo-50/50 text-indigo-600' : 'border-gray-50 bg-white text-gray-400'}"
-                            >
-                                {margin}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <div class="space-y-1.5 text-left">
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Preview Zoom ({Math.round(previewScale * 100)}%)</label>
-                    <input 
-                        type="range" 
-                        min="0.5" 
-                        max="1.5" 
-                        step="0.05" 
-                        bind:value={previewScale}
-                        class="w-full h-1.5 bg-gray-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 shadow-inner"
-                    />
-                </div>
-
-                <div class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm">
-                    <div>
-                      <p class="text-xs font-black uppercase text-gray-900 dark:text-white">Page Border</p>
-                      <p class="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Decorative double line</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      bind:checked={template.layout_schema.showBorder}
-                      class="w-5 h-5 rounded-md border-gray-100 text-indigo-600 focus:ring-indigo-500/10 transition-all"
-                    />
-                </div>
-             </div>
-
-             <div class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800 text-left">
-                <h3 class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                   <Component class="w-3.5 h-3.5" />
-                   Style Presets
-                </h3>
-                <div class="grid grid-cols-1 gap-2">
-                  {#each [{ id: "standard", name: "Modern Clear", desc: "Grid-based minimalist" }, { id: "crescent", name: "Crescent Official", desc: "Boxed metadata & seal" }, { id: "cdu", name: "CDU Academic", desc: "Red labels & centered header" }] as style}
-                    <button
-                      onclick={() => (template.layout_schema.style = style.id)}
-                      class="p-3.5 rounded-2xl border-2 transition-all text-left {template.layout_schema.style === style.id ? 'border-indigo-600 bg-indigo-50/20' : 'border-gray-100 hover:border-gray-200 bg-white'}"
+              <div class="space-y-1.5 text-left">
+                <label
+                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Typography</label
+                >
+                <div class="grid grid-cols-2 gap-2">
+                  <button
+                    onclick={() =>
+                      (template.layout_schema.fontFamily = "serif")}
+                    class="p-3 rounded-xl border-2 transition-all text-center {template
+                      .layout_schema.fontFamily === 'serif'
+                      ? 'border-indigo-600 bg-indigo-50/50'
+                      : 'border-gray-50 bg-white'}"
+                  >
+                    <span class="text-sm font-serif decoration-indigo-200"
+                      >Aa</span
                     >
-                      <p class="text-[10px] font-black uppercase">{style.name}</p>
-                      <p class="text-[8px] font-bold text-gray-400">{style.desc}</p>
+                    <p class="text-[8px] font-black uppercase mt-1">Serif</p>
+                  </button>
+                  <button
+                    onclick={() =>
+                      (template.layout_schema.fontFamily = "sans-serif")}
+                    class="p-3 rounded-xl border-2 transition-all text-center {template
+                      .layout_schema.fontFamily === 'sans-serif'
+                      ? 'border-indigo-600 bg-indigo-50/50'
+                      : 'border-gray-50 bg-white'}"
+                  >
+                    <span class="text-sm font-sans">Aa</span>
+                    <p class="text-[8px] font-black uppercase mt-1">Sans</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800"
+            >
+              <h3
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+              >
+                <Maximize class="w-3.5 h-3.5" />
+                Layout Settings
+              </h3>
+
+              <div class="space-y-1.5 text-left">
+                <label
+                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Page Margins</label
+                >
+                <div class="flex gap-1.5">
+                  {#each ["narrow", "normal", "wide"] as margin}
+                    <button
+                      onclick={() =>
+                        (template.layout_schema.pageMargin = margin)}
+                      class="flex-1 py-2 text-[8px] font-black uppercase rounded-lg border-2 transition-all {template
+                        .layout_schema.pageMargin === margin
+                        ? 'border-indigo-600 bg-indigo-50/50 text-indigo-600'
+                        : 'border-gray-50 bg-white text-gray-400'}"
+                    >
+                      {margin}
                     </button>
                   {/each}
                 </div>
-             </div>
+              </div>
+
+              <div class="space-y-1.5 text-left">
+                <label
+                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Preview Zoom ({Math.round(previewScale * 100)}%)</label
+                >
+                <input
+                  type="range"
+                  min="0.5"
+                  max="1.5"
+                  step="0.05"
+                  bind:value={previewScale}
+                  class="w-full h-1.5 bg-gray-100 dark:bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-600 shadow-inner"
+                />
+              </div>
+
+              <div
+                class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-sm"
+              >
+                <div>
+                  <p
+                    class="text-xs font-black uppercase text-gray-900 dark:text-white"
+                  >
+                    Page Border
+                  </p>
+                  <p
+                    class="text-[9px] font-bold text-gray-400 uppercase tracking-tight"
+                  >
+                    Decorative double line
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  bind:checked={template.layout_schema.showBorder}
+                  class="w-5 h-5 rounded-md border-gray-100 text-indigo-600 focus:ring-indigo-500/10 transition-all"
+                />
+              </div>
+            </div>
+
+            <div
+              class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800 text-left"
+            >
+              <h3
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+              >
+                <Component class="w-3.5 h-3.5" />
+                Style Presets
+              </h3>
+              <div class="grid grid-cols-1 gap-2">
+                {#each [{ id: "standard", name: "Modern Clear", desc: "Grid-based minimalist" }, { id: "crescent", name: "Crescent Official", desc: "Boxed metadata & seal" }, { id: "cdu", name: "CDU Academic", desc: "Red labels & centered header" }] as style}
+                  <button
+                    onclick={() => (template.layout_schema.style = style.id)}
+                    class="p-3.5 rounded-2xl border-2 transition-all text-left {template
+                      .layout_schema.style === style.id
+                      ? 'border-indigo-600 bg-indigo-50/20'
+                      : 'border-gray-100 hover:border-gray-200 bg-white'}"
+                  >
+                    <p class="text-[10px] font-black uppercase">{style.name}</p>
+                    <p class="text-[8px] font-bold text-gray-400">
+                      {style.desc}
+                    </p>
+                  </button>
+                {/each}
+              </div>
+            </div>
           </div>
         {:else if activeTab === "structure"}
           <div in:fade={{ duration: 200 }} class="space-y-6">
-            <div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800">
+            <div
+              class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-slate-800"
+            >
               <h3
                 class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
               >
@@ -444,11 +516,11 @@
               </button>
             </div>
 
-            <div 
-               class="space-y-4"
-               use:dndzone={{items: template.config, flipDurationMs: 200}}
-               onconsider={handleDndConsider}
-               onfinalize={handleDndFinalize}
+            <div
+              class="space-y-4"
+              use:dndzone={{ items: template.config, flipDurationMs: 200 }}
+              onconsider={handleDndConsider}
+              onfinalize={handleDndFinalize}
             >
               {#each template.config || [] as section, idx (section.id)}
                 <div
@@ -456,12 +528,16 @@
                 >
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
-                       <div class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-indigo-400 p-1">
-                          <GripVertical class="w-4 h-4" />
-                       </div>
-                       <span class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg uppercase">
-                          Part {section.part}
-                       </span>
+                      <div
+                        class="cursor-grab active:cursor-grabbing text-gray-300 hover:text-indigo-400 p-1"
+                      >
+                        <GripVertical class="w-4 h-4" />
+                      </div>
+                      <span
+                        class="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg uppercase"
+                      >
+                        Part {section.part}
+                      </span>
                     </div>
                     <button
                       onclick={() => removeSection(idx)}
@@ -684,30 +760,34 @@
               </button>
             </div>
 
-                  <div class="space-y-1.5 text-left">
-                    <label
-                      class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                      >Template Name</label
-                    >
-                    <input
-                      bind:value={template.name}
-                      class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                    />
-                  </div>
-                  <div class="space-y-1.5 text-left">
-                    <label
-                      class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                      >Exam Category</label
-                    >
-                    <select
-                      bind:value={template.exam_type}
-                      class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
-                    >
-                      <option value="Semester">Semester End</option>
-                      <option value="Internal">Continuous Assessment</option>
-                      <option value="Assignment">Home Assignment</option>
-                    </select>
-                  </div>
+            <div class="pt-6 border-t border-gray-100 dark:border-slate-800">
+              <h3 class="text-[10px] font-black text-gray-400 uppercase mb-4">
+                Paper Properties
+              </h3>
+              <div class="space-y-4">
+                <div class="space-y-1.5 text-left">
+                  <label
+                    class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                    >Template Name</label
+                  >
+                  <input
+                    bind:value={template.name}
+                    class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  />
+                </div>
+                <div class="space-y-1.5 text-left">
+                  <label
+                    class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                    >Exam Category</label
+                  >
+                  <select
+                    bind:value={template.exam_type}
+                    class="w-full bg-white dark:bg-slate-800 border-none rounded-2xl text-xs font-bold px-4 py-3.5 outline-none shadow-sm focus:ring-4 focus:ring-indigo-500/10 transition-all"
+                  >
+                    <option value="Semester">Semester End</option>
+                    <option value="Internal">Continuous Assessment</option>
+                    <option value="Assignment">Home Assignment</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -716,8 +796,10 @@
       </div>
     </aside>
 
-    <main class="flex-1 bg-gray-100 dark:bg-slate-950/50 overflow-auto p-12 scroll-smooth">
-      <div 
+    <main
+      class="flex-1 bg-gray-100 dark:bg-slate-950/50 overflow-auto p-12 scroll-smooth"
+    >
+      <div
         class="max-w-[8.27in] mx-auto shadow-2xl origin-top transition-transform duration-300 ease-out"
         style="transform: scale({previewScale});"
       >
