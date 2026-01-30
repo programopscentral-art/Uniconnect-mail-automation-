@@ -22,10 +22,11 @@ export class TemplateRenderer {
             if (value !== undefined && value !== null) {
                 // Return string representation but avoid [object Object]
                 if (typeof value === 'object' && !Array.isArray(value)) return '';
+                console.log(`[TEMPLATE_RENDER] SUCCESS: Resolved "${key}" -> "${String(value).slice(0, 50)}${String(value).length > 50 ? '...' : ''}"`);
                 return String(value);
             }
 
-            console.warn(`[TEMPLATE_RENDER] FAIL: "${key}".`);
+            console.warn(`[TEMPLATE_RENDER] FAIL: Could not resolve variable "${key}". Available keys: ${Object.keys(vars).join(', ')}`);
             return `{{${key}}}`; // Return original if not found
         };
 

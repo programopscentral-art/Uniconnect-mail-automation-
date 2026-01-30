@@ -29,6 +29,9 @@ export async function sendToRecipient(
 
         if (!campaign || !recipient) throw new Error('Campaign or recipient not found');
 
+        console.log(`[CAMPAIGN_SENDER] Recipient Row ID: ${recipientId}`);
+        console.log(`[CAMPAIGN_SENDER] Student metadata for merge:`, recipient.metadata ? (typeof recipient.metadata === 'string' ? recipient.metadata : JSON.stringify(recipient.metadata)) : 'MISSING');
+
         // 2. Setup Gmail if not provided
         let gmail = gmailInstance;
         let mailboxEmail = '';
@@ -67,7 +70,12 @@ export async function sendToRecipient(
         };
 
         console.log(`[CAMPAIGN_SENDER] Keys found in Metadata:`, Object.keys(metaObj));
-        console.log(`[CAMPAIGN_SENDER] Variables Keys:`, Object.keys(variables));
+        console.log(`[CAMPAIGN_SENDER] Variables Keys for Merge:`, Object.keys(variables));
+
+        // Log all variables except large ones for debugging
+        const logVars = { ...variables };
+        delete (logVars as any).metadata;
+        console.log(`[CAMPAIGN_SENDER] Resolved Variables Map:`, JSON.stringify(logVars, null, 2));
 
         const subject = TemplateRenderer.render(template.subject, variables, {
             config: template.config,

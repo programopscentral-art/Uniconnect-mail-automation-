@@ -23,37 +23,60 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
     }
 
     try {
-        // 1. Update Recipient Table (campaign context)
-        const updated = await updateCampaignRecipientEmail(recipientId, email);
+        const client = await db.pool.connect();
+        let updatedRecipient;
 
-        // 2. Update Student Table (Global record) - ATOMIC SYNC
-        if (updated.student_id) {
-            await db.query(
-                `UPDATE students SET email = $1, name = $2, metadata = $3, updated_at = NOW() WHERE id = $4`,
-                [email.toLowerCase().trim(), name, JSON.stringify(metadata || {}), updated.student_id]
+        try {
+            await client.query('BEGIN');
+
+            // 1. Update Recipient Table (campaign context)
+            const { rows: recipientRows } = await client.query(
+                `UPDATE campaign_recipients 
+                 SET to_email = $1, status = 'QUEUED', error_message = NULL, updated_at = NOW() 
+                 WHERE id = $2 RETURNING *`,
+                [email.toLowerCase().trim(), recipientId]
             );
-        }
+            updatedRecipient = recipientRows[0];
 
-        // 3. Reset campaign status to IN_PROGRESS (so it polls)
-        await db.query(
-            `UPDATE campaigns SET status = 'IN_PROGRESS', failed_count = GREATEST(0, failed_count - 1), updated_at = NOW() WHERE id = $1`,
-            [campaignId]
-        );
-
-        // 4. TRIGGER IMMEDIATE SEND with fresh data
-        // We only trigger if the campaign is already active (IN_PROGRESS) or was COMPLETED (re-sending to corrected)
-        if (['IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED'].includes(campaign.status)) {
-            console.log(`[RECIPIENT_PATCH] Triggering immediate send for ${recipientId} with fresh metadata`);
-
-            try {
-                const result = await sendToRecipient(campaignId, updated.id);
-                console.log(`[RECIPIENT_PATCH] Send result for ${recipientId}:`, result);
-            } catch (err) {
-                console.error(`[RECIPIENT_PATCH] Background send failed for ${recipientId}:`, err);
+            if (!updatedRecipient) {
+                throw new Error('Recipient not found');
             }
+
+            // 2. Update Student Table (Global record) - ATOMIC SYNC
+            if (updatedRecipient.student_id) {
+                await client.query(
+                    `UPDATE students SET name = $1, metadata = $2, updated_at = NOW() WHERE id = $3`,
+                    [name, typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}), updatedRecipient.student_id]
+                );
+            }
+
+            // 3. Reset campaign status to IN_PROGRESS (so it polls)
+            await client.query(
+                `UPDATE campaigns SET status = 'IN_PROGRESS', failed_count = GREATEST(0, failed_count - 1), updated_at = NOW() WHERE id = $1`,
+                [campaignId]
+            );
+
+            await client.query('COMMIT');
+        } catch (err) {
+            await client.query('ROLLBACK');
+            throw err;
+        } finally {
+            client.release();
         }
 
-        return json({ success: true, recipient: updated, triggered: true });
+        // 4. TRIGGER IMMEDIATE SEND with fresh data (After COMMIT to ensure visibility)
+        if (['IN_PROGRESS', 'COMPLETED', 'FAILED', 'STOPPED'].includes(campaign.status)) {
+            console.log(`[RECIPIENT_PATCH] RowId: ${recipientId}. Triggering immediate resend with fresh metadata.`);
+
+            // We don't await this to keep the UI responsive, BUT we log it
+            sendToRecipient(campaignId, recipientId).then(result => {
+                console.log(`[RECIPIENT_PATCH] Async Resend Result for ${recipientId}:`, result);
+            }).catch(err => {
+                console.error(`[RECIPIENT_PATCH] Async Resend Failed for ${recipientId}:`, err);
+            });
+        }
+
+        return json({ success: true, recipient: updatedRecipient, triggered: true });
     } catch (err: any) {
         console.error('[RECIPIENT_PATCH] Error:', err);
         throw error(500, err.message);
