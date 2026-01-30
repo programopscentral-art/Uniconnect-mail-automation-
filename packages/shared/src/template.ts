@@ -17,6 +17,17 @@ export class TemplateRenderer {
         // UNIFIED PLACEHOLDER RESOLVER
         const resolvePlaceholder = (rawKey: string) => {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
+            // STEP 0: EXACT LITERAL MATCH (case-insensitive, no normalization)
+            // This handles keys with special chars like "Term 1 Fee adjustment (O/S +ve and Excess -Ve)"
+            const exactMatch = Object.keys(vars).find(k => k.toLowerCase() === key.toLowerCase());
+            if (exactMatch !== undefined && vars[exactMatch] !== undefined && vars[exactMatch] !== null) {
+                const value = vars[exactMatch];
+                if (typeof value === 'object' && !Array.isArray(value)) return '';
+                console.log(`[TEMPLATE_RENDER] SUCCESS (EXACT): Resolved "${key.slice(0, 30)}${key.length > 30 ? '...' : ''}"`);
+                return String(value);
+            }
+
+            // STEP 1: Try via getValueByPath (which has its own matching logic)
             const value = this.getValueByPath(vars, key);
 
             if (value !== undefined && value !== null) {
