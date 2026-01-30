@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import RichTextEditor from "./RichTextEditor.svelte";
+  import TableEditor from "./TableEditor.svelte";
 
   let {
     element = $bindable(),
@@ -8,6 +9,7 @@
     onSelect,
     zoom = 1,
     mmToPx = 3.7795,
+    activeCellId = $bindable(),
   } = $props();
 
   let isDragging = $state(false);
@@ -154,7 +156,20 @@
 
 {#snippet children()}
   <!-- This is where the actual element content (Text/Image/Table) will be rendered -->
-  <div class="w-full h-full flex items-center justify-center">
+  <div
+    class="w-full h-full flex items-center justify-center overflow-hidden"
+    style="
+    font-family: {element.styles?.fontFamily || 'inherit'};
+    font-size: {element.styles?.fontSize || 14}px;
+    color: {element.styles?.color || 'inherit'};
+    line-height: {element.styles?.lineHeight || 1.2};
+    letter-spacing: {element.styles?.letterSpacing || 0}px;
+    font-weight: {element.styles?.fontWeight || 'normal'};
+    font-style: {element.styles?.fontStyle || 'normal'};
+    text-decoration: {element.styles?.textDecoration || 'none'};
+    text-align: {element.styles?.textAlign || 'left'};
+  "
+  >
     {#if element.type === "text"}
       <RichTextEditor
         bind:this={editorRef}
@@ -162,9 +177,11 @@
         active={selected}
         onUpdate={() => {}}
       />
+    {:else if element.type === "table"}
+      <TableEditor bind:element {selected} bind:activeCellId />
     {:else if element.type === "image"}
       <img
-        src={element.src}
+        src={element.src || "https://via.placeholder.com/150?text=Upload+Image"}
         alt="Canvas element"
         class="max-w-full max-h-full object-contain pointer-events-none"
       />
