@@ -46,6 +46,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const allQuestions = questionsRes.rows;
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
 
+        // 1b. Fetch Course Outcomes for mapping CO1 -> ID
+        const coRes = await db.query('SELECT id, code FROM assessment_course_outcomes WHERE subject_id = $1', [subject_id]);
+        const coMap = new Map(coRes.rows.map(co => [co.code, co.id]));
+
         if (allQuestions.length === 0) {
             return json({ error: 'No questions found for this subject. Please upload questions first.' }, { status: 400 });
         }
@@ -60,7 +64,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         ...slot,
                         id: slot.id || crypto.randomUUID(),
                         marks: slot.marks || section.marks_per_q,
-                        part: part
+                        part: part,
+                        co_id: slot.target_co ? coMap.get(slot.target_co) : slot.co_id
                     });
                 });
             });
@@ -159,6 +164,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     if (cand.length === 0) return [];
 
+                    // 1b. CO Filter (High Priority)
+                    if (co_id) {
+                        const coCand = cand.filter(q => q.co_id === co_id);
+                        if (coCand.length > 0) cand = coCand;
+                        // No fallback for CO - if a slot is mapped to CO, we stay strict or handle it in picking attempts
+                    }
+
                     // 2. Marks Filter
                     if (strictMarks) {
                         const mCand = cand.filter(q => Number(q.marks) === Number(targetMarks));
@@ -254,11 +266,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const uToUse = slot.unit === 'Auto' ? (shuffledUnitIds[setUnitCounter++ % shuffledUnitIds.length] || allPossibleUnitIdsArr[0]) : slot.unit;
 
                 if (slot.type === 'OR_GROUP') {
-                    const c1 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[0]?.manualMarks, slot.qType, slot.bloom, slot.co);
-                    const c2 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[1]?.manualMarks, slot.qType, slot.bloom, slot.co);
+                    const c1 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[0]?.manualMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
+                    const c2 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[1]?.manualMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
                     setQuestions.push({ id: slot.id, type: 'OR_GROUP', part: slot.part, choice1: { questions: c1 }, choice2: { questions: c2 } });
                 } else {
-                    const qs = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.subMarks, slot.qType, slot.bloom, slot.co);
+                    const qs = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.subMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
                     setQuestions.push({ id: slot.id, type: 'SINGLE', part: slot.part, questions: qs, marks: slot.marks });
                 }
             }

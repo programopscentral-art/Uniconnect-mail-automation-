@@ -366,7 +366,7 @@
 
       <!-- Dynamic Sections -->
       <div class="space-y-10">
-        {#each paperStructure as section}
+        {#each paperStructure || [] as section}
           {@const questions = getQuestionsByPart(section.part)}
           {#if questions.length > 0 || mode === "preview"}
             <div>
@@ -397,7 +397,12 @@
                 {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
                   {#if q && q.part === section.part}
                     {@const qNum =
-                      questions.findIndex((x) => x.id === q.id) + 1}
+                      (Array.isArray(currentSetData.questions)
+                        ? currentSetData.questions
+                        : []
+                      )
+                        .filter((x) => x && x.part === section.part)
+                        .findIndex((x) => x.id === q.id) + 1}
                     <div
                       class={section.part === "A"
                         ? "border-b border-black"

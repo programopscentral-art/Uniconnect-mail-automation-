@@ -546,30 +546,41 @@
 
   function applyTemplate(templateId: string) {
     const template = availableTemplates.find((t) => t.id === templateId);
-    if (template && template.config) {
-      paperStructure = JSON.parse(JSON.stringify(template.config));
-      selectedExamType = template.exam_type;
-      lastLoadedLayout = template.layout_schema || {};
+    paperStructure = JSON.parse(JSON.stringify(template.config));
 
-      // Auto-detect template type or use generic
-      if (
-        template.layout_schema &&
-        Object.keys(template.layout_schema).length > 0
-      ) {
-        selectedTemplate = "generic";
-      } else if (template.name.toLowerCase().includes("crescent")) {
-        selectedTemplate = "crescent";
-      } else if (
-        template.name.toLowerCase().includes("chaitanya") ||
-        template.name.toLowerCase().includes("cdu")
-      ) {
-        selectedTemplate = "cdu";
-      } else {
-        selectedTemplate = "standard";
-      }
+    // Resolve Course Outcomes (mapping target_co code to co_id)
+    paperStructure.forEach((section: any) => {
+      section.slots.forEach((slot: any) => {
+        if (slot.target_co && courseOutcomes.length > 0) {
+          const foundCo = courseOutcomes.find(
+            (co: any) => co.code === slot.target_co,
+          );
+          if (foundCo) slot.co_id = foundCo.id;
+        }
+      });
+    });
 
-      refreshLabels();
+    selectedExamType = template.exam_type;
+    lastLoadedLayout = template.layout_schema || {};
+
+    // Auto-detect template type or use generic
+    if (
+      template.layout_schema &&
+      Object.keys(template.layout_schema).length > 0
+    ) {
+      selectedTemplate = "generic";
+    } else if (template.name.toLowerCase().includes("crescent")) {
+      selectedTemplate = "crescent";
+    } else if (
+      template.name.toLowerCase().includes("chaitanya") ||
+      template.name.toLowerCase().includes("cdu")
+    ) {
+      selectedTemplate = "cdu";
+    } else {
+      selectedTemplate = "standard";
     }
+
+    refreshLabels();
   }
 
   function refreshLabels() {

@@ -6,7 +6,13 @@
 
   let { data }: { data: PageData } = $props();
 
-  let template = $state(JSON.parse(JSON.stringify(data.template)));
+  let template = $state(JSON.parse(JSON.stringify(data.template || {})));
+
+  // Robust initialization
+  if (!template.layout_schema) template.layout_schema = {};
+  if (!template.config) template.config = [];
+  if (!template.config) template.config = [];
+
   let isSaving = $state(false);
   let activeTab = $state("branding"); // branding | structure | general
 
@@ -160,9 +166,8 @@
             </h3>
             <div class="space-y-4">
               <div class="space-y-1.5">
-                <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >University Name</label
+                <span class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >University Name</span
                 >
                 <input
                   bind:value={template.layout_schema.universityName}
@@ -171,9 +176,8 @@
                 />
               </div>
               <div class="space-y-1.5">
-                <label
-                  class="text-[9px] font-black text-gray-500 uppercase ml-1"
-                  >Sub-Header</label
+                <span class="text-[9px] font-black text-gray-500 uppercase ml-1"
+                  >Sub-Header</span
                 >
                 <input
                   bind:value={template.layout_schema.universitySubName}
@@ -348,6 +352,15 @@
                           >
                             <option value="SINGLE">Single</option>
                             <option value="OR_GROUP">OR Pair</option>
+                          </select>
+                          <select
+                            bind:value={slot.target_co}
+                            class="flex-1 bg-white dark:bg-slate-800 border-none rounded-md text-[8px] font-black uppercase px-2 py-1 outline-none"
+                          >
+                            <option value={undefined}>No CO</option>
+                            {#each [1, 2, 3, 4, 5, 6] as n}
+                              <option value="CO{n}">CO{n}</option>
+                            {/each}
                           </select>
                           <input
                             type="number"
