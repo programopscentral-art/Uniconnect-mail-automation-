@@ -188,7 +188,6 @@ export class TemplateRenderer {
 
         // 3. HYPER-FUZZY (Word-for-Word similarity)
         const getWords = (s: string) => String(s || '').toLowerCase()
-            .replace(/\(.*?\)/g, ' ')
             .split(/[^a-z0-9]+/)
             .filter(w => w.length >= 2);
 
@@ -205,11 +204,15 @@ export class TemplateRenderer {
             const candidates = keys.map(k => {
                 const kWords = getWords(k);
                 const intersection = kWords.filter(kw => sWords.some(sw => isSimilar(kw, sw)));
+                // Weighting: Large keys need higher precision
                 const score = intersection.length / Math.max(kWords.length, sWords.length);
-                return { key: k, score };
+                return { key: k, score, kWordsLength: kWords.length };
             })
-                .filter(m => m.score >= 0.3)
-                .sort((a, b) => b.score - a.score);
+                .filter(m => m.score >= 0.25) // Slightly lower hurdle for long complex keys
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return b.kWordsLength - a.kWordsLength; // Ties go to more descriptive keys
+                });
 
             if (candidates.length > 0) {
                 console.log(`[HYPER_FUZZY] Resolved "${path}" to "${candidates[0].key}" (Score: ${candidates[0].score})`);

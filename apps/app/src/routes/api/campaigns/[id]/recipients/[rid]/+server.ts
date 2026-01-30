@@ -66,6 +66,11 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
         } catch (err: any) {
             console.error(`[RECIPIENT_PATCH] Transaction error:`, err);
             await client.query('ROLLBACK').catch(e => console.error('[RECIPIENT_PATCH] Rollback failed:', e));
+
+            // Check for unique constraint violation (student email conflict)
+            if (err.code === '23505') {
+                throw error(409, `The email address ${email} is already in use by another student in this university.`);
+            }
             throw err;
         } finally {
             client.release();
