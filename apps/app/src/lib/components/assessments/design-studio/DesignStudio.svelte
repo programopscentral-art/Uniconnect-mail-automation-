@@ -818,15 +818,22 @@
             </h3>
             <div class="space-y-1">
               {#each [...currentPage.elements].reverse() as el (el.id)}
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabindex="0"
                   class="group flex items-center gap-3 p-2 rounded-xl transition-all {selectedElementId ===
                   el.id
                     ? 'bg-indigo-500/10 border border-indigo-500/20'
-                    : 'hover:bg-white/5 border border-transparent'}"
+                    : 'hover:bg-white/5 border border-transparent'} cursor-pointer"
                   onclick={() => {
                     selectedElementId = el.id;
                     activePageId = currentPage.id;
+                  }}
+                  onkeydown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      selectedElementId = el.id;
+                      activePageId = currentPage.id;
+                    }
                   }}
                 >
                   <div
@@ -874,7 +881,7 @@
                       <HelpCircle class="w-3 h-3" />
                     </button>
                   </div>
-                </button>
+                </div>
               {/each}
             </div>
           </div>
