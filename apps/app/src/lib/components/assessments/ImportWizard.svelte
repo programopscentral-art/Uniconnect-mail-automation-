@@ -11,6 +11,7 @@
   let importFile = $state<File | null>(null);
   let detectedLayout = $state<any>(null);
   let errorMsg = $state("");
+  let previewZoom = $state(0.75);
 
   async function startAnalysis() {
     if (!importFile || !importName) return;
@@ -299,25 +300,75 @@
             >
               <div class="flex items-center gap-6 mb-10">
                 <div class="h-px w-24 bg-white/5"></div>
-                <h4
-                  class="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]"
+              </div>
+
+              <!-- Floating Zoom Controller -->
+              <div
+                class="mb-6 flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-2 px-4 shadow-2xl backdrop-blur-md"
+              >
+                <button
+                  onclick={() =>
+                    (previewZoom = Math.max(0.5, previewZoom - 0.1))}
+                  class="p-2 text-white/40 hover:text-indigo-400 transition-all"
+                  title="Zoom Out"
                 >
-                  High-Fidelity Model Output
-                </h4>
-                <div class="h-px w-24 bg-white/5"></div>
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M20 12H4"
+                    /></svg
+                  >
+                </button>
+                <div
+                  class="w-20 text-center text-[10px] font-black text-indigo-400 uppercase tracking-widest"
+                >
+                  {Math.round(previewZoom * 100)}%
+                </div>
+                <button
+                  onclick={() =>
+                    (previewZoom = Math.min(1.5, previewZoom + 0.1))}
+                  class="p-2 text-white/40 hover:text-indigo-400 transition-all"
+                  title="Zoom In"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    /></svg
+                  >
+                </button>
+                <div class="h-4 w-px bg-white/10 mx-2"></div>
+                <button
+                  onclick={() => (previewZoom = 0.75)}
+                  class="text-[9px] font-black text-white/20 hover:text-white uppercase tracking-tighter px-2"
+                >
+                  Reset
+                </button>
               </div>
 
               <!-- Mathematical Scaling & Centering -->
               <div
-                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm overflow-hidden bg-white relative group shrink-0"
+                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm bg-white relative group shrink-0"
               >
                 <div
                   class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
                 ></div>
-                <div class="p-8">
+                <div class="p-12 overflow-auto max-h-[60vh] scrollbar-hide">
                   <LayoutCanvas
                     layout={detectedLayout}
-                    zoom={0.45}
+                    zoom={previewZoom}
                     showMargins={true}
                     mode="preview"
                   />
