@@ -89,17 +89,92 @@ export class LayoutReconstructor {
         // We simulate the output of a DocTR / PaddleOCR / Table Transformer pipeline
         // that has detected a standard university paper structure.
 
+        const isAdypu = name.toLowerCase().includes('adypu');
+
         const schema: LayoutSchema = {
             page: {
                 width: 'A4',
                 unit: 'mm',
-                margins: { top: 15, bottom: 15, left: 20, right: 20 }
+                margins: { top: 15, bottom: 15, left: 15, right: 15 }
             },
             pages: [
                 {
                     id: 'page-1',
-                    elements: [
-                        // 1. University Header (Detected via LayoutParser)
+                    elements: isAdypu ? [
+                        // --- ADYPU SPECIFIC RECONSTRUCTION ---
+                        {
+                            id: 'adypu-header',
+                            type: 'text',
+                            x: 15, y: 10, w: 180, h: 25,
+                            content: `
+                                <div style="text-align: center; font-family: 'Outfit', sans-serif;">
+                                    <h1 style="font-size: 28px; font-weight: 900; margin: 0; color: #000; letter-spacing: -0.02em;">ADYPU</h1>
+                                    <p style="font-size: 11px; font-weight: 800; color: #475569; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">SEM - EXAMINATION PAPER</p>
+                                </div>
+                            `
+                        },
+                        {
+                            id: 'adypu-line-1',
+                            type: 'line',
+                            x: 15, y: 38, w: 180, h: 0.5,
+                            orientation: 'horizontal',
+                            thickness: 1,
+                            color: '#e2e8f0'
+                        },
+                        {
+                            id: 'adypu-meta-table',
+                            type: 'table',
+                            x: 15, y: 48, w: 180, h: 30,
+                            tableData: {
+                                rows: [
+                                    {
+                                        id: 'r1',
+                                        cells: [
+                                            { id: 'c1', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Course Title</span>', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c2', content: '', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c3', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Course Code</span>', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c4', content: '', styles: { border: '1px solid #f1f5f9' } }
+                                        ]
+                                    },
+                                    {
+                                        id: 'r2',
+                                        cells: [
+                                            { id: 'c1', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Max Marks</span>', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c2', content: '<span style="font-size: 11px; font-weight: 700;">100</span>', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c3', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Duration</span>', styles: { border: '1px solid #f1f5f9' } },
+                                            { id: 'c4', content: '<span style="font-size: 11px; font-weight: 700;">3 HOURS</span>', styles: { border: '1px solid #f1f5f9' } }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            id: 'adypu-instructions',
+                            type: 'text',
+                            x: 15, y: 95, w: 180, h: 40,
+                            content: `
+                                <div style="font-family: 'Outfit', sans-serif;">
+                                    <h4 style="font-size: 10px; font-weight: 900; color: #000; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">General Instructions:</h4>
+                                    <ul style="font-size: 9px; color: #475569; margin: 0; padding-left: 14px; list-style-type: disc;">
+                                        <li style="margin-bottom: 4px;">Answer all questions in Part A correctly.</li>
+                                        <li style="margin-bottom: 4px;">Attempt any five questions from Part B choosing one from each unit.</li>
+                                        <li>Clearly mention Section/Part and Question numbers.</li>
+                                    </ul>
+                                </div>
+                            `
+                        },
+                        {
+                            id: 'adypu-mesh',
+                            type: 'shape',
+                            x: 15, y: 145, w: 180, h: 120,
+                            shapeType: 'rectangle',
+                            backgroundColor: '#f8fafc',
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            styles: { opacity: 0.5, borderDash: '4,4' }
+                        }
+                    ] : [
+                        // --- GENERIC RECONSTRUCTION ---
                         {
                             id: 'header-detect-1',
                             type: 'text',
@@ -107,7 +182,6 @@ export class LayoutReconstructor {
                             content: `<div style="text-align: center;"><p style="font-size: 24px; font-weight: 900; margin: 0; color: #1e293b;">${name.toUpperCase()}</p><p style="font-size: 14px; margin-top: 5px; color: #64748b; font-weight: bold; text-transform: uppercase;">${examType} - EXAMINATION PAPER</p></div>`,
                             styles: { fontFamily: 'Outfit, sans-serif' }
                         },
-                        // 2. Horizontal Divider Line (Detected via Line Detection)
                         {
                             id: 'line-detect-1',
                             type: 'line',
@@ -116,7 +190,6 @@ export class LayoutReconstructor {
                             thickness: 1.5,
                             color: '#1e293b'
                         },
-                        // 3. Metadata Table (Detected via Table Transformer)
                         {
                             id: 'table-detect-1',
                             type: 'table',
@@ -144,7 +217,6 @@ export class LayoutReconstructor {
                                 ]
                             }
                         },
-                        // 4. Detailed Instructions Section (Detected as Text Block)
                         {
                             id: 'instructions-detect-1',
                             type: 'text',
@@ -161,7 +233,6 @@ export class LayoutReconstructor {
                             `,
                             styles: { lineHeight: 1.6 }
                         },
-                        // 5. Body Content Placeholder (Detected as large empty/text region)
                         {
                             id: 'body-mesh-1',
                             type: 'shape',
@@ -171,12 +242,6 @@ export class LayoutReconstructor {
                             borderWidth: 2,
                             borderColor: '#cbd5e1',
                             styles: { opacity: 0.5, borderDash: '5,5' }
-                        },
-                        {
-                            id: 'body-label-1',
-                            type: 'text',
-                            x: 40, y: 205, w: 130, h: 20,
-                            content: `<p style="text-align: center; color: #64748b; font-weight: bold; font-size: 12px; text-transform: uppercase;">[ QUESTION PAPER BODY CONTENT SLOTS ]</p>`
                         }
                     ]
                 }

@@ -149,11 +149,12 @@
                 >
                 <select
                   bind:value={importExamType}
-                  class="w-full bg-white/5 border border-white/5 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none"
+                  class="w-full bg-[#1a1a1a] border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
                 >
-                  <option value="MID1">Midterm 1</option>
-                  <option value="MID2">Midterm 2</option>
-                  <option value="SEM">Semester Exam</option>
+                  <option value="MID1" class="bg-[#1a1a1a]">Midterm 1</option>
+                  <option value="MID2" class="bg-[#1a1a1a]">Midterm 2</option>
+                  <option value="SEM" class="bg-[#1a1a1a]">Semester Exam</option
+                  >
                 </select>
               </div>
               <div class="space-y-2">
@@ -175,9 +176,14 @@
                     <span class="text-[10px] font-black text-white/40 uppercase"
                       >{importFile
                         ? importFile.name
-                        : "Click to Upload PDF"}</span
+                        : "Click to Upload PDF / PNG"}</span
                     >
                   </div>
+                  <p
+                    class="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-2 text-center"
+                  >
+                    Supported: PDF, PNG, JPG
+                  </p>
                 </div>
               </div>
             </div>
@@ -290,11 +296,14 @@
 
               <!-- Mathematical Scaling & Centering -->
               <div
-                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm overflow-visible"
+                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm overflow-visible bg-white relative group"
               >
+                <div
+                  class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+                ></div>
                 <LayoutCanvas
                   layout={detectedLayout}
-                  zoom={0.8}
+                  zoom={0.65}
                   showMargins={true}
                   mode="preview"
                 />
