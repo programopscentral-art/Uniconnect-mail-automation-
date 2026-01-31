@@ -50,11 +50,10 @@
   ) {
     if (isEditing) return;
 
-    // Fix: Only stop propagation if we are actually handling the pointer for drag/resize
-    // This allows clicking into the editor if it's already selected
+    // Fix: Allow focus to reach children if already selected
     if (selected && type === "move") {
-      // If already selected, we don't necessarily want to stop propagation immediately
-      // because the user might be clicking to place caret
+      // If we are already selected, we don't stop propagation on the move handle
+      // so that the pointerdown can reach the contenteditable child
     } else {
       e.stopPropagation();
     }
@@ -66,9 +65,9 @@
       activeHandle = handle || null;
     } else {
       isDragging = true;
-      // We only capture if we're not planning to let the child handle it
+      // We only capture if NOT editing to allow selection/caret placement
       if (!isEditing) {
-        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }
     }
 
@@ -113,7 +112,9 @@
 
   function handlePointerUp(e: PointerEvent) {
     if (isDragging || isResizing) {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      if ((e.currentTarget as HTMLElement).hasPointerCapture(e.pointerId)) {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      }
     }
     isDragging = false;
     isResizing = false;

@@ -106,9 +106,9 @@
 
   // Recalculate zoom when fullScreen or zoomMode changes
   $effect(() => {
-    fullScreen;
-    zoomMode;
-    autoFit();
+    if (fullScreen !== undefined || zoomMode !== undefined) {
+      autoFit();
+    }
   });
 
   // Derived state for selection
@@ -289,6 +289,7 @@
   let isLoadingRevisions = $state(false);
 
   async function fetchRevisions() {
+    if (!template?.id) return;
     isLoadingRevisions = true;
     try {
       const res = await fetch(
@@ -296,8 +297,10 @@
       );
       if (res.ok) {
         const data = await res.json();
-        revisions = data.revisions;
+        revisions = data.revisions || [];
       }
+    } catch (err) {
+      console.error("[DESIGN_STUDIO] Revision fetch failed:", err);
     } finally {
       isLoadingRevisions = false;
     }
@@ -310,15 +313,15 @@
   });
 
   async function handleFileUpload(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
     if (!file) return;
 
     isUploading = true;
     try {
-      // In a real app, you'd upload to S3/Supabase Storage first
-      // For now, we simulate the storage and save to DB
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("university_id", universityId);
+      formData.append("universityId", universityId);
       formData.append("name", file.name);
       formData.append("type", "image");
 
@@ -327,13 +330,16 @@
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Failed to upload");
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to upload");
+      }
       const { asset } = await res.json();
 
       universityAssets = [asset, ...universityAssets];
     } catch (err) {
-      console.error(err);
-      alert("Upload failed");
+      console.error("[DESIGN_STUDIO] Upload failed:", err);
+      alert(err instanceof Error ? err.message : "Upload failed");
     } finally {
       isUploading = false;
     }
@@ -438,14 +444,17 @@
     );
     if (pageIndex === -1) return;
 
-    comp.elements.forEach((el: CanvasElement) => {
+    const copies = comp.elements.map((el: CanvasElement) => {
       const copy = JSON.parse(JSON.stringify(el));
       copy.id = `el-${Math.random().toString(36).substr(2, 9)}`;
-      layout.pages[pageIndex].elements = [
-        ...layout.pages[pageIndex].elements,
-        copy,
-      ];
+      return copy;
     });
+
+    layout.pages[pageIndex].elements = [
+      ...layout.pages[pageIndex].elements,
+      ...copies,
+    ];
+    layout = { ...layout };
     template.layout_schema = layout;
   }
 
@@ -461,7 +470,17 @@
 
   function addRow(where: "above" | "below") {
     if (!selectedElement || selectedElement.type !== "table") return;
-    const data = selectedElement.tableData;
+    const pageIndex = layout.pages.findIndex((p: any) => p.id === activePageId);
+    if (pageIndex === -1) return;
+
+    const elIndex = layout.pages[pageIndex].elements.findIndex(
+      (e: any) => e.id === selectedElementId,
+    );
+    if (elIndex === -1) return;
+
+    const data = JSON.parse(
+      JSON.stringify(layout.pages[pageIndex].elements[elIndex].tableData),
+    );
 
     let rowIndex = -1;
     if (activeCellId) {
@@ -484,14 +503,26 @@
         styles: { verticalAlign: "middle" },
       })),
     };
+
     data.rows.splice(insertAt, 0, newRow);
-    selectedElement.tableData = { ...data };
-    template.layout_schema = { ...layout };
+    layout.pages[pageIndex].elements[elIndex].tableData = data;
+    layout = { ...layout };
+    template.layout_schema = layout;
   }
 
   function addColumn(where: "left" | "right") {
     if (!selectedElement || selectedElement.type !== "table") return;
-    const data = selectedElement.tableData;
+    const pageIndex = layout.pages.findIndex((p: any) => p.id === activePageId);
+    if (pageIndex === -1) return;
+
+    const elIndex = layout.pages[pageIndex].elements.findIndex(
+      (e: any) => e.id === selectedElementId,
+    );
+    if (elIndex === -1) return;
+
+    const data = JSON.parse(
+      JSON.stringify(layout.pages[pageIndex].elements[elIndex].tableData),
+    );
 
     let colIndex = -1;
     if (activeCellId) {
@@ -513,8 +544,10 @@
         styles: { verticalAlign: "middle" },
       });
     });
-    selectedElement.tableData = { ...data };
-    template.layout_schema = { ...layout };
+
+    layout.pages[pageIndex].elements[elIndex].tableData = data;
+    layout = { ...layout };
+    template.layout_schema = layout;
   }
 
   function deleteRow() {
@@ -1453,12 +1486,15 @@
                   <div class="grid grid-cols-2 gap-2 mb-6">
                     <button
                       onclick={deleteRow}
-                      class="py-2.5 px-3 bg-red-500/5 border border-red-500/10 rounded-xl text-[8px] font-black uppercase text-red-400 hover:bg-red-500/10 transition-all"
+                      disabled={selectedElement.tableData?.rows.length <= 1}
+                      class="py-2.5 px-3 bg-red-500/5 border border-red-500/10 rounded-xl text-[8px] font-black uppercase text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-20"
                       >Delete Row</button
                     >
                     <button
                       onclick={deleteColumn}
-                      class="py-2.5 px-3 bg-red-500/5 border border-red-500/10 rounded-xl text-[8px] font-black uppercase text-red-400 hover:bg-red-500/10 transition-all"
+                      disabled={selectedElement.tableData?.rows[0].cells
+                        .length <= 1}
+                      class="py-2.5 px-3 bg-red-500/5 border border-red-500/10 rounded-xl text-[8px] font-black uppercase text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-20"
                       >Delete Column</button
                     >
                   </div>

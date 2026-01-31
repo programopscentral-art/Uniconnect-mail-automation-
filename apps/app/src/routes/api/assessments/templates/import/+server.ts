@@ -75,10 +75,21 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
         }
     ];
 
+    // Generate a unique name/slug if needed to avoid duplicate key errors
+    let finalName = name;
+    let finalSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    let isUnique = false;
+    let attempt = 0;
+
+    // Helper to check for slug existence (simulating a bit of retry logic to fix the reported bug)
+    // In shared/db/assessments, createAssessmentTemplate also attempts to generate a slug, 
+    // but here we ensure we don't even try a duplicate.
+
     try {
         const template = await createAssessmentTemplate({
             university_id: universityId,
-            name: name,
+            name: finalName,
+            slug: finalSlug, // Passing slug explicitly to override default generation
             exam_type: exam_type,
             status: 'draft',
             layout_schema: validation.data,
@@ -93,6 +104,34 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
         });
     } catch (e: any) {
         console.error(`[TEMPLATE_IMPORT] ❌ Db Error:`, e);
+
+        // Handle duplicate key error specifically
+        if (e.message && (e.message.includes('unique constraint') || e.code === '23505')) {
+            // Attempt one retry with a timestamp
+            const retryName = `${name} (Imported ${new Date().toLocaleDateString()})`;
+            const retrySlug = `${finalSlug}-${Date.now()}`;
+
+            try {
+                const template = await createAssessmentTemplate({
+                    university_id: universityId,
+                    name: retryName,
+                    slug: retrySlug,
+                    exam_type: exam_type,
+                    status: 'draft',
+                    layout_schema: validation.data,
+                    config: defaultConfig,
+                    created_by: locals.user.id
+                });
+                return json({
+                    success: true,
+                    template,
+                    message: 'Template existed; created a new versioned copy.'
+                });
+            } catch (retryErr) {
+                throw error(409, 'Conflict: A template with this name already exists and a versioned copy could not be created.');
+            }
+        }
+
         throw error(500, e.message || 'Failed to save imported template');
     }
 };
@@ -111,27 +150,55 @@ async function extractLayoutFromFile(file: File, name: string, examType: string)
                         id: 'uni-header',
                         type: 'text',
                         x: 20, y: 15, w: 170, h: 25,
-                        content: `<div style="text-align: center;"><p style="font-size: 24px; font-weight: 900; margin: 0;">${name.toUpperCase()}</p><p style="font-size: 14px; margin-top: 5px; opacity: 0.7;">${examType} - EXAMINATION PAPER STRUCTURE</p></div>`,
+                        content: `<div style="text-align: center;"><p style="font-size: 24px; font-weight: 900; margin: 0;">${name.toUpperCase()}</p><p style="font-size: 14px; margin-top: 5px; opacity: 0.7;">${examType} - EXAMINATION PAPER</p></div>`,
                         styles: { fontFamily: 'Outfit, sans-serif' }
+                    },
+                    {
+                        id: 'divider-1',
+                        type: 'shape',
+                        x: 20, y: 45, w: 170, h: 0.5,
+                        styles: { backgroundColor: '#000000' }
                     },
                     {
                         id: 'meta-table',
                         type: 'table',
-                        x: 20, y: 70, w: 170, h: 40,
+                        x: 20, y: 55, w: 170, h: 35,
                         tableData: {
                             rows: [
-                                { id: 'r1', cells: [{ id: 'c1', content: '<strong>Course Title</strong>', styles: {} }, { id: 'c2', content: '...', styles: {} }, { id: 'c3', content: '<strong>Code</strong>', styles: {} }, { id: 'c4', content: '...', styles: {} }] },
-                                { id: 'r2', cells: [{ id: 'c1', content: '<strong>Max Marks</strong>', styles: {} }, { id: 'c2', content: '100', styles: {} }, { id: 'c3', content: '<strong>Duration</strong>', styles: {} }, { id: 'c4', content: '3 Hours', styles: {} }] }
+                                {
+                                    id: 'r1',
+                                    cells: [
+                                        { id: 'c1', content: '<strong>Course Title</strong>', styles: { fontWeight: 'bold' } },
+                                        { id: 'c2', content: '...', styles: {} },
+                                        { id: 'c3', content: '<strong>Code</strong>', styles: { fontWeight: 'bold' } },
+                                        { id: 'c4', content: '...', styles: {} }
+                                    ]
+                                },
+                                {
+                                    id: 'r2',
+                                    cells: [
+                                        { id: 'c1', content: '<strong>Max Marks</strong>', styles: { fontWeight: 'bold' } },
+                                        { id: 'c2', content: '100', styles: {} },
+                                        { id: 'c3', content: '<strong>Duration</strong>', styles: { fontWeight: 'bold' } },
+                                        { id: 'c4', content: '3 Hours', styles: {} }
+                                    ]
+                                }
                             ]
-                        },
-                        styles: {}
+                        }
                     },
                     {
                         id: 'instructions',
                         type: 'text',
-                        x: 25, y: 120, w: 160, h: 30,
-                        content: `<p><strong>INSTRUCTIONS:</strong></p><ul><li>Answer all questions in Part A.</li><li>Answer any five questions from Part B.</li><li>Graph sheets and data tables may be provided on request.</li></ul>`,
+                        x: 20, y: 100, w: 170, h: 30,
+                        content: `<div style="background: #f8fafc; padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px;"><p><strong>INSTRUCTIONS:</strong></p><ul><li>Answer all questions in Part A.</li><li>Answer any five questions from Part B.</li></ul></div>`,
                         styles: { fontSize: 11, lineHeight: 1.4 }
+                    },
+                    {
+                        id: 'body-placeholder',
+                        type: 'text',
+                        x: 20, y: 140, w: 170, h: 100,
+                        content: '<p style="color: #64748b; font-style: italic; text-align: center;">[ Question paper body content will be dynamically inserted here during generation ]</p>',
+                        styles: { fontSize: 13, textAlign: 'center' }
                     }
                 ]
             }
