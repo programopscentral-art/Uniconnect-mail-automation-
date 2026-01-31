@@ -31,7 +31,14 @@ export async function createTask(data: {
     const result = await db.query(
         `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [taskData.title, taskData.description || null, taskData.priority || 'MEDIUM', taskData.assigned_by, taskData.university_id || null, taskData.due_date || null]
+        [
+            taskData.title,
+            (taskData.description && taskData.description.trim() !== '') ? taskData.description : null,
+            taskData.priority || 'MEDIUM',
+            taskData.assigned_by,
+            (taskData.university_id && taskData.university_id !== '') ? taskData.university_id : null,
+            (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null
+        ]
     );
     const task = result.rows[0];
 
@@ -162,7 +169,12 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
 
         Object.entries(updateData).forEach(([key, val]) => {
             fields.push(`${key} = $${i++}`);
-            values.push(val);
+            // Convert empty strings to null for specific fields
+            if (['description', 'university_id', 'due_date'].includes(key) && val === '') {
+                values.push(null);
+            } else {
+                values.push(val);
+            }
         });
 
         values.push(id);
@@ -198,27 +210,51 @@ export async function reassignTask(id: string, assigneeIds: string[]) {
     }
 }
 
-export async function getTaskStats(universityId?: string) {
-    // ... existing stats code ...
-    const whereClause = universityId ? `WHERE university_id = $1` : ``;
-    const params = universityId ? [universityId] : [];
+export async function getTaskStats(universityId?: string, userId?: string) {
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let i = 1;
 
-    const res = await db.query(
-        `SELECT 
-            status,
-            COUNT(*) as count,
-            SUM(CASE WHEN status = 'PENDING' AND due_date < NOW() THEN 1 ELSE 0 END) as overdue_count
-         FROM tasks 
-         ${whereClause}
-         GROUP BY status`,
-        params
-    );
+    if (universityId) {
+        conditions.push(`university_id = $${i++}`);
+        params.push(universityId);
+    }
 
-    const stats: Record<string, number> = { PENDING: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0 };
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    let query = '';
+    if (userId) {
+        // Calculate stats based on INDIVIDUAL assignee status
+        query = `
+            SELECT 
+                ta.status as status,
+                COUNT(*) as count,
+                SUM(CASE WHEN ta.status != 'COMPLETED' AND t.due_date < NOW() THEN 1 ELSE 0 END) as overdue_count
+            FROM tasks t
+            JOIN task_assignees ta ON t.id = ta.task_id
+            ${whereClause} ${whereClause ? 'AND' : 'WHERE'} ta.user_id = $${i}
+            GROUP BY ta.status
+        `;
+        params.push(userId);
+    } else {
+        // Calculate stats based on GLOBAL task status
+        query = `
+            SELECT 
+                status,
+                COUNT(*) as count,
+                SUM(CASE WHEN status != 'COMPLETED' AND due_date < NOW() THEN 1 ELSE 0 END) as overdue_count
+            FROM tasks 
+            ${whereClause}
+            GROUP BY status
+        `;
+    }
+
+    const res = await db.query(query, params);
+
+    const stats: Record<string, number> = { PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0 };
     res.rows.forEach(r => {
-        stats[r.status] = parseInt(r.count);
+        if (r.status) stats[r.status] = parseInt(r.count);
     });
-    // Overdue is implicit sum
     stats.OVERDUE = res.rows.reduce((acc, r) => acc + (parseInt(r.overdue_count) || 0), 0);
 
     return stats;

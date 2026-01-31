@@ -28,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                 avg_open_rate: 0, remaining_credits: 0, recent_campaigns: [],
                 daily_activity: []
             }),
-            hasTasks ? getTaskStats(effectiveUniversityId) : Promise.resolve({
+            hasTasks ? getTaskStats(effectiveUniversityId, locals.user.id) : Promise.resolve({
                 PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0
             } as any),
             locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities(effectiveUniversityId) : Promise.resolve([]),
