@@ -1374,7 +1374,9 @@
                                 'COMPLETED'
                                   ? 'bg-green-100 dark:bg-green-900/50 border-green-500'
                                   : 'bg-indigo-100 dark:bg-indigo-900/50 border-white dark:border-slate-800'} border-2 flex items-center justify-center text-[8px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-transform hover:scale-110"
-                                title="{assignee.name || assignee.email} - {assignee.status || 'PENDING'}"
+                                title="{assignee.name ||
+                                  assignee.email} - {assignee.status ||
+                                  'PENDING'}"
                               >
                                 {#if assignee.status === "COMPLETED"}
                                   <svg
@@ -1417,9 +1419,6 @@
                           <button
                             onclick={() => toggleStatus(event)}
                             class="px-2 py-1 bg-green-600 text-white rounded text-[10px] font-bold shadow-sm hover:bg-green-700 transition-colors"
-                            >Mark Done</button
-                          >
-                        {/if}
                             >Mark Done</button
                           >
                         {/if}
