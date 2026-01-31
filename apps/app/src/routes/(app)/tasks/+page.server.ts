@@ -14,8 +14,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const status = url.searchParams.get('status') as any || undefined;
 
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+
     const [tasks, users, universities] = await Promise.all([
-        getTasks({ university_id: universityId || undefined, status }),
+        getTasks({
+            university_id: universityId || undefined,
+            status,
+            creator_id: isGlobalAdmin ? undefined : locals.user.id
+        }),
         getAllUsers(universityId || undefined),
         getAllUniversities(universityId || undefined)
     ]);
