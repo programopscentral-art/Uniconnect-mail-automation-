@@ -39,7 +39,7 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
     console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} (DryRun: ${dryRun})`);
 
     // --- High-Fidelity Layout Reconstruction (ML Pipeline Simulation) ---
-    const detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type);
+    const detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type, universityId);
 
     // Strict Validation
     const validation = LayoutSchema.safeParse(detectedLayout);

@@ -97,15 +97,10 @@
 
   // Sync layout from template prop when it loads or changes
   $effect(() => {
-    if (template.layout_schema && template.layout_schema.pages) {
-      // Robust hydration: if local layout is empty or default, and template has data, sync it
-      const isEmpty =
-        !layout.pages ||
-        layout.pages.length === 0 ||
-        (layout.pages.length === 1 && layout.pages[0].elements.length === 0);
-
-      if (isEmpty && template.layout_schema.pages.length > 0) {
-        layout = JSON.parse(JSON.stringify(template.layout_schema)); // Deep clone to isolate
+    if (template.layout_schema?.pages?.length > 0) {
+      const isEmpty = !layout.pages?.[0]?.elements?.length;
+      if (isEmpty) {
+        layout = JSON.parse(JSON.stringify(template.layout_schema));
       }
     }
   });
@@ -140,7 +135,7 @@
     if (!selectedElement) return;
     if (!selectedElement.styles) selectedElement.styles = {};
     selectedElement.styles[key] = value;
-    layout = { ...layout }; // Trigger reactivity
+    // Svelte 5 proxies handle the update
   }
 
   let activeTab = $state("elements");
@@ -177,7 +172,6 @@
     };
 
     selectedElement.tableData.rows.splice(targetIdx, 0, newRow);
-    layout = { ...layout };
   }
 
   function addCol(mode: "left" | "right") {

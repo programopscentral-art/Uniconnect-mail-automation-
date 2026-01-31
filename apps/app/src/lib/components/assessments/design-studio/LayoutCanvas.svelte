@@ -62,7 +62,7 @@
       {:else}
         <!-- Simple static rendering for preview/view -->
         <div
-          class="absolute overflow-hidden"
+          class="absolute overflow-visible min-h-fit"
           style="
                 left: {el.x}mm; 
                 top: {el.y}mm; 

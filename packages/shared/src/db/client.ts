@@ -18,7 +18,7 @@ function getPool() {
 
     internalPool = new Pool({
         connectionString: dbUrl,
-        max: 20,
+        max: 50,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 5000,
     });
