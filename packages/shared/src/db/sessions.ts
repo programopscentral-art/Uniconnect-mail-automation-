@@ -12,6 +12,7 @@ export interface SessionUser {
     bio: string | null;
     age: number | null;
     profile_picture_url: string | null;
+    presence_mode: 'AUTO' | 'MANUAL';
     universities: { id: string, name: string }[];
     permissions: string[];
 }
@@ -46,7 +47,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
             `
         SELECT 
             u.id, u.email, u.role, u.university_id, u.name, u.is_active,
-            u.display_name, u.phone, u.age, u.bio, u.profile_picture_url,
+            u.display_name, u.phone, u.age, u.bio, u.profile_picture_url, u.presence_mode,
             COALESCE(
                 (
                     SELECT json_agg(json_build_object('id', un.id, 'name', un.name, 'is_team', un.is_team) ORDER BY un.name)
@@ -84,7 +85,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
         try {
             const result = await db.query(
                 `SELECT u.id, u.email, u.role, u.university_id, u.name, u.is_active,
-                        u.display_name, u.phone, u.age, u.bio, u.profile_picture_url
+                        u.display_name, u.phone, u.age, u.bio, u.profile_picture_url, u.presence_mode
                  FROM sessions s
                  JOIN users u ON s.user_id = u.id
                  WHERE s.token_hash = $1 AND s.expires_at > NOW()`,

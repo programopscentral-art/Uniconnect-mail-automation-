@@ -110,8 +110,15 @@
   ];
 
   let notifications = $state<any[]>([]);
-  let showNotifications = $state(false);
   let unreadCount = $derived(notifications.filter((n) => !n.is_read).length);
+  let showPresenceMenu = $state(false);
+
+  const presenceOptions = [
+    { label: "Available", status: "ONLINE", color: "bg-emerald-500" },
+    { label: "Busy", status: "BUSY", color: "bg-red-500" },
+    { label: "Be right back", status: "AWAY", color: "bg-amber-500" },
+    { label: "Appear offline", status: "OFFLINE", color: "bg-gray-400" },
+  ];
 
   async function fetchNotifications() {
     try {
@@ -149,15 +156,37 @@
     }
   }
 
-  async function updatePresence(status: "ONLINE" | "OFFLINE" | "AWAY") {
+  async function updatePresence(
+    status: "ONLINE" | "OFFLINE" | "AWAY" | "BUSY",
+    mode: "AUTO" | "MANUAL" = "AUTO",
+  ) {
     if (!user) return;
     try {
       await fetch("/api/presence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, mode }),
       });
+      // Update local state if it's a manual change to avoid waiting for next session refresh
+      if (mode === "MANUAL") {
+        user.presence_status = status;
+        user.presence_mode = "MANUAL";
+      } else if (user.presence_mode === "AUTO") {
+        user.presence_status = status;
+      }
     } catch (e) {}
+  }
+
+  async function setManualStatus(
+    status: "ONLINE" | "OFFLINE" | "AWAY" | "BUSY",
+  ) {
+    await updatePresence(status, "MANUAL");
+    showPresenceMenu = false;
+  }
+
+  async function resetToAutoPresence() {
+    await updatePresence("ONLINE", "AUTO");
+    showPresenceMenu = false;
   }
 
   import { onMount } from "svelte";
@@ -165,21 +194,28 @@
     fetchNotifications();
     const notificationInterval = setInterval(fetchNotifications, 30000); // 30s
 
-    // Initial online status
-    updatePresence("ONLINE");
+    // Initial online status if AUTO
+    if (user?.presence_mode === "AUTO") {
+      updatePresence("ONLINE", "AUTO");
+    }
 
     // Heartbeat for presence
-    const presenceInterval = setInterval(
-      () => updatePresence("ONLINE"),
-      120000,
-    ); // 2 mins
+    const presenceInterval = setInterval(() => {
+      if (user?.presence_mode === "AUTO") {
+        updatePresence("ONLINE", "AUTO");
+      } else if (user) {
+        // Just ping to keep last_active_at updated without changing status
+        updatePresence(user.presence_status, "MANUAL");
+      }
+    }, 120000); // 2 mins
 
-    // Handle tab visibility (Away status)
+    // Handle tab visibility (Away status) - ONLY if in AUTO mode
     const handleVisibilityChange = () => {
+      if (user?.presence_mode !== "AUTO") return;
       if (document.hidden) {
-        updatePresence("AWAY");
+        updatePresence("AWAY", "AUTO");
       } else {
-        updatePresence("ONLINE");
+        updatePresence("ONLINE", "AUTO");
       }
     };
 
@@ -495,44 +531,162 @@
           {/if}
 
           <!-- Account Hub Header -->
-          <a
-            href="/profile"
-            class="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
-          >
-            <div class="relative group">
-              <div
-                class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-xs sm:text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform relative"
-              >
-                {#if user?.profile_picture_url}
-                  <img
-                    src={user.profile_picture_url}
-                    alt={user.name}
-                    class="w-full h-full object-cover rounded-lg sm:rounded-xl"
-                  />
-                {:else}
-                  {user?.name?.[0] || "U"}
-                {/if}
+          <div class="relative">
+            <button
+              onclick={() => (showPresenceMenu = !showPresenceMenu)}
+              class="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"
+            >
+              <div class="relative">
+                <div
+                  class="w-6 h-6 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 flex items-center justify-center text-xs sm:text-sm font-black text-indigo-700 dark:text-indigo-400 mr-2 group-hover:scale-110 transition-transform relative"
+                >
+                  {#if user?.profile_picture_url}
+                    <img
+                      src={user.profile_picture_url}
+                      alt={user.name}
+                      class="w-full h-full object-cover rounded-lg sm:rounded-xl"
+                    />
+                  {:else}
+                    {user?.name?.[0] || "U"}
+                  {/if}
 
-                <!-- User Status Dot -->
-                <span
-                  class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-emerald-500 shadow-sm"
-                  title="You are Online"
-                ></span>
+                  <!-- User Status Dot -->
+                  <span
+                    class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 shadow-sm
+                    {user?.presence_status === 'ONLINE'
+                      ? 'bg-emerald-500'
+                      : user?.presence_status === 'BUSY'
+                        ? 'bg-red-500'
+                        : user?.presence_status === 'AWAY'
+                          ? 'bg-amber-500'
+                          : 'bg-gray-400'}"
+                    title="You are {user?.presence_status?.toLowerCase()} ({user?.presence_mode})"
+                  ></span>
+                </div>
               </div>
-            </div>
-            <div class="text-right hidden xs:block">
-              <div
-                class="text-[9px] sm:text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight max-w-[60px] sm:max-w-[100px]"
+              <div class="text-right hidden xs:block">
+                <div
+                  class="text-[9px] sm:text-[10px] font-black text-gray-900 dark:text-white truncate leading-tight uppercase tracking-tight max-w-[60px] sm:max-w-[100px]"
+                >
+                  {user?.display_name || user?.name || "User"}
+                </div>
+                <div
+                  class="text-[7px] sm:text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70"
+                >
+                  {user?.presence_status === "ONLINE"
+                    ? "Available"
+                    : user?.presence_status === "BUSY"
+                      ? "Busy"
+                      : user?.presence_status === "AWAY"
+                        ? "Be right back"
+                        : "Offline"}
+                </div>
+              </div>
+              <svg
+                class="w-3 h-3 ml-2 text-gray-400 transition-transform {showPresenceMenu
+                  ? 'rotate-180'
+                  : ''}"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                ><path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="3"
+                  d="M19 9l-7 7-7-7"
+                /></svg
               >
-                {user?.display_name || user?.name || "User"}
-              </div>
+            </button>
+
+            {#if showPresenceMenu}
               <div
-                class="text-[7px] sm:text-[8px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest leading-none mt-0.5 opacity-70"
+                class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 z-[100] p-2 animate-in fade-in slide-in-from-top-2"
+                transition:fade={{ duration: 100 }}
               >
-                My Profile
+                <div
+                  class="px-3 py-2 border-b border-gray-50 dark:border-slate-800/50 mb-1"
+                >
+                  <p
+                    class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
+                  >
+                    Set Status
+                  </p>
+                </div>
+                {#each presenceOptions as option}
+                  <button
+                    onclick={() => setManualStatus(option.status as any)}
+                    class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors group"
+                  >
+                    <div
+                      class="w-2.5 h-2.5 rounded-full {option.color} ring-2 ring-white dark:ring-slate-900 group-hover:scale-110 transition-transform"
+                    ></div>
+                    <span
+                      class="text-[11px] font-bold text-gray-700 dark:text-gray-200"
+                      >{option.label}</span
+                    >
+                    {#if user?.presence_status === option.status && user?.presence_mode === "MANUAL"}
+                      <svg
+                        class="w-3.5 h-3.5 ml-auto text-indigo-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        ><path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="3"
+                          d="M5 13l4 4L19 7"
+                        /></svg
+                      >
+                    {/if}
+                  </button>
+                {/each}
+                <div class="h-px bg-gray-50 dark:bg-slate-800/50 my-1"></div>
+                <button
+                  onclick={resetToAutoPresence}
+                  class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-indigo-600 dark:text-indigo-400"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2.5"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    /></svg
+                  >
+                  <span
+                    class="text-[11px] font-black uppercase tracking-tighter"
+                    >Reset to Auto</span
+                  >
+                </button>
+                <a
+                  href="/profile"
+                  onclick={() => (showPresenceMenu = false)}
+                  class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                >
+                  <svg
+                    class="w-3.5 h-3.5 text-gray-400 font-bold"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2.5"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    /></svg
+                  >
+                  <span
+                    class="text-[11px] font-bold text-gray-700 dark:text-gray-200"
+                    >View Profile</span
+                  >
+                </a>
               </div>
-            </div>
-          </a>
+            {/if}
+          </div>
 
           <form action="/api/auth/logout" method="POST">
             <button

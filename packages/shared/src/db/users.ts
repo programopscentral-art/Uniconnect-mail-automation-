@@ -15,7 +15,8 @@ export interface User {
     university_id: string | null;
     is_active: boolean;
     last_login_at: Date | null;
-    presence_status: 'ONLINE' | 'OFFLINE' | 'AWAY';
+    presence_status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY';
+    presence_mode: 'AUTO' | 'MANUAL';
     last_active_at: Date;
     created_at: Date;
 }
@@ -101,7 +102,8 @@ export async function updateUser(id: string, data: {
     role?: UserRole;
     university_id?: string | null;
     university_ids?: string[];  // New: array of university IDs
-    is_active?: boolean
+    is_active?: boolean;
+    presence_mode?: 'AUTO' | 'MANUAL';
 }) {
     // Extract university_ids before updating the user table
     const { university_ids, ...userData } = data;
@@ -218,17 +220,18 @@ export async function getAdmins(universityId?: string | null) {
     return result.rows as User[];
 }
 
-export async function updateUserPresence(userId: string, status: 'ONLINE' | 'OFFLINE' | 'AWAY') {
+export async function updateUserPresence(userId: string, status: 'ONLINE' | 'OFFLINE' | 'AWAY' | 'BUSY', mode: 'AUTO' | 'MANUAL' = 'AUTO') {
     await db.query(
-        `UPDATE users SET presence_status = $2, last_active_at = NOW() WHERE id = $1`,
-        [userId, status]
+        `UPDATE users SET presence_status = $2, presence_mode = $3, last_active_at = NOW() WHERE id = $1`,
+        [userId, status, mode]
     );
 }
 
 export async function batchClearPresence() {
     // Mark users as offline if they haven't been active for more than 5 minutes
+    // Also reset to AUTO mode so they don't stay stuck in a manual state next time they log in
     await db.query(
-        `UPDATE users SET presence_status = 'OFFLINE' 
+        `UPDATE users SET presence_status = 'OFFLINE', presence_mode = 'AUTO' 
          WHERE presence_status != 'OFFLINE' AND last_active_at < NOW() - INTERVAL '5 minutes'`
     );
 }
