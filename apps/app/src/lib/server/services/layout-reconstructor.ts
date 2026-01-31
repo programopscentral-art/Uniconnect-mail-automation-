@@ -114,117 +114,110 @@ export class LayoutReconstructor {
                             borderColor: '#1e293b'
                         },
 
-                        // 2. Header Block
+                        // 2. Refined Header Block (Pixel-Perfect Lines)
                         {
                             id: 'adypu-header',
                             type: 'text',
-                            x: 15, y: 15, w: 180, h: 30,
+                            x: 10, y: 15, w: 190, h: 40,
                             content: `
-                                <div style="text-align: center; font-family: 'Outfit', sans-serif;">
-                                    <h1 style="font-size: 32px; font-weight: 900; margin: 0; color: #000; letter-spacing: -0.01em;">ADYPU</h1>
-                                    <p style="font-size: 13px; font-weight: 800; color: #475569; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.15em;">Ajeenkya DY Patil University</p>
-                                    <div style="width: 40px; h: 2px; background: #000; margin: 10px auto;"></div>
-                                    <p style="font-size: 11px; font-weight: 900; color: #000; margin-top: 5px;">${examType} - EXAMINATION PAPER</p>
+                                <div style="text-align: center; font-family: 'Outfit', sans-serif; line-height: 1.2;">
+                                    <h1 style="font-size: 18px; font-weight: 900; margin: 0; color: #000; letter-spacing: 0.05em;">AJEENKYA D. Y. PATIL UNIVERSITY</h1>
+                                    <p style="font-size: 16px; font-weight: 900; color: #000; margin: 5px 0; text-transform: uppercase;">UNIT TEST – OCT-2025</p>
+                                    <p style="font-size: 16px; font-weight: 900; color: #e11d48; margin: 5px 0; text-transform: uppercase;">B.TECH(CSE) - I SEMESTER</p>
+                                    <p style="font-size: 16px; font-weight: 900; color: #e11d48; margin: 5px 0; text-transform: uppercase;">SUBJECT NAME</p>
                                 </div>
                             `
                         },
 
-                        // 3. Meta Data Table (Course info)
+                        // 3. Meta Data Row (Time / Max Marks)
                         {
-                            id: 'adypu-meta-table',
+                            id: 'adypu-meta-row',
                             type: 'table',
-                            x: 15, y: 55, w: 180, h: 35,
+                            x: 10, y: 58, w: 190, h: 12,
+                            tableData: {
+                                rows: [{
+                                    id: 'meta-r1',
+                                    cells: [
+                                        { id: 'm-c1', content: '<strong>Time: 1 Hrs</strong>', styles: { fontSize: '14px', fontWeight: '900', border: '1px solid #000', padding: '5px 15px' } },
+                                        { id: 'm-c2', content: '<div style="text-align: right;"><strong>Max. Marks: 20</strong></div>', styles: { fontSize: '14px', fontWeight: '900', border: '1px solid #000', padding: '5px 15px' } }
+                                    ]
+                                }]
+                            }
+                        },
+
+                        // 4. Instructions Bar
+                        {
+                            id: 'adypu-instr-bar',
+                            type: 'table',
+                            x: 10, y: 72, w: 190, h: 10,
+                            tableData: {
+                                rows: [{
+                                    id: 'i-r1',
+                                    cells: [
+                                        { id: 'i-c1', content: '<em>Attempt any two</em>', styles: { fontSize: '11px', border: '1px solid #000', padding: '5px 15px' } },
+                                        { id: 'i-c2', content: '<div style="text-align: right;"><strong>5 x 2 = 10</strong></div>', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', padding: '5px 15px' } }
+                                    ]
+                                }]
+                            }
+                        },
+
+                        // 5. Question Table (Replicates the two-column align)
+                        {
+                            id: 'adypu-q-table-1',
+                            type: 'table',
+                            x: 10, y: 84, w: 190, h: 100,
                             tableData: {
                                 rows: [
                                     {
-                                        id: 'r1',
+                                        id: 'q1-r',
                                         cells: [
-                                            { id: 'c1', content: '<strong>COURSE TITLE</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c2', content: '', styles: { border: '1px solid #000' } },
-                                            { id: 'c3', content: '<strong>COURSE CODE</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c4', content: '', styles: { border: '1px solid #000' } }
+                                            { id: 'q1-n', content: '<strong>1</strong>', styles: { width: '40px', textAlign: 'center', border: '1px solid #000', fontWeight: '900', padding: '10px 0' } },
+                                            { id: 'q1-c', content: '<div style="font-size: 11px; padding: 10px;">Choose the correct answer:<br/><br/>a) What is the primary function...<br/>...</div>', styles: { border: '1px solid #000' } }
                                         ]
                                     },
                                     {
-                                        id: 'r2',
+                                        id: 'q2-r',
                                         cells: [
-                                            { id: 'c1', content: '<strong>PROGRAMME</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c2', content: '', styles: { border: '1px solid #000' } },
-                                            { id: 'c3', content: '<strong>SEMESTER</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c4', content: '', styles: { border: '1px solid #000' } }
-                                        ]
-                                    },
-                                    {
-                                        id: 'r3',
-                                        cells: [
-                                            { id: 'c1', content: '<strong>MAX MARKS</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c2', content: '100', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', textAlign: 'center' } },
-                                            { id: 'c3', content: '<strong>TIME</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
-                                            { id: 'c4', content: '3 HOURS', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', textAlign: 'center' } }
+                                            { id: 'q2-n', content: '<strong>2</strong>', styles: { width: '40px', textAlign: 'center', border: '1px solid #000', fontWeight: '900' } },
+                                            { id: 'q2-c', content: '<div style="font-size: 11px; padding: 10px;">i. Describe spontaneous and stimulated emission. (2M)<br/>ii. State the population inversion...</div>', styles: { border: '1px solid #000' } }
                                         ]
                                     }
                                 ]
                             }
                         },
 
-                        // 4. Instructions Block
+                        // 6. Section Divider
                         {
-                            id: 'adypu-instr-box',
-                            type: 'shape',
-                            x: 15, y: 100, w: 180, h: 45,
-                            shapeType: 'rectangle',
-                            backgroundColor: '#f8fafc',
-                            borderWidth: 1,
-                            borderColor: '#cbd5e1'
-                        },
-                        {
-                            id: 'adypu-instructions',
-                            type: 'text',
-                            x: 20, y: 105, w: 170, h: 35,
-                            content: `
-                                <div style="font-family: 'Outfit', sans-serif;">
-                                    <h5 style="font-size: 10px; font-weight: 900; margin-bottom: 5px; text-decoration: underline;">GENERAL INSTRUCTIONS:</h5>
-                                    <ol style="font-size: 9px; line-height: 1.5; padding-left: 15px;">
-                                        <li>Answer ALL questions in Section A.</li>
-                                        <li>Answer any FIVE questions from Section B.</li>
-                                        <li>Draw diagrams wherever necessary.</li>
-                                    </ol>
-                                </div>
-                            `
+                            id: 'adypu-section-2',
+                            type: 'table',
+                            x: 10, y: 186, w: 190, h: 10,
+                            tableData: {
+                                rows: [{
+                                    id: 's2-r',
+                                    cells: [
+                                        { id: 's2-c1', content: '<strong>Answer the following Questions.</strong>', styles: { fontSize: '12px', border: '1px solid #000', padding: '5px 15px' } },
+                                        { id: 's2-c2', content: '<div style="text-align: right;"><strong>2 x 4 = 8</strong></div>', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', padding: '5px 15px' } }
+                                    ]
+                                }]
+                            }
                         },
 
-                        // 5. Body Mesh / Section Slots (Requirement B1: Placeholder Slots)
+                        // 7. Question Table 2
                         {
-                            id: 'adypu-section-a',
-                            type: 'text',
-                            x: 15, y: 155, w: 180, h: 10,
-                            content: '<div style="background: #000; color: #fff; padding: 5px 15px; font-weight: 900; font-size: 11px; text-transform: uppercase;">Section A (20 Marks)</div>'
-                        },
-                        {
-                            id: 'adypu-slot-1',
-                            type: 'shape',
-                            x: 15, y: 170, w: 180, h: 40,
-                            shapeType: 'rectangle',
-                            backgroundColor: 'transparent',
-                            borderWidth: 1,
-                            borderColor: '#e2e8f0',
-                            styles: { borderDash: '5,5' }
-                        },
-                        {
-                            id: 'adypu-section-b',
-                            type: 'text',
-                            x: 15, y: 220, w: 180, h: 10,
-                            content: '<div style="background: #000; color: #fff; padding: 5px 15px; font-weight: 900; font-size: 11px; text-transform: uppercase;">Section B (80 Marks)</div>'
-                        },
-                        {
-                            id: 'adypu-slot-2',
-                            type: 'shape',
-                            x: 15, y: 235, w: 180, h: 40,
-                            shapeType: 'rectangle',
-                            backgroundColor: 'transparent',
-                            borderWidth: 1,
-                            borderColor: '#e2e8f0',
-                            styles: { borderDash: '5,5' }
+                            id: 'adypu-q-table-2',
+                            type: 'table',
+                            x: 10, y: 198, w: 190, h: 60,
+                            tableData: {
+                                rows: [
+                                    {
+                                        id: 'q4-r',
+                                        cells: [
+                                            { id: 'q4-n', content: '<strong>4</strong>', styles: { width: '40px', textAlign: 'center', border: '1px solid #000', fontWeight: '900' } },
+                                            { id: 'q4-c', content: '<div style="font-size: 11px; padding: 10px;">i. Describe spontaneous and stimulated emission. (2M)<br/>ii. State the population inversion...</div>', styles: { border: '1px solid #000' } }
+                                        ]
+                                    }
+                                ]
+                            }
                         }
                     ] : [
                         // --- GENERIC RECONSTRUCTION ---
