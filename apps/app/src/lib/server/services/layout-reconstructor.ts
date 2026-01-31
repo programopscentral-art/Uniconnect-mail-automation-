@@ -101,77 +101,130 @@ export class LayoutReconstructor {
                 {
                     id: 'page-1',
                     elements: isAdypu ? [
-                        // --- ADYPU SPECIFIC RECONSTRUCTION ---
+                        // --- ADYPU HIGH-FIDELITY RECONSTRUCTION (Requirement B1) ---
+
+                        // 1. Page Border (Outer Rectangle)
+                        {
+                            id: 'adypu-border',
+                            type: 'shape',
+                            x: 10, y: 10, w: 190, h: 277,
+                            shapeType: 'rectangle',
+                            backgroundColor: 'transparent',
+                            borderWidth: 1.5,
+                            borderColor: '#1e293b'
+                        },
+
+                        // 2. Header Block
                         {
                             id: 'adypu-header',
                             type: 'text',
-                            x: 15, y: 10, w: 180, h: 25,
+                            x: 15, y: 15, w: 180, h: 30,
                             content: `
                                 <div style="text-align: center; font-family: 'Outfit', sans-serif;">
-                                    <h1 style="font-size: 28px; font-weight: 900; margin: 0; color: #000; letter-spacing: -0.02em;">ADYPU</h1>
-                                    <p style="font-size: 11px; font-weight: 800; color: #475569; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.1em;">SEM - EXAMINATION PAPER</p>
+                                    <h1 style="font-size: 32px; font-weight: 900; margin: 0; color: #000; letter-spacing: -0.01em;">ADYPU</h1>
+                                    <p style="font-size: 13px; font-weight: 800; color: #475569; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.15em;">Ajeenkya DY Patil University</p>
+                                    <div style="width: 40px; h: 2px; background: #000; margin: 10px auto;"></div>
+                                    <p style="font-size: 11px; font-weight: 900; color: #000; margin-top: 5px;">${examType} - EXAMINATION PAPER</p>
                                 </div>
                             `
                         },
-                        {
-                            id: 'adypu-line-1',
-                            type: 'line',
-                            x: 15, y: 38, w: 180, h: 0.5,
-                            orientation: 'horizontal',
-                            thickness: 1,
-                            color: '#e2e8f0'
-                        },
+
+                        // 3. Meta Data Table (Course info)
                         {
                             id: 'adypu-meta-table',
                             type: 'table',
-                            x: 15, y: 48, w: 180, h: 30,
+                            x: 15, y: 55, w: 180, h: 35,
                             tableData: {
                                 rows: [
                                     {
                                         id: 'r1',
                                         cells: [
-                                            { id: 'c1', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Course Title</span>', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c2', content: '', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c3', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Course Code</span>', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c4', content: '', styles: { border: '1px solid #f1f5f9' } }
+                                            { id: 'c1', content: '<strong>COURSE TITLE</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c2', content: '', styles: { border: '1px solid #000' } },
+                                            { id: 'c3', content: '<strong>COURSE CODE</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c4', content: '', styles: { border: '1px solid #000' } }
                                         ]
                                     },
                                     {
                                         id: 'r2',
                                         cells: [
-                                            { id: 'c1', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Max Marks</span>', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c2', content: '<span style="font-size: 11px; font-weight: 700;">100</span>', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c3', content: '<span style="font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">Duration</span>', styles: { border: '1px solid #f1f5f9' } },
-                                            { id: 'c4', content: '<span style="font-size: 11px; font-weight: 700;">3 HOURS</span>', styles: { border: '1px solid #f1f5f9' } }
+                                            { id: 'c1', content: '<strong>PROGRAMME</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c2', content: '', styles: { border: '1px solid #000' } },
+                                            { id: 'c3', content: '<strong>SEMESTER</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c4', content: '', styles: { border: '1px solid #000' } }
+                                        ]
+                                    },
+                                    {
+                                        id: 'r3',
+                                        cells: [
+                                            { id: 'c1', content: '<strong>MAX MARKS</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c2', content: '100', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', textAlign: 'center' } },
+                                            { id: 'c3', content: '<strong>TIME</strong>', styles: { fontSize: '9px', fontWeight: '900', border: '1px solid #000', backgroundColor: '#fdfdfd' } },
+                                            { id: 'c4', content: '3 HOURS', styles: { fontSize: '11px', fontWeight: 'bold', border: '1px solid #000', textAlign: 'center' } }
                                         ]
                                     }
                                 ]
                             }
                         },
+
+                        // 4. Instructions Block
                         {
-                            id: 'adypu-instructions',
-                            type: 'text',
-                            x: 15, y: 95, w: 180, h: 40,
-                            content: `
-                                <div style="font-family: 'Outfit', sans-serif;">
-                                    <h4 style="font-size: 10px; font-weight: 900; color: #000; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.05em;">General Instructions:</h4>
-                                    <ul style="font-size: 9px; color: #475569; margin: 0; padding-left: 14px; list-style-type: disc;">
-                                        <li style="margin-bottom: 4px;">Answer all questions in Part A correctly.</li>
-                                        <li style="margin-bottom: 4px;">Attempt any five questions from Part B choosing one from each unit.</li>
-                                        <li>Clearly mention Section/Part and Question numbers.</li>
-                                    </ul>
-                                </div>
-                            `
-                        },
-                        {
-                            id: 'adypu-mesh',
+                            id: 'adypu-instr-box',
                             type: 'shape',
-                            x: 15, y: 145, w: 180, h: 120,
+                            x: 15, y: 100, w: 180, h: 45,
                             shapeType: 'rectangle',
                             backgroundColor: '#f8fafc',
                             borderWidth: 1,
+                            borderColor: '#cbd5e1'
+                        },
+                        {
+                            id: 'adypu-instructions',
+                            type: 'text',
+                            x: 20, y: 105, w: 170, h: 35,
+                            content: `
+                                <div style="font-family: 'Outfit', sans-serif;">
+                                    <h5 style="font-size: 10px; font-weight: 900; margin-bottom: 5px; text-decoration: underline;">GENERAL INSTRUCTIONS:</h5>
+                                    <ol style="font-size: 9px; line-height: 1.5; padding-left: 15px;">
+                                        <li>Answer ALL questions in Section A.</li>
+                                        <li>Answer any FIVE questions from Section B.</li>
+                                        <li>Draw diagrams wherever necessary.</li>
+                                    </ol>
+                                </div>
+                            `
+                        },
+
+                        // 5. Body Mesh / Section Slots (Requirement B1: Placeholder Slots)
+                        {
+                            id: 'adypu-section-a',
+                            type: 'text',
+                            x: 15, y: 155, w: 180, h: 10,
+                            content: '<div style="background: #000; color: #fff; padding: 5px 15px; font-weight: 900; font-size: 11px; text-transform: uppercase;">Section A (20 Marks)</div>'
+                        },
+                        {
+                            id: 'adypu-slot-1',
+                            type: 'shape',
+                            x: 15, y: 170, w: 180, h: 40,
+                            shapeType: 'rectangle',
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
                             borderColor: '#e2e8f0',
-                            styles: { opacity: 0.5, borderDash: '4,4' }
+                            styles: { borderDash: '5,5' }
+                        },
+                        {
+                            id: 'adypu-section-b',
+                            type: 'text',
+                            x: 15, y: 220, w: 180, h: 10,
+                            content: '<div style="background: #000; color: #fff; padding: 5px 15px; font-weight: 900; font-size: 11px; text-transform: uppercase;">Section B (80 Marks)</div>'
+                        },
+                        {
+                            id: 'adypu-slot-2',
+                            type: 'shape',
+                            x: 15, y: 235, w: 180, h: 40,
+                            shapeType: 'rectangle',
+                            backgroundColor: 'transparent',
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            styles: { borderDash: '5,5' }
                         }
                     ] : [
                         // --- GENERIC RECONSTRUCTION ---

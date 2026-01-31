@@ -23,11 +23,12 @@
 </script>
 
 <div
-  class="layout-canvas bg-white shadow-2xl origin-top transition-transform relative select-none"
+  class="layout-canvas bg-white shadow-2xl transition-transform relative select-none shrink-0"
   style="
     width: {A4_WIDTH_MM * MM_TO_PX}px; 
     height: {A4_HEIGHT_MM * MM_TO_PX}px; 
     transform: scale({zoom});
+    transform-origin: center top;
     font-family: 'Outfit', sans-serif;
   "
 >
@@ -117,22 +118,26 @@
                 : el.thickness + 'px'};
                   "
             ></div>
-          {:else if el.type === "shape"}
-            <div
-              style="
-                    background-color: {el.backgroundColor};
-                    border: {el.borderWidth}px solid {el.borderColor};
-                    width: 100%;
-                    height: 100%;
-                    border-radius: {el.shapeType === 'circle' ? '50%' : '0'};
-                  "
-            ></div>
           {:else if el.type === "image"}
             <img
               src={el.src}
-              alt={el.alt}
+              alt={el.alt || ""}
               class="w-full h-full object-contain"
             />
+          {:else if el.type === "shape"}
+            <div
+              style="
+                background-color: {el.backgroundColor || 'transparent'};
+                border: {el.borderWidth || 0}px solid {el.borderColor ||
+                '#000'};
+                border-radius: {el.shapeType === 'circle'
+                ? '50%'
+                : el.styles?.borderRadius || '0px'};
+                width: 100%;
+                height: 100%;
+                {el.styles?.borderDash ? `border-style: dashed;` : ''}
+              "
+            ></div>
           {/if}
         </div>
       {/if}

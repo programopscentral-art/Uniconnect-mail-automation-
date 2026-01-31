@@ -39,6 +39,16 @@
     }
   });
 
+  // Handle unsaved changes warning
+  onMount(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  });
+
   // Public method to proxy formatting to the editor
   export function format(cmd: string, val: string | null = null) {
     if (editorRef) editorRef.exec(cmd, val);
@@ -160,11 +170,11 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="absolute group select-none"
+  class="absolute group {isEditing ? '' : 'select-none'}"
   class:cursor-move={!isEditing}
   class:ring-2={selected}
   class:ring-indigo-500={selected}
-  class:z-50={selected}
+  class:z-50={selected || isEditing}
   style="
     left: {element.x}mm; 
     top: {element.y}mm; 

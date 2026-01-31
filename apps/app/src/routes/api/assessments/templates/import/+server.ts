@@ -88,13 +88,13 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
 
         const template = await createAssessmentTemplate({
             university_id: universityId,
-            name: `${name} (${new Date().toLocaleDateString()})`,
+            name: `${name} (v${new Date().toLocaleDateString().replace(/\//g, '.')}.${Math.floor(Date.now() / 1000).toString().slice(-4)})`, // Requirement B4
             slug,
             exam_type,
             status: 'draft',
             source_type: 'imported', // Required field
-            layout_schema: validation.data,
-            config: defaultConfig,
+            layout_schema: JSON.parse(JSON.stringify(validation.data)), // Requirement B3: Sanitize
+            config: JSON.parse(JSON.stringify(defaultConfig)), // Requirement B3: Sanitize
             assets: [], // Mandatory empty assets list
             created_by: locals.user.id
         });

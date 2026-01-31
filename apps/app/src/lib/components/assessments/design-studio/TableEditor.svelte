@@ -87,7 +87,11 @@
             colspan={cell.colSpan}
             class="border-2 border-black p-0 relative group transition-all {activeCellId ===
             cell.id
-              ? 'ring-2 ring-indigo-500 ring-inset z-10'
+              ? 'ring-2 ring-indigo-500 ring-inset z-10 bg-indigo-50/10'
+              : ''} {selectedCell &&
+            (selectedCell.rowIndex === rowIndex ||
+              selectedCell.colIndex === colIndex)
+              ? 'bg-indigo-50/5'
               : ''}"
             style="
               text-align: {cell.styles?.textAlign || 'left'};

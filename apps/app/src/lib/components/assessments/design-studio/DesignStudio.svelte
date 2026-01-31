@@ -36,6 +36,7 @@
     Bold,
     Italic,
     Underline as UnderlineIcon,
+    Minus,
   } from "lucide-svelte";
   import { onMount, tick } from "svelte";
   import { fade } from "svelte/transition";
@@ -97,13 +98,14 @@
   // Sync layout from template prop when it loads or changes
   $effect(() => {
     if (template.layout_schema && template.layout_schema.pages) {
-      if (
-        (layout.pages.length === 0 ||
-          (layout.pages.length === 1 &&
-            layout.pages[0].elements.length === 0)) &&
-        template.layout_schema.pages.length > 0
-      ) {
-        layout = template.layout_schema;
+      // Robust hydration: if local layout is empty or default, and template has data, sync it
+      const isEmpty =
+        !layout.pages ||
+        layout.pages.length === 0 ||
+        (layout.pages.length === 1 && layout.pages[0].elements.length === 0);
+
+      if (isEmpty && template.layout_schema.pages.length > 0) {
+        layout = JSON.parse(JSON.stringify(template.layout_schema)); // Deep clone to isolate
       }
     }
   });
@@ -132,12 +134,13 @@
     layout.pages
       .find((p: any) => p.id === activePageId)
       ?.elements.find((e: any) => e.id === selectedElementId) || null,
-  );
+  ) as any;
 
   function updateStyle(key: string, value: any) {
     if (!selectedElement) return;
     if (!selectedElement.styles) selectedElement.styles = {};
     selectedElement.styles[key] = value;
+    layout = { ...layout }; // Trigger reactivity
   }
 
   let activeTab = $state("elements");
@@ -208,9 +211,10 @@
   function deleteCol() {
     if (!selectedElement || selectedElement.type !== "table" || !selectedCell)
       return;
+    const { colIndex } = selectedCell;
     if (selectedElement.tableData.rows[0].cells.length <= 1) return;
     selectedElement.tableData.rows.forEach((row: any) => {
-      row.cells.splice(selectedCell.colIndex, 1);
+      row.cells.splice(colIndex, 1);
     });
     selectedCell = null;
     activeCellId = null;
@@ -259,6 +263,7 @@
     layout.pages[currentPageIndex].elements.push(newEl);
     layout = { ...layout };
     selectedElementId = newEl.id;
+    return newEl;
   }
 
   function autoFit() {
@@ -275,6 +280,14 @@
     class="h-16 border-b border-white/5 bg-[#121212] px-6 flex items-center justify-between shrink-0 z-50 shadow-2xl"
   >
     <div class="flex items-center gap-6">
+      <button
+        onclick={() => window.history.back()}
+        class="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all mr-2"
+        title="Go Back"
+      >
+        <ChevronRight class="w-5 h-5 rotate-180" />
+      </button>
+
       <div class="flex items-center gap-3">
         <div
           class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20"
@@ -342,7 +355,7 @@
         : ''}"
     >
       <div class="p-2 border-b border-white/5 flex gap-1 bg-black/20">
-        {#each ["elements", "layers", "pages"] as tab}
+        {#each ["elements", "styles", "layers", "pages"] as tab}
           <button
             onclick={() => (activeTab = tab)}
             class="flex-1 py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all {activeTab ===
@@ -408,16 +421,63 @@
                   />
                   <span
                     class="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover:text-white"
-                    >Asset</span
+                    >Image</span
                   >
                 </button>
+                <button
+                  onclick={() => addElement("shape")}
+                  class="group p-4 bg-white/5 border border-white/5 rounded-2xl hover:border-indigo-500/50 transition-all text-center flex flex-col items-center gap-2"
+                >
+                  <Square
+                    class="w-5 h-5 text-white/20 group-hover:text-indigo-400 transition-all"
+                  />
+                  <span
+                    class="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover:text-white"
+                    >Shape</span
+                  >
+                </button>
+              </div>
+            </section>
+
+            <!-- Image Panel (Requirement A3) -->
+            <section class="pt-6 border-t border-white/5 space-y-4">
+              <h3
+                class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em]"
+              >
+                University Assets
+              </h3>
+              <div class="grid grid-cols-3 gap-2">
+                {#each assets as asset}
+                  <button
+                    onclick={() => {
+                      const newEl = addElement("image");
+                      if (newEl) (newEl as any).src = asset.url;
+                    }}
+                    aria-label="Add asset {asset.name}"
+                    title="Add asset {asset.name}"
+                    class="aspect-square rounded-xl bg-black/40 border border-white/5 overflow-hidden hover:border-indigo-500/50 transition-all group"
+                  >
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
+                      class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all"
+                    />
+                  </button>
+                {/each}
+                {#if assets.length === 0}
+                  <div class="col-span-3 py-6 text-center opacity-20">
+                    <p class="text-[8px] font-black uppercase tracking-widest">
+                      No assets found
+                    </p>
+                  </div>
+                {/if}
               </div>
             </section>
           </div>
         {:else if activeTab === "layers"}
           <!-- Requirement 6: Non-empty layers state -->
           <div class="space-y-4">
-            {#each layout.pages.find((p) => p.id === activePageId)?.elements || [] as el}
+            {#each layout.pages.find((p: any) => p.id === activePageId)?.elements || [] as el}
               <button
                 onclick={() => (selectedElementId = el.id)}
                 class="w-full flex items-center justify-between p-4 rounded-2xl bg-white/5 border {selectedElementId ===
@@ -433,7 +493,9 @@
                         class="w-3.5 h-3.5"
                       />{:else if el.type === "table"}<TableIcon
                         class="w-3.5 h-3.5"
-                      />{:else}<ImageIcon class="w-3.5 h-3.5" />{/if}
+                      />{:else if el.type === "image"}<ImageIcon
+                        class="w-3.5 h-3.5"
+                      />{:else}<Square class="w-3.5 h-3.5" />{/if}
                   </div>
                   <span
                     class="text-[9px] font-black uppercase tracking-widest text-white/60"
@@ -465,6 +527,8 @@
             {/each}
             <button
               class="w-full py-6 border-2 border-dashed border-white/5 rounded-2xl text-[9px] font-black text-white/10 uppercase tracking-widest hover:border-indigo-500/30 hover:text-indigo-400 transition-all flex flex-col items-center gap-3"
+              aria-label="Add Page"
+              title="Add Page"
             >
               <Plus class="w-5 h-5" /> Add Page
             </button>
@@ -532,10 +596,12 @@
               {#each ["x", "y", "w", "h"] as prop}
                 <div class="space-y-2">
                   <label
+                    for="geo-{prop}"
                     class="text-[9px] font-black uppercase text-white/20 ml-1"
                     >{prop}</label
                   >
                   <input
+                    id="geo-{prop}"
                     type="number"
                     bind:value={selectedElement[prop]}
                     class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none transition-all"
@@ -617,6 +683,89 @@
               </div>
             </section>
           {/if}
+
+          <!-- Colors & Fonts (Requirement A5 & A7) -->
+          <section class="pt-6 border-t border-white/5 space-y-6">
+            <h3
+              class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em]"
+            >
+              Styles
+            </h3>
+
+            {#if selectedElement.type === "text" || selectedElement.type === "table"}
+              <div class="space-y-2">
+                <label
+                  for="font-family-select"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >Font Family</label
+                >
+                <select
+                  id="font-family-select"
+                  onchange={(e) =>
+                    updateStyle("fontFamily", e.currentTarget.value)}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none"
+                >
+                  {#each ["Outfit", "Inter", "Playfair Display", "JetBrains Mono", "Dancing Script", "Cinzel", "Pacifico"] as font}
+                    <option
+                      value="{font}, sans-serif"
+                      selected={selectedElement.styles?.fontFamily?.includes(
+                        font,
+                      )}>{font}</option
+                    >
+                  {/each}
+                </select>
+              </div>
+            {/if}
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label
+                  for="text-color-picker"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >Color</label
+                >
+                <div class="flex items-center gap-2">
+                  <input
+                    id="text-color-picker"
+                    type="color"
+                    value={selectedElement.styles?.color || "#000000"}
+                    oninput={(e) => updateStyle("color", e.currentTarget.value)}
+                    class="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer"
+                  />
+                  <input
+                    id="text-color-hex"
+                    aria-label="Text color hex"
+                    type="text"
+                    value={selectedElement.styles?.color || "#000000"}
+                    oninput={(e) => updateStyle("color", e.currentTarget.value)}
+                    class="flex-1 bg-black/30 border border-white/5 rounded-xl px-3 py-2 text-[10px] font-mono outline-none"
+                  />
+                </div>
+              </div>
+
+              {#if selectedElement.type === "shape"}
+                <div class="space-y-2">
+                  <label
+                    for="shape-fill-picker"
+                    class="text-[9px] font-black uppercase text-white/20 ml-1"
+                    >Fill</label
+                  >
+                  <div class="flex items-center gap-2">
+                    <input
+                      id="shape-fill-picker"
+                      type="color"
+                      value={selectedElement.backgroundColor || "#4f46e5"}
+                      oninput={(e) => {
+                        selectedElement.backgroundColor = e.currentTarget.value;
+                        layout = { ...layout };
+                      }}
+                      class="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+              {/if}
+            </div>
+          </section>
         {:else}
           <!-- Requirement 6: Empty state for properties -->
           <div

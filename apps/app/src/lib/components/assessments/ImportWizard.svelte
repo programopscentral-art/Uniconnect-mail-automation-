@@ -106,6 +106,8 @@
         </div>
         <button
           onclick={() => (show = false)}
+          aria-label="Close wizard"
+          title="Close wizard"
           class="p-4 bg-white/5 rounded-full text-white/40 hover:text-white transition-all"
         >
           <svg
@@ -132,10 +134,12 @@
             <div class="space-y-6">
               <div class="space-y-2">
                 <label
+                  for="import-name"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Template Name</label
                 >
                 <input
+                  id="import-name"
                   type="text"
                   bind:value={importName}
                   placeholder="e.g. Crescent MID EXAM"
@@ -144,26 +148,35 @@
               </div>
               <div class="space-y-2">
                 <label
+                  for="import-exam-type"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Exam Type</label
                 >
                 <select
+                  id="import-exam-type"
                   bind:value={importExamType}
-                  class="w-full bg-[#1a1a1a] border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                  class="w-full bg-[#1a1a1a] border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer hover:bg-[#222]"
                 >
-                  <option value="MID1" class="bg-[#1a1a1a]">Midterm 1</option>
-                  <option value="MID2" class="bg-[#1a1a1a]">Midterm 2</option>
-                  <option value="SEM" class="bg-[#1a1a1a]">Semester Exam</option
+                  <option value="MID1" class="bg-[#1a1a1a] py-4"
+                    >Midterm 1</option
+                  >
+                  <option value="MID2" class="bg-[#1a1a1a] py-4"
+                    >Midterm 2</option
+                  >
+                  <option value="SEM" class="bg-[#1a1a1a] py-4"
+                    >Semester Exam</option
                   >
                 </select>
               </div>
               <div class="space-y-2">
                 <label
+                  for="import-file"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Source File</label
                 >
                 <div class="relative group">
                   <input
+                    id="import-file"
                     type="file"
                     accept=".pdf,image/*"
                     onchange={(e) =>
@@ -296,17 +309,19 @@
 
               <!-- Mathematical Scaling & Centering -->
               <div
-                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm overflow-visible bg-white relative group"
+                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm overflow-hidden bg-white relative group shrink-0"
               >
                 <div
                   class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
                 ></div>
-                <LayoutCanvas
-                  layout={detectedLayout}
-                  zoom={0.65}
-                  showMargins={true}
-                  mode="preview"
-                />
+                <div class="p-8">
+                  <LayoutCanvas
+                    layout={detectedLayout}
+                    zoom={0.45}
+                    showMargins={true}
+                    mode="preview"
+                  />
+                </div>
               </div>
 
               <div class="h-32 w-full"></div>
