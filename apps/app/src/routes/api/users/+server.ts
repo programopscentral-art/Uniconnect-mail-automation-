@@ -85,14 +85,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 export const PATCH: RequestHandler = async ({ request, locals }) => {
-    const userRole = locals.user?.role as any;
-    if (userRole !== 'ADMIN' && userRole !== 'PROGRAM_OPS' && userRole !== 'UNIVERSITY_OPERATOR') {
-        throw error(403);
-    }
-
     const data = await request.json();
     const { id, ...updates } = data;
     if (!id) throw error(400, 'User ID required');
+
+    const isSelfUpdate = locals.user?.id === id;
+    const isAdmin = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR'].includes(locals.user?.role as string);
+
+    if (!isAdmin && !isSelfUpdate) {
+        throw error(403, 'Forbidden');
+    }
+
+    // If it's a self-update and NOT an admin, restrict what can be updated
+    if (!isAdmin && isSelfUpdate) {
+        const allowedFields = ['display_name', 'phone', 'age', 'bio', 'profile_picture_url'];
+        const keys = Object.keys(updates);
+        const forbiddenKeys = keys.filter(k => !allowedFields.includes(k));
+
+        if (forbiddenKeys.length > 0) {
+            throw error(403, `User not authorized to update: ${forbiddenKeys.join(', ')}`);
+        }
+    }
 
     // TODO: Security check to ensure Univ Admin only updates users in their university
 

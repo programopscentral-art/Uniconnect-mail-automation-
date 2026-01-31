@@ -46,6 +46,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
             `
         SELECT 
             u.id, u.email, u.role, u.university_id, u.name, u.is_active,
+            u.display_name, u.phone, u.age, u.bio, u.profile_picture_url,
             COALESCE(
                 (
                     SELECT json_agg(json_build_object('id', un.id, 'name', un.name, 'is_team', un.is_team) ORDER BY un.name)
@@ -82,7 +83,8 @@ export async function validateSession(token: string): Promise<SessionUser | null
         // Stage 2: Absolute Core Fallback - Minimal columns, no joins
         try {
             const result = await db.query(
-                `SELECT u.id, u.email, u.role, u.university_id, u.name, u.is_active
+                `SELECT u.id, u.email, u.role, u.university_id, u.name, u.is_active,
+                        u.display_name, u.phone, u.age, u.bio, u.profile_picture_url
                  FROM sessions s
                  JOIN users u ON s.user_id = u.id
                  WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
