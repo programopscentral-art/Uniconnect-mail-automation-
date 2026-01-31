@@ -97,6 +97,22 @@ export async function getTasks(filters: { assigned_to?: string; university_id?: 
     }));
 }
 
+export async function getTaskById(id: string) {
+    const result = await db.query(
+        `SELECT t.*, 
+            COALESCE(
+                json_agg(ta.user_id) FILTER (WHERE ta.user_id IS NOT NULL),
+                '[]'::json
+            ) as assignee_ids
+         FROM tasks t
+         LEFT JOIN task_assignees ta ON t.id = ta.task_id
+         WHERE t.id = $1
+         GROUP BY t.id`,
+        [id]
+    );
+    return result.rows[0] as Task | null;
+}
+
 export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assignee_ids?: string[] }) {
     const { assignee_ids, ...updateData } = data;
 

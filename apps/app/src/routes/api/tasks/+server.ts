@@ -1,4 +1,4 @@
-import { getTasks, createTask, updateTask, getUserById, deleteTask, getAdmins, createNotification } from '@uniconnect/shared';
+import { getTasks, createTask, updateTask, getUserById, deleteTask, getAdmins, createNotification, getTaskById } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import { addNotificationJob } from '$lib/server/queue';
@@ -99,9 +99,27 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     if (!id) throw error(400, 'Task ID required');
 
     // Permission Check for Updates
+    const task = await getTaskById(id);
+    if (!task) throw error(404, 'Task not found');
+
+    const isGlobalAdmin = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user?.role as string);
+    const isAssigner = task.assigned_by === locals.user?.id;
+    const isAssignee = task.assignee_ids.includes(locals.user?.id || '');
+
+    // Existing role-based permission for "Assigned Team" / "Institutions" logic
     const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
     const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
-    const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user!.role as string) || isCentralBOA;
+    const canAssignToOthers = isGlobalAdmin || ['UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user!.role as string) || isCentralBOA;
+
+    // Status Update Restriction: Only Assigner, Assignee, or Admin
+    if (updates.status && !(isGlobalAdmin || isAssigner || isAssignee)) {
+        throw error(403, 'Only the assigner, assignee, or an admin can update task status');
+    }
+
+    // General Edit Restriction: Non-admins who aren't assigners/assignees can't edit other people's tasks
+    if (!(isGlobalAdmin || isAssigner || isAssignee)) {
+        throw error(403, 'Forbidden: You do not have permission to edit this task');
+    }
 
     if (updates.assignee_ids && !canAssignToOthers) {
         // Restricted regional BOA roles can only update task and maintain themselves as assignee
