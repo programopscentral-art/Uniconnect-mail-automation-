@@ -18,6 +18,7 @@
     element = $bindable(),
     selected = false,
     activeCellId = $bindable(),
+    selectedCell = $bindable(),
   } = $props();
 
   if (!element.tableData) {
@@ -66,8 +67,9 @@
     };
   }
 
-  function handleCellClick(id: string) {
+  function handleCellSelection(id: string, rowIndex: number, colIndex: number) {
     activeCellId = id;
+    selectedCell = { rowIndex, colIndex };
   }
 
   function handleInput(e: Event, cell: Cell) {
@@ -77,9 +79,9 @@
 
 <table class="w-full h-full border-collapse table-fixed bg-white">
   <tbody>
-    {#each element.tableData.rows as row (row.id)}
+    {#each element.tableData.rows as row, rowIndex (row.id)}
       <tr class="h-auto min-h-[40px]">
-        {#each row.cells as cell (cell.id)}
+        {#each row.cells as cell, colIndex (cell.id)}
           <td
             rowspan={cell.rowSpan}
             colspan={cell.colSpan}
@@ -98,7 +100,7 @@
             "
             onclick={(e) => {
               e.stopPropagation();
-              handleCellClick(cell.id);
+              handleCellSelection(cell.id, rowIndex, colIndex);
             }}
           >
             <div
@@ -107,7 +109,7 @@
               oninput={(e) => {
                 cell.content = (e.target as HTMLElement).innerHTML;
               }}
-              onfocus={() => (activeCellId = cell.id)}
+              onfocus={() => handleCellSelection(cell.id, rowIndex, colIndex)}
             >
               {@html cell.content || ""}
             </div>

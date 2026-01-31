@@ -10,6 +10,7 @@
     zoom = 1,
     mmToPx = 3.7795,
     activeCellId = $bindable(),
+    selectedCell = $bindable(),
   } = $props();
 
   let isDragging = $state(false);
@@ -251,7 +252,12 @@
         onUpdate={() => {}}
       />
     {:else if element.type === "table"}
-      <TableEditor bind:element selected={isEditing} bind:activeCellId />
+      <TableEditor
+        bind:element
+        selected={isEditing}
+        bind:activeCellId
+        bind:selectedCell
+      />
     {:else if element.type === "image"}
       <img
         src={element.src || "https://via.placeholder.com/150?text=Upload+Image"}

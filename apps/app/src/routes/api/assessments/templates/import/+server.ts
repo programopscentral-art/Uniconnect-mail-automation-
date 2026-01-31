@@ -1,22 +1,23 @@
 import { json, error } from '@sveltejs/kit';
 import { createAssessmentTemplate } from '@uniconnect/shared';
+import { LayoutReconstructor } from '$lib/server/services/layout-reconstructor';
 import { z } from 'zod';
 
-// Zod Schema for Layout Validation
-const LayoutElementSchema = z.object({
-    id: z.string(),
-    type: z.enum(['text', 'image', 'table', 'shape']),
-    x: z.number(),
-    y: z.number(),
-    w: z.number(),
-    h: z.number(),
-    content: z.string().optional(),
-    src: z.string().optional(),
-    styles: z.record(z.any()).optional(),
-    tableData: z.any().optional()
-});
+// Zod Schema for Layout Validation (Master Source of Truth)
+const LayoutElementSchema = z.discriminatedUnion('type', [
+    z.object({ id: z.string(), type: z.literal('text'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), content: z.string(), styles: z.record(z.any()).optional() }),
+    z.object({ id: z.string(), type: z.literal('image'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), src: z.string(), alt: z.string().optional(), styles: z.record(z.any()).optional() }),
+    z.object({ id: z.string(), type: z.literal('table'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), tableData: z.any(), styles: z.record(z.any()).optional() }),
+    z.object({ id: z.string(), type: z.literal('line'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), orientation: z.enum(['horizontal', 'vertical']), thickness: z.number(), color: z.string(), styles: z.record(z.any()).optional() }),
+    z.object({ id: z.string(), type: z.literal('shape'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), shapeType: z.enum(['rectangle', 'circle']), backgroundColor: z.string(), borderWidth: z.number(), borderColor: z.string(), styles: z.record(z.any()).optional() })
+]);
 
 const LayoutSchema = z.object({
+    page: z.object({
+        width: z.enum(['A4', 'LETTER', 'LEGAL']),
+        unit: z.enum(['mm', 'px']),
+        margins: z.object({ top: z.number(), bottom: z.number(), left: z.number(), right: z.number() })
+    }),
     pages: z.array(z.object({
         id: z.string(),
         elements: z.array(LayoutElementSchema)
@@ -31,20 +32,28 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
     const exam_type = (formData.get('exam_type') || formData.get('examType') || 'MID1') as string;
     const universityId = (formData.get('universityId') as string) || locals.user.university_id;
     const file = formData.get('file') as File;
-    const logoFile = formData.get('logo') as File;
+    const dryRun = formData.get('dryRun') === 'true';
 
     if (!file || !name) throw error(400, 'Name and Source File are required');
 
-    console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} for Uni: ${universityId}`);
+    console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} (DryRun: ${dryRun})`);
 
-    // --- Layout Extraction Simulation ---
-    const detectedLayout = await extractLayoutFromFile(file, name, exam_type);
+    // --- High-Fidelity Layout Reconstruction (ML Pipeline Simulation) ---
+    const detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type);
 
-    // Validate the extracted layout
+    // Strict Validation
     const validation = LayoutSchema.safeParse(detectedLayout);
     if (!validation.success) {
         console.error('[TEMPLATE_IMPORT] ❌ Validation Failed:', validation.error);
-        throw error(422, 'Extracted layout is invalid');
+        throw error(422, 'Detected layout is architecturally invalid');
+    }
+
+    if (dryRun) {
+        return json({
+            success: true,
+            template: { layout_schema: validation.data },
+            message: 'Layout analyzed successfully (Dry Run)'
+        });
     }
 
     // Default Configuration for slots
@@ -73,32 +82,31 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
         }
     ];
 
-    // Robust unique slugging using names and timestamps
-    const timestamp = Date.now();
-    const slugBase = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const finalSlug = `${slugBase}-${timestamp}`;
-    const finalName = `${name} (${new Date().toLocaleDateString()})`;
-
     try {
+        const timestamp = Date.now();
+        const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${timestamp}`;
+
         const template = await createAssessmentTemplate({
             university_id: universityId,
-            name: finalName,
-            slug: finalSlug,
-            exam_type: exam_type,
+            name: `${name} (${new Date().toLocaleDateString()})`,
+            slug,
+            exam_type,
             status: 'draft',
+            source_type: 'imported', // Required field
             layout_schema: validation.data,
             config: defaultConfig,
+            assets: [], // Mandatory empty assets list
             created_by: locals.user.id
         });
 
         return json({
             success: true,
             template,
-            message: 'Template layout detected and imported as draft. Review it in Design Studio.'
+            message: 'Template layout reconstructed and isolated. Review in Studio.'
         });
     } catch (e: any) {
         console.error(`[TEMPLATE_IMPORT] ❌ Db Error:`, e);
-        throw error(500, e.message || 'Failed to save imported template');
+        throw error(500, e.message || 'Failed to save reconstructed template');
     }
 };
 

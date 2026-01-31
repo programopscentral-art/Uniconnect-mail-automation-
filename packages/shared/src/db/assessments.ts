@@ -79,10 +79,11 @@ export interface AssessmentTemplate {
     exam_type: string;
     version: number;
     status: 'draft' | 'published' | 'archived';
+    source_type: 'imported' | 'manual';
     config: any;
     layout_schema: any;
-    assets_json?: any; // List of reusable blocks/components
-    base_template_id?: string; // ID of the source template if cloned
+    assets: any; // Renamed from assets_json for contract alignment
+    base_template_id?: string;
     created_by?: string;
     updated_by?: string;
     created_at: Date;
@@ -399,30 +400,30 @@ export async function getAssessmentTemplateById(id: string, universityId?: strin
 }
 
 export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>): Promise<AssessmentTemplate> {
-    const safeStringify = (val: any) => {
-        if (val === null || val === undefined) return '{}';
-        if (typeof val === 'string') return val;
+    const deepClone = (val: any) => {
+        if (!val) return {};
         try {
-            return JSON.stringify(val);
+            return JSON.parse(JSON.stringify(val));
         } catch (e) {
-            return '{}';
+            return {};
         }
     };
 
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (university_id, name, slug, exam_type, config, layout_schema, assets, source_type, base_template_id, version, status, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
         [
             data.university_id,
             data.name,
             slug,
             data.exam_type,
-            safeStringify(data.config),
-            safeStringify(data.layout_schema),
-            safeStringify(data.assets_json || []),
+            JSON.stringify(deepClone(data.config)),
+            JSON.stringify(deepClone(data.layout_schema)),
+            JSON.stringify(deepClone(data.assets || [])),
+            data.source_type || 'manual',
             data.base_template_id,
             data.version || 1,
             data.status || 'published',
@@ -467,9 +468,9 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     if (data.name) { fields.push(`name = $${i++}`); params.push(data.name); }
     if (data.slug) { fields.push(`slug = $${i++}`); params.push(data.slug); }
     if (data.exam_type) { fields.push(`exam_type = $${i++}`); params.push(data.exam_type); }
-    if (data.config) { fields.push(`config = $${i++}`); params.push(safeStringify(data.config)); }
-    if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(safeStringify(data.layout_schema)); }
-    if (data.assets_json) { fields.push(`assets_json = $${i++}`); params.push(safeStringify(data.assets_json)); }
+    if (data.config) { fields.push(`config = $${i++}`); params.push(JSON.stringify(data.config)); }
+    if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(JSON.stringify(data.layout_schema)); }
+    if (data.assets) { fields.push(`assets = $${i++}`); params.push(JSON.stringify(data.assets)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
@@ -509,9 +510,10 @@ export async function cloneAssessmentTemplate(id: string, universityId?: string,
         name: universityId && universityId !== source.university_id ? source.name : `${source.name} (Copy)`,
         slug: universityId && universityId !== source.university_id ? source.slug : `${source.slug}-copy-${Date.now()}`,
         exam_type: source.exam_type,
-        config: JSON.parse(JSON.stringify(source.config)),
-        layout_schema: JSON.parse(JSON.stringify(source.layout_schema || {})),
-        assets_json: JSON.parse(JSON.stringify(source.assets_json || [])),
+        config: JSON.parse(JSON.stringify(source.config || [])),
+        layout_schema: JSON.parse(JSON.stringify(source.layout_schema || { pages: [] })),
+        assets: JSON.parse(JSON.stringify(source.assets || [])),
+        source_type: source.source_type,
         base_template_id: source.id,
         version: 1,
         status: 'draft',
