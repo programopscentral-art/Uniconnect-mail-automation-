@@ -35,15 +35,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const isUnivAdmin = (locals.user.role as any) === 'UNIVERSITY_OPERATOR';
 
     // 1. Force University ID for university-scoped roles
-    if (!isGlobalAdmin) {
+    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
+    const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
+
+    if (!isGlobalAdmin && !isCentralBOA) {
         data.university_id = locals.user.university_id;
     }
 
     // 2. Assignment Restrictions
     const assignee_ids = data.assignee_ids || [];
-    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
-    const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
-
     const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user.role as string) || isCentralBOA;
 
     if (!canAssignToOthers) {

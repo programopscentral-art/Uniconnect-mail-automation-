@@ -54,17 +54,27 @@
     OFFLINE: "bg-gray-400",
   };
 
+  let activeUniv = $derived(
+    data.user.universities?.find((u: any) => u.id === data.user.university_id),
+  );
+  let isCentralBOA = $derived(
+    data.user.role === "BOA" &&
+      (!data.user.university_id || activeUniv?.is_team),
+  );
+
   $effect(() => {
-    const canAssignToOthers = [
-      "ADMIN",
-      "PROGRAM_OPS",
-      "UNIVERSITY_OPERATOR",
-      "COS",
-      "PM",
-      "PMA",
-      "CMA",
-      "CMA_MANAGER",
-    ].includes(data.user.role);
+    const canAssignToOthers =
+      [
+        "ADMIN",
+        "PROGRAM_OPS",
+        "UNIVERSITY_OPERATOR",
+        "COS",
+        "PM",
+        "PMA",
+        "CMA",
+        "CMA_MANAGER",
+      ].includes(data.user.role) || isCentralBOA;
+
     if (taskForm.assignee_ids.length === 0)
       taskForm.assignee_ids = [data.userId];
     if (!canAssignToOthers) taskForm.assignee_ids = [data.userId];
@@ -311,8 +321,9 @@
           title: "",
           description: "",
           priority: "MEDIUM",
-          assigned_to: data.userId,
-          university_id: data.defaultUniversityId || "",
+          assignee_ids: [data.userId],
+          university_id:
+            data.selectedUniversityId || data.defaultUniversityId || "",
           due_date: new Date().toISOString().slice(0, 16),
           status: "PENDING",
         };
@@ -449,8 +460,9 @@
           title: item.title,
           description: "Promoted from Day Plan",
           priority: "MEDIUM",
-          assigned_to: data.userId,
-          university_id: data.defaultUniversityId || undefined,
+          assignee_ids: [data.userId],
+          university_id:
+            data.selectedUniversityId || data.defaultUniversityId || undefined,
         }),
         headers: { "Content-Type": "application/json" },
       });

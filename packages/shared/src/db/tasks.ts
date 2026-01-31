@@ -130,8 +130,15 @@ export async function deleteTask(id: string) {
     await db.query('DELETE FROM tasks WHERE id = $1', [id]);
 }
 
-export async function reassignTask(id: string, assignedTo: string | null) {
-    await db.query(`UPDATE tasks SET assigned_to = $1, updated_at = NOW() WHERE id = $2`, [assignedTo, id]);
+export async function reassignTask(id: string, assigneeIds: string[]) {
+    await db.query('DELETE FROM task_assignees WHERE task_id = $1', [id]);
+    if (assigneeIds.length > 0) {
+        const values = assigneeIds.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
+        await db.query(
+            `INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`,
+            [id, ...assigneeIds]
+        );
+    }
 }
 
 export async function getTaskStats(universityId?: string) {
@@ -169,10 +176,11 @@ export async function getDayPlanReport(date: string, universityId?: string) {
     const taskStats = await db.query(
         `SELECT 
             u.name as user_name,
-            COUNT(*) as total_tasks,
-            SUM(CASE WHEN t.status = 'COMPLETED' THEN 1 ELSE 0 END) as completed_tasks
+            COUNT(DISTINCT t.id) as total_tasks,
+            COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.id END) as completed_tasks
          FROM tasks t
-         JOIN users u ON t.assigned_to = u.id
+         JOIN task_assignees ta ON t.id = ta.task_id
+         JOIN users u ON ta.user_id = u.id
          WHERE DATE(t.created_at) = $1 ${whereTasks}
          GROUP BY u.name`,
         params
@@ -205,9 +213,10 @@ export async function getDayPlanReport(date: string, universityId?: string) {
 
 export async function getTasksDueSoon(hours: number = 1) {
     const result = await db.query(
-        `SELECT t.*, u.email as user_email, u.name as user_name
+        `SELECT DISTINCT t.*, u.email as user_email, u.name as user_name
          FROM tasks t
-         LEFT JOIN users u ON t.assigned_to = u.id
+         JOIN task_assignees ta ON t.id = ta.task_id
+         LEFT JOIN users u ON ta.user_id = u.id
          WHERE t.status IN ('PENDING', 'IN_PROGRESS')
            AND t.due_date IS NOT NULL
            AND t.due_date <= NOW() + ($1 * INTERVAL '1 hour')

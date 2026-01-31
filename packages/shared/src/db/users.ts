@@ -163,9 +163,10 @@ export async function getUserStats(userId: string) {
     const tasks = await db.query(
         `SELECT 
             COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed
-         FROM tasks 
-         WHERE assigned_to = $1`,
+            COUNT(*) FILTER (WHERE t.status = 'COMPLETED') as completed
+         FROM tasks t
+         JOIN task_assignees ta ON t.id = ta.task_id
+         WHERE ta.user_id = $1`,
         [userId]
     );
 

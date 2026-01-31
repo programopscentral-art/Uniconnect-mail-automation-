@@ -71,13 +71,21 @@
     }),
   );
 
+  let activeUniv = $derived(
+    data.user.universities?.find((u: any) => u.id === data.user.university_id),
+  );
+  let isCentralBOA = $derived(
+    data.user.role === "BOA" &&
+      (!data.user.university_id || activeUniv?.is_team),
+  );
+
   let filteredUsers = $derived.by(() => {
     const isGlobalAdmin =
       (data.user.role as any) === "ADMIN" ||
       (data.user.role as any) === "PROGRAM_OPS";
-    const isUnivAdmin = (data.user.role as any) === "UNIVERSITY_OPERATOR";
+    const isCentralBAOOrAdmin = isGlobalAdmin || isCentralBOA;
 
-    if (isGlobalAdmin) {
+    if (isCentralBAOOrAdmin) {
       if (!form.university_id) return data.users;
       return data.users.filter(
         (u: any) => u.university_id === form.university_id,
@@ -111,8 +119,9 @@
       title: "",
       description: "",
       priority: "MEDIUM",
-      assignee_ids: canAssignToOthers ? [] : [data.user.id],
-      university_id: isGlobalAdmin ? "" : data.user.university_id || "",
+      assignee_ids: canAssignToOthers || isCentralBOA ? [] : [data.user.id],
+      university_id:
+        isGlobalAdmin || isCentralBOA ? "" : data.user.university_id || "",
       due_date: "",
     };
     showModal = true;
@@ -862,7 +871,7 @@
                 class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
                 >University</label
               >
-              {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS"}
+              {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || isCentralBOA}
                 <select
                   id="f-univ"
                   bind:value={form.university_id}

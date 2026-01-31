@@ -3,12 +3,17 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
 export const GET: RequestHandler = async ({ locals }) => {
-    const userRole = locals.user?.role as any;
-    if (userRole !== 'ADMIN' && userRole !== 'PROGRAM_OPS' && userRole !== 'UNIVERSITY_OPERATOR') {
+    if (!locals.user) throw error(401);
+    const userRole = locals.user.role as any;
+
+    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
+    const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
+
+    if (userRole !== 'ADMIN' && userRole !== 'PROGRAM_OPS' && userRole !== 'UNIVERSITY_OPERATOR' && !isCentralBOA) {
         throw error(403, 'Forbidden');
     }
 
-    const universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS') ? undefined : locals.user?.university_id;
+    const universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA) ? undefined : locals.user?.university_id;
     const users = await getAllUsers(universityId || undefined);
     return json(users);
 };

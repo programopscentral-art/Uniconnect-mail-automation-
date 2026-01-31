@@ -13,7 +13,7 @@ export interface SessionUser {
     age: number | null;
     profile_picture_url: string | null;
     presence_mode: 'AUTO' | 'MANUAL';
-    universities: { id: string, name: string }[];
+    universities: { id: string, name: string, is_team: boolean }[];
     permissions: string[];
 }
 
