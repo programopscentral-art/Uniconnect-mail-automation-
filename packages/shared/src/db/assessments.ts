@@ -380,6 +380,16 @@ export async function getAssessmentTemplateById(id: string): Promise<AssessmentT
 }
 
 export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>): Promise<AssessmentTemplate> {
+    const safeStringify = (val: any) => {
+        if (val === null || val === undefined) return '{}';
+        if (typeof val === 'string') return val;
+        try {
+            return JSON.stringify(val);
+        } catch (e) {
+            return '{}';
+        }
+    };
+
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
@@ -391,8 +401,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
             data.name,
             slug,
             data.exam_type,
-            data.config || {},
-            data.layout_schema || {},
+            safeStringify(data.config),
+            safeStringify(data.layout_schema),
             data.version || 1,
             data.status || 'published',
             data.created_by
@@ -406,11 +416,18 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     const params: any[] = [];
     let i = 1;
 
+    // For updates, we need to be careful with safeStringify
+    const safeStringify = (val: any) => {
+        if (val === null || val === undefined) return null;
+        if (typeof val === 'string') return val;
+        return JSON.stringify(val);
+    };
+
     if (data.name) { fields.push(`name = $${i++}`); params.push(data.name); }
     if (data.slug) { fields.push(`slug = $${i++}`); params.push(data.slug); }
     if (data.exam_type) { fields.push(`exam_type = $${i++}`); params.push(data.exam_type); }
-    if (data.config) { fields.push(`config = $${i++}`); params.push(data.config); }
-    if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(data.layout_schema); }
+    if (data.config) { fields.push(`config = $${i++}`); params.push(safeStringify(data.config)); }
+    if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(safeStringify(data.layout_schema)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
@@ -428,7 +445,7 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
         await db.query(
             `INSERT INTO assessment_template_revisions (template_id, version, config, layout_schema, changed_by)
             VALUES ($1, $2, $3, $4, $5)`,
-            [id, rows[0].version, rows[0].config, rows[0].layout_schema, data.updated_by]
+            [id, rows[0].version, safeStringify(rows[0].config), safeStringify(rows[0].layout_schema), data.updated_by]
         );
     }
 

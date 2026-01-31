@@ -85,12 +85,42 @@
   // Keep template sync'd with local layout state for saving
   $effect(() => {
     template.layout_schema = layout;
+    template.config = template.config || []; // Ensure config is present
   });
 
-  let activeTab = $state("elements"); // elements | layers | assets | pages
+  // Derived state for selection
+  let selectedElementId = $state<string | null>(null);
   let activeCellId = $state<string | null>(null);
+
+  let selectedElement = $derived(
+    layout.pages
+      .find((p: any) => p.id === activePageId)
+      ?.elements.find((e: any) => e.id === selectedElementId) || null,
+  );
+
+  // Helper to update styles safely (ensures reactivity)
+  function updateStyle(key: string, value: any) {
+    if (!selectedElement) return;
+    if (!selectedElement.styles) selectedElement.styles = {};
+    selectedElement.styles[key] = value;
+  }
+
+  let activeTab = $state("elements"); // elements | layers | assets | pages
+  let zoomLevel = $state(0.75);
   let onboardingActive = $state(false);
   let onboardingStep = $state(0);
+
+  // Viewport calculation
+  let canvasContainer = $state<HTMLElement | null>(null);
+  let viewportWidth = $state(0);
+  let viewportHeight = $state(0);
+
+  function updateViewport() {
+    if (canvasContainer) {
+      viewportWidth = canvasContainer.clientWidth;
+      viewportHeight = canvasContainer.clientHeight;
+    }
+  }
 
   const ONBOARDING_STEPS = [
     {
@@ -168,8 +198,6 @@
   ]);
   let isUploading = $state(false);
   let zoomMode = $state<"percent" | "fit-page" | "fit-width">("fit-page");
-  let zoomLevel = $state(1.0);
-  let selectedElementId = $state<string | null>(null);
   let isSaving = $state(false);
   let showMargins = $state(true);
   let fullScreen = $state(false);
@@ -181,11 +209,6 @@
   let currentPage = $derived(
     layout.pages.find((p: { id: string }) => p.id === activePageId) ||
       layout.pages[0],
-  );
-  let selectedElement = $derived(
-    currentPage.elements.find(
-      (el: CanvasElement) => el.id === selectedElementId,
-    ),
   );
   let elementRefs = $state<Record<string, any>>({});
 
@@ -887,6 +910,15 @@
               <div
                 role="button"
                 tabindex="0"
+                onwheel={(e: WheelEvent) => {
+                  if (e.ctrlKey) {
+                    e.preventDefault();
+                    zoomLevel = Math.min(
+                      Math.max(0.1, zoomLevel - e.deltaY * 0.001),
+                      3,
+                    );
+                  }
+                }}
                 onclick={() => {
                   activePageId = page.id;
                   selectedElementId = null;
@@ -939,7 +971,17 @@
     <!-- Canvas Viewport -->
     <div
       class="flex-1 bg-[#181818] overflow-auto relative flex justify-center items-start p-20 scrollbar-hide select-none transition-all"
-      onclick={() => (selectedElementId = null)}
+      onpointerdown={(e: PointerEvent) => {
+        if (e.button !== 0) return;
+        selectedElementId = null;
+        activeCellId = null;
+      }}
+      onwheel={(e: WheelEvent) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          zoomLevel = Math.min(Math.max(0.1, zoomLevel - e.deltaY * 0.001), 3);
+        }
+      }}
       role="presentation"
     >
       <div
@@ -970,7 +1012,7 @@
             bind:this={elementRefs[el.id]}
             bind:element={
               currentPage.elements[
-                currentPage.elements.findIndex((e) => e.id === el.id)
+                currentPage.elements.findIndex((e: any) => e.id === el.id)
               ]
             }
             selected={selectedElementId === el.id}
@@ -1252,6 +1294,50 @@
                         >
                       </div>
 
+                      <!-- Vertical Alignment (Table Only) -->
+                      {#if selectedElement.type === "table"}
+                        <div class="space-y-2 pt-2 border-t border-white/5">
+                          <label
+                            class="text-[9px] font-black text-white/40 uppercase tracking-widest"
+                            >Cell Alignment</label
+                          >
+                          <div
+                            class="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-xl"
+                          >
+                            {#each ["top", "middle", "bottom"] as val}
+                              <button
+                                onclick={() => {
+                                  if (activeCellId) {
+                                    selectedElement.tableData.rows.forEach(
+                                      (r: any) => {
+                                        const cell = r.cells.find(
+                                          (c: any) => c.id === activeCellId,
+                                        );
+                                        if (cell) {
+                                          if (!cell.styles) cell.styles = {};
+                                          cell.styles.verticalAlign = val;
+                                        }
+                                      },
+                                    );
+                                  }
+                                }}
+                                class="py-1.5 rounded-lg text-[9px] font-black uppercase transition-all {selectedElement.tableData?.rows.some(
+                                  (r: any) =>
+                                    r.cells.some(
+                                      (c: any) =>
+                                        c.id === activeCellId &&
+                                        c.styles?.verticalAlign === val,
+                                    ),
+                                )
+                                  ? 'bg-indigo-500 text-white'
+                                  : 'hover:bg-white/5 text-white/60'}"
+                              >
+                                {val}
+                              </button>
+                            {/each}
+                          </div>
+                        </div>
+                      {/if}
                       <!-- Merge Logic (Simplified Spanning) -->
                       <div class="space-y-2">
                         <label

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { fade, fly, slide } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
@@ -6,9 +7,19 @@
 
   let { data }: { data: PageData } = $props();
 
+  onMount(() => {
+    // Ensure fonts are available for preview
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href =
+      "https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@400;700;900&family=Playfair+Display:wght@400;700;900&display=swap";
+    document.head.appendChild(link);
+  });
+
   let showImportModal = $state(false);
   let isImporting = $state(false);
   let importName = $state("");
+  let importExamType = $state("MID1");
   let importFile = $state<File | null>(null);
   let importLogo = $state<File | null>(null);
 
@@ -26,6 +37,7 @@
     isImporting = true;
     const formData = new FormData();
     formData.append("name", importName);
+    formData.append("exam_type", importExamType);
     formData.append("file", importFile);
     if (importLogo) formData.append("logo", importLogo);
     formData.append("universityId", data.selectedUniversityId);
@@ -374,6 +386,24 @@
 
         <div class="space-y-2">
           <label
+            for="importExamType"
+            class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
+            >Exam Type</label
+          >
+          <select
+            id="importExamType"
+            bind:value={importExamType}
+            class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 px-5 py-4 text-gray-900 dark:text-white outline-none"
+          >
+            <option value="MID1">Midterm 1</option>
+            <option value="MID2">Midterm 2</option>
+            <option value="SEM">Semester Exam</option>
+            <option value="INTERNAL">Internal Assessment</option>
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label
             for="importFile"
             class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
             >Source Design (PDF/Image)</label
@@ -415,7 +445,16 @@
             disabled={isImporting}
             class="flex-1 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50"
           >
-            {isImporting ? "IMPORTING..." : "BEGIN IMPORT"}
+            {#if isImporting}
+              <div class="flex items-center justify-center gap-2">
+                <div
+                  class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                ></div>
+                ANALYZING...
+              </div>
+            {:else}
+              BEGIN IMPORT
+            {/if}
           </button>
         </div>
       </form>
