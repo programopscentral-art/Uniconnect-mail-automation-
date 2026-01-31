@@ -110,6 +110,7 @@
   ];
 
   let notifications = $state<any[]>([]);
+  let showNotifications = $state(false);
   let unreadCount = $derived(notifications.filter((n) => !n.is_read).length);
   let showPresenceMenu = $state(false);
 
