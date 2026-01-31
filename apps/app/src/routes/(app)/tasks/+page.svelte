@@ -4,6 +4,14 @@
   // @ts-ignore
   let { data } = $props();
 
+  // Live Refresh Polling
+  $effect(() => {
+    const interval = setInterval(() => {
+      invalidateAll();
+    }, 30000); // Polling every 30 seconds
+    return () => clearInterval(interval);
+  });
+
   let showModal = $state(false);
   let editingTask = $state<any>(null);
   let isSubmitting = $state(false);

@@ -14,13 +14,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
     if (!isGlobalAdmin) {
         university_id = locals.user.university_id || undefined;
-        if (!university_id) {
-            // User not in a university and not global admin? restricted to empty
-            return json([]);
-        }
     }
 
-    const tasks = await getTasks({ assigned_to, university_id, status });
+    const tasks = await getTasks({
+        assigned_to,
+        university_id,
+        status,
+        creator_id: isGlobalAdmin ? undefined : locals.user.id
+    });
     return json(tasks);
 };
 
@@ -144,27 +145,28 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ url, locals }) => {
-    if (!locals.user) throw error(401);
-    const id = url.searchParams.get('id');
-    if (!id) throw error(400, 'Task ID required');
+    try {
+        if (!locals.user) throw error(401);
+        const id = url.searchParams.get('id');
+        if (!id) throw error(400, 'Task ID required');
 
-    const task = await getTaskById(id);
-    if (!task) throw error(404, 'Task not found');
+        const task = await getTaskById(id);
+        if (!task) throw error(404, 'Task not found');
 
-    const isGlobalAdmin = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user?.role as string);
-    const isAssigner = task.assigned_by === locals.user?.id;
-    const isAssignee = task.assignee_ids.includes(locals.user?.id || '');
+        const isGlobalAdmin = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user?.role as string);
+        const isAssigner = task.assigned_by === locals.user?.id;
+        const isAssignee = task.assignee_ids.includes(locals.user?.id || '');
 
-    if (!(isGlobalAdmin || isAssigner || isAssignee)) {
-        throw error(403, 'Forbidden: You do not have permission to delete this task');
+        if (!(isGlobalAdmin || isAssigner || isAssignee)) {
+            throw error(403, 'Forbidden: You do not have permission to delete this task');
+        }
+
+        console.log('[API_TASKS] Deleting Task ID:', id);
+        await deleteTask(id);
+        console.log('[API_TASKS] Deleted successfully');
+        return json({ success: true });
+    } catch (err: any) {
+        console.error('[API_TASKS] DELETE Error:', err);
+        throw error(err.status || 500, err.message || 'Failed to delete task');
     }
-
-    console.log('[API_TASKS] Deleting Task ID:', id);
-    await deleteTask(id);
-    console.log('[API_TASKS] Deleted successfully');
-    return json({ success: true });
-} catch (err) {
-    console.error('[API_TASKS] DELETE Error:', err);
-    throw error(500, 'Failed to delete task');
-}
 };

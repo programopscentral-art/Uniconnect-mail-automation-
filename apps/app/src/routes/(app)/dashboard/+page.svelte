@@ -4,6 +4,14 @@
   // @ts-ignore
   let { data } = $props();
 
+  // Live Refresh Polling
+  $effect(() => {
+    const interval = setInterval(() => {
+      invalidateAll();
+    }, 30000); // Polling every 30 seconds
+    return () => clearInterval(interval);
+  });
+
   // Calendar logic
   const today = new Date();
   let currentMonth = $state(today.getMonth());
@@ -1356,6 +1364,37 @@
                             </div>
                           {/if}
                         </div>
+
+                        <!-- Assignee Avatars for Tasks -->
+                        {#if event.type === "TASK" && event.assignees}
+                          <div class="flex -space-x-1 mt-2">
+                            {#each event.assignees as assignee}
+                              <div
+                                class="w-6 h-6 rounded-full {assignee.status ===
+                                'COMPLETED'
+                                  ? 'bg-green-100 dark:bg-green-900/50 border-green-500'
+                                  : 'bg-indigo-100 dark:bg-indigo-900/50 border-white dark:border-slate-800'} border-2 flex items-center justify-center text-[8px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-transform hover:scale-110"
+                                title="{assignee.name || assignee.email} - {assignee.status || 'PENDING'}"
+                              >
+                                {#if assignee.status === "COMPLETED"}
+                                  <svg
+                                    class="w-2.5 h-2.5 text-green-600"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                    ><path
+                                      fill-rule="evenodd"
+                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                      clip-rule="evenodd"
+                                    /></svg
+                                  >
+                                {:else}
+                                  {assignee.name?.substring(0, 1) || "?"}
+                                {/if}
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
+
                         {#if event.parsedDescription}
                           <div
                             class="text-xs text-gray-600 mt-2 bg-black/5 p-2 rounded italic border-l-2 border-black/10"
@@ -1381,11 +1420,16 @@
                             >Mark Done</button
                           >
                         {/if}
-                        <button
-                          onclick={() => deleteEvent(event.id, event.type)}
-                          class="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-bold hover:bg-red-100 transition-colors"
-                          >Delete</button
-                        >
+                            >Mark Done</button
+                          >
+                        {/if}
+                        {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || event.assigned_by === data.user.id || (event.assignee_ids && event.assignee_ids.includes(data.user.id))}
+                          <button
+                            onclick={() => deleteEvent(event.id, event.type)}
+                            class="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-bold hover:bg-red-100 transition-colors"
+                            >Delete</button
+                          >
+                        {/if}
                       </div>
                     </div>
                   </li>

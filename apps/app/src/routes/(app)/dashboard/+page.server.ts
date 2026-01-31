@@ -32,8 +32,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                 PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0
             } as any),
             locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities(effectiveUniversityId) : Promise.resolve([]),
-            // Upcoming tasks: only show self-assigned tasks
-            hasTasks ? getTasks({ assigned_to: locals.user.id }) : Promise.resolve([]),
+            // Upcoming tasks: show tasks created by or assigned to self
+            hasTasks ? getTasks({
+                university_id: effectiveUniversityId,
+                creator_id: (locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS') ? undefined : locals.user.id
+            }) : Promise.resolve([]),
             getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined),
             getDayPlans(locals.user.id, today),
             hasTasks ? getAllUsers(effectiveUniversityId || undefined) : Promise.resolve([])

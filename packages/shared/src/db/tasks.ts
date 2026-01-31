@@ -53,19 +53,26 @@ export async function createTask(data: {
     return { ...task, assignee_ids } as Task;
 }
 
-export async function getTasks(filters: { assigned_to?: string; university_id?: string; status?: TaskStatus }) {
+export async function getTasks(filters: { assigned_to?: string; university_id?: string; status?: TaskStatus; creator_id?: string }) {
     const conditions: string[] = [];
     const params: any[] = [];
     let i = 1;
 
-    if (filters.assigned_to) {
-        conditions.push(`t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++})`);
-        params.push(filters.assigned_to);
-    }
-    if (filters.university_id) {
+    if (filters.creator_id) {
+        // Broad visibility: In university OR created by you OR assigned to you
+        if (filters.university_id) {
+            conditions.push(`(t.university_id = $${i++} OR t.assigned_by = $${i++} OR t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++}))`);
+            params.push(filters.university_id, filters.creator_id, filters.creator_id);
+        } else {
+            // No university provided? Just show what you are involved in
+            conditions.push(`(t.assigned_by = $${i++} OR t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++}))`);
+            params.push(filters.creator_id, filters.creator_id);
+        }
+    } else if (filters.university_id) {
         conditions.push(`t.university_id = $${i++}`);
         params.push(filters.university_id);
     }
+
     if (filters.status) {
         conditions.push(`t.status = $${i++}`);
         params.push(filters.status);
