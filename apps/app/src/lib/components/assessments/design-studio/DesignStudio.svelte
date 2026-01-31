@@ -89,7 +89,14 @@
   }
 
   let layout = $state(template.layout_schema);
-  let activePageId = $state(layout.pages[0].id);
+  let activePageId = $state("");
+
+  // Initialize activePageId once layout is available
+  $effect(() => {
+    if (layout.pages.length > 0 && !activePageId) {
+      activePageId = layout.pages[0].id;
+    }
+  });
 
   // Keep template sync'd with local layout state for saving
   $effect(() => {
@@ -158,7 +165,10 @@
       target: "header",
     },
   ];
-  let universityAssets = $state(assets);
+  let universityAssets = $state<any[]>([]);
+  $effect(() => {
+    universityAssets = assets;
+  });
 
   // Combine base presets with university-specific assets
   let templateAssets = $derived.by(() => {
@@ -808,7 +818,8 @@
             </h3>
             <div class="space-y-1">
               {#each [...currentPage.elements].reverse() as el (el.id)}
-                <div
+                <button
+                  type="button"
                   class="group flex items-center gap-3 p-2 rounded-xl transition-all {selectedElementId ===
                   el.id
                     ? 'bg-indigo-500/10 border border-indigo-500/20'
@@ -863,7 +874,7 @@
                       <HelpCircle class="w-3 h-3" />
                     </button>
                   </div>
-                </div>
+                </button>
               {/each}
             </div>
           </div>
@@ -1340,9 +1351,9 @@
                   <div class="space-y-4 mb-6">
                     <div class="space-y-2">
                       <div class="flex justify-between">
-                        <label
+                        <span
                           class="text-[9px] font-black uppercase text-white/20 ml-1"
-                          >Line Height</label
+                          >Line Height</span
                         >
                         <span class="text-[9px] font-black text-indigo-400"
                           >{selectedElement.styles.lineHeight}</span
@@ -1359,9 +1370,9 @@
                     </div>
                     <div class="space-y-2">
                       <div class="flex justify-between">
-                        <label
+                        <span
                           class="text-[9px] font-black uppercase text-white/20 ml-1"
-                          >Letter Spacing</label
+                          >Letter Spacing</span
                         >
                         <span class="text-[9px] font-black text-indigo-400"
                           >{selectedElement.styles.letterSpacing}px</span
@@ -1463,9 +1474,9 @@
                       <!-- Vertical Alignment (Table Only) -->
                       {#if selectedElement.type === "table"}
                         <div class="space-y-2 pt-2 border-t border-white/5">
-                          <label
+                          <span
                             class="text-[9px] font-black text-white/40 uppercase tracking-widest"
-                            >Cell Alignment</label
+                            >Cell Alignment</span
                           >
                           <div
                             class="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-xl"
@@ -1506,9 +1517,9 @@
                       {/if}
                       <!-- Merge Logic (Simplified Spanning) -->
                       <div class="space-y-2">
-                        <label
+                        <span
                           class="text-[8px] font-black uppercase text-white/20"
-                          >Cell Spanning</label
+                          >Cell Spanning</span
                         >
                         <div class="flex gap-2">
                           <button
@@ -1532,9 +1543,9 @@
 
                       <!-- Alignment -->
                       <div class="space-y-2">
-                        <label
+                        <span
                           class="text-[8px] font-black uppercase text-white/20"
-                          >Cell Alignment</label
+                          >Cell Alignment</span
                         >
                         <div class="flex gap-1">
                           {#each [{ id: "left", icon: AlignLeft }, { id: "center", icon: AlignCenter }, { id: "right", icon: AlignRight }, { id: "justify", icon: AlignJustify }] as align}

@@ -6,7 +6,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let template = $state(JSON.parse(JSON.stringify(data.template || {})));
+  let template = $state(data.template || {});
 
   let isSaving = $state(false);
 

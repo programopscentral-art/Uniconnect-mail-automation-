@@ -26,7 +26,6 @@
     goto(url.toString(), { invalidateAll: true });
   }
 
-
   async function cloneTemplate(id: string) {
     if (!confirm("Clone this template?")) return;
 
@@ -315,93 +314,10 @@
   </div>
 </div>
 
-          <input
-            id="importName"
-            type="text"
-            bind:value={importName}
-            placeholder="e.g. AMET Final Exam Format"
-            class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 px-5 py-4 text-gray-900 dark:text-white"
-            required
-          />
-        </div>
-
-        <div class="space-y-2">
-          <label
-            for="importExamType"
-            class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
-            >Exam Type</label
-          >
-          <select
-            id="importExamType"
-            bind:value={importExamType}
-            class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 px-5 py-4 text-gray-900 dark:text-white outline-none"
-          >
-            <option value="MID1">Midterm 1</option>
-            <option value="MID2">Midterm 2</option>
-            <option value="SEM">Semester Exam</option>
-            <option value="INTERNAL">Internal Assessment</option>
-          </select>
-        </div>
-
-        <div class="space-y-2">
-          <label
-            for="importFile"
-            class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
-            >Source Design (PDF/Image)</label
-          >
-          <input
-            id="importFile"
-            type="file"
-            accept=".pdf,image/*"
-            onchange={(e) => (importFile = e.currentTarget.files?.[0] || null)}
-            class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold px-5 py-4 text-gray-900 dark:text-white"
-            required
-          />
-        </div>
-
-        <div class="space-y-2">
-          <label
-            for="importLogo"
-            class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
-            >High-Res Logo (Optional)</label
-          >
-          <input
-            id="importLogo"
-            type="file"
-            accept="image/*"
-            onchange={(e) => (importLogo = e.currentTarget.files?.[0] || null)}
-            class="w-full bg-white dark:bg-slate-800/50 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold px-5 py-4 text-gray-900 dark:text-white"
-          />
-        </div>
-
-        <div class="flex gap-4 pt-4">
-          <button
-            type="button"
-            onclick={() => (showImportModal = false)}
-            class="flex-1 py-4 bg-white dark:bg-slate-900 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] border border-gray-100 dark:border-slate-800 hover:bg-gray-50 transition-all"
-            >CANCEL</button
-          >
-          <button
-            type="submit"
-            disabled={isImporting}
-            class="flex-1 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-[1.5rem] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-500/20 disabled:opacity-50"
-          >
-            {#if isImporting}
-              <div class="flex items-center justify-center gap-2">
-                <div
-                  class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-                ANALYZING...
-              </div>
-            {:else}
-              BEGIN IMPORT
-            {/if}
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-{/if}
+<ImportWizard
+  bind:show={showImportModal}
+  universityId={data.selectedUniversityId}
+/>
 
 <style>
   :global(.glass) {

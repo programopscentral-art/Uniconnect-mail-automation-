@@ -8,7 +8,7 @@ export interface Task {
     title: string;
     description: string | null;
     priority: TaskPriority;
-    assigned_to: string | null;
+    assignee_ids: string[]; // Updated for multi-assignee
     assigned_by: string | null;
     university_id: string | null;
     status: TaskStatus;
@@ -21,17 +21,29 @@ export async function createTask(data: {
     title: string;
     description?: string;
     priority?: TaskPriority;
-    assigned_to?: string;
+    assignee_ids?: string[];
     assigned_by: string;
     university_id?: string;
     due_date?: string;
 }) {
+    const { assignee_ids = [], ...taskData } = data;
+
     const result = await db.query(
-        `INSERT INTO tasks (title, description, priority, assigned_to, assigned_by, university_id, due_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [data.title, data.description || null, data.priority || 'MEDIUM', data.assigned_to || null, data.assigned_by, data.university_id || null, data.due_date || null]
+        `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [taskData.title, taskData.description || null, taskData.priority || 'MEDIUM', taskData.assigned_by, taskData.university_id || null, taskData.due_date || null]
     );
-    return result.rows[0] as Task;
+    const task = result.rows[0];
+
+    if (assignee_ids.length > 0) {
+        const values = assignee_ids.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
+        await db.query(
+            `INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`,
+            [task.id, ...assignee_ids]
+        );
+    }
+
+    return { ...task, assignee_ids } as Task;
 }
 
 export async function getTasks(filters: { assigned_to?: string; university_id?: string; status?: TaskStatus }) {
@@ -40,46 +52,78 @@ export async function getTasks(filters: { assigned_to?: string; university_id?: 
     let i = 1;
 
     if (filters.assigned_to) {
-        conditions.push(`assigned_to = $${i++}`);
+        conditions.push(`t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++})`);
         params.push(filters.assigned_to);
     }
     if (filters.university_id) {
-        conditions.push(`t.university_id = $${i++}`); // Fix ambiguous column
+        conditions.push(`t.university_id = $${i++}`);
         params.push(filters.university_id);
     }
     if (filters.status) {
-        conditions.push(`status = $${i++}`);
+        conditions.push(`t.status = $${i++}`);
         params.push(filters.status);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.*, u_to.name as assigned_to_name, u_by.name as assigned_by_name, 
+        `SELECT t.*, u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
-            u_to.email as assigned_to_email, u_by.email as assigned_by_email
+            u_by.email as assigned_by_email,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id', u_to.id, 
+                        'name', u_to.name, 
+                        'email', u_to.email,
+                        'presence_status', u_to.presence_status,
+                        'last_active_at', u_to.last_active_at
+                    )
+                ) FILTER (WHERE u_to.id IS NOT NULL),
+                '[]'::json
+            ) as assignees
          FROM tasks t
-         LEFT JOIN users u_to ON t.assigned_to = u_to.id
+         LEFT JOIN task_assignees ta ON t.id = ta.task_id
+         LEFT JOIN users u_to ON ta.user_id = u_to.id
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name
          ORDER BY t.created_at DESC`,
         params
     );
-    return result.rows;
+    return result.rows.map(r => ({
+        ...r,
+        assignee_ids: r.assignees.map((a: any) => a.id)
+    }));
 }
 
-export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assigned_to?: string }) {
-    const fields: string[] = [];
-    const values: any[] = [];
-    let i = 1;
+export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assignee_ids?: string[] }) {
+    const { assignee_ids, ...updateData } = data;
 
-    Object.entries(data).forEach(([key, val]) => {
-        fields.push(`${key} = $${i++}`);
-        values.push(val);
-    });
+    if (Object.keys(updateData).length > 0) {
+        const fields: string[] = [];
+        const values: any[] = [];
+        let i = 1;
 
-    values.push(id);
-    await db.query(`UPDATE tasks SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`, values);
+        Object.entries(updateData).forEach(([key, val]) => {
+            fields.push(`${key} = $${i++}`);
+            values.push(val);
+        });
+
+        values.push(id);
+        await db.query(`UPDATE tasks SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`, values);
+    }
+
+    if (assignee_ids !== undefined) {
+        await db.query('DELETE FROM task_assignees WHERE task_id = $1', [id]);
+        if (assignee_ids.length > 0) {
+            const values = assignee_ids.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
+            await db.query(
+                `INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`,
+                [id, ...assignee_ids]
+            );
+        }
+    }
 }
 
 export async function deleteTask(id: string) {

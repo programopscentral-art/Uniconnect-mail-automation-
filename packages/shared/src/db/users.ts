@@ -15,6 +15,8 @@ export interface User {
     university_id: string | null;
     is_active: boolean;
     last_login_at: Date | null;
+    presence_status: 'ONLINE' | 'OFFLINE' | 'AWAY';
+    last_active_at: Date;
     created_at: Date;
 }
 
@@ -214,5 +216,28 @@ export async function getAdmins(universityId?: string | null) {
 
     const result = await db.query(query, params);
     return result.rows as User[];
+}
+
+export async function updateUserPresence(userId: string, status: 'ONLINE' | 'OFFLINE' | 'AWAY') {
+    await db.query(
+        `UPDATE users SET presence_status = $2, last_active_at = NOW() WHERE id = $1`,
+        [userId, status]
+    );
+}
+
+export async function batchClearPresence() {
+    // Mark users as offline if they haven't been active for more than 5 minutes
+    await db.query(
+        `UPDATE users SET presence_status = 'OFFLINE' 
+         WHERE presence_status != 'OFFLINE' AND last_active_at < NOW() - INTERVAL '5 minutes'`
+    );
+}
+
+export async function getUserPresence(userId: string) {
+    const result = await db.query(
+        `SELECT presence_status, last_active_at FROM users WHERE id = $1`,
+        [userId]
+    );
+    return result.rows[0] as { presence_status: User['presence_status']; last_active_at: Date } | null;
 }
 

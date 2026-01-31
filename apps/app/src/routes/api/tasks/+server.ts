@@ -40,30 +40,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     // 2. Assignment Restrictions
-    if (data.assigned_to && data.assigned_to !== locals.user.id) {
-        if (!isGlobalAdmin && !isUnivAdmin) {
-            // Regular team members can ONLY create tasks for themselves
-            data.assigned_to = locals.user.id;
-        } else if (isUnivAdmin) {
+    const assignee_ids = data.assignee_ids || [];
+    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
+    const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
+
+    const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user.role as string) || isCentralBOA;
+
+    if (!canAssignToOthers) {
+        // Restricted regional BOA roles can only assign to themselves
+        data.assignee_ids = [locals.user.id];
+    } else if (assignee_ids.length > 0) {
+        if (isUnivAdmin) {
             // Univ Admins can ONLY assign to members of their own university
-            const targetUser = await getUserById(data.assigned_to);
-            if (!targetUser || targetUser.university_id !== locals.user.university_id) {
-                // If invalid target, fallback to self or error
-                throw error(403, 'University Admins can only assign tasks to members of their own university.');
+            for (const uid of assignee_ids) {
+                const targetUser = await getUserById(uid);
+                if (!targetUser || targetUser.university_id !== locals.user.university_id) {
+                    throw error(403, `University Admins can only assign tasks to members of their own university. Check user ID: ${uid}`);
+                }
             }
         }
-    } else if (!data.assigned_to) {
-        // Default to self if unassigned (for team members) or stay NULL if it's a generic task
-        if (!isGlobalAdmin && !isUnivAdmin) {
-            data.assigned_to = locals.user.id;
-        }
+    } else {
+        // Default to self if unassigned
+        data.assignee_ids = [locals.user.id];
     }
 
     const task = await createTask({ ...data, assigned_by: locals.user.id });
-    if (task.assigned_to && task.assigned_to !== locals.user.id) {
-        const assignedUser = await getUserById(task.assigned_to);
+
+    // Notifications for all assignees
+    for (const uid of task.assignee_ids) {
+        if (uid === locals.user.id) continue;
+        const assignedUser = await getUserById(uid);
         if (assignedUser) {
-            // Internal Notification
             await createNotification({
                 user_id: assignedUser.id,
                 university_id: task.university_id,
@@ -73,7 +80,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 link: '/tasks'
             });
 
-            // Email Notification (Optional/Job)
             await addNotificationJob({
                 to: assignedUser.email,
                 subject: `New Task Assigned: ${task.title}`,
@@ -91,6 +97,18 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     const data = await request.json();
     const { id, ...updates } = data;
     if (!id) throw error(400, 'Task ID required');
+
+    // Permission Check for Updates
+    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
+    const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
+    const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user!.role as string) || isCentralBOA;
+
+    if (updates.assignee_ids && !canAssignToOthers) {
+        // Restricted regional BOA roles can only update task and maintain themselves as assignee
+        // They shouldn't be able to change assignees to others
+        updates.assignee_ids = [locals.user!.id];
+    }
+
     await updateTask(id, updates);
     return json({ success: true });
 };
