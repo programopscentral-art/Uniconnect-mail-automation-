@@ -75,6 +75,7 @@ export async function getTasks(filters: { assigned_to?: string; university_id?: 
                         'id', u_to.id, 
                         'name', u_to.name, 
                         'email', u_to.email,
+                        'status', ta.status,
                         'presence_status', u_to.presence_status,
                         'last_active_at', u_to.last_active_at
                     )
@@ -101,21 +102,59 @@ export async function getTaskById(id: string) {
     const result = await db.query(
         `SELECT t.*, 
             COALESCE(
-                json_agg(ta.user_id) FILTER (WHERE ta.user_id IS NOT NULL),
+                json_agg(
+                    json_build_object(
+                        'id', u_to.id,
+                        'status', ta.status
+                    )
+                ) FILTER (WHERE u_to.id IS NOT NULL),
                 '[]'::json
-            ) as assignee_ids
+            ) as assignees
          FROM tasks t
          LEFT JOIN task_assignees ta ON t.id = ta.task_id
+         LEFT JOIN users u_to ON ta.user_id = u_to.id
          WHERE t.id = $1
          GROUP BY t.id`,
         [id]
     );
-    return result.rows[0] as Task | null;
+    if (!result.rows[0]) return null;
+    const task = result.rows[0];
+    return {
+        ...task,
+        assignee_ids: task.assignees.map((a: any) => a.id)
+    } as Task & { assignees: Array<{ id: string, status: string }> };
 }
 
-export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assignee_ids?: string[] }) {
-    const { assignee_ids, ...updateData } = data;
+export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assignee_ids?: string[]; assignee_id?: string; assignee_status?: TaskStatus }) {
+    const { assignee_ids, assignee_id, assignee_status, ...updateData } = data;
 
+    // 1. Update individual assignee status
+    if (assignee_id && assignee_status) {
+        await db.query(
+            `UPDATE task_assignees SET status = $1 WHERE task_id = $2 AND user_id = $3`,
+            [assignee_status, id, assignee_id]
+        );
+
+        // Check if all assignees are completed
+        const { rows } = await db.query(
+            `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed 
+             FROM task_assignees WHERE task_id = $1`,
+            [id]
+        );
+        const stats = rows[0];
+        if (parseInt(stats.total) > 0 && stats.total === stats.completed) {
+            updateData.status = 'COMPLETED';
+        } else if (assignee_status === 'IN_PROGRESS' || assignee_status === 'PENDING') {
+            // If someone moved back to pending/processing, the main task can't be 'COMPLETED'
+            // We only downgrade from COMPLETED to IN_PROGRESS if it was COMPLETED
+            const currentTask = await db.query(`SELECT status FROM tasks WHERE id = $1`, [id]);
+            if (currentTask.rows[0]?.status === 'COMPLETED') {
+                updateData.status = 'IN_PROGRESS';
+            }
+        }
+    }
+
+    // 2. Update main task data
     if (Object.keys(updateData).length > 0) {
         const fields: string[] = [];
         const values: any[] = [];
@@ -130,7 +169,9 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
         await db.query(`UPDATE tasks SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`, values);
     }
 
+    // 3. Handle multi-assignee list updates
     if (assignee_ids !== undefined) {
+        // ... same logic ...
         await db.query('DELETE FROM task_assignees WHERE task_id = $1', [id]);
         if (assignee_ids.length > 0) {
             const values = assignee_ids.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
@@ -193,13 +234,13 @@ export async function getDayPlanReport(date: string, universityId?: string) {
         `SELECT 
             u.name as user_name,
             COUNT(DISTINCT t.id) as total_tasks,
-            COUNT(DISTINCT CASE WHEN t.status = 'COMPLETED' THEN t.id END) as completed_tasks
+            COUNT(DISTINCT CASE WHEN ta.status = 'COMPLETED' THEN t.id END) as completed_tasks
          FROM tasks t
          JOIN task_assignees ta ON t.id = ta.task_id
          JOIN users u ON ta.user_id = u.id
          WHERE DATE(t.created_at) = $1 ${whereTasks}
          GROUP BY u.name`,
-        params
+        [date, ...params.slice(1)]
     );
 
     const campaignStats = await db.query(

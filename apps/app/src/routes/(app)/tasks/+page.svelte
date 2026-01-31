@@ -489,12 +489,16 @@
               onchange={(e) =>
                 updateStatus(task, (e.target as HTMLSelectElement).value)}
               class="text-[11px] font-bold py-1 px-2 rounded-lg border-none bg-transparent hover:bg-white dark:hover:bg-slate-800 cursor-pointer disabled:cursor-not-allowed transition-all {statusColors[
-                task.status
+                task.assignees?.find((a: any) => a.id === data.user.id)
+                  ?.status || task.status
               ] || statusColors.PENDING}"
             >
               {#each Object.entries(statusLabels) as [val, label]}
-                <option value={val} selected={task.status === val}
-                  >{label}</option
+                <option
+                  value={val}
+                  selected={(task.assignees?.find(
+                    (a: any) => a.id === data.user.id,
+                  )?.status || task.status) === val}>{label}</option
                 >
               {/each}
             </select>
@@ -532,12 +536,28 @@
                   {#each task.assignees as assignee}
                     <div class="relative">
                       <div
-                        class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 border-2 border-white dark:border-slate-800 flex items-center justify-center text-[9px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-transform hover:scale-110 hover:z-10"
+                        class="w-7 h-7 rounded-full {assignee.status ===
+                        'COMPLETED'
+                          ? 'bg-green-100 dark:bg-green-900/50 border-green-500'
+                          : 'bg-indigo-100 dark:bg-indigo-900/50 border-white dark:border-slate-800'} border-2 flex items-center justify-center text-[9px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-transform hover:scale-110 hover:z-10"
                         title="Assigned to: {assignee.name ||
                           assignee.email} ({assignee.presence_status ||
-                          'OFFLINE'})"
+                          'OFFLINE'}) - Status: {assignee.status || 'PENDING'}"
                       >
-                        {getInitials(assignee.name || assignee.email)}
+                        {#if assignee.status === "COMPLETED"}
+                          <svg
+                            class="w-3 h-3 text-green-600"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                            ><path
+                              fill-rule="evenodd"
+                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                              clip-rule="evenodd"
+                            /></svg
+                          >
+                        {:else}
+                          {getInitials(assignee.name || assignee.email)}
+                        {/if}
                       </div>
                       <span
                         class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-slate-800 {presenceColors[

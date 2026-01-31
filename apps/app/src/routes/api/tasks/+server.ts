@@ -127,6 +127,18 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
         updates.assignee_ids = [locals.user!.id];
     }
 
+    // Individual Assignee Status Handling
+    if (updates.status && isAssignee) {
+        updates.assignee_id = locals.user!.id;
+        updates.assignee_status = updates.status;
+
+        // Non-admins/non-assigners can't directly force the global status
+        // shared/updateTask will auto-promote it to COMPLETED if all assignees are done
+        if (!isGlobalAdmin && !isAssigner) {
+            delete (updates as any).status;
+        }
+    }
+
     await updateTask(id, updates);
     return json({ success: true });
 };
