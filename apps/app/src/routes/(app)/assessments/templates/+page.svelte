@@ -3,6 +3,7 @@
   import { fade, fly, slide } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
+  import ImportWizard from "$lib/components/assessments/ImportWizard.svelte";
   import type { PageData } from "./$types";
 
   let { data }: { data: PageData } = $props();
@@ -17,11 +18,6 @@
   });
 
   let showImportModal = $state(false);
-  let isImporting = $state(false);
-  let importName = $state("");
-  let importExamType = $state("MID1");
-  let importFile = $state<File | null>(null);
-  let importLogo = $state<File | null>(null);
 
   function handleUniversityChange(e: Event) {
     const target = e.target as HTMLSelectElement;
@@ -30,38 +26,6 @@
     goto(url.toString(), { invalidateAll: true });
   }
 
-  async function handleImport(e: SubmitEvent) {
-    e.preventDefault();
-    if (!importFile || !importName) return;
-
-    isImporting = true;
-    const formData = new FormData();
-    formData.append("name", importName);
-    formData.append("exam_type", importExamType);
-    formData.append("file", importFile);
-    if (importLogo) formData.append("logo", importLogo);
-    formData.append("universityId", data.selectedUniversityId);
-
-    try {
-      const res = await fetch("/api/assessments/templates/import", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (res.ok) {
-        showImportModal = false;
-        importName = "";
-        importFile = null;
-        importLogo = null;
-        invalidateAll();
-      } else {
-        const err = await res.json();
-        alert(`Import failed: ${err.message}`);
-      }
-    } finally {
-      isImporting = false;
-    }
-  }
 
   async function cloneTemplate(id: string) {
     if (!confirm("Clone this template?")) return;
@@ -351,29 +315,6 @@
   </div>
 </div>
 
-<!-- Import Modal -->
-{#if showImportModal}
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
-    transition:fade
-  >
-    <div
-      class="glass rounded-[3rem] w-full max-w-lg p-10 shadow-2xl border border-white dark:border-slate-800"
-      transition:fly={{ y: 30, duration: 500 }}
-    >
-      <h3
-        class="text-2xl font-black text-gray-900 dark:text-white mb-8 uppercase tracking-tighter"
-      >
-        Import Assessment Design
-      </h3>
-
-      <form onsubmit={handleImport} class="space-y-6">
-        <div class="space-y-2">
-          <label
-            for="importName"
-            class="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] ml-2"
-            >Template Identity</label
-          >
           <input
             id="importName"
             type="text"

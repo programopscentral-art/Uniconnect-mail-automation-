@@ -48,10 +48,29 @@
     type: "move" | "resize",
     handle?: string,
   ) {
-    if (isEditing) return; // Prevent drag/resize while typing
+    if (isEditing) return;
 
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Fix: Only stop propagation if we are actually handling the pointer for drag/resize
+    // This allows clicking into the editor if it's already selected
+    if (selected && type === "move") {
+      // If already selected, we don't necessarily want to stop propagation immediately
+      // because the user might be clicking to place caret
+    } else {
+      e.stopPropagation();
+    }
+
+    if (type === "resize") {
+      e.stopPropagation();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      isResizing = true;
+      activeHandle = handle || null;
+    } else {
+      isDragging = true;
+      // We only capture if we're not planning to let the child handle it
+      if (!isEditing) {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      }
+    }
 
     startMouseX = e.clientX;
     startMouseY = e.clientY;
@@ -59,13 +78,6 @@
     startY = element.y;
     startW = element.w;
     startH = element.h;
-
-    if (type === "move") {
-      isDragging = true;
-    } else {
-      isResizing = true;
-      activeHandle = handle || null;
-    }
 
     onSelect();
   }
@@ -100,6 +112,9 @@
   }
 
   function handlePointerUp(e: PointerEvent) {
+    if (isDragging || isResizing) {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    }
     isDragging = false;
     isResizing = false;
     activeHandle = null;
@@ -110,6 +125,24 @@
       isEditing = true;
     }
   }
+
+  function handleKeyDown(e: KeyboardEvent) {
+    if (selected && !isEditing && e.key === "Enter") {
+      isEditing = true;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (isEditing && e.key === "Escape") {
+      isEditing = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->

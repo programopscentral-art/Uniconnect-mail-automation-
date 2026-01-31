@@ -29,9 +29,7 @@
   let isSendingTest = $state(false);
 
   let isRetrying = $state(false);
-  let statusFilter = $state<
-    "ALL" | "FAILED" | "SENT" | "OPENED" | "ACKNOWLEDGED"
-  >("ALL");
+  let statusFilter = $state<"ALL" | "FAILED" | "SENT" | "ACKNOWLEDGED">("ALL");
   let recipientSearch = $state("");
 
   let filteredRecipients = $derived.by(() => {
@@ -605,20 +603,6 @@
       </p>
     </button>
     <button
-      onclick={() => loadRecipients(false, "OPENED")}
-      class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter ===
-      'OPENED'
-        ? 'border-cyan-500 ring-4 ring-cyan-50'
-        : 'border-gray-100'} hover:border-cyan-200 transition-all text-left group"
-    >
-      <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">
-        Opened
-      </h3>
-      <p class="mt-2 text-3xl font-black text-blue-600">
-        {data.campaign.open_count}
-      </p>
-    </button>
-    <button
       onclick={() => loadRecipients(false, "ACKNOWLEDGED")}
       class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter ===
       'ACKNOWLEDGED'
@@ -677,7 +661,7 @@
         </div>
         <div class="mt-4 space-y-4">
           <div class="flex flex-wrap gap-2">
-            {#each ["ALL", "SENT", "OPENED", "ACKNOWLEDGED", "FAILED"] as filter}
+            {#each ["ALL", "SENT", "ACKNOWLEDGED", "FAILED"] as filter}
               <button
                 onclick={() => (statusFilter = filter as any)}
                 class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
@@ -787,13 +771,11 @@
                         class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                                 {r.status === 'SENT'
                           ? 'bg-blue-100 text-blue-800'
-                          : r.status === 'OPENED'
-                            ? 'bg-cyan-100 text-cyan-800'
-                            : r.status === 'ACKNOWLEDGED'
-                              ? 'bg-green-100 text-green-800'
-                              : r.status === 'FAILED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'}"
+                          : r.status === 'ACKNOWLEDGED'
+                            ? 'bg-green-100 text-green-800'
+                            : r.status === 'FAILED'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'}"
                       >
                         {r.status}
                       </span>

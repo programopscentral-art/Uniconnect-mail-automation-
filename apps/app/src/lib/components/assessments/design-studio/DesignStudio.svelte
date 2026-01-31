@@ -55,7 +55,13 @@
     };
   });
 
-  let { template = $bindable(), universityId, onSave } = $props();
+  let {
+    template = $bindable(),
+    assets = [],
+    universityId,
+    role,
+    onSave,
+  } = $props();
 
   // --- Types ---
   interface CanvasElement {
@@ -68,6 +74,9 @@
     content: string;
     styles: any;
     src?: string;
+    locked?: boolean;
+    hidden?: boolean;
+    tableData?: any;
   }
 
   // --- Initialization Logic ---
@@ -85,7 +94,14 @@
   // Keep template sync'd with local layout state for saving
   $effect(() => {
     template.layout_schema = layout;
-    template.config = template.config || []; // Ensure config is present
+    template.config = template.config || [];
+  });
+
+  // Recalculate zoom when fullScreen or zoomMode changes
+  $effect(() => {
+    fullScreen;
+    zoomMode;
+    autoFit();
   });
 
   // Derived state for selection
@@ -142,26 +158,20 @@
       target: "header",
     },
   ];
-  let baseAssets = $state([
-    {
-      id: "logo-1",
-      name: "University Logo",
-      url: "https://via.placeholder.com/150?text=LOGO",
-      type: "image",
-    },
-    {
-      id: "seal-1",
-      name: "Official Seal",
-      url: "https://via.placeholder.com/80?text=SEAL",
-      type: "image",
-    },
-  ]);
+  let universityAssets = $state(assets);
 
-  // Dynamically find all images used in the template
+  // Combine base presets with university-specific assets
   let templateAssets = $derived.by(() => {
     const images: any[] = [];
     const seenUrls = new Set();
 
+    // Add university assets first
+    universityAssets.forEach((ast: any) => {
+      images.push(ast);
+      seenUrls.add(ast.url);
+    });
+
+    // Add images already in the layout
     layout.pages.forEach((page: any) => {
       page.elements.forEach((el: any) => {
         if (el.type === "image" && el.src && !seenUrls.has(el.src)) {
@@ -176,26 +186,9 @@
       });
     });
 
-    return [...baseAssets, ...images];
+    return images;
   });
-  let library = $state([
-    {
-      id: "lib-1",
-      name: "Standard Header",
-      elements: [
-        {
-          id: "h1",
-          type: "text",
-          x: 20,
-          y: 10,
-          w: 170,
-          h: 20,
-          content: "<strong>UNIVERSITY NAME</strong>",
-          styles: { textAlign: "center", fontSize: 24, fontFamily: "serif" },
-        },
-      ],
-    },
-  ]);
+  let library = $derived(template.assets_json || []);
   let isUploading = $state(false);
   let zoomMode = $state<"percent" | "fit-page" | "fit-width">("fit-page");
   let isSaving = $state(false);
@@ -206,10 +199,12 @@
   const A4_HEIGHT_MM = 297;
   const MM_TO_PX = 3.7795275591; // 1mm = 3.77px approx at 96dpi
 
-  let currentPage = $derived(
-    layout.pages.find((p: { id: string }) => p.id === activePageId) ||
-      layout.pages[0],
+  let currentPageIndex = $derived(
+    layout.pages.findIndex((p: { id: string }) => p.id === activePageId) === -1
+      ? 0
+      : layout.pages.findIndex((p: { id: string }) => p.id === activePageId),
   );
+  let currentPage = $derived(layout.pages[currentPageIndex]);
   let elementRefs = $state<Record<string, any>>({});
 
   const TOOLBAR_ITEMS = [
@@ -247,22 +242,91 @@
     }
   }
 
-  function handleFileUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0];
+  async function publishTemplate() {
+    if (role === "OPERATOR") {
+      alert(
+        "Access Denied: Operators cannot publish templates. Please contact an Administrator.",
+      );
+      return;
+    }
+    if (
+      !confirm(
+        "Are you sure you want to publish this template version? This will make it available for assessment generation.",
+      )
+    )
+      return;
+
+    isSaving = true;
+    try {
+      const res = await fetch(`/api/assessments/templates?id=${template.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "published" }),
+      });
+      if (!res.ok) throw new Error("Failed to publish");
+      const data = await res.json();
+      template = data.template;
+      alert("Template published successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Error publishing template");
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  let revisions = $state<any[]>([]);
+  let isLoadingRevisions = $state(false);
+
+  async function fetchRevisions() {
+    isLoadingRevisions = true;
+    try {
+      const res = await fetch(
+        `/api/assessments/templates/${template.id}/revisions`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        revisions = data.revisions;
+      }
+    } finally {
+      isLoadingRevisions = false;
+    }
+  }
+
+  $effect(() => {
+    if (activeTab === "history") {
+      fetchRevisions();
+    }
+  });
+
+  async function handleFileUpload(e: Event) {
     if (!file) return;
 
     isUploading = true;
-    // Simulate upload delay
-    setTimeout(() => {
-      const newAsset = {
-        id: `ast-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        url: URL.createObjectURL(file), // Mock local URL for now
-        type: "image" as const,
-      };
-      baseAssets = [newAsset, ...baseAssets];
+    try {
+      // In a real app, you'd upload to S3/Supabase Storage first
+      // For now, we simulate the storage and save to DB
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("university_id", universityId);
+      formData.append("name", file.name);
+      formData.append("type", "image");
+
+      const res = await fetch("/api/assessments/assets", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Failed to upload");
+      const { asset } = await res.json();
+
+      universityAssets = [asset, ...universityAssets];
+    } catch (err) {
+      console.error(err);
+      alert("Upload failed");
+    } finally {
       isUploading = false;
-    }, 1000);
+    }
   }
 
   function addElement(type: CanvasElement["type"]) {
@@ -294,11 +358,10 @@
       (p: { id: string }) => p.id === activePageId,
     );
     if (pageIndex !== -1) {
-      layout.pages[pageIndex].elements = [
-        ...layout.pages[pageIndex].elements,
-        newEl,
-      ];
+      layout.pages[pageIndex].elements.push(newEl);
       selectedElementId = id;
+      // Trigger layout update
+      layout = { ...layout };
       template.layout_schema = layout;
     }
   }
@@ -345,16 +408,18 @@
     if (!selectedElement) return;
     const name = prompt(
       "Enter component name:",
-      selectedElement.content?.substring(0, 20) || "New Component",
+      selectedElement.type.toUpperCase() + " Block",
     );
     if (!name) return;
 
     const newComp = {
-      id: `lib-${Math.random().toString(36).substr(2, 9)}`,
+      id: `comp-${crypto.randomUUID().split("-")[0]}`,
       name,
       elements: [JSON.parse(JSON.stringify(selectedElement))],
     };
-    library = [...library, newComp];
+
+    template.assets_json = template.assets_json || [];
+    template.assets_json = [...template.assets_json, newComp];
   }
 
   function useComponent(comp: { elements: CanvasElement[] }) {
@@ -400,18 +465,18 @@
     const insertAt = where === "below" ? rowIndex + 1 : rowIndex;
     const numCols = data.rows[0].cells.length;
     const newRow = {
-      id: `r-${Math.random().toString(36).substr(2, 9)}`,
+      id: `r-${crypto.randomUUID().split("-")[0]}`,
       cells: Array.from({ length: numCols }, (_, i) => ({
-        id: `c-${Math.random().toString(36).substr(2, 9)}`,
+        id: `c-${crypto.randomUUID().split("-")[0]}`,
         content: "",
         rowSpan: 1,
         colSpan: 1,
-        styles: {},
+        styles: { verticalAlign: "middle" },
       })),
     };
     data.rows.splice(insertAt, 0, newRow);
     selectedElement.tableData = { ...data };
-    template.layout_schema = layout;
+    template.layout_schema = { ...layout };
   }
 
   function addColumn(where: "left" | "right") {
@@ -431,15 +496,15 @@
     const insertAt = where === "right" ? colIndex + 1 : colIndex;
     data.rows.forEach((r: any) => {
       r.cells.splice(insertAt, 0, {
-        id: `c-${Math.random().toString(36).substr(2, 9)}`,
+        id: `c-${crypto.randomUUID().split("-")[0]}`,
         content: "",
         rowSpan: 1,
         colSpan: 1,
-        styles: {},
+        styles: { verticalAlign: "middle" },
       });
     });
     selectedElement.tableData = { ...data };
-    template.layout_schema = layout;
+    template.layout_schema = { ...layout };
   }
 
   function deleteRow() {
@@ -456,7 +521,7 @@
     data.rows.splice(rowIndex, 1);
     activeCellId = null;
     selectedElement.tableData = { ...data };
-    template.layout_schema = layout;
+    template.layout_schema = { ...layout };
   }
 
   function deleteColumn() {
@@ -478,7 +543,7 @@
     });
     activeCellId = null;
     selectedElement.tableData = { ...data };
-    template.layout_schema = layout;
+    template.layout_schema = { ...layout };
   }
 
   function triggerFormat(cmd: string, val: string | null = null) {
@@ -660,36 +725,25 @@
     </div>
 
     <!-- Right Actions -->
-    <div class="flex items-center gap-3">
-      <button
-        class="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-black transition-all border border-white/5"
-      >
-        <History class="w-3.5 h-3.5" />
-        REVISIONS
-      </button>
-      <button
-        onclick={() => {
-          // Validate layout before saving
-          try {
-            JSON.stringify(layout);
-            onSave();
-          } catch (err) {
-            alert("Invalid template data. Please check for errors.");
-          }
-        }}
-        disabled={isSaving}
-        class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-[10px] font-black transition-all shadow-xl shadow-indigo-600/20 active:scale-95 leading-none"
-      >
-        {#if isSaving}
-          <div
-            class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
-          ></div>
-        {:else}
-          <Save class="w-3.5 h-3.5" />
-        {/if}
-        {isSaving ? "SAVING..." : "PUBLISH CHANGES"}
-      </button>
-    </div>
+    <button
+      onclick={publishTemplate}
+      disabled={isSaving}
+      class="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-50 rounded-xl text-[10px] font-black transition-all shadow-xl shadow-green-600/20 active:scale-95 leading-none text-white"
+    >
+      <Share2 class="w-3.5 h-3.5" />
+      {isSaving ? "..." : "PUBLISH"}
+    </button>
+
+    <button
+      onclick={() => {
+        onSave();
+      }}
+      disabled={isSaving}
+      class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 rounded-xl text-[10px] font-black transition-all shadow-xl shadow-indigo-600/20 active:scale-95 leading-none text-white"
+    >
+      <Save class="w-3.5 h-3.5" />
+      {isSaving ? "SAVING..." : "SAVE"}
+    </button>
   </nav>
 
   <div class="flex-1 flex overflow-hidden">
@@ -733,7 +787,7 @@
       <div
         class="px-6 py-4 border-b border-white/5 flex gap-6 overflow-x-auto scrollbar-hide"
       >
-        {#each ["elements", "library", "assets", "pages"] as tab}
+        {#each ["elements", "layers", "history", "library", "assets", "pages"] as tab}
           <button
             onclick={() => (activeTab = tab)}
             class="text-[9px] font-black uppercase tracking-[0.2em] transition-all shrink-0 {activeTab ===
@@ -745,7 +799,130 @@
       </div>
 
       <div class="flex-1 overflow-y-auto p-6 scrollbar-hide">
-        {#if activeTab === "elements"}
+        {#if activeTab === "layers"}
+          <div class="space-y-4">
+            <h3
+              class="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mb-4"
+            >
+              Layers (Bottom to Top)
+            </h3>
+            <div class="space-y-1">
+              {#each [...currentPage.elements].reverse() as el (el.id)}
+                <div
+                  class="group flex items-center gap-3 p-2 rounded-xl transition-all {selectedElementId ===
+                  el.id
+                    ? 'bg-indigo-500/10 border border-indigo-500/20'
+                    : 'hover:bg-white/5 border border-transparent'}"
+                  onclick={() => {
+                    selectedElementId = el.id;
+                    activePageId = currentPage.id;
+                  }}
+                >
+                  <div
+                    class="w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center text-white/20"
+                  >
+                    {#if el.type === "text"}<Type class="w-4 h-4" />
+                    {:else if el.type === "table"}<TableIcon class="w-4 h-4" />
+                    {:else if el.type === "image"}<ImageIcon class="w-4 h-4" />
+                    {:else}<Square class="w-4 h-4" />{/if}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p
+                      class="text-[10px] font-bold text-white/60 truncate uppercase tracking-wider"
+                    >
+                      {el.type === "text"
+                        ? el.content
+                            ?.replace(/<[^>]*>/g, "")
+                            .substring(0, 15) || "Text"
+                        : el.type}
+                    </p>
+                  </div>
+                  <div
+                    class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        el.hidden = !el.hidden;
+                      }}
+                      class="p-1.5 hover:text-indigo-400 {el.hidden
+                        ? 'text-indigo-400'
+                        : 'text-white/20'}"
+                    >
+                      <Play class="w-3 h-3 rotate-90" />
+                    </button>
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        el.locked = !el.locked;
+                      }}
+                      class="p-1.5 hover:text-indigo-400 {el.locked
+                        ? 'text-indigo-400'
+                        : 'text-white/20'}"
+                    >
+                      <HelpCircle class="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {:else if activeTab === "history"}
+          <div class="space-y-6">
+            <h3
+              class="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] mb-4"
+            >
+              Revision History
+            </h3>
+            {#if isLoadingRevisions}
+              <div class="flex justify-center p-10">
+                <div
+                  class="w-6 h-6 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"
+                ></div>
+              </div>
+            {:else if revisions.length === 0}
+              <p class="text-[9px] font-bold text-white/20 text-center py-10">
+                No revisions yet.
+              </p>
+            {:else}
+              <div class="space-y-3">
+                {#each revisions as rev}
+                  <div
+                    class="p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all group"
+                  >
+                    <div class="flex justify-between items-start mb-2">
+                      <span
+                        class="px-2 py-0.5 bg-indigo-500/20 text-indigo-400 text-[8px] font-black uppercase rounded"
+                        >v{rev.version}</span
+                      >
+                      <span class="text-[8px] font-bold text-white/20 uppercase"
+                        >{new Date(rev.created_at).toLocaleString()}</span
+                      >
+                    </div>
+                    <p
+                      class="text-[9px] font-medium text-white/60 leading-relaxed mb-4"
+                    >
+                      {rev.comment || "Automatic snapshot before update."}
+                    </p>
+                    <button
+                      class="w-full py-2 bg-white/5 rounded-lg text-[8px] font-black uppercase text-white/40 hover:text-white hover:bg-indigo-600 transition-all text-white"
+                      onclick={() => {
+                        if (
+                          confirm(
+                            "Restore this version? Unsaved changes will be lost.",
+                          )
+                        ) {
+                          layout = rev.layout_schema;
+                          template.config = rev.config;
+                        }
+                      }}>Restore Version</button
+                    >
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {:else if activeTab === "elements"}
           <div class="space-y-8">
             <section>
               <h3
@@ -910,15 +1087,6 @@
               <div
                 role="button"
                 tabindex="0"
-                onwheel={(e: WheelEvent) => {
-                  if (e.ctrlKey) {
-                    e.preventDefault();
-                    zoomLevel = Math.min(
-                      Math.max(0.1, zoomLevel - e.deltaY * 0.001),
-                      3,
-                    );
-                  }
-                }}
                 onclick={() => {
                   activePageId = page.id;
                   selectedElementId = null;
@@ -1007,22 +1175,20 @@
           </div>
         {/if}
 
-        {#each currentPage.elements as el (el.id)}
-          <ElementWrapper
-            bind:this={elementRefs[el.id]}
-            bind:element={
-              currentPage.elements[
-                currentPage.elements.findIndex((e: any) => e.id === el.id)
-              ]
-            }
-            selected={selectedElementId === el.id}
-            zoom={zoomLevel}
-            bind:activeCellId
-            onSelect={() => {
-              selectedElementId = el.id;
-              activeCellId = null;
-            }}
-          />
+        {#each currentPage.elements as el, i (el.id)}
+          {#if !el.hidden}
+            <ElementWrapper
+              bind:this={elementRefs[el.id]}
+              bind:element={layout.pages[currentPageIndex].elements[i]}
+              selected={selectedElementId === el.id}
+              zoom={zoomLevel}
+              bind:activeCellId
+              onSelect={() => {
+                selectedElementId = el.id;
+                activeCellId = null;
+              }}
+            />
+          {/if}
         {/each}
 
         {#if currentPage.elements.length === 0}

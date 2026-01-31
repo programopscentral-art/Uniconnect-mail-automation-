@@ -33,16 +33,16 @@ export const PATCH = async ({ request, locals }: { request: Request, locals: any
     if (!body.id) throw error(400, 'ID is required');
 
     // SECURITY CHECK: Hard Isolation
-    const existing = await getAssessmentTemplateById(body.id);
-    if (!existing) throw error(404, 'Template not found');
-    if (locals.user.role !== 'ADMIN' && existing.university_id !== locals.user.university_id) {
-        throw error(403, 'Unauthorized: Template belongs to another university');
-    }
+    const universityId = locals.user.university_id;
+    if (!universityId) throw error(400, 'University ID is missing from user session');
 
+    // Passing universityId to ensure update is restricted to the owner university
     const template = await updateAssessmentTemplate(body.id, {
         ...body,
         updated_by: locals.user.id
-    });
+    }, universityId);
+
+    if (!template) throw error(404, 'Template not found or access denied');
     return json(template);
 };
 
@@ -51,6 +51,9 @@ export const DELETE = async ({ url, locals }: { url: URL, locals: any }) => {
     const id = url.searchParams.get('id');
     if (!id) throw error(400, 'ID is required');
 
-    await deleteAssessmentTemplate(id);
+    const universityId = locals.user.university_id;
+    if (!universityId && locals.user.role !== 'ADMIN') throw error(400, 'University ID is required');
+
+    await deleteAssessmentTemplate(id, universityId);
     return json({ success: true });
 };

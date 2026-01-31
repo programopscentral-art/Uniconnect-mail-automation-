@@ -81,8 +81,21 @@ export interface AssessmentTemplate {
     status: 'draft' | 'published' | 'archived';
     config: any;
     layout_schema: any;
+    assets_json?: any; // List of reusable blocks/components
+    base_template_id?: string; // ID of the source template if cloned
     created_by?: string;
     updated_by?: string;
+    created_at: Date;
+    updated_at: Date;
+}
+
+export interface UniversityAsset {
+    id: string;
+    university_id: string;
+    name: string;
+    url: string;
+    type: 'image' | 'logo' | 'seal' | 'other';
+    metadata?: any;
     created_at: Date;
     updated_at: Date;
 }
@@ -368,14 +381,20 @@ export async function deleteCourseOutcome(id: string): Promise<void> {
 // Assessment Templates
 export async function getAssessmentTemplates(universityId: string): Promise<AssessmentTemplate[]> {
     const { rows } = await db.query(
-        'SELECT * FROM assessment_templates WHERE university_id = $1 AND (status IS NULL OR status != \'archived\') ORDER BY created_at DESC',
+        'SELECT * FROM assessment_templates WHERE university_id = $1 AND (status IS NULL OR status != \'archived\') ORDER BY name ASC, version DESC',
         [universityId]
     );
     return rows;
 }
 
-export async function getAssessmentTemplateById(id: string): Promise<AssessmentTemplate | null> {
-    const { rows } = await db.query('SELECT * FROM assessment_templates WHERE id = $1', [id]);
+export async function getAssessmentTemplateById(id: string, universityId?: string): Promise<AssessmentTemplate | null> {
+    let query = 'SELECT * FROM assessment_templates WHERE id = $1';
+    const params = [id];
+    if (universityId) {
+        query += ' AND university_id = $2';
+        params.push(universityId);
+    }
+    const { rows } = await db.query(query, params);
     return rows[0] || null;
 }
 
@@ -393,8 +412,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, version, status, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
             data.university_id,
@@ -403,6 +422,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
             data.exam_type,
             safeStringify(data.config),
             safeStringify(data.layout_schema),
+            safeStringify(data.assets_json || []),
+            data.base_template_id,
             data.version || 1,
             data.status || 'published',
             data.created_by
@@ -411,12 +432,32 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     return rows[0];
 }
 
-export async function updateAssessmentTemplate(id: string, data: Partial<AssessmentTemplate>): Promise<AssessmentTemplate> {
+export async function updateAssessmentTemplate(id: string, data: Partial<AssessmentTemplate>, universityId?: string): Promise<AssessmentTemplate> {
+    // 1. Get the current state
+    const current = await getAssessmentTemplateById(id, universityId);
+    if (!current) throw new Error('Template not found or access denied');
+
+    // 2. If template is published, any "edit" should actually create a new draft (except for status changes to archived)
+    if (current.status === 'published' && !data.status) {
+        // Forking into a new draft version
+        const newData: Partial<AssessmentTemplate> = {
+            ...current,
+            ...data,
+            id: undefined, // New ID
+            version: current.version + 1,
+            status: 'draft',
+            base_template_id: current.id,
+            created_by: data.updated_by || current.created_by,
+            created_at: undefined,
+            updated_at: undefined
+        };
+        return createAssessmentTemplate(newData);
+    }
+
     const fields: string[] = [];
     const params: any[] = [];
     let i = 1;
 
-    // For updates, we need to be careful with safeStringify
     const safeStringify = (val: any) => {
         if (val === null || val === undefined) return null;
         if (typeof val === 'string') return val;
@@ -428,15 +469,21 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     if (data.exam_type) { fields.push(`exam_type = $${i++}`); params.push(data.exam_type); }
     if (data.config) { fields.push(`config = $${i++}`); params.push(safeStringify(data.config)); }
     if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(safeStringify(data.layout_schema)); }
+    if (data.assets_json) { fields.push(`assets_json = $${i++}`); params.push(safeStringify(data.assets_json)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
 
     fields.push(`updated_at = NOW()`);
     params.push(id);
+    let whereClause = `id = $${i++}`;
+    if (universityId) {
+        whereClause += ` AND university_id = $${i++}`;
+        params.push(universityId);
+    }
 
     const { rows } = await db.query(
-        `UPDATE assessment_templates SET ${fields.join(', ')} WHERE id = $${i} RETURNING *`,
+        `UPDATE assessment_templates SET ${fields.join(', ')} WHERE ${whereClause} RETURNING *`,
         params
     );
 
@@ -452,25 +499,77 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     return rows[0];
 }
 
-export async function cloneAssessmentTemplate(id: string, universityId?: string): Promise<AssessmentTemplate> {
+export async function cloneAssessmentTemplate(id: string, universityId?: string, created_by?: string): Promise<AssessmentTemplate> {
     const source = await getAssessmentTemplateById(id);
     if (!source) throw new Error('Source template not found');
 
     // Deep clone by removing IDs and resetting version
     const newData: Partial<AssessmentTemplate> = {
         university_id: universityId || source.university_id,
-        name: universityId ? source.name : `${source.name} (Copy)`,
-        slug: universityId ? source.slug : `${source.slug}-copy-${Date.now()}`,
+        name: universityId && universityId !== source.university_id ? source.name : `${source.name} (Copy)`,
+        slug: universityId && universityId !== source.university_id ? source.slug : `${source.slug}-copy-${Date.now()}`,
         exam_type: source.exam_type,
         config: JSON.parse(JSON.stringify(source.config)),
         layout_schema: JSON.parse(JSON.stringify(source.layout_schema || {})),
+        assets_json: JSON.parse(JSON.stringify(source.assets_json || [])),
+        base_template_id: source.id,
         version: 1,
-        status: 'published'
+        status: 'draft',
+        created_by
     };
 
     return createAssessmentTemplate(newData);
 }
 
-export async function deleteAssessmentTemplate(id: string): Promise<void> {
-    await db.query('DELETE FROM assessment_templates WHERE id = $1', [id]);
+export async function deleteAssessmentTemplate(id: string, universityId?: string): Promise<void> {
+    let query = 'DELETE FROM assessment_templates WHERE id = $1';
+    const params = [id];
+    if (universityId) {
+        query += ' AND university_id = $2';
+        params.push(universityId);
+    }
+    await db.query(query, params);
+}
+
+export async function getAssessmentTemplateRevisions(templateId: string): Promise<any[]> {
+    const { rows } = await db.query(
+        `SELECT * FROM assessment_template_revisions WHERE template_id = $1 ORDER BY version DESC`,
+        [templateId]
+    );
+    return rows;
+}
+
+// --- University Asset Management ---
+export async function getUniversityAssets(universityId: string): Promise<UniversityAsset[]> {
+    const { rows } = await db.query(
+        'SELECT * FROM university_assets WHERE university_id = $1 ORDER BY created_at DESC',
+        [universityId]
+    );
+    return rows;
+}
+
+export async function createUniversityAsset(data: {
+    university_id: string;
+    name: string;
+    url: string;
+    type: 'image' | 'logo' | 'seal' | 'other';
+    metadata?: any;
+}): Promise<UniversityAsset> {
+    const { rows } = await db.query(
+        `INSERT INTO university_assets (university_id, name, url, type, metadata)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *`,
+        [data.university_id, data.name, data.url, data.type, data.metadata || {}]
+    );
+    return rows[0];
+}
+
+export async function deleteUniversityAsset(id: string, universityId?: string): Promise<void> {
+    let query = 'DELETE FROM university_assets WHERE id = $1';
+    const params = [id];
+    if (universityId) {
+        query += ' AND university_id = $2';
+        params.push(universityId);
+    }
+    await db.query(query, params);
 }

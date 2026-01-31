@@ -46,6 +46,7 @@
   <DesignStudio
     bind:template
     universityId={template.university_id}
+    role={data.user?.role}
     onSave={saveTemplate}
   />
 </div>

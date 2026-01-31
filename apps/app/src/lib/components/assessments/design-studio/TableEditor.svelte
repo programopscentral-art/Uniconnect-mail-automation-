@@ -77,31 +77,39 @@
 
 <table class="w-full h-full border-collapse table-fixed bg-white">
   <tbody>
-    {#each element.tableData.rows as row}
+    {#each element.tableData.rows as row (row.id)}
       <tr class="h-auto min-h-[40px]">
-        {#each row.cells as cell}
+        {#each row.cells as cell (cell.id)}
           <td
             rowspan={cell.rowSpan}
             colspan={cell.colSpan}
-            class="border-2 border-black p-2 relative group {activeCellId ===
+            class="border-2 border-black p-0 relative group transition-all {activeCellId ===
             cell.id
-              ? 'ring-2 ring-indigo-500 ring-inset'
+              ? 'ring-2 ring-indigo-500 ring-inset z-10'
               : ''}"
             style="
-              text-align: {cell.styles.textAlign || 'left'};
-              vertical-align: {cell.styles.verticalAlign || 'top'};
-              background-color: {cell.styles.bg || 'transparent'};
-              font-family: {cell.styles.fontFamily || 'inherit'};
-              font-size: {cell.styles.fontSize || 'inherit'};
+              text-align: {cell.styles?.textAlign || 'left'};
+              vertical-align: {cell.styles?.verticalAlign || 'middle'};
+              background-color: {cell.styles?.bg || 'transparent'};
+              font-family: {cell.styles?.fontFamily || 'inherit'};
+              font-size: {cell.styles?.fontSize || 'inherit'};
+              color: {cell.styles?.color || 'inherit'};
+              font-weight: {cell.styles?.fontWeight || 'inherit'};
             "
-            onclick={() => handleCellClick(cell.id)}
+            onclick={(e) => {
+              e.stopPropagation();
+              handleCellClick(cell.id);
+            }}
           >
             <div
               contenteditable={selected ? "true" : "false"}
-              class="w-full h-full outline-none focus:bg-indigo-50/20 transition-colors cursor-text min-h-[1.5em]"
-              oninput={(e) => handleInput(e, cell)}
+              class="w-full h-full outline-none p-2 focus:bg-indigo-50/10 transition-colors cursor-text min-h-[1.5em] overflow-hidden"
+              oninput={(e) => {
+                cell.content = (e.target as HTMLElement).innerHTML;
+              }}
+              onfocus={() => (activeCellId = cell.id)}
             >
-              {cell.content}
+              {@html cell.content || ""}
             </div>
           </td>
         {/each}
