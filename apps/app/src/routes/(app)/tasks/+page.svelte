@@ -711,7 +711,7 @@
           <div>
             <label
               for="f-title"
-              class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2"
+              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
               >Title</label
             >
             <input
@@ -719,14 +719,14 @@
               type="text"
               bind:value={form.title}
               placeholder="What needs to be done?"
-              class="w-full bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white"
+              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-600"
             />
           </div>
 
           <div>
             <label
               for="f-desc"
-              class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2"
+              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
               >Description / Context</label
             >
             <textarea
@@ -734,7 +734,7 @@
               bind:value={form.description}
               rows="3"
               placeholder="Provide extra details for the team member..."
-              class="w-full bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-xl px-5 py-3 text-sm outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-900 dark:text-white rounded-xl px-5 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-600"
             ></textarea>
           </div>
 
@@ -850,7 +850,7 @@
                           class="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity"
                         >
                           <span
-                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400"
+                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400 dark:text-slate-500"
                             >{user.presence_status || "OFFLINE"}</span
                           >
                           <div
@@ -886,7 +886,7 @@
                 </select>
               {:else}
                 <div
-                  class="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-500 truncate"
+                  class="w-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-500 dark:text-slate-400 truncate"
                 >
                   {data.universities.find(
                     (u) => u.id === data.user.university_id,

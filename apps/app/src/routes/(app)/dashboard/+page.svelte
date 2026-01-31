@@ -1459,7 +1459,7 @@
         >&#8203;</span
       >
       <div
-        class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-100"
+        class="inline-block align-bottom bg-white dark:bg-slate-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-100 dark:border-slate-800"
       >
         <div
           class="bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-4 flex justify-between items-center"
@@ -1489,27 +1489,27 @@
           <div>
             <label
               for="task-title"
-              class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
               >Task Title</label
             >
             <input
               id="task-title"
               type="text"
               bind:value={taskForm.title}
-              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-600"
               placeholder="What needs to be done?"
             />
           </div>
           <div>
             <label
               for="task-desc"
-              class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
               >Description</label
             >
             <textarea
               id="task-desc"
               bind:value={taskForm.description}
-              class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all min-h-[100px]"
+              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all min-h-[100px] placeholder:text-gray-400 dark:placeholder:text-slate-600"
               placeholder="Add some context..."
             ></textarea>
           </div>
@@ -1517,13 +1517,13 @@
             <div>
               <label
                 for="task-prio"
-                class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
                 >Priority</label
               >
               <select
                 id="task-prio"
                 bind:value={taskForm.priority}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
               >
                 <option value="URGENT">Urgent</option>
                 <option value="HIGH">High</option>
@@ -1534,14 +1534,14 @@
             <div>
               <label
                 for="task-due"
-                class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
                 >Due Date</label
               >
               <input
                 id="task-due"
                 type="datetime-local"
                 bind:value={taskForm.due_date}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
               />
             </div>
           </div>
@@ -1622,7 +1622,7 @@
                           class="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity"
                         >
                           <span
-                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400"
+                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400 dark:text-slate-500"
                             >{user.presence_status || "OFFLINE"}</span
                           >
                           <div
@@ -1640,13 +1640,13 @@
             <div>
               <label
                 for="task-univ"
-                class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
                 >Institutional Context (Optional)</label
               >
               <select
                 id="task-univ"
                 bind:value={taskForm.university_id}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
               >
                 <option value="">None / General</option>
                 {#each data.universities as univ}
@@ -1657,13 +1657,13 @@
             <div>
               <label
                 for="task-status"
-                class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
                 >Initial Status</label
               >
               <select
                 id="task-status"
                 bind:value={taskForm.status}
-                class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-100 transition-all"
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
               >
                 <option value="PENDING">Pending</option>
                 <option value="IN_PROGRESS">Processing</option>
@@ -1673,7 +1673,7 @@
             </div>
           </div>
         </div>
-        <div class="p-6 bg-gray-50 flex gap-3">
+        <div class="p-6 bg-gray-50 dark:bg-slate-800/50 flex gap-3">
           <button
             onclick={() => (showTaskModal = false)}
             class="flex-1 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
