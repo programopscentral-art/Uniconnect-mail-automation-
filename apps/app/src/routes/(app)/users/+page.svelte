@@ -1083,13 +1083,7 @@
         >
         <button
           onclick={saveUser}
-          disabled={isSubmitting ||
-            !email ||
-            (role !== "ADMIN" &&
-              universityIds.length === 0 &&
-              data.isGlobalAdmin) ||
-            ((role === "CMA" || role === "CMA_MANAGER") &&
-              !universityIds.includes("13f3513e-9ab1-4515-a97c-1d7ef7bba9fc"))}
+          disabled={isSubmitting || !email}
           class="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
         >
           {isSubmitting

@@ -109,8 +109,8 @@ export async function updateUser(id: string, data: {
     const { university_ids, ...userData } = data;
 
     // Update primary university_id if university_ids is provided
-    if (university_ids && university_ids.length > 0) {
-        userData.university_id = university_ids[0];
+    if (university_ids !== undefined) {
+        userData.university_id = university_ids.length > 0 ? university_ids[0] : null;
     }
 
     // Update user table fields

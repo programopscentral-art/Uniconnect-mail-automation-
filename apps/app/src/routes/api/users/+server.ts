@@ -36,7 +36,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const universityIds = data.university_ids || (data.university_id ? [data.university_id] : []);
     const targetUniversityIds = isGlobalAdmin ? universityIds : (locals.user?.university_id ? [locals.user.university_id] : []);
 
-    if ((data.role === 'UNIVERSITY_OPERATOR' || !isGlobalAdmin) && targetUniversityIds.length === 0) {
+    // University requirement relaxed for Global Admins
+    if (!isGlobalAdmin && (data.role === 'UNIVERSITY_OPERATOR' || !isGlobalAdmin) && targetUniversityIds.length === 0) {
         throw error(400, 'At least one university is required');
     }
 
