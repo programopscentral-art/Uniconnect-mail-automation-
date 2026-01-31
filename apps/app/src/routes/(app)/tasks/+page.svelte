@@ -773,91 +773,87 @@
                 class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
                 >Assign To</label
               >
-              {@const activeUniv = data.user.universities?.find(
-                (u) => u.id === data.user.university_id,
-              )}
-              {@const isCentralBOA =
-                data.user.role === "BOA" &&
-                (!data.user.university_id || activeUniv?.is_team)}
-              {#if ["ADMIN", "PROGRAM_OPS", "UNIVERSITY_OPERATOR", "COS", "PM", "PMA", "CMA", "CMA_MANAGER"].includes(data.user.role) || isCentralBOA}
-                <div
-                  class="space-y-2 max-h-40 overflow-y-auto p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 custom-scrollbar"
-                >
-                  <label
-                    class="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
+              {#if data.user}
+                {@const activeUniv = data.user.universities?.find(
+                  (u) => u.id === data.user.university_id,
+                )}
+                {@const isCentralBOA =
+                  data.user.role === "BOA" &&
+                  (!data.user.university_id || activeUniv?.is_team)}
+                {#if ["ADMIN", "PROGRAM_OPS", "UNIVERSITY_OPERATOR", "COS", "PM", "PMA", "CMA", "CMA_MANAGER"].includes(data.user.role) || isCentralBOA}
+                  <div
+                    class="space-y-2 max-h-40 overflow-y-auto p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 custom-scrollbar"
                   >
-                    <input
-                      type="checkbox"
-                      value={data.user.id}
-                      checked={form.assignee_ids.includes(data.user.id)}
-                      onchange={(e) => {
-                        if (e.currentTarget.checked)
-                          form.assignee_ids = [
-                            ...form.assignee_ids,
-                            data.user.id,
-                          ];
-                        else
-                          form.assignee_ids = form.assignee_ids.filter(
-                            (id) => id !== data.user.id,
-                          );
-                      }}
-                      class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span
-                      class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                      >Assign to Myself</span
-                    >
-                  </label>
-
-                  {#each filteredUsers.filter((u) => u.id !== data.user.id) as user}
                     <label
-                      class="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
+                      class="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
                     >
-                      <div class="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          value={user.id}
-                          checked={form.assignee_ids.includes(user.id)}
-                          onchange={(e) => {
-                            if (e.currentTarget.checked)
-                              form.assignee_ids = [
-                                ...form.assignee_ids,
-                                user.id,
-                              ];
-                            else
-                              form.assignee_ids = form.assignee_ids.filter(
-                                (id) => id !== user.id,
-                              );
-                          }}
-                          class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span
-                          class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                          >{user.name || user.email}</span
-                        >
-                      </div>
-                      <div
-                        class="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity"
+                      <input
+                        type="checkbox"
+                        value={data.user.id}
+                        checked={form.assignee_ids.includes(data.user.id)}
+                        onchange={(e) => {
+                          if (e.currentTarget.checked)
+                            form.assignee_ids = [
+                              ...form.assignee_ids,
+                              data.user.id,
+                            ];
+                          else
+                            form.assignee_ids = form.assignee_ids.filter(
+                              (id) => id !== data.user.id,
+                            );
+                        }}
+                        class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span
+                        class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                        >Assign to Myself</span
                       >
-                        <span
-                          class="text-[8px] font-black uppercase tracking-tighter text-gray-400"
-                          >{user.presence_status || "OFFLINE"}</span
-                        >
-                        <div
-                          class="w-2 h-2 rounded-full {presenceColors[
-                            user.presence_status
-                          ] || presenceColors.OFFLINE}"
-                        ></div>
-                      </div>
                     </label>
-                  {/each}
-                </div>
-              {:else}
-                <div
-                  class="w-full bg-gray-100 dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-500"
-                >
-                  Assigned to Self (BOA Restricted)
-                </div>
+
+                    {#each filteredUsers.filter((u) => u.id !== data.user.id) as user}
+                      <label
+                        class="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
+                      >
+                        <div class="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            value={user.id}
+                            checked={form.assignee_ids.includes(user.id)}
+                            onchange={(e) => {
+                              if (e.currentTarget.checked)
+                                form.assignee_ids = [
+                                  ...form.assignee_ids,
+                                  user.id,
+                                ];
+                              else
+                                form.assignee_ids = form.assignee_ids.filter(
+                                  (id) => id !== user.id,
+                                );
+                            }}
+                            class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <span
+                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
+                            >{user.name || user.email}</span
+                          >
+                        </div>
+                        <div
+                          class="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity"
+                        >
+                          <span
+                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400"
+                            >{user.presence_status || "OFFLINE"}</span
+                          >
+                          <div
+                            class="w-2 h-2 rounded-full {presenceColors[
+                              user.presence_status
+                            ] || presenceColors.OFFLINE}"
+                          ></div>
+                        </div>
+                      </label>
+                    {/each}
+                  </div>
+                {/if}
               {/if}
             </div>
             <div>
