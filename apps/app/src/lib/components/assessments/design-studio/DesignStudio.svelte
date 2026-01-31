@@ -91,7 +91,22 @@
   let layout = $state(template.layout_schema);
   let activePageId = $state("");
 
-  // Initialize activePageId once layout is available
+  // Sync layout from template prop when it loads or changes
+  $effect(() => {
+    if (template.layout_schema && template.layout_schema.pages) {
+      // Sync layout if current local layout is effectively empty
+      if (
+        (layout.pages.length === 0 ||
+          (layout.pages.length === 1 &&
+            layout.pages[0].elements.length === 0)) &&
+        template.layout_schema.pages.length > 0
+      ) {
+        layout = template.layout_schema;
+      }
+    }
+  });
+
+  // Ensure activePageId is set when layout becomes available
   $effect(() => {
     if (layout.pages.length > 0 && !activePageId) {
       activePageId = layout.pages[0].id;
@@ -321,7 +336,7 @@
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("universityId", universityId);
+      formData.append("university_id", universityId);
       formData.append("name", file.name);
       formData.append("type", "image");
 
@@ -551,42 +566,69 @@
   }
 
   function deleteRow() {
-    if (!selectedElement || selectedElement.type !== "table" || !activeCellId)
-      return;
-    const data = selectedElement.tableData;
+    if (!selectedElement || selectedElement.type !== "table") return;
+    const pageIndex = layout.pages.findIndex((p: any) => p.id === activePageId);
+    if (pageIndex === -1) return;
+
+    const elIndex = layout.pages[pageIndex].elements.findIndex(
+      (e: any) => e.id === selectedElementId,
+    );
+    if (elIndex === -1) return;
+
+    const data = JSON.parse(
+      JSON.stringify(layout.pages[pageIndex].elements[elIndex].tableData),
+    );
     if (data.rows.length <= 1) return;
 
-    const rowIndex = data.rows.findIndex((r: any) =>
-      r.cells.some((c: any) => c.id === activeCellId),
-    );
-    if (rowIndex === -1) return;
+    let rowIndex = -1;
+    if (activeCellId) {
+      rowIndex = data.rows.findIndex((r: any) =>
+        r.cells.some((c: any) => c.id === activeCellId),
+      );
+    }
+
+    if (rowIndex === -1) rowIndex = data.rows.length - 1;
 
     data.rows.splice(rowIndex, 1);
+    layout.pages[pageIndex].elements[elIndex].tableData = data;
+    layout = { ...layout };
+    template.layout_schema = layout;
     activeCellId = null;
-    selectedElement.tableData = { ...data };
-    template.layout_schema = { ...layout };
   }
 
   function deleteColumn() {
-    if (!selectedElement || selectedElement.type !== "table" || !activeCellId)
-      return;
-    const data = selectedElement.tableData;
+    if (!selectedElement || selectedElement.type !== "table") return;
+    const pageIndex = layout.pages.findIndex((p: any) => p.id === activePageId);
+    if (pageIndex === -1) return;
+
+    const elIndex = layout.pages[pageIndex].elements.findIndex(
+      (e: any) => e.id === selectedElementId,
+    );
+    if (elIndex === -1) return;
+
+    const data = JSON.parse(
+      JSON.stringify(layout.pages[pageIndex].elements[elIndex].tableData),
+    );
     if (data.rows[0].cells.length <= 1) return;
 
     let colIndex = -1;
-    data.rows.forEach((r: any) => {
-      const idx = r.cells.findIndex((c: any) => c.id === activeCellId);
-      if (idx !== -1) colIndex = idx;
-    });
+    if (activeCellId) {
+      data.rows.forEach((r: any) => {
+        const idx = r.cells.findIndex((c: any) => c.id === activeCellId);
+        if (idx !== -1) colIndex = idx;
+      });
+    }
 
-    if (colIndex === -1) return;
+    if (colIndex === -1) colIndex = data.rows[0].cells.length - 1;
 
     data.rows.forEach((r: any) => {
       r.cells.splice(colIndex, 1);
     });
+
+    layout.pages[pageIndex].elements[elIndex].tableData = data;
+    layout = { ...layout };
+    template.layout_schema = layout;
     activeCellId = null;
-    selectedElement.tableData = { ...data };
-    template.layout_schema = { ...layout };
   }
 
   function triggerFormat(cmd: string, val: string | null = null) {

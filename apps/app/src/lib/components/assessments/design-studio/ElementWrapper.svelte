@@ -60,14 +60,25 @@
 
     if (type === "resize") {
       e.stopPropagation();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       isResizing = true;
       activeHandle = handle || null;
     } else {
-      isDragging = true;
-      // We only capture if NOT editing to allow selection/caret placement
-      if (!isEditing) {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      // If already selected, a second click should enter edit mode
+      if (
+        selected &&
+        (element.type === "text" || element.type === "table") &&
+        !isEditing
+      ) {
+        isEditing = true;
+        // Don't capture if we're moving into edit mode
+        isDragging = false;
+      } else {
+        isDragging = true;
+        // We only capture if NOT editing to allow selection/caret placement
+        if (!isEditing) {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        }
       }
     }
 
@@ -162,7 +173,6 @@
   onpointerdown={(e) => handlePointerDown(e, "move")}
   onpointermove={handlePointerMove}
   onpointerup={handlePointerUp}
-  ondblclick={handleDoubleClick}
 >
   <!-- Content Slot -->
   <div
