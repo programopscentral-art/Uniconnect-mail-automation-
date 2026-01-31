@@ -1,6 +1,6 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { updateUserPresence, batchClearPresence } from '$shared/db/users';
+import { updateUserPresence, batchClearPresence } from '@uniconnect/shared';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
