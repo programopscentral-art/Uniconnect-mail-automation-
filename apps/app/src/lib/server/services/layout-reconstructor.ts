@@ -63,14 +63,14 @@ export class LayoutReconstructor {
             else mimeType = 'image/png';
         }
 
-        // Broad fallback strategy: Try v1 first (more stable for some keys), then v1beta
-        const apiVersions = ["v1", undefined]; // undefined = library default (v1beta)
+        // Resilience: Priority models discovered via API listing
+        const apiVersions = ["v1", undefined];
         const modelsToTry = [
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-002",
-            "gemini-1.5-pro",
-            "gemini-pro-vision"
+            "gemini-2.0-flash",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash", // Legacy fallback
+            "gemini-1.5-pro"
         ];
 
         let result: any = null;
@@ -112,9 +112,10 @@ export class LayoutReconstructor {
 
         // --- FINAL RESORT: Raw REST Fetch (Bypass Library) ---
         if (!result) {
-            console.log(`[RECONSTRUCTOR] 🚨 SDK Exhausted. Attempting Direct REST Fallback...`);
+            console.log(`[RECONSTRUCTOR] 🚨 SDK Exhausted. Attempting Direct REST Fallback with 2.0-flash...`);
             try {
-                const restUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                // Using v1 endpoint which is more stable for confirmed 2.x keys
+                const restUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 const restResp = await fetch(restUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
