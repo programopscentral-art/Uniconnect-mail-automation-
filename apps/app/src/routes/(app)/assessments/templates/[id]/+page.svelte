@@ -6,9 +6,13 @@
 
   let { data }: { data: PageData } = $props();
 
-  let template = $state(data.template || {});
+  let initialTemplate = data.template;
+  let template = $state(initialTemplate || {});
+
   $effect(() => {
-    template = data.template || {};
+    if (data.template) {
+      template = data.template;
+    }
   });
 
   let isSaving = $state(false);

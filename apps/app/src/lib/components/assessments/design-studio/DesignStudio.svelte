@@ -513,6 +513,8 @@
             {#each layout.pages as page, i}
               <button
                 onclick={() => (activePageId = page.id)}
+                aria-label="Switch to Page {i + 1}"
+                title="Page {i + 1}"
                 class="w-full aspect-[1/1.41] bg-white rounded-sm mb-4 border-4 {activePageId ===
                 page.id
                   ? 'border-indigo-500 shadow-2xl'

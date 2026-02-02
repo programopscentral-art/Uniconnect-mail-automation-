@@ -70,7 +70,10 @@
   })()
     ? 'monospace'
     : 'inherit'};"
-  tabindex="0"
+  tabindex={isEditable ? 0 : -1}
+  role="textbox"
+  aria-label={placeholder || "Editable Content"}
+  aria-multiline={multiline}
   data-placeholder={placeholder}
 ></div>
 

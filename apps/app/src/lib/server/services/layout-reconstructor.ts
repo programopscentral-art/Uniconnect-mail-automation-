@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GEMINI_API_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 /**
  * LayoutReconstructor Service
@@ -88,7 +88,7 @@ export class LayoutReconstructor {
     static async reconstruct(file: File, name: string, examType: string, universityId?: string): Promise<LayoutSchema> {
         console.log(`[RECONSTRUCTOR] 🚀 Universal AI Analysis Started: ${file.name} (Size: ${file.size} bytes)`);
 
-        const GEMINI_KEY = GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI';
+        const GEMINI_KEY = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI';
 
         if (!GEMINI_KEY || GEMINI_KEY.length < 10) {
             console.error('[RECONSTRUCTOR] ❌ Critical: No valid Gemini API Key found.');
