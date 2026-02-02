@@ -44,7 +44,14 @@
     formData.append("dryRun", "true");
 
     try {
-      const res = await fetch("/api/templates/extract", {
+      // Step 0: Check Health Proxy
+      const healthRes = await fetch("/api/template/extractor-health");
+      const healthData = await healthRes.json();
+      if (!healthRes.ok || !healthData.ok) {
+        throw new Error("Extractor unreachable");
+      }
+
+      const res = await fetch("/api/template/extract", {
         method: "POST",
         body: formData,
       });
@@ -55,14 +62,20 @@
         metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        // Clean error message for premium feel
-        errorMsg =
-          err.message ||
-          "We encountered an issue while processing your document layout.";
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        if (res.status === 404) {
+          errorMsg =
+            "Extractor returned 404: Service misconfigured or wrong route.";
+        } else {
+          errorMsg =
+            err.error ||
+            err.message ||
+            "We encountered an issue while processing your document layout.";
+        }
       }
     } catch (e: any) {
       errorMsg =
+        e.message ||
         "System Connectivity Error: The layout analysis engine is currently unreachable.";
     } finally {
       isAnalyzing = false;
@@ -87,7 +100,7 @@
       // handle the final saving. However, the user asked to proxy everything.
       // I'll update the process route itself to use the proxy logic or
       // point it to a consistent endpoint.
-      const res = await fetch("/api/templates/extract", {
+      const res = await fetch("/api/template/extract", {
         method: "POST",
         body: formData,
       });

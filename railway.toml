@@ -10,7 +10,7 @@ healthcheckInterval = 30
 
 [services.extractor]
 # High-Fidelity Layout Analysis Engine (Python/OpenCV)
-startCommand = "gunicorn --bind 0.0.0.0:$PORT --timeout 120 template_extractor:app"
+startCommand = "gunicorn -w 2 -k gthread -b 0.0.0.0:$PORT template_extractor:app"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 healthcheckInterval = 30
