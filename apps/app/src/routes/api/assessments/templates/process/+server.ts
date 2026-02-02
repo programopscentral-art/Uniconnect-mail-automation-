@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const formData = await request.formData();
     const name = formData.get('name') as string;
     const exam_type = (formData.get('exam_type') || formData.get('examType') || 'MID1') as string;
-    const universityId = (formData.get('universityId') as string) || locals.user.university_id;
+    const universityId = (formData.get('universityId') as string) || locals.user.university_id || '';
     const file = formData.get('file') as File;
     const dryRun = formData.get('dryRun') === 'true';
 
