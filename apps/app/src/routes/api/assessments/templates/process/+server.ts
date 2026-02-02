@@ -77,14 +77,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             let serviceRoot = env.EXTRACTOR_SERVICE_URL;
 
             if (!serviceRoot) {
-                const isRailway = env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME || env.RAILWAY_ENVIRONMENT;
-
-                if (isRailway) {
-                    // Railway standard internal networking is http://<service-name>:<port>
-                    serviceRoot = 'http://extractor:5000';
-                } else {
-                    serviceRoot = 'http://localhost:5000';
-                }
+                // Consolidation: Run as sidecar on localhost:5000 for absolute reliability
+                serviceRoot = 'http://localhost:5000';
             }
 
             serviceRoot = serviceRoot.replace(/\/$/, '');

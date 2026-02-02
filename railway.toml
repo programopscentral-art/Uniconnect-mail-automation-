@@ -4,18 +4,12 @@
 [[services]]
 name = "app"
 source = "."
-start.command = "node apps/app/build/index.js"
+start.command = "gunicorn --bind 0.0.0.0:5000 --workers 1 --timeout 120 template_extractor:app & node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
 source = "."
 start.command = "node apps/worker/dist/index.js"
-
-[[services]]
-name = "extractor"
-source = "."
-
-start.command = "gunicorn --bind 0.0.0.0:5000 --bind 0.0.0.0:$PORT --workers 1 --timeout 120 template_extractor:app"
 
 [[services]]
 name = "redis"
