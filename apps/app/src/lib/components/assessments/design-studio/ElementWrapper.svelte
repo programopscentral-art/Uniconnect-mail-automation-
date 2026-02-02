@@ -75,21 +75,18 @@
       isResizing = true;
       activeHandle = handle || null;
     } else {
-      // If already selected, a second click should enter edit mode
+      // FIX: Single click on already selected element enters edit mode
       if (
         selected &&
         (element.type === "text" || element.type === "table") &&
         !isEditing
       ) {
         isEditing = true;
-        // Don't capture if we're moving into edit mode
         isDragging = false;
       } else {
         isDragging = true;
-        // We only capture if NOT editing to allow selection/caret placement
-        if (!isEditing) {
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        }
+        // Only capture if NOT moving into edit mode
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }
     }
 
@@ -245,7 +242,8 @@
     style="
     font-family: {element.styles?.fontFamily || 'inherit'};
     font-size: {element.styles?.fontSize || 14}px;
-    color: {element.styles?.color || 'inherit'};
+    color: {element.styles?.color ||
+      (element.type === 'line' ? 'transparent' : 'inherit')};
     line-height: {element.styles?.lineHeight || 1.2};
     letter-spacing: {element.styles?.letterSpacing || 0}px;
     font-weight: {element.styles?.fontWeight || 'normal'};
@@ -270,13 +268,19 @@
       />
     {:else if element.type === "image"}
       <img
-        src={element.src || "https://via.placeholder.com/150?text=Upload+Image"}
+        src={element.src ||
+          "https://images.unsplash.com/photo-1633409302455-582aba790249?q=80&w=200&auto=format&fit=crop"}
         alt="Canvas element"
         class="max-w-full max-h-full object-contain pointer-events-none"
       />
-    {:else if element.type === "shape"}
+    {:else if element.type === "shape" || element.type === "line"}
       <div
-        class="w-full h-full border-2 border-black pointer-events-none"
+        class="w-full h-full {element.type === 'line'
+          ? 'border-t-2'
+          : 'border-2'}"
+        style="border-color: {element.color ||
+          element.styles?.color ||
+          '#000'}; background-color: {element.backgroundColor || 'transparent'}"
       ></div>
     {/if}
   </div>

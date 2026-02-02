@@ -49,7 +49,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     // --- High-Fidelity Layout Reconstruction ---
     let detectedLayout;
     try {
-        detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type, universityId);
+        // Prepare data for Python service
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const extractFormData = new FormData();
+        extractFormData.append('file', new Blob([buffer]), file.name);
+
+        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Python Extraction Service (http://localhost:5000/api/extract-template)`);
+
+        const extractRes = await fetch('http://localhost:5000/api/extract-template', {
+            method: 'POST',
+            body: extractFormData
+        });
+
+        if (!extractRes.ok) {
+            const errBody = await extractRes.text();
+            throw new Error(`Extraction Service Failed (${extractRes.status}): ${errBody}`);
+        }
+
+        const extractData = await extractRes.json();
+        if (!extractData.success) {
+            throw new Error(extractData.error || 'Unknown extraction error');
+        }
+
+        detectedLayout = extractData.data;
+        console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${detectedLayout.pages[0].elements.length} elements detected`);
     } catch (re: any) {
         console.error(`[TEMPLATE_IMPORT] ❌ Reconstruction Error:`, re);
         return json({

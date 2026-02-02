@@ -192,16 +192,6 @@
     layout = { ...layout };
   }
 
-  function deleteRow() {
-    if (!selectedElement || selectedElement.type !== "table" || !selectedCell)
-      return;
-    if (selectedElement.tableData.rows.length <= 1) return;
-    selectedElement.tableData.rows.splice(selectedCell.rowIndex, 1);
-    selectedCell = null;
-    activeCellId = null;
-    layout = { ...layout };
-  }
-
   function deleteCol() {
     if (!selectedElement || selectedElement.type !== "table" || !selectedCell)
       return;
@@ -212,7 +202,8 @@
     });
     selectedCell = null;
     activeCellId = null;
-    layout = { ...layout };
+    // Force reactivity update
+    layout = JSON.parse(JSON.stringify(layout));
   }
 
   function addElement(type: string) {
@@ -445,7 +436,10 @@
                   <button
                     onclick={() => {
                       const newEl = addElement("image");
-                      if (newEl) (newEl as any).src = asset.url;
+                      if (newEl) {
+                        newEl.src = asset.url;
+                        layout = JSON.parse(JSON.stringify(layout));
+                      }
                     }}
                     aria-label="Add asset {asset.name}"
                     title="Add asset {asset.name}"

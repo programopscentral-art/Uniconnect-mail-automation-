@@ -369,7 +369,7 @@
                 <div
                   class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
                 ></div>
-                <div class="p-12 overflow-auto max-h-[60vh] scrollbar-hide">
+                <div class="p-12 overflow-visible">
                   <LayoutCanvas
                     layout={detectedLayout}
                     zoom={previewZoom}
