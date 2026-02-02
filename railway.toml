@@ -16,6 +16,7 @@ start.command = "node apps/worker/dist/index.js"
 [[services]]
 name = "extractor"
 source = "."
+build.command = "pip install -r requirements.txt"
 start.command = "python template_extractor.py"
 
 [[services]]
