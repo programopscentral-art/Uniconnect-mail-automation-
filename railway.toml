@@ -4,13 +4,11 @@
 [[services]]
 name = "app"
 source = "."
-build.command = "pnpm install && pnpm build --filter app"
-start.command = "node apps/app/build/index.js"
+start.command = "PORT=5000 python3 template_extractor.py & node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
 source = "."
-build.command = "pnpm install && pnpm build --filter worker"
 start.command = "node apps/worker/dist/index.js"
 
 [[services]]
