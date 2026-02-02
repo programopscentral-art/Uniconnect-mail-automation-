@@ -105,26 +105,23 @@ export class LayoutReconstructor {
         // Resilience: Priority models discovered via API listing
         const apiVersions = ["v1", undefined];
         const modelsToTry = [
-            "gemini-2.0-flash",
             "gemini-2.5-flash",
-            "gemini-2.0-flash-lite",
-            "gemini-1.5-flash", // Legacy fallback
-            "gemini-1.5-pro"
+            "gemini-2.0-flash",
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash"
         ];
 
         let result: any = null;
         let lastError: any = null;
+        let isLeakedKey = false;
 
         for (const apiVer of apiVersions) {
             try {
-                // In many SDK versions, settings are passed in a second arg, or via getGenerativeModel
-                // Using standard 1-arg constructor for safest compatibility
                 const genAI = new GoogleGenerativeAI(apiKey);
 
                 for (const modelId of modelsToTry) {
                     try {
                         console.log(`[RECONSTRUCTOR] 🤖 Trying model ${modelId} @ API ${apiVer || 'v1beta'}`);
-                        // Some versions allow passing requestOptions to getGenerativeModel
                         const model = genAI.getGenerativeModel(
                             { model: modelId },
                             apiVer ? { apiVersion: apiVer } as any : undefined
@@ -141,6 +138,9 @@ export class LayoutReconstructor {
                     } catch (e: any) {
                         console.warn(`[RECONSTRUCTOR] ⚠️ Model ${modelId} @ ${apiVer || 'v1beta'} failed:`, e.message);
                         lastError = e;
+                        if (e.message?.includes('leaked') || e.message?.includes('PERMISSION_DENIED')) {
+                            isLeakedKey = true;
+                        }
                     }
                 }
                 if (result) break;
@@ -151,10 +151,9 @@ export class LayoutReconstructor {
 
         // --- FINAL RESORT: Raw REST Fetch (Bypass Library) ---
         if (!result) {
-            console.log(`[RECONSTRUCTOR] 🚨 SDK Exhausted. Attempting Direct REST Fallback with 2.0-flash...`);
+            console.log(`[RECONSTRUCTOR] 🚨 SDK Exhausted. Attempting Direct REST Fallback with 2.5-flash...`);
             try {
-                // Using v1 endpoint which is more stable for confirmed 2.x keys
-                const restUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const restUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
                 const restResp = await fetch(restUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -178,14 +177,18 @@ export class LayoutReconstructor {
                 } else {
                     const errTxt = await restResp.text();
                     console.error(`[RECONSTRUCTOR] ❌ Direct REST Failed (${restResp.status}):`, errTxt);
+                    if (errTxt.includes('leaked') || errTxt.includes('PERMISSION_DENIED')) {
+                        isLeakedKey = true;
+                    }
                 }
             } catch (fetchErr: any) {
                 console.error(`[RECONSTRUCTOR] ❌ Direct REST Crash:`, fetchErr.message);
             }
         }
 
-        if (!result && lastError) {
-            throw new Error(`Gemini Exhausted (including REST fallback): ${lastError.message}`);
+        if (!result) {
+            const finalMsg = isLeakedKey ? 'PERMISSION_DENIED: API Key reported as leaked' : (lastError?.message || 'Unknown Gemini Error');
+            throw new Error(`Gemini Exhausted (including REST fallback): ${finalMsg}`);
         }
 
         const response = await result.response;
