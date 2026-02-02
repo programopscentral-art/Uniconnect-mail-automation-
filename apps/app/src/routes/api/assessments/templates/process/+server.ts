@@ -91,18 +91,22 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
         const timestamp = Date.now();
         const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${timestamp}`;
 
+        console.log(`[TEMPLATE_IMPORT] 💾 Saving to DB: slug="${slug}", universityId="${universityId}"`);
+
         const template = await createAssessmentTemplate({
             university_id: universityId,
-            name: `${name} (v${new Date().toLocaleDateString().replace(/\//g, '.')}.${Math.floor(Date.now() / 1000).toString().slice(-4)})`, // Requirement B4
+            name: `${name} (v${new Date().toLocaleDateString().replace(/\//g, '.')}.${Math.floor(Date.now() / 1000).toString().slice(-4)})`,
             slug,
             exam_type,
             status: 'draft',
-            source_type: 'imported', // Required field
-            layout_schema: JSON.parse(JSON.stringify(validation.data)), // Requirement B3: Sanitize
-            config: JSON.parse(JSON.stringify(defaultConfig)), // Requirement B3: Sanitize
-            assets: [], // Mandatory empty assets list
+            source_type: 'imported',
+            layout_schema: JSON.parse(JSON.stringify(validation.data)),
+            config: JSON.parse(JSON.stringify(defaultConfig)),
+            assets: [],
             created_by: locals.user.id
         });
+
+        console.log(`[TEMPLATE_IMPORT] ✅ Successfully saved template: ${template.id}`);
 
         return json({
             success: true,
@@ -110,8 +114,13 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
             message: 'Template layout reconstructed and isolated. Review in Studio.'
         });
     } catch (e: any) {
-        console.error(`[TEMPLATE_IMPORT] ❌ Db Error:`, e);
-        throw error(500, e.message || 'Failed to save reconstructed template');
+        console.error(`[TEMPLATE_IMPORT] ❌ SERVER CRASH:`, e);
+        return json({
+            success: false,
+            message: e.message || 'Internal Server Error',
+            detail: e.stack || 'No stack trace',
+            type: 'SERVER_CRASH'
+        }, { status: 500 });
     }
 };
 

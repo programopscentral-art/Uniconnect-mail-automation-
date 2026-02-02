@@ -131,11 +131,14 @@ export class LayoutReconstructor {
     private static async analyzeWithGemini(file: File, name: string, examType: string, apiKey: string): Promise<LayoutSchema | null> {
         console.log(`[RECONSTRUCTOR] 🤖 Calling Gemini for ${name}...`);
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+        const genAI = new GoogleGenerativeAI(apiKey.trim());
         const buffer = Buffer.from(await file.arrayBuffer());
         const base64 = buffer.toString('base64');
+
+        // Resilience: Try different model identifiers to bypass "NOT FOUND" (404) errors
+        const modelsToTry = ["gemini-1.5-flash", "models/gemini-1.5-flash"];
+        let result: any = null;
+        let lastError: any = null;
 
         const prompt = `
             Act as a Principal Layout Architect. Your task is to extract the visual structure and content of this assessment paper with millimeter precision. 
@@ -169,10 +172,25 @@ export class LayoutReconstructor {
             Return ONLY raw JSON. No markdown blocks. No explanations.
         `;
 
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: base64, mimeType: file.type || "application/pdf" } }
-        ]);
+        for (const modelId of modelsToTry) {
+            try {
+                console.log(`[RECONSTRUCTOR] 🤖 Attempting Gemini Model: ${modelId}`);
+                const model = genAI.getGenerativeModel({ model: modelId });
+                result = await model.generateContent([
+                    prompt,
+                    { inlineData: { data: base64, mimeType: file.type || "application/png" } }
+                ]);
+                if (result) break;
+            } catch (e: any) {
+                console.warn(`[RECONSTRUCTOR] ⚠️ Model ${modelId} failed:`, e.message);
+                lastError = e;
+            }
+        }
+
+        if (!result && lastError) {
+            console.error('[RECONSTRUCTOR] ❌ Gemini Pipeline Failed:', lastError);
+            throw new Error(`AI Analysis Failed (Gemini): ${lastError.message || 'Model Not Found'}`);
+        }
 
         const response = await result.response;
         const text = response.text();

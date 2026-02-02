@@ -38,6 +38,10 @@
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
         errorMsg = `[ERROR ${res.status}] ${err.message || "Analysis Failed"}`;
+        if (err.detail) {
+          console.error("Analysis Detail:", err.detail);
+          errorMsg += `\nDetail: ${err.detail.slice(0, 100)}...`;
+        }
       }
     } catch (e: any) {
       errorMsg = `Network Error: ${e.message || "Unknown Connection Issue"}`;
