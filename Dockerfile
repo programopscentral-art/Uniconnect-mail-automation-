@@ -33,12 +33,7 @@ RUN pnpm run build
 
 # Production stage (Unified)
 FROM base AS production
-COPY --from=build /app/apps/app/build /app/apps/app/build
-COPY --from=build /app/apps/worker/dist /app/apps/worker/dist
-COPY --from=build /app/node_modules /app/node_modules
-COPY --from=build /app/package.json /app/package.json
-# Ensure Python files are copied if not already in base
-COPY template_extractor.py /app/template_extractor.py
+COPY --from=build /app /app
 
 EXPOSE 3000
 ENV PORT=3000

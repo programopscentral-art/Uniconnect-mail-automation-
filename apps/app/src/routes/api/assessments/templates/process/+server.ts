@@ -54,12 +54,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const extractFormData = new FormData();
         extractFormData.append('file', new Blob([buffer]), file.name);
 
-        // Deployment Readiness: Use local sidecar or ENV
+        // Deployment Readiness: Use ENV or detect separate service
         let serviceRoot = env.EXTRACTOR_SERVICE_URL;
 
         if (!serviceRoot) {
-            // In our sidecar architecture, the analysis engine runs on port 5000
-            serviceRoot = 'http://localhost:5000';
+            const isRailway = env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME || env.RAILWAY_ENVIRONMENT;
+
+            if (isRailway) {
+                // If separate services, use hostname 'extractor'
+                // Note: This requires the user to set up a Railway domain for 'extractor' 
+                // or use internal networking.
+                serviceRoot = 'http://extractor.railway.internal:5000';
+            } else {
+                serviceRoot = 'http://localhost:5000';
+            }
         }
 
         serviceRoot = serviceRoot.replace(/\/$/, '');

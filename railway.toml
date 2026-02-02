@@ -4,7 +4,7 @@
 [[services]]
 name = "app"
 source = "."
-start.command = "PORT=5000 python3 template_extractor.py & node apps/app/build/index.js"
+start.command = "node apps/app/build/index.js"
 
 [[services]]
 name = "worker"
