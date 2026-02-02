@@ -89,8 +89,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             serviceRoot = serviceRoot.replace(/\/$/, '');
             const extractUrl = `${serviceRoot}/api/extract-template`;
-
-            console.log(`[TEMPLATE_IMPORT] 🛰️ Target Extraction Endpoint: ${extractUrl}`);
+            console.log(`[TEMPLATE_IMPORT] 🛰️ CALLING: ${extractUrl}`);
 
             let extractRes;
             try {
@@ -99,9 +98,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     body: extractFormData
                 });
             } catch (fetchErr: any) {
-                console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error:`, fetchErr);
+                console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error (${extractUrl}):`, fetchErr.message);
                 // Privacy: Do not show internal URLs to the user in the frontend error
-                throw new Error(`System Connectivity Error: The layout analysis engine is currently unreachable. Please try again in a few minutes or contact support.`);
+                throw new Error(`System Connectivity Error: The layout analysis engine (${serviceRoot}) is currently unreachable. Please ensure the 'extractor' service is running on Railway.`);
             }
 
             if (!extractRes.ok) {

@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 from google.cloud import vision
 from google.oauth2 import service_account
 import io
@@ -47,6 +48,10 @@ class TemplateExtractor:
         # 2. OpenCV for Layout (Lines/Tables)
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if img is None:
+            raise Exception("Failed to decode image. The file may be corrupted or in an unsupported format.")
+            
         lines = self._detect_structural_lines(img)
         
         # 3. Parse and Map
@@ -197,6 +202,14 @@ class TemplateExtractor:
 app = Flask(__name__)
 CORS(app)
 extractor = TemplateExtractor()
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({
+        'status': 'ok',
+        'vision_initialized': extractor.client is not None,
+        'version': '1.1.1'
+    })
 
 @app.route('/api/extract-template', methods=['POST'])
 def extract():
