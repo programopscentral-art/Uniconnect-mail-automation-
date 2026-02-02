@@ -88,7 +88,7 @@
     transition:fade
   >
     <div
-      class="bg-[#121212] rounded-[3rem] w-full max-w-6xl h-[85vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden"
+      class="bg-[#121212] rounded-[3rem] w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden"
       transition:fly={{ y: 30, duration: 500 }}
     >
       <!-- Header -->
@@ -130,10 +130,10 @@
         </button>
       </div>
 
-      <div class="flex-1 overflow-hidden flex">
+      <div class="flex-1 overflow-hidden flex min-h-0">
         <!-- Sidebar -->
         <div
-          class="w-80 border-r border-white/5 p-10 space-y-8 bg-black/10 overflow-y-auto shrink-0"
+          class="w-80 min-w-[320px] border-r border-white/5 p-10 space-y-8 bg-black/10 overflow-y-auto shrink-0 scrollbar-hide"
         >
           {#if step === 1}
             <div class="space-y-6">
@@ -251,7 +251,7 @@
 
           {#if errorMsg}
             <div
-              class="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest"
+              class="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest whitespace-pre-wrap break-words"
             >
               {errorMsg}
             </div>
@@ -260,7 +260,7 @@
 
         <!-- Main Workspace: Centered Preview -->
         <div
-          class="flex-1 bg-black/40 flex flex-col items-center justify-start p-16 overflow-auto relative scrollbar-hide"
+          class="flex-1 bg-black/40 flex flex-col items-center justify-start p-8 md:p-16 overflow-x-hidden overflow-y-auto relative scrollbar-hide"
         >
           {#if step === 1}
             <div

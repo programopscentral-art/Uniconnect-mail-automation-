@@ -54,12 +54,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const extractFormData = new FormData();
         extractFormData.append('file', new Blob([buffer]), file.name);
 
-        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Python Extraction Service (http://localhost:5000/api/extract-template)`);
+        const extractUrl = (env.EXTRACT_SERVICE_URL || 'http://localhost:5000').replace(/\/$/, '') + '/api/extract-template';
+        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Python Extraction Service (${extractUrl})`);
 
-        const extractRes = await fetch('http://localhost:5000/api/extract-template', {
-            method: 'POST',
-            body: extractFormData
-        });
+        let extractRes;
+        try {
+            extractRes = await fetch(extractUrl, {
+                method: 'POST',
+                body: extractFormData
+            });
+        } catch (fetchErr: any) {
+            console.error(`[TEMPLATE_IMPORT] ❌ Fetch Failed:`, fetchErr);
+            throw new Error(`Extraction service not reachable at ${extractUrl}. Please ensure the Python extractor service is running by executing 'python template_extractor.py'.`);
+        }
 
         if (!extractRes.ok) {
             const errBody = await extractRes.text();
