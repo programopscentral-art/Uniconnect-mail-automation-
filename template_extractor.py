@@ -195,16 +195,24 @@ extractor = TemplateExtractor()
 
 @app.route('/api/extract-template', methods=['POST'])
 def extract():
+    print(f"[EXTRACTOR] 📥 Incoming request: {request.method} {request.path}")
     try:
         if 'file' in request.files:
-            content = request.files['file'].read()
+            file = request.files['file']
+            print(f"[EXTRACTOR] 📄 Processing file: {file.filename}")
+            content = file.read()
         else:
             data = request.json.get('image', '')
+            print(f"[EXTRACTOR] 🖼️ Processing base64 image data")
             content = base64.b64decode(data.split(',')[-1])
         
         result = extractor.extract_template_structure(content)
+        print(f"[EXTRACTOR] ✅ Successfully extracted {len(result.get('pages', [])[0].get('elements', []))} elements")
         return jsonify({'success': True, 'data': result})
     except Exception as e:
+        print(f"[EXTRACTOR] ❌ Error during extraction: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':

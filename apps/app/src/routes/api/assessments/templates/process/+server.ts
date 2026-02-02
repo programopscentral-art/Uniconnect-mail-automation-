@@ -61,10 +61,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const isRailway = env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME || env.RAILWAY_ENVIRONMENT;
 
             if (isRailway) {
-                // If separate services, use hostname 'extractor'
-                // Note: This requires the user to set up a Railway domain for 'extractor' 
-                // or use internal networking.
-                serviceRoot = 'http://extractor.railway.internal:5000';
+                // Railway standard internal networking is http://<service-name>:<port>
+                serviceRoot = 'http://extractor:5000';
             } else {
                 serviceRoot = 'http://localhost:5000';
             }
