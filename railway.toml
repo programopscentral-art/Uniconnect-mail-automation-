@@ -1,21 +1,23 @@
-# Railway configuration for monorepo starting from ROOT
-# This ensures workspace dependencies are correctly built.
+[build]
+builder = "nixpacks"
 
-[[services]]
-name = "app"
-source = "."
-start.command = "node apps/app/build/index.js"
+[services.app]
+# UniConnect Main SvelteKit Application
+startCommand = "npm run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+healthcheckInterval = 30
 
-[[services]]
-name = "worker"
-source = "."
-start.command = "node apps/worker/dist/index.js"
+[services.extractor]
+# High-Fidelity Layout Analysis Engine (Python/OpenCV)
+startCommand = "gunicorn --bind 0.0.0.0:$PORT --timeout 120 template_extractor:app"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+healthcheckInterval = 30
 
-[[services]]
-name = "extractor"
-source = "."
-start.command = "gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 template_extractor:app"
-
-[[services]]
-name = "redis"
-image = "redis:7-alpine"
+[services.worker]
+# Background Job Worker for Emails/Campaigns
+startCommand = "npm run worker"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 100
+healthcheckInterval = 30

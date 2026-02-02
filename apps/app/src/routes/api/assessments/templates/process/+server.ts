@@ -8,23 +8,24 @@ import { z } from 'zod';
 
 // Zod Schema for Layout Validation (Master Source of Truth)
 const LayoutElementSchema = z.discriminatedUnion('type', [
-    z.object({ id: z.string(), type: z.literal('text'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), content: z.string(), styles: z.record(z.any()).optional() }).passthrough(),
-    z.object({ id: z.string(), type: z.literal('image'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), src: z.string(), alt: z.string().optional(), styles: z.record(z.any()).optional() }).passthrough(),
-    z.object({ id: z.string(), type: z.literal('table'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), tableData: z.any(), styles: z.record(z.any()).optional() }).passthrough(),
-    z.object({ id: z.string(), type: z.literal('line'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), orientation: z.enum(['horizontal', 'vertical']), thickness: z.number(), color: z.string(), styles: z.record(z.any()).optional() }).passthrough(),
-    z.object({ id: z.string(), type: z.literal('shape'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), shapeType: z.enum(['rectangle', 'circle']), backgroundColor: z.string(), borderWidth: z.number(), borderColor: z.string(), styles: z.record(z.any()).optional() }).passthrough()
+    z.object({ id: z.string(), type: z.literal('text'), x: z.number(), y: z.number(), width: z.number(), height: z.number(), text: z.string(), style: z.record(z.any()).optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('rect'), x: z.number(), y: z.number(), width: z.number(), height: z.number(), strokeWidth: z.number(), backgroundColor: z.string().optional(), borderColor: z.string().optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('line'), x1: z.number(), y1: z.number(), x2: z.number(), y2: z.number(), strokeWidth: z.number(), orientation: z.enum(['horizontal', 'vertical']).optional(), color: z.string().optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('image-slot'), x: z.number(), y: z.number(), width: z.number(), height: z.number(), slotName: z.string() }).passthrough()
 ]);
 
 const LayoutSchema = z.object({
     page: z.object({
-        width: z.enum(['A4', 'LETTER', 'LEGAL']),
-        unit: z.enum(['mm', 'px']),
-        margins: z.object({ top: z.number(), bottom: z.number(), left: z.number(), right: z.number() })
+        width: z.number(),
+        height: z.number(),
+        unit: z.string().optional()
     }),
     pages: z.array(z.object({
         id: z.string(),
         elements: z.array(LayoutElementSchema)
-    })),
+    })).optional(),
+    elements: z.array(LayoutElementSchema).optional(),
+    dynamicSlots: z.array(z.any()).optional(),
     metadata_fields: z.record(z.string()).optional()
 });
 
@@ -82,8 +83,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     console.error('[TEMPLATE_IMPORT] ❌ Configuration Error: EXTRACTOR_BASE_URL is missing in production');
                     throw new Error('System Configuration Error: The analysis engine URL is not configured (EXTRACTOR_BASE_URL). Please contact support.');
                 }
-                // Local dev fallback
-                serviceRoot = 'http://localhost:5000';
+                // Always throw in current setup to ensure environment variables are used
+                throw new Error('System Error: EXTRACTOR_BASE_URL is not configured.');
             }
 
             serviceRoot = serviceRoot.replace(/\/$/, '');
@@ -109,13 +110,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
 
             const extractData = await extractRes.json();
-            if (!extractData.success) {
-                console.error(`[TEMPLATE_IMPORT] ❌ Business Logic Error:`, extractData.error);
-                throw new Error(extractData.error || 'The analysis engine could not parse this document format.');
-            }
 
-            detectedLayout = extractData.data;
-            console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${detectedLayout.pages[0].elements.length} elements detected`);
+            // Adapt to UniConnect's expected structure + Extract Metadata
+            const elements = extractData.elements || [];
+            const page = extractData.page || { width: 210, height: 297 };
+            const metadata: Record<string, string> = {};
+
+            (extractData.dynamicSlots || []).forEach((slot: any) => {
+                metadata[slot.key] = ""; // Initial empty values for review
+            });
+
+            detectedLayout = {
+                page: { ...page, unit: "mm", margins: { top: 0, bottom: 0, left: 0, right: 0 } },
+                pages: [
+                    { id: "p1", elements: elements }
+                ],
+                metadata_fields: metadata
+            };
+
+            console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${elements.length} elements detected`);
         } catch (re: any) {
             console.error(`[TEMPLATE_IMPORT] ❌ Process Failure:`, re);
             return json({

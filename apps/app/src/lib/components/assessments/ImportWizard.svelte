@@ -44,7 +44,7 @@
     formData.append("dryRun", "true");
 
     try {
-      const res = await fetch("/api/assessments/templates/process", {
+      const res = await fetch("/api/templates/extract", {
         method: "POST",
         body: formData,
       });
@@ -83,7 +83,11 @@
     formData.append("layout", JSON.stringify(detectedLayout));
 
     try {
-      const res = await fetch("/api/assessments/templates/process", {
+      // For final commit, we still use the process route but it should
+      // handle the final saving. However, the user asked to proxy everything.
+      // I'll update the process route itself to use the proxy logic or
+      // point it to a consistent endpoint.
+      const res = await fetch("/api/templates/extract", {
         method: "POST",
         body: formData,
       });
@@ -378,7 +382,7 @@
 
         <!-- Main Workspace area -->
         <div
-          class="flex-1 bg-[#0a0a0a] flex flex-col items-center justify-start p-8 md:p-16 overflow-x-hidden overflow-y-auto relative scrollbar-hide shadow-inner"
+          class="flex-1 bg-[#0a0a0a] flex flex-col items-center justify-start p-8 md:p-16 overflow-auto relative scrollbar-hide shadow-inner min-w-0"
         >
           {#if step === 1}
             <div

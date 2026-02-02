@@ -9,6 +9,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = env.NODE_TLS_REJECT_UNAUTHORIZED || '
 
 console.log("-----------------------------------------");
 console.log("!!! UNICONNECT BOOTING VERSION 2.0.7 !!!");
+console.log(`📡 EXTRACTOR_BASE_URL: ${env.EXTRACTOR_BASE_URL || 'NOT_CONFIGURED'}`);
 console.log("-----------------------------------------");
 
 export const handle: Handle = async ({ event, resolve }) => {

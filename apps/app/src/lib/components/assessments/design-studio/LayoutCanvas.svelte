@@ -64,10 +64,18 @@
         <div
           class="absolute overflow-visible min-h-fit"
           style="
-                left: {el.x}mm; 
-                top: {el.y}mm; 
-                width: {el.w}mm; 
-                height: {el.h}mm;
+                left: {el.x !== undefined ? el.x : el.x1}mm; 
+                top: {el.y !== undefined ? el.y : el.y1}mm; 
+                width: {el.width || el.w || (el.x2 ? el.x2 - el.x1 : 0)}mm; 
+                height: {el.height || el.h || (el.y2 ? el.y2 - el.y1 : 0)}mm;
+                {el.style
+            ? Object.entries(el.style)
+                .map(
+                  ([k, v]) =>
+                    `${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}: ${v}`,
+                )
+                .join('; ')
+            : ''}
                 {el.styles
             ? Object.entries(el.styles)
                 .map(
@@ -79,8 +87,27 @@
               "
         >
           {#if el.type === "text"}
-            {@html el.content}
+            {@html el.text || el.content}
+          {:else if el.type === "rect"}
+            <div
+              style="
+                width: 100%;
+                height: 100%;
+                border: {el.strokeWidth || 1}px solid {el.borderColor ||
+                '#000'};
+                background-color: {el.backgroundColor || 'transparent'};
+              "
+            ></div>
+          {:else if el.type === "image-slot"}
+            <div
+              class="w-full h-full bg-indigo-500/10 border-2 border-dashed border-indigo-500/30 flex flex-col items-center justify-center text-indigo-500/40 p-2 text-center"
+            >
+              <div class="text-[8px] font-black uppercase tracking-tighter">
+                {el.slotName || "image-slot"}
+              </div>
+            </div>
           {:else if el.type === "table"}
+            <!-- existing table logic -->
             <table
               class="w-full h-full border-collapse border border-slate-300"
             >
@@ -109,13 +136,13 @@
           {:else if el.type === "line"}
             <div
               style="
-                    background-color: {el.color}; 
+                    background-color: {el.color || '#000'}; 
                     width: {el.orientation === 'horizontal'
                 ? '100%'
-                : el.thickness + 'px'};
+                : (el.strokeWidth || el.thickness || 1) + 'px'};
                     height: {el.orientation === 'vertical'
                 ? '100%'
-                : el.thickness + 'px'};
+                : (el.strokeWidth || el.thickness || 1) + 'px'};
                   "
             ></div>
           {:else if el.type === "image"}
@@ -126,17 +153,15 @@
             />
           {:else if el.type === "shape"}
             <div
-              style="
-                background-color: {el.backgroundColor || 'transparent'};
-                border: {el.borderWidth || 0}px solid {el.borderColor ||
-                '#000'};
-                border-radius: {el.shapeType === 'circle'
+              style="background-color: {el.backgroundColor ||
+                'transparent'}; border: {el.borderWidth ||
+                0}px solid {el.borderColor ||
+                '#000'}; border-radius: {el.shapeType === 'circle'
                 ? '50%'
-                : el.styles?.borderRadius || '0px'};
-                width: 100%;
-                height: 100%;
-                {el.styles?.borderDash ? `border-style: dashed;` : ''}
-              "
+                : el.styles?.borderRadius ||
+                  '0px'}; width: 100%; height: 100%; {el.styles?.borderDash
+                ? `border-style: dashed;`
+                : ''}"
             ></div>
           {/if}
         </div>
