@@ -26,7 +26,7 @@
     formData.append("dryRun", "true");
 
     try {
-      const res = await fetch("/api/assessments/templates/import", {
+      const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
@@ -36,11 +36,11 @@
         detectedLayout = data.template.layout_schema;
         step = 2;
       } else {
-        const err = await res.json();
-        errorMsg = err.message || "Failed to analyze document";
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        errorMsg = `[ERROR ${res.status}] ${err.message || "Analysis Failed"}`;
       }
-    } catch (e) {
-      errorMsg = "A network error occurred.";
+    } catch (e: any) {
+      errorMsg = `Network Error: ${e.message || "Unknown Connection Issue"}`;
     } finally {
       isAnalyzing = false;
     }
@@ -55,7 +55,7 @@
     formData.append("universityId", universityId);
 
     try {
-      const res = await fetch("/api/assessments/templates/import", {
+      const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
