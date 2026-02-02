@@ -54,8 +54,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const extractFormData = new FormData();
         extractFormData.append('file', new Blob([buffer]), file.name);
 
-        const extractUrl = (env.EXTRACT_SERVICE_URL || 'http://localhost:5000').replace(/\/$/, '') + '/api/extract-template';
-        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Python Extraction Service (${extractUrl})`);
+        // Deployment Readiness: Use EXTRACTOR_SERVICE_URL from ENV
+        const serviceRoot = (env.EXTRACTOR_SERVICE_URL || 'http://localhost:5000').replace(/\/$/, '');
+        const extractUrl = `${serviceRoot}/api/extract-template`;
+
+        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Extraction Service`);
 
         let extractRes;
         try {
@@ -64,29 +67,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 body: extractFormData
             });
         } catch (fetchErr: any) {
-            console.error(`[TEMPLATE_IMPORT] ❌ Fetch Failed:`, fetchErr);
-            throw new Error(`Extraction service not reachable at ${extractUrl}. Please ensure the Python extractor service is running by executing 'python template_extractor.py'.`);
+            console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error:`, fetchErr);
+            // Privacy: Do not show internal URLs to the user in the frontend error
+            throw new Error(`System Connectivity Error: The layout analysis engine is currently unreachable. Please try again in a few minutes or contact support.`);
         }
 
         if (!extractRes.ok) {
             const errBody = await extractRes.text();
-            throw new Error(`Extraction Service Failed (${extractRes.status}): ${errBody}`);
+            console.error(`[TEMPLATE_IMPORT] ❌ Service Error (${extractRes.status}):`, errBody);
+            throw new Error(`Analysis Engine Error: We encountered an issue while processing your document layout.`);
         }
 
         const extractData = await extractRes.json();
         if (!extractData.success) {
-            throw new Error(extractData.error || 'Unknown extraction error');
+            console.error(`[TEMPLATE_IMPORT] ❌ Business Logic Error:`, extractData.error);
+            throw new Error(extractData.error || 'The analysis engine could not parse this document format.');
         }
 
         detectedLayout = extractData.data;
         console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${detectedLayout.pages[0].elements.length} elements detected`);
     } catch (re: any) {
-        console.error(`[TEMPLATE_IMPORT] ❌ Reconstruction Error:`, re);
+        console.error(`[TEMPLATE_IMPORT] ❌ Process Failure:`, re);
         return json({
             success: false,
-            message: re.message || 'AI Analysis Failed',
-            detail: re.stack || 'No stack trace',
-            type: 'RECONSTRUCTION_ERROR'
+            message: re.message || 'System Analysis Failed'
         }, { status: 500 });
     }
 

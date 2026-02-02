@@ -1,5 +1,21 @@
 <script lang="ts">
   import { fade, fly, slide } from "svelte/transition";
+  import {
+    Layout,
+    X,
+    ChevronRight,
+    ChevronLeft,
+    Upload,
+    FileText,
+    Zap,
+    CheckCircle2,
+    AlertCircle,
+    ZoomIn,
+    ZoomOut,
+    Search,
+    Type,
+    ArrowRight,
+  } from "lucide-svelte";
   import LayoutCanvas from "$lib/components/assessments/design-studio/LayoutCanvas.svelte";
 
   let { show = $bindable(false), universityId, onImportComplete } = $props();
@@ -37,14 +53,14 @@
         step = 2;
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        errorMsg = `[ERROR ${res.status}] ${err.message || "Analysis Failed"}`;
-        if (err.detail) {
-          console.error("Analysis Detail:", err.detail);
-          errorMsg += `\nDetail: ${err.detail.slice(0, 100)}...`;
-        }
+        // Clean error message for premium feel
+        errorMsg =
+          err.message ||
+          "We encountered an issue while processing your document layout.";
       }
     } catch (e: any) {
-      errorMsg = `Network Error: ${e.message || "Unknown Connection Issue"}`;
+      errorMsg =
+        "System Connectivity Error: The layout analysis engine is currently unreachable.";
     } finally {
       isAnalyzing = false;
     }
@@ -65,119 +81,126 @@
       });
 
       if (res.ok) {
+        const data = await res.json();
+        onImportComplete(data.template);
         step = 3;
-        setTimeout(() => {
-          show = false;
-          if (onImportComplete) onImportComplete();
-        }, 2000);
       } else {
-        const err = await res.json();
-        errorMsg = err.message || "Failed to finalize import";
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        errorMsg = err.message || "Failed to finalize template import.";
       }
-    } catch (e) {
-      errorMsg = "A network error occurred.";
+    } catch (e: any) {
+      errorMsg =
+        "Connectivity Error: Failed to save the reconstructed template.";
     } finally {
       isAnalyzing = false;
     }
+  }
+
+  function closeModal() {
+    show = false;
+    step = 1;
+    importName = "";
+    importFile = null;
+    errorMsg = "";
   }
 </script>
 
 {#if show}
   <div
-    class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl"
+    class="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm transition-all overflow-hidden"
     transition:fade
   >
     <div
-      class="bg-[#121212] rounded-[3rem] w-full max-w-6xl max-h-[90vh] flex flex-col shadow-2xl border border-white/10 overflow-hidden"
+      class="bg-[#121212] rounded-[2.5rem] w-full max-w-6xl max-h-[90vh] flex flex-col shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden animate-premium-slide"
       transition:fly={{ y: 30, duration: 500 }}
     >
-      <!-- Header -->
-      <div
-        class="px-12 py-8 border-b border-white/5 flex justify-between items-center bg-black/20"
+      <!-- Standardized Header (Matches Design Studio) -->
+      <header
+        class="h-20 border-b border-white/5 bg-[#181818] px-8 flex items-center justify-between shrink-0 z-50 shadow-xl"
       >
-        <div>
-          <h3 class="text-2xl font-black text-white uppercase tracking-tighter">
-            Import <span class="text-indigo-400">Wizard</span>
-          </h3>
-          <p
-            class="text-[10px] font-bold text-white/40 uppercase tracking-[0.2em] mt-1"
-          >
-            Phase {step} of 3: {step === 1
-              ? "Layout Extraction"
-              : step === 2
-                ? "Bypass / Verification"
-                : "Seeding Complete"}
-          </p>
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/20"
+            >
+              <Zap class="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1
+                class="text-[13px] font-black uppercase tracking-[0.25em] text-white"
+              >
+                Import Wizard
+              </h1>
+              <p
+                class="text-[9px] font-bold text-white/30 uppercase tracking-[0.15em] mt-0.5"
+              >
+                Phase {step} of 3: {step === 1
+                  ? "Source Analysis"
+                  : step === 2
+                    ? "Mesh Review"
+                    : "Success"}
+              </p>
+            </div>
+          </div>
         </div>
-        <button
-          onclick={() => (show = false)}
-          aria-label="Close wizard"
-          title="Close wizard"
-          class="p-4 bg-white/5 rounded-full text-white/40 hover:text-white transition-all"
-        >
-          <svg
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M6 18L18 6M6 6l12 12"
-            /></svg
-          >
-        </button>
-      </div>
 
-      <div class="flex-1 overflow-hidden flex min-h-0">
-        <!-- Sidebar -->
+        <button
+          onclick={closeModal}
+          class="p-3 hover:bg-white/5 rounded-2xl text-white/20 hover:text-white transition-all active:scale-90"
+        >
+          <X class="w-5 h-5" />
+        </button>
+      </header>
+
+      <div class="flex-1 overflow-hidden flex min-h-0 bg-[#0a0a0a]">
+        <!-- Sidebar: Premium Glass Properties Panel -->
         <div
-          class="w-80 min-w-[320px] border-r border-white/5 p-10 space-y-8 bg-black/10 overflow-y-auto shrink-0 scrollbar-hide"
+          class="w-80 min-w-[320px] border-r border-white/5 p-10 space-y-10 bg-[#121212] overflow-y-auto shrink-0 scrollbar-hide"
         >
           {#if step === 1}
-            <div class="space-y-6">
-              <div class="space-y-2">
+            <div class="space-y-8 animate-premium-fade">
+              <div class="space-y-3">
                 <label
                   for="import-name"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >Template Name</label
+                  >Blueprint Name</label
                 >
                 <input
                   id="import-name"
                   type="text"
                   bind:value={importName}
                   placeholder="e.g. Crescent MID EXAM"
-                  class="w-full bg-white/5 border border-white/5 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10"
+                  class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10"
                 />
               </div>
-              <div class="space-y-2">
+
+              <div class="space-y-3">
                 <label
                   for="import-exam-type"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >Exam Type</label
+                  >Sequence Mode</label
                 >
-                <select
-                  id="import-exam-type"
-                  bind:value={importExamType}
-                  class="w-full bg-[#1a1a1a] border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer hover:bg-[#222]"
-                >
-                  <option value="MID1" class="bg-[#1a1a1a] py-4"
-                    >Midterm 1</option
+                <div class="relative group">
+                  <select
+                    id="import-exam-type"
+                    bind:value={importExamType}
+                    class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
                   >
-                  <option value="MID2" class="bg-[#1a1a1a] py-4"
-                    >Midterm 2</option
-                  >
-                  <option value="SEM" class="bg-[#1a1a1a] py-4"
-                    >Semester Exam</option
-                  >
-                </select>
+                    <option value="MID1">MIDTERM 1</option>
+                    <option value="MID2">MIDTERM 2</option>
+                    <option value="SEM">SEMESTER FINAL</option>
+                  </select>
+                  <ChevronRight
+                    class="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none transition-transform group-hover:translate-x-1"
+                  />
+                </div>
               </div>
-              <div class="space-y-2">
+
+              <div class="space-y-3">
                 <label
                   for="import-file"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >Source File</label
+                  >Document Source</label
                 >
                 <div class="relative group">
                   <input
@@ -189,54 +212,58 @@
                     class="absolute inset-0 opacity-0 cursor-pointer z-10"
                   />
                   <div
-                    class="w-full bg-white/5 border-2 border-dashed border-white/10 rounded-2xl px-5 py-8 text-center group-hover:border-indigo-500/50 transition-all"
+                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-10 text-center group-hover:border-indigo-500/50 transition-all active:scale-[0.98]"
                   >
-                    <span class="text-[10px] font-black text-white/40 uppercase"
+                    <Upload
+                      class="w-8 h-8 text-indigo-500/40 mx-auto mb-4 group-hover:scale-110 transition-transform"
+                    />
+                    <span
+                      class="text-[10px] font-black text-white/40 uppercase block"
                       >{importFile
                         ? importFile.name
-                        : "Click to Upload PDF / PNG"}</span
+                        : "Drop Document Here"}</span
                     >
                   </div>
-                  <p
-                    class="text-[8px] font-bold text-white/20 uppercase tracking-widest mt-2 text-center"
-                  >
-                    Supported: PDF, PNG, JPG
-                  </p>
                 </div>
               </div>
             </div>
           {:else if step === 2}
-            <div class="space-y-6 animate-in slide-in-from-left duration-500">
+            <div class="space-y-8 animate-premium-fade">
               <div
-                class="p-5 rounded-3xl bg-green-500/10 border border-green-500/20 shadow-2xl shadow-green-500/5"
+                class="p-6 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 shadow-2xl shadow-indigo-500/5"
               >
-                <h4
-                  class="text-[10px] font-black text-green-400 uppercase mb-2 tracking-widest"
-                >
-                  Analysis Engine Ready
-                </h4>
+                <div class="flex items-center gap-3 mb-3">
+                  <CheckCircle2 class="w-4 h-4 text-indigo-400" />
+                  <h4
+                    class="text-[10px] font-black text-indigo-400 uppercase tracking-widest"
+                  >
+                    Mesh Extracted
+                  </h4>
+                </div>
                 <p
                   class="text-[10px] font-medium text-white/50 leading-relaxed uppercase tracking-wide"
                 >
-                  Headers, Tables, and Structural Dividers have been
-                  reconstructed from the document mesh.
+                  Layout nodes detected. review structural dividers and headers.
                 </p>
               </div>
+
               <div class="space-y-4">
                 <p
-                  class="text-[9px] font-black text-white/20 uppercase tracking-[0.2em] ml-1"
+                  class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
                 >
-                  Detected Layers
+                  Reconstructed Nodes
                 </p>
                 <div class="space-y-2">
-                  {#each detectedLayout?.pages?.[0]?.elements || [] as el}
+                  {#each detectedLayout?.pages?.[0]?.elements?.slice(0, 8) || [] as el}
                     <div
-                      class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/5"
+                      class="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5"
                     >
                       <div
-                        class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[8px] font-black"
+                        class="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center text-white/20"
                       >
-                        {el.type[0].toUpperCase()}
+                        {#if el.type === "text"}<Type
+                            class="w-3.5 h-3.5"
+                          />{:else}<Layout class="w-3.5 h-3.5" />{/if}
                       </div>
                       <span
                         class="text-[9px] font-bold text-white/40 uppercase tracking-widest"
@@ -244,6 +271,13 @@
                       >
                     </div>
                   {/each}
+                  {#if (detectedLayout?.pages?.[0]?.elements?.length || 0) > 8}
+                    <p
+                      class="text-[8px] font-black text-white/10 text-center uppercase py-2"
+                    >
+                      + {detectedLayout.pages[0].elements.length - 8} more elements
+                    </p>
+                  {/if}
                 </div>
               </div>
             </div>
@@ -251,123 +285,79 @@
 
           {#if errorMsg}
             <div
-              class="p-5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest whitespace-pre-wrap break-words"
+              class="p-6 rounded-[1.5rem] bg-red-500/10 border border-red-500/20 text-red-100 text-[10px] font-bold uppercase tracking-widest whitespace-pre-wrap break-words animate-premium-fade"
             >
+              <div class="flex items-center gap-3 mb-2">
+                <AlertCircle class="w-4 h-4 text-red-500" />
+                <span class="font-black">Critical Error</span>
+              </div>
               {errorMsg}
             </div>
           {/if}
         </div>
 
-        <!-- Main Workspace: Centered Preview -->
+        <!-- Main Workspace area -->
         <div
-          class="flex-1 bg-black/40 flex flex-col items-center justify-start p-8 md:p-16 overflow-x-hidden overflow-y-auto relative scrollbar-hide"
+          class="flex-1 bg-[#0a0a0a] flex flex-col items-center justify-start p-8 md:p-16 overflow-x-hidden overflow-y-auto relative scrollbar-hide shadow-inner"
         >
           {#if step === 1}
             <div
-              class="my-auto text-center space-y-8 max-w-md animate-in fade-in zoom-in duration-700"
+              class="w-full max-w-2xl flex flex-col items-center justify-center py-20 text-center space-y-8 animate-premium-fade"
             >
               <div
-                class="w-32 h-32 bg-indigo-500/10 rounded-[2.5rem] flex items-center justify-center text-indigo-400 mx-auto mb-8 shadow-2xl shadow-indigo-500/10 relative"
+                class="w-24 h-24 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-center relative group"
               >
                 <div
-                  class="absolute inset-0 border-2 border-indigo-500/20 rounded-[2.5rem] animate-ping opacity-20"
+                  class="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                 ></div>
-                <svg
-                  class="w-16 h-16"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="1.5"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
+                <FileText
+                  class="w-10 h-10 text-indigo-500 group-hover:scale-110 transition-transform"
+                />
               </div>
-              <h4
-                class="text-2xl font-black text-white uppercase tracking-tighter"
-              >
-                REPLICATE DOCUMENT
-              </h4>
-              <p
-                class="text-[10px] font-black text-white/20 leading-relaxed uppercase tracking-[0.2em]"
-              >
-                Upload a raw university paper. Our high-fidelity reconstruction
-                system will extract the exact layout.
-              </p>
+              <div>
+                <h2
+                  class="text-3xl font-black text-white mb-4 uppercase tracking-tighter"
+                >
+                  Replicate Document
+                </h2>
+                <p
+                  class="text-xs font-medium text-white/30 max-w-md mx-auto leading-relaxed uppercase tracking-widest"
+                >
+                  Upload a raw university paper. Our high-fidelity
+                  reconstruction system will extract the exact layout.
+                </p>
+              </div>
             </div>
           {:else if step === 2}
+            <!-- Floating Zoom Control -->
             <div
-              class="w-full flex flex-col items-center min-h-max animate-in fade-in duration-500"
+              class="absolute top-8 right-8 z-[100] flex items-center gap-1 bg-black/60 backdrop-blur-xl border border-white/5 p-1.5 rounded-2xl shadow-2xl animate-premium-slide-left"
             >
-              <div class="flex items-center gap-6 mb-10">
-                <div class="h-px w-24 bg-white/5"></div>
-              </div>
-
-              <!-- Floating Zoom Controller -->
-              <div
-                class="mb-6 flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-2 px-4 shadow-2xl backdrop-blur-md"
+              <button
+                onclick={() => (previewZoom = Math.max(0.1, previewZoom - 0.1))}
+                class="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
               >
-                <button
-                  onclick={() =>
-                    (previewZoom = Math.max(0.5, previewZoom - 0.1))}
-                  class="p-2 text-white/40 hover:text-indigo-400 transition-all"
-                  title="Zoom Out"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M20 12H4"
-                    /></svg
-                  >
-                </button>
-                <div
-                  class="w-20 text-center text-[10px] font-black text-indigo-400 uppercase tracking-widest"
-                >
-                  {Math.round(previewZoom * 100)}%
-                </div>
-                <button
-                  onclick={() =>
-                    (previewZoom = Math.min(1.5, previewZoom + 0.1))}
-                  class="p-2 text-white/40 hover:text-indigo-400 transition-all"
-                  title="Zoom In"
-                >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 4v16m8-8H4"
-                    /></svg
-                  >
-                </button>
-                <div class="h-4 w-px bg-white/10 mx-2"></div>
-                <button
-                  onclick={() => (previewZoom = 0.75)}
-                  class="text-[9px] font-black text-white/20 hover:text-white uppercase tracking-tighter px-2"
-                >
-                  Reset
-                </button>
+                <ZoomOut class="w-4 h-4" />
+              </button>
+              <div class="px-2 text-[10px] font-black font-mono text-white/40">
+                {Math.round(previewZoom * 100)}%
               </div>
+              <button
+                onclick={() => (previewZoom = Math.min(2, previewZoom + 0.1))}
+                class="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
+              >
+                <ZoomIn class="w-4 h-4" />
+              </button>
+            </div>
 
-              <!-- Mathematical Scaling & Centering -->
+            <div
+              class="w-full h-full flex items-start justify-center p-12 overflow-visible"
+            >
               <div
-                class="shadow-[0_0_120px_rgba(0,0,0,0.9)] border border-white/5 rounded-sm bg-white relative group shrink-0"
+                class="relative group shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm"
               >
                 <div
-                  class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
+                  class="absolute inset-0 bg-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
                 ></div>
                 <div class="p-12 overflow-visible">
                   <LayoutCanvas
@@ -378,78 +368,84 @@
                   />
                 </div>
               </div>
-
-              <div class="h-32 w-full"></div>
             </div>
           {:else if step === 3}
-            <div class="my-auto text-center space-y-8">
+            <div
+              class="w-full h-full flex flex-col items-center justify-center text-center animate-premium-fade"
+            >
               <div
-                class="w-32 h-32 bg-green-500/10 rounded-full flex items-center justify-center text-green-400 mx-auto mb-8 shadow-2xl shadow-green-500/10"
+                class="w-32 h-32 rounded-[3.5rem] bg-indigo-600 flex items-center justify-center mb-10 shadow-3xl shadow-indigo-600/30 ring-8 ring-indigo-600/10"
               >
-                <svg
-                  class="w-16 h-16"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="3"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                <CheckCircle2 class="w-16 h-16 text-white" />
               </div>
-              <h4
-                class="text-3xl font-black text-white uppercase tracking-tighter"
+              <h2
+                class="text-4xl font-black text-white mb-4 uppercase tracking-tighter"
               >
-                RECONSTRUCTION SUCCESSFUL
-              </h4>
+                Reconstruction Ready
+              </h2>
               <p
-                class="text-[10px] font-black text-white/30 uppercase tracking-[0.25em]"
+                class="text-xs font-medium text-white/30 max-w-md uppercase tracking-[0.2em] leading-relaxed"
               >
-                Template isolated and localized correctly.
+                The blueprint has been integrated into your library. You can now
+                finalize it in the Design Studio.
               </p>
+              <button
+                onclick={closeModal}
+                class="mt-12 px-12 py-5 bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-indigo-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/5"
+              >
+                Go to Design Studio
+              </button>
             </div>
           {/if}
         </div>
       </div>
 
-      <!-- Footer -->
-      <div
-        class="px-12 py-10 border-t border-white/5 bg-black/20 flex justify-end gap-6 items-center"
+      <!-- Footer Area -->
+      <footer
+        class="h-24 bg-[#181818] border-t border-white/5 px-10 flex items-center justify-between shrink-0 z-50 shadow-xl"
       >
-        {#if step === 1}
-          <div
-            class="mr-auto text-[9px] font-black text-white/10 uppercase tracking-[0.2em]"
-          >
-            Principal Engineer Pipeline v4.2 (Isolated)
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            {#each [1, 2, 3] as s}
+              <div
+                class="h-1 rounded-full transition-all duration-500 {step === s
+                  ? 'w-10 bg-indigo-500'
+                  : 'w-2 bg-white/10'}"
+              ></div>
+            {/each}
           </div>
-          <button
-            onclick={startAnalysis}
-            disabled={isAnalyzing || !importFile || !importName}
-            class="px-12 py-5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 shadow-2xl shadow-indigo-500/20 disabled:opacity-30 transition-all active:scale-95"
-          >
-            {isAnalyzing ? "Extracting Mesh..." : "Start Analysis"}
-          </button>
-        {:else if step === 2}
-          <button
-            onclick={() => (step = 1)}
-            class="px-10 py-5 bg-white/5 text-white/40 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all"
-          >
-            Back to Input
-          </button>
-          <button
-            onclick={confirmImport}
-            disabled={isAnalyzing}
-            class="px-12 py-5 bg-green-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-green-500 shadow-2xl shadow-green-500/20 transition-all active:scale-95"
-          >
-            {isAnalyzing
-              ? "Finalizing Isolation..."
-              : "Confirm & Seed Template"}
-          </button>
-        {/if}
-      </div>
+        </div>
+
+        <div class="flex gap-4">
+          {#if step < 3}
+            <button
+              onclick={closeModal}
+              class="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-white/30 hover:text-white transition-all"
+            >
+              Discard Changes
+            </button>
+            <button
+              onclick={step === 1 ? startAnalysis : confirmImport}
+              disabled={isAnalyzing ||
+                (step === 1 && (!importFile || !importName))}
+              class="flex items-center gap-4 px-10 py-4 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 disabled:opacity-20 transition-all shadow-xl shadow-indigo-600/20 group"
+            >
+              <span
+                >{isAnalyzing
+                  ? "Processing Architecture..."
+                  : step === 1
+                    ? "Initialize Analysis"
+                    : "Commit to Library"}</span
+              >
+              {#if !isAnalyzing}
+                <ArrowRight
+                  class="w-4 h-4 transition-transform group-hover:translate-x-1"
+                />
+              {/if}
+            </button>
+          {/if}
+        </div>
+      </footer>
     </div>
   </div>
 {/if}
@@ -457,5 +453,8 @@
 <style>
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  input::placeholder {
+    color: rgba(255, 255, 255, 0.1);
   }
 </style>
