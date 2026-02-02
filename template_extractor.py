@@ -12,22 +12,27 @@ from PIL import Image
 from typing import Dict, List, Tuple
 
 class TemplateExtractor:
-    def __init__(self, credentials_path=None):
-        """Initialize Google Cloud Vision client"""
-        if credentials_path:
-            credentials = service_account.Credentials.from_service_account_file(credentials_path)
-            self.client = vision.ImageAnnotatorClient(credentials=credentials)
-        else:
-            # Uses default credentials from environment
-            try:
+    def __init__(self):
+        """Initialize Google Cloud Vision client from environment"""
+        try:
+            credentials_json = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+            if credentials_json:
+                credentials_dict = json.loads(credentials_json)
+                credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+                self.client = vision.ImageAnnotatorClient(credentials=credentials)
+                print("✅ Vision API initialized with GOOGLE_CREDENTIALS_JSON")
+            else:
                 self.client = vision.ImageAnnotatorClient()
-            except Exception as e:
-                print(f"Warning: Could not initialize Vision client: {e}")
-                self.client = None
+                print("✅ Vision API initialized with default credentials")
+        except Exception as e:
+            print(f"❌ Error initializing Vision API: {e}")
+            self.client = None
     
     def extract_template_structure(self, image_bytes):
         """Main extraction function combining Vision + OpenCV"""
-        
+        if not self.client:
+            raise Exception("Vision client not initialized")
+
         # 1. Google Vision for Text Detection
         image = vision.Image(content=image_bytes)
         response = self.client.document_text_detection(image=image)
@@ -35,14 +40,18 @@ class TemplateExtractor:
         if response.error.message:
             raise Exception(f'Vision API Error: {response.error.message}')
         
+        # Check if text was detected
+        if not response.full_text_annotation.pages:
+            raise Exception("No text detected in the document")
+
         # 2. OpenCV for Layout (Lines/Tables)
-        # Convert bytes to opencv image
         nparr = np.frombuffer(image_bytes, np.uint8)
         img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
         lines = self._detect_structural_lines(img)
         
-        # 3. Parse and Map to UniConnect Schema
-        template_data = self._parse_document(response.full_text_annotation, img.shape[0], img.shape[1], lines)
+        # 3. Parse and Map
+        page = response.full_text_annotation.pages[0]
+        template_data = self._parse_document(page, img.shape[0], img.shape[1], lines)
         
         return template_data
 
@@ -68,10 +77,7 @@ class TemplateExtractor:
         vertical = cv2.erode(vertical, vertical_struct)
         vertical = cv2.dilate(vertical, vertical_struct)
         
-        # Extract line coordinates
         lines = []
-        
-        # Probabilistic Hough Transform for cleaner vector lines
         h_lines = cv2.HoughLinesP(horizontal, 1, np.pi/180, 50, minLineLength=50, maxLineGap=10)
         v_lines = cv2.HoughLinesP(vertical, 1, np.pi/180, 50, minLineLength=50, maxLineGap=10)
         
@@ -79,98 +85,69 @@ class TemplateExtractor:
             for l in h_lines:
                 x1, y1, x2, y2 = l[0]
                 lines.append({'type': 'line', 'orientation': 'horizontal', 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2})
-                
         if v_lines is not None:
             for l in v_lines:
                 x1, y1, x2, y2 = l[0]
                 lines.append({'type': 'line', 'orientation': 'vertical', 'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2})
-                
         return lines
 
-    def _parse_document(self, annotation, page_height, page_width, cv_lines):
-        """Parse the document annotation into UniConnect LayoutSchema"""
-        
-        # Conversion factor for mm (assuming 72 DPI or 300 DPI - standard Vision is 1:1 pixel)
-        # We need to map pixel coordinates to mm for the editor
-        # Standard A4 at 96 DPI is ~794x1123px.
-        # We'll use a dynamic ratio based on Vision's reported page size vs A4(210x297)
+    def _parse_document(self, page, page_height, page_width, cv_lines):
         px_to_mm_x = 210.0 / page_width
         px_to_mm_y = 297.0 / page_height
-
         elements = []
-        
-        # Add CV Lines first
+        metadata_fields = {}
+
+        # Add CV Lines
         for idx, line in enumerate(cv_lines):
             x = line['x1'] * px_to_mm_x
             y = line['y1'] * px_to_mm_y
             w = (line['x2'] - line['x1']) * px_to_mm_x
             h = (line['y2'] - line['y1']) * px_to_mm_y
-            
-            # Line thickness fix for schema
-            if line['orientation'] == 'horizontal':
-                h = max(h, 0.5)
-            else:
-                w = max(w, 0.5)
-
             elements.append({
-                'id': f'cv-line-{idx}',
-                'type': 'line',
-                'x': round(x, 2),
-                'y': round(y, 2),
-                'w': round(max(w, 1.0), 2),
-                'h': round(max(h, 1.0), 2),
-                'orientation': line['orientation'],
-                'thickness': 1,
-                'color': '#000000'
+                'id': f'cv-line-{idx}', 'type': 'line',
+                'x': round(x, 2), 'y': round(y, 2),
+                'w': round(max(w, 1.0), 2), 'h': round(max(h, 1.0), 2),
+                'orientation': line['orientation'], 'thickness': 1, 'color': '#000000'
             })
 
-        all_blocks = []
-        for page in annotation.pages:
-            for block in page.blocks:
-                text = self._get_block_text(block)
-                if self._is_question(text): continue
-                
-                vertices = block.bounding_box.vertices
-                x = vertices[0].x * px_to_mm_x
-                y = vertices[0].y * px_to_mm_y
-                w = (vertices[2].x - vertices[0].x) * px_to_mm_x
-                h = (vertices[2].y - vertices[0].y) * px_to_mm_y
-                
-                all_blocks.append({
-                    'text': text,
-                    'x': x, 'y': y, 'w': w, 'h': h,
-                    'is_header': self._is_header(block, page.height)
-                })
-
-        # Process text elements
-        for idx, block in enumerate(all_blocks):
-            type_tag = 'text'
-            content = block['text']
+        # Process text blocks
+        for idx, block in enumerate(page.blocks):
+            text = self._get_block_text(block)
+            if not text or self._is_question(text): continue
             
-            # Simple HTML wrap for headers
-            if block['is_header']:
-                content = f'<div style="text-align: center;"><h1>{content}</h1></div>'
-            else:
-                content = f'<div>{content}</div>'
+            vertices = block.bounding_box.vertices
+            x = vertices[0].x * px_to_mm_x
+            y = vertices[0].y * px_to_mm_y
+            w = (vertices[2].x - vertices[0].x) * px_to_mm_x
+            h = (vertices[2].y - vertices[0].y) * px_to_mm_y
+            
+            is_hdr = self._is_header(text, vertices[0].y, page_height)
+            is_meta = self._is_metadata(text)
+            
+            if is_meta:
+                extracted = self._extract_metadata_values(text)
+                metadata_fields.update(extracted)
+
+            content = f'<div style="text-align: {"center" if is_hdr else "left"};">{"<h1>" if is_hdr else ""}{text}{"</h1>" if is_hdr else ""}</div>'
 
             elements.append({
-                'id': f'vision-text-{idx}',
+                'id': f'vision-block-{idx}',
                 'type': 'text',
-                'x': round(block['x'], 2),
-                'y': round(block['y'], 2),
-                'w': round(block['w'], 2),
-                'h': round(block['h'], 2),
+                'x': round(x, 2), 'y': round(y, 2), 'w': round(w, 2), 'h': round(h, 2),
                 'content': content,
+                'is_header': is_hdr,
+                'is_metadata': is_meta,
                 'styles': {
                     'fontFamily': 'Outfit, sans-serif',
-                    'fontSize': 16 if block['is_header'] else 12,
-                    'fontWeight': 'bold' if block['is_header'] else 'normal'
+                    'fontSize': 16 if is_hdr else 12,
+                    'fontWeight': 'bold' if is_hdr else 'normal'
                 }
             })
 
         return {
             'page': { 'width': 'A4', 'unit': 'mm', 'margins': { 'top': 10, 'bottom': 10, 'left': 10, 'right': 10 } },
-            'pages': [{ 'id': 'p1', 'elements': elements }]
+            'pages': [{ 'id': 'p1', 'elements': elements }],
+            'metadata_fields': metadata_fields
         }
 
     def _get_block_text(self, block):
@@ -182,12 +159,40 @@ class TemplateExtractor:
         return text.strip()
 
     def _is_question(self, text):
-        pattern = r'^\d+\.|^[a-z]\)|^[ivx]+\.|what is|explain|define|describe|attempt any'
-        return any(re.search(pattern, text.lower()) for pattern in pattern.split('|'))
+        patterns = [
+            r'^\d+\.', r'^[a-z]\)', r'^[ivx]+\.',
+            r'choose\s+the\s+correct', r'what\s+is', r'which\s+of',
+            r'describe', r'explain', r'state\s+the', r'define',
+            r'answer\s+the\s+following', r'attempt\s+any', r'\b[A-D]\)'
+        ]
+        text_lower = text.lower().strip()
+        return any(re.search(p, text_lower) for p in patterns)
 
-    def _is_header(self, block, page_height):
-        y_top = block.bounding_box.vertices[0].y
-        return y_top < (page_height * 0.25) or "university" in self._get_block_text(block).lower()
+    def _is_header(self, text, y_pos, page_height):
+        is_top = y_pos < (page_height * 0.25)
+        keywords = ['university', 'college', 'campus', 'institute', 'test', 'examination', 'exam', 'assessment']
+        has_keyword = any(k in text.lower() for k in keywords)
+        is_caps = text.isupper() and len(text) > 5
+        return is_top or has_keyword or is_caps
+
+    def _is_metadata(self, text):
+        keywords = ['time:', 'marks:', 'date:', 'duration:', 'subject:', 'code:', 'program:', 'branch:', 'sem:', 'regulation:']
+        return any(k in text.lower() for k in keywords)
+
+    def _extract_metadata_values(self, text):
+        metadata = {}
+        patterns = {
+            'time': r'time:\s*(.+?)(?:\n|max|$)',
+            'max_marks': r'marks:\s*(\d+)',
+            'date': r'date:\s*(.+?)(?:\n|$)',
+            'subject_name': r'subject\s+name:\s*(.+?)(?:\n|$)',
+            'subject_code': r'subject\s+code:\s*(.+?)(?:\n|$)',
+            'semester': r'sem:\s*(.+?)(?:\n|$)'
+        }
+        for key, p in patterns.items():
+            match = re.search(p, text.lower(), re.IGNORECASE)
+            if match: metadata[key] = match.group(1).strip()
+        return metadata
 
 app = Flask(__name__)
 CORS(app)

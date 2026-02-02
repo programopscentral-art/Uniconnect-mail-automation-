@@ -25,7 +25,9 @@
   let importName = $state("");
   let importExamType = $state("MID1");
   let importFile = $state<File | null>(null);
+  let logoFile = $state<File | null>(null);
   let detectedLayout = $state<any>(null);
+  let metadataFields = $state<Record<string, string>>({});
   let errorMsg = $state("");
   let previewZoom = $state(0.75);
 
@@ -50,6 +52,7 @@
       if (res.ok) {
         const data = await res.json();
         detectedLayout = data.template.layout_schema;
+        metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
@@ -72,7 +75,12 @@
     formData.append("name", importName);
     formData.append("exam_type", importExamType);
     formData.append("file", importFile!);
+    if (logoFile) formData.append("logo", logoFile);
     formData.append("universityId", universityId);
+
+    // Pass back the edited metadata and layout
+    formData.append("metadata", JSON.stringify(metadataFields));
+    formData.append("layout", JSON.stringify(detectedLayout));
 
     try {
       const res = await fetch("/api/assessments/templates/process", {
@@ -226,6 +234,38 @@
                   </div>
                 </div>
               </div>
+
+              <div class="space-y-3">
+                <label
+                  for="logo-file"
+                  class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
+                  >University Logo (Optional)</label
+                >
+                <div class="relative group">
+                  <input
+                    id="logo-file"
+                    type="file"
+                    accept="image/*"
+                    onchange={(e) =>
+                      (logoFile = e.currentTarget.files?.[0] || null)}
+                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  />
+                  <div
+                    class="w-full bg-white/[0.02] border border-white/5 rounded-2xl px-6 py-4 flex items-center gap-4 group-hover:bg-white/[0.04] transition-all"
+                  >
+                    <div
+                      class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center"
+                    >
+                      <Upload class="w-4 h-4 text-white/20" />
+                    </div>
+                    <span
+                      class="text-[10px] font-bold text-white/30 uppercase truncate"
+                    >
+                      {logoFile ? logoFile.name : "Upload Logo"}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           {:else if step === 2}
             <div class="space-y-8 animate-premium-fade">
@@ -247,37 +287,77 @@
                 </p>
               </div>
 
-              <div class="space-y-4">
-                <p
-                  class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
-                >
-                  Reconstructed Nodes
-                </p>
-                <div class="space-y-2">
-                  {#each detectedLayout?.pages?.[0]?.elements?.slice(0, 8) || [] as el}
-                    <div
-                      class="flex items-center gap-3 p-4 rounded-2xl bg-white/[0.03] border border-white/5"
-                    >
+              <div class="space-y-6">
+                <!-- Editable Headers Section -->
+                <div class="space-y-4">
+                  <p
+                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
+                  >
+                    University Headers
+                  </p>
+                  <div class="space-y-3">
+                    {#each detectedLayout?.pages?.[0]?.elements?.filter((el) => el.is_header) || [] as el}
+                      <div class="space-y-2">
+                        <div class="flex items-center justify-between px-1">
+                          <span
+                            class="text-[8px] font-black text-white/20 uppercase"
+                            >Header Node</span
+                          >
+                        </div>
+                        <textarea
+                          bind:value={el.content}
+                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[11px] font-bold text-indigo-400 outline-none focus:border-indigo-500/50 transition-all resize-none"
+                          rows="2"
+                        ></textarea>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+
+                <!-- Editable Metadata Section -->
+                <div class="space-y-4">
+                  <p
+                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
+                  >
+                    Detected Metadata
+                  </p>
+                  <div class="space-y-3">
+                    {#each Object.entries(metadataFields) as [key, value]}
+                      <div class="space-y-2">
+                        <label
+                          class="text-[8px] font-black text-white/20 uppercase ml-1"
+                          >{key.replace("_", " ")}</label
+                        >
+                        <input
+                          type="text"
+                          bind:value={metadataFields[key]}
+                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[11px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
+                        />
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+
+                <!-- Technical Nodes (Collapsed or Small) -->
+                <div class="space-y-4 pt-4 border-t border-white/5">
+                  <p
+                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
+                  >
+                    Structural Nodes ({detectedLayout?.pages?.[0]?.elements
+                      ?.length || 0})
+                  </p>
+                  <div class="flex flex-wrap gap-2">
+                    {#each detectedLayout?.pages?.[0]?.elements?.slice(0, 12) || [] as el}
                       <div
-                        class="w-8 h-8 rounded-xl bg-black/40 flex items-center justify-center text-white/20"
+                        class="w-8 h-8 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/10 hover:text-white/40 transition-colors"
+                        title={el.type}
                       >
                         {#if el.type === "text"}<Type
                             class="w-3.5 h-3.5"
                           />{:else}<Layout class="w-3.5 h-3.5" />{/if}
                       </div>
-                      <span
-                        class="text-[9px] font-bold text-white/40 uppercase tracking-widest"
-                        >{el.type}</span
-                      >
-                    </div>
-                  {/each}
-                  {#if (detectedLayout?.pages?.[0]?.elements?.length || 0) > 8}
-                    <p
-                      class="text-[8px] font-black text-white/10 text-center uppercase py-2"
-                    >
-                      + {detectedLayout.pages[0].elements.length - 8} more elements
-                    </p>
-                  {/if}
+                    {/each}
+                  </div>
                 </div>
               </div>
             </div>

@@ -8,11 +8,11 @@ import { z } from 'zod';
 
 // Zod Schema for Layout Validation (Master Source of Truth)
 const LayoutElementSchema = z.discriminatedUnion('type', [
-    z.object({ id: z.string(), type: z.literal('text'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), content: z.string(), styles: z.record(z.any()).optional() }),
-    z.object({ id: z.string(), type: z.literal('image'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), src: z.string(), alt: z.string().optional(), styles: z.record(z.any()).optional() }),
-    z.object({ id: z.string(), type: z.literal('table'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), tableData: z.any(), styles: z.record(z.any()).optional() }),
-    z.object({ id: z.string(), type: z.literal('line'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), orientation: z.enum(['horizontal', 'vertical']), thickness: z.number(), color: z.string(), styles: z.record(z.any()).optional() }),
-    z.object({ id: z.string(), type: z.literal('shape'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), shapeType: z.enum(['rectangle', 'circle']), backgroundColor: z.string(), borderWidth: z.number(), borderColor: z.string(), styles: z.record(z.any()).optional() })
+    z.object({ id: z.string(), type: z.literal('text'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), content: z.string(), styles: z.record(z.any()).optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('image'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), src: z.string(), alt: z.string().optional(), styles: z.record(z.any()).optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('table'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), tableData: z.any(), styles: z.record(z.any()).optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('line'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), orientation: z.enum(['horizontal', 'vertical']), thickness: z.number(), color: z.string(), styles: z.record(z.any()).optional() }).passthrough(),
+    z.object({ id: z.string(), type: z.literal('shape'), x: z.number(), y: z.number(), w: z.number(), h: z.number(), shapeType: z.enum(['rectangle', 'circle']), backgroundColor: z.string(), borderWidth: z.number(), borderColor: z.string(), styles: z.record(z.any()).optional() }).passthrough()
 ]);
 
 const LayoutSchema = z.object({
@@ -24,7 +24,8 @@ const LayoutSchema = z.object({
     pages: z.array(z.object({
         id: z.string(),
         elements: z.array(LayoutElementSchema)
-    }))
+    })),
+    metadata_fields: z.record(z.string()).optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -48,63 +49,82 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // --- High-Fidelity Layout Reconstruction ---
     let detectedLayout;
-    try {
-        // Prepare data for Python service
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const extractFormData = new FormData();
-        extractFormData.append('file', new Blob([buffer]), file.name);
 
-        // Deployment Readiness: Use ENV or detect separate service
-        let serviceRoot = env.EXTRACTOR_SERVICE_URL;
+    // Check if we already have a reviewed layout/metadata (Final Save)
+    const submittedLayout = formData.get('layout') as string;
+    const submittedMetadata = formData.get('metadata') as string;
 
-        if (!serviceRoot) {
-            const isRailway = env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME || env.RAILWAY_ENVIRONMENT;
-
-            if (isRailway) {
-                // Railway standard internal networking is http://<service-name>:<port>
-                serviceRoot = 'http://extractor:5000';
-            } else {
-                serviceRoot = 'http://localhost:5000';
-            }
-        }
-
-        serviceRoot = serviceRoot.replace(/\/$/, '');
-        const extractUrl = `${serviceRoot}/api/extract-template`;
-
-        console.log(`[TEMPLATE_IMPORT] 🛰️ Target Extraction Endpoint: ${extractUrl}`);
-
-        let extractRes;
+    if (submittedLayout && !dryRun) {
+        console.log(`[TEMPLATE_IMPORT] ♻️ Using user-reviewed layout for final save`);
         try {
-            extractRes = await fetch(extractUrl, {
-                method: 'POST',
-                body: extractFormData
-            });
-        } catch (fetchErr: any) {
-            console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error:`, fetchErr);
-            // Privacy: Do not show internal URLs to the user in the frontend error
-            throw new Error(`System Connectivity Error: The layout analysis engine is currently unreachable. Please try again in a few minutes or contact support.`);
+            detectedLayout = JSON.parse(submittedLayout);
+            if (submittedMetadata) {
+                detectedLayout.metadata_fields = JSON.parse(submittedMetadata);
+            }
+        } catch (pe) {
+            console.error(`[TEMPLATE_IMPORT] ❌ Failed to parse submitted layout/metadata:`, pe);
+            throw new Error('The submitted structural data is corrupted.');
         }
+    } else {
+        // Call Python Extraction Service
+        try {
+            // Prepare data for Python service
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const extractFormData = new FormData();
+            extractFormData.append('file', new Blob([buffer]), file.name);
 
-        if (!extractRes.ok) {
-            const errBody = await extractRes.text();
-            console.error(`[TEMPLATE_IMPORT] ❌ Service Error (${extractRes.status}):`, errBody);
-            throw new Error(`Analysis Engine Error: We encountered an issue while processing your document layout.`);
+            // Deployment Readiness: Use ENV or detect separate service
+            let serviceRoot = env.EXTRACTOR_SERVICE_URL;
+
+            if (!serviceRoot) {
+                const isRailway = env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME || env.RAILWAY_ENVIRONMENT;
+
+                if (isRailway) {
+                    // Railway standard internal networking is http://<service-name>:<port>
+                    serviceRoot = 'http://extractor:5000';
+                } else {
+                    serviceRoot = 'http://localhost:5000';
+                }
+            }
+
+            serviceRoot = serviceRoot.replace(/\/$/, '');
+            const extractUrl = `${serviceRoot}/api/extract-template`;
+
+            console.log(`[TEMPLATE_IMPORT] 🛰️ Target Extraction Endpoint: ${extractUrl}`);
+
+            let extractRes;
+            try {
+                extractRes = await fetch(extractUrl, {
+                    method: 'POST',
+                    body: extractFormData
+                });
+            } catch (fetchErr: any) {
+                console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error:`, fetchErr);
+                // Privacy: Do not show internal URLs to the user in the frontend error
+                throw new Error(`System Connectivity Error: The layout analysis engine is currently unreachable. Please try again in a few minutes or contact support.`);
+            }
+
+            if (!extractRes.ok) {
+                const errBody = await extractRes.text();
+                console.error(`[TEMPLATE_IMPORT] ❌ Service Error (${extractRes.status}):`, errBody);
+                throw new Error(`Analysis Engine Error: We encountered an issue while processing your document layout.`);
+            }
+
+            const extractData = await extractRes.json();
+            if (!extractData.success) {
+                console.error(`[TEMPLATE_IMPORT] ❌ Business Logic Error:`, extractData.error);
+                throw new Error(extractData.error || 'The analysis engine could not parse this document format.');
+            }
+
+            detectedLayout = extractData.data;
+            console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${detectedLayout.pages[0].elements.length} elements detected`);
+        } catch (re: any) {
+            console.error(`[TEMPLATE_IMPORT] ❌ Process Failure:`, re);
+            return json({
+                success: false,
+                message: re.message || 'System Analysis Failed'
+            }, { status: 500 });
         }
-
-        const extractData = await extractRes.json();
-        if (!extractData.success) {
-            console.error(`[TEMPLATE_IMPORT] ❌ Business Logic Error:`, extractData.error);
-            throw new Error(extractData.error || 'The analysis engine could not parse this document format.');
-        }
-
-        detectedLayout = extractData.data;
-        console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${detectedLayout.pages[0].elements.length} elements detected`);
-    } catch (re: any) {
-        console.error(`[TEMPLATE_IMPORT] ❌ Process Failure:`, re);
-        return json({
-            success: false,
-            message: re.message || 'System Analysis Failed'
-        }, { status: 500 });
     }
 
     // Strict Validation
