@@ -73,11 +73,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const extractFormData = new FormData();
             extractFormData.append('file', new Blob([buffer]), file.name);
 
-            // Deployment Readiness: Use ENV or detect separate service
-            let serviceRoot = env.EXTRACTOR_SERVICE_URL;
+            // Use environment-based discovery as requested
+            let serviceRoot = env.EXTRACTOR_BASE_URL || env.EXTRACTOR_SERVICE_URL;
 
             if (!serviceRoot) {
-                // Consolidation: Run as sidecar on localhost:5000 for absolute reliability
+                const isProduction = env.NODE_ENV === 'production' || !!env.RAILWAY_ENVIRONMENT;
+                if (isProduction) {
+                    console.error('[TEMPLATE_IMPORT] ❌ Configuration Error: EXTRACTOR_BASE_URL is missing in production');
+                    throw new Error('System Configuration Error: The analysis engine URL is not configured (EXTRACTOR_BASE_URL). Please contact support.');
+                }
+                // Local dev fallback
                 serviceRoot = 'http://localhost:5000';
             }
 
