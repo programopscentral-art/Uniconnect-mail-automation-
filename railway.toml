@@ -15,7 +15,7 @@ start.command = "node apps/worker/dist/index.js"
 name = "extractor"
 source = "."
 build.command = "pip install -r requirements.txt"
-start.command = "python template_extractor.py"
+start.command = "gunicorn --bind 0.0.0.0:$PORT template_extractor:app"
 
 [[services]]
 name = "redis"

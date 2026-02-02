@@ -5,3 +5,4 @@ google-auth
 flask
 flask-cors
 Pillow
+gunicorn
