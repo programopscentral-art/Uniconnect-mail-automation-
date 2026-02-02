@@ -54,50 +54,106 @@ export class LayoutReconstructor {
         const buffer = Buffer.from(await file.arrayBuffer());
         const base64 = buffer.toString('base64');
 
-        // Robust Mime-Type Detection (Fixes 404/NOT FOUND on GEMINI)
+        // Robust Mime-Type Detection
         let mimeType = file.type;
         if (!mimeType || mimeType === 'application/octet-stream' || mimeType === 'application/png') {
             if (file.name.toLowerCase().endsWith('.png')) mimeType = 'image/png';
             else if (file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
             else if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
-            else mimeType = 'image/png'; // Final fallback
+            else mimeType = 'image/png';
         }
 
-        // Broad fallback strategy to handle regional/account-specific model availability
-        const modelsToTry = ["gemini-1.5-flash-latest", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro-vision"];
-        const apiVersions = [undefined, "v1"];
+        // Broad fallback strategy: Try v1 first (more stable for some keys), then v1beta
+        const apiVersions = ["v1", undefined]; // undefined = library default (v1beta)
+        const modelsToTry = [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-002",
+            "gemini-1.5-pro",
+            "gemini-pro-vision"
+        ];
 
         let result: any = null;
         let lastError: any = null;
 
         for (const apiVer of apiVersions) {
-            const genAI = new GoogleGenerativeAI(apiKey, apiVer ? { apiVersion: apiVer } as any : undefined);
+            try {
+                // In many SDK versions, settings are passed in a second arg, or via getGenerativeModel
+                // Using standard 1-arg constructor for safest compatibility
+                const genAI = new GoogleGenerativeAI(apiKey);
 
-            for (const modelId of modelsToTry) {
-                try {
-                    console.log(`[RECONSTRUCTOR] 🤖 Trying model ${modelId} @ API ${apiVer || 'v1beta'}`);
-                    const model = genAI.getGenerativeModel({ model: modelId });
-                    result = await model.generateContent([
-                        this.getArchitectPrompt(name, examType),
-                        { inlineData: { data: base64, mimeType: mimeType } }
-                    ]);
-                    if (result) break;
-                } catch (e: any) {
-                    console.warn(`[RECONSTRUCTOR] ⚠️ Model fallback ${modelId} failed:`, e.message);
-                    lastError = e;
+                for (const modelId of modelsToTry) {
+                    try {
+                        console.log(`[RECONSTRUCTOR] 🤖 Trying model ${modelId} @ API ${apiVer || 'v1beta'}`);
+                        // Some versions allow passing requestOptions to getGenerativeModel
+                        const model = genAI.getGenerativeModel(
+                            { model: modelId },
+                            apiVer ? { apiVersion: apiVer } as any : undefined
+                        );
+
+                        result = await model.generateContent([
+                            this.getArchitectPrompt(name, examType),
+                            { inlineData: { data: base64, mimeType: mimeType } }
+                        ]);
+                        if (result) {
+                            console.log(`[RECONSTRUCTOR] ✅ Success with ${modelId} @ ${apiVer || 'v1beta'}`);
+                            break;
+                        }
+                    } catch (e: any) {
+                        console.warn(`[RECONSTRUCTOR] ⚠️ Model ${modelId} @ ${apiVer || 'v1beta'} failed:`, e.message);
+                        lastError = e;
+                    }
                 }
+                if (result) break;
+            } catch (verErr: any) {
+                console.error(`[RECONSTRUCTOR] ❌ API Attempt failed:`, verErr.message);
             }
-            if (result) break;
+        }
+
+        // --- FINAL RESORT: Raw REST Fetch (Bypass Library) ---
+        if (!result) {
+            console.log(`[RECONSTRUCTOR] 🚨 SDK Exhausted. Attempting Direct REST Fallback...`);
+            try {
+                const restUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const restResp = await fetch(restUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: this.getArchitectPrompt(name, examType) },
+                                { inlineData: { mimeType: mimeType, data: base64 } }
+                            ]
+                        }]
+                    })
+                });
+
+                if (restResp.ok) {
+                    const data = await restResp.json();
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) {
+                        console.log(`[RECONSTRUCTOR] 🎯 Direct REST Fallback SUCCESS`);
+                        return this.parseJsonResponse(text);
+                    }
+                } else {
+                    const errTxt = await restResp.text();
+                    console.error(`[RECONSTRUCTOR] ❌ Direct REST Failed (${restResp.status}):`, errTxt);
+                }
+            } catch (fetchErr: any) {
+                console.error(`[RECONSTRUCTOR] ❌ Direct REST Crash:`, fetchErr.message);
+            }
         }
 
         if (!result && lastError) {
-            throw new Error(`Gemini Exhausted: ${lastError.message}`);
+            throw new Error(`Gemini Exhausted (including REST fallback): ${lastError.message}`);
         }
 
         const response = await result.response;
-        const text = response.text();
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        return this.parseJsonResponse(response.text());
+    }
 
+    private static parseJsonResponse(text: string): LayoutSchema | null {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
             try {
                 return JSON.parse(jsonMatch[0]) as LayoutSchema;
