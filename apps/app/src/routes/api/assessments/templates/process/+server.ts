@@ -1,6 +1,9 @@
 import { json, error } from '@sveltejs/kit';
-import { createAssessmentTemplate } from '@uniconnect/shared';
+import type { RequestHandler } from './$types';
 import { LayoutReconstructor } from '$lib/server/services/layout-reconstructor';
+import { createAssessmentTemplate } from '@uniconnect/shared';
+import { env } from '$env/dynamic/private';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
 
 // Zod Schema for Layout Validation (Master Source of Truth)
@@ -24,7 +27,7 @@ const LayoutSchema = z.object({
     }))
 });
 
-export const POST = async ({ request, locals }: { request: Request, locals: any }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
 
     const formData = await request.formData();
@@ -38,25 +41,63 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
 
     if (!file || !name) {
         console.error('[TEMPLATE_IMPORT] ❌ Missing requirements');
-        throw error(400, 'Name and Source File are required');
+        return json({ success: false, message: 'Name and Source File are required' }, { status: 400 });
     }
 
-    console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} (DryRun: ${dryRun})`);
+    // --- Pre-Flight Connectivity Check ---
+    try {
+        const apiKey = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI').trim();
+        console.log(`[TEMPLATE_IMPORT] 🧪 Pre-flight with key: ${apiKey.slice(0, 5)}...`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        await model.generateContent("ping");
+        console.log(`[TEMPLATE_IMPORT] 🧪 Connection Verified`);
+    } catch (ce: any) {
+        console.error(`[TEMPLATE_IMPORT] 🧪 Connection FAILED:`, ce.message);
+        return json({
+            success: false,
+            message: `AI Connection Failed: ${ce.message}`,
+            detail: ce.stack || 'No stack trace',
+            type: 'CONNECTION_ERROR'
+        }, { status: 500 });
+    }
 
-    // --- High-Fidelity Layout Reconstruction (ML Pipeline Simulation) ---
-    const detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type, universityId);
+    // --- High-Fidelity Layout Reconstruction ---
+    let detectedLayout;
+    try {
+        detectedLayout = await LayoutReconstructor.reconstruct(file, name, exam_type, universityId);
+    } catch (re: any) {
+        console.error(`[TEMPLATE_IMPORT] ❌ Reconstruction Error:`, re);
+        return json({
+            success: false,
+            message: re.message || 'Reconstruction Failed',
+            detail: re.stack || 'No stack trace',
+            type: 'RECONSTRUCTION_ERROR'
+        }, { status: 500 });
+    }
 
     // Strict Validation
     const validation = LayoutSchema.safeParse(detectedLayout);
     if (!validation.success) {
         console.error('[TEMPLATE_IMPORT] ❌ Validation Failed:', validation.error);
-        throw error(422, 'Detected layout is architecturally invalid');
+        return json({
+            success: false,
+            message: 'Detected layout is architecturally invalid',
+            detail: JSON.stringify(validation.error.format()),
+            type: 'VALIDATION_ERROR'
+        }, { status: 422 });
     }
 
+    // If dryRun, return now
     if (dryRun) {
         return json({
             success: true,
-            template: { layout_schema: validation.data },
+            template: {
+                name,
+                exam_type,
+                universityId,
+                layout_schema: validation.data
+            },
             message: 'Layout analyzed successfully (Dry Run)'
         });
     }
@@ -69,7 +110,7 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
             marks_per_q: 2,
             answered_count: 5,
             slots: Array(5).fill(0).map((_, i) => ({
-                id: `A-${i}-${crypto.randomUUID().split('-')[0]}`, label: `${i + 1}`, type: 'SINGLE', marks: 2
+                id: `A-${i}-${Math.random().toString(36).slice(2, 9)}`, label: `${i + 1}`, type: 'SINGLE', marks: 2
             }))
         },
         {
@@ -78,7 +119,7 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
             marks_per_q: 10,
             answered_count: 5,
             slots: Array(5).fill(0).map((_, i) => ({
-                id: `B-${i}-${crypto.randomUUID().split('-')[0]}`, label: `${i + 6}`, type: 'OR_GROUP', marks: 10,
+                id: `B-${i}-${Math.random().toString(36).slice(2, 9)}`, label: `${i + 6}`, type: 'OR_GROUP', marks: 10,
                 choices: [
                     { id: `B-${i}-a`, label: `${i + 6} (a)`, marks: 10 },
                     { id: `B-${i}-b`, label: `${i + 6} (b)`, marks: 10 }
@@ -97,13 +138,13 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
             university_id: universityId,
             name: `${name} (v${new Date().toLocaleDateString().replace(/\//g, '.')}.${Math.floor(Date.now() / 1000).toString().slice(-4)})`,
             slug,
-            exam_type,
+            exam_type: exam_type,
             status: 'draft',
             source_type: 'imported',
             layout_schema: JSON.parse(JSON.stringify(validation.data)),
             config: JSON.parse(JSON.stringify(defaultConfig)),
             assets: [],
-            created_by: locals.user.id
+            created_by: locals?.user?.id
         });
 
         console.log(`[TEMPLATE_IMPORT] ✅ Successfully saved template: ${template.id}`);
@@ -114,94 +155,12 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
             message: 'Template layout reconstructed and isolated. Review in Studio.'
         });
     } catch (e: any) {
-        console.error(`[TEMPLATE_IMPORT] ❌ SERVER CRASH:`, e);
+        console.error(`[TEMPLATE_IMPORT] ❌ DB SAVE ERROR:`, e);
         return json({
             success: false,
-            message: e.message || 'Internal Server Error',
+            message: e.message || 'Failed to save template',
             detail: e.stack || 'No stack trace',
-            type: 'SERVER_CRASH'
+            type: 'DATABASE_ERROR'
         }, { status: 500 });
     }
 };
-
-/**
- * Simulates a high-fidelity layout extraction process.
- */
-async function extractLayoutFromFile(file: File, name: string, examType: string) {
-    // Boilerplate detection results that mimic a real "University Header + Info + Table" structure
-    return {
-        pages: [
-            {
-                id: 'p1',
-                elements: [
-                    {
-                        id: 'uni-header',
-                        type: 'text',
-                        x: 20, y: 15, w: 170, h: 25,
-                        content: `<div style="text-align: center;"><p style="font-size: 24px; font-weight: 900; margin: 0; color: #1e293b;">${name.toUpperCase()}</p><p style="font-size: 14px; margin-top: 5px; color: #64748b; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em;">${examType} - EXAMINATION PAPER</p></div>`,
-                        styles: { fontFamily: 'Outfit, sans-serif' }
-                    },
-                    {
-                        id: 'divider-top',
-                        type: 'shape',
-                        x: 20, y: 45, w: 170, h: 1,
-                        styles: { backgroundColor: '#1e293b' }
-                    },
-                    {
-                        id: 'meta-table',
-                        type: 'table',
-                        x: 20, y: 55, w: 170, h: 40,
-                        tableData: {
-                            rows: [
-                                {
-                                    id: 'r1',
-                                    cells: [
-                                        { id: 'c1', content: '<strong>COURSE TITLE</strong>', styles: { fontWeight: 'bold', fontSize: '10px', backgroundColor: '#f8fafc' } },
-                                        { id: 'c2', content: '---', styles: { fontSize: '11px' } },
-                                        { id: 'c3', content: '<strong>COURSE CODE</strong>', styles: { fontWeight: 'bold', fontSize: '10px', backgroundColor: '#f8fafc' } },
-                                        { id: 'c4', content: '---', styles: { fontSize: '11px' } }
-                                    ]
-                                },
-                                {
-                                    id: 'r2',
-                                    cells: [
-                                        { id: 'c1', content: '<strong>MAX MARKS</strong>', styles: { fontWeight: 'bold', fontSize: '10px', backgroundColor: '#f8fafc' } },
-                                        { id: 'c2', content: '100', styles: { fontSize: '11px' } },
-                                        { id: 'c3', content: '<strong>DURATION</strong>', styles: { fontWeight: 'bold', fontSize: '10px', backgroundColor: '#f8fafc' } },
-                                        { id: 'c4', content: '3 HOURS', styles: { fontSize: '11px' } }
-                                    ]
-                                }
-                            ]
-                        }
-                    },
-                    {
-                        id: 'divider-mid',
-                        type: 'shape',
-                        x: 20, y: 105, w: 170, h: 0.5,
-                        styles: { backgroundColor: '#e2e8f0' }
-                    },
-                    {
-                        id: 'instructions-block',
-                        type: 'text',
-                        x: 20, y: 115, w: 170, h: 40,
-                        content: `<div style="padding: 15px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;"><p style="font-size: 11px; font-weight: 900; color: #1e293b; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">General Instructions:</p><ul style="font-size: 10px; color: #475569; margin: 0; padding-left: 15px;"><li>All sections are compulsory as per the marks mentioned.</li><li>Answers should be concise and clearly numbered.</li><li>Use of scientific calculators is permitted where specified.</li></ul></div>`,
-                        styles: { fontSize: 11, lineHeight: 1.5 }
-                    },
-                    {
-                        id: 'body-area',
-                        type: 'shape',
-                        x: 20, y: 165, w: 170, h: 100,
-                        styles: { backgroundColor: '#f1f5f9', border: '2px dashed #cbd5e1', opacity: 0.5 }
-                    },
-                    {
-                        id: 'body-label',
-                        type: 'text',
-                        x: 40, y: 205, w: 130, h: 20,
-                        content: `<p style="text-align: center; color: #64748b; font-weight: bold; font-size: 12px; text-transform: uppercase;">[ QUESTION PAPER BODY CONTENT SLOTS ]</p>`,
-                        styles: { textAlign: 'center' }
-                    }
-                ]
-            }
-        ]
-    };
-}
