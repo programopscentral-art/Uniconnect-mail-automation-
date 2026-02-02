@@ -153,11 +153,11 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
         const task = await getTaskById(id);
         if (!task) throw error(404, 'Task not found');
 
-        const isGlobalAdmin = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user?.role as string);
+        const isAdmin = locals.user?.role === 'ADMIN';
         const isAssigner = task.assigned_by === locals.user?.id;
         const isAssignee = task.assignee_ids.includes(locals.user?.id || '');
 
-        if (!(isGlobalAdmin || isAssigner || isAssignee)) {
+        if (!(isAdmin || isAssigner || isAssignee)) {
             throw error(403, 'Forbidden: You do not have permission to delete this task');
         }
 

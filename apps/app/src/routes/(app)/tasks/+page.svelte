@@ -188,16 +188,37 @@
     if (res.ok) invalidateAll();
   }
 
+  function canDelete(task: any) {
+    const isAdmin = data.user.role === "ADMIN";
+    const isAssigner = task.assigned_by === data.user.id;
+    const isAssignee = (task.assignee_ids || []).includes(data.user.id);
+    return isAdmin || isAssigner || isAssignee;
+  }
+
   async function bulkDeleteTasks() {
     if (selectedTasks.size === 0) return;
+
+    // Safety check: ensure all selected tasks are actually deletable by this user
+    const deletableSelection = Array.from(selectedTasks).filter((id) => {
+      const task = data.tasks.find((t: any) => t.id === id);
+      return task && canDelete(task);
+    });
+
+    if (deletableSelection.length === 0) {
+      alert("You don't have permission to delete any of the selected tasks.");
+      return;
+    }
+
     if (
-      !confirm(`Are you sure you want to delete ${selectedTasks.size} task(s)?`)
+      !confirm(
+        `Are you sure you want to delete ${deletableSelection.length} task(s)?`,
+      )
     )
       return;
 
     try {
       await Promise.all(
-        Array.from(selectedTasks).map((id) =>
+        deletableSelection.map((id) =>
           fetch(`/api/tasks?id=${id}`, { method: "DELETE" }),
         ),
       );
@@ -211,7 +232,11 @@
 
   function toggleSelectAll() {
     if (selectAll) {
-      selectedTasks = new Set(filteredTasks.map((t: any) => t.id));
+      // Only select tasks that the current user has permission to delete
+      const deletableIds = filteredTasks
+        .filter(canDelete)
+        .map((t: any) => t.id);
+      selectedTasks = new Set(deletableIds);
     } else {
       selectedTasks = new Set();
     }
@@ -222,11 +247,15 @@
     if (newSet.has(taskId)) {
       newSet.delete(taskId);
     } else {
-      newSet.add(taskId);
+      // Security check even for individual selection
+      const task = filteredTasks.find((t: any) => t.id === taskId);
+      if (task && canDelete(task)) {
+        newSet.add(taskId);
+      }
     }
     selectedTasks = newSet;
-    selectAll =
-      selectedTasks.size === filteredTasks.length && filteredTasks.length > 0;
+    const deletableCount = filteredTasks.filter(canDelete).length;
+    selectAll = selectedTasks.size === deletableCount && deletableCount > 0;
   }
 
   function getInitials(name: string) {
@@ -466,14 +495,15 @@
         in:fly={{ y: 20, duration: 300 }}
         class="group bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden relative"
       >
-        <!-- Selection Checkbox -->
         <div class="absolute top-4 left-4 z-10">
-          <input
-            type="checkbox"
-            checked={selectedTasks.has(task.id)}
-            onchange={() => toggleTaskSelection(task.id)}
-            class="w-5 h-5 rounded border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
-          />
+          {#if canDelete(task)}
+            <input
+              type="checkbox"
+              checked={selectedTasks.has(task.id)}
+              onchange={() => toggleTaskSelection(task.id)}
+              class="w-5 h-5 rounded border-gray-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+            />
+          {/if}
         </div>
         <!-- Priority/Status Bar -->
         <div
@@ -633,7 +663,7 @@
             <div
               class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || task.assigned_by === data.user.id || task.assignee_ids.includes(data.user.id)}
+              {#if canDelete(task)}
                 <button
                   onclick={() => openEdit(task)}
                   class="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"
@@ -667,6 +697,28 @@
                       stroke-linejoin="round"
                       stroke-width="2"
                       d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    /></svg
+                  >
+                </button>
+              {:else if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || task.assigned_by === data.user.id || task.assignee_ids.includes(data.user.id)}
+                <!-- This branch allows EDIT but not DELETE for roles like PROGRAM_OPS if they aren't the assigner/assignee -->
+                <!-- Actually, since we want to follow "person assigned and assigned to" strictly for delete, 
+                      we keep the edit button here for the original list but hide delete. -->
+                <button
+                  onclick={() => openEdit(task)}
+                  class="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"
+                  title="Edit Task"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
                     /></svg
                   >
                 </button>
