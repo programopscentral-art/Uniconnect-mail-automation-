@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_API_KEY } from '$env/static/private';
 
 /**
  * LayoutReconstructor Service
@@ -85,23 +86,27 @@ export class LayoutReconstructor {
      * LayoutParser, Table Transformer, and OCR pipelines.
      */
     static async reconstruct(file: File, name: string, examType: string, universityId?: string): Promise<LayoutSchema> {
-        console.log(`[RECONSTRUCTOR] 🚀 Universal AI Analysis: ${file.name}`);
+        console.log(`[RECONSTRUCTOR] 🚀 Universal AI Analysis Started: ${file.name} (Size: ${file.size} bytes)`);
 
-        const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI';
+        const GEMINI_KEY = GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI';
 
-        if (!GEMINI_KEY) {
-            console.warn('[RECONSTRUCTOR] ⚠️ No Gemini Key. Falling back to basic A4 boilerplate.');
-            return this.getBoilerplate(name, examType);
+        if (!GEMINI_KEY || GEMINI_KEY.length < 10) {
+            console.error('[RECONSTRUCTOR] ❌ Critical: No valid Gemini API Key found.');
+            throw new Error('AI Analysis Engine Offline: API Key Missing');
         }
 
         try {
+            console.log('[RECONSTRUCTOR] 🤖 Attempting Gemini Analysis...');
             const aiLayout = await this.analyzeWithGemini(file, name, examType, GEMINI_KEY);
-            if (aiLayout) return aiLayout;
-        } catch (e) {
-            console.error('[RECONSTRUCTOR] ❌ Universal AI Error:', e);
+            if (aiLayout) {
+                console.log('[RECONSTRUCTOR] ✅ Gemini Analysis Successful');
+                return aiLayout;
+            }
+            throw new Error('AI Analysis returned no results');
+        } catch (e: any) {
+            console.error('[RECONSTRUCTOR] ❌ Gemini Pipeline Failed:', e.message || e);
+            throw new Error(`AI Analysis Failed: ${e.message || 'Unknown Error'}`);
         }
-
-        return this.getBoilerplate(name, examType);
     }
 
     private static getBoilerplate(name: string, examType: string): LayoutSchema {
@@ -171,9 +176,21 @@ export class LayoutReconstructor {
 
         const response = await result.response;
         const text = response.text();
+        console.log('[RECONSTRUCTOR] 📝 AI Response received (Length:', text.length, ')');
+
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-            return JSON.parse(jsonMatch[0]) as LayoutSchema;
+            try {
+                const parsed = JSON.parse(jsonMatch[0]) as LayoutSchema;
+                console.log('[RECONSTRUCTOR] 🧩 Extracted JSON with', parsed.pages?.[0]?.elements?.length || 0, 'elements');
+                return parsed;
+            } catch (pE) {
+                console.error('[RECONSTRUCTOR] ❌ Failed to parse AI JSON:', pE);
+                console.debug('[RECONSTRUCTOR] Raw JSON was:', jsonMatch[0]);
+            }
+        } else {
+            console.warn('[RECONSTRUCTOR] ⚠️ No JSON found in AI response');
+            console.debug('[RECONSTRUCTOR] Raw AI text was:', text);
         }
 
         return null;

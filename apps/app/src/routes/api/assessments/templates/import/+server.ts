@@ -34,7 +34,12 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
     const file = formData.get('file') as File;
     const dryRun = formData.get('dryRun') === 'true';
 
-    if (!file || !name) throw error(400, 'Name and Source File are required');
+    console.log(`[TEMPLATE_IMPORT] 📥 Request: name="${name}", type="${exam_type}", univ="${universityId}", file="${file?.name}", dryRun=${dryRun}`);
+
+    if (!file || !name) {
+        console.error('[TEMPLATE_IMPORT] ❌ Missing requirements');
+        throw error(400, 'Name and Source File are required');
+    }
 
     console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} (DryRun: ${dryRun})`);
 
