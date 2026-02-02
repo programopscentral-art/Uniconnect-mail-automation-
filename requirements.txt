@@ -1,0 +1,7 @@
+opencv-python-headless
+numpy
+google-cloud-vision
+google-auth
+flask
+flask-cors
+Pillow

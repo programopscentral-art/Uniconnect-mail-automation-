@@ -54,11 +54,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const extractFormData = new FormData();
         extractFormData.append('file', new Blob([buffer]), file.name);
 
-        // Deployment Readiness: Use EXTRACTOR_SERVICE_URL from ENV
-        const serviceRoot = (env.EXTRACTOR_SERVICE_URL || 'http://localhost:5000').replace(/\/$/, '');
+        // Deployment Readiness: Auto-detect Railway service or use ENV
+        let serviceRoot = env.EXTRACTOR_SERVICE_URL;
+
+        if (!serviceRoot) {
+            // If on Railway, the service is reachable at http://extractor:5000
+            if (env.RAILWAY_STATIC_URL || env.RAILWAY_SERVICE_NAME) {
+                serviceRoot = 'http://extractor:5000';
+            } else {
+                serviceRoot = 'http://localhost:5000';
+            }
+        }
+
+        serviceRoot = serviceRoot.replace(/\/$/, '');
         const extractUrl = `${serviceRoot}/api/extract-template`;
 
-        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Extraction Service`);
+        console.log(`[TEMPLATE_IMPORT] 🛰️ Forwarding to Extraction Service: ${extractUrl}`);
 
         let extractRes;
         try {

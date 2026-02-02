@@ -14,5 +14,10 @@ build.command = "pnpm install && pnpm build --filter worker"
 start.command = "node apps/worker/dist/index.js"
 
 [[services]]
+name = "extractor"
+source = "."
+start.command = "python template_extractor.py"
+
+[[services]]
 name = "redis"
 image = "redis:7-alpine"
