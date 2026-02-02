@@ -3,6 +3,7 @@
   import { fade, fly } from "svelte/transition";
   import ThemeToggle from "$lib/components/ui/ThemeToggle.svelte";
   import { untrack } from "svelte";
+  import { clickOutside } from "$lib/utils/clickOutside";
   let { children, data } = $props();
   let user = $derived(data.user);
   let currentTheme = $state<"light" | "dark">(
@@ -220,12 +221,28 @@
       }
     };
 
+    const handleFocus = () => {
+      if (user?.presence_mode === "AUTO") {
+        updatePresence("ONLINE", "AUTO");
+      }
+    };
+
+    const handleBlur = () => {
+      if (user?.presence_mode === "AUTO") {
+        updatePresence("AWAY", "AUTO");
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
 
     return () => {
       clearInterval(notificationInterval);
       clearInterval(presenceInterval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
       updatePresence("OFFLINE");
     };
   });
@@ -391,7 +408,10 @@
           </div>
 
           <!-- Notification Bell -->
-          <div class="relative">
+          <div
+            class="relative"
+            use:clickOutside={() => (showNotifications = false)}
+          >
             <button
               onclick={() => (showNotifications = !showNotifications)}
               class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors relative"
@@ -510,7 +530,7 @@
                   <option value="ALL">All Teams</option>
                 {/if}
                 {#if user.universities}
-                  {#each user.universities.filter((u) => u.is_team) as univ}
+                  {#each user.universities.filter((u: any) => u.is_team) as univ}
                     <option value={univ.id}>{univ.name}</option>
                   {/each}
                 {/if}
@@ -532,7 +552,10 @@
           {/if}
 
           <!-- Account Hub Header -->
-          <div class="relative">
+          <div
+            class="relative"
+            use:clickOutside={() => (showPresenceMenu = false)}
+          >
             <button
               onclick={() => (showPresenceMenu = !showPresenceMenu)}
               class="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-xl hover:shadow-indigo-500/10 transition-all group active:scale-95"

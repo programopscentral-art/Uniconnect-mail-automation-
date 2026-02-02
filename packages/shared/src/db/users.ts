@@ -185,9 +185,9 @@ export async function getUserStats(userId: string) {
     const efficiency = taskCount > 0 ? Math.round((taskCompleted / taskCount) * 100) : 100;
 
     let impactRating = 'Bronze Operator';
-    if (taskCompleted > 50 || mailCount > 1000) impactRating = 'Silver Operator';
-    if (taskCompleted > 200 || mailCount > 5000) impactRating = 'Gold Partner';
-    if (taskCompleted > 1000) impactRating = 'Platinum Lead';
+    if (taskCompleted >= 20 || mailCount > 1000) impactRating = 'Silver Operator';
+    if (taskCompleted >= 50 || mailCount > 5000) impactRating = 'Gold Partner';
+    if (taskCompleted >= 100 || mailCount > 10000) impactRating = 'Platinum Lead';
 
     return {
         tasks: { total: taskCount, completed: taskCompleted },

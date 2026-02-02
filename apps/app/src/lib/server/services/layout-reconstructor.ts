@@ -1,3 +1,5 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 /**
  * LayoutReconstructor Service
  * 
@@ -90,8 +92,20 @@ export class LayoutReconstructor {
             nameKeywords.includes('adypu') ||
             nameKeywords.includes('ajeenkya');
 
-        const isUnitTest = nameKeywords.includes('unit') || nameKeywords.includes('test');
-        const isProfessional = nameKeywords.includes('university') || nameKeywords.includes('college') || isADYPU;
+        const isMRV = nameKeywords.includes('mrv');
+        const isUnitTest = nameKeywords.includes('unit') || nameKeywords.includes('test') || nameKeywords.includes('midi');
+        const isProfessional = nameKeywords.includes('university') || nameKeywords.includes('college') || nameKeywords.includes('school') || isADYPU || isMRV;
+
+        // Try Gemini if Key exists and it's a complex doc
+        const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI';
+        if (GEMINI_KEY && (isMRV || !isADYPU)) {
+            try {
+                const aiLayout = await this.analyzeWithGemini(file, name, examType, GEMINI_KEY);
+                if (aiLayout) return aiLayout;
+            } catch (e) {
+                console.error('[RECONSTRUCTOR] ❌ Gemini Error:', e);
+            }
+        }
 
         const elements: LayoutElement[] = [];
 
@@ -230,5 +244,47 @@ export class LayoutReconstructor {
         };
 
         return schema;
+    }
+
+    private static async analyzeWithGemini(file: File, name: string, examType: string, apiKey: string): Promise<LayoutSchema | null> {
+        console.log(`[RECONSTRUCTOR] 🤖 Calling Gemini for ${name}...`);
+
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const base64 = buffer.toString('base64');
+
+        const prompt = `
+            Analyze this assessment paper and return a JSON LayoutSchema.
+            The schema MUST follow this structure:
+            {
+                "page": { "width": "A4", "unit": "mm", "margins": { "top": 10, "bottom": 10, "left": 10, "right": 10 } },
+                "pages": [{
+                    "id": "p1",
+                    "elements": [
+                        { "id": "el1", "type": "image", "x": 90, "y": 10, "w": 30, "h": 30, "src": "/logos/university-logo.png", "alt": "Logo" },
+                        { "id": "el2", "type": "text", "x": 10, "y": 45, "w": 190, "h": 20, "content": "<h1>UNIVERSITY NAME</h1>" }
+                    ]
+                }]
+            }
+            Types allowed: text, image, table, line, shape.
+            For logos, use type 'image' and identify its position.
+            Return ONLY the raw JSON.
+        `;
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64, mimeType: file.type || "application/pdf" } }
+        ]);
+
+        const response = await result.response;
+        const text = response.text();
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]) as LayoutSchema;
+        }
+
+        return null;
     }
 }

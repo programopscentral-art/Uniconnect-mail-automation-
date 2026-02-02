@@ -317,6 +317,7 @@
 <ImportWizard
   bind:show={showImportModal}
   universityId={data.selectedUniversityId}
+  onImportComplete={() => invalidateAll()}
 />
 
 <style>

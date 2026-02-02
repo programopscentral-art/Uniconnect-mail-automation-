@@ -93,6 +93,29 @@
       d.toLocaleDateString()
     );
   }
+
+  import { onMount } from "svelte";
+  onMount(() => {
+    const interval = setInterval(() => {
+      invalidateAll();
+    }, 30000); // Poll every 30s for live efficiency
+    return () => clearInterval(interval);
+  });
+
+  const tierMeta = $derived(() => {
+    switch (stats.impactRating) {
+      case "Bronze Operator":
+        return { color: "bg-orange-700", text: "text-orange-200" };
+      case "Silver Operator":
+        return { color: "bg-slate-400", text: "text-slate-100" };
+      case "Gold Partner":
+        return { color: "bg-yellow-500", text: "text-yellow-900" };
+      case "Platinum Lead":
+        return { color: "bg-indigo-600", text: "text-indigo-100" };
+      default:
+        return { color: "bg-indigo-600", text: "text-white" };
+    }
+  });
 </script>
 
 <div class="max-w-7xl mx-auto space-y-8 p-4 md:p-8" in:fade>
@@ -243,7 +266,8 @@
 
       <!-- Stats Mini Card -->
       <div
-        class="bg-indigo-600 rounded-[32px] p-8 text-white shadow-xl relative overflow-hidden"
+        class="{tierMeta().color} rounded-[32px] p-8 {tierMeta()
+          .text} shadow-xl relative overflow-hidden transition-colors duration-700"
       >
         <div class="absolute top-0 right-0 p-4 opacity-10">
           <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"
