@@ -44,23 +44,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ success: false, message: 'Name and Source File are required' }, { status: 400 });
     }
 
-    // --- Pre-Flight Connectivity Check ---
-    try {
-        const apiKey = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI').trim();
-        console.log(`[TEMPLATE_IMPORT] 🧪 Pre-flight with key: ${apiKey.slice(0, 5)}...`);
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        await model.generateContent("ping");
-        console.log(`[TEMPLATE_IMPORT] 🧪 Connection Verified`);
-    } catch (ce: any) {
-        console.error(`[TEMPLATE_IMPORT] 🧪 Connection FAILED:`, ce.message);
-        return json({
-            success: false,
-            message: `AI Connection Failed: ${ce.message}`,
-            detail: ce.stack || 'No stack trace',
-            type: 'CONNECTION_ERROR'
-        }, { status: 500 });
-    }
+    console.log(`[TEMPLATE_IMPORT] 📥 Processing file: ${file.name} (DryRun: ${dryRun}, Univ: ${universityId})`);
 
     // --- High-Fidelity Layout Reconstruction ---
     let detectedLayout;
@@ -70,7 +54,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         console.error(`[TEMPLATE_IMPORT] ❌ Reconstruction Error:`, re);
         return json({
             success: false,
-            message: re.message || 'Reconstruction Failed',
+            message: re.message || 'AI Analysis Failed',
             detail: re.stack || 'No stack trace',
             type: 'RECONSTRUCTION_ERROR'
         }, { status: 500 });
