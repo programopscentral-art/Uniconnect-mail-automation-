@@ -129,14 +129,23 @@ export class LayoutReconstructor {
     }
 
     private static async analyzeWithGemini(file: File, name: string, examType: string, apiKey: string): Promise<LayoutSchema | null> {
-        console.log(`[RECONSTRUCTOR] 🤖 Calling Gemini for ${name}...`);
+        console.log(`[RECONSTRUCTOR] 🤖 Calling Gemini for ${name}... (Mime: ${file.type}, Size: ${file.size})`);
 
         const genAI = new GoogleGenerativeAI(apiKey.trim());
         const buffer = Buffer.from(await file.arrayBuffer());
         const base64 = buffer.toString('base64');
 
-        // Resilience: Try different model identifiers to bypass "NOT FOUND" (404) errors
-        const modelsToTry = ["gemini-1.5-flash", "models/gemini-1.5-flash"];
+        // Robust Mime-Type Detection
+        let mimeType = file.type;
+        if (!mimeType || mimeType === 'application/octet-stream') {
+            if (file.name.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+            else if (file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+            else if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+            else mimeType = 'image/png'; // Fallback
+        }
+
+        // Resilience: Try different model identifiers
+        const modelsToTry = ["gemini-1.5-flash", "models/gemini-1.5-flash", "gemini-pro-vision"];
         let result: any = null;
         let lastError: any = null;
 
@@ -174,22 +183,24 @@ export class LayoutReconstructor {
 
         for (const modelId of modelsToTry) {
             try {
-                console.log(`[RECONSTRUCTOR] 🤖 Attempting Gemini Model: ${modelId}`);
+                console.log(`[RECONSTRUCTOR] 🤖 Testing Gemini Model: ${modelId} with Mime: ${mimeType}`);
                 const model = genAI.getGenerativeModel({ model: modelId });
                 result = await model.generateContent([
                     prompt,
-                    { inlineData: { data: base64, mimeType: file.type || "application/png" } }
+                    { inlineData: { data: base64, mimeType: mimeType } }
                 ]);
                 if (result) break;
             } catch (e: any) {
-                console.warn(`[RECONSTRUCTOR] ⚠️ Model ${modelId} failed:`, e.message);
+                console.warn(`[RECONSTRUCTOR] ⚠️ Model ${modelId} failure:`, e.message);
                 lastError = e;
+                // If the error is "NOT FOUND", we definitely want to try the next model
             }
         }
 
         if (!result && lastError) {
             console.error('[RECONSTRUCTOR] ❌ Gemini Pipeline Failed:', lastError);
-            throw new Error(`AI Analysis Failed (Gemini): ${lastError.message || 'Model Not Found'}`);
+            const geminiErrDetail = lastError.stack || JSON.stringify(lastError);
+            throw new Error(`Gemini Engine Failure: ${lastError.message || 'Unknown Response'} | Trace: ${geminiErrDetail.slice(0, 100)}`);
         }
 
         const response = await result.response;
