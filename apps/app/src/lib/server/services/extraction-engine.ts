@@ -36,20 +36,42 @@ export class ExtractionEngine {
         const A4_WIDTH_MM = 210;
         const A4_HEIGHT_MM = 297;
 
-        // 3. Filtering logic for questions
-        const filteredElements = textBlocks.filter(block => {
-            // Keep text in top 25% or if it doesn't look like a question
-            const isTop = block.y < (A4_HEIGHT_MM * 0.25);
+        // 3. Identification & Filtering
+        const finalElements = textBlocks.map(block => {
             const isQuestion = this.isQuestion(block.text);
-            return isTop || !isQuestion;
-        });
+            const isTop = block.y < (A4_HEIGHT_MM * 0.3); // Increased header zone
 
-        // 4. Extract Meta Fields
+            // Heuristic for headers: Text in top 30% that isn't a question
+            const isHeader = isTop && !isQuestion;
+
+            return {
+                ...block,
+                is_header: isHeader,
+                is_question: isQuestion,
+                thickness: 1, // Default for text
+                content: block.text
+            };
+        }).filter(el => el.is_header || !el.is_question);
+
+        // 4. Extract Meta Fields & Values
         const metadata: Record<string, string> = {};
-        filteredElements.forEach(el => {
-            if (this.isMetadata(el.text)) {
-                const key = this.getMetaKey(el.text);
-                if (key) metadata[key] = "";
+        finalElements.forEach((el, idx) => {
+            if (this.isMetadata(el.content)) {
+                const key = this.getMetaKey(el.content);
+                if (key) {
+                    // Try to find the value (either after a colon or in the next block)
+                    let value = "";
+                    if (el.content.includes(':')) {
+                        value = el.content.split(':').slice(1).join(':').trim();
+                    } else if (idx + 1 < finalElements.length) {
+                        const next = finalElements[idx + 1];
+                        // If next entry is close on Y axis
+                        if (Math.abs(next.y - el.y) < 10) {
+                            value = next.content;
+                        }
+                    }
+                    metadata[key] = value || "";
+                }
             }
         });
 
@@ -59,7 +81,7 @@ export class ExtractionEngine {
                 {
                     id: 'page-1',
                     elements: [
-                        ...filteredElements,
+                        ...finalElements,
                         ...structuralElements,
                         // Add Logo Placeholder
                         {
@@ -92,6 +114,8 @@ export class ExtractionEngine {
             const mmW = ((bbox.x1 - bbox.x0) / imgWidth) * A4_WIDTH_MM;
             const mmH = ((bbox.y1 - bbox.y0) / imgHeight) * A4_HEIGHT_MM;
 
+            const isCentered = mmX > (A4_WIDTH_MM * 0.25) && (mmX + mmW) < (A4_WIDTH_MM * 0.75);
+
             return {
                 id: `text-${i}`,
                 type: 'text',
@@ -103,7 +127,8 @@ export class ExtractionEngine {
                 content: text,
                 style: {
                     fontSize: 10,
-                    textAlign: mmX > (A4_WIDTH_MM * 0.3) && mmX < (A4_WIDTH_MM * 0.6) ? 'center' : 'left'
+                    textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
+                    fontWeight: text === text.toUpperCase() && text.length > 5 ? 'bold' : 'normal'
                 }
             };
         }) || [];
@@ -136,12 +161,35 @@ export class ExtractionEngine {
                 y: Number(mmY.toFixed(2)),
                 width: Number(mmW.toFixed(2)),
                 height: 0.5,
+                thickness: 1,
                 orientation: 'horizontal',
                 strokeWidth: 1,
                 x1: Number(mmX.toFixed(2)),
                 y1: Number(mmY.toFixed(2)),
                 x2: Number((mmX + mmW).toFixed(2)),
                 y2: Number(mmY.toFixed(2))
+            });
+        });
+
+        verticalLines.forEach((line, i) => {
+            const mmX = (line.x / width) * A4_WIDTH_MM;
+            const mmY = (line.y / height) * A4_HEIGHT_MM;
+            const mmH = (line.length / height) * A4_HEIGHT_MM;
+
+            elements.push({
+                id: `line-v-${i}`,
+                type: 'line',
+                x: Number(mmX.toFixed(2)),
+                y: Number(mmY.toFixed(2)),
+                width: 0.5,
+                height: Number(mmH.toFixed(2)),
+                thickness: 1,
+                orientation: 'vertical',
+                strokeWidth: 1,
+                x1: Number(mmX.toFixed(2)),
+                y1: Number(mmY.toFixed(2)),
+                x2: Number(mmX.toFixed(2)),
+                y2: Number((mmY + mmH).toFixed(2))
             });
         });
 
@@ -187,9 +235,31 @@ export class ExtractionEngine {
     }
 
     private scanVerticalLines(image: Jimp) {
-        // Implementation similar to horizontal but column-based
-        // For template reconstruction, horizontal lines are usually enough to start
-        return [];
+        const lines: { x: number; y: number; length: number }[] = [];
+        const width = image.bitmap.width;
+        const height = image.bitmap.height;
+        const threshold = 180;
+
+        for (let x = 0; x < width; x += 10) { // Column skip for speed
+            let startY = -1;
+            for (let y = 0; y < height; y++) {
+                const color = Jimp.intToRGBA(image.getPixelColor(x, y));
+                const brightness = (color.r + color.g + color.b) / 3;
+
+                if (brightness < threshold) {
+                    if (startY === -1) startY = y;
+                } else {
+                    if (startY !== -1) {
+                        const length = y - startY;
+                        if (length > height * 0.1) { // 10% height
+                            lines.push({ x, y: startY, length });
+                        }
+                        startY = -1;
+                    }
+                }
+            }
+        }
+        return lines;
     }
 
     private isQuestion(text: string): boolean {

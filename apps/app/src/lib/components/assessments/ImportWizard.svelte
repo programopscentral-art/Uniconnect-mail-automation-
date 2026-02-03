@@ -15,6 +15,7 @@
     Search,
     Type,
     ArrowRight,
+    SearchCode,
   } from "lucide-svelte";
   import LayoutCanvas from "$lib/components/assessments/design-studio/LayoutCanvas.svelte";
 
@@ -263,28 +264,60 @@
           <div
             class="w-80 border-r border-white/5 p-8 space-y-8 bg-[#121212] overflow-y-auto shrink-0 scrollbar-hide"
           >
-            <h3
-              class="text-[10px] font-black text-white/20 uppercase tracking-widest"
-            >
-              Structural Nodes
-            </h3>
-            <div class="space-y-3">
-              {#each detectedLayout?.elements || [] as el}
-                <div
-                  class="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
-                >
-                  <div class="flex items-center gap-3">
-                    {#if el.type === "text"}<Type
-                        class="w-3.5 h-3.5 text-indigo-400"
-                      />{:else}<Layout class="w-3.5 h-3.5 text-white/20" />{/if}
-                    <span
-                      class="text-[10px] font-bold text-white/40 uppercase tracking-tight"
-                      >{el.type} node</span
+            <div>
+              <h3
+                class="text-[10px] font-black text-white/20 uppercase tracking-widest mb-6"
+              >
+                University Headers
+              </h3>
+              <div class="space-y-4">
+                {#each (detectedLayout?.pages?.[0]?.elements || []).filter((el) => el.is_header) as el}
+                  <div class="space-y-2">
+                    <label
+                      for="header-{el.id}"
+                      class="text-[8px] font-black text-white/10 uppercase tracking-widest ml-1"
+                      >Detected Header</label
                     >
+                    <textarea
+                      id="header-{el.id}"
+                      bind:value={el.content}
+                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-indigo-400 outline-none focus:border-indigo-500/50 transition-all resize-none"
+                      rows="2"
+                    ></textarea>
                   </div>
-                  <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500/40" />
-                </div>
-              {/each}
+                {:else}
+                  <p
+                    class="text-[10px] font-bold text-white/10 uppercase tracking-widest text-center py-4"
+                  >
+                    No headers detected
+                  </p>
+                {/each}
+              </div>
+            </div>
+
+            <div class="pt-8 border-t border-white/5">
+              <h3
+                class="text-[10px] font-black text-white/20 uppercase tracking-widest mb-6"
+              >
+                Structural Nodes
+              </h3>
+              <div class="space-y-2">
+                {#each (detectedLayout?.pages?.[0]?.elements || []).slice(0, 50) as el: any}
+                  <div
+                    class="px-3 py-2 rounded-lg bg-white/[0.01] border border-white/[0.03] flex items-center justify-between group hover:bg-white/[0.03] transition-all"
+                  >
+                    <div class="flex items-center gap-2">
+                      {#if el.type === "text"}<Type
+                          class="w-3 h-3 text-indigo-400/40"
+                        />{:else}<Layout class="w-3 h-3 text-white/10" />{/if}
+                      <span
+                        class="text-[9px] font-bold text-white/20 uppercase tracking-tight truncate max-w-[140px]"
+                        >{el.type === "text" ? el.content : el.type}</span
+                      >
+                    </div>
+                  </div>
+                {/each}
+              </div>
             </div>
           </div>
 
