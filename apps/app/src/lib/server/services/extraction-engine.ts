@@ -54,24 +54,30 @@ export class ExtractionEngine {
             };
         }).filter(el => el.is_header || !el.is_question);
 
-        // 4. Extract Meta Fields & Values
+        // 4. Extract Meta Fields & Values (STRICTER)
         const metadata: Record<string, string> = {};
         finalElements.forEach((el, idx) => {
-            if (this.isMetadata(el.content)) {
-                const key = this.getMetaKey(el.content);
+            const content = el.content.trim();
+            if (this.isMetadata(content)) {
+                const key = this.getMetaKey(content);
                 if (key) {
-                    // Try to find the value (either after a colon or in the next block)
                     let value = "";
-                    if (el.content.includes(':')) {
-                        value = el.content.split(':').slice(1).join(':').trim();
-                    } else if (idx + 1 < finalElements.length) {
+                    if (content.includes(':')) {
+                        value = content.split(':').slice(1).join(':').trim();
+                    } else if (content.includes(' - ')) {
+                        value = content.split(' - ').slice(1).join(' - ').trim();
+                    }
+
+                    // If no value found inside the string, look for next element
+                    if (!value && idx + 1 < finalElements.length) {
                         const next = finalElements[idx + 1];
-                        // If next entry is close on Y axis
-                        if (Math.abs(next.y - el.y) < 10) {
+                        if (Math.abs(next.y - el.y) < 5) { // Same line
                             value = next.content;
                         }
                     }
-                    metadata[key] = value || "";
+
+                    if (value) metadata[key] = value;
+                    else if (!metadata[key]) metadata[key] = "";
                 }
             }
         });
@@ -136,6 +142,7 @@ export class ExtractionEngine {
 
         const textBlocks = mergedBlocks.map((block, i) => {
             const { x: mmX, y: mmY, width: mmW, height: mmH, text } = block;
+            const isHeaderArea = mmY < (A4_HEIGHT_MM * 0.3);
             const isCentered = mmX > (A4_WIDTH_MM * 0.2) && (mmX + mmW) < (A4_WIDTH_MM * 0.8);
             const isBold = text === text.toUpperCase() && text.length > 5;
 
@@ -150,10 +157,11 @@ export class ExtractionEngine {
                 content: text,
                 confidence: block.confidence,
                 style: {
-                    fontSize: mmH > 4 ? 12 : (mmH > 3 ? 10 : 8),
+                    fontSize: isHeaderArea ? (mmH > 4 ? 14 : 11) : (mmH > 4 ? 12 : (mmH > 3 ? 10 : 8)),
                     textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
-                    fontWeight: isBold ? 'bold' : 'normal',
-                }
+                    fontWeight: isBold || isHeaderArea ? 'bold' : 'normal',
+                },
+                is_header: isHeaderArea
             };
         });
 
@@ -173,8 +181,13 @@ export class ExtractionEngine {
             const yDiff = Math.abs(next.y - current.y);
             const xGap = next.x - (current.x + current.width);
 
-            // If on same line (Y diff < 2mm) and gap is small (< 10mm)
-            if (yDiff < 2 && xGap < 10) {
+            // Smarter merging: 
+            // 1. If in top 30% (Header), be much more conservative with xGap (prevent clump)
+            // 2. If Y diff is tiny (< 1.5mm)
+            const isHeaderArea = current.y < (297 * 0.3);
+            const gapThreshold = isHeaderArea ? 5 : 12;
+
+            if (yDiff < 1.5 && xGap < gapThreshold) {
                 current.text = (current.text + " " + next.text).replace(/\s+/g, ' ');
                 current.width = (next.x + next.width) - current.x;
                 current.height = Math.max(current.height, next.height);
@@ -195,63 +208,55 @@ export class ExtractionEngine {
         const width = image.bitmap.width;
         const height = image.bitmap.height;
 
-        // Simple Scanline Line Detection (Horizontal & Vertical)
-        // This replaces the need for full OpenCV for basic template lines
         const horizontalLines = this.scanHorizontalLines(image);
         const verticalLines = this.scanVerticalLines(image);
 
-        horizontalLines.forEach((line, i) => {
-            const mmX = (line.x / width) * A4_WIDTH_MM;
-            const mmY = (line.y / height) * A4_HEIGHT_MM;
-            const mmW = (line.length / width) * A4_WIDTH_MM;
+        // V4: Box Detection (Simplified)
+        // Find intersecting lines to form rectangles
+        const boxes: any[] = [];
+
+        horizontalLines.forEach((h, hi) => {
+            const mmY = (h.y / height) * A4_HEIGHT_MM;
+            const mmX1 = (h.x / width) * A4_WIDTH_MM;
+            const mmX2 = ((h.x + h.length) / width) * A4_WIDTH_MM;
 
             elements.push({
-                id: `line-h-${i}`,
+                id: `line-h-${hi}`,
                 type: 'line',
-                x: Number(mmX.toFixed(2)),
-                y: Number(mmY.toFixed(2)),
-                width: Number(mmW.toFixed(2)),
-                height: 0.5,
-                thickness: 1,
-                orientation: 'horizontal',
-                strokeWidth: 1,
-                x1: Number(mmX.toFixed(2)),
+                x1: Number(mmX1.toFixed(2)),
                 y1: Number(mmY.toFixed(2)),
-                x2: Number((mmX + mmW).toFixed(2)),
-                y2: Number(mmY.toFixed(2))
+                x2: Number(mmX2.toFixed(2)),
+                y2: Number(mmY.toFixed(2)),
+                strokeWidth: 1,
+                orientation: 'horizontal'
             });
         });
 
-        verticalLines.forEach((line, i) => {
-            const mmX = (line.x / width) * A4_WIDTH_MM;
-            const mmY = (line.y / height) * A4_HEIGHT_MM;
-            const mmH = (line.length / height) * A4_HEIGHT_MM;
+        verticalLines.forEach((v, vi) => {
+            const mmX = (v.x / width) * A4_WIDTH_MM;
+            const mmY1 = (v.y / height) * A4_HEIGHT_MM;
+            const mmY2 = ((v.y + v.length) / height) * A4_HEIGHT_MM;
 
             elements.push({
-                id: `line-v-${i}`,
+                id: `line-v-${vi}`,
                 type: 'line',
-                x: Number(mmX.toFixed(2)),
-                y: Number(mmY.toFixed(2)),
-                width: 0.5,
-                height: Number(mmH.toFixed(2)),
-                thickness: 1,
-                orientation: 'vertical',
-                strokeWidth: 1,
                 x1: Number(mmX.toFixed(2)),
-                y1: Number(mmY.toFixed(2)),
+                y1: Number(mmY1.toFixed(2)),
                 x2: Number(mmX.toFixed(2)),
-                y2: Number((mmY + mmH).toFixed(2))
+                y2: Number(mmY2.toFixed(2)),
+                strokeWidth: 1,
+                orientation: 'vertical'
             });
         });
 
-        // Add an outer border
+        // Add an outer border (Matches user preference for "boxes same as image")
         elements.push({
             id: 'page-border',
             type: 'rect',
             x: 5, y: 5, width: 200, height: 287,
             strokeWidth: 1,
             backgroundColor: 'transparent',
-            borderColor: '#e2e8f0'
+            borderColor: '#64748b'
         });
 
         return elements;

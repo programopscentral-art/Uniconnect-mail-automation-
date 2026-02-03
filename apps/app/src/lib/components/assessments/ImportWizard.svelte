@@ -82,7 +82,12 @@
 
     // Pass back the edited metadata and layout
     formData.append("metadata", JSON.stringify(metadataFields));
-    formData.append("layout", JSON.stringify(detectedLayout));
+
+    // V4: Strip heavy debug data (debugImage) before sending back to server
+    // to prevent payload size errors/timeouts
+    const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
+    if (cleanLayout.debugImage) delete cleanLayout.debugImage;
+    formData.append("layout", JSON.stringify(cleanLayout));
 
     try {
       // Internal save route handles database insertion
