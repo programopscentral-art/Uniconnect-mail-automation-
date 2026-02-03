@@ -110,15 +110,32 @@ export class ExtractionEngine {
         const worker = await createWorker('eng');
         const { data } = await worker.recognize(buffer);
 
-        const textBlocks = data.blocks?.map((block, i) => {
+        const rawBlocks = (data.blocks as any[])?.map((block, i) => {
             const bbox = block.bbox;
             const text = block.text.trim();
+            if (!text) return null;
 
             const mmX = (bbox.x0 / imgWidth) * A4_WIDTH_MM;
             const mmY = (bbox.y0 / imgHeight) * A4_HEIGHT_MM;
             const mmW = ((bbox.x1 - bbox.x0) / imgWidth) * A4_WIDTH_MM;
             const mmH = ((bbox.y1 - bbox.y0) / imgHeight) * A4_HEIGHT_MM;
 
+            return {
+                id: `raw-${i}`,
+                x: mmX,
+                y: mmY,
+                width: mmW,
+                height: mmH,
+                text,
+                confidence: block.confidence
+            };
+        }).filter(b => b !== null) || [];
+
+        // Merge Fragmented Blocks
+        const mergedBlocks = this.mergeTextBlocks(rawBlocks);
+
+        const textBlocks = mergedBlocks.map((block, i) => {
+            const { x: mmX, y: mmY, width: mmW, height: mmH, text } = block;
             const isCentered = mmX > (A4_WIDTH_MM * 0.2) && (mmX + mmW) < (A4_WIDTH_MM * 0.8);
             const isBold = text === text.toUpperCase() && text.length > 5;
 
@@ -133,16 +150,42 @@ export class ExtractionEngine {
                 content: text,
                 confidence: block.confidence,
                 style: {
-                    fontSize: mmH > 5 ? 14 : (mmH > 3 ? 11 : 9),
+                    fontSize: mmH > 4 ? 12 : (mmH > 3 ? 10 : 8),
                     textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
                     fontWeight: isBold ? 'bold' : 'normal',
-                    letterSpacing: mmW / text.length > 2 ? '0.1em' : 'normal'
                 }
             };
-        }) || [];
+        });
 
         await worker.terminate();
         return { textBlocks };
+    }
+
+    private mergeTextBlocks(blocks: any[]) {
+        if (blocks.length === 0) return [];
+        const sorted = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
+        const merged: any[] = [];
+
+        let current = { ...sorted[0] };
+        for (let i = 1; i < sorted.length; i++) {
+            const next = sorted[i];
+
+            const yDiff = Math.abs(next.y - current.y);
+            const xGap = next.x - (current.x + current.width);
+
+            // If on same line (Y diff < 2mm) and gap is small (< 10mm)
+            if (yDiff < 2 && xGap < 10) {
+                current.text = (current.text + " " + next.text).replace(/\s+/g, ' ');
+                current.width = (next.x + next.width) - current.x;
+                current.height = Math.max(current.height, next.height);
+                current.confidence = (current.confidence + next.confidence) / 2;
+            } else {
+                merged.push(current);
+                current = { ...next };
+            }
+        }
+        merged.push(current);
+        return merged;
     }
 
     private async detectStructure(image: Jimp) {
@@ -317,17 +360,19 @@ export class ExtractionEngine {
     }
 
     private isMetadata(text: string): boolean {
-        const keywords = ['duration', 'time', 'marks', 'code', 'subject', 'program', 'branch'];
+        const keywords = ['university', 'duration', 'time', 'marks', 'code', 'subject', 'program', 'branch', 'academic', 'a.y'];
         return keywords.some(k => text.toLowerCase().includes(k));
     }
 
     private getMetaKey(text: string): string | null {
         const t = text.toLowerCase();
-        if (t.includes('university')) return 'UNIVERSITY_NAME';
+        if (t.includes('university') || t.includes('malla reddy')) return 'UNIVERSITY_NAME';
         if (t.includes('time') || t.includes('duration')) return 'TIME';
         if (t.includes('marks')) return 'MAX_MARKS';
         if (t.includes('code')) return 'SUBJECT_CODE';
         if (t.includes('subject')) return 'SUBJECT_NAME';
+        if (t.includes('branch') || t.includes('program')) return 'PROGRAM_BRANCH';
+        if (t.includes('academic') || t.includes('a.y')) return 'ACADEMIC_YEAR';
         return null;
     }
 }

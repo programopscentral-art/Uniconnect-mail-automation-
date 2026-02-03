@@ -32,6 +32,13 @@
   let errorMsg = $state("");
   let previewZoom = $state(0.75);
 
+  // Visibility Controls
+  let showLines = $state(true);
+  let showText = $state(true);
+  let showBackground = $state(true);
+  let bgOpacity = $state(0.7);
+  let highContrast = $state(false);
+
   async function startAnalysis() {
     if (!importFile || !importName) return;
 
@@ -295,6 +302,65 @@
               </div>
             </div>
 
+            <div class="pt-8 border-t border-white/5 space-y-6">
+              <h3
+                class="text-[10px] font-black text-white/20 uppercase tracking-widest"
+              >
+                Visibility Settings
+              </h3>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  onclick={() => (showBackground = !showBackground)}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {showBackground
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'bg-white/[0.01] text-white/20'} transition-all"
+                >
+                  <span class="text-[9px] font-black uppercase">BG Image</span>
+                </button>
+                <button
+                  onclick={() => (showLines = !showLines)}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {showLines
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'bg-white/[0.01] text-white/20'} transition-all"
+                >
+                  <span class="text-[9px] font-black uppercase">Lines</span>
+                </button>
+                <button
+                  onclick={() => (showText = !showText)}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {showText
+                    ? 'bg-indigo-500/10 text-indigo-400'
+                    : 'bg-white/[0.01] text-white/20'} transition-all"
+                >
+                  <span class="text-[9px] font-black uppercase">Text</span>
+                </button>
+                <button
+                  onclick={() => (highContrast = !highContrast)}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {highContrast
+                    ? 'bg-emerald-500/10 text-emerald-400'
+                    : 'bg-white/[0.01] text-white/20'} transition-all"
+                >
+                  <span class="text-[9px] font-black uppercase">Contrast</span>
+                </button>
+              </div>
+
+              <div class="space-y-2">
+                <label
+                  for="bg-opacity"
+                  class="text-[8px] font-black text-white/10 uppercase tracking-widest ml-1"
+                  >BG Visibility: {Math.round(bgOpacity * 100)}%</label
+                >
+                <input
+                  id="bg-opacity"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  bind:value={bgOpacity}
+                  class="w-full accent-indigo-500 h-1.5 bg-white/5 rounded-full appearance-none cursor-pointer"
+                />
+              </div>
+            </div>
+
             <div class="pt-8 border-t border-white/5">
               <h3
                 class="text-[10px] font-black text-white/20 uppercase tracking-widest mb-6"
@@ -302,9 +368,9 @@
                 Structural Nodes
               </h3>
               <div class="space-y-2">
-                {#each (detectedLayout?.pages?.[0]?.elements || []).slice(0, 50) as el: any}
+                {#each (detectedLayout?.pages?.[0]?.elements || []).slice(0, 100) as el: any}
                   <div
-                    class="px-3 py-2 rounded-lg bg-white/[0.01] border border-white/[0.03] flex items-center justify-between group hover:bg-white/[0.03] transition-all"
+                    class="px-3 py-2 rounded-lg bg-white/[0.01] border border-white/[0.03] flex items-center justify-between group hover:bg-white/[0.03] transition-all cursor-crosshair"
                   >
                     <div class="flex items-center gap-2">
                       {#if el.type === "text"}<Type
@@ -336,6 +402,11 @@
                 showMargins={true}
                 mode="preview"
                 backgroundImage={detectedLayout?.debugImage}
+                {showLines}
+                {showText}
+                {showBackground}
+                {bgOpacity}
+                {highContrast}
               />
             </div>
 

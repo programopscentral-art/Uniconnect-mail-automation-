@@ -12,6 +12,11 @@
     selectedCell = $bindable(null),
     activeCellId = $bindable(null),
     backgroundImage = null,
+    showLines = true,
+    showText = true,
+    showBackground = true,
+    bgOpacity = 0.7,
+    highContrast = false,
   } = $props();
 
   const A4_WIDTH_MM = 210;
@@ -28,7 +33,9 @@
   style="
     width: {A4_WIDTH_MM * MM_TO_PX}px; 
     height: {A4_HEIGHT_MM * MM_TO_PX}px; 
-    background: {backgroundImage ? `url(${backgroundImage})` : 'white'};
+    background: {backgroundImage && showBackground
+    ? `url(${backgroundImage})`
+    : 'white'};
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
@@ -37,8 +44,11 @@
     font-family: 'Outfit', sans-serif;
   "
 >
-  {#if backgroundImage}
-    <div class="absolute inset-0 bg-white/80 pointer-events-none z-0"></div>
+  {#if backgroundImage && showBackground}
+    <div
+      class="absolute inset-0 bg-white pointer-events-none z-0 transition-opacity"
+      style="opacity: {1 - bgOpacity};"
+    ></div>
   {/if}
   <!-- Margins -->
   {#if showMargins && layout.page?.margins}
@@ -70,8 +80,17 @@
       {:else}
         <!-- Simple static rendering for preview/view -->
         <div
-          class="absolute overflow-visible min-h-fit"
+          class="absolute overflow-visible min-h-fit {highContrast
+            ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
+            : ''}"
           style="
+                display: {el.type === 'text'
+            ? showText
+              ? 'block'
+              : 'none'
+            : showLines
+              ? 'block'
+              : 'none'};
                 left: {el.x !== undefined ? el.x : el.x1}mm; 
                 top: {el.y !== undefined ? el.y : el.y1}mm; 
                 width: {el.width || el.w || (el.x2 ? el.x2 - el.x1 : 0)}mm; 
@@ -95,7 +114,11 @@
               "
         >
           {#if el.type === "text"}
-            {@html el.text || el.content}
+            <span
+              style={highContrast ? "color: #4f46e5; font-weight: 900;" : ""}
+            >
+              {@html el.text || el.content}
+            </span>
           {:else if el.type === "rect"}
             <div
               style="
@@ -144,7 +167,9 @@
           {:else if el.type === "line"}
             <div
               style="
-                    background-color: {el.color || '#000'}; 
+                    background-color: {highContrast
+                ? '#4f46e5'
+                : el.color || '#000'}; 
                     width: {el.orientation === 'horizontal'
                 ? '100%'
                 : (el.strokeWidth || el.thickness || 1) + 'px'};
