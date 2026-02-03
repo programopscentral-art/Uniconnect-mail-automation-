@@ -205,26 +205,19 @@ export class LayoutExtractor {
         return null;
     }
 
-    private detectLines(page: any, width: number, height: number, elements: LayoutElement[]) {
-        // Reconstruct lines from repeated aligned bounding boxes (table-like rectangles)
-        // Since we can't run full OpenCV easily, we look for blocks that are very wide and short (separators)
-        // Or we infer dividers if text blocks have consistent gutters.
-
-        // Horizontal separators often exist as metadata row boundaries
-        // We'll create some decorative lines based on metadata positions
+    private detectLines(page: any, mmWidth: number, mmHeight: number, elements: LayoutElement[]) {
         const metaBlocks = elements.filter(el => el.type === 'text' && this.isMetadata(el.text || ''));
         if (metaBlocks.length > 1) {
-            const minY = Math.min(...metaBlocks.map(b => b.y));
             const maxY = Math.max(...metaBlocks.map(b => b.y + b.height));
 
-            // Add a line below the last meta block
             elements.push({
                 id: `line-h-meta`,
                 type: 'line',
-                x: 0.1, y: maxY + 0.01, width: 0.8, height: 0.001,
+                x: 10, y: maxY + 5, width: 190, height: 0.5,
                 orientation: 'horizontal',
-                strokeWidth: 1,
-                x1: 0.1, y1: maxY + 0.01, x2: 0.9, y2: maxY + 0.01
+                thickness: 0.5,
+                x1: 10, y1: maxY + 5, x2: 200, y2: maxY + 5,
+                strokeWidth: 1
             });
         }
     }
