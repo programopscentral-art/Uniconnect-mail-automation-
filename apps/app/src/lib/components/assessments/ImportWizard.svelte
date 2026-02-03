@@ -90,24 +90,32 @@
       return;
     }
 
+    // V6: Clean every page and root of heavy debug data
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     if (cleanLayout.debugImage) delete cleanLayout.debugImage;
+    if (cleanLayout.pages) {
+      cleanLayout.pages.forEach((p: any) => {
+        if (p.debugImage) delete p.debugImage;
+      });
+    }
+
     formData.append("layout", JSON.stringify(cleanLayout));
 
     try {
+      console.log(`[IMPORT_WIZARD] 🚀 Committing template to library...`);
       // Internal save route handles database insertion
       const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
 
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
         onImportComplete(data.template);
         step = 3;
       } else {
-        const err = await res.json().catch(() => ({ message: res.statusText }));
-        errorMsg = err.message || "Failed to finalize template import.";
+        errorMsg = data.message || "Failed to finalize template import.";
+        console.error("[IMPORT_WIZARD] ❌ Commit Error:", data);
       }
     } catch (e: any) {
       errorMsg =

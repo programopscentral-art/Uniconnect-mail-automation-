@@ -138,7 +138,7 @@ export class ExtractionEngine {
         }).filter(b => b !== null) || [];
 
         // Merge Fragmented Blocks
-        const mergedBlocks = this.mergeTextBlocks(rawBlocks);
+        const mergedBlocks = this.mergeTextBlocks(rawBlocks, image);
 
         const textBlocks = mergedBlocks.map((block, i) => {
             const { x: mmX, y: mmY, width: mmW, height: mmH, text } = block;
@@ -160,6 +160,7 @@ export class ExtractionEngine {
                     fontSize: isHeaderArea ? (mmH > 4 ? 14 : 11) : (mmH > 4 ? 12 : (mmH > 3 ? 10 : 8)),
                     textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
                     fontWeight: isBold || isHeaderArea ? 'bold' : 'normal',
+                    color: block.color || '#000000'
                 },
                 is_header: isHeaderArea
             };
@@ -169,32 +170,56 @@ export class ExtractionEngine {
         return { textBlocks };
     }
 
-    private mergeTextBlocks(blocks: any[]) {
+    private mergeTextBlocks(blocks: any[], image: Jimp) {
         if (blocks.length === 0) return [];
         const sorted = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
         const merged: any[] = [];
+        const imgW = image.bitmap.width;
+        const imgH = image.bitmap.height;
 
-        let current = { ...sorted[0] };
+        // Helper to get ink color (pick darkest pixel in a 3x3 grid around center to avoid white)
+        const getInkColor = (b: any) => {
+            const pxX = Math.floor((b.x / 210) * imgW);
+            const pxY = Math.floor((b.y / 297) * imgH);
+
+            // Sample a small area and pick the lowest sum (darkest)
+            let minSum = 765; // 255*3
+            let bestHex = "#000000";
+
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    const xx = Math.min(imgW - 1, Math.max(0, pxX + dx));
+                    const yy = Math.min(imgH - 1, Math.max(0, pxY + dy));
+                    const rgba = Jimp.intToRGBA(image.getPixelColor(xx, yy));
+                    const sum = rgba.r + rgba.g + rgba.b;
+                    if (sum < minSum) {
+                        minSum = sum;
+                        bestHex = `#${rgba.r.toString(16).padStart(2, '0')}${rgba.g.toString(16).padStart(2, '0')}${rgba.b.toString(16).padStart(2, '0')}`;
+                    }
+                }
+            }
+            return bestHex;
+        };
+
+        let current = { ...sorted[0], color: getInkColor(sorted[0]) };
         for (let i = 1; i < sorted.length; i++) {
-            const next = sorted[i];
+            const next = { ...sorted[i], color: getInkColor(sorted[i]) };
 
             const yDiff = Math.abs(next.y - current.y);
             const xGap = next.x - (current.x + current.width);
 
-            // Smarter merging: 
-            // 1. If in top 30% (Header), be much more conservative with xGap (prevent clump)
-            // 2. If Y diff is tiny (< 1.5mm)
-            const isHeaderArea = current.y < (297 * 0.3);
-            const gapThreshold = isHeaderArea ? 5 : 12;
+            const isHeaderArea = current.y < (297 * 0.35);
+            // Stricter merging for header to keep them crisp and exactly spaced
+            const gapThreshold = isHeaderArea ? 4 : 10;
 
-            if (yDiff < 1.5 && xGap < gapThreshold) {
+            if (yDiff < 1.2 && xGap < gapThreshold) {
                 current.text = (current.text + " " + next.text).replace(/\s+/g, ' ');
                 current.width = (next.x + next.width) - current.x;
                 current.height = Math.max(current.height, next.height);
                 current.confidence = (current.confidence + next.confidence) / 2;
             } else {
                 merged.push(current);
-                current = { ...next };
+                current = next;
             }
         }
         merged.push(current);

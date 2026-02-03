@@ -122,7 +122,11 @@
                   el.id,
                   (e.target as HTMLSpanElement).innerText,
                 )}
-              style={highContrast ? "color: #4f46e5; font-weight: 900;" : ""}
+              style={highContrast
+                ? "color: #4f46e5; font-weight: 900;"
+                : el.style?.color
+                  ? `color: ${el.style.color};`
+                  : ""}
               class="outline-none focus:ring-1 focus:ring-indigo-500 rounded px-0.5"
             >
               {@html el.text || el.content}
