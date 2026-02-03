@@ -1,4 +1,7 @@
-# Railway Deployment Nudge - Monolithic Architecture
+[build]
+builder = "nixpacks"
+buildCommand = "pnpm install && pnpm build"
+
 [services.app]
 # UniConnect Main SvelteKit Application
 startCommand = "node apps/app/build"
