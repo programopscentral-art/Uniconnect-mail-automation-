@@ -40,7 +40,7 @@ export class ExtractionEngine {
         // 3. Identification & Filtering
         const finalElements = textBlocks.map(block => {
             const isQuestion = this.isQuestion(block.text);
-            const isTop = block.y < (A4_HEIGHT_MM * 0.3); // Increased header zone
+            const isTop = block.y < 0.3; // Normalized [0..1] header zone
 
             // Heuristic for headers: Text in top 30% that isn't a question
             const isHeader = isTop && !isQuestion;
@@ -71,7 +71,7 @@ export class ExtractionEngine {
                     // If no value found inside the string, look for next element
                     if (!value && idx + 1 < finalElements.length) {
                         const next = finalElements[idx + 1];
-                        if (Math.abs(next.y - el.y) < 5) { // Same line
+                        if (Math.abs(next.y - el.y) < 0.01) { // Normalized ~1% height (approx same line)
                             value = next.content;
                         }
                     }
@@ -93,14 +93,17 @@ export class ExtractionEngine {
                     elements: [
                         ...finalElements,
                         ...structuralElements,
-                        // Add Logo Placeholder
-                        {
-                            id: 'logo-slot',
-                            type: 'image-slot',
-                            x: 10, y: 10,
-                            width: 30, height: 30,
-                            slotName: 'logo'
-                        }
+                        // 6. Intelligent Logo Detection (Top Left Heuristic)
+                        (() => {
+                            const hasTopLeftText = finalElements.some(el => el.x < 0.2 && el.y < 0.15);
+                            return {
+                                id: 'logo-slot',
+                                type: 'image-slot',
+                                x: 0.06, y: 0.05,
+                                width: 0.12, height: 0.12,
+                                slotName: 'University Logo'
+                            };
+                        })()
                     ]
                 }
             ],
@@ -123,46 +126,61 @@ export class ExtractionEngine {
             const text = block.text.trim();
             if (!text) return null;
 
-            const mmX = (bbox.x0 / imgWidth) * A4_WIDTH_MM;
-            const mmY = (bbox.y0 / imgHeight) * A4_HEIGHT_MM;
-            const mmW = ((bbox.x1 - bbox.x0) / imgWidth) * A4_WIDTH_MM;
-            const mmH = ((bbox.y1 - bbox.y0) / imgHeight) * A4_HEIGHT_MM;
+            // Normalize to [0..1]
+            const normX = bbox.x0 / imgWidth;
+            const normY = bbox.y0 / imgHeight;
+            const normW = (bbox.x1 - bbox.x0) / imgWidth;
+            const normH = (bbox.y1 - bbox.y0) / imgHeight;
 
             return {
                 id: `raw-${i}`,
-                x: mmX,
-                y: mmY,
-                width: mmW,
-                height: mmH,
+                x: normX,
+                y: normY,
+                width: normW,
+                height: normH,
                 text,
                 confidence: block.confidence
             };
         }).filter(b => b !== null) || [];
 
-        // Merge Fragmented Blocks
+        // Merge Fragmented Blocks with [0..1] logic
         const mergedBlocks = this.mergeTextBlocks(rawBlocks, image);
 
         const textBlocks = mergedBlocks.map((block, i) => {
-            const { x: mmX, y: mmY, width: mmW, height: mmH, text } = block;
-            const isHeaderArea = mmY < (A4_HEIGHT_MM * 0.3);
-            const isCentered = mmX > (A4_WIDTH_MM * 0.2) && (mmX + mmW) < (A4_WIDTH_MM * 0.8);
-            const isBold = text === text.toUpperCase() && text.length > 5;
+            const { x: normX, y: normY, width: normW, height: normH, text } = block;
+
+            // Fidelity: Bold detection (All caps or in header)
+            const isHeaderArea = normY < 0.35;
+            const isAllCaps = text === text.toUpperCase() && text.length > 5;
+            const isBold = isAllCaps || isHeaderArea;
+
+            // Alignment: Center Detection
+            const isCentered = normX > 0.15 && (normX + normW) < 0.85;
+
+            // Font Size approximation
+            // scaleFactor: mapping height percentage to CSS font points/rem
+            // 0.015 (1.5% of height) ~ 12px
+            const baseScale = 800; // tuned factor
+            let fontSize = Math.round(normH * baseScale);
+            if (isHeaderArea && fontSize < 14) fontSize = 14;
+            if (fontSize < 8) fontSize = 10;
 
             return {
                 id: `text-${i}`,
                 type: 'text',
-                x: Number(mmX.toFixed(2)),
-                y: Number(mmY.toFixed(2)),
-                width: Number(mmW.toFixed(2)),
-                height: Number(mmH.toFixed(2)),
+                x: normX,
+                y: normY,
+                width: normW,
+                height: normH,
                 text,
                 content: text,
                 confidence: block.confidence,
                 style: {
-                    fontSize: isHeaderArea ? (mmH > 4 ? 14 : 11) : (mmH > 4 ? 12 : (mmH > 3 ? 10 : 8)),
-                    textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
-                    fontWeight: isBold || isHeaderArea ? 'bold' : 'normal',
-                    color: block.color || '#000000'
+                    fontSize: fontSize,
+                    textAlign: isCentered ? 'center' : (normX > 0.6 ? 'right' : 'left'),
+                    fontWeight: isBold ? 'bold' : 'normal',
+                    color: block.color || '#000000',
+                    fontFamily: "'Inter', sans-serif"
                 },
                 is_header: isHeaderArea
             };
@@ -179,28 +197,31 @@ export class ExtractionEngine {
         const imgW = image.bitmap.width;
         const imgH = image.bitmap.height;
 
-        // Helper to get ink color (pick darkest pixel in a 3x3 grid around center to avoid white)
+        // Helper to get ink color with "Palette Mapping"
         const getInkColor = (b: any) => {
-            const pxX = Math.floor((b.x / 210) * imgW);
-            const pxY = Math.floor((b.y / 297) * imgH);
+            const pxX = Math.floor(b.x * imgW);
+            const pxY = Math.floor(b.y * imgH);
 
-            // Sample a small area and pick the lowest sum (darkest)
-            let minSum = 765; // 255*3
-            let bestHex = "#000000";
+            let minSum = 765;
+            let bestRgb = { r: 0, g: 0, b: 0 };
 
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     const xx = Math.min(imgW - 1, Math.max(0, pxX + dx));
                     const yy = Math.min(imgH - 1, Math.max(0, pxY + dy));
                     const rgba = Jimp.intToRGBA(image.getPixelColor(xx, yy));
-                    const sum = rgba.r + rgba.g + rgba.b;
-                    if (sum < minSum) {
-                        minSum = sum;
-                        bestHex = `#${rgba.r.toString(16).padStart(2, '0')}${rgba.g.toString(16).padStart(2, '0')}${rgba.b.toString(16).padStart(2, '0')}`;
+                    if ((rgba.r + rgba.g + rgba.b) < minSum) {
+                        minSum = rgba.r + rgba.g + rgba.b;
+                        bestRgb = rgba;
                     }
                 }
             }
-            return bestHex;
+
+            // Palette Mapping: {black, darkgray, red, blue}
+            if (bestRgb.r > 150 && bestRgb.g < 100 && bestRgb.b < 100) return '#dc2626'; // Red
+            if (bestRgb.b > 150 && bestRgb.r < 100 && bestRgb.g < 100) return '#2563eb'; // Blue
+            if (minSum > 450) return '#4b5563'; // Gray
+            return '#000000'; // Black
         };
 
         let current = { ...sorted[0], color: getInkColor(sorted[0]) };
@@ -210,13 +231,17 @@ export class ExtractionEngine {
             const yDiff = Math.abs(next.y - current.y);
             const xGap = next.x - (current.x + current.width);
 
-            const isHeaderArea = current.y < (297 * 0.35);
-            // Stricter merging for header to keep them crisp and exactly spaced
-            const gapThreshold = isHeaderArea ? 4 : 10;
+            // Overlap Resolution (>25% width overlap)
+            const xOverlap = Math.max(0, Math.min(current.x + current.width, next.x + next.width) - Math.max(current.x, next.x));
+            const overlapPercent = xOverlap / Math.min(current.width, next.width);
 
-            if (yDiff < 1.2 && xGap < gapThreshold) {
+            const isHeaderArea = current.y < 0.35;
+            const gapThreshold = isHeaderArea ? 0.02 : 0.05; // 2% vs 5% of width
+
+            if ((yDiff < 0.005 && xGap < gapThreshold) || overlapPercent > 0.25) {
                 current.text = (current.text + " " + next.text).replace(/\s+/g, ' ');
-                current.width = (next.x + next.width) - current.x;
+                current.width = Math.max(current.x + current.width, next.x + next.width) - Math.min(current.x, next.x);
+                current.x = Math.min(current.x, next.x);
                 current.height = Math.max(current.height, next.height);
                 current.confidence = (current.confidence + next.confidence) / 2;
             } else {
@@ -229,8 +254,6 @@ export class ExtractionEngine {
     }
 
     private async detectStructure(image: Jimp) {
-        const A4_WIDTH_MM = 210;
-        const A4_HEIGHT_MM = 297;
         const elements: any[] = [];
         const width = image.bitmap.width;
         const height = image.bitmap.height;
@@ -238,52 +261,50 @@ export class ExtractionEngine {
         const horizontalLines = this.scanHorizontalLines(image);
         const verticalLines = this.scanVerticalLines(image);
 
-        // V4: Box Detection (Simplified)
-        // Find intersecting lines to form rectangles
-        const boxes: any[] = [];
-
         horizontalLines.forEach((h, hi) => {
-            const mmY = (h.y / height) * A4_HEIGHT_MM;
-            const mmX1 = (h.x / width) * A4_WIDTH_MM;
-            const mmX2 = ((h.x + h.length) / width) * A4_WIDTH_MM;
+            const normY = h.y / height;
+            const normX1 = h.x / width;
+            const normX2 = (h.x + h.length) / width;
 
             elements.push({
                 id: `line-h-${hi}`,
                 type: 'line',
-                x1: Number(mmX1.toFixed(2)),
-                y1: Number(mmY.toFixed(2)),
-                x2: Number(mmX2.toFixed(2)),
-                y2: Number(mmY.toFixed(2)),
-                strokeWidth: 1,
+                x1: normX1,
+                y1: normY,
+                x2: normX2,
+                y2: normY,
+                strokeWidth: 1.5,
+                color: '#000000',
                 orientation: 'horizontal'
             });
         });
 
         verticalLines.forEach((v, vi) => {
-            const mmX = (v.x / width) * A4_WIDTH_MM;
-            const mmY1 = (v.y / height) * A4_HEIGHT_MM;
-            const mmY2 = ((v.y + v.length) / height) * A4_HEIGHT_MM;
+            const normX = v.x / width;
+            const normY1 = v.y / height;
+            const normY2 = (v.y + v.length) / height;
 
             elements.push({
                 id: `line-v-${vi}`,
                 type: 'line',
-                x1: Number(mmX.toFixed(2)),
-                y1: Number(mmY1.toFixed(2)),
-                x2: Number(mmX.toFixed(2)),
-                y2: Number(mmY2.toFixed(2)),
-                strokeWidth: 1,
+                x1: normX,
+                y1: normY1,
+                x2: normX,
+                y2: normY2,
+                strokeWidth: 1.5,
+                color: '#000000',
                 orientation: 'vertical'
             });
         });
 
-        // Add an outer border (Matches user preference for "boxes same as image")
+        // Add an outer border (Normalized)
         elements.push({
             id: 'page-border',
             type: 'rect',
-            x: 5, y: 5, width: 200, height: 287,
+            x: 0.02, y: 0.02, width: 0.96, height: 0.96,
             strokeWidth: 1,
             backgroundColor: 'transparent',
-            borderColor: '#64748b'
+            borderColor: '#000000'
         });
 
         return elements;

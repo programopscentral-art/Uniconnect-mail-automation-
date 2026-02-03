@@ -92,15 +92,17 @@
             : showLines
               ? 'block'
               : 'none'};
-                left: {el.x !== undefined ? el.x : el.x1}mm; 
-                top: {el.y !== undefined ? el.y : el.y1}mm; 
-                width: {el.width || el.w || (el.x2 ? el.x2 - el.x1 : 0)}mm; 
-                height: {el.height || el.h || (el.y2 ? el.y2 - el.y1 : 0)}mm;
+                left: {(el.x !== undefined ? el.x : el.x1 || 0) * 100}%; 
+                top: {(el.y !== undefined ? el.y : el.y1 || 0) * 100}%; 
+                width: {(el.width ||
+            (el.x2 !== undefined ? Math.abs(el.x2 - el.x1) : 0)) * 100}%; 
+                height: {(el.height ||
+            (el.y2 !== undefined ? Math.abs(el.y2 - el.y1) : 0)) * 100}%;
                 {el.style
             ? Object.entries(el.style)
                 .map(
                   ([k, v]) =>
-                    `${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}: ${v}`,
+                    `${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}: ${typeof v === 'number' && k.toLowerCase().includes('fontsize') ? v + 'px' : v}`,
                 )
                 .join('; ')
             : ''}

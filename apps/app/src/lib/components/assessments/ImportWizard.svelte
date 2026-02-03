@@ -38,6 +38,8 @@
   let showBackground = $state(true);
   let bgOpacity = $state(0.7);
   let highContrast = $state(false);
+  let highFidelityMode = $state(true); // New: True by default as requested
+  let showDiffOverlay = $state(true);
 
   async function startAnalysis() {
     if (!importFile || !importName) return;
@@ -90,34 +92,50 @@
       return;
     }
 
-    // V6: Clean every page and root of heavy debug data
+    // V8: Final Clean - Remove all binary blobs and large arrays
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
-    if (cleanLayout.debugImage) delete cleanLayout.debugImage;
-    if (cleanLayout.pages) {
-      cleanLayout.pages.forEach((p: any) => {
-        if (p.debugImage) delete p.debugImage;
-      });
-    }
+    const recursiveClean = (obj: any) => {
+      if (!obj || typeof obj !== "object") return;
+      if (obj.debugImage) delete obj.debugImage;
+      if (obj.base64) delete obj.base64;
+      Object.values(obj).forEach((val) => recursiveClean(val));
+    };
+    recursiveClean(cleanLayout);
 
     formData.append("layout", JSON.stringify(cleanLayout));
 
     try {
       console.log(`[IMPORT_WIZARD] 🚀 Committing template to library...`);
-      // Internal save route handles database insertion
+      console.log(
+        `[IMPORT_WIZARD] 📦 Payload size estimate: ${formData.get("layout")?.toString().length} chars`,
+      );
+
       const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
 
       const data = await res.json();
+      console.log(`[IMPORT_WIZARD] 📥 Server Response:`, {
+        ok: res.ok,
+        status: res.status,
+        data,
+      });
+
       if (res.ok) {
-        onImportComplete(data.template);
+        onImportComplete({
+          ...data.template,
+          id: data.templateId || data.template.id,
+        });
         step = 3;
       } else {
-        errorMsg = data.message || "Failed to finalize template import.";
-        console.error("[IMPORT_WIZARD] ❌ Commit Error:", data);
+        errorMsg =
+          data.message ||
+          "Failed to finalize template import. Check server logs.";
+        console.error("[IMPORT_WIZARD] ❌ Commit Failure:", data);
       }
     } catch (e: any) {
+      console.error("[IMPORT_WIZARD] 🚨 Connectivity Error:", e);
       errorMsg =
         "Connectivity Error: Failed to save the reconstructed template.";
     } finally {
@@ -235,15 +253,45 @@
                     class="absolute inset-0 opacity-0 cursor-pointer z-10"
                   />
                   <div
-                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-10 text-center"
+                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-6 text-center"
                   >
-                    <Upload class="w-8 h-8 text-indigo-500/40 mx-auto mb-4" />
+                    <Upload class="w-6 h-6 text-indigo-500/40 mx-auto mb-2" />
                     <span
-                      class="text-[10px] font-black text-white/40 uppercase block"
+                      class="text-[9px] font-black text-white/40 uppercase block"
                       >{importFile
                         ? importFile.name
-                        : "Drop Document Here"}</span
+                        : "Drop Template Image"}</span
                     >
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-3">
+                <label
+                  for="logo-source"
+                  class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
+                  >University Logo (Optional)</label
+                >
+                <div class="relative group">
+                  <input
+                    id="logo-source"
+                    type="file"
+                    accept="image/*"
+                    onchange={(e) =>
+                      (logoFile = e.currentTarget.files?.[0] || null)}
+                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                  />
+                  <div
+                    class="w-full bg-white/[0.02] border border-white/5 rounded-2xl px-6 py-4 flex items-center gap-4 transition-all group-hover:bg-white/[0.04]"
+                  >
+                    <div class="p-2 bg-indigo-500/10 rounded-xl">
+                      <Upload class="w-4 h-4 text-indigo-500" />
+                    </div>
+                    <span
+                      class="text-[9px] font-bold text-white/40 uppercase truncate"
+                    >
+                      {logoFile ? logoFile.name : "Select Logo..."}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -352,12 +400,18 @@
                   <span class="text-[9px] font-black uppercase">Text</span>
                 </button>
                 <button
-                  onclick={() => (highContrast = !highContrast)}
-                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {highContrast
-                    ? 'bg-emerald-500/10 text-emerald-400'
+                  onclick={() => {
+                    highFidelityMode = !highFidelityMode;
+                    showBackground = highFidelityMode;
+                    bgOpacity = highFidelityMode ? 0.6 : 0.7;
+                  }}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {highFidelityMode
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
                     : 'bg-white/[0.01] text-white/20'} transition-all"
                 >
-                  <span class="text-[9px] font-black uppercase">Contrast</span>
+                  <span class="text-[9px] font-black uppercase"
+                    >High Fidelity</span
+                  >
                 </button>
               </div>
 
@@ -365,7 +419,7 @@
                 <label
                   for="bg-opacity"
                   class="text-[8px] font-black text-white/10 uppercase tracking-widest ml-1"
-                  >BG Visibility: {Math.round(bgOpacity * 100)}%</label
+                  >Diff Overlay: {Math.round(bgOpacity * 100)}%</label
                 >
                 <input
                   id="bg-opacity"

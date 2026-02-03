@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { ExtractionEngine } from '$lib/server/services/extraction-engine';
 import pdf from 'pdf-img-convert';
 import { z } from 'zod';
+import { createAssessmentTemplate } from '@uniconnect/shared';
 
 // Zod Schema for Layout Validation (Master Source of Truth)
 const LayoutElementSchema = z.discriminatedUnion('type', [
@@ -150,6 +151,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${timestamp}`;
 
         console.log(`[TEMPLATE_IMPORT] 💾 Saving to DB: slug="${slug}", universityId="${universityId}"`);
+        console.log(`[TEMPLATE_IMPORT] 📊 Layout Elements: ${validation.data.pages?.[0]?.elements?.length || 0}`);
 
         const template = await createAssessmentTemplate({
             university_id: universityId,
@@ -169,6 +171,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({
             success: true,
             template,
+            templateId: template.id,
             message: 'Template layout reconstructed and isolated. Review in Studio.'
         });
     } catch (e: any) {
