@@ -11,6 +11,7 @@
     onElementSelect = null,
     selectedCell = $bindable(null),
     activeCellId = $bindable(null),
+    backgroundImage = null,
   } = $props();
 
   const A4_WIDTH_MM = 210;
@@ -27,11 +28,18 @@
   style="
     width: {A4_WIDTH_MM * MM_TO_PX}px; 
     height: {A4_HEIGHT_MM * MM_TO_PX}px; 
+    background: {backgroundImage ? `url(${backgroundImage})` : 'white'};
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
     transform: scale({zoom});
     transform-origin: center top;
     font-family: 'Outfit', sans-serif;
   "
 >
+  {#if backgroundImage}
+    <div class="absolute inset-0 bg-white/80 pointer-events-none z-0"></div>
+  {/if}
   <!-- Margins -->
   {#if showMargins && layout.page?.margins}
     <div

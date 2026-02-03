@@ -12,6 +12,7 @@ export interface ExtractionResult {
         elements: Array<any>;
     }>;
     metadata_fields?: Record<string, string>;
+    debugImage?: string;
 }
 
 export class ExtractionEngine {
@@ -75,6 +76,9 @@ export class ExtractionEngine {
             }
         });
 
+        // 5. Generate Debug Image (for background alignment check)
+        const debugImage = await image.getBase64Async(Jimp.MIME_PNG);
+
         return {
             page: { width: A4_WIDTH_MM, height: A4_HEIGHT_MM },
             pages: [
@@ -94,7 +98,8 @@ export class ExtractionEngine {
                     ]
                 }
             ],
-            metadata_fields: metadata
+            metadata_fields: metadata,
+            debugImage
         };
     }
 
@@ -114,7 +119,8 @@ export class ExtractionEngine {
             const mmW = ((bbox.x1 - bbox.x0) / imgWidth) * A4_WIDTH_MM;
             const mmH = ((bbox.y1 - bbox.y0) / imgHeight) * A4_HEIGHT_MM;
 
-            const isCentered = mmX > (A4_WIDTH_MM * 0.25) && (mmX + mmW) < (A4_WIDTH_MM * 0.75);
+            const isCentered = mmX > (A4_WIDTH_MM * 0.2) && (mmX + mmW) < (A4_WIDTH_MM * 0.8);
+            const isBold = text === text.toUpperCase() && text.length > 5;
 
             return {
                 id: `text-${i}`,
@@ -125,10 +131,12 @@ export class ExtractionEngine {
                 height: Number(mmH.toFixed(2)),
                 text,
                 content: text,
+                confidence: block.confidence,
                 style: {
-                    fontSize: 10,
+                    fontSize: mmH > 5 ? 14 : (mmH > 3 ? 11 : 9),
                     textAlign: isCentered ? 'center' : (mmX > (A4_WIDTH_MM * 0.6) ? 'right' : 'left'),
-                    fontWeight: text === text.toUpperCase() && text.length > 5 ? 'bold' : 'normal'
+                    fontWeight: isBold ? 'bold' : 'normal',
+                    letterSpacing: mmW / text.length > 2 ? '0.1em' : 'normal'
                 }
             };
         }) || [];
@@ -210,9 +218,9 @@ export class ExtractionEngine {
         const lines: { x: number; y: number; length: number }[] = [];
         const width = image.bitmap.width;
         const height = image.bitmap.height;
-        const threshold = 180; // Dark pixels
+        const threshold = 160; // Slightly more sensitive
 
-        for (let y = 0; y < height; y += 5) { // Skip lines for speed
+        for (let y = 0; y < height; y += 1) { // No skipping
             let startX = -1;
             for (let x = 0; x < width; x++) {
                 const color = Jimp.intToRGBA(image.getPixelColor(x, y));
@@ -223,24 +231,31 @@ export class ExtractionEngine {
                 } else {
                     if (startX !== -1) {
                         const length = x - startX;
-                        if (length > width * 0.3) {
+                        // Keep even short lines (for table cells/small fields)
+                        if (length > width * 0.05) {
                             lines.push({ x: startX, y, length });
                         }
                         startX = -1;
                     }
                 }
             }
+            if (startX !== -1) {
+                const length = width - startX;
+                if (length > width * 0.05) lines.push({ x: startX, y, length });
+            }
         }
-        return lines;
+
+        // Merge contiguous lines on different Y if they are very close
+        return this.mergeLines(lines, 'h');
     }
 
     private scanVerticalLines(image: Jimp) {
         const lines: { x: number; y: number; length: number }[] = [];
         const width = image.bitmap.width;
         const height = image.bitmap.height;
-        const threshold = 180;
+        const threshold = 160;
 
-        for (let x = 0; x < width; x += 10) { // Column skip for speed
+        for (let x = 0; x < width; x += 1) { // No skipping
             let startY = -1;
             for (let y = 0; y < height; y++) {
                 const color = Jimp.intToRGBA(image.getPixelColor(x, y));
@@ -251,15 +266,43 @@ export class ExtractionEngine {
                 } else {
                     if (startY !== -1) {
                         const length = y - startY;
-                        if (length > height * 0.1) { // 10% height
+                        if (length > height * 0.02) {
                             lines.push({ x, y: startY, length });
                         }
                         startY = -1;
                     }
                 }
             }
+            if (startY !== -1) {
+                const length = height - startY;
+                if (length > height * 0.02) lines.push({ x, y: startY, length });
+            }
         }
-        return lines;
+        return this.mergeLines(lines, 'v');
+    }
+
+    private mergeLines(lines: any[], orientation: 'h' | 'v') {
+        if (lines.length === 0) return [];
+
+        const merged: any[] = [];
+        const sorted = [...lines].sort((a, b) => orientation === 'h' ? a.y - b.y : a.x - b.x);
+
+        let current = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+            const next = sorted[i];
+            const dist = orientation === 'h' ? Math.abs(next.y - current.y) : Math.abs(next.x - current.x);
+            const posMatch = orientation === 'h' ? Math.abs(next.x - current.x) < 5 : Math.abs(next.y - current.y) < 5;
+
+            if (dist < 3 && posMatch) {
+                // If they overlap significantly, merge
+                continue; // Skip nearby redundant lines
+            } else {
+                merged.push(current);
+                current = next;
+            }
+        }
+        merged.push(current);
+        return merged;
     }
 
     private isQuestion(text: string): boolean {

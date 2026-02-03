@@ -271,7 +271,7 @@
                 University Headers
               </h3>
               <div class="space-y-4">
-                {#each (detectedLayout?.pages?.[0]?.elements || []).filter((el) => el.is_header) as el}
+                {#each (detectedLayout?.pages?.[0]?.elements || []).filter((el: any) => el.is_header) as el}
                   <div class="space-y-2">
                     <label
                       for="header-{el.id}"
@@ -335,6 +335,7 @@
                 zoom={1}
                 showMargins={true}
                 mode="preview"
+                backgroundImage={detectedLayout?.debugImage}
               />
             </div>
 
