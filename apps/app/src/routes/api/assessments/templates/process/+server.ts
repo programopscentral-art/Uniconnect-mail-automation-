@@ -193,7 +193,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             slug,
             exam_type: exam_type,
             status: 'draft',
-            source_type: 'imported',
             layout_schema: JSON.parse(JSON.stringify(validation.data)),
             config: defaultConfig,
             assets: [],

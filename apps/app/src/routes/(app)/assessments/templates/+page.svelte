@@ -53,7 +53,7 @@
       return;
 
     try {
-      const res = await fetch(`/api/assessments/templates?id=${id}`, {
+      const res = await fetch(`/api/assessments/templates/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
