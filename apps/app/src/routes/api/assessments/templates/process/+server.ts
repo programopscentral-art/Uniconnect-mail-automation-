@@ -25,7 +25,9 @@ const LayoutSchema = z.object({
     })).optional(),
     elements: z.array(LayoutElementSchema).optional(),
     dynamicSlots: z.array(z.any()).optional(),
-    metadata_fields: z.record(z.string()).optional()
+    metadata_fields: z.record(z.string()).optional(),
+    originalWidth: z.number().optional(),
+    originalHeight: z.number().optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -81,7 +83,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             detectedLayout = {
                 page: { ...blueprint.page, unit: "mm", margins: { top: 0, bottom: 0, left: 0, right: 0 } },
                 pages: blueprint.pages,
-                metadata_fields: blueprint.metadata_fields || {}
+                metadata_fields: blueprint.metadata_fields || {},
+                originalWidth: blueprint.originalWidth,
+                originalHeight: blueprint.originalHeight
             };
 
             console.log(`[TEMPLATE_IMPORT] 🎯 Monolithic Extraction Successful: ${blueprint.pages[0].elements.length} elements detected`);

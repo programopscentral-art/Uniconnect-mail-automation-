@@ -1,5 +1,5 @@
-import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { createWorker } from 'tesseract.js';
+import vision from '@google-cloud/vision';
 import Jimp from 'jimp';
 
 export interface ExtractionResult {
@@ -13,14 +13,16 @@ export interface ExtractionResult {
     }>;
     metadata_fields?: Record<string, string>;
     debugImage?: string;
+    originalWidth: number;
+    originalHeight: number;
 }
 
 export class ExtractionEngine {
     /**
-     * Entry point for free extraction.
+     * Entry point for high-fidelity extraction.
      */
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting free analysis...');
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V9 High-Fidelity analysis...');
 
         const image = await Jimp.read(buffer);
         const width = image.bitmap.width;
@@ -28,8 +30,8 @@ export class ExtractionEngine {
 
         console.log(`[EXTRACTION_ENGINE] 📸 Image loaded: ${width}x${height}`);
 
-        // 1. OCR using Tesseract (Pass Jimp Image for color/sampling)
-        const { textBlocks } = await this.performOCR(buffer, image);
+        // 1. OCR using Google Vision (Primary) or Tesseract (Fallback)
+        const { textBlocks, ocrEngine } = await this.performOCR(buffer, image);
 
         // 2. Line/Structural Analysis
         const structuralElements = await this.detectStructure(image);
@@ -40,7 +42,7 @@ export class ExtractionEngine {
         // 3. Identification & Filtering
         const finalElements = textBlocks.map(block => {
             const isQuestion = this.isQuestion(block.text);
-            const isTop = block.y < 0.3; // Normalized [0..1] header zone
+            const isTop = block.y < (height * 0.3); // Top 30% header zone
 
             // Heuristic for headers: Text in top 30% that isn't a question
             const isHeader = isTop && !isQuestion;
@@ -49,12 +51,12 @@ export class ExtractionEngine {
                 ...block,
                 is_header: isHeader,
                 is_question: isQuestion,
-                thickness: 1, // Default for text
+                thickness: 1,
                 content: block.text
             };
         }).filter(el => el.is_header || !el.is_question);
 
-        // 4. Extract Meta Fields & Values (STRICTER)
+        // 4. Extract Meta Fields & Values
         const metadata: Record<string, string> = {};
         finalElements.forEach((el, idx) => {
             const content = el.content.trim();
@@ -71,7 +73,7 @@ export class ExtractionEngine {
                     // If no value found inside the string, look for next element
                     if (!value && idx + 1 < finalElements.length) {
                         const next = finalElements[idx + 1];
-                        if (Math.abs(next.y - el.y) < 0.01) { // Normalized ~1% height (approx same line)
+                        if (Math.abs(next.y - el.y) < (height * 0.01)) { // ~1% height proximity
                             value = next.content;
                         }
                     }
@@ -82,7 +84,7 @@ export class ExtractionEngine {
             }
         });
 
-        // 5. Generate Debug Image (for background alignment check)
+        // 5. Generate Debug Image
         const debugImage = await image.getBase64Async(Jimp.MIME_PNG);
 
         return {
@@ -95,12 +97,13 @@ export class ExtractionEngine {
                         ...structuralElements,
                         // 6. Intelligent Logo Detection (Top Left Heuristic)
                         (() => {
-                            const hasTopLeftText = finalElements.some(el => el.x < 0.2 && el.y < 0.15);
                             return {
                                 id: 'logo-slot',
                                 type: 'image-slot',
-                                x: 0.06, y: 0.05,
-                                width: 0.12, height: 0.12,
+                                x: Math.floor(width * 0.05),
+                                y: Math.floor(height * 0.05),
+                                width: Math.floor(width * 0.15),
+                                height: Math.floor(height * 0.12),
                                 slotName: 'University Logo'
                             };
                         })()
@@ -108,76 +111,100 @@ export class ExtractionEngine {
                 }
             ],
             metadata_fields: metadata,
-            debugImage
+            debugImage,
+            originalWidth: width,
+            originalHeight: height
         };
     }
 
     private async performOCR(buffer: Buffer, image: Jimp) {
-        const A4_WIDTH_MM = 210;
-        const A4_HEIGHT_MM = 297;
         const imgWidth = image.bitmap.width;
         const imgHeight = image.bitmap.height;
+        let textBlocks: any[] = [];
+        let ocrEngine = 'tesseract';
 
-        const worker = await createWorker('eng');
-        const { data } = await worker.recognize(buffer);
+        // Try Google Vision (Option A)
+        const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
+        if (visionCreds) {
+            try {
+                console.log('[EXTRACTION_ENGINE] 🛡️ Attempting Google Vision OCR...');
+                const client = new vision.ImageAnnotatorClient({
+                    credentials: JSON.parse(visionCreds)
+                });
+                const [result] = await client.documentTextDetection(buffer);
+                const fullText = result.fullTextAnnotation;
 
-        const rawBlocks = (data.blocks as any[])?.map((block, i) => {
-            const bbox = block.bbox;
-            const text = block.text.trim();
-            if (!text) return null;
+                if (fullText) {
+                    ocrEngine = 'vision';
+                    fullText.pages?.forEach(page => {
+                        page.blocks?.forEach(block => {
+                            block.paragraphs?.forEach(para => {
+                                para.words?.forEach(word => {
+                                    const text = word.symbols?.map((s: any) => s.text).join('') || '';
+                                    if (!text) return;
+                                    const vertices = word.boundingBox?.vertices;
+                                    if (vertices && vertices.length >= 4) {
+                                        const x = vertices[0].x || 0;
+                                        const y = vertices[0].y || 0;
+                                        const w = (vertices[1].x || 0) - x;
+                                        const h = (vertices[2].y || 0) - y;
+                                        textBlocks.push({ x, y, width: w, height: h, text, confidence: word.confidence || 1.0 });
+                                    }
+                                });
+                            });
+                        });
+                    });
+                }
+            } catch (ve: any) {
+                console.error('[EXTRACTION_ENGINE] ⚠️ Vision OCR Failed:', ve.message);
+            }
+        }
 
-            // Normalize to [0..1]
-            const normX = bbox.x0 / imgWidth;
-            const normY = bbox.y0 / imgHeight;
-            const normW = (bbox.x1 - bbox.x0) / imgWidth;
-            const normH = (bbox.y1 - bbox.y0) / imgHeight;
+        // Fallback to Tesseract (Option B)
+        if (textBlocks.length === 0) {
+            console.log('[EXTRACTION_ENGINE] 🐢 Falling back to Tesseract OCR...');
+            const worker = await createWorker('eng');
+            const { data } = await worker.recognize(buffer);
+            textBlocks = (data.blocks as any[])?.map((block: any, i: number) => {
+                const bbox = block.bbox;
+                const text = block.text.trim();
+                if (!text) return null;
+                return {
+                    x: bbox.x0,
+                    y: bbox.y0,
+                    width: bbox.x1 - bbox.x0,
+                    height: bbox.y1 - bbox.y0,
+                    text: text,
+                    confidence: block.confidence
+                };
+            }).filter((b: any) => b !== null) || [];
+            await worker.terminate();
+        }
 
-            return {
-                id: `raw-${i}`,
-                x: normX,
-                y: normY,
-                width: normW,
-                height: normH,
-                text,
-                confidence: block.confidence
-            };
-        }).filter(b => b !== null) || [];
+        // Merge Fragmented Blocks using Pixel Logic
+        const mergedBlocks = this.mergeTextBlocks(textBlocks, image);
 
-        // Merge Fragmented Blocks with [0..1] logic
-        const mergedBlocks = this.mergeTextBlocks(rawBlocks, image);
+        const finalBlocks = mergedBlocks.map((block: any, i: number) => {
+            const { x, y, width, height, text } = block;
 
-        const textBlocks = mergedBlocks.map((block, i) => {
-            const { x: normX, y: normY, width: normW, height: normH, text } = block;
+            const isHeaderArea = y < (imgHeight * 0.35);
+            const isBold = (text === text.toUpperCase() && text.length > 5) || isHeaderArea;
+            const centerX = x + (width / 2);
+            const isCentered = Math.abs(centerX - (imgWidth / 2)) < (imgWidth * 0.05);
 
-            // Fidelity: Bold detection (All caps or in header)
-            const isHeaderArea = normY < 0.35;
-            const isAllCaps = text === text.toUpperCase() && text.length > 5;
-            const isBold = isAllCaps || isHeaderArea;
-
-            // Alignment: Center Detection
-            const isCentered = normX > 0.15 && (normX + normW) < 0.85;
-
-            // Font Size approximation
-            // scaleFactor: mapping height percentage to CSS font points/rem
-            // 0.015 (1.5% of height) ~ 12px
-            const baseScale = 800; // tuned factor
-            let fontSize = Math.round(normH * baseScale);
-            if (isHeaderArea && fontSize < 14) fontSize = 14;
-            if (fontSize < 8) fontSize = 10;
+            let fontSize = Math.round(height * 0.75);
+            if (isHeaderArea && fontSize < 16) fontSize = 16;
+            if (fontSize < 10) fontSize = 12;
 
             return {
                 id: `text-${i}`,
                 type: 'text',
-                x: normX,
-                y: normY,
-                width: normW,
-                height: normH,
-                text,
-                content: text,
+                x, y, width, height,
+                text, content: text,
                 confidence: block.confidence,
                 style: {
-                    fontSize: fontSize,
-                    textAlign: isCentered ? 'center' : (normX > 0.6 ? 'right' : 'left'),
+                    fontSize,
+                    textAlign: isCentered ? 'center' : (x > (imgWidth * 0.6) ? 'right' : 'left'),
                     fontWeight: isBold ? 'bold' : 'normal',
                     color: block.color || '#000000',
                     fontFamily: "'Inter', sans-serif"
@@ -186,8 +213,7 @@ export class ExtractionEngine {
             };
         });
 
-        await worker.terminate();
-        return { textBlocks };
+        return { textBlocks: finalBlocks, ocrEngine };
     }
 
     private mergeTextBlocks(blocks: any[], image: Jimp) {
@@ -197,14 +223,11 @@ export class ExtractionEngine {
         const imgW = image.bitmap.width;
         const imgH = image.bitmap.height;
 
-        // Helper to get ink color with "Palette Mapping"
         const getInkColor = (b: any) => {
-            const pxX = Math.floor(b.x * imgW);
-            const pxY = Math.floor(b.y * imgH);
-
+            const pxX = Math.floor(b.x);
+            const pxY = Math.floor(b.y);
             let minSum = 765;
             let bestRgb = { r: 0, g: 0, b: 0 };
-
             for (let dx = -1; dx <= 1; dx++) {
                 for (let dy = -1; dy <= 1; dy++) {
                     const xx = Math.min(imgW - 1, Math.max(0, pxX + dx));
@@ -216,30 +239,23 @@ export class ExtractionEngine {
                     }
                 }
             }
-
-            // Palette Mapping: {black, darkgray, red, blue}
-            if (bestRgb.r > 150 && bestRgb.g < 100 && bestRgb.b < 100) return '#dc2626'; // Red
-            if (bestRgb.b > 150 && bestRgb.r < 100 && bestRgb.g < 100) return '#2563eb'; // Blue
-            if (minSum > 450) return '#4b5563'; // Gray
-            return '#000000'; // Black
+            if (bestRgb.r > 150 && bestRgb.g < 100 && bestRgb.b < 100) return '#dc2626';
+            if (bestRgb.b > 150 && bestRgb.r < 100 && bestRgb.g < 100) return '#2563eb';
+            if (minSum > 450) return '#4b5563';
+            return '#000000';
         };
 
         let current = { ...sorted[0], color: getInkColor(sorted[0]) };
         for (let i = 1; i < sorted.length; i++) {
             const next = { ...sorted[i], color: getInkColor(sorted[i]) };
-
             const yDiff = Math.abs(next.y - current.y);
             const xGap = next.x - (current.x + current.width);
-
-            // Overlap Resolution (>25% width overlap)
             const xOverlap = Math.max(0, Math.min(current.x + current.width, next.x + next.width) - Math.max(current.x, next.x));
             const overlapPercent = xOverlap / Math.min(current.width, next.width);
+            const gapThreshold = Math.floor(imgW * 0.05);
 
-            const isHeaderArea = current.y < 0.35;
-            const gapThreshold = isHeaderArea ? 0.02 : 0.05; // 2% vs 5% of width
-
-            if ((yDiff < 0.005 && xGap < gapThreshold) || overlapPercent > 0.25) {
-                current.text = (current.text + " " + next.text).replace(/\s+/g, ' ');
+            if ((yDiff < Math.floor(imgH * 0.005) && xGap < gapThreshold) || overlapPercent > 0.25) {
+                current.text = (current.text + (xGap > 0 ? " " : "") + next.text).replace(/\s+/g, ' ');
                 current.width = Math.max(current.x + current.width, next.x + next.width) - Math.min(current.x, next.x);
                 current.x = Math.min(current.x, next.x);
                 current.height = Math.max(current.height, next.height);
@@ -262,49 +278,31 @@ export class ExtractionEngine {
         const verticalLines = this.scanVerticalLines(image);
 
         horizontalLines.forEach((h, hi) => {
-            const normY = h.y / height;
-            const normX1 = h.x / width;
-            const normX2 = (h.x + h.length) / width;
-
             elements.push({
                 id: `line-h-${hi}`,
                 type: 'line',
-                x1: normX1,
-                y1: normY,
-                x2: normX2,
-                y2: normY,
-                strokeWidth: 1.5,
+                x1: h.x,
+                y1: h.y,
+                x2: h.x + h.length,
+                y2: h.y,
+                strokeWidth: 2,
                 color: '#000000',
                 orientation: 'horizontal'
             });
         });
 
         verticalLines.forEach((v, vi) => {
-            const normX = v.x / width;
-            const normY1 = v.y / height;
-            const normY2 = (v.y + v.length) / height;
-
             elements.push({
                 id: `line-v-${vi}`,
                 type: 'line',
-                x1: normX,
-                y1: normY1,
-                x2: normX,
-                y2: normY2,
-                strokeWidth: 1.5,
+                x1: v.x,
+                y1: v.y,
+                x2: v.x,
+                y2: v.y + v.length,
+                strokeWidth: 2,
                 color: '#000000',
                 orientation: 'vertical'
             });
-        });
-
-        // Add an outer border (Normalized)
-        elements.push({
-            id: 'page-border',
-            type: 'rect',
-            x: 0.02, y: 0.02, width: 0.96, height: 0.96,
-            strokeWidth: 1,
-            backgroundColor: 'transparent',
-            borderColor: '#000000'
         });
 
         return elements;
@@ -314,9 +312,9 @@ export class ExtractionEngine {
         const lines: { x: number; y: number; length: number }[] = [];
         const width = image.bitmap.width;
         const height = image.bitmap.height;
-        const threshold = 160; // Slightly more sensitive
+        const threshold = 160;
 
-        for (let y = 0; y < height; y += 1) { // No skipping
+        for (let y = 0; y < height; y += 1) {
             let startX = -1;
             for (let x = 0; x < width; x++) {
                 const color = Jimp.intToRGBA(image.getPixelColor(x, y));
@@ -327,7 +325,6 @@ export class ExtractionEngine {
                 } else {
                     if (startX !== -1) {
                         const length = x - startX;
-                        // Keep even short lines (for table cells/small fields)
                         if (length > width * 0.05) {
                             lines.push({ x: startX, y, length });
                         }
@@ -340,8 +337,6 @@ export class ExtractionEngine {
                 if (length > width * 0.05) lines.push({ x: startX, y, length });
             }
         }
-
-        // Merge contiguous lines on different Y if they are very close
         return this.mergeLines(lines, 'h');
     }
 
@@ -351,7 +346,7 @@ export class ExtractionEngine {
         const height = image.bitmap.height;
         const threshold = 160;
 
-        for (let x = 0; x < width; x += 1) { // No skipping
+        for (let x = 0; x < width; x += 1) {
             let startY = -1;
             for (let y = 0; y < height; y++) {
                 const color = Jimp.intToRGBA(image.getPixelColor(x, y));
@@ -390,8 +385,7 @@ export class ExtractionEngine {
             const posMatch = orientation === 'h' ? Math.abs(next.x - current.x) < 5 : Math.abs(next.y - current.y) < 5;
 
             if (dist < 3 && posMatch) {
-                // If they overlap significantly, merge
-                continue; // Skip nearby redundant lines
+                continue;
             } else {
                 merged.push(current);
                 current = next;

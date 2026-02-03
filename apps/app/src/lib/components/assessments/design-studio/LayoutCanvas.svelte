@@ -80,6 +80,20 @@
         />
       {:else}
         <!-- Simple static rendering for preview/view -->
+        {@const isPixel =
+          el.x > 1 || el.y > 1 || el.width > 20 || el.height > 20}
+        {@const canvasWidth = A4_WIDTH_MM * MM_TO_PX}
+        {@const canvasHeight = A4_HEIGHT_MM * MM_TO_PX}
+        <!-- Scaling factor if the original image was different size than A4 px -->
+        {@const scaleX =
+          isPixel && layout.originalWidth
+            ? canvasWidth / layout.originalWidth
+            : 1}
+        {@const scaleY =
+          isPixel && layout.originalHeight
+            ? canvasHeight / layout.originalHeight
+            : 1}
+
         <div
           class="absolute overflow-visible min-h-fit {highContrast
             ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
@@ -92,12 +106,24 @@
             : showLines
               ? 'block'
               : 'none'};
-                left: {(el.x !== undefined ? el.x : el.x1 || 0) * 100}%; 
-                top: {(el.y !== undefined ? el.y : el.y1 || 0) * 100}%; 
-                width: {(el.width ||
-            (el.x2 !== undefined ? Math.abs(el.x2 - el.x1) : 0)) * 100}%; 
-                height: {(el.height ||
-            (el.y2 !== undefined ? Math.abs(el.y2 - el.y1) : 0)) * 100}%;
+                left: {isPixel
+            ? el.x * scaleX + 'px'
+            : (el.x !== undefined ? el.x : el.x1 || 0) * 100 + '%'}; 
+                top: {isPixel
+            ? el.y * scaleY + 'px'
+            : (el.y !== undefined ? el.y : el.y1 || 0) * 100 + '%'}; 
+                width: {isPixel
+            ? el.width * scaleX + 'px'
+            : (el.width ||
+                (el.x2 !== undefined ? Math.abs(el.x2 - el.x1) : 0)) *
+                100 +
+              '%'}; 
+                height: {isPixel
+            ? el.height * scaleY + 'px'
+            : (el.height ||
+                (el.y2 !== undefined ? Math.abs(el.y2 - el.y1) : 0)) *
+                100 +
+              '%'};
                 {el.style
             ? Object.entries(el.style)
                 .map(
