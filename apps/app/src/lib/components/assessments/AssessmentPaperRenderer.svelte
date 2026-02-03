@@ -219,7 +219,9 @@
           ? '1in'
           : '0.75in'}; border-color: {layout.showBorder
         ? layout.primaryColor + '33'
-        : 'transparent'};"
+        : 'transparent'}; background: {layoutSchema?.debugImage
+        ? `url(${layoutSchema.debugImage})`
+        : 'white'}; background-size: 100% 100%;"
     >
       <!-- Watermark -->
       {#if layout.watermarkText}
@@ -234,21 +236,108 @@
           </div>
         </div>
       {/if}
-      <!-- Dynamic Header -->
-      {#if layout.style === "cdu"}
-        <div
-          class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative"
-        >
-          <div class="flex flex-col items-center mb-1">
-            <div class="font-bold text-[11pt] mb-1 italic">
-              Set - {activeSet}
+
+      <!-- Dynamic Header & Metadata (V16 Image-As-Template Support) -->
+      {#if !layoutSchema?.debugImage}
+        {#if layout.style === "cdu"}
+          <div
+            class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative"
+          >
+            <div class="flex flex-col items-center mb-1">
+              <div class="font-bold text-[11pt] mb-1 italic">
+                Set - {activeSet}
+              </div>
+              <AssessmentEditable
+                value={layout.universityName}
+                onUpdate={(v: string) => {
+                  layoutSchema.universityName = v;
+                }}
+                class="text-[12pt] font-black tracking-[0.2em] leading-none mb-1 uppercase px-2"
+              />
+              {#if layout.universitySubName || isEditable}
+                <AssessmentEditable
+                  value={layout.universitySubName}
+                  onUpdate={(v: string) => {
+                    layoutSchema.universitySubName = v;
+                  }}
+                  class="text-[10pt] font-bold leading-none mb-2 uppercase"
+                  placeholder="(SUB-HEADER)"
+                />
+              {/if}
+            </div>
+
+            <div class="text-[11pt] font-bold uppercase mt-1">
+              <AssessmentEditable
+                value={paperMeta.exam_title}
+                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+              />
+            </div>
+
+            <div class="mt-1 flex flex-col items-center">
+              <AssessmentEditable
+                value={paperMeta.programme}
+                onUpdate={(v: string) => updateText(v, "META", "programme")}
+                class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
+              />
+              <AssessmentEditable
+                value={paperMeta.subject_name}
+                onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+                class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
+              />
+            </div>
+
+            <div
+              class="mt-2 border-t-[1.5pt] border-black flex justify-between px-2 py-0.5 font-bold text-[10.5pt]"
+            >
+              <div>
+                Time: {paperMeta.duration_label ||
+                  paperMeta.duration_minutes + " Mins"}
+              </div>
+              <div>[Max. Marks: {paperMeta.max_marks || "20"}]</div>
+            </div>
+          </div>
+        {:else if layout.style === "crescent"}
+          <div
+            class="header-container flex flex-col items-center mb-1 pt-1 relative text-center"
+          >
+            <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
+              <div class="flex items-center gap-2">
+                <span class="text-[8pt] font-black uppercase text-gray-400"
+                  >COURSE CODE</span
+                >
+                <div
+                  class="border border-black px-2 py-0.5 min-w-[60px] text-[9pt] font-bold"
+                >
+                  {paperMeta.course_code || ""}
+                </div>
+              </div>
+              <div class="flex items-center gap-1 mt-1">
+                <span class="text-[8pt] font-bold text-right">RRN</span>
+                <div class="flex border border-black">
+                  {#each Array(11) as _}
+                    <div
+                      class="w-3.5 h-3.5 border-r border-black last:border-r-0"
+                    ></div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              {#if layout.logoUrl}
+                <img
+                  src={layout.logoUrl}
+                  alt="University Logo"
+                  class="h-20 mx-auto mb-1"
+                />
+              {/if}
             </div>
             <AssessmentEditable
               value={layout.universityName}
               onUpdate={(v: string) => {
                 layoutSchema.universityName = v;
               }}
-              class="text-[12pt] font-black tracking-[0.2em] leading-none mb-1 uppercase px-2"
+              class="text-xl font-black uppercase tracking-tight"
             />
             {#if layout.universitySubName || isEditable}
               <AssessmentEditable
@@ -256,287 +345,233 @@
                 onUpdate={(v: string) => {
                   layoutSchema.universitySubName = v;
                 }}
-                class="text-[10pt] font-bold leading-none mb-2 uppercase"
+                class="text-lg font-bold uppercase tracking-tight"
                 placeholder="(SUB-HEADER)"
               />
             {/if}
-          </div>
-
-          <div class="text-[11pt] font-bold uppercase mt-1">
-            <AssessmentEditable
-              value={paperMeta.exam_title}
-              onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-            />
-          </div>
-
-          <div class="mt-1 flex flex-col items-center">
-            <AssessmentEditable
-              value={paperMeta.programme}
-              onUpdate={(v: string) => updateText(v, "META", "programme")}
-              class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
-            />
-            <AssessmentEditable
-              value={paperMeta.subject_name}
-              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-              class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
-            />
-          </div>
-
-          <div
-            class="mt-2 border-t-[1.5pt] border-black flex justify-between px-2 py-0.5 font-bold text-[10.5pt]"
-          >
-            <div>
-              Time: {paperMeta.duration_label ||
-                paperMeta.duration_minutes + " Mins"}
-            </div>
-            <div>[Max. Marks: {paperMeta.max_marks || "20"}]</div>
-          </div>
-        </div>
-      {:else if layout.style === "crescent"}
-        <div
-          class="header-container flex flex-col items-center mb-1 pt-1 relative text-center"
-        >
-          <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
-            <div class="flex items-center gap-2">
-              <span class="text-[8pt] font-black uppercase text-gray-400"
-                >COURSE CODE</span
-              >
-              <div
-                class="border border-black px-2 py-0.5 min-w-[60px] text-[9pt] font-bold"
-              >
-                {paperMeta.course_code || ""}
-              </div>
-            </div>
-            <div class="flex items-center gap-1 mt-1">
-              <span class="text-[8pt] font-bold text-right">RRN</span>
-              <div class="flex border border-black">
-                {#each Array(11) as _}
-                  <div
-                    class="w-3.5 h-3.5 border-r border-black last:border-r-0"
-                  ></div>
-                {/each}
-              </div>
+            <div
+              class="mt-6 font-bold uppercase text-[11pt] border-y border-black py-2 w-full"
+            >
+              <AssessmentEditable
+                value={paperMeta.exam_title}
+                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+              />
             </div>
           </div>
-
-          <div class="mb-4">
+        {:else}
+          <div class="text-center mb-8 border-b-2 border-black pb-4">
             {#if layout.logoUrl}
               <img
                 src={layout.logoUrl}
                 alt="University Logo"
-                class="h-20 mx-auto mb-1"
+                class="h-16 mx-auto mb-2"
               />
             {/if}
-          </div>
-          <AssessmentEditable
-            value={layout.universityName}
-            onUpdate={(v: string) => {
-              layoutSchema.universityName = v;
-            }}
-            class="text-xl font-black uppercase tracking-tight"
-          />
-          {#if layout.universitySubName || isEditable}
             <AssessmentEditable
-              value={layout.universitySubName}
+              value={layout.universityName}
               onUpdate={(v: string) => {
-                layoutSchema.universitySubName = v;
+                layoutSchema.universityName = v;
               }}
-              class="text-lg font-bold uppercase tracking-tight"
-              placeholder="(SUB-HEADER)"
+              class="text-xl font-black uppercase tracking-tight"
+              style="color: {layout.primaryColor}"
             />
-          {/if}
-          <div
-            class="mt-6 font-bold uppercase text-[11pt] border-y border-black py-2 w-full"
+            {#if layout.universitySubName || isEditable}
+              <AssessmentEditable
+                value={layout.universitySubName}
+                onUpdate={(v: string) => {
+                  layoutSchema.universitySubName = v;
+                }}
+                class="text-lg font-bold uppercase tracking-tight"
+                placeholder="(SUB-HEADER)"
+              />
+            {/if}
+            {#if layout.universityAddress || isEditable}
+              <AssessmentEditable
+                value={layout.universityAddress}
+                onUpdate={(v: string) => {
+                  layoutSchema.universityAddress = v;
+                }}
+                class="text-[10px] font-bold text-gray-600 uppercase tracking-widest leading-none mt-1"
+                placeholder="ADDRESS / TAGLINE"
+              />
+            {/if}
+            <div class="mt-4 py-1 border-y border-black/10">
+              <AssessmentEditable
+                value={paperMeta.exam_title}
+                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+                class="text-sm font-black uppercase"
+              />
+            </div>
+          </div>
+        {/if}
+
+        <!-- Paper Metadata -->
+        {#if layoutSchema?.showMetadataTable}
+          <table
+            class="w-full border-collapse border border-black text-[9pt] mb-8"
           >
-            <AssessmentEditable
-              value={paperMeta.exam_title}
-              onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-            />
+            <tbody>
+              <tr>
+                <td
+                  class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
+                  >Programme & Branch</td
+                >
+                <td colspan="3" class="border border-black p-2">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.programme}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "programme")}
+                      class="flex-1"
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10"
+                  >Semester</td
+                >
+                <td class="border border-black p-2 w-[30%]">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.semester}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "semester")}
+                    />
+                  </div>
+                </td>
+                <td
+                  class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
+                  >Date & Session</td
+                >
+                <td class="border border-black p-2 w-[30%]">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.paper_date}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "paper_date")}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10"
+                  >Course Code & Name</td
+                >
+                <td colspan="3" class="border border-black p-2">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.subject_name}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "subject_name")}
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10"
+                  >Duration</td
+                >
+                <td class="border border-black p-2">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.duration_minutes}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "duration_minutes")}
+                    />
+                    <span>minutes</span>
+                  </div>
+                </td>
+                <td class="border border-black p-2 font-bold bg-gray-50/10"
+                  >Maximum Marks</td
+                >
+                <td class="border border-black p-2">
+                  <div class="flex gap-2">
+                    <span>:</span>
+                    <AssessmentEditable
+                      value={paperMeta.max_marks}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "max_marks")}
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        {:else}
+          <div
+            class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-8 border-b-2 border-black pb-4"
+          >
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Course Code:</span>
+              <AssessmentEditable
+                value={paperMeta.course_code}
+                onUpdate={(v: string) => updateText(v, "META", "course_code")}
+              />
+            </div>
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Semester:</span>
+              <AssessmentEditable
+                value={paperMeta.semester}
+                onUpdate={(v: string) => updateText(v, "META", "semester")}
+              />
+            </div>
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Subject Name:</span>
+              <AssessmentEditable
+                value={paperMeta.subject_name}
+                onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+              />
+            </div>
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Max Marks:</span>
+              <span>{paperMeta.max_marks}</span>
+            </div>
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Programme:</span>
+              <AssessmentEditable
+                value={paperMeta.programme}
+                onUpdate={(v: string) => updateText(v, "META", "programme")}
+              />
+            </div>
+            <div class="flex justify-between border-b border-black/10 pb-1">
+              <span class="font-bold">Duration:</span>
+              <span>{paperMeta.duration_minutes} Mins</span>
+            </div>
           </div>
-        </div>
-      {:else}
-        <div class="text-center mb-8 border-b-2 border-black pb-4">
-          {#if layout.logoUrl}
-            <img
-              src={layout.logoUrl}
-              alt="University Logo"
-              class="h-16 mx-auto mb-2"
-            />
-          {/if}
-          <AssessmentEditable
-            value={layout.universityName}
-            onUpdate={(v: string) => {
-              layoutSchema.universityName = v;
-            }}
-            class="text-xl font-black uppercase tracking-tight"
-            style="color: {layout.primaryColor}"
-          />
-          {#if layout.universitySubName || isEditable}
-            <AssessmentEditable
-              value={layout.universitySubName}
-              onUpdate={(v: string) => {
-                layoutSchema.universitySubName = v;
-              }}
-              class="text-lg font-bold uppercase tracking-tight"
-              placeholder="(SUB-HEADER)"
-            />
-          {/if}
-          {#if layout.universityAddress || isEditable}
-            <AssessmentEditable
-              value={layout.universityAddress}
-              onUpdate={(v: string) => {
-                layoutSchema.universityAddress = v;
-              }}
-              class="text-[10px] font-bold text-gray-600 uppercase tracking-widest leading-none mt-1"
-              placeholder="ADDRESS / TAGLINE"
-            />
-          {/if}
-          <div class="mt-4 py-1 border-y border-black/10">
-            <AssessmentEditable
-              value={paperMeta.exam_title}
-              onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-              class="text-sm font-black uppercase"
-            />
-          </div>
-        </div>
+        {/if}
       {/if}
 
-      <!-- Paper Metadata -->
-      {#if layoutSchema?.showMetadataTable}
-        <table
-          class="w-full border-collapse border border-black text-[9pt] mb-8"
-        >
-          <tbody>
-            <tr>
-              <td
-                class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
-                >Programme & Branch</td
-              >
-              <td colspan="3" class="border border-black p-2">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.programme}
-                    onUpdate={(v: string) => updateText(v, "META", "programme")}
-                    class="flex-1"
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="border border-black p-2 font-bold bg-gray-50/10"
-                >Semester</td
-              >
-              <td class="border border-black p-2 w-[30%]">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.semester}
-                    onUpdate={(v: string) => updateText(v, "META", "semester")}
-                  />
-                </div>
-              </td>
-              <td
-                class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
-                >Date & Session</td
-              >
-              <td class="border border-black p-2 w-[30%]">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.paper_date}
-                    onUpdate={(v: string) =>
-                      updateText(v, "META", "paper_date")}
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="border border-black p-2 font-bold bg-gray-50/10"
-                >Course Code & Name</td
-              >
-              <td colspan="3" class="border border-black p-2">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.subject_name}
-                    onUpdate={(v: string) =>
-                      updateText(v, "META", "subject_name")}
-                  />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td class="border border-black p-2 font-bold bg-gray-50/10"
-                >Duration</td
-              >
-              <td class="border border-black p-2">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.duration_minutes}
-                    onUpdate={(v: string) =>
-                      updateText(v, "META", "duration_minutes")}
-                  />
-                  <span>minutes</span>
-                </div>
-              </td>
-              <td class="border border-black p-2 font-bold bg-gray-50/10"
-                >Maximum Marks</td
-              >
-              <td class="border border-black p-2">
-                <div class="flex gap-2">
-                  <span>:</span>
-                  <AssessmentEditable
-                    value={paperMeta.max_marks}
-                    onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-                  />
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      {:else}
-        <div
-          class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-8 border-b-2 border-black pb-4"
-        >
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Course Code:</span>
-            <AssessmentEditable
-              value={paperMeta.course_code}
-              onUpdate={(v: string) => updateText(v, "META", "course_code")}
-            />
+      <!-- V16 Field Overlays (for previews/thumbnails) -->
+      {#if layoutSchema?.debugImage && layoutSchema.pages?.[0]?.elements}
+        {#each layoutSchema.pages[0].elements.filter((el: any) => el.type === "field") as el}
+          <div
+            class="absolute pointer-events-none"
+            style="
+              left: {el.x * 100}%; 
+              top: {el.y * 100}%; 
+              width: {el.width * 100}%; 
+              height: {el.height * 100}%;
+              font-size: {Math.min(
+              22,
+              Math.max(8, el.height * 11.69 * 72 * 0.55),
+            )}px;
+              text-align: {el.is_header ? 'center' : 'left'};
+              font-weight: {el.is_header ? '700' : '400'};
+              color: #000;
+              font-family: {el.is_header ? 'Inter, sans-serif' : 'monospace'};
+              white-space: pre-wrap;
+              overflow: hidden;
+            "
+          >
+            {el.value}
           </div>
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Semester:</span>
-            <AssessmentEditable
-              value={paperMeta.semester}
-              onUpdate={(v: string) => updateText(v, "META", "semester")}
-            />
-          </div>
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Subject Name:</span>
-            <AssessmentEditable
-              value={paperMeta.subject_name}
-              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-            />
-          </div>
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Max Marks:</span>
-            <span>{paperMeta.max_marks}</span>
-          </div>
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Programme:</span>
-            <AssessmentEditable
-              value={paperMeta.programme}
-              onUpdate={(v: string) => updateText(v, "META", "programme")}
-            />
-          </div>
-          <div class="flex justify-between border-b border-black/10 pb-1">
-            <span class="font-bold">Duration:</span>
-            <span>{paperMeta.duration_minutes} Mins</span>
-          </div>
-        </div>
+        {/each}
       {/if}
 
       <!-- Dynamic Sections -->

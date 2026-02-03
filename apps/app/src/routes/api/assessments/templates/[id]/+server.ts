@@ -1,4 +1,4 @@
-import { deleteTemplate, getTemplateById } from '@uniconnect/shared';
+import { deleteAssessmentTemplate as deleteTemplate, getAssessmentTemplateById as getTemplateById } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 

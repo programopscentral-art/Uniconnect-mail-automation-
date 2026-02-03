@@ -79,7 +79,8 @@ const LayoutSchema = z.object({
     dynamicSlots: z.array(z.any()).optional(),
     metadata_fields: z.record(z.string()).optional(),
     originalWidth: z.number().optional(),
-    originalHeight: z.number().optional()
+    originalHeight: z.number().optional(),
+    debugImage: z.string().optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
