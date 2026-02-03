@@ -36,23 +36,29 @@ export class LayoutExtractor {
     private client: ImageAnnotatorClient;
 
     constructor() {
-        const credentialsJson = env.GOOGLE_CREDENTIALS_JSON;
+        const credentialsJson = env.GOOGLE_CREDENTIALS_JSON || process.env.GOOGLE_CREDENTIALS_JSON;
+
         if (credentialsJson) {
             try {
                 const credentials = JSON.parse(credentialsJson);
                 this.client = new ImageAnnotatorClient({ credentials });
                 console.log('✅ LayoutExtractor: Vision API initialized with credentials from ENV');
-            } catch (e) {
-                console.error('❌ LayoutExtractor: Failed to parse GOOGLE_CREDENTIALS_JSON');
-                this.client = new ImageAnnotatorClient();
+            } catch (e: any) {
+                console.error('❌ LayoutExtractor: Failed to parse GOOGLE_CREDENTIALS_JSON:', e.message);
+                throw new Error('SYSTEM_CONFIG_ERROR: GOOGLE_CREDENTIALS_JSON is malformed. Please check your Railway environment variables.');
             }
         } else {
-            this.client = new ImageAnnotatorClient();
-            console.log('✅ LayoutExtractor: Vision API initialized with default credentials');
+            console.error('❌ LayoutExtractor: Missing GOOGLE_CREDENTIALS_JSON');
+            // We don't throw here to avoid crashing the server on boot, 
+            // but we'll flag that it's uninitialized.
+            this.client = null as any;
         }
     }
 
     async extract(buffer: Buffer, mimeType: string): Promise<TemplateBlueprint> {
+        if (!this.client) {
+            throw new Error('GOOGLE_AUTH_MISSING: The analysis engine requires Google Cloud credentials. Please set the GOOGLE_CREDENTIALS_JSON environment variable in your Railway dashboard.');
+        }
         // For now, we assume buffer is an image. 
         // PDF rasterization would happen here if implemented.
 
