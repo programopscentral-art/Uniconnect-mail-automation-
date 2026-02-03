@@ -118,8 +118,9 @@
       });
 
       const data = await res.json();
+      console.log(`[V12_COMMIT] 📥 Response (${res.status}):`, data);
+
       if (res.ok) {
-        console.log(`[V11_COMMIT] ✅ Success:`, data);
         if (onImportComplete) {
           onImportComplete({
             ...data.template,
@@ -128,12 +129,11 @@
         }
         step = 3;
       } else {
-        console.error(`[V11_COMMIT] ❌ API ERROR (${res.status}):`, data);
         errorMsg = `Build Error (${res.status}): ${data.message || "Validation Failed"}`;
       }
     } catch (e: any) {
-      console.error("[V11_COMMIT] 🚨 Critical Error:", e);
-      errorMsg = "System failure during transmission.";
+      console.error("[V12_COMMIT] 🚨 Critical Error:", e);
+      errorMsg = `System failure during transmission: ${e.message}`;
     } finally {
       isAnalyzing = false;
     }
@@ -144,9 +144,11 @@
     if (!confirm("Irreversible: Delete this template blueprint?")) return;
 
     isAnalyzing = true;
+    errorMsg = "";
+
     try {
       console.log(
-        `[V11_DELETE] 🗑️ Requesting delete for: ${detectedLayout.id}`,
+        `[V12_DELETE] 🗑️ Request: DELETE /api/assessments/templates/${detectedLayout.id}`,
       );
       const res = await fetch(
         `/api/assessments/templates/${detectedLayout.id}`,
@@ -154,16 +156,19 @@
           method: "DELETE",
         },
       );
-      if (res.ok) {
-        console.log(`[V11_DELETE] ✅ Blueprint eradicated.`);
+
+      console.log(`[V12_DELETE] 📥 Response: ${res.status}`);
+
+      if (res.ok || res.status === 204) {
         closeModal();
-        if (onImportComplete) onImportComplete(null); // Force reload
+        if (onImportComplete) onImportComplete(null);
       } else {
-        const data = await res.json();
-        errorMsg = data.message || "Eradication failed.";
+        const data = await res.json().catch(() => ({}));
+        errorMsg = data.message || `Eradication failed (${res.status}).`;
       }
-    } catch (e) {
-      errorMsg = "Transmission failure during delete.";
+    } catch (e: any) {
+      console.error("[V12_DELETE] 🚨 Error:", e);
+      errorMsg = `Transmission failure: ${e.message}`;
     } finally {
       isAnalyzing = false;
     }
