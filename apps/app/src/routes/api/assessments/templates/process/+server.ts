@@ -85,7 +85,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 pages: blueprint.pages,
                 metadata_fields: blueprint.metadata_fields || {},
                 originalWidth: blueprint.originalWidth,
-                originalHeight: blueprint.originalHeight
+                originalHeight: blueprint.originalHeight,
+                debugImage: blueprint.debugImage
             };
 
             console.log(`[TEMPLATE_IMPORT] 🎯 Monolithic Extraction Successful: ${blueprint.pages[0].elements.length} elements detected`);

@@ -54,7 +54,7 @@ export class ExtractionEngine {
                 thickness: 1,
                 content: block.text
             };
-        }).filter(el => el.is_header || !el.is_question);
+        });
 
         // 4. Extract Meta Fields & Values
         const metadata: Record<string, string> = {};
@@ -281,6 +281,10 @@ export class ExtractionEngine {
             elements.push({
                 id: `line-h-${hi}`,
                 type: 'line',
+                x: h.x,
+                y: h.y,
+                width: h.length,
+                height: 2,
                 x1: h.x,
                 y1: h.y,
                 x2: h.x + h.length,
@@ -295,6 +299,10 @@ export class ExtractionEngine {
             elements.push({
                 id: `line-v-${vi}`,
                 type: 'line',
+                x: v.x,
+                y: v.y,
+                width: 2,
+                height: v.length,
                 x1: v.x,
                 y1: v.y,
                 x2: v.x,

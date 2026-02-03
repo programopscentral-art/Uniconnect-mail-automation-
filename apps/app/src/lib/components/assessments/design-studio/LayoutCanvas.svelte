@@ -80,8 +80,13 @@
         />
       {:else}
         <!-- Simple static rendering for preview/view -->
-        {@const isPixel =
-          el.x > 1 || el.y > 1 || el.width > 20 || el.height > 20}
+        {@const isPixel = !!(
+          layout.originalWidth ||
+          el.x > 1 ||
+          el.y > 1 ||
+          el.width > 20 ||
+          el.height > 20
+        )}
         {@const canvasWidth = A4_WIDTH_MM * MM_TO_PX}
         {@const canvasHeight = A4_HEIGHT_MM * MM_TO_PX}
         <!-- Scaling factor if the original image was different size than A4 px -->
