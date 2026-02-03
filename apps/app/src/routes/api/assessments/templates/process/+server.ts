@@ -1,9 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { LayoutReconstructor } from '$lib/server/services/layout-reconstructor';
-import { createAssessmentTemplate } from '@uniconnect/shared';
-import { env } from '$env/dynamic/private';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ExtractionEngine } from '$lib/server/services/extraction-engine';
+import pdf from 'pdf-img-convert';
 import { z } from 'zod';
 
 // Zod Schema for Layout Validation (Master Source of Truth)
@@ -69,20 +67,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     } else {
         // --- Monolithic Internal Extraction ---
         try {
-            const { LayoutExtractor } = await import('$lib/server/services/layout-extractor');
-            const extractor = new LayoutExtractor();
-            const buffer = Buffer.from(await file.arrayBuffer());
-            const blueprint = await extractor.extract(buffer, file.type);
+            const extractor = new ExtractionEngine();
+            let buffer = Buffer.from(await file.arrayBuffer());
+
+            if (file.type === 'application/pdf') {
+                const pdfArray = await pdf.convert(buffer, { page_numbers: [1] });
+                buffer = Buffer.from(pdfArray[0]);
+            }
+
+            const blueprint = await extractor.analyze(buffer, file.type);
 
             detectedLayout = {
                 page: { ...blueprint.page, unit: "mm", margins: { top: 0, bottom: 0, left: 0, right: 0 } },
-                pages: [
-                    { id: "p1", elements: blueprint.elements }
-                ],
+                pages: blueprint.pages,
                 metadata_fields: blueprint.metadata_fields || {}
             };
 
-            console.log(`[TEMPLATE_IMPORT] 🎯 Monolithic Extraction Successful: ${blueprint.elements.length} elements detected`);
+            console.log(`[TEMPLATE_IMPORT] 🎯 Monolithic Extraction Successful: ${blueprint.pages[0].elements.length} elements detected`);
         } catch (re: any) {
             console.error(`[TEMPLATE_IMPORT] ❌ Internal Process Failure:`, re);
             return json({

@@ -37,34 +37,27 @@
     isAnalyzing = true;
     errorMsg = "";
     const formData = new FormData();
-    formData.append("name", importName);
-    formData.append("exam_type", importExamType);
     formData.append("file", importFile);
-    formData.append("universityId", universityId);
-    formData.append("dryRun", "true");
 
     try {
-      // Step 1: Direct Internal Extraction
-      const res = await fetch("/api/assessments/templates/process", {
+      // Step 1: Free Internal Analysis
+      const res = await fetch("/api/templates/analyze", {
         method: "POST",
         body: formData,
       });
 
       if (res.ok) {
-        const data = await res.json();
-        detectedLayout = data.template.layout_schema;
+        detectedLayout = await res.json();
         metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
         const err = await res.json().catch(() => ({ message: res.statusText }));
-        errorMsg =
-          err.message ||
-          "We encountered an issue while processing your document layout.";
+        errorMsg = err.message || "Free analysis engine encountered an issue.";
       }
     } catch (e: any) {
       errorMsg =
         e.message ||
-        "System Connectivity Error: The layout analysis engine is currently unreachable.";
+        "Analysis Error: The engine failed to process the document.";
     } finally {
       isAnalyzing = false;
     }
@@ -163,21 +156,20 @@
       </header>
 
       <div class="flex-1 overflow-hidden flex min-h-0 bg-[#0a0a0a]">
-        <!-- Sidebar: Premium Glass Properties Panel -->
-        <div
-          class="w-80 min-w-[320px] border-r border-white/5 p-10 space-y-10 bg-[#121212] overflow-y-auto shrink-0 scrollbar-hide"
-        >
-          {#if step === 1}
-            <div class="space-y-8 animate-premium-fade">
+        {#if step === 1}
+          <!-- Step 1 Layout: Centered Upload -->
+          <div
+            class="w-80 border-r border-white/5 p-8 space-y-8 bg-[#121212] overflow-y-auto shrink-0"
+          >
+            <div class="space-y-6">
               <div class="space-y-3">
                 <label
-                  for="import-name"
+                  for="blueprint-name"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Blueprint Name</label
                 >
                 <input
-                  id="import-name"
-                  type="text"
+                  id="blueprint-name"
                   bind:value={importName}
                   placeholder="e.g. Crescent MID EXAM"
                   class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10"
@@ -186,35 +178,30 @@
 
               <div class="space-y-3">
                 <label
-                  for="import-exam-type"
+                  for="sequence-mode"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Sequence Mode</label
                 >
-                <div class="relative group">
-                  <select
-                    id="import-exam-type"
-                    bind:value={importExamType}
-                    class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer hover:bg-white/[0.05]"
-                  >
-                    <option value="MID1">MIDTERM 1</option>
-                    <option value="MID2">MIDTERM 2</option>
-                    <option value="SEM">SEMESTER FINAL</option>
-                  </select>
-                  <ChevronRight
-                    class="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 pointer-events-none transition-transform group-hover:translate-x-1"
-                  />
-                </div>
+                <select
+                  id="sequence-mode"
+                  bind:value={importExamType}
+                  class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                >
+                  <option value="MID1">MIDTERM 1</option>
+                  <option value="MID2">MIDTERM 2</option>
+                  <option value="SEM">SEMESTER FINAL</option>
+                </select>
               </div>
 
               <div class="space-y-3">
                 <label
-                  for="import-file"
+                  for="doc-source"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
                   >Document Source</label
                 >
                 <div class="relative group">
                   <input
-                    id="import-file"
+                    id="doc-source"
                     type="file"
                     accept=".pdf,image/*"
                     onchange={(e) =>
@@ -222,11 +209,9 @@
                     class="absolute inset-0 opacity-0 cursor-pointer z-10"
                   />
                   <div
-                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-10 text-center group-hover:border-indigo-500/50 transition-all active:scale-[0.98]"
+                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-10 text-center"
                   >
-                    <Upload
-                      class="w-8 h-8 text-indigo-500/40 mx-auto mb-4 group-hover:scale-110 transition-transform"
-                    />
+                    <Upload class="w-8 h-8 text-indigo-500/40 mx-auto mb-4" />
                     <span
                       class="text-[10px] font-black text-white/40 uppercase block"
                       >{importFile
@@ -236,190 +221,97 @@
                   </div>
                 </div>
               </div>
-
-              <div class="space-y-3">
-                <label
-                  for="logo-file"
-                  class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >University Logo (Optional)</label
-                >
-                <div class="relative group">
-                  <input
-                    id="logo-file"
-                    type="file"
-                    accept="image/*"
-                    onchange={(e) =>
-                      (logoFile = e.currentTarget.files?.[0] || null)}
-                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  />
-                  <div
-                    class="w-full bg-white/[0.02] border border-white/5 rounded-2xl px-6 py-4 flex items-center gap-4 group-hover:bg-white/[0.04] transition-all"
-                  >
-                    <div
-                      class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center"
-                    >
-                      <Upload class="w-4 h-4 text-white/20" />
-                    </div>
-                    <span
-                      class="text-[10px] font-bold text-white/30 uppercase truncate"
-                    >
-                      {logoFile ? logoFile.name : "Upload Logo"}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </div>
-          {:else if step === 2}
-            <div class="space-y-8 animate-premium-fade">
+
+            {#if errorMsg}
               <div
-                class="p-6 rounded-[2rem] bg-indigo-500/10 border border-indigo-500/20 shadow-2xl shadow-indigo-500/5"
+                class="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase"
               >
-                <div class="flex items-center gap-3 mb-3">
-                  <CheckCircle2 class="w-4 h-4 text-indigo-400" />
-                  <h4
-                    class="text-[10px] font-black text-indigo-400 uppercase tracking-widest"
-                  >
-                    Mesh Extracted
-                  </h4>
-                </div>
-                <p
-                  class="text-[10px] font-medium text-white/50 leading-relaxed uppercase tracking-wide"
-                >
-                  Layout nodes detected. review structural dividers and headers.
-                </p>
+                {errorMsg}
               </div>
+            {/if}
+          </div>
 
-              <div class="space-y-6">
-                <!-- Editable Headers Section -->
-                <div class="space-y-4">
-                  <p
-                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
-                  >
-                    University Headers
-                  </p>
-                  <div class="space-y-3">
-                    {#each detectedLayout?.pages?.[0]?.elements?.filter((el) => el.is_header) || [] as el}
-                      <div class="space-y-2">
-                        <div class="flex items-center justify-between px-1">
-                          <span
-                            class="text-[8px] font-black text-white/20 uppercase"
-                            >Header Node</span
-                          >
-                        </div>
-                        <textarea
-                          bind:value={el.content}
-                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[11px] font-bold text-indigo-400 outline-none focus:border-indigo-500/50 transition-all resize-none"
-                          rows="2"
-                        ></textarea>
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-
-                <!-- Editable Metadata Section -->
-                <div class="space-y-4">
-                  <p
-                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
-                  >
-                    Detected Metadata
-                  </p>
-                  <div class="space-y-3">
-                    {#each Object.entries(metadataFields) as [key, value]}
-                      <div class="space-y-2">
-                        <label
-                          for="meta-{key}"
-                          class="text-[8px] font-black text-white/20 uppercase ml-1"
-                          >{key.replace("_", " ")}</label
-                        >
-                        <input
-                          id="meta-{key}"
-                          type="text"
-                          bind:value={metadataFields[key]}
-                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[11px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
-                        />
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-
-                <!-- Technical Nodes (Collapsed or Small) -->
-                <div class="space-y-4 pt-4 border-t border-white/5">
-                  <p
-                    class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em] ml-1"
-                  >
-                    Structural Nodes ({detectedLayout?.pages?.[0]?.elements
-                      ?.length || 0})
-                  </p>
-                  <div class="flex flex-wrap gap-2">
-                    {#each detectedLayout?.pages?.[0]?.elements?.slice(0, 12) || [] as el}
-                      <div
-                        class="w-8 h-8 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center text-white/10 hover:text-white/40 transition-colors"
-                        title={el.type}
-                      >
-                        {#if el.type === "text"}<Type
-                            class="w-3.5 h-3.5"
-                          />{:else}<Layout class="w-3.5 h-3.5" />{/if}
-                      </div>
-                    {/each}
-                  </div>
-                </div>
-              </div>
-            </div>
-          {/if}
-
-          {#if errorMsg}
+          <div
+            class="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-8 animate-premium-fade"
+          >
             <div
-              class="p-6 rounded-[1.5rem] bg-red-500/10 border border-red-500/20 text-red-100 text-[10px] font-bold uppercase tracking-widest whitespace-pre-wrap break-words animate-premium-fade"
-            >
-              <div class="flex items-center gap-3 mb-2">
-                <AlertCircle class="w-4 h-4 text-red-500" />
-                <span class="font-black">Critical Error</span>
-              </div>
-              {errorMsg}
-            </div>
-          {/if}
-        </div>
-
-        <!-- Main Workspace area -->
-        <div
-          class="flex-1 bg-[#0a0a0a] flex flex-col items-center justify-start p-8 md:p-16 overflow-auto relative scrollbar-hide shadow-inner min-w-0"
-        >
-          {#if step === 1}
-            <div
-              class="w-full max-w-2xl flex flex-col items-center justify-center py-20 text-center space-y-8 animate-premium-fade"
+              class="w-24 h-24 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-center relative group"
             >
               <div
-                class="w-24 h-24 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-center relative group"
+                class="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full opacity-50"
+              ></div>
+              <FileText class="w-10 h-10 text-indigo-500" />
+            </div>
+            <div>
+              <h2
+                class="text-3xl font-black text-white mb-4 uppercase tracking-tighter"
               >
+                Replicate Document
+              </h2>
+              <p
+                class="text-xs font-medium text-white/30 max-w-md mx-auto leading-relaxed uppercase tracking-widest"
+              >
+                FREE MONOLITHIC ENGINE. NO BILLING. NO EXTERNAL SERVICES.
+              </p>
+            </div>
+          </div>
+        {:else if step === 2}
+          <!-- Step 2 Layout: 3-Column Balanced View -->
+
+          <!-- Column 1: Scene Tree / Left Controls -->
+          <div
+            class="w-80 border-r border-white/5 p-8 space-y-8 bg-[#121212] overflow-y-auto shrink-0 scrollbar-hide"
+          >
+            <h3
+              class="text-[10px] font-black text-white/20 uppercase tracking-widest"
+            >
+              Structural Nodes
+            </h3>
+            <div class="space-y-3">
+              {#each detectedLayout?.elements || [] as el}
                 <div
-                  class="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                ></div>
-                <FileText
-                  class="w-10 h-10 text-indigo-500 group-hover:scale-110 transition-transform"
-                />
-              </div>
-              <div>
-                <h2
-                  class="text-3xl font-black text-white mb-4 uppercase tracking-tighter"
+                  class="p-4 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:bg-white/[0.04] transition-all"
                 >
-                  Replicate Document
-                </h2>
-                <p
-                  class="text-xs font-medium text-white/30 max-w-md mx-auto leading-relaxed uppercase tracking-widest"
-                >
-                  Upload a raw university paper. Our high-fidelity
-                  reconstruction system will extract the exact layout.
-                </p>
-              </div>
+                  <div class="flex items-center gap-3">
+                    {#if el.type === "text"}<Type
+                        class="w-3.5 h-3.5 text-indigo-400"
+                      />{:else}<Layout class="w-3.5 h-3.5 text-white/20" />{/if}
+                    <span
+                      class="text-[10px] font-bold text-white/40 uppercase tracking-tight"
+                      >{el.type} node</span
+                    >
+                  </div>
+                  <CheckCircle2 class="w-3.5 h-3.5 text-emerald-500/40" />
+                </div>
+              {/each}
             </div>
-          {:else if step === 2}
+          </div>
+
+          <!-- Column 2: Centered Canvas (Main) -->
+          <div
+            class="flex-1 bg-black/40 relative overflow-auto p-20 flex items-start justify-center min-w-0 scrollbar-hide"
+          >
+            <!-- Interactive Preview Wrapper -->
+            <div
+              class="relative group shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 bg-[#1a1a1a]"
+              style="transform: scale({previewZoom}); transform-origin: top center;"
+            >
+              <LayoutCanvas
+                layout={detectedLayout}
+                zoom={1}
+                showMargins={true}
+                mode="preview"
+              />
+            </div>
+
             <!-- Floating Zoom Control -->
             <div
-              class="absolute top-8 right-8 z-[100] flex items-center gap-1 bg-black/60 backdrop-blur-xl border border-white/5 p-1.5 rounded-2xl shadow-2xl animate-premium-slide-left"
+              class="fixed bottom-32 right-96 z-[100] flex items-center gap-1 bg-black/60 backdrop-blur-xl border border-white/5 p-1.5 rounded-2xl shadow-2xl"
             >
               <button
                 onclick={() => (previewZoom = Math.max(0.1, previewZoom - 0.1))}
-                class="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
+                class="p-2 hover:bg-white/5 rounded-xl text-white/40"
               >
                 <ZoomOut class="w-4 h-4" />
               </button>
@@ -428,60 +320,62 @@
               </div>
               <button
                 onclick={() => (previewZoom = Math.min(2, previewZoom + 0.1))}
-                class="p-2 hover:bg-white/5 rounded-xl text-white/40 hover:text-white transition-all"
+                class="p-2 hover:bg-white/5 rounded-xl text-white/40"
               >
                 <ZoomIn class="w-4 h-4" />
               </button>
             </div>
+          </div>
 
-            <div
-              class="w-full h-full flex items-start justify-center p-12 overflow-visible"
+          <!-- Column 3: Properties / Right Controls -->
+          <div
+            class="w-80 border-l border-white/5 p-8 space-y-8 bg-[#121212] overflow-y-auto shrink-0 scrollbar-hide"
+          >
+            <h3
+              class="text-[10px] font-black text-white/20 uppercase tracking-widest"
             >
-              <div
-                class="relative group shadow-[0_0_100px_rgba(0,0,0,0.8)] border border-white/5 rounded-sm"
-              >
-                <div
-                  class="absolute inset-0 bg-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10"
-                ></div>
-                <div class="p-12 overflow-visible">
-                  <LayoutCanvas
-                    layout={detectedLayout}
-                    zoom={previewZoom}
-                    showMargins={true}
-                    mode="preview"
+              Metadata Tuning
+            </h3>
+            <div class="space-y-6">
+              {#each Object.entries(metadataFields) as [key, value]}
+                <div class="space-y-3">
+                  <label
+                    for="meta-{key}"
+                    class="text-[8px] font-black text-white/20 uppercase tracking-widest ml-1"
+                    >{key.replace("_", " ")}</label
+                  >
+                  <input
+                    id="meta-{key}"
+                    type="text"
+                    bind:value={metadataFields[key]}
+                    class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-5 py-4 text-xs font-bold text-white focus:border-indigo-500/50 outline-none transition-all"
                   />
                 </div>
-              </div>
+              {/each}
             </div>
-          {:else if step === 3}
+          </div>
+        {:else if step === 3}
+          <div
+            class="flex-1 flex flex-col items-center justify-center text-center animate-premium-fade"
+          >
             <div
-              class="w-full h-full flex flex-col items-center justify-center text-center animate-premium-fade"
+              class="w-32 h-32 rounded-[3.5rem] bg-indigo-600 flex items-center justify-center mb-10 shadow-3xl shadow-indigo-600/30"
             >
-              <div
-                class="w-32 h-32 rounded-[3.5rem] bg-indigo-600 flex items-center justify-center mb-10 shadow-3xl shadow-indigo-600/30 ring-8 ring-indigo-600/10"
-              >
-                <CheckCircle2 class="w-16 h-16 text-white" />
-              </div>
-              <h2
-                class="text-4xl font-black text-white mb-4 uppercase tracking-tighter"
-              >
-                Reconstruction Ready
-              </h2>
-              <p
-                class="text-xs font-medium text-white/30 max-w-md uppercase tracking-[0.2em] leading-relaxed"
-              >
-                The blueprint has been integrated into your library. You can now
-                finalize it in the Design Studio.
-              </p>
-              <button
-                onclick={closeModal}
-                class="mt-12 px-12 py-5 bg-white text-black text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-indigo-500 hover:text-white transition-all active:scale-95 shadow-2xl shadow-white/5"
-              >
-                Go to Design Studio
-              </button>
+              <CheckCircle2 class="w-16 h-16 text-white" />
             </div>
-          {/if}
-        </div>
+            <h2
+              class="text-4xl font-black text-white mb-4 uppercase tracking-tighter"
+            >
+              Blueprint Ready
+            </h2>
+            <p
+              class="text-xs font-medium text-white/30 max-w-md uppercase tracking-[0.2em] leading-relaxed"
+            >
+              The free reconstruction is complete. You can now finalize this
+              template in the Design Studio.
+            </p>
+          </div>
+        {/if}
       </div>
 
       <!-- Footer Area -->
