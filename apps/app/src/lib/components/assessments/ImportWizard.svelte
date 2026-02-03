@@ -45,7 +45,7 @@
 
     try {
       // Step 1: Direct Internal Extraction
-      const res = await fetch("/api/templates/extract", {
+      const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
@@ -85,7 +85,7 @@
 
     try {
       // Internal save route handles database insertion
-      const res = await fetch("/api/templates/extract", {
+      const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });

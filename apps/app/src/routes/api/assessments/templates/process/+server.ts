@@ -67,70 +67,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             throw new Error('The submitted structural data is corrupted.');
         }
     } else {
-        // Call Python Extraction Service
+        // --- Monolithic Internal Extraction ---
         try {
-            // Prepare data for Python service
+            const { LayoutExtractor } = await import('$lib/server/services/layout-extractor');
+            const extractor = new LayoutExtractor();
             const buffer = Buffer.from(await file.arrayBuffer());
-            const extractFormData = new FormData();
-            extractFormData.append('file', new Blob([buffer]), file.name);
-
-            // Use environment-based discovery as requested
-            let serviceRoot = env.EXTRACTOR_BASE_URL || env.EXTRACTOR_SERVICE_URL;
-
-            if (!serviceRoot) {
-                const isProduction = env.NODE_ENV === 'production' || !!env.RAILWAY_ENVIRONMENT;
-                if (isProduction) {
-                    console.error('[TEMPLATE_IMPORT] ❌ Configuration Error: EXTRACTOR_BASE_URL is missing in production');
-                    throw new Error('System Configuration Error: The analysis engine URL is not configured (EXTRACTOR_BASE_URL). Please contact support.');
-                }
-                // Always throw in current setup to ensure environment variables are used
-                throw new Error('System Error: EXTRACTOR_BASE_URL is not configured.');
-            }
-
-            serviceRoot = serviceRoot.replace(/\/$/, '');
-            const extractUrl = `${serviceRoot}/api/extract-template`;
-            console.log(`[TEMPLATE_IMPORT] 🛰️ CALLING: ${extractUrl}`);
-
-            let extractRes;
-            try {
-                extractRes = await fetch(extractUrl, {
-                    method: 'POST',
-                    body: extractFormData
-                });
-            } catch (fetchErr: any) {
-                console.error(`[TEMPLATE_IMPORT] ❌ Connectivity Error (${extractUrl}):`, fetchErr.message);
-                // Privacy: Do not show internal URLs to the user in the frontend error
-                throw new Error(`System Connectivity Error: The layout analysis engine (${serviceRoot}) is currently unreachable. Please ensure the 'extractor' service is running on Railway.`);
-            }
-
-            if (!extractRes.ok) {
-                const errBody = await extractRes.text();
-                console.error(`[TEMPLATE_IMPORT] ❌ Service Error (${extractRes.status}):`, errBody);
-                throw new Error(`Analysis Engine Error: We encountered an issue while processing your document layout.`);
-            }
-
-            const extractData = await extractRes.json();
-
-            // Adapt to UniConnect's expected structure + Extract Metadata
-            const elements = extractData.elements || [];
-            const page = extractData.page || { width: 210, height: 297 };
-            const metadata: Record<string, string> = {};
-
-            (extractData.dynamicSlots || []).forEach((slot: any) => {
-                metadata[slot.key] = ""; // Initial empty values for review
-            });
+            const blueprint = await extractor.extract(buffer, file.type);
 
             detectedLayout = {
-                page: { ...page, unit: "mm", margins: { top: 0, bottom: 0, left: 0, right: 0 } },
+                page: { ...blueprint.page, unit: "mm", margins: { top: 0, bottom: 0, left: 0, right: 0 } },
                 pages: [
-                    { id: "p1", elements: elements }
+                    { id: "p1", elements: blueprint.elements }
                 ],
-                metadata_fields: metadata
+                metadata_fields: blueprint.metadata_fields || {}
             };
 
-            console.log(`[TEMPLATE_IMPORT] 🎯 Extraction Successful: ${elements.length} elements detected`);
+            console.log(`[TEMPLATE_IMPORT] 🎯 Monolithic Extraction Successful: ${blueprint.elements.length} elements detected`);
         } catch (re: any) {
-            console.error(`[TEMPLATE_IMPORT] ❌ Process Failure:`, re);
+            console.error(`[TEMPLATE_IMPORT] ❌ Internal Process Failure:`, re);
             return json({
                 success: false,
                 message: re.message || 'System Analysis Failed'
