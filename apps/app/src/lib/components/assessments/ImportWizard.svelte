@@ -327,10 +327,12 @@
                     {#each Object.entries(metadataFields) as [key, value]}
                       <div class="space-y-2">
                         <label
+                          for="meta-{key}"
                           class="text-[8px] font-black text-white/20 uppercase ml-1"
                           >{key.replace("_", " ")}</label
                         >
                         <input
+                          id="meta-{key}"
                           type="text"
                           bind:value={metadataFields[key]}
                           class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[11px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
