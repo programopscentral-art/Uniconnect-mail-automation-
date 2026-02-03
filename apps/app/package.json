@@ -12,6 +12,7 @@
         "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
     },
     "dependencies": {
+        "@google-cloud/vision": "^4.3.2",
         "@napi-rs/canvas": "^0.1.65",
         "@uniconnect/shared": "workspace:*",
         "bcrypt": "^5.1.1",
