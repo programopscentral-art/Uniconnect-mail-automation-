@@ -86,8 +86,9 @@
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     const recursiveClean = (obj: any) => {
       if (!obj || typeof obj !== "object") return;
-      delete obj.debugImage;
-      delete obj.base64;
+      // V21: Stop stripping debugImage - it is required for high-fidelity editor
+      // delete obj.debugImage;
+      // delete obj.base64;
       if (Array.isArray(obj)) obj.forEach(recursiveClean);
       else Object.values(obj).forEach(recursiveClean);
     };
