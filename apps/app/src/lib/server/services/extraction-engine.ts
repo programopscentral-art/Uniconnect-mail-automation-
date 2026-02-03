@@ -16,46 +16,55 @@ interface Region {
     type: 'header' | 'cell' | 'label';
 }
 
+/**
+ * V16: Image-As-Template Engine
+ * 
+ * Instead of reconstructing layout from scratch, we use the image as the base
+ * and detect "fields" (regions) for editable overlays.
+ */
 export class ExtractionEngine {
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting V15 Mandated Header analysis...');
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V16 Image-As-Template analysis...');
         const image = await Jimp.read(buffer);
         const width = image.bitmap.width;
         const height = image.bitmap.height;
 
-        // 1. Structural Analysis: Detect Lines and Regions
+        // 1. Structural Analysis: Detect Lines and Regions (Anchors for Fields)
         const lines = this.detectLines(image);
         const regions = this.detectRegions(lines, width, height);
 
         console.log(`[EXTRACTION_ENGINE] 📍 Regions detected: ${regions.length}`);
 
-        // 2. Targeted OCR per Region
-        const textElements = await this.ocrRegions(image, regions, buffer);
+        // 2. Targeted OCR to initialize field values
+        const fields = await this.ocrFields(image, regions, buffer);
 
-        // 3. Identification & Metadata
+        // 3. Metadata Extraction (from field values)
         const metadata: Record<string, string> = {};
-        textElements.forEach((el, idx) => {
-            const content = el.text.trim();
+        fields.forEach((f) => {
+            const content = f.value.trim();
             if (this.isMetadata(content)) {
                 const key = this.getMetaKey(content);
                 if (key) {
-                    let value = "";
+                    let val = "";
                     if (content.includes(':')) {
-                        value = content.split(':').slice(1).join(':').trim();
+                        val = content.split(':').slice(1).join(':').trim();
                     }
-                    if (value) metadata[key] = value;
-                    else if (!metadata[key]) metadata[key] = "";
+                    if (val) metadata[key] = val;
                 }
             }
         });
 
+        // Use the original image as the template background
         const debugImage = await image.getBase64Async(Jimp.MIME_PNG);
 
         return {
             page: { width: 210, height: 297 },
             pages: [{
                 id: 'page-1',
-                elements: [...textElements, ...lines.map((l, i) => ({ id: `line-${i}`, type: 'line', ...l }))]
+                elements: [
+                    ...fields,
+                    ...lines.map((l, i) => ({ id: `line-${i}`, type: 'line', ...l, hidden: true }))
+                ]
             }],
             metadata_fields: metadata,
             debugImage,
@@ -108,18 +117,18 @@ export class ExtractionEngine {
 
     private detectRegions(lines: any[], imgW: number, imgH: number): Region[] {
         const regions: Region[] = [];
+        const hLines = lines.filter(l => l.orientation === 'horizontal').sort((a, b) => a.y - b.y);
+        const vLines = lines.filter(l => l.orientation === 'vertical').sort((a, b) => a.x - b.x);
 
-        // V15: Mandated Fallback Header bbox
+        // V15 Mandatory Header
         regions.push({ x: 0.06, y: 0.04, w: 0.88, h: 0.22, type: 'header' });
 
-        // 1. Identify Structural Header Region
-        const hLines = lines.filter(l => l.orientation === 'horizontal').sort((a, b) => a.y - b.y);
+        // Structural header if line detected
         if (hLines.length > 0 && hLines[0].y > 0.1) {
             regions.push({ x: 0, y: 0, w: 1, h: hLines[0].y, type: 'header' });
         }
 
-        // 2. Detect Grid Cells
-        const vLines = lines.filter(l => l.orientation === 'vertical').sort((a, b) => a.x - b.x);
+        // Detect Cells
         for (let i = 0; i < hLines.length - 1; i++) {
             for (let j = 0; j < vLines.length - 1; j++) {
                 const h1 = hLines[i];
@@ -127,93 +136,61 @@ export class ExtractionEngine {
                 const v1 = vLines[j];
                 const v2 = vLines[j + 1];
                 if (v1.x >= h1.x && v2.x <= h1.x2 && h1.y >= v1.y && h2.y <= v1.y2) {
-                    regions.push({
-                        x: v1.x, y: h1.y,
-                        w: v2.x - v1.x, h: h2.y - h1.y,
-                        type: 'cell'
-                    });
+                    regions.push({ x: v1.x, y: h1.y, w: v2.x - v1.x, h: h2.y - h1.y, type: 'cell' });
                 }
             }
         }
 
-        // 3. Fallback: Horizontal rows if no grid
+        // Fallback row cells
         if (regions.length <= 2 && hLines.length > 1) {
             for (let i = 0; i < hLines.length - 1; i++) {
-                regions.push({
-                    x: 0, y: hLines[i].y,
-                    w: 1, h: hLines[i + 1].y - hLines[i].y,
-                    type: 'cell'
-                });
+                regions.push({ x: 0, y: hLines[i].y, w: 1, h: hLines[i + 1].y - hLines[i].y, type: 'cell' });
             }
         }
 
         return regions.filter(r => r.w > 0.01 && r.h > 0.01);
     }
 
-    private async ocrRegions(image: Jimp, regions: Region[], originalBuffer: Buffer) {
-        const textElements: any[] = [];
+    private async ocrFields(image: Jimp, regions: Region[], originalBuffer: Buffer) {
+        const fields: any[] = [];
         const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
         const client = visionCreds ? new vision.ImageAnnotatorClient({ credentials: JSON.parse(visionCreds) }) : null;
 
         for (const region of regions) {
             try {
-                // V15: Dual-Pass OCR for Header
-                const isHeaderRegion = region.type === 'header';
-                let bestText = "";
-
-                if (isHeaderRegion) {
-                    bestText = await this.performDualPassOCR(image, region, client);
+                let value = "";
+                if (region.type === 'header') {
+                    value = await this.performDualPassOCR(image, region, client);
                 } else {
-                    bestText = await this.performSinglePassOCR(image, region, client);
+                    value = await this.performSinglePassOCR(image, region, client, true);
                 }
 
-                if (bestText.trim()) {
-                    const isVisualHeader = region.type === 'header' || (region.w > 0.5 && region.h < 0.08);
-                    const color = '#000000'; // Force #000 as per constraint
-
-                    textElements.push({
-                        id: `text-${Math.random().toString(36).slice(2, 9)}`,
-                        type: 'text',
-                        x: region.x,
-                        y: region.y,
-                        width: region.w,
-                        height: region.h,
-                        text: bestText.trim(),
-                        content: bestText.trim(),
-                        is_header: isVisualHeader,
-                        style: {
-                            textAlign: isVisualHeader ? 'center' : 'left',
-                            fontWeight: isVisualHeader ? '700' : '400',
-                            color: color,
-                            fontFamily: "'Inter', sans-serif"
-                        }
-                    });
-                }
+                fields.push({
+                    id: `field-${Math.random().toString(36).slice(2, 9)}`,
+                    type: 'field',
+                    x: region.x,
+                    y: region.y,
+                    width: region.w,
+                    height: region.h,
+                    value: value.trim(),
+                    fieldType: region.type === 'header' ? 'header' : 'input',
+                    is_header: region.type === 'header'
+                });
             } catch (e) {
-                console.error(`[REGION_OCR_FAIL]`, e);
+                console.error(`[FIELD_OCR_FAIL]`, e);
             }
         }
-
-        return textElements;
+        return fields;
     }
 
     private async performDualPassOCR(image: Jimp, region: Region, client: any): Promise<string> {
-        // Pass A: Grayscale only
         const passA = await this.performSinglePassOCR(image, region, client, false);
-        // Pass B: Adaptive Threshold
         const passB = await this.performSinglePassOCR(image, region, client, true);
-
-        const textA = passA.trim();
-        const textB = passB.trim();
-
-        console.log(`[V15_DUAL_PASS] Region ${region.type} results: A(${textA.length}) B(${textB.length})`);
-
-        return textA.length >= textB.length ? textA : textB;
+        return passA.length >= passB.length ? passA : passB;
     }
 
-    private async performSinglePassOCR(image: Jimp, region: Region, client: any, useThreshold: boolean = true): Promise<string> {
-        const { buffer } = await this.getProcessedRegionBuffer(image, region, useThreshold);
-
+    private async performSinglePassOCR(image: Jimp, region: Region, client: any, threshold: boolean): Promise<string> {
+        const { buffer } = await this.getProcessedRegionBuffer(image, region, threshold);
         if (client) {
             const [result] = await client.documentTextDetection(buffer);
             return result.fullTextAnnotation?.text || "";
@@ -235,21 +212,15 @@ export class ExtractionEngine {
 
         const crop = image.clone().crop(rx, ry, rw, rh);
         crop.grayscale();
-
-        if (rw < 200 || rh < 50) {
-            crop.resize(rw * 2, Jimp.AUTO);
-        }
+        if (rw < 200) crop.resize(rw * 2, Jimp.AUTO);
 
         if (useThreshold) {
-            crop.scan(0, 0, crop.bitmap.width, crop.bitmap.height, function (x, y, idx) {
-                const avg = (this.bitmap.data[idx] + this.bitmap.data[idx + 1] + this.bitmap.data[idx + 2]) / 3;
+            crop.scan(0, 0, crop.bitmap.width, crop.bitmap.height, (x, y, idx) => {
+                const avg = (crop.bitmap.data[idx] + crop.bitmap.data[idx + 1] + crop.bitmap.data[idx + 2]) / 3;
                 const val = avg < 160 ? 0 : 255;
-                this.bitmap.data[idx] = val;
-                this.bitmap.data[idx + 1] = val;
-                this.bitmap.data[idx + 2] = val;
+                crop.bitmap.data[idx] = crop.bitmap.data[idx + 1] = crop.bitmap.data[idx + 2] = val;
             });
         }
-
         return { buffer: await crop.getBufferAsync(Jimp.MIME_PNG) };
     }
 

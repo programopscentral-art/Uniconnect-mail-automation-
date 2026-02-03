@@ -381,11 +381,11 @@
                     <label
                       for="header-{el.id}"
                       class="text-[8px] font-black text-white/10 uppercase tracking-widest ml-1"
-                      >Detected Header</label
+                      >Detected Header Field</label
                     >
                     <textarea
                       id="header-{el.id}"
-                      bind:value={el.content}
+                      bind:value={el.value}
                       class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-indigo-400 outline-none focus:border-indigo-500/50 transition-all resize-none"
                       rows="2"
                     ></textarea>
@@ -488,12 +488,18 @@
                     class="px-3 py-2 rounded-lg bg-white/[0.01] border border-white/[0.03] flex items-center justify-between group hover:bg-white/[0.03] transition-all cursor-crosshair"
                   >
                     <div class="flex items-center gap-2">
-                      {#if el.type === "text"}<Type
+                      {#if el.type === "field"}<Type
                           class="w-3 h-3 text-indigo-400/40"
+                        />{:else if el.type === "text"}<Type
+                          class="w-3 h-3 text-white/10"
                         />{:else}<Layout class="w-3 h-3 text-white/10" />{/if}
                       <span
                         class="text-[9px] font-bold text-white/20 uppercase tracking-tight truncate max-w-[140px]"
-                        >{el.type === "text" ? el.content : el.type}</span
+                        >{el.type === "field"
+                          ? el.value
+                          : el.type === "text"
+                            ? el.content
+                            : el.type}</span
                       >
                     </div>
                   </div>
@@ -526,9 +532,7 @@
                 onElementChange={(elId, newContent) => {
                   detectedLayout.pages[0].elements =
                     detectedLayout.pages[0].elements.map((el) =>
-                      el.id === elId
-                        ? { ...el, text: newContent, content: newContent }
-                        : el,
+                      el.id === elId ? { ...el, value: newContent } : el,
                     );
                 }}
               />

@@ -19,6 +19,17 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
     }).passthrough(),
     z.object({
         id: z.string(),
+        type: z.literal('field'),
+        x: z.number(),
+        y: z.number(),
+        width: z.number(),
+        height: z.number(),
+        value: z.string(),
+        fieldType: z.string().optional(),
+        is_header: z.boolean().optional()
+    }).passthrough(),
+    z.object({
+        id: z.string(),
         type: z.literal('rect'),
         x: z.number(),
         y: z.number(),
