@@ -39,6 +39,7 @@
   let bgOpacity = $state(0.7);
   let highContrast = $state(false);
   let highFidelityMode = $state(true); // New: True by default as requested
+  let showRegions = $state(false); // V15: Debug regions overlay
   let showDiffOverlay = $state(true);
 
   async function startAnalysis() {
@@ -444,6 +445,17 @@
                     >High Fidelity</span
                   >
                 </button>
+                <button
+                  onclick={() => (showRegions = !showRegions)}
+                  class="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-white/5 {showRegions
+                    ? 'bg-red-500/20 text-red-400 border-red-500/30 shadow-lg shadow-red-500/10'
+                    : 'bg-white/[0.01] text-white/20'} transition-all"
+                >
+                  <SearchCode class="w-3 h-3" />
+                  <span class="text-[9px] font-black uppercase"
+                    >Show Regions</span
+                  >
+                </button>
               </div>
 
               <div class="space-y-2">
@@ -510,6 +522,7 @@
                 {showBackground}
                 {bgOpacity}
                 {highContrast}
+                {showRegions}
                 onElementChange={(elId, newContent) => {
                   detectedLayout.pages[0].elements =
                     detectedLayout.pages[0].elements.map((el) =>

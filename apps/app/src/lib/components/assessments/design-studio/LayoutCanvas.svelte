@@ -15,6 +15,7 @@
     showBackground = true,
     bgOpacity = 0.7,
     highContrast = false,
+    showRegions = false, // V15: Debug toggle
     onElementChange = null,
   } = $props();
 
@@ -40,6 +41,11 @@
   );
 
   function getFontSize(el: any) {
+    if (el.is_header) {
+      // V15: Header specific scaling 0.10, Max 26px
+      const hPx = el.height * canvasHeight;
+      return Math.min(26, Math.max(10, hPx * 0.1));
+    }
     // V14: Precision Region Scaling 0.55 and clamping Max 22px
     const hPx = el.height * canvasHeight;
     return Math.min(22, Math.max(8, hPx * 0.55));
@@ -64,6 +70,32 @@
       class="absolute inset-0 bg-white pointer-events-none z-0 transition-opacity"
       style="opacity: {1 - bgOpacity};"
     ></div>
+  {/if}
+
+  <!-- V15: Debug Regions Layer -->
+  {#if showRegions}
+    <div class="absolute inset-0 pointer-events-none z-[60]">
+      {#each textElements as el}
+        <div
+          class="absolute border {el.is_header
+            ? 'border-red-500/50 bg-red-500/5'
+            : 'border-blue-500/50 bg-blue-500/5'}"
+          style="
+            left: {el.x * 100}%; 
+            top: {el.y * 100}%; 
+            width: {el.width * 100}%; 
+            height: {el.height * 100}%;
+          "
+        >
+          <span
+            class="absolute top-0 right-0 text-[6px] font-bold bg-black/50 text-white px-0.5 whitespace-nowrap"
+          >
+            {el.is_header ? "HEADER" : "CELL"}
+            {Math.round(el.width * 100)}x{Math.round(el.height * 100)}
+          </span>
+        </div>
+      {/each}
+    </div>
   {/if}
 
   <!-- V13: High-Fidelity SVG Overlay Layer for Lines/Tables -->
@@ -105,7 +137,7 @@
           font-weight: {el.style?.fontWeight || '400'};
           color: {highContrast ? '#4f46e5' : el.style?.color || '#000'};
           font-family: {el.style?.fontFamily || "'Inter', sans-serif"};
-          line-height: 1.05;
+          line-height: {el.is_header ? 1.1 : 1.05};
           white-space: pre-wrap;
           overflow: hidden;
           text-overflow: clip;
