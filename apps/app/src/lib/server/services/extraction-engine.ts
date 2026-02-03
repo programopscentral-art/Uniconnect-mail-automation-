@@ -11,48 +11,35 @@ export interface ExtractionResult {
     originalHeight: number;
 }
 
+interface Region {
+    x: number; y: number; w: number; h: number;
+    type: 'header' | 'cell' | 'label';
+}
+
 export class ExtractionEngine {
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting V13 High-Fidelity analysis...');
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V14 Region-Based analysis...');
         const image = await Jimp.read(buffer);
         const width = image.bitmap.width;
         const height = image.bitmap.height;
 
-        // 1. OCR with Google Vision (Primary) or Tesseract (Fallback)
-        const { textBlocks } = await this.performOCR(buffer, image);
+        // 1. Structural Analysis: Detect Lines and Regions
+        const lines = this.detectLines(image);
+        const regions = this.detectRegions(lines, width, height);
 
-        // 2. Line/Structural Analysis
-        const structuralElements = await this.detectStructure(image);
+        // 2. Targeted OCR per Region
+        const textElements = await this.ocrRegions(image, regions, buffer);
 
-        // 3. Identification & Heuristics
-        const finalElements = textBlocks.map(block => {
-            const isQuestion = this.isQuestion(block.text);
-            const isTop = block.y < 0.35;
-            const isHeader = isTop || block.style?.fontSize > 18 || /UNIVERSITY|EXAM|UNIT TEST|SEMESTER/i.test(block.text);
-
-            return {
-                ...block,
-                is_header: isHeader,
-                is_question: isQuestion,
-                content: block.text
-            };
-        });
-
-        // 4. Extract Meta Fields
+        // 3. Identification & Metadata
         const metadata: Record<string, string> = {};
-        finalElements.forEach((el, idx) => {
-            const content = el.content.trim();
+        textElements.forEach((el, idx) => {
+            const content = el.text.trim();
             if (this.isMetadata(content)) {
                 const key = this.getMetaKey(content);
                 if (key) {
                     let value = "";
                     if (content.includes(':')) {
                         value = content.split(':').slice(1).join(':').trim();
-                    } else if (!value && idx + 1 < finalElements.length) {
-                        const next = finalElements[idx + 1];
-                        if (Math.abs(next.y - el.y) < 0.015) {
-                            value = next.content;
-                        }
                     }
                     if (value) metadata[key] = value;
                     else if (!metadata[key]) metadata[key] = "";
@@ -66,7 +53,7 @@ export class ExtractionEngine {
             page: { width: 210, height: 297 },
             pages: [{
                 id: 'page-1',
-                elements: [...finalElements, ...structuralElements]
+                elements: [...textElements, ...lines.map((l, i) => ({ id: `line-${i}`, type: 'line', ...l }))]
             }],
             metadata_fields: metadata,
             debugImage,
@@ -75,139 +62,12 @@ export class ExtractionEngine {
         };
     }
 
-    private async performOCR(buffer: Buffer, image: Jimp) {
-        const imgW = image.bitmap.width;
-        const imgH = image.bitmap.height;
-        let blocks: any[] = [];
-
-        const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
-        if (visionCreds) {
-            try {
-                const client = new vision.ImageAnnotatorClient({ credentials: JSON.parse(visionCreds) });
-                const [result] = await client.documentTextDetection(buffer);
-                const fullText = result.fullTextAnnotation;
-
-                if (fullText) {
-                    fullText.pages?.forEach(page => {
-                        page.blocks?.forEach(block => {
-                            block.paragraphs?.forEach(para => {
-                                para.words?.forEach(word => {
-                                    const text = word.symbols?.map((s: any) => s.text).join('') || '';
-                                    if (!text || text.length < 1) return;
-                                    const v = word.boundingBox?.vertices;
-                                    if (v && v.length >= 4) {
-                                        // V13: Strict Normalization 0..1
-                                        const x = (v[0].x || 0) / imgW;
-                                        const y = (v[0].y || 0) / imgH;
-                                        const w = ((v[1].x || 0) - (v[0].x || 0)) / imgW;
-                                        const h = ((v[2].y || 0) - (v[0].y || 0)) / imgH;
-
-                                        // Filtering Watermarks: massive single chars
-                                        if (text.length === 1 && h > 0.1) return;
-
-                                        blocks.push({ x, y, width: w, height: h, text, confidence: word.confidence || 0.95 });
-                                    }
-                                });
-                            });
-                        });
-                    });
-                }
-            } catch (e: any) { console.error('[VISION_FAIL]', e.message); }
-        }
-
-        if (blocks.length === 0) {
-            const worker = await createWorker('eng');
-            const { data } = await worker.recognize(buffer);
-            blocks = (data.blocks as any[])?.map(b => ({
-                x: b.bbox.x0 / imgW,
-                y: b.bbox.y0 / imgH,
-                width: (b.bbox.x1 - b.bbox.x0) / imgW,
-                height: (b.bbox.y1 - b.bbox.y0) / imgH,
-                text: b.text.trim(),
-                confidence: b.confidence
-            })).filter(b => b.text && !(b.text.length === 1 && b.height > 0.1)) || [];
-            await worker.terminate();
-        }
-
-        const merged = this.groupIntoLines(blocks, image);
-
-        return {
-            textBlocks: merged.map((b, i) => {
-                const isCenter = Math.abs((b.x + b.width / 2) - 0.5) < 0.1;
-                const isRight = b.x > 0.6;
-                const isBold = b.text === b.text.toUpperCase() || b.y < 0.35 || b.height > 0.015;
-
-                return {
-                    id: `text-${i}`,
-                    type: 'text',
-                    ...b,
-                    style: {
-                        fontSize: b.height, // Normalized height for UI scaling
-                        textAlign: isCenter ? 'center' : (isRight ? 'right' : 'left'),
-                        fontWeight: isBold ? '700' : '400',
-                        color: b.color || '#000000',
-                        fontFamily: "'Inter', sans-serif"
-                    }
-                };
-            })
-        };
-    }
-
-    private groupIntoLines(blocks: any[], image: Jimp) {
-        if (blocks.length === 0) return [];
-        const sorted = [...blocks].sort((a, b) => a.y - b.y || a.x - b.x);
-        const imgW = image.bitmap.width;
-        const imgH = image.bitmap.height;
-
-        const getColor = (b: any) => {
-            const px = Math.floor(b.x * imgW);
-            const py = Math.floor(b.y * imgH);
-            let dark = 765; let res = '#000000';
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dy = -1; dy <= 1; dy++) {
-                    const rgba = Jimp.intToRGBA(image.getPixelColor(Math.max(0, Math.min(imgW - 1, px + dx)), Math.max(0, Math.min(imgH - 1, py + dy))));
-                    const sum = rgba.r + rgba.g + rgba.b;
-                    if (sum < dark) {
-                        dark = sum;
-                        if (rgba.r > 160 && rgba.g < 100 && rgba.b < 100) res = '#dc2626'; // Red
-                        else if (rgba.b > 160 && rgba.r < 100 && rgba.g < 100) res = '#2563eb'; // Blue
-                        else if (sum > 300) res = '#4b5563'; // Dark Gray
-                        else res = '#000000';
-                    }
-                }
-            }
-            return res;
-        };
-
-        const merged: any[] = [];
-        let curr = { ...sorted[0], color: getColor(sorted[0]) };
-
-        for (let i = 1; i < sorted.length; i++) {
-            const next = { ...sorted[i], color: getColor(sorted[i]) };
-            const yDist = Math.abs(next.y - curr.y);
-            const xGap = next.x - (curr.x + curr.width);
-            const xOverlap = Math.max(0, Math.min(curr.x + curr.width, next.x + next.width) - Math.max(curr.x, next.x));
-
-            if ((yDist < 0.005 && xGap < 0.03) || (yDist < 0.002 && xOverlap > 0)) {
-                curr.text += (xGap > 0.005 ? " " : "") + next.text;
-                curr.width = Math.max(curr.x + curr.width, next.x + next.width) - Math.min(curr.x, next.x);
-                curr.x = Math.min(curr.x, next.x);
-                curr.height = Math.max(curr.height, next.height);
-            } else {
-                merged.push(curr);
-                curr = next;
-            }
-        }
-        merged.push(curr);
-        return merged;
-    }
-
-    private async detectStructure(image: Jimp) {
+    private detectLines(image: Jimp) {
         const w = image.bitmap.width;
         const h = image.bitmap.height;
-        const elements: any[] = [];
+        const lines: any[] = [];
+        const threshold = 160;
 
-        // V13: Enhanced Structural Analysis for Lines/Tables
         const scan = (isH: boolean) => {
             const res: any[] = [];
             const outer = isH ? h : w;
@@ -216,26 +76,22 @@ export class ExtractionEngine {
                 let start = -1;
                 for (let j = 0; j < inner; j++) {
                     const c = Jimp.intToRGBA(image.getPixelColor(isH ? j : i, isH ? i : j));
-                    if ((c.r + c.g + c.b) / 3 < 160) {
+                    if ((c.r + c.g + c.b) / 3 < threshold) {
                         if (start === -1) start = j;
                     } else if (start !== -1) {
-                        if ((j - start) > inner * 0.04) { // More sensitive line threshold
+                        if ((j - start) > inner * 0.02) {
                             res.push(isH ? {
-                                x: start / w,
-                                y: i / h,
-                                x1: start / w,
-                                y1: i / h,
-                                x2: j / w,
-                                y2: i / h,
-                                thickness: 1.5 / h
+                                x: start / w, y: i / h,
+                                x1: start / w, y1: i / h,
+                                x2: j / w, y2: i / h,
+                                thickness: 1.5 / h,
+                                orientation: 'horizontal'
                             } : {
-                                x: i / w,
-                                y: start / h,
-                                x1: i / w,
-                                y1: start / h,
-                                x2: i / w,
-                                y2: j / h,
-                                thickness: 1.5 / w
+                                x: i / w, y: start / h,
+                                x1: i / w, y1: start / h,
+                                x2: i / w, y2: j / h,
+                                thickness: 1.5 / w,
+                                orientation: 'vertical'
                             });
                         }
                         start = -1;
@@ -245,14 +101,152 @@ export class ExtractionEngine {
             return res;
         };
 
-        scan(true).forEach((l, i) => elements.push({ id: `line-h-${i}`, type: 'line', ...l, orientation: 'horizontal', color: '#000000' }));
-        scan(false).forEach((l, i) => elements.push({ id: `line-v-${i}`, type: 'line', ...l, orientation: 'vertical', color: '#000000' }));
-
-        return elements;
+        return [...scan(true), ...scan(false)];
     }
 
-    private isQuestion(t: string): boolean {
-        return /^\d+[\.\)]|^[a-z][\.\)]|^[A-D][\.\)]|\bwhat is\b|\bexplain\b/i.test(t);
+    private detectRegions(lines: any[], imgW: number, imgH: number): Region[] {
+        const regions: Region[] = [];
+
+        // 1. Identify Header Region (Top area above first major line or top 20%)
+        const hLines = lines.filter(l => l.orientation === 'horizontal').sort((a, b) => a.y - b.y);
+        const topMostLineY = hLines.length > 0 ? hLines[0].y : 0.2;
+        regions.push({ x: 0, y: 0, w: 1, h: topMostLineY, type: 'header' });
+
+        // 2. Detect Grid Cells (Simple intersection logic)
+        const vLines = lines.filter(l => l.orientation === 'vertical').sort((a, b) => a.x - b.x);
+
+        for (let i = 0; i < hLines.length - 1; i++) {
+            for (let j = 0; j < vLines.length - 1; j++) {
+                const h1 = hLines[i];
+                const h2 = hLines[i + 1];
+                const v1 = vLines[j];
+                const v2 = vLines[j + 1];
+
+                // Check for intersection/close proximity to form a cell
+                if (v1.x >= h1.x && v2.x <= h1.x2 && h1.y >= v1.y && h2.y <= v1.y2) {
+                    regions.push({
+                        x: v1.x, y: h1.y,
+                        w: v2.x - v1.x, h: h2.y - h1.y,
+                        type: 'cell'
+                    });
+                }
+            }
+        }
+
+        // 3. Fallback: Large areas between lines if no grid
+        if (regions.length === 1 && hLines.length > 1) {
+            for (let i = 0; i < hLines.length - 1; i++) {
+                regions.push({
+                    x: 0, y: hLines[i].y,
+                    w: 1, h: hLines[i + 1].y - hLines[i].y,
+                    type: 'cell'
+                });
+            }
+        }
+
+        return regions.filter(r => r.w > 0.01 && r.h > 0.01);
+    }
+
+    private async ocrRegions(image: Jimp, regions: Region[], originalBuffer: Buffer) {
+        const textElements: any[] = [];
+        const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
+        const client = visionCreds ? new vision.ImageAnnotatorClient({ credentials: JSON.parse(visionCreds) }) : null;
+
+        for (const region of regions) {
+            try {
+                // 1. Crop and Pre-process
+                const { buffer, scale } = await this.preprocessRegion(image, region);
+
+                let detectedText = "";
+                let subElements: any[] = [];
+
+                if (client) {
+                    const [result] = await client.documentTextDetection(buffer);
+                    const fullText = result.fullTextAnnotation;
+                    if (fullText) {
+                        detectedText = fullText.text || "";
+                        // Capture line/word structures here if needed for stacking
+                    }
+                } else {
+                    const worker = await createWorker('eng');
+                    const { data } = await worker.recognize(buffer);
+                    detectedText = data.text || "";
+                    await worker.terminate();
+                }
+
+                if (detectedText.trim()) {
+                    const isHeader = region.type === 'header' || (region.w > 0.5 && region.h < 0.08);
+                    const color = this.sampleColor(image, region);
+
+                    textElements.push({
+                        id: `text-${Math.random().toString(36).slice(2, 9)}`,
+                        type: 'text',
+                        x: region.x,
+                        y: region.y,
+                        width: region.w,
+                        height: region.h,
+                        text: detectedText.trim(),
+                        content: detectedText.trim(),
+                        style: {
+                            textAlign: isHeader ? 'center' : 'left',
+                            fontWeight: isHeader ? '700' : '400',
+                            color: color,
+                            fontFamily: "'Inter', sans-serif"
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error(`[REGION_OCR_FAIL]`, e);
+            }
+        }
+
+        return textElements;
+    }
+
+    private async preprocessRegion(image: Jimp, region: Region) {
+        const w = image.bitmap.width;
+        const h = image.bitmap.height;
+        const rx = Math.floor(region.x * w);
+        const ry = Math.floor(region.y * h);
+        const rw = Math.floor(region.w * w);
+        const rh = Math.floor(region.h * h);
+
+        const crop = image.clone().crop(rx, ry, rw, rh);
+
+        // Quality improvements
+        crop.grayscale();
+
+        // 2x scaling for small labels
+        let scale = 1;
+        if (rw < 200 || rh < 50) {
+            crop.resize(rw * 2, Jimp.AUTO);
+            scale = 2;
+        }
+
+        // Apply thresholding manually since Jimp's contrast/threshold can be flaky
+        crop.scan(0, 0, crop.bitmap.width, crop.bitmap.height, function (x, y, idx) {
+            const avg = (this.bitmap.data[idx] + this.bitmap.data[idx + 1] + this.bitmap.data[idx + 2]) / 3;
+            const val = avg < 160 ? 0 : 255;
+            this.bitmap.data[idx] = val;
+            this.bitmap.data[idx + 1] = val;
+            this.bitmap.data[idx + 2] = val;
+        });
+
+        return {
+            buffer: await crop.getBufferAsync(Jimp.MIME_PNG),
+            scale
+        };
+    }
+
+    private sampleColor(image: Jimp, region: Region) {
+        const w = image.bitmap.width;
+        const h = image.bitmap.height;
+        const rx = Math.floor(region.x * w + region.w * w / 2);
+        const ry = Math.floor(region.y * h + region.h * h / 2);
+
+        const c = Jimp.intToRGBA(image.getPixelColor(rx, ry));
+        const avg = (c.r + c.g + c.b) / 3;
+        return avg < 160 ? '#000000' : '#000000'; // Defaulting to #000 as per requested constraint
     }
 
     private isMetadata(t: string): boolean {

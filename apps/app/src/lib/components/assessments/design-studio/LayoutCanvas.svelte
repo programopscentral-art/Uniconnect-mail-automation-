@@ -40,10 +40,9 @@
   );
 
   function getFontSize(el: any) {
-    // V13: Precision Font Sizing based on normalized height * canvas height
-    // Multiplier 0.85 to stay safe within bbox
+    // V14: Precision Region Scaling 0.55 and clamping Max 22px
     const hPx = el.height * canvasHeight;
-    return Math.min(48, Math.max(8, hPx * 0.85));
+    return Math.min(22, Math.max(8, hPx * 0.55));
   }
 </script>
 
@@ -99,6 +98,8 @@
           top: {el.y * 100}%; 
           width: {el.width * 100}%; 
           height: {el.height * 100}%;
+          max-width: {el.width * 100}%;
+          max-height: {el.height * 100}%;
           font-size: {getFontSize(el)}px;
           text-align: {el.style?.textAlign || 'left'};
           font-weight: {el.style?.fontWeight || '400'};
@@ -106,6 +107,8 @@
           font-family: {el.style?.fontFamily || "'Inter', sans-serif"};
           line-height: 1.05;
           white-space: pre-wrap;
+          overflow: hidden;
+          text-overflow: clip;
           z-index: 20;
         "
       >
