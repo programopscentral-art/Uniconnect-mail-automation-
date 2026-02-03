@@ -52,8 +52,13 @@
     )
       return;
 
+    const cleanId = id.includes("/")
+      ? id.split("/").pop()
+      : id.includes(":")
+        ? id.split(":").pop()
+        : id;
     try {
-      const res = await fetch(`/api/assessments/templates/${id}`, {
+      const res = await fetch(`/api/assessments/templates/${cleanId}`, {
         method: "DELETE",
       });
       if (res.ok) {

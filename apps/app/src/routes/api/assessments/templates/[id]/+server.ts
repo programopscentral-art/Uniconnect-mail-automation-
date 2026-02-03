@@ -33,3 +33,38 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
         }, { status: e.status || 500 });
     }
 };
+
+export const PATCH: RequestHandler = async ({ params, request, locals }) => {
+    if (!locals.user) throw error(401);
+
+    console.log(`[TEMPLATE_PATCH] 📝 Request to update template: ${params.id}`);
+
+    try {
+        const t = await getTemplateById(params.id);
+        if (!t) throw error(404, 'Template not found');
+
+        // RBAC Check
+        if (locals.user.role === 'UNIVERSITY_OPERATOR' && t.university_id !== locals.user.university_id) {
+            throw error(403, 'Forbidden');
+        }
+
+        const { updateAssessmentTemplate } = await import('@uniconnect/shared');
+        const data = await request.json();
+
+        // Ensure we don't accidentally update read-only fields
+        delete data.id;
+        delete data.university_id;
+
+        const updated = await updateAssessmentTemplate(params.id, data);
+        console.log(`[TEMPLATE_PATCH] ✅ Template ${params.id} successfully updated`);
+
+        return json(updated);
+    } catch (e: any) {
+        console.error(`[TEMPLATE_PATCH] ❌ Error updating template:`, e);
+        return json({
+            success: false,
+            message: e.message || 'Failed to update template',
+            detail: e.stack
+        }, { status: e.status || 500 });
+    }
+};

@@ -20,7 +20,7 @@
   async function saveTemplate() {
     isSaving = true;
     try {
-      const resp = await fetch(`/api/assessments/templates`, {
+      const resp = await fetch(`/api/assessments/templates/${template.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

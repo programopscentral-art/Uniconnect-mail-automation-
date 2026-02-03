@@ -206,6 +206,17 @@
     layout = JSON.parse(JSON.stringify(layout));
   }
 
+  function deleteRow() {
+    if (!selectedElement || selectedElement.type !== "table" || !selectedCell)
+      return;
+    const { rowIndex } = selectedCell;
+    if (selectedElement.tableData.rows.length <= 1) return;
+    selectedElement.tableData.rows.splice(rowIndex, 1);
+    selectedCell = null;
+    activeCellId = null;
+    layout = JSON.parse(JSON.stringify(layout));
+  }
+
   function addElement(type: string) {
     const currentPageIndex = layout.pages.findIndex(
       (p: any) => p.id === activePageId,
@@ -549,6 +560,8 @@
         zoom={zoomLevel}
         {showMargins}
         {activePageId}
+        backgroundImage={layout.debugImage}
+        bgOpacity={1.0}
         mode={editingElementId ? "edit" : "view"}
         elementComponent={ElementWrapper}
         onElementSelect={(id: string) => {
