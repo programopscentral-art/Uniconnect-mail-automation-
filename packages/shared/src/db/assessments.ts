@@ -412,8 +412,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, assets_json, source_type, base_template_id, version, status, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *`,
         [
             data.university_id,
@@ -423,7 +423,6 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
             JSON.stringify(deepClone(data.config)),
             JSON.stringify(deepClone(data.layout_schema)),
             JSON.stringify(deepClone(data.assets || [])),
-            data.source_type || 'manual',
             data.base_template_id,
             data.version || 1,
             data.status || 'published',
