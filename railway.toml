@@ -1,16 +1,13 @@
-[build]
-builder = "nixpacks"
-
 [services.app]
-# UniConnect Main SvelteKit Application (now includes layout extraction)
-startCommand = "npm run start"
+# UniConnect Main SvelteKit Application
+startCommand = "node apps/app/build"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 healthcheckInterval = 30
 
 [services.worker]
-# Background Job Worker for Emails/Campaigns
-startCommand = "npm run worker"
+# Background Job Worker
+startCommand = "node apps/worker/dist"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 healthcheckInterval = 30
