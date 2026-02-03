@@ -17,6 +17,7 @@
     showBackground = true,
     bgOpacity = 0.7,
     highContrast = false,
+    onElementChange = null,
   } = $props();
 
   const A4_WIDTH_MM = 210;
@@ -115,7 +116,14 @@
         >
           {#if el.type === "text"}
             <span
+              contenteditable="true"
+              onblur={(e) =>
+                onElementChange?.(
+                  el.id,
+                  (e.target as HTMLSpanElement).innerText,
+                )}
               style={highContrast ? "color: #4f46e5; font-weight: 900;" : ""}
+              class="outline-none focus:ring-1 focus:ring-indigo-500 rounded px-0.5"
             >
               {@html el.text || el.content}
             </span>

@@ -83,8 +83,13 @@
     // Pass back the edited metadata and layout
     formData.append("metadata", JSON.stringify(metadataFields));
 
-    // V4: Strip heavy debug data (debugImage) before sending back to server
-    // to prevent payload size errors/timeouts
+    // V5: Ensure detectedLayout is available and strip heavy debug data
+    if (!detectedLayout) {
+      errorMsg = "No layout data available to commit.";
+      isAnalyzing = false;
+      return;
+    }
+
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     if (cleanLayout.debugImage) delete cleanLayout.debugImage;
     formData.append("layout", JSON.stringify(cleanLayout));
@@ -412,6 +417,14 @@
                 {showBackground}
                 {bgOpacity}
                 {highContrast}
+                onElementChange={(elId, newContent) => {
+                  detectedLayout.pages[0].elements =
+                    detectedLayout.pages[0].elements.map((el) =>
+                      el.id === elId
+                        ? { ...el, text: newContent, content: newContent }
+                        : el,
+                    );
+                }}
               />
             </div>
 
