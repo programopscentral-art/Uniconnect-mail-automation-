@@ -13,7 +13,7 @@ export interface ExtractionResult {
 
 export class ExtractionEngine {
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting V11 Final Fidelity analysis...');
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V13 High-Fidelity analysis...');
         const image = await Jimp.read(buffer);
         const width = image.bitmap.width;
         const height = image.bitmap.height;
@@ -96,12 +96,13 @@ export class ExtractionEngine {
                                     if (!text || text.length < 1) return;
                                     const v = word.boundingBox?.vertices;
                                     if (v && v.length >= 4) {
+                                        // V13: Strict Normalization 0..1
                                         const x = (v[0].x || 0) / imgW;
                                         const y = (v[0].y || 0) / imgH;
                                         const w = ((v[1].x || 0) - (v[0].x || 0)) / imgW;
                                         const h = ((v[2].y || 0) - (v[0].y || 0)) / imgH;
 
-                                        // Filtering: Discard massive single character watermarks
+                                        // Filtering Watermarks: massive single chars
                                         if (text.length === 1 && h > 0.1) return;
 
                                         blocks.push({ x, y, width: w, height: h, text, confidence: word.confidence || 0.95 });
@@ -134,17 +135,18 @@ export class ExtractionEngine {
             textBlocks: merged.map((b, i) => {
                 const isCenter = Math.abs((b.x + b.width / 2) - 0.5) < 0.1;
                 const isRight = b.x > 0.6;
-                const isBold = b.text === b.text.toUpperCase() || b.y < 0.35 || b.height > 0.02;
+                const isBold = b.text === b.text.toUpperCase() || b.y < 0.35 || b.height > 0.015;
 
                 return {
                     id: `text-${i}`,
                     type: 'text',
                     ...b,
                     style: {
-                        fontSize: b.height, // Normalized height, UI will scale
+                        fontSize: b.height, // Normalized height for UI scaling
                         textAlign: isCenter ? 'center' : (isRight ? 'right' : 'left'),
                         fontWeight: isBold ? '700' : '400',
-                        color: b.color || '#000000'
+                        color: b.color || '#000000',
+                        fontFamily: "'Inter', sans-serif"
                     }
                 };
             })
@@ -167,8 +169,9 @@ export class ExtractionEngine {
                     const sum = rgba.r + rgba.g + rgba.b;
                     if (sum < dark) {
                         dark = sum;
-                        if (rgba.r > 150 && rgba.g < 100 && rgba.b < 100) res = '#dc2626';
-                        else if (rgba.b > 150 && rgba.r < 100 && rgba.g < 100) res = '#2563eb';
+                        if (rgba.r > 160 && rgba.g < 100 && rgba.b < 100) res = '#dc2626'; // Red
+                        else if (rgba.b > 160 && rgba.r < 100 && rgba.g < 100) res = '#2563eb'; // Blue
+                        else if (sum > 300) res = '#4b5563'; // Dark Gray
                         else res = '#000000';
                     }
                 }
@@ -185,8 +188,7 @@ export class ExtractionEngine {
             const xGap = next.x - (curr.x + curr.width);
             const xOverlap = Math.max(0, Math.min(curr.x + curr.width, next.x + next.width) - Math.max(curr.x, next.x));
 
-            // V11: Tighter line grouping
-            if ((yDist < 0.006 && xGap < 0.04) || (yDist < 0.003 && xOverlap > 0)) {
+            if ((yDist < 0.005 && xGap < 0.03) || (yDist < 0.002 && xOverlap > 0)) {
                 curr.text += (xGap > 0.005 ? " " : "") + next.text;
                 curr.width = Math.max(curr.x + curr.width, next.x + next.width) - Math.min(curr.x, next.x);
                 curr.x = Math.min(curr.x, next.x);
@@ -205,6 +207,7 @@ export class ExtractionEngine {
         const h = image.bitmap.height;
         const elements: any[] = [];
 
+        // V13: Enhanced Structural Analysis for Lines/Tables
         const scan = (isH: boolean) => {
             const res: any[] = [];
             const outer = isH ? h : w;
@@ -216,8 +219,24 @@ export class ExtractionEngine {
                     if ((c.r + c.g + c.b) / 3 < 160) {
                         if (start === -1) start = j;
                     } else if (start !== -1) {
-                        if ((j - start) > inner * 0.05) {
-                            res.push(isH ? { x: start / w, y: i / h, width: (j - start) / w, height: 1.5 / h } : { x: i / w, y: start / h, width: 1.5 / w, height: (j - start) / h });
+                        if ((j - start) > inner * 0.04) { // More sensitive line threshold
+                            res.push(isH ? {
+                                x: start / w,
+                                y: i / h,
+                                x1: start / w,
+                                y1: i / h,
+                                x2: j / w,
+                                y2: i / h,
+                                thickness: 1.5 / h
+                            } : {
+                                x: i / w,
+                                y: start / h,
+                                x1: i / w,
+                                y1: start / h,
+                                x2: i / w,
+                                y2: j / h,
+                                thickness: 1.5 / w
+                            });
                         }
                         start = -1;
                     }
@@ -226,7 +245,9 @@ export class ExtractionEngine {
             return res;
         };
 
-        scan(true).forEach((l, i) => elements.push({ id: `h-${i}`, type: 'line', ...l, orientation: 'horizontal', color: '#000000' }));
+        scan(true).forEach((l, i) => elements.push({ id: `line-h-${i}`, type: 'line', ...l, orientation: 'horizontal', color: '#000000' }));
+        scan(false).forEach((l, i) => elements.push({ id: `line-v-${i}`, type: 'line', ...l, orientation: 'vertical', color: '#000000' }));
+
         return elements;
     }
 
@@ -241,7 +262,7 @@ export class ExtractionEngine {
     private getMetaKey(t: string): string | null {
         const low = t.toLowerCase();
         if (low.includes('university')) return 'UNIVERSITY_NAME';
-        if (low.includes('time') || low.includes('duration')) return 'TIME';
+        if (low.includes('time')) return 'TIME';
         if (low.includes('marks')) return 'MAX_MARKS';
         if (low.includes('code')) return 'SUBJECT_CODE';
         if (low.includes('subject')) return 'SUBJECT_NAME';

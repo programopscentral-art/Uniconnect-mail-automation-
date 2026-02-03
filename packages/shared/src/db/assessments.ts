@@ -412,7 +412,7 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, assets, source_type, base_template_id, version, status, created_by)
+        (university_id, name, slug, exam_type, config, layout_schema, assets_json, source_type, base_template_id, version, status, created_by)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
         [
@@ -470,7 +470,7 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     if (data.exam_type) { fields.push(`exam_type = $${i++}`); params.push(data.exam_type); }
     if (data.config) { fields.push(`config = $${i++}`); params.push(JSON.stringify(data.config)); }
     if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(JSON.stringify(data.layout_schema)); }
-    if (data.assets) { fields.push(`assets = $${i++}`); params.push(JSON.stringify(data.assets)); }
+    if (data.assets) { fields.push(`assets_json = $${i++}`); params.push(JSON.stringify(data.assets)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
