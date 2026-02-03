@@ -4,27 +4,16 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-# Install Python and OpenCV system dependencies
+# Install system dependencies (only what's needed for PDF/Node)
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-dev \
-    python3-venv \
     libgl1-mesa-glx \
     libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . /app
 WORKDIR /app
 
-# Create virtual environment and install dependencies
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+
 
 # Build stage
 FROM base AS build
@@ -41,9 +30,7 @@ ENV PORT=3000
 # Unified Startup Logic
 CMD ["sh", "-c", "\
     if [ \"$RAILWAY_DOCKER_TARGET\" = \"worker\" ]; then \
-    node apps/worker/dist/index.js; \
-    elif [ \"$RAILWAY_DOCKER_TARGET\" = \"extractor\" ]; then \
-    python3 template_extractor.py; \
+    node apps/app/build/worker.js; \
     else \
     node apps/app/build/index.js; \
     fi"]
