@@ -1,3 +1,4 @@
+# Railway Deployment Nudge - Monolithic Architecture
 [services.app]
 # UniConnect Main SvelteKit Application
 startCommand = "node apps/app/build"
