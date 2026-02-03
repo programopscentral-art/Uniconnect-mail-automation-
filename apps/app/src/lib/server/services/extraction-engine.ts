@@ -28,8 +28,8 @@ export class ExtractionEngine {
 
         console.log(`[EXTRACTION_ENGINE] 📸 Image loaded: ${width}x${height}`);
 
-        // 1. OCR using Tesseract (Pass image dimensions)
-        const { textBlocks } = await this.performOCR(buffer, width, height);
+        // 1. OCR using Tesseract (Pass Jimp Image for color/sampling)
+        const { textBlocks } = await this.performOCR(buffer, image);
 
         // 2. Line/Structural Analysis
         const structuralElements = await this.detectStructure(image);
@@ -109,9 +109,11 @@ export class ExtractionEngine {
         };
     }
 
-    private async performOCR(buffer: Buffer, imgWidth: number, imgHeight: number) {
+    private async performOCR(buffer: Buffer, image: Jimp) {
         const A4_WIDTH_MM = 210;
         const A4_HEIGHT_MM = 297;
+        const imgWidth = image.bitmap.width;
+        const imgHeight = image.bitmap.height;
 
         const worker = await createWorker('eng');
         const { data } = await worker.recognize(buffer);
