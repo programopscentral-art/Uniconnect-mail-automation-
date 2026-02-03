@@ -74,22 +74,14 @@
   }
 
   async function confirmImport() {
-    if (!importFile || !importName || !detectedLayout) {
-      errorMsg = "Missing required data (Name, File, or Layout).";
+    if (!importName || !detectedLayout) {
+      errorMsg = "Missing Required Specification (Name or Analysis)";
       return;
     }
 
     isAnalyzing = true;
     errorMsg = "";
 
-    const formData = new FormData();
-    formData.append("name", importName);
-    formData.append("exam_type", importExamType);
-    formData.append("file", importFile);
-    if (logoFile) formData.append("logo", logoFile);
-    formData.append("universityId", universityId);
-
-    // V10: Sanitizing layout payload
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     const recursiveClean = (obj: any) => {
       if (!obj || typeof obj !== "object") return;
@@ -100,11 +92,26 @@
     };
     recursiveClean(cleanLayout);
 
-    formData.append("layout", JSON.stringify(cleanLayout));
-    formData.append("metadata", JSON.stringify(metadataFields));
+    // V11: Payload mapping to fix 422
+    const payload = {
+      name: importName,
+      exam_type: importExamType,
+      university_id: universityId,
+      layout: cleanLayout,
+      metadata: metadataFields,
+    };
+
+    console.log(`[V11_COMMIT] 📤 Request Payload:`, payload);
+
+    const formData = new FormData();
+    formData.append("name", payload.name);
+    formData.append("exam_type", payload.exam_type);
+    formData.append("universityId", payload.university_id);
+    formData.append("layout", JSON.stringify(payload.layout));
+    formData.append("metadata", JSON.stringify(payload.metadata));
+    if (importFile) formData.append("file", importFile);
 
     try {
-      console.log(`[IMPORT_WIZARD] � Committing: ${importName}`);
       const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
@@ -112,7 +119,7 @@
 
       const data = await res.json();
       if (res.ok) {
-        console.log(`[IMPORT_WIZARD] ✅ Saved: ${data.templateId}`);
+        console.log(`[V11_COMMIT] ✅ Success:`, data);
         if (onImportComplete) {
           onImportComplete({
             ...data.template,
@@ -121,13 +128,12 @@
         }
         step = 3;
       } else {
-        errorMsg =
-          data.message ||
-          "Failed to commit template. Please check server logs.";
+        console.error(`[V11_COMMIT] ❌ API ERROR (${res.status}):`, data);
+        errorMsg = `Build Error (${res.status}): ${data.message || "Validation Failed"}`;
       }
     } catch (e: any) {
-      console.error("[IMPORT_WIZARD] ❌ Error:", e);
-      errorMsg = "Connectivity Error: Failed to save the template.";
+      console.error("[V11_COMMIT] 🚨 Critical Error:", e);
+      errorMsg = "System failure during transmission.";
     } finally {
       isAnalyzing = false;
     }
@@ -135,11 +141,13 @@
 
   async function deleteTemplate() {
     if (!detectedLayout?.id) return;
-    if (!confirm("Are you sure you want to delete this template blueprint?"))
-      return;
+    if (!confirm("Irreversible: Delete this template blueprint?")) return;
 
     isAnalyzing = true;
     try {
+      console.log(
+        `[V11_DELETE] 🗑️ Requesting delete for: ${detectedLayout.id}`,
+      );
       const res = await fetch(
         `/api/assessments/templates/${detectedLayout.id}`,
         {
@@ -147,12 +155,15 @@
         },
       );
       if (res.ok) {
+        console.log(`[V11_DELETE] ✅ Blueprint eradicated.`);
         closeModal();
+        if (onImportComplete) onImportComplete(null); // Force reload
       } else {
-        errorMsg = "Failed to delete template.";
+        const data = await res.json();
+        errorMsg = data.message || "Eradication failed.";
       }
     } catch (e) {
-      errorMsg = "Error connecting to server.";
+      errorMsg = "Transmission failure during delete.";
     } finally {
       isAnalyzing = false;
     }

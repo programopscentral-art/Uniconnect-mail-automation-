@@ -4,7 +4,7 @@
     zoom = 1,
     showMargins = false,
     activePageId = "",
-    mode = "view", // 'view' | 'edit' | 'preview'
+    mode = "view",
     elementComponent: ElementComponent = null,
     onElementSelect = null,
     selectedCell = $bindable(null),
@@ -20,7 +20,11 @@
 
   const A4_WIDTH_MM = 210;
   const A4_HEIGHT_MM = 297;
-  const MM_TO_PX = 3.7795; // 96 DPI
+  const MM_TO_PX = 3.7795;
+
+  let canvasRef = $state<HTMLDivElement | null>(null);
+  let canvasWidth = $derived(A4_WIDTH_MM * MM_TO_PX);
+  let canvasHeight = $derived(A4_HEIGHT_MM * MM_TO_PX);
 
   let activePage = $derived(
     layout.pages?.find((p: any) => p.id === activePageId) || layout.pages?.[0],
@@ -28,10 +32,11 @@
 </script>
 
 <div
+  bind:this={canvasRef}
   class="layout-canvas bg-white shadow-2xl transition-transform relative select-none shrink-0"
   style="
-    width: {A4_WIDTH_MM * MM_TO_PX}px; 
-    height: {A4_HEIGHT_MM * MM_TO_PX}px; 
+    width: {canvasWidth}px; 
+    height: {canvasHeight}px; 
     background: {backgroundImage && showBackground
     ? `url(${backgroundImage})`
     : 'white'};
@@ -61,9 +66,9 @@
           bind:activeCellId
         />
       {:else}
-        <!-- V10: Unified Normalized Rendering -->
+        <!-- V11: Strict Normalized Overlay Renderer -->
         <div
-          class="absolute overflow-visible min-h-fit {highContrast
+          class="absolute overflow-visible {highContrast
             ? 'drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]'
             : ''}"
           style="
@@ -78,13 +83,13 @@
             top: {el.y * 100}%; 
             width: {el.width * 100}%; 
             height: {el.height * 100}%;
-            {el.style
-            ? Object.entries(el.style)
-                .map(
-                  ([k, v]) =>
-                    `${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}: ${typeof v === 'number' && k.toLowerCase().includes('fontsize') ? v + 'px' : v}`,
-                )
-                .join('; ')
+            {el.style && el.type === 'text'
+            ? `font-size: ${el.style.fontSize * canvasHeight * 0.75}px; 
+               text-align: ${el.style.textAlign}; 
+               font-weight: ${el.style.fontWeight}; 
+               color: ${el.style.color}; 
+               line-height: 1.1; 
+               white-space: nowrap;`
             : ''}
           "
         >
@@ -96,12 +101,7 @@
                   el.id,
                   (e.target as HTMLSpanElement).innerText,
                 )}
-              style={highContrast
-                ? "color: #4f46e5; font-weight: 900;"
-                : el.style?.color
-                  ? `color: ${el.style.color};`
-                  : ""}
-              class="outline-none focus:ring-1 focus:ring-indigo-500 rounded px-0.5 whitespace-pre-wrap block w-full h-full"
+              class="outline-none focus:ring-1 focus:ring-indigo-500 rounded px-0.5 block w-full h-full"
             >
               {@html el.text || el.content}
             </span>
@@ -113,18 +113,10 @@
                 : el.color || '#000'}; 
                 width: 100%;
                 height: 100%;
-                min-width: {el.orientation === 'vertical' ? '1px' : '0'};
-                min-height: {el.orientation === 'horizontal' ? '1px' : '0'};
+                min-width: 1px;
+                min-height: 1px;
               "
             ></div>
-          {:else if el.type === "image-slot"}
-            <div
-              class="w-full h-full bg-indigo-500/10 border-2 border-dashed border-indigo-500/30 flex flex-col items-center justify-center text-indigo-500/40 p-2 text-center"
-            >
-              <div class="text-[8px] font-black uppercase tracking-tighter">
-                {el.slotName || "image-slot"}
-              </div>
-            </div>
           {/if}
         </div>
       {/if}
