@@ -74,70 +74,85 @@
   }
 
   async function confirmImport() {
-    isAnalyzing = true;
-    const formData = new FormData();
-    formData.append("name", importName);
-    formData.append("exam_type", importExamType);
-    formData.append("file", importFile!);
-    if (logoFile) formData.append("logo", logoFile);
-    formData.append("universityId", universityId);
-
-    // Pass back the edited metadata and layout
-    formData.append("metadata", JSON.stringify(metadataFields));
-
-    // V5: Ensure detectedLayout is available and strip heavy debug data
-    if (!detectedLayout) {
-      errorMsg = "No layout data available to commit.";
-      isAnalyzing = false;
+    if (!importFile || !importName || !detectedLayout) {
+      errorMsg = "Missing required data (Name, File, or Layout).";
       return;
     }
 
-    // V8: Final Clean - Remove all binary blobs and large arrays
+    isAnalyzing = true;
+    errorMsg = "";
+
+    const formData = new FormData();
+    formData.append("name", importName);
+    formData.append("exam_type", importExamType);
+    formData.append("file", importFile);
+    if (logoFile) formData.append("logo", logoFile);
+    formData.append("universityId", universityId);
+
+    // V10: Sanitizing layout payload
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     const recursiveClean = (obj: any) => {
       if (!obj || typeof obj !== "object") return;
-      if (obj.debugImage) delete obj.debugImage;
-      if (obj.base64) delete obj.base64;
-      Object.values(obj).forEach((val) => recursiveClean(val));
+      delete obj.debugImage;
+      delete obj.base64;
+      if (Array.isArray(obj)) obj.forEach(recursiveClean);
+      else Object.values(obj).forEach(recursiveClean);
     };
     recursiveClean(cleanLayout);
 
     formData.append("layout", JSON.stringify(cleanLayout));
+    formData.append("metadata", JSON.stringify(metadataFields));
 
     try {
-      console.log(`[IMPORT_WIZARD] 🚀 Committing template to library...`);
-      console.log(
-        `[IMPORT_WIZARD] 📦 Payload size estimate: ${formData.get("layout")?.toString().length} chars`,
-      );
-
+      console.log(`[IMPORT_WIZARD] � Committing: ${importName}`);
       const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
 
       const data = await res.json();
-      console.log(`[IMPORT_WIZARD] 📥 Server Response:`, {
-        ok: res.ok,
-        status: res.status,
-        data,
-      });
-
       if (res.ok) {
-        onImportComplete({
-          ...data.template,
-          id: data.templateId || data.template.id,
-        });
+        console.log(`[IMPORT_WIZARD] ✅ Saved: ${data.templateId}`);
+        if (onImportComplete) {
+          onImportComplete({
+            ...data.template,
+            id: data.templateId || data.template.id,
+          });
+        }
         step = 3;
       } else {
         errorMsg =
           data.message ||
-          "Failed to finalize template import. Check server logs.";
-        console.error("[IMPORT_WIZARD] ❌ Commit Failure:", data);
+          "Failed to commit template. Please check server logs.";
       }
     } catch (e: any) {
-      console.error("[IMPORT_WIZARD] 🚨 Connectivity Error:", e);
-      errorMsg =
-        "Connectivity Error: Failed to save the reconstructed template.";
+      console.error("[IMPORT_WIZARD] ❌ Error:", e);
+      errorMsg = "Connectivity Error: Failed to save the template.";
+    } finally {
+      isAnalyzing = false;
+    }
+  }
+
+  async function deleteTemplate() {
+    if (!detectedLayout?.id) return;
+    if (!confirm("Are you sure you want to delete this template blueprint?"))
+      return;
+
+    isAnalyzing = true;
+    try {
+      const res = await fetch(
+        `/api/assessments/templates/${detectedLayout.id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (res.ok) {
+        closeModal();
+      } else {
+        errorMsg = "Failed to delete template.";
+      }
+    } catch (e) {
+      errorMsg = "Error connecting to server.";
     } finally {
       isAnalyzing = false;
     }
