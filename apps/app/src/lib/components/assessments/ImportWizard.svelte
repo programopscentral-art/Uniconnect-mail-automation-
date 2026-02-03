@@ -44,14 +44,8 @@
     formData.append("dryRun", "true");
 
     try {
-      // Step 0: Check Health Proxy
-      const healthRes = await fetch("/api/template/extractor-health");
-      const healthData = await healthRes.json();
-      if (!healthRes.ok || !healthData.ok) {
-        throw new Error("Extractor unreachable");
-      }
-
-      const res = await fetch("/api/template/extract", {
+      // Step 1: Direct Internal Extraction
+      const res = await fetch("/api/templates/extract", {
         method: "POST",
         body: formData,
       });
@@ -62,16 +56,10 @@
         metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
-        const err = await res.json().catch(() => ({ error: res.statusText }));
-        if (res.status === 404) {
-          errorMsg =
-            "Extractor returned 404: Service misconfigured or wrong route.";
-        } else {
-          errorMsg =
-            err.error ||
-            err.message ||
-            "We encountered an issue while processing your document layout.";
-        }
+        const err = await res.json().catch(() => ({ message: res.statusText }));
+        errorMsg =
+          err.message ||
+          "We encountered an issue while processing your document layout.";
       }
     } catch (e: any) {
       errorMsg =
@@ -96,11 +84,8 @@
     formData.append("layout", JSON.stringify(detectedLayout));
 
     try {
-      // For final commit, we still use the process route but it should
-      // handle the final saving. However, the user asked to proxy everything.
-      // I'll update the process route itself to use the proxy logic or
-      // point it to a consistent endpoint.
-      const res = await fetch("/api/template/extract", {
+      // Internal save route handles database insertion
+      const res = await fetch("/api/templates/extract", {
         method: "POST",
         body: formData,
       });

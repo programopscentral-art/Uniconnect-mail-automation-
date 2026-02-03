@@ -1,31 +1,47 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { env } from '$env/dynamic/private';
+import { LayoutExtractor } from '$lib/server/services/layout-extractor';
 
-export const POST: RequestHandler = async ({ request }) => {
-    const baseUrl = env.EXTRACTOR_BASE_URL;
-    if (!baseUrl) {
-        console.error('[PROXY_EXTRACT] ❌ EXTRACTOR_BASE_URL is not defined');
-        throw error(500, 'Extraction engine not configured');
-    }
+const extractor = new LayoutExtractor();
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+    if (!locals.user) throw error(401);
 
     try {
         const formData = await request.formData();
-        const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/extract-template`, {
-            method: 'POST',
-            body: formData
-        });
+        const file = formData.get('file') as File;
 
-        if (!res.ok) {
-            const errBody = await res.text();
-            console.error(`[PROXY_EXTRACT] ❌ Engine error (${res.status}):`, errBody);
-            throw error(res.status as any, 'Extraction engine failed');
+        if (!file) {
+            throw error(400, 'Missing file field');
         }
 
-        const data = await res.json();
-        return json(data);
+        console.log(`[API_EXTRACT] 📥 Processing file: ${file.name} (${file.type})`);
+
+        // Check if PDF and throw clear error if not supported yet
+        if (file.type === 'application/pdf') {
+            return json({
+                success: false,
+                message: 'PDF rasterization is currently being optimized. Please upload an image (JPG/PNG) for now.'
+            }, { status: 400 });
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const blueprint = await extractor.extract(buffer, file.type);
+
+        console.log(`[API_EXTRACT] ✅ Successfully extracted ${blueprint.elements.length} elements`);
+
+        return json({
+            success: true,
+            template: {
+                name: file.name.split('.')[0],
+                layout_schema: blueprint
+            }
+        });
     } catch (err: any) {
-        console.error('[PROXY_EXTRACT] ❌ Proxy error:', err.message);
-        throw error(500, err.message || 'Failed to proxy extraction request');
+        console.error('[API_EXTRACT] ❌ Extraction Failed:', err.message);
+        return json({
+            success: false,
+            message: err.message || 'Internal Extraction Error'
+        }, { status: 500 });
     }
 };
