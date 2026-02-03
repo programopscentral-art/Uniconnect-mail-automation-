@@ -5,14 +5,14 @@ buildCommand = "pnpm install && pnpm build"
 
 [services.app]
 # UniConnect Main SvelteKit Application
-startCommand = "node apps/app/build"
+startCommand = "node apps/app/build/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 healthcheckInterval = 30
 
 [services.worker]
 # Background Job Worker
-startCommand = "node apps/worker/dist"
+startCommand = "node apps/worker/dist/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 healthcheckInterval = 30

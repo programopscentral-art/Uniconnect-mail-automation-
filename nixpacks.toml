@@ -8,4 +8,4 @@ cmds = ["pnpm install"]
 cmds = ["pnpm build"]
 
 [start]
-cmd = "node apps/app/build"
+cmd = "node apps/app/build/index.js"

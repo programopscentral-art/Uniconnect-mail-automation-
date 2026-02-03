@@ -4,11 +4,12 @@ import { env } from '$env/dynamic/private';
 export interface LayoutElement {
     id: string;
     type: 'text' | 'line' | 'rect' | 'image-slot';
-    x: number; // Normalized 0..1
-    y: number; // Normalized 0..1
-    width: number; // Normalized 0..1
-    height: number; // Normalized 0..1
+    x: number; // Scale: mm (0..210)
+    y: number; // Scale: mm (0..297)
+    width: number; // Scale: mm
+    height: number; // Scale: mm
     text?: string;
+    content?: string; // Standardize for editor
     style?: any;
     slotName?: string;
     strokeWidth?: number;
@@ -18,6 +19,7 @@ export interface LayoutElement {
     y1?: number;
     x2?: number;
     y2?: number;
+    thickness?: number; // Standardize for editor
     orientation?: 'horizontal' | 'vertical';
 }
 
@@ -72,16 +74,25 @@ export class LayoutExtractor {
         const elements: LayoutElement[] = [];
         const metadataFields: Record<string, string> = {};
 
+        const ELEMENTS_WIDTH = 210; // A4 mm
+        const ELEMENTS_HEIGHT = 297; // A4 mm
+
         // 1. Process Blocks
         firstPage.blocks?.forEach((block, blockIdx) => {
             const box = block.boundingBox;
             if (!box || !box.vertices) return;
 
             const vertices = box.vertices as any[];
-            const x = Math.min(...vertices.map(v => v.x || 0)) / width;
-            const y = Math.min(...vertices.map(v => v.y || 0)) / height;
-            const w = (Math.max(...vertices.map(v => v.x || 0)) - (x * width)) / width;
-            const h = (Math.max(...vertices.map(v => v.y || 0)) - (y * height)) / height;
+            const pxX = Math.min(...vertices.map(v => v.x || 0));
+            const pxY = Math.min(...vertices.map(v => v.y || 0));
+            const pxW = Math.max(...vertices.map(v => v.x || 0)) - pxX;
+            const pxH = Math.max(...vertices.map(v => v.y || 0)) - pxY;
+
+            // Scale to mm
+            const x = (pxX / width) * ELEMENTS_WIDTH;
+            const y = (pxY / height) * ELEMENTS_HEIGHT;
+            const w = (pxW / width) * ELEMENTS_WIDTH;
+            const h = (pxH / height) * ELEMENTS_HEIGHT;
 
             // Concatenate text
             let blockText = '';
@@ -99,12 +110,13 @@ export class LayoutExtractor {
             if (!blockText) return;
 
             // 2. Exclusion Logic (Questions)
+            // Be very careful - only filter out clear question bodies
             if (this.isQuestion(blockText)) {
                 return;
             }
 
             // 3. Classification
-            const isHeader = this.isHeader(blockText, y);
+            const isHeader = this.isHeader(blockText, y / ELEMENTS_HEIGHT);
             const isMeta = this.isMetadata(blockText);
 
             elements.push({
@@ -112,10 +124,11 @@ export class LayoutExtractor {
                 type: 'text',
                 x, y, width: w, height: h,
                 text: blockText,
+                content: blockText,
                 style: {
                     fontSize: isHeader ? 14 : 10,
                     fontWeight: isHeader ? 'bold' : 'normal',
-                    align: isHeader ? 'center' : 'left'
+                    textAlign: isHeader ? 'center' : 'left'
                 }
             });
 
@@ -126,24 +139,28 @@ export class LayoutExtractor {
         });
 
         // 4. Line Detection (Heuristic from block alignment)
-        this.detectLines(firstPage, width, height, elements);
+        this.detectLines(firstPage, ELEMENTS_WIDTH, ELEMENTS_HEIGHT, elements);
 
-        // 5. Add Logo Placeholder
+        // 5. Add Logo Placeholder (Center top)
         elements.push({
             id: 'logo-slot',
             type: 'image-slot',
-            x: 0.05, y: 0.03, width: 0.15, height: 0.1,
+            x: 90, y: 10, width: 30, height: 30,
             slotName: 'logo'
         });
 
         return {
-            page: { width, height },
+            page: { width: ELEMENTS_WIDTH, height: ELEMENTS_HEIGHT },
             elements: elements.map(el => ({
                 ...el,
-                x: Number(el.x.toFixed(4)),
-                y: Number(el.y.toFixed(4)),
-                width: Number(el.width.toFixed(4)),
-                height: Number(el.height.toFixed(4))
+                x: Number(el.x.toFixed(2)),
+                y: Number(el.y.toFixed(2)),
+                width: Number((el.width || 0).toFixed(2)),
+                height: Number((el.height || 0).toFixed(2)),
+                x1: el.x1 !== undefined ? Number(el.x1.toFixed(2)) : undefined,
+                y1: el.y1 !== undefined ? Number(el.y1.toFixed(2)) : undefined,
+                x2: el.x2 !== undefined ? Number(el.x2.toFixed(2)) : undefined,
+                y2: el.y2 !== undefined ? Number(el.y2.toFixed(2)) : undefined
             })),
             metadata_fields: metadataFields
         };
