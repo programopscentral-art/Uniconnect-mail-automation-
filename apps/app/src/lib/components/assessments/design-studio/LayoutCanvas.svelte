@@ -30,10 +30,12 @@
     layout.pages?.find((p: any) => p.id === activePageId) || layout.pages?.[0],
   );
 
-  // V16: Fields are the primary interactable elements
-  let fields = $derived(
-    (activePage?.elements || []).filter((el: any) => el.type === "field"),
+  // V22: Use explicit regions if available, fallback to elements
+  let regions = $derived(
+    layout.regions || 
+    (activePage?.elements || []).filter((el: any) => el.type === "field" || el.type === "text")
   );
+
   let lineElements = $derived(
     (activePage?.elements || []).filter((el: any) => el.type === "line"),
   );
@@ -42,8 +44,8 @@
   );
 
   function getFontSize(el: any) {
-    const hPx = el.height * canvasHeight;
-    if (el.is_header) {
+    const hPx = (el.height || el.h) * canvasHeight;
+    if (el.is_header || el.type === 'label') {
       return Math.min(26, Math.max(10, hPx * 0.1));
     }
     return Math.min(22, Math.max(8, hPx * 0.55));
@@ -55,15 +57,15 @@
   style="
     width: {canvasWidth}px; 
     height: {canvasHeight}px; 
-    background: {backgroundImage && showBackground
-    ? `url(${backgroundImage})`
+    background: {(backgroundImage || layout.backgroundImageUrl) && showBackground
+    ? `url(${backgroundImage || layout.backgroundImageUrl})`
     : 'white'};
     background-size: 100% 100%;
     transform: scale({zoom});
     transform-origin: center top;
   "
 >
-  {#if backgroundImage && showBackground && bgOpacity < 1}
+  {#if (backgroundImage || layout.backgroundImageUrl) && showBackground && bgOpacity < 1}
     <div
       class="absolute inset-0 bg-white pointer-events-none z-0 transition-opacity"
       style="opacity: {1 - bgOpacity};"
@@ -77,65 +79,82 @@
         <svg class="absolute inset-0 w-full h-full">
           {#each lineElements as l}
             <line
-              x1={l.x1 * 100 + "%"}
-              y1={l.y1 * 100 + "%"}
-              x2={l.x2 * 100 + "%"}
-              y2={l.y2 * 100 + "%"}
+              x1={(l.x1 || l.x) * canvasWidth}
+              y1={(l.y1 || l.y) * canvasHeight}
+              x2={(l.x2 || (l.x + l.w)) * canvasWidth}
+              y2={(l.y2 || (l.y + l.h)) * canvasHeight}
               stroke="rgba(255,0,0,0.3)"
               stroke-width="1"
             />
           {/each}
         </svg>
       {/if}
-      {#each fields as el}
+      {#each regions as el}
         <div
-          class="absolute border {el.is_header
+          class="absolute border {(el.is_header || el.type === 'label')
             ? 'border-red-500/50 bg-red-500/5'
             : 'border-blue-500/50 bg-blue-500/5'}"
           style="
-            left: {el.x * 100}%; 
-            top: {el.y * 100}%; 
-            width: {el.width * 100}%; 
-            height: {el.height * 100}%;
+            left: {(el.x) * canvasWidth}px; 
+            top: {(el.y) * canvasHeight}px; 
+            width: {(el.width || el.w) * canvasWidth}px; 
+            height: {(el.height || el.h) * canvasHeight}px;
           "
         >
           <span
             class="absolute top-0 right-0 text-[6px] font-bold bg-black/50 text-white px-0.5"
           >
-            {el.is_header ? "HDR" : "FLD"}
+            {(el.is_header || el.type === 'label') ? "LBL" : "REG"}
           </span>
         </div>
       {/each}
     </div>
   {/if}
 
-  {#if activePage}
-    <!-- V16: Fillable Text Fields Overlay Layer -->
-    {#each fields as el (el.id)}
+  {#if activePage || layout.regions}
+    <!-- V22: High-Fidelity Region Overlays -->
+    {#each regions as el (el.id)}
       <div
         class="absolute group transition-colors"
         style="
-          left: {el.x * 100}%; 
-          top: {el.y * 100}%; 
-          width: {el.width * 100}%; 
-          height: {el.height * 100}%;
+          left: {(el.x) * canvasWidth}px; 
+          top: {(el.y) * canvasHeight}px; 
+          width: {(el.width || el.w) * canvasWidth}px; 
+          height: {(el.height || el.h) * canvasHeight}px;
           z-index: 20;
         "
       >
-        <textarea
-          bind:value={el.value}
-          oninput={(e) =>
-            onElementChange?.(el.id, (e.target as HTMLTextAreaElement).value)}
-          class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
-          style="
-            font-size: {getFontSize(el)}px;
-            text-align: {el.is_header ? 'center' : 'left'};
-            font-weight: {el.is_header ? '700' : '400'};
-            color: #000;
-            font-family: {el.is_header ? "'Inter', sans-serif" : 'monospace'};
-            white-space: pre-wrap;
-          "
-        ></textarea>
+        {#if (el.height || el.h) > 0.05}
+          <textarea
+            bind:value={el.value}
+            oninput={(e) =>
+              onElementChange?.(el.id, (e.target as HTMLTextAreaElement).value)}
+            class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
+            style="
+              font-size: {getFontSize(el)}px;
+              text-align: {(el.is_header || el.type === 'label') ? 'center' : 'left'};
+              font-weight: {(el.is_header || el.type === 'label') ? '700' : '400'};
+              color: #000;
+              font-family: {(el.is_header || el.type === 'label') ? \"'Inter', sans-serif\" : 'monospace'};
+              white-space: pre-wrap;
+            "
+          ></textarea>
+        {:else}
+          <input
+            type="text"
+            bind:value={el.value}
+            oninput={(e) =>
+              onElementChange?.(el.id, (e.target as HTMLInputElement).value)}
+            class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
+            style="
+              font-size: {getFontSize(el)}px;
+              text-align: {(el.is_header || el.type === 'label') ? 'center' : 'left'};
+              font-weight: {(el.is_header || el.type === 'label') ? '700' : '400'};
+              color: #000;
+              font-family: {(el.is_header || el.type === 'label') ? \"'Inter', sans-serif\" : 'monospace'};
+            "
+          />
+        {/if}
         <!-- Field Indicator for designers -->
         <div
           class="absolute inset-0 border border-dashed border-indigo-500/0 group-hover:border-indigo-500/20 pointer-events-none"
@@ -148,10 +167,10 @@
       <div
         class="absolute z-30 pointer-events-none"
         style="
-          left: {el.x * 100}%; 
-          top: {el.y * 100}%; 
-          width: {el.width * 100}%; 
-          height: {el.height * 100}%;
+          left: {el.x * canvasWidth}px; 
+          top: {el.y * canvasHeight}px; 
+          width: {el.width * canvasWidth}px; 
+          height: {el.height * canvasHeight}px;
         "
       >
         <div

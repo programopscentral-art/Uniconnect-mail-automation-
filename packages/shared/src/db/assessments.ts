@@ -82,6 +82,8 @@ export interface AssessmentTemplate {
     source_type: 'imported' | 'manual';
     config: any;
     layout_schema: any;
+    backgroundImageUrl?: string; // V22: High-fidelity background image
+    regions?: any[]; // V22: Core normalized geometry regions
     assets: any; // Renamed from assets_json for contract alignment
     base_template_id?: string;
     created_by?: string;
@@ -412,8 +414,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by, background_image_url, regions)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *`,
         [
             data.university_id,
@@ -426,7 +428,9 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
             data.base_template_id,
             data.version || 1,
             data.status || 'published',
-            data.created_by
+            data.created_by,
+            data.backgroundImageUrl,
+            JSON.stringify(data.regions || [])
         ]
     );
     return rows[0];
@@ -470,6 +474,8 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     if (data.config) { fields.push(`config = $${i++}`); params.push(JSON.stringify(data.config)); }
     if (data.layout_schema) { fields.push(`layout_schema = $${i++}`); params.push(JSON.stringify(data.layout_schema)); }
     if (data.assets) { fields.push(`assets_json = $${i++}`); params.push(JSON.stringify(data.assets)); }
+    if (data.backgroundImageUrl) { fields.push(`background_image_url = $${i++}`); params.push(data.backgroundImageUrl); }
+    if (data.regions) { fields.push(`regions = $${i++}`); params.push(JSON.stringify(data.regions)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }

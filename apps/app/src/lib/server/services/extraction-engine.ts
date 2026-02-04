@@ -5,6 +5,7 @@ import Jimp from 'jimp';
 export interface ExtractionResult {
     page: { width: number; height: number; };
     pages: Array<{ id: string; elements: Array<any>; }>;
+    regions: Array<any>; // V22: Standardized flat regions
     metadata_fields?: Record<string, string>;
     debugImage?: string;
     originalWidth: number;
@@ -12,36 +13,41 @@ export interface ExtractionResult {
 }
 
 interface Region {
+    id: string; // V22 added ID to region
     x: number; y: number; w: number; h: number;
-    type: 'header' | 'cell' | 'label';
+    type: 'header' | 'cell' | 'label' | 'text' | 'field';
+    defaultText?: string;
+    style?: any;
 }
 
 /**
- * V16: Image-As-Template Engine
+ * V22: Region-Anchored High-Fidelity Engine
  * 
- * Instead of reconstructing layout from scratch, we use the image as the base
- * and detect "fields" (regions) for editable overlays.
+ * Strict separation:
+ * 1. Document Geometry (Regions) is detected structurally.
+ * 2. OCR only provides text suggestions (defaultText).
+ * 3. Rendering uses image background + overlay regions.
  */
 export class ExtractionEngine {
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting V16 Image-As-Template analysis...');
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V22 Region-Anchored analysis...');
         const image = await Jimp.read(buffer);
         const width = image.bitmap.width;
         const height = image.bitmap.height;
 
-        // 1. Structural Analysis: Detect Lines and Regions (Anchors for Fields)
+        // 1. Structural Analysis: Detect Geometry (Locked)
         const lines = this.detectLines(image);
-        const regions = this.detectRegions(lines, width, height);
+        const rawRegions = this.detectRegions(lines, width, height);
 
-        console.log(`[EXTRACTION_ENGINE] 📍 Regions detected: ${regions.length}`);
+        console.log(`[EXTRACTION_ENGINE] 📍 Geometry locked: ${rawRegions.length} regions detected`);
 
-        // 2. Targeted OCR to initialize field values
-        const fields = await this.ocrFields(image, regions, buffer);
+        // 2. Specialized OCR: Propose text suggestions only
+        const finalizedRegions = await this.ocrRegions(image, rawRegions, buffer);
 
-        // 3. Metadata Extraction (from field values)
+        // 3. Metadata Extraction (from suggestions)
         const metadata: Record<string, string> = {};
-        fields.forEach((f) => {
-            const content = f.value.trim();
+        finalizedRegions.forEach((r) => {
+            const content = (r.defaultText || "").trim();
             if (this.isMetadata(content)) {
                 const key = this.getMetaKey(content);
                 if (key) {
@@ -61,11 +67,15 @@ export class ExtractionEngine {
             page: { width: 210, height: 297 },
             pages: [{
                 id: 'page-1',
-                elements: [
-                    ...fields,
-                    ...lines.map((l, i) => ({ id: `line-${i}`, type: 'line', ...l, hidden: true }))
-                ]
+                elements: finalizedRegions.map(r => ({
+                    ...r,
+                    type: 'field', // Backward compatibility with elements renderer
+                    width: r.w,
+                    height: r.h,
+                    value: r.defaultText
+                }))
             }],
+            regions: finalizedRegions,
             metadata_fields: metadata,
             debugImage,
             originalWidth: width,
@@ -120,12 +130,15 @@ export class ExtractionEngine {
         const hLines = lines.filter(l => l.orientation === 'horizontal').sort((a, b) => a.y - b.y);
         const vLines = lines.filter(l => l.orientation === 'vertical').sort((a, b) => a.x - b.x);
 
+        // Utility to generate unique ID
+        const genId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+
         // V15 Mandatory Header
-        regions.push({ x: 0.06, y: 0.04, w: 0.88, h: 0.22, type: 'header' });
+        regions.push({ id: genId('header'), x: 0.06, y: 0.04, w: 0.88, h: 0.22, type: 'header' });
 
         // Structural header if line detected
         if (hLines.length > 0 && hLines[0].y > 0.1) {
-            regions.push({ x: 0, y: 0, w: 1, h: hLines[0].y, type: 'header' });
+            regions.push({ id: genId('header-struct'), x: 0, y: 0, w: 1, h: hLines[0].y, type: 'header' });
         }
 
         // Detect Cells
@@ -136,7 +149,7 @@ export class ExtractionEngine {
                 const v1 = vLines[j];
                 const v2 = vLines[j + 1];
                 if (v1.x >= h1.x && v2.x <= h1.x2 && h1.y >= v1.y && h2.y <= v1.y2) {
-                    regions.push({ x: v1.x, y: h1.y, w: v2.x - v1.x, h: h2.y - h1.y, type: 'cell' });
+                    regions.push({ id: genId('cell'), x: v1.x, y: h1.y, w: v2.x - v1.x, h: h2.y - h1.y, type: 'cell' });
                 }
             }
         }
@@ -144,43 +157,42 @@ export class ExtractionEngine {
         // Fallback row cells
         if (regions.length <= 2 && hLines.length > 1) {
             for (let i = 0; i < hLines.length - 1; i++) {
-                regions.push({ x: 0, y: hLines[i].y, w: 1, h: hLines[i + 1].y - hLines[i].y, type: 'cell' });
+                regions.push({ id: genId('row-cell'), x: 0, y: hLines[i].y, w: 1, h: hLines[i + 1].y - hLines[i].y, type: 'cell' });
             }
         }
 
         return regions.filter(r => r.w > 0.01 && r.h > 0.01);
     }
 
-    private async ocrFields(image: Jimp, regions: Region[], originalBuffer: Buffer) {
-        const fields: any[] = [];
+    private async ocrRegions(image: Jimp, regions: Region[], originalBuffer: Buffer): Promise<Region[]> {
+        const finalized: Region[] = [];
         const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
         const client = visionCreds ? new vision.ImageAnnotatorClient({ credentials: JSON.parse(visionCreds) }) : null;
 
         for (const region of regions) {
             try {
-                let value = "";
+                let text = "";
                 if (region.type === 'header') {
-                    value = await this.performDualPassOCR(image, region, client);
+                    text = await this.performDualPassOCR(image, region, client);
                 } else {
-                    value = await this.performSinglePassOCR(image, region, client, true);
+                    text = await this.performSinglePassOCR(image, region, client, true);
                 }
 
-                fields.push({
-                    id: `field-${Math.random().toString(36).slice(2, 9)}`,
-                    type: 'field',
-                    x: region.x,
-                    y: region.y,
-                    width: region.w,
-                    height: region.h,
-                    value: value.trim(),
-                    fieldType: region.type === 'header' ? 'header' : 'input',
-                    is_header: region.type === 'header'
+                finalized.push({
+                    ...region,
+                    defaultText: text.trim(),
+                    style: {
+                        fontFamily: region.type === 'header' ? 'Inter' : 'monospace',
+                        fontWeight: region.type === 'header' ? 'bold' : 'normal',
+                        color: '#000000'
+                    }
                 });
             } catch (e) {
-                console.error(`[FIELD_OCR_FAIL]`, e);
+                console.error(`[REGION_OCR_FAIL]`, e);
+                finalized.push(region); // Keep geometry even if OCR fails
             }
         }
-        return fields;
+        return finalized;
     }
 
     private async performDualPassOCR(image: Jimp, region: Region, client: any): Promise<string> {

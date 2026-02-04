@@ -81,22 +81,23 @@
     tableData?: any;
   }
 
-  // --- Initialization Logic ---
+  // V22: Initialization Logic
   if (!template.layout_schema) template.layout_schema = { pages: [] };
-  if (
-    !template.layout_schema.pages ||
-    template.layout_schema.pages.length === 0
-  ) {
-    template.layout_schema.pages = [{ id: "p1", elements: [] }];
-  }
+  if (!template.regions) template.regions = [];
 
   let layout = $state(template.layout_schema);
+  let regions = $state(template.regions || []);
   let activePageId = $state<string>(
     template.layout_schema?.pages?.[0]?.id || "",
   );
 
-  // Sync layout from template prop when it loads or changes
+  let showRegions = $state(false);
+
+  // Sync state from template prop
   $effect(() => {
+    if (template.regions?.length > 0 && regions.length === 0) {
+      regions = template.regions;
+    }
     if (template.layout_schema?.pages?.length > 0) {
       const isEmpty = !layout.pages?.[0]?.elements?.length;
       if (isEmpty) {
@@ -112,9 +113,10 @@
     }
   });
 
-  // Keep template sync'd with local layout state for saving
+  // Keep template sync'd
   $effect(() => {
     template.layout_schema = layout;
+    template.regions = regions;
     template.config = template.config || [];
   });
 
@@ -301,7 +303,21 @@
           </p>
         </div>
       </div>
-      <div class="h-6 w-px bg-white/5 mx-2"></div>
+      <div class="h-8 w-px bg-white/5 mx-4"></div>
+
+      <div class="flex items-center gap-1 bg-black/20 p-1 rounded-xl">
+        <button
+          onclick={() => (showRegions = !showRegions)}
+          class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 {showRegions
+            ? 'bg-indigo-600 text-white shadow-lg'
+            : 'hover:bg-white/5 text-white/40'}"
+        >
+          <Layers class="w-4 h-4" />
+          <span class="text-[9px] font-black uppercase tracking-widest"
+            >Regions</span
+          >
+        </button>
+      </div>
       <div
         class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5"
       >
@@ -560,13 +576,24 @@
         zoom={zoomLevel}
         {showMargins}
         {activePageId}
-        backgroundImage={layout.debugImage}
+        backgroundImage={template.backgroundImageUrl || layout.debugImage}
         bgOpacity={1.0}
+        {showRegions}
         mode={editingElementId ? "edit" : "view"}
         elementComponent={ElementWrapper}
         onElementSelect={(id: string) => {
           selectedElementId = id;
           if (id !== editingElementId) editingElementId = null;
+        }}
+        onElementChange={(id, value) => {
+          const reg = regions.find((r) => r.id === id);
+          if (reg) reg.value = value;
+
+          // Also sync to layout.pages elements if they exist (backward compatibility)
+          layout.pages.forEach((p) => {
+            const el = p.elements.find((e) => e.id === id);
+            if (el) el.value = value;
+          });
         }}
         bind:selectedCell
         bind:activeCellId

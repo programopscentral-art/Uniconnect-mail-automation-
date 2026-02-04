@@ -107,6 +107,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     let detectedLayout;
+    let explicitRegions = formData.get('regions') as string;
+    let explicitBackground = formData.get('backgroundImageUrl') as string;
     const submittedLayout = formData.get('layout') as string;
     const submittedMetadata = formData.get('metadata') as string;
 
@@ -117,6 +119,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (submittedMetadata) {
                 detectedLayout.metadata_fields = JSON.parse(submittedMetadata);
             }
+            if (explicitRegions) detectedLayout.regions = JSON.parse(explicitRegions);
+            if (explicitBackground) detectedLayout.debugImage = explicitBackground;
         } catch (pe) {
             console.error(`[V12_PROCESS] ❌ Payload Parse Failure:`, pe);
             return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
@@ -195,6 +199,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             exam_type: exam_type,
             status: 'draft',
             layout_schema: JSON.parse(JSON.stringify(validation.data)),
+            backgroundImageUrl: validation.data.debugImage,
+            regions: validation.data.pages?.[0]?.elements || [],
             config: defaultConfig,
             assets: [],
             created_by: locals.user.id

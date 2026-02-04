@@ -111,6 +111,13 @@
     formData.append("universityId", payload.university_id);
     formData.append("layout", JSON.stringify(payload.layout));
     formData.append("metadata", JSON.stringify(payload.metadata));
+
+    // V22: Explicitly pass regions and background if already present in layout
+    if (payload.layout.regions)
+      formData.append("regions", JSON.stringify(payload.layout.regions));
+    if (payload.layout.debugImage)
+      formData.append("backgroundImageUrl", payload.layout.debugImage);
+
     if (importFile) formData.append("file", importFile);
 
     try {
@@ -523,7 +530,8 @@
                 zoom={1}
                 showMargins={true}
                 mode="preview"
-                backgroundImage={detectedLayout?.debugImage}
+                backgroundImage={detectedLayout?.debugImage ||
+                  detectedLayout?.backgroundImageUrl}
                 {showLines}
                 {showText}
                 {showBackground}
@@ -531,10 +539,19 @@
                 {highContrast}
                 {showRegions}
                 onElementChange={(elId, newContent) => {
-                  detectedLayout.pages[0].elements =
-                    detectedLayout.pages[0].elements.map((el) =>
-                      el.id === elId ? { ...el, value: newContent } : el,
+                  // V22: Sync both elements and regions for preview
+                  if (detectedLayout.regions) {
+                    detectedLayout.regions = detectedLayout.regions.map(
+                      (r: any) =>
+                        r.id === elId ? { ...r, value: newContent } : r,
                     );
+                  }
+                  if (detectedLayout.pages?.[0]?.elements) {
+                    detectedLayout.pages[0].elements =
+                      detectedLayout.pages[0].elements.map((el: any) =>
+                        el.id === elId ? { ...el, value: newContent } : el,
+                      );
+                  }
                 }}
               />
             </div>

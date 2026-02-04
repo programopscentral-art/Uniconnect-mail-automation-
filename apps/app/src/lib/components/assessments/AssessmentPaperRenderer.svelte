@@ -547,32 +547,40 @@
         {/if}
       {/if}
 
-      <!-- V16 Field Overlays (for previews/thumbnails) -->
-      {#if layoutSchema?.debugImage && layoutSchema.pages?.[0]?.elements}
-        {#each layoutSchema.pages[0].elements.filter((el: any) => el.type === "field") as el}
-          <div
-            class="absolute pointer-events-none"
-            style="
-              left: {el.x * 100}%; 
-              top: {el.y * 100}%; 
-              width: {el.width * 100}%; 
-              height: {el.height * 100}%;
-              font-size: {Math.min(
-              22,
-              Math.max(8, el.height * 11.69 * 72 * 0.55),
-            )}px;
-              text-align: {el.is_header ? 'center' : 'left'};
-              font-weight: {el.is_header ? '700' : '400'};
-              color: #000;
-              font-family: {el.is_header ? 'Inter, sans-serif' : 'monospace'};
-              white-space: pre-wrap;
-              overflow: hidden;
-            "
-          >
-            {el.value}
-          </div>
-        {/each}
-      {/if}
+      <!-- V22 Field Overlays (Standardized Region-Anchored Rendering) -->
+      {@const regions =
+        layoutSchema?.regions ||
+        layoutSchema?.pages?.[0]?.elements?.filter(
+          (el: any) => el.type === "field",
+        ) ||
+        []}
+      {#each regions as el}
+        <div
+          class="absolute pointer-events-none"
+          style="
+            left: {el.x * 100}%; 
+            top: {el.y * 100}%; 
+            width: {(el.width || el.w) * 100}%; 
+            height: {(el.height || el.h) * 100}%;
+            font-size: {Math.min(
+            22,
+            Math.max(8, (el.height || el.h) * 11.69 * 72 * 0.55),
+          )}px;
+            text-align: {el.is_header || el.type === 'label'
+            ? 'center'
+            : 'left'};
+            font-weight: {el.is_header || el.type === 'label' ? '700' : '400'};
+            color: #000;
+            font-family: {el.is_header || el.type === 'label'
+            ? 'Inter, sans-serif'
+            : 'monospace'};
+            white-space: pre-wrap;
+            overflow: hidden;
+          "
+        >
+          {el.value || el.defaultText || ""}
+        </div>
+      {/each}
 
       <!-- Dynamic Sections -->
       <div class="space-y-[1cm] relative z-10">
