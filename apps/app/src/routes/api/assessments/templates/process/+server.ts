@@ -80,7 +80,8 @@ const LayoutSchema = z.object({
     metadata_fields: z.record(z.string()).optional(),
     originalWidth: z.number().optional(),
     originalHeight: z.number().optional(),
-    debugImage: z.string().optional()
+    debugImage: z.string().optional(),
+    regions: z.array(z.any()).optional()
 });
 
 export const POST: RequestHandler = async ({ request, locals }) => {
