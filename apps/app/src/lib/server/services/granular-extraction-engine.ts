@@ -1,6 +1,6 @@
 import { TableDetector, type CellBoundingBox } from './table-detector';
 import Tesseract from 'tesseract.js';
-import Jimp from 'jimp';
+import { createCanvas, loadImage, Image } from '@napi-rs/canvas';
 
 export interface TemplateElement {
     id: string;
@@ -41,12 +41,15 @@ export class GranularExtractionEngine {
         backgroundImage: string;
         metadata: Record<string, any>;
     }> {
-        const image = await Jimp.read(imageBuffer);
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+        const image = await loadImage(imageBuffer);
+        const width = image.width;
+        const height = image.height;
 
         // Convert image to base64 for background
-        const backgroundImage = await image.getBase64Async(Jimp.MIME_PNG);
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        const backgroundImage = canvas.toDataURL('image/png');
 
         // Detect table structure
         const tableResult = await this.tableDetector.detectTableStructure(imageBuffer, pageWidth, pageHeight);
@@ -83,9 +86,8 @@ export class GranularExtractionEngine {
     /**
      * Generate header field elements from top portion of page
      */
-    private async generateHeaderElements(image: Jimp, width: number, height: number): Promise<TemplateElement[]> {
+    private async generateHeaderElements(image: Image, width: number, height: number): Promise<TemplateElement[]> {
         const elements: TemplateElement[] = [];
-        const headerHeight = Math.floor(height * 0.15);
 
         // Define common header field regions
         const headerFields = [
@@ -103,9 +105,13 @@ export class GranularExtractionEngine {
             const x2 = Math.floor((field.x + field.w) * width);
             const y2 = Math.floor((field.y + field.h) * height);
 
-            // Extract region and OCR
-            const regionImage = image.clone().crop(x1, y1, x2 - x1, y2 - y1);
-            const text = await this.extractTextFromRegion(regionImage);
+            // Extract region as canvas and convert to buffer
+            const regionCanvas = createCanvas(x2 - x1, y2 - y1);
+            const ctx = regionCanvas.getContext('2d');
+            ctx.drawImage(image, -x1, -y1);
+            const regionBuffer = regionCanvas.toBuffer('image/png');
+
+            const text = await this.extractTextFromRegion(regionBuffer);
 
             elements.push({
                 id: `header-${field.role}-${Date.now()}`,
@@ -133,7 +139,7 @@ export class GranularExtractionEngine {
      * Generate table cell elements from detected cells
      */
     private async generateTableCellElements(
-        image: Jimp,
+        image: Image,
         cells: CellBoundingBox[],
         width: number,
         height: number
@@ -149,9 +155,13 @@ export class GranularExtractionEngine {
             // Skip cells that are too small
             if (x2 - x1 < 10 || y2 - y1 < 10) continue;
 
-            // Extract region and OCR
-            const regionImage = image.clone().crop(x1, y1, x2 - x1, y2 - y1);
-            const text = await this.extractTextFromRegion(regionImage);
+            // Extract region as canvas and convert to buffer
+            const regionCanvas = createCanvas(x2 - x1, y2 - y1);
+            const ctx = regionCanvas.getContext('2d');
+            ctx.drawImage(image, -x1, -y1);
+            const regionBuffer = regionCanvas.toBuffer('image/png');
+
+            const text = await this.extractTextFromRegion(regionBuffer);
 
             // Assign role based on column position
             const role = this.assignTableCellRole(cell.row, cell.col);
