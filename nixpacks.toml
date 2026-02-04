@@ -1,11 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodePackages.pnpm", "nodejs-18_x"]
-
-[phases.install]
-cmds = ["pnpm install"]
-
-[phases.build]
-cmds = ["pnpm build"]
-
-[start]
-cmd = "node apps/app/build/index.js"
+aptPkgs = [
+  "build-essential",
+  "libcairo2-dev",
+  "libpango1.0-dev",
+  "libjpeg-dev",
+  "libgif-dev",
+  "librsvg2-dev",
+  "pkg-config",
+  "pixman"
+]
