@@ -1,5 +1,7 @@
-import { db, getCampaignById, getStudents, getCampaignRecipients, getTemplateById } from '@uniconnect/shared';
-import { addEmailJob } from '$lib/server/queue';
+import { db, getCampaignById, getStudents, getCampaignRecipients, getTemplateById, getMailboxCredentials, decryptString } from '@uniconnect/shared';
+import { sendToRecipient } from '$lib/server/campaign-sender';
+import { google } from 'googleapis';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
@@ -15,9 +17,9 @@ export const POST: RequestHandler = async ({ params, locals }) => {
         throw error(403);
     }
 
-    // Only allow resuming if it's currently STOPPED
-    if (campaign.status !== 'STOPPED') {
-        throw error(400, `Cannot resume a campaign that is not stopped. Current status: ${campaign.status}`);
+    // Only allow resuming if it's currently STOPPED or IN_PROGRESS (for recovery)
+    if (campaign.status !== 'STOPPED' && campaign.status !== 'IN_PROGRESS') {
+        throw error(400, `Cannot resume a campaign that is already active or in a different state. Current status: ${campaign.status}`);
     }
 
     // 1. Fetch all students for metadata mapping
@@ -52,8 +54,8 @@ export const POST: RequestHandler = async ({ params, locals }) => {
             const mailbox = await getMailboxCredentials(campaign.mailbox_id);
             const refreshToken = decryptString(mailbox.refresh_token_enc);
             const oauth2Client = new google.auth.OAuth2(
-                process.env.GOOGLE_CLIENT_ID,
-                process.env.GOOGLE_CLIENT_SECRET
+                env.GOOGLE_CLIENT_ID,
+                env.GOOGLE_CLIENT_SECRET
             );
             oauth2Client.setCredentials({ refresh_token: refreshToken });
             const gmail = google.gmail({ version: 'v1', auth: oauth2Client });

@@ -424,10 +424,13 @@
           STOP CAMPAIGN
         </button>
       {/if}
-      {#if data.campaign.status === "STOPPED"}
+      {#if data.campaign.status === "STOPPED" || data.campaign.status === "IN_PROGRESS"}
         <button
           onclick={resumeCampaign}
           class="inline-flex items-center px-4 py-1.5 border border-green-300 text-xs font-bold rounded-full text-green-600 bg-white hover:bg-green-50 transition-all shadow-sm active:scale-95"
+          title={data.campaign.status === "IN_PROGRESS"
+            ? "If the campaign seems stuck, click to resume"
+            : "Resume sending"}
         >
           <svg
             class="mr-1.5 h-3.5 w-3.5"
@@ -440,7 +443,9 @@
             ></path><path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"
             ></path></svg
           >
-          RESUME CAMPAIGN
+          {data.campaign.status === "IN_PROGRESS"
+            ? "RESUME / SYNC"
+            : "RESUME CAMPAIGN"}
         </button>
       {/if}
       {#if data.campaign.include_ack}
