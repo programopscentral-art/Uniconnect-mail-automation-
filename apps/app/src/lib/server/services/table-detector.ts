@@ -1,4 +1,4 @@
-import Jimp from 'jimp';
+import { loadImage, createCanvas, type Image } from '@napi-rs/canvas';
 
 export interface CellBoundingBox {
     row: number;
@@ -17,7 +17,7 @@ export interface TableDetectionResult {
 }
 
 /**
- * Detect table structure using line detection and grid computation
+ * V49/V55: Detect table structure using @napi-rs/canvas (no native deps)
  * Falls back to heuristic-based detection if line detection fails
  */
 export class TableDetector {
@@ -26,7 +26,7 @@ export class TableDetector {
      */
     async detectTableStructure(imageBuffer: Buffer, pageWidth: number, pageHeight: number): Promise<TableDetectionResult> {
         try {
-            const image = await Jimp.read(imageBuffer);
+            const image = await loadImage(imageBuffer);
 
             // Try line-based detection first
             const lineResult = await this.detectViaLines(image, pageWidth, pageHeight);
@@ -45,18 +45,22 @@ export class TableDetector {
     /**
      * Detect table structure by finding horizontal and vertical lines
      */
-    private async detectViaLines(image: Jimp, pageWidth: number, pageHeight: number): Promise<TableDetectionResult> {
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+    private async detectViaLines(image: Image, pageWidth: number, pageHeight: number): Promise<TableDetectionResult> {
+        const width = image.width;
+        const height = image.height;
 
-        // Convert to grayscale and threshold
-        image.grayscale().contrast(0.5);
+        // Create canvas and get pixel data
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
 
         // Detect horizontal lines
-        const horizontalLines = this.detectHorizontalLines(image);
+        const horizontalLines = this.detectHorizontalLines(pixels, width, height);
 
         // Detect vertical lines
-        const verticalLines = this.detectVerticalLines(image);
+        const verticalLines = this.detectVerticalLines(pixels, width, height);
 
         if (horizontalLines.length < 2 || verticalLines.length < 2) {
             return { cells: [], rows: 0, cols: 0, confidence: 0 };
@@ -94,17 +98,18 @@ export class TableDetector {
     /**
      * Detect horizontal lines in the image
      */
-    private detectHorizontalLines(image: Jimp): number[] {
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+    private detectHorizontalLines(pixels: Uint8ClampedArray, width: number, height: number): number[] {
         const lines: number[] = [];
 
         // Scan each row for continuous dark pixels
         for (let y = 0; y < height; y++) {
             let darkPixels = 0;
             for (let x = 0; x < width; x++) {
-                const color = image.getPixelColor(x, y);
-                const brightness = Jimp.intToRGBA(color).r;
+                const idx = (y * width + x) * 4;
+                const r = pixels[idx];
+                const g = pixels[idx + 1];
+                const b = pixels[idx + 2];
+                const brightness = (r + g + b) / 3;
                 if (brightness < 100) darkPixels++;
             }
 
@@ -123,17 +128,18 @@ export class TableDetector {
     /**
      * Detect vertical lines in the image
      */
-    private detectVerticalLines(image: Jimp): number[] {
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+    private detectVerticalLines(pixels: Uint8ClampedArray, width: number, height: number): number[] {
         const lines: number[] = [];
 
         // Scan each column for continuous dark pixels
         for (let x = 0; x < width; x++) {
             let darkPixels = 0;
             for (let y = 0; y < height; y++) {
-                const color = image.getPixelColor(x, y);
-                const brightness = Jimp.intToRGBA(color).r;
+                const idx = (y * width + x) * 4;
+                const r = pixels[idx];
+                const g = pixels[idx + 1];
+                const b = pixels[idx + 2];
+                const brightness = (r + g + b) / 3;
                 if (brightness < 100) darkPixels++;
             }
 
@@ -152,7 +158,7 @@ export class TableDetector {
     /**
      * Fallback: Detect table structure using heuristic grid estimation
      */
-    private async detectViaHeuristics(image: Jimp, pageWidth: number, pageHeight: number): Promise<TableDetectionResult> {
+    private async detectViaHeuristics(image: Image, pageWidth: number, pageHeight: number): Promise<TableDetectionResult> {
         // Assume a standard MCQ table structure
         // Typically: 5-6 columns (Q#, Question, Marks, CO, Bloom, etc.)
         // Rows vary, but usually 10-20 questions
