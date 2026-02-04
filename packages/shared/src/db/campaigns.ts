@@ -91,41 +91,46 @@ export async function createRecipients(campaignId: string, students: any[], reci
     try {
         await client.query('BEGIN');
 
-        for (const s of students) {
-            const token = crypto.randomBytes(16).toString('hex');
-            let toEmail = s.email || 'invalid-email';
-            let status = 'PENDING';
-            let errorMessage: string | null = null;
+        // Chunking to avoid Postgres parameter limits (max 65535, we use 500 rows * 6 params = 3000)
+        const chunkSize = 500;
+        for (let i = 0; i < students.length; i += chunkSize) {
+            const chunk = students.slice(i, i + chunkSize);
 
-            // If recipientEmailKey is provided, we MUST use it. 
-            if (recipientEmailKey) {
-                const customEmail = s.metadata?.[recipientEmailKey];
-                if (!customEmail || typeof customEmail !== 'string' || !customEmail.trim().includes('@')) {
-                    status = 'FAILED';
-                    errorMessage = `Missing or invalid email in column: ${recipientEmailKey}`;
-                    toEmail = 'invalid-email';
-                } else {
-                    toEmail = customEmail.trim();
+            const values: any[] = [];
+            const placeholders = chunk.map((s, idx) => {
+                const base = idx * 6;
+                const token = crypto.randomBytes(16).toString('hex');
+                let toEmail = s.email || 'invalid-email';
+                let status = 'PENDING';
+                let errorMessage: string | null = null;
+
+                if (recipientEmailKey) {
+                    const customEmail = s.metadata?.[recipientEmailKey];
+                    if (!customEmail || typeof customEmail !== 'string' || !customEmail.trim().includes('@')) {
+                        status = 'FAILED';
+                        errorMessage = `Missing or invalid email in column: ${recipientEmailKey}`;
+                        toEmail = 'invalid-email';
+                    } else {
+                        toEmail = customEmail.trim();
+                    }
                 }
-            }
 
-            if (status !== 'FAILED' && (!toEmail || !toEmail.includes('@'))) {
-                status = 'FAILED';
-                errorMessage = 'Invalid or missing primary email';
-                toEmail = 'invalid-email';
-            }
+                if (status !== 'FAILED' && (!toEmail || !toEmail.includes('@'))) {
+                    status = 'FAILED';
+                    errorMessage = 'Invalid or missing primary email';
+                    toEmail = 'invalid-email';
+                }
 
-            try {
-                await client.query(
-                    `INSERT INTO campaign_recipients (campaign_id, student_id, to_email, tracking_token, status, error_message)
-                     VALUES ($1, $2, $3, $4, $5, $6)
-                     ON CONFLICT (campaign_id, student_id) DO NOTHING`,
-                    [campaignId, s.id, toEmail.toLowerCase().trim(), token, status, errorMessage]
-                );
-            } catch (err: any) {
-                console.error(`[DB_ERROR] Failed to insert recipient for campaign ${campaignId}, student ${s.id}:`, err);
-                // Continue with other recipients instead of crashing the whole transaction if one row is bad
-            }
+                values.push(campaignId, s.id, toEmail.toLowerCase().trim(), token, status, errorMessage);
+                return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
+            }).join(', ');
+
+            await client.query(
+                `INSERT INTO campaign_recipients (campaign_id, student_id, to_email, tracking_token, status, error_message)
+                 VALUES ${placeholders}
+                 ON CONFLICT (campaign_id, student_id) DO NOTHING`,
+                values
+            );
         }
 
         // Recalculate total_recipients and failed_count for accuracy
