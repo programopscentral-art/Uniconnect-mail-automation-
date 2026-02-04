@@ -4,6 +4,9 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
+// Force ignore SSL errors for migrations (especially on Railway/CI)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
