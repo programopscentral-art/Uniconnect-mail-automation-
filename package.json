@@ -1,15 +1,16 @@
 {
     "name": "uniconnect-mail-automation",
-    "version": "2.2.7",
+    "version": "0.1.0",
     "private": true,
     "packageManager": "pnpm@8.15.4",
+    "deploy_tag": "V41-SSL-FIX-FORCE-TRIGGER-1224",
     "scripts": {
-        "dev": "pnpm -r --parallel dev",
-        "build": "pnpm -r build",
-        "test": "pnpm -r test",
-        "seed": "pnpm -F @uniconnect/shared seed"
+        "dev": "turbo run dev",
+        "build": "turbo run build",
+        "test": "turbo run test",
+        "lint": "turbo run lint"
     },
-    "engines": {
-        "node": ">=18"
+    "devDependencies": {
+        "turbo": "latest"
     }
 }
