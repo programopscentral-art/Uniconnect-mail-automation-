@@ -1,23 +1,31 @@
-import { db } from './packages/shared/src/db/client';
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
 
-async function debug() {
-    console.log("Checking plagiarism_documents table structure...");
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL
+});
+
+async function checkSchema() {
+    const client = await pool.connect();
     try {
-        const { rows } = await db.query(`
+        const { rows } = await client.query(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'plagiarism_documents'
+            WHERE table_name = 'assessment_templates'
         `);
+        console.log('--- Columns in assessment_templates ---');
+        rows.forEach(r => console.log(`${r.column_name}: ${r.data_type}`));
 
-        if (rows.length === 0) {
-            console.log("Table 'plagiarism_documents' does not exist.");
-        } else {
-            console.log("Columns in 'plagiarism_documents':", JSON.stringify(rows, null, 2));
-        }
-    } catch (e) {
-        console.error("Error checking table:", e);
+        const { rows: migrations } = await client.query('SELECT name FROM _migrations');
+        console.log('\n--- Applied Migrations ---');
+        migrations.forEach(m => console.log(m.name));
+    } catch (err) {
+        console.error('Check failed:', err);
+    } finally {
+        client.release();
+        await pool.end();
     }
-    process.exit(0);
 }
 
-debug();
+checkSchema();

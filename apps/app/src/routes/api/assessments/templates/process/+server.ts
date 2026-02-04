@@ -109,6 +109,10 @@ const LayoutSchema = z.object({
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
 
+    // V38 Diagnostic: Masked DB connectivity check
+    const dbUri = process.env.DATABASE_URL || '';
+    console.log(`[V38_PROCESS] 🛠️ DB Check: ${dbUri.substring(0, 15)}... (len: ${dbUri.length})`);
+
     const formData = await request.formData();
     const name = formData.get('name') as string;
     const exam_type = (formData.get('exam_type') || formData.get('examType') || 'MID1') as string;
@@ -238,19 +242,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
         console.log(`[V34_PROCESS] 💾 Committing to DB: slug="${slug}"`);
 
-        const template = await createAssessmentTemplate({
-            university_id: universityId,
-            name: `${name} (Imported ${new Date().toLocaleDateString()})`,
-            slug,
-            exam_type: exam_type,
-            status: 'draft',
-            layout_schema: finalLayout,
-            backgroundImageUrl: finalLayout.debugImage,
-            regions: finalLayout.regions || finalLayout.pages?.[0]?.elements || [],
-            config: defaultConfig,
-            assets: [],
-            created_by: locals.user.id
-        });
+        let template;
+        try {
+            template = await createAssessmentTemplate({
+                university_id: universityId,
+                name: `${name} (Imported ${new Date().toLocaleDateString()})`,
+                slug,
+                exam_type: exam_type,
+                status: 'draft',
+                layout_schema: finalLayout,
+                backgroundImageUrl: finalLayout.debugImage,
+                regions: finalLayout.regions || finalLayout.pages?.[0]?.elements || [],
+                config: defaultConfig,
+                assets: [],
+                created_by: locals.user.id
+            });
+        } catch (dbErr: any) {
+            console.error(`[V38_DB_CRITICAL] 🚨 Database Save Failure:`, dbErr);
+            return json({
+                success: false,
+                message: `Database Persistence Failed: ${dbErr.message}`,
+                detail: dbErr.detail || dbErr.hint || 'No Postgres hints available',
+                code: dbErr.code
+            }, { status: 500 });
+        }
 
         console.log(`[V32_PROCESS] ✅ Successfully Saved: ${template.id}`);
 

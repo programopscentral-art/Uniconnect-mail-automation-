@@ -177,7 +177,7 @@
         }
         step = 3;
       } else {
-        errorMsg = `Build Error (${res.status}): ${data.message || "Validation Failed"}`;
+        errorMsg = `Build Error (${res.status}): ${data.message || "Validation Failed"}${data.detail ? ` (${data.detail})` : ""}`;
       }
     } catch (e: any) {
       console.error("[V12_COMMIT] 🚨 Critical Error:", e);
