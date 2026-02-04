@@ -13,9 +13,8 @@ WORKDIR /app
 RUN pnpm install --no-frozen-lockfile
 
 # Run migrations and build
-# Note: Database URL must be provided at build time if migrations run here
-# If migrations fail, we'll continue the build and run them at runtime
 RUN PGSSLMODE=no-verify NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm -F @uniconnect/shared migrate || true
+RUN pnpm -F app exec svelte-kit sync
 RUN pnpm -F app build
 
 FROM base

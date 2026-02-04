@@ -1,6 +1,6 @@
 import { createWorker } from 'tesseract.js';
 import vision from '@google-cloud/vision';
-import Jimp from 'jimp';
+import { loadImage, createCanvas, type Image } from '@napi-rs/canvas';
 
 export interface ExtractionResult {
     page: { width: number; height: number; };
@@ -21,22 +21,25 @@ interface Region {
 }
 
 /**
- * V22: Region-Anchored High-Fidelity Engine
- * 
- * Strict separation:
- * 1. Document Geometry (Regions) is detected structurally.
- * 2. OCR only provides text suggestions (defaultText).
- * 3. Rendering uses image background + overlay regions.
+ * V22/V60: Region-Anchored High-Fidelity Engine
+ * Rewritten to use @napi-rs/canvas (no native deps)
  */
 export class ExtractionEngine {
     async analyze(buffer: Buffer, mimeType: string): Promise<ExtractionResult> {
-        console.log('[EXTRACTION_ENGINE] 🚀 Starting V22 Region-Anchored analysis...');
-        const image = await Jimp.read(buffer);
-        const width = image.bitmap.width;
-        const height = image.bitmap.height;
+        console.log('[EXTRACTION_ENGINE] 🚀 Starting V60 @napi-rs/canvas analysis...');
+        const image = await loadImage(buffer);
+        const width = image.width;
+        const height = image.height;
+
+        // Create canvas and get pixel data for line detection
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
 
         // 1. Structural Analysis: Detect Geometry (Locked)
-        const lines = this.detectLines(image);
+        const lines = this.detectLines(pixels, width, height);
         const rawRegions = this.detectRegions(lines, width, height);
 
         console.log(`[EXTRACTION_ENGINE] 📍 Geometry locked: ${rawRegions.length} regions detected`);
@@ -61,7 +64,7 @@ export class ExtractionEngine {
         });
 
         // Use the original image as the template background
-        const debugImage = await image.getBase64Async(Jimp.MIME_PNG);
+        const debugImage = canvas.toDataURL('image/png');
 
         return {
             page: { width: 210, height: 297 },
@@ -83,9 +86,7 @@ export class ExtractionEngine {
         };
     }
 
-    private detectLines(image: Jimp) {
-        const w = image.bitmap.width;
-        const h = image.bitmap.height;
+    private detectLines(pixels: Uint8ClampedArray, w: number, h: number) {
         const lines: any[] = [];
         const threshold = 160;
 
@@ -96,8 +97,12 @@ export class ExtractionEngine {
             for (let i = 0; i < outer; i++) {
                 let start = -1;
                 for (let j = 0; j < inner; j++) {
-                    const c = Jimp.intToRGBA(image.getPixelColor(isH ? j : i, isH ? i : j));
-                    if ((c.r + c.g + c.b) / 3 < threshold) {
+                    const idx = isH ? (i * w + j) * 4 : (j * w + i) * 4;
+                    const r = pixels[idx];
+                    const g = pixels[idx + 1];
+                    const b = pixels[idx + 2];
+
+                    if ((r + g + b) / 3 < threshold) {
                         if (start === -1) start = j;
                     } else if (start !== -1) {
                         if ((j - start) > inner * 0.02) {
@@ -164,7 +169,7 @@ export class ExtractionEngine {
         return regions.filter(r => r.w > 0.01 && r.h > 0.01);
     }
 
-    private async ocrRegions(image: Jimp, regions: Region[], originalBuffer: Buffer): Promise<Region[]> {
+    private async ocrRegions(image: Image, regions: Region[], originalBuffer: Buffer): Promise<Region[]> {
         const finalized: Region[] = [];
         const visionCreds = process.env.GOOGLE_CREDENTIALS_JSON;
         const client = visionCreds ? new vision.ImageAnnotatorClient({ credentials: JSON.parse(visionCreds) }) : null;
@@ -195,14 +200,14 @@ export class ExtractionEngine {
         return finalized;
     }
 
-    private async performDualPassOCR(image: Jimp, region: Region, client: any): Promise<string> {
+    private async performDualPassOCR(image: Image, region: Region, client: any): Promise<string> {
         const passA = await this.performSinglePassOCR(image, region, client, false);
         const passB = await this.performSinglePassOCR(image, region, client, true);
         return passA.length >= passB.length ? passA : passB;
     }
 
-    private async performSinglePassOCR(image: Jimp, region: Region, client: any, threshold: boolean): Promise<string> {
-        const { buffer } = await this.getProcessedRegionBuffer(image, region, threshold);
+    private async performSinglePassOCR(image: Image, region: Region, client: any, threshold: boolean): Promise<string> {
+        const buffer = await this.getProcessedRegionBuffer(image, region, threshold);
         if (client) {
             const [result] = await client.documentTextDetection(buffer);
             return result.fullTextAnnotation?.text || "";
@@ -214,26 +219,49 @@ export class ExtractionEngine {
         }
     }
 
-    private async getProcessedRegionBuffer(image: Jimp, region: Region, useThreshold: boolean) {
-        const w = image.bitmap.width;
-        const h = image.bitmap.height;
+    private async getProcessedRegionBuffer(image: Image, region: Region, useThreshold: boolean): Promise<Buffer> {
+        const w = image.width;
+        const h = image.height;
         const rx = Math.floor(region.x * w);
         const ry = Math.floor(region.y * h);
         const rw = Math.floor(region.w * w);
         const rh = Math.floor(region.h * h);
 
-        const crop = image.clone().crop(rx, ry, rw, rh);
-        crop.grayscale();
-        if (rw < 200) crop.resize(rw * 2, Jimp.AUTO);
-
-        if (useThreshold) {
-            crop.scan(0, 0, crop.bitmap.width, crop.bitmap.height, (x, y, idx) => {
-                const avg = (crop.bitmap.data[idx] + crop.bitmap.data[idx + 1] + crop.bitmap.data[idx + 2]) / 3;
-                const val = avg < 160 ? 0 : 255;
-                crop.bitmap.data[idx] = crop.bitmap.data[idx + 1] = crop.bitmap.data[idx + 2] = val;
-            });
+        let finalWidth = rw;
+        let finalHeight = rh;
+        let scale = 1;
+        if (rw < 200) {
+            scale = 2;
+            finalWidth = rw * 2;
+            finalHeight = rh * 2;
         }
-        return { buffer: await crop.getBufferAsync(Jimp.MIME_PNG) };
+
+        const regionCanvas = createCanvas(finalWidth, finalHeight);
+        const ctx = regionCanvas.getContext('2d');
+
+        // Use binary threshold if requested
+        if (useThreshold) {
+            // First draw cropped to a temporary canvas to get pixels
+            const tempCanvas = createCanvas(rw, rh);
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(image, -rx, -ry);
+            const idata = tempCtx.getImageData(0, 0, rw, rh);
+            const data = idata.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                const val = avg < 160 ? 0 : 255;
+                data[i] = data[i + 1] = data[i + 2] = val;
+            }
+            tempCtx.putImageData(idata, 0, 0);
+
+            // Now draw scaled
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(tempCanvas, 0, 0, rw, rh, 0, 0, finalWidth, finalHeight);
+        } else {
+            ctx.drawImage(image, -rx, -ry, w, h, 0, 0, w * scale, h * scale);
+        }
+
+        return regionCanvas.toBuffer('image/png');
     }
 
     private isMetadata(t: string): boolean {
