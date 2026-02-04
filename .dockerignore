@@ -1,10 +1,7 @@
 node_modules
-.env
-apps/app/.env
-apps/worker/.env
 .git
-.github
-dist
-build
-.svelte-kit
-pnpm-debug.log
+.turbo
+apps/app/build
+apps/app/.svelte-kit
+packages/shared/dist
+pnpm-lock.yaml
