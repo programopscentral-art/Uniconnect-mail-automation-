@@ -1646,7 +1646,7 @@
                       >
                     </label>
 
-                    {#each data.allUsers.filter((u) => u.id !== data.userId) as user}
+                    {#each (data.allUsers || []).filter((u: any) => u.id !== data.userId) as user}
                       <label
                         class="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
                       >
