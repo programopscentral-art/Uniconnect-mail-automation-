@@ -388,11 +388,17 @@
                 <select
                   id="sequence-mode"
                   bind:value={importExamType}
-                  class="w-full bg-white/[0.03] border border-white/5 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                  class="w-full bg-[#1a1a1a] border border-white/10 rounded-2xl px-6 py-5 text-xs font-bold text-white outline-none focus:border-indigo-500/50 transition-all cursor-pointer [color-scheme:dark]"
                 >
-                  <option value="MID1">MIDTERM 1</option>
-                  <option value="MID2">MIDTERM 2</option>
-                  <option value="SEM">SEMESTER FINAL</option>
+                  <option value="MID1" class="bg-[#1a1a1a] text-white"
+                    >MIDTERM 1</option
+                  >
+                  <option value="MID2" class="bg-[#1a1a1a] text-white"
+                    >MIDTERM 2</option
+                  >
+                  <option value="SEM" class="bg-[#1a1a1a] text-white"
+                    >SEMESTER FINAL</option
+                  >
                 </select>
               </div>
 
@@ -518,11 +524,17 @@
                         >
                         <select
                           bind:value={selectedPageId}
-                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
+                          class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                         >
-                          <option value="">Choose Page...</option>
+                          <option value="" class="bg-[#1a1a1a] text-white"
+                            >Choose Page...</option
+                          >
                           {#each figmaPages as page}
-                            <option value={page.id}>{page.name}</option>
+                            <option
+                              value={page.id}
+                              class="bg-[#1a1a1a] text-white"
+                              >{page.name}</option
+                            >
                           {/each}
                         </select>
                       </div>
@@ -535,11 +547,17 @@
                           >
                           <select
                             bind:value={selectedFrameId}
-                            class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
+                            class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                           >
-                            <option value="">Choose Frame...</option>
+                            <option value="" class="bg-[#1a1a1a] text-white"
+                              >Choose Frame...</option
+                            >
                             {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
-                              <option value={frame.id}>{frame.name}</option>
+                              <option
+                                value={frame.id}
+                                class="bg-[#1a1a1a] text-white"
+                                >{frame.name}</option
+                              >
                             {/each}
                           </select>
                         </div>
@@ -930,5 +948,9 @@
   }
   input::placeholder {
     color: rgba(255, 255, 255, 0.1);
+  }
+  select option {
+    background-color: #1a1a1a !important;
+    color: white !important;
   }
 </style>
