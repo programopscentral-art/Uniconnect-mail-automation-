@@ -6,7 +6,14 @@
 
   let { data }: { data: PageData } = $props();
 
-  let template = $state(data.template || {});
+  let template = $state<any>({});
+
+  // Sync state with data prop (e.g. after save/refresh)
+  $effect.pre(() => {
+    if (data.template) {
+      template = data.template;
+    }
+  });
 
   let isSaving = $state(false);
 

@@ -32,8 +32,10 @@
 
   // V22: Use explicit regions if available, fallback to elements
   let regions = $derived(
-    layout.regions || 
-    (activePage?.elements || []).filter((el: any) => el.type === "field" || el.type === "text")
+    layout.regions ||
+      (activePage?.elements || []).filter(
+        (el: any) => el.type === "field" || el.type === "text",
+      ),
   );
 
   let lineElements = $derived(
@@ -45,7 +47,7 @@
 
   function getFontSize(el: any) {
     const hPx = (el.height || el.h) * canvasHeight;
-    if (el.is_header || el.type === 'label') {
+    if (el.is_header || el.type === "label") {
       return Math.min(26, Math.max(10, hPx * 0.1));
     }
     return Math.min(22, Math.max(8, hPx * 0.55));
@@ -57,7 +59,8 @@
   style="
     width: {canvasWidth}px; 
     height: {canvasHeight}px; 
-    background: {(backgroundImage || layout.backgroundImageUrl) && showBackground
+    background: {(backgroundImage || layout.backgroundImageUrl) &&
+  showBackground
     ? `url(${backgroundImage || layout.backgroundImageUrl})`
     : 'white'};
     background-size: 100% 100%;
@@ -81,8 +84,8 @@
             <line
               x1={(l.x1 || l.x) * canvasWidth}
               y1={(l.y1 || l.y) * canvasHeight}
-              x2={(l.x2 || (l.x + l.w)) * canvasWidth}
-              y2={(l.y2 || (l.y + l.h)) * canvasHeight}
+              x2={(l.x2 || l.x + l.w) * canvasWidth}
+              y2={(l.y2 || l.y + l.h) * canvasHeight}
               stroke="rgba(255,0,0,0.3)"
               stroke-width="1"
             />
@@ -91,12 +94,12 @@
       {/if}
       {#each regions as el}
         <div
-          class="absolute border {(el.is_header || el.type === 'label')
+          class="absolute border {el.is_header || el.type === 'label'
             ? 'border-red-500/50 bg-red-500/5'
             : 'border-blue-500/50 bg-blue-500/5'}"
           style="
-            left: {(el.x) * canvasWidth}px; 
-            top: {(el.y) * canvasHeight}px; 
+            left: {el.x * canvasWidth}px; 
+            top: {el.y * canvasHeight}px; 
             width: {(el.width || el.w) * canvasWidth}px; 
             height: {(el.height || el.h) * canvasHeight}px;
           "
@@ -104,7 +107,7 @@
           <span
             class="absolute top-0 right-0 text-[6px] font-bold bg-black/50 text-white px-0.5"
           >
-            {(el.is_header || el.type === 'label') ? "LBL" : "REG"}
+            {el.is_header || el.type === "label" ? "LBL" : "REG"}
           </span>
         </div>
       {/each}
@@ -117,8 +120,8 @@
       <div
         class="absolute group transition-colors"
         style="
-          left: {(el.x) * canvasWidth}px; 
-          top: {(el.y) * canvasHeight}px; 
+          left: {el.x * canvasWidth}px; 
+          top: {el.y * canvasHeight}px; 
           width: {(el.width || el.w) * canvasWidth}px; 
           height: {(el.height || el.h) * canvasHeight}px;
           z-index: 20;
@@ -132,10 +135,16 @@
             class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
             style="
               font-size: {getFontSize(el)}px;
-              text-align: {(el.is_header || el.type === 'label') ? 'center' : 'left'};
-              font-weight: {(el.is_header || el.type === 'label') ? '700' : '400'};
+              text-align: {el.is_header || el.type === 'label'
+              ? 'center'
+              : 'left'};
+              font-weight: {el.is_header || el.type === 'label'
+              ? '700'
+              : '400'};
               color: #000;
-              font-family: {(el.is_header || el.type === 'label') ? \"'Inter', sans-serif\" : 'monospace'};
+              font-family: {el.is_header || el.type === 'label'
+              ? "'Inter', sans-serif"
+              : 'monospace'};
               white-space: pre-wrap;
             "
           ></textarea>
@@ -148,10 +157,16 @@
             class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
             style="
               font-size: {getFontSize(el)}px;
-              text-align: {(el.is_header || el.type === 'label') ? 'center' : 'left'};
-              font-weight: {(el.is_header || el.type === 'label') ? '700' : '400'};
+              text-align: {el.is_header || el.type === 'label'
+              ? 'center'
+              : 'left'};
+              font-weight: {el.is_header || el.type === 'label'
+              ? '700'
+              : '400'};
               color: #000;
-              font-family: {(el.is_header || el.type === 'label') ? \"'Inter', sans-serif\" : 'monospace'};
+              font-family: {el.is_header || el.type === 'label'
+              ? "'Inter', sans-serif"
+              : 'monospace'};
             "
           />
         {/if}
