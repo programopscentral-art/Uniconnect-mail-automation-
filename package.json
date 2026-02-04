@@ -12,5 +12,10 @@
     },
     "devDependencies": {
         "turbo": "latest"
+    },
+    "pnpm": {
+        "overrides": {
+            "canvas": "npm:@napi-rs/canvas@^0.1.65"
+        }
     }
 }
