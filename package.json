@@ -3,6 +3,10 @@
     "version": "0.1.0",
     "private": true,
     "packageManager": "pnpm@8.15.4",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
     "deploy_tag": "V41-SSL-FIX-FORCE-TRIGGER-1224",
     "scripts": {
         "dev": "turbo run dev",
