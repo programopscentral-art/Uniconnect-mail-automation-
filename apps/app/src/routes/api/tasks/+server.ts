@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     // 2. Assignment Restrictions
     const assignee_ids = data.assignee_ids || [];
-    const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user.role as string) || isCentralBOA;
+    const canAssignToOthers = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'BOA', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user.role as string) || isCentralBOA;
 
     if (!canAssignToOthers) {
         // Restricted regional BOA roles can only assign to themselves
@@ -110,7 +110,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     // Existing role-based permission for "Assigned Team" / "Institutions" logic
     const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
     const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
-    const canAssignToOthers = isGlobalAdmin || ['UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user!.role as string) || isCentralBOA;
+    const canAssignToOthers = isGlobalAdmin || ['UNIVERSITY_OPERATOR', 'BOA', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(locals.user!.role as string) || isCentralBOA;
 
     // Status Update Restriction: Only Assigner, Assignee, or Admin
     if (updates.status && !(isGlobalAdmin || isAssigner || isAssignee)) {
