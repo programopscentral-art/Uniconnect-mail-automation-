@@ -70,40 +70,38 @@
       (!data.user.university_id || activeUniv?.is_team),
   );
 
-  import { untrack } from "svelte";
-  $effect(() => {
-    // Only run defaults when the task modal is opened to avoid side-effect loops
-    if (!showTaskModal) return;
+  function openTaskCreationModal() {
+    // Reset form to clean state
+    taskForm = {
+      title: "",
+      description: "",
+      priority: "MEDIUM",
+      assignee_ids: [data.userId],
+      university_id:
+        data.selectedUniversityId || data.defaultUniversityId || "",
+      due_date: new Date().toISOString().slice(0, 16),
+      status: "PENDING",
+    };
 
-    untrack(() => {
-      const canAssignToOthers =
-        [
-          "ADMIN",
-          "PROGRAM_OPS",
-          "UNIVERSITY_OPERATOR",
-          "COS",
-          "PM",
-          "PMA",
-          "CMA",
-          "CMA_MANAGER",
-        ].includes(data.user.role) || isCentralBOA;
+    const canAssignToOthers =
+      [
+        "ADMIN",
+        "PROGRAM_OPS",
+        "UNIVERSITY_OPERATOR",
+        "BOA",
+        "COS",
+        "PM",
+        "PMA",
+        "CMA",
+        "CMA_MANAGER",
+      ].includes(data.user.role) || isCentralBOA;
 
-      // Only set if strictly necessary to avoid triggering reactivity loops
-      if (taskForm.assignee_ids.length === 0) {
-        taskForm.assignee_ids = [data.userId];
-      } else if (
-        !canAssignToOthers &&
-        (taskForm.assignee_ids.length !== 1 ||
-          taskForm.assignee_ids[0] !== data.userId)
-      ) {
-        taskForm.assignee_ids = [data.userId];
-      }
+    if (!canAssignToOthers) {
+      taskForm.assignee_ids = [data.userId];
+    }
 
-      if (!taskForm.university_id && data.defaultUniversityId) {
-        taskForm.university_id = data.defaultUniversityId;
-      }
-    });
-  });
+    showTaskModal = true;
+  }
 
   let isSaving = $state(false);
 
@@ -1162,7 +1160,7 @@
       </h3>
       <div class="relative z-10 space-y-4">
         <button
-          onclick={() => (showTaskModal = true)}
+          onclick={openTaskCreationModal}
           class="w-full flex items-center p-5 rounded-2xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white hover:scale-[1.02] transition-all font-black shadow-xl group/btn hover:shadow-floating"
         >
           <div
