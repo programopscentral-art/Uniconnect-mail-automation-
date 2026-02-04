@@ -200,7 +200,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             status: 'draft',
             layout_schema: JSON.parse(JSON.stringify(validation.data)),
             backgroundImageUrl: validation.data.debugImage,
-            regions: validation.data.pages?.[0]?.elements || [],
+            regions: validation.data.regions || validation.data.pages?.[0]?.elements || [],
             config: defaultConfig,
             assets: [],
             created_by: locals.user.id

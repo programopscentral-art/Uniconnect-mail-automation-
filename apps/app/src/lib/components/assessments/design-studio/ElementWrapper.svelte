@@ -61,21 +61,16 @@
   ) {
     if (isEditing) return;
 
-    // Fix: Allow focus to reach children if already selected
-    if (selected && type === "move") {
-      // If we are already selected, we don't stop propagation on the move handle
-      // so that the pointerdown can reach the contenteditable child
-    } else {
-      e.stopPropagation();
-    }
+    // V28: Always stop propagation to prevent parent LayoutCanvas from deselecting us
+    e.stopPropagation();
+    onSelect(); // Trigger selection immediately
 
     if (type === "resize") {
-      e.stopPropagation();
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       isResizing = true;
       activeHandle = handle || null;
     } else {
-      // FIX: Single click on already selected element enters edit mode
+      // Single click on already selected element enters edit mode
       if (
         selected &&
         (element.type === "text" || element.type === "table") &&
@@ -83,9 +78,9 @@
       ) {
         isEditing = true;
         isDragging = false;
+        return;
       } else {
         isDragging = true;
-        // Only capture if NOT moving into edit mode
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }
     }
@@ -96,8 +91,6 @@
     startY = element.y;
     startW = element.w;
     startH = element.h;
-
-    onSelect();
   }
 
   function handlePointerMove(e: PointerEvent) {

@@ -609,7 +609,6 @@
         }}
         bind:selectedCell
         bind:activeCellId
-        {selectedElementId}
       />
     </main>
 

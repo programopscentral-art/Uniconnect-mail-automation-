@@ -94,7 +94,7 @@
     };
     recursiveClean(cleanLayout);
 
-    // V11: Payload mapping to fix 422
+    // V28: Payload mapping to fix 422 and 500
     const payload = {
       name: importName,
       exam_type: importExamType,
@@ -103,18 +103,21 @@
       metadata: metadataFields,
     };
 
-    console.log(`[V11_COMMIT] 📤 Request Payload:`, payload);
+    console.log(`[V28_COMMIT] 📤 Request Payload:`, payload);
 
     const formData = new FormData();
     formData.append("name", payload.name);
     formData.append("exam_type", payload.exam_type);
-    formData.append("universityId", payload.university_id);
+    formData.append("universityId", payload.university_id); // Backend expects universityId
+    formData.append("university_id", payload.university_id); // Legacy/shared compatibility
     formData.append("layout", JSON.stringify(payload.layout));
     formData.append("metadata", JSON.stringify(payload.metadata));
 
     // V22: Explicitly pass regions and background if already present in layout
-    if (payload.layout.regions)
-      formData.append("regions", JSON.stringify(payload.layout.regions));
+    const regionsToPass =
+      payload.layout.regions || payload.layout.pages?.[0]?.elements || [];
+    formData.append("regions", JSON.stringify(regionsToPass));
+
     if (payload.layout.debugImage)
       formData.append("backgroundImageUrl", payload.layout.debugImage);
 
@@ -127,7 +130,7 @@
       });
 
       const data = await res.json();
-      console.log(`[V12_COMMIT] 📥 Response (${res.status}):`, data);
+      console.log(`[V28_COMMIT] 📥 Response (${res.status}):`, data);
 
       if (res.ok) {
         if (onImportComplete) {
