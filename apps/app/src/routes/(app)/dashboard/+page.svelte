@@ -70,24 +70,39 @@
       (!data.user.university_id || activeUniv?.is_team),
   );
 
+  import { untrack } from "svelte";
   $effect(() => {
-    const canAssignToOthers =
-      [
-        "ADMIN",
-        "PROGRAM_OPS",
-        "UNIVERSITY_OPERATOR",
-        "COS",
-        "PM",
-        "PMA",
-        "CMA",
-        "CMA_MANAGER",
-      ].includes(data.user.role) || isCentralBOA;
+    // Only run defaults when the task modal is opened to avoid side-effect loops
+    if (!showTaskModal) return;
 
-    if (taskForm.assignee_ids.length === 0)
-      taskForm.assignee_ids = [data.userId];
-    if (!canAssignToOthers) taskForm.assignee_ids = [data.userId];
-    if (!taskForm.university_id)
-      taskForm.university_id = data.defaultUniversityId || "";
+    untrack(() => {
+      const canAssignToOthers =
+        [
+          "ADMIN",
+          "PROGRAM_OPS",
+          "UNIVERSITY_OPERATOR",
+          "COS",
+          "PM",
+          "PMA",
+          "CMA",
+          "CMA_MANAGER",
+        ].includes(data.user.role) || isCentralBOA;
+
+      // Only set if strictly necessary to avoid triggering reactivity loops
+      if (taskForm.assignee_ids.length === 0) {
+        taskForm.assignee_ids = [data.userId];
+      } else if (
+        !canAssignToOthers &&
+        (taskForm.assignee_ids.length !== 1 ||
+          taskForm.assignee_ids[0] !== data.userId)
+      ) {
+        taskForm.assignee_ids = [data.userId];
+      }
+
+      if (!taskForm.university_id && data.defaultUniversityId) {
+        taskForm.university_id = data.defaultUniversityId;
+      }
+    });
   });
 
   let isSaving = $state(false);

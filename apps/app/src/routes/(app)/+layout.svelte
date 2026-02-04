@@ -529,8 +529,8 @@
                 {#if user.role === "ADMIN" || user.role === "PROGRAM_OPS"}
                   <option value="ALL">All Teams</option>
                 {/if}
-                {#if user.universities}
-                  {#each user.universities.filter((u: any) => u.is_team) as univ}
+                {#if (user.universities || []).length > 0}
+                  {#each (user.universities || []).filter((u: any) => u.is_team) as univ}
                     <option value={univ.id}>{univ.name}</option>
                   {/each}
                 {/if}
