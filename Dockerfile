@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Final Canvas fix: PNPM override is in root package.json
 # No native dependencies (pixman/cairo) needed because we use @napi-rs/canvas
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Run migrations and build
 # Note: Database URL must be provided at build time if migrations run here
