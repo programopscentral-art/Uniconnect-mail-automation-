@@ -18,7 +18,7 @@
     showRegions = false,
     onElementChange = null,
     selectedElementId = null,
-    regions = [],
+    regions = $bindable([]),
   } = $props();
 
   const A4_WIDTH_MM = 210;
@@ -119,12 +119,12 @@
   {#if activePage || regions.length > 0}
     <!-- V25: High-Fidelity Manual Draggable Elements -->
     {#if activePage}
-      {#each activePage.elements || [] as el (el.id)}
-        {#if ElementComponent && el.type !== "line" && el.type !== "image-slot"}
+      {#each activePage.elements || [] as _, i (activePage.elements[i].id)}
+        {#if ElementComponent && activePage.elements[i].type !== "line" && activePage.elements[i].type !== "image-slot"}
           <ElementComponent
-            bind:element={el}
-            selected={selectedElementId === el.id}
-            onSelect={() => onElementSelect?.(el.id)}
+            bind:element={activePage.elements[i]}
+            selected={selectedElementId === activePage.elements[i].id}
+            onSelect={() => onElementSelect?.(activePage.elements[i].id)}
             {zoom}
             mmToPx={MM_TO_PX}
             bind:selectedCell
@@ -135,42 +135,46 @@
     {/if}
 
     <!-- V25: High-Fidelity OCR Locked Overlays (Regions) -->
-    {#each regions as el (el.id)}
+    {#each regions as _, i (regions[i].id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute group transition-all {selectedElementId === el.id
+        class="absolute group transition-all {selectedElementId ===
+        regions[i].id
           ? 'z-50 ring-2 ring-indigo-500 shadow-xl'
           : 'z-20'}"
-        onpointerdown={(e) => handleSelect(el.id, e)}
+        onpointerdown={(e) => handleSelect(regions[i].id, e)}
         style="
-          left: {el.x * canvasWidth}px; 
-          top: {el.y * canvasHeight}px; 
-          width: {(el.width || el.w) * canvasWidth}px; 
-          height: {(el.height || el.h) * canvasHeight}px;
+          left: {regions[i].x * canvasWidth}px; 
+          top: {regions[i].y * canvasHeight}px; 
+          width: {(regions[i].width || regions[i].w) * canvasWidth}px; 
+          height: {(regions[i].height || regions[i].h) * canvasHeight}px;
           cursor: move;
           pointer-events: auto;
         "
       >
-        {#if (el.height || el.h) > 0.05}
+        {#if (regions[i].height || regions[i].h) > 0.05}
           <textarea
-            bind:value={el.value}
+            bind:value={regions[i].value}
             oninput={(e) =>
-              onElementChange?.(el.id, (e.target as HTMLTextAreaElement).value)}
-            onpointerdown={(e) => handleSelect(el.id, e)}
+              onElementChange?.(
+                regions[i].id,
+                (e.target as HTMLTextAreaElement).value,
+              )}
+            onpointerdown={(e) => handleSelect(regions[i].id, e)}
             class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
-            el.id
+            regions[i].id
               ? 'bg-white/90'
               : 'bg-transparent'}"
             style="
-              font-size: {getFontSize(el)}px;
-              text-align: {el.is_header || el.type === 'label'
+              font-size: {getFontSize(regions[i])}px;
+              text-align: {regions[i].is_header || regions[i].type === 'label'
               ? 'center'
               : 'left'};
-              font-weight: {el.is_header || el.type === 'label'
+              font-weight: {regions[i].is_header || regions[i].type === 'label'
               ? '700'
               : '400'};
               color: #000;
-              font-family: {el.is_header || el.type === 'label'
+              font-family: {regions[i].is_header || regions[i].type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
               white-space: pre-wrap;
@@ -180,24 +184,27 @@
         {:else}
           <input
             type="text"
-            bind:value={el.value}
+            bind:value={regions[i].value}
             oninput={(e) =>
-              onElementChange?.(el.id, (e.target as HTMLInputElement).value)}
-            onpointerdown={(e) => handleSelect(el.id, e)}
+              onElementChange?.(
+                regions[i].id,
+                (e.target as HTMLInputElement).value,
+              )}
+            onpointerdown={(e) => handleSelect(regions[i].id, e)}
             class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
-            el.id
+            regions[i].id
               ? 'bg-white/90'
               : 'bg-transparent'}"
             style="
-              font-size: {getFontSize(el)}px;
-              text-align: {el.is_header || el.type === 'label'
+              font-size: {getFontSize(regions[i])}px;
+              text-align: {regions[i].is_header || regions[i].type === 'label'
               ? 'center'
               : 'left'};
-              font-weight: {el.is_header || el.type === 'label'
+              font-weight: {regions[i].is_header || regions[i].type === 'label'
               ? '700'
               : '400'};
               color: #000;
-              font-family: {el.is_header || el.type === 'label'
+              font-family: {regions[i].is_header || regions[i].type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
               pointer-events: auto;
@@ -207,7 +214,7 @@
         <!-- Field Indicator for designers -->
         <div
           class="absolute inset-0 border border-dashed {selectedElementId ===
-          el.id
+          regions[i].id
             ? 'border-indigo-500'
             : 'border-indigo-500/0 group-hover:border-indigo-500/40'} pointer-events-none"
         ></div>

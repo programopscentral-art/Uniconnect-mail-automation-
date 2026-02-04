@@ -589,7 +589,7 @@
         backgroundImage={template.backgroundImageUrl || layout.debugImage}
         bgOpacity={1.0}
         {showRegions}
-        {regions}
+        bind:regions
         {selectedElementId}
         mode={editingElementId ? "edit" : "view"}
         elementComponent={ElementWrapper}
@@ -597,13 +597,13 @@
           selectedElementId = id;
           if (id !== editingElementId) editingElementId = null;
         }}
-        onElementChange={(id, value) => {
-          const reg = regions.find((r) => r.id === id);
+        onElementChange={(id: string, value: string) => {
+          const reg = regions.find((r: any) => r.id === id);
           if (reg) reg.value = value;
 
           // Also sync to layout.pages elements if they exist (backward compatibility)
-          layout.pages.forEach((p) => {
-            const el = p.elements.find((e) => e.id === id);
+          layout.pages.forEach((p: any) => {
+            const el = p.elements.find((e: any) => e.id === id);
             if (el) el.value = value;
           });
         }}
