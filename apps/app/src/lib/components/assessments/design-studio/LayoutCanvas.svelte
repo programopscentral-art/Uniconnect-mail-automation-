@@ -47,8 +47,10 @@
 
   // V25: Unified list of interactive nodes (Manual elements + OCR regions)
   let interactiveNodes = $derived([
-    ...(activePage?.elements || []).filter((el: any) => el.type !== "line" && el.type !== "image-slot"),
-    ...(layout.regions || [])
+    ...(activePage?.elements || []).filter(
+      (el: any) => el.type !== "line" && el.type !== "image-slot",
+    ),
+    ...(layout.regions || []),
   ]);
 
   let selectedElementId = $state<string | null>(null);
@@ -134,7 +136,9 @@
     {#each interactiveNodes as el (el.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute group transition-all {selectedElementId === el.id ? 'z-50 ring-2 ring-indigo-500 shadow-xl' : 'z-20'}"
+        class="absolute group transition-all {selectedElementId === el.id
+          ? 'z-50 ring-2 ring-indigo-500 shadow-xl'
+          : 'z-20'}"
         onpointerdown={(e) => handleSelect(el.id, e)}
         style="
           left: {el.x * canvasWidth}px; 
@@ -150,7 +154,10 @@
             oninput={(e) =>
               onElementChange?.(el.id, (e.target as HTMLTextAreaElement).value)}
             onpointerdown={(e) => handleSelect(el.id, e)}
-            class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId === el.id ? 'bg-white/90' : 'bg-transparent'}"
+            class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
+            el.id
+              ? 'bg-white/90'
+              : 'bg-transparent'}"
             style="
               font-size: {getFontSize(el)}px;
               text-align: {el.is_header || el.type === 'label'
@@ -159,10 +166,10 @@
               font-weight: {el.is_header || el.type === 'label'
               ? '700'
               : '400'};
-              color: #000;
               font-family: {el.is_header || el.type === 'label'
-              ? \"'Inter', sans-serif\"
+              ? "'Inter', sans-serif"
               : 'monospace'};
+              color: #000;
               white-space: pre-wrap;
               pointer-events: auto;
             "
@@ -174,7 +181,10 @@
             oninput={(e) =>
               onElementChange?.(el.id, (e.target as HTMLInputElement).value)}
             onpointerdown={(e) => handleSelect(el.id, e)}
-            class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId === el.id ? 'bg-white/90' : 'bg-transparent'}"
+            class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
+            el.id
+              ? 'bg-white/90'
+              : 'bg-transparent'}"
             style="
               font-size: {getFontSize(el)}px;
               text-align: {el.is_header || el.type === 'label'
@@ -183,17 +193,20 @@
               font-weight: {el.is_header || el.type === 'label'
               ? '700'
               : '400'};
-              color: #000;
               font-family: {el.is_header || el.type === 'label'
-              ? \"'Inter', sans-serif\"
+              ? "'Inter', sans-serif"
               : 'monospace'};
+              color: #000;
               pointer-events: auto;
             "
           />
         {/if}
         <!-- Field Indicator for designers -->
         <div
-          class="absolute inset-0 border border-dashed {selectedElementId === el.id ? 'border-indigo-500' : 'border-indigo-500/0 group-hover:border-indigo-500/40'} pointer-events-none"
+          class="absolute inset-0 border border-dashed {selectedElementId ===
+          el.id
+            ? 'border-indigo-500'
+            : 'border-indigo-500/0 group-hover:border-indigo-500/40'} pointer-events-none"
         ></div>
       </div>
     {/each}
