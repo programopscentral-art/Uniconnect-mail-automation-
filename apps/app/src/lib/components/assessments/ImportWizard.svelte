@@ -32,6 +32,13 @@
   let logoFile = $state<File | null>(null);
   let detectedLayout = $state<any>(null);
   let metadataFields = $state<Record<string, string>>({});
+
+  // V65: Figma selection states
+  let figmaPages = $state<any[]>([]);
+  let selectedPageId = $state("");
+  let selectedFrameId = $state("");
+  let isVerifyingFigma = $state(false);
+  let isFigmaVerified = $state(false);
   let errorMsg = $state("");
   let previewZoom = $state(0.75);
 
@@ -45,8 +52,38 @@
   let showRegions = $state(false); // V15: Debug regions overlay
   let showDiffOverlay = $state(true);
 
+  async function verifyFigma() {
+    if (!figmaUrl || !figmaToken) return;
+    isVerifyingFigma = true;
+    errorMsg = "";
+    try {
+      const res = await fetch("/api/figma/verify", {
+        method: "POST",
+        body: JSON.stringify({ url: figmaUrl, token: figmaToken }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        figmaPages = data.pages;
+        isFigmaVerified = true;
+        if (!importName) importName = data.fileName;
+      } else {
+        errorMsg = data.message || "Figma verification failed";
+      }
+    } catch (e: any) {
+      errorMsg = "Verification Error: Could not connect to Figma API relay.";
+    } finally {
+      isVerifyingFigma = false;
+    }
+  }
+
   async function startAnalysis() {
-    if (!importFile || !importName) return;
+    if (importMode === "upload" && !importFile) return;
+    if (
+      importMode === "figma" &&
+      (!figmaUrl || !figmaToken || !selectedFrameId)
+    )
+      return;
+    if (!importName) return;
 
     isAnalyzing = true;
     errorMsg = "";
@@ -57,6 +94,7 @@
     } else {
       formData.append("figmaFileUrl", figmaUrl);
       formData.append("figmaAccessToken", figmaToken);
+      formData.append("figmaFrameId", selectedFrameId);
     }
     formData.append("name", importName);
     formData.append("exam_type", importExamType);
@@ -425,8 +463,9 @@
                     >
                     <input
                       bind:value={figmaUrl}
+                      disabled={isFigmaVerified}
                       placeholder="https://figma.com/file/..."
-                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono"
+                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
                     />
                   </div>
                   <div class="space-y-2">
@@ -437,10 +476,76 @@
                     <input
                       type="password"
                       bind:value={figmaToken}
+                      disabled={isFigmaVerified}
                       placeholder="figd_..."
-                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono"
+                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
                     />
                   </div>
+
+                  {#if !isFigmaVerified}
+                    <button
+                      onclick={verifyFigma}
+                      disabled={isVerifyingFigma || !figmaUrl || !figmaToken}
+                      class="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-white/10 transition-all disabled:opacity-20 flex items-center justify-center gap-2"
+                    >
+                      {isVerifyingFigma ? "Syncing..." : "Fetch File Info"}
+                      <ChevronRight class="w-3 h-3" />
+                    </button>
+                  {:else}
+                    <div
+                      class="space-y-4 pt-4 border-t border-white/5"
+                      transition:slide
+                    >
+                      <div class="flex items-center justify-between">
+                        <span
+                          class="text-[9px] font-black text-indigo-400 uppercase tracking-widest"
+                          >File Verified</span
+                        >
+                        <button
+                          onclick={() => {
+                            isFigmaVerified = false;
+                            figmaPages = [];
+                          }}
+                          class="text-[8px] font-black text-white/20 hover:text-white uppercase"
+                          >Reset</button
+                        >
+                      </div>
+
+                      <div class="space-y-2">
+                        <label
+                          class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                          >Select Page</label
+                        >
+                        <select
+                          bind:value={selectedPageId}
+                          class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
+                        >
+                          <option value="">Choose Page...</option>
+                          {#each figmaPages as page}
+                            <option value={page.id}>{page.name}</option>
+                          {/each}
+                        </select>
+                      </div>
+
+                      {#if selectedPageId}
+                        <div class="space-y-2" transition:slide>
+                          <label
+                            class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                            >Select Frame</label
+                          >
+                          <select
+                            bind:value={selectedFrameId}
+                            class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all"
+                          >
+                            <option value="">Choose Frame...</option>
+                            {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
+                              <option value={frame.id}>{frame.name}</option>
+                            {/each}
+                          </select>
+                        </div>
+                      {/if}
+                    </div>
+                  {/if}
                 </div>
               {/if}
 
@@ -794,7 +899,9 @@
             <button
               onclick={step === 1 ? startAnalysis : confirmImport}
               disabled={isAnalyzing ||
-                (step === 1 && (!importFile || !importName))}
+                (step === 1 &&
+                  (importMode === "upload" ? !importFile : !selectedFrameId)) ||
+                !importName}
               class="flex items-center gap-4 px-10 py-4 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 disabled:opacity-20 transition-all shadow-xl shadow-indigo-600/20 group"
             >
               <span

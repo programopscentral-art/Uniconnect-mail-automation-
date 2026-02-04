@@ -167,13 +167,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
         }
     } else if (figmaFileUrl && figmaAccessToken) {
-        // --- V62: Figma-First Import ---
+        // --- V62/V65: Figma-First Import ---
         try {
-            const fileKey = figmaFileUrl.split('/file/')[1]?.split('/')[0] || figmaFileUrl;
-            const elements = await FigmaService.importFromFigma(fileKey, figmaAccessToken);
+            const figmaFrameId = formData.get('figmaFrameId') as string;
+            const fileKey = FigmaService.extractFileKey(figmaFileUrl);
+            const elements = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId);
 
-            // For now, we assume the first frame is the A4 container for normalization
-            // In a production scenario, we'd allow the user to select the frame
             detectedLayout = {
                 page: { width: 210, height: 297, unit: "mm" },
                 pages: [{
@@ -184,7 +183,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 originalWidth: 210,
                 originalHeight: 297
             };
-            console.log(`[V62_PROCESS] 🎨 Figma import successful: ${elements.length} slots extracted`);
+            console.log(`[V65_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
         } catch (fe: any) {
             console.error(`[V62_PROCESS] ❌ Figma Import Failure:`, fe);
             return json({ success: false, message: `Figma Sync Failed: ${fe.message}` }, { status: 500 });
