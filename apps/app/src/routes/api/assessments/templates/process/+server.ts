@@ -94,7 +94,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const file = formData.get('file') as File;
     const dryRun = formData.get('dryRun') === 'true';
 
-    console.log(`[V12_PROCESS] 📥 Request Received:`, {
+    console.log(`[V32_PROCESS] 📥 Request Received:`, {
         name,
         exam_type,
         universityId,
@@ -114,16 +114,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const submittedMetadata = formData.get('metadata') as string;
 
     if (submittedLayout && !dryRun) {
-        console.log(`[V12_PROCESS] ♻️ Processing submitted layout payload...`);
+        console.log(`[V32_PROCESS] ♻️ Processing submitted layout payload...`);
         try {
             detectedLayout = JSON.parse(submittedLayout);
             if (submittedMetadata) {
                 detectedLayout.metadata_fields = JSON.parse(submittedMetadata);
             }
             if (explicitRegions) detectedLayout.regions = JSON.parse(explicitRegions);
-            if (explicitBackground) detectedLayout.debugImage = explicitBackground;
+
+            // V32: Handle background image as either base64 string or File/Blob
+            if (explicitBackground) {
+                if (typeof explicitBackground !== 'string' && (explicitBackground as any).arrayBuffer) {
+                    const buffer = Buffer.from(await (explicitBackground as any).arrayBuffer());
+                    const type = (explicitBackground as any).type || 'image/png';
+                    detectedLayout.debugImage = `data:${type};base64,${buffer.toString('base64')}`;
+                    console.log(`[V32_PROCESS] 🖼️ Processed binary background image (${buffer.length} bytes)`);
+                } else {
+                    detectedLayout.debugImage = explicitBackground as string;
+                }
+            }
         } catch (pe) {
-            console.error(`[V12_PROCESS] ❌ Payload Parse Failure:`, pe);
+            console.error(`[V32_PROCESS] ❌ Payload Parse Failure:`, pe);
             return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
         }
     } else if (file) {
@@ -207,7 +218,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             created_by: locals.user.id
         });
 
-        console.log(`[V12_PROCESS] ✅ Successfully Saved: ${template.id}`);
+        console.log(`[V32_PROCESS] ✅ Successfully Saved: ${template.id}`);
 
         return json({
             success: true,

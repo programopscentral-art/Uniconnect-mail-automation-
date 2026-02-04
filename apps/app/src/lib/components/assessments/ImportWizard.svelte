@@ -83,15 +83,36 @@
     isAnalyzing = true;
     errorMsg = "";
 
-    // V30: Capture background image separately to stay under 512KB limit
+    // V32: Convert base64 background to Blob for more efficient transmission
     const bgImage =
       detectedLayout.debugImage || detectedLayout.backgroundImageUrl;
+    let bgBlob: Blob | null = null;
+
+    if (bgImage && bgImage.startsWith("data:")) {
+      try {
+        const parts = bgImage.split(",");
+        const mime = parts[0].match(/:(.*?);/)?.[1];
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        bgBlob = new Blob([u8arr], { type: mime || "image/png" });
+        console.log(
+          `[V32_COMMIT] 🖼️ Converted base64 to binary Blob (${bgBlob.size} bytes)`,
+        );
+      } catch (e) {
+        console.error(
+          `[V32_COMMIT] ⚠️ Blob conversion failed, falling back to string:`,
+          e,
+        );
+      }
+    }
 
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     const recursiveClean = (obj: any) => {
       if (!obj || typeof obj !== "object") return;
 
-      // V30: Strip large base64 strings from JSON to prevent payload overflow
+      // V30/V32: Strip large base64 strings from JSON to prevent payload overflow
       delete obj.debugImage;
       delete obj.base64;
 
@@ -100,7 +121,7 @@
     };
     recursiveClean(cleanLayout);
 
-    // V28: Payload mapping to fix 422 and 500
+    // V32: Payload mapping
     const payload = {
       name: importName,
       exam_type: importExamType,
@@ -109,7 +130,7 @@
       metadata: metadataFields,
     };
 
-    console.log(`[V30_COMMIT] 📤 Request Payload (Optimized):`, {
+    console.log(`[V32_COMMIT] 📤 Request Payload (Optimized):`, {
       ...payload,
       layout: "{stripped}",
     });
@@ -122,12 +143,16 @@
     formData.append("layout", JSON.stringify(payload.layout));
     formData.append("metadata", JSON.stringify(payload.metadata));
 
-    // V22: Explicitly pass regions and background if already present in layout
+    // V22/V32: Explicitly pass regions and background if already present in layout
     const regionsToPass =
       payload.layout.regions || payload.layout.pages?.[0]?.elements || [];
     formData.append("regions", JSON.stringify(regionsToPass));
 
-    if (bgImage) formData.append("backgroundImageUrl", bgImage);
+    if (bgBlob) {
+      formData.append("backgroundImageUrl", bgBlob, "background.png");
+    } else if (bgImage) {
+      formData.append("backgroundImageUrl", bgImage);
+    }
 
     if (importFile) formData.append("file", importFile);
 
@@ -138,7 +163,7 @@
       });
 
       const data = await res.json();
-      console.log(`[V28_COMMIT] 📥 Response (${res.status}):`, data);
+      console.log(`[V32_COMMIT] 📥 Response (${res.status}):`, data);
 
       if (res.ok) {
         if (onImportComplete) {
