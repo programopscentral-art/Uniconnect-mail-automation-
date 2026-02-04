@@ -12,15 +12,16 @@ WORKDIR /app
 # No native dependencies (pixman/cairo) needed because we use @napi-rs/canvas
 RUN pnpm install --no-frozen-lockfile
 
-# Run migrations and build
+# Run migrations and build all components
 RUN PGSSLMODE=no-verify NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm -F @uniconnect/shared migrate || true
 RUN pnpm -F app exec svelte-kit sync
-RUN pnpm -F app build
+RUN pnpm -r build
 
 FROM base
 COPY --from=build /app /app
-WORKDIR /app/apps/app
+WORKDIR /app
 
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD [ "node", "build/index.js" ]
+# Default start is the app, but Railway services can override this via startCommand
+CMD [ "node", "apps/app/build/index.js" ]
