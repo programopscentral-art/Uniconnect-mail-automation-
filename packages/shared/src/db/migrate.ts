@@ -13,9 +13,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const HARDCODED_DB_URL = "postgresql://postgres.fpysgxqwdmrrevxspchx:Karthikeya.a1055@aws-1-ap-south-1.pooler.supabase.com:5432/postgres";
+const dbUrl = process.env.DATABASE_URL || HARDCODED_DB_URL;
+const connectionString = dbUrl.includes('?') ? `${dbUrl}&sslmode=no-verify` : `${dbUrl}?sslmode=no-verify`;
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || HARDCODED_DB_URL,
+    connectionString,
     ssl: {
         rejectUnauthorized: false
     }
