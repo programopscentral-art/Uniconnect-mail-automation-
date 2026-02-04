@@ -83,9 +83,12 @@
     isAnalyzing = true;
     errorMsg = "";
 
-    // V32: Convert base64 background to Blob for more efficient transmission
-    const bgImage =
-      detectedLayout.debugImage || detectedLayout.backgroundImageUrl;
+    // V32/V33: Capture and downscale background image to stay under 512KB limit
+    let rawBg = detectedLayout.debugImage || detectedLayout.backgroundImageUrl;
+    if (rawBg && rawBg.startsWith("data:")) {
+      rawBg = await downscaleImage(rawBg);
+    }
+    const bgImage = rawBg;
     let bgBlob: Blob | null = null;
 
     if (bgImage && bgImage.startsWith("data:")) {
@@ -182,6 +185,31 @@
     } finally {
       isAnalyzing = false;
     }
+  }
+
+  // V33: Downscale large images to stay under 512KB payload limit
+  async function downscaleImage(
+    dataUrl: string,
+    maxWidth = 1600,
+  ): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.width <= maxWidth) {
+          resolve(dataUrl);
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const scale = maxWidth / img.width;
+        canvas.width = maxWidth;
+        canvas.height = img.height * scale;
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8)); // Use JPEG 0.8 to save space
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
   }
 
   async function deleteTemplate() {
