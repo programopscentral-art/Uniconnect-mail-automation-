@@ -228,8 +228,8 @@
         style="
           left: {el.x * canvasWidth}px; 
           top: {el.y * canvasHeight}px; 
-          width: {el.width * canvasWidth}px; 
-          height: {el.height * canvasHeight}px;
+          width: {(el.width || el.w || 0.1) * canvasWidth}px; 
+          height: {(el.height || el.h || 0.1) * canvasHeight}px;
         "
       >
         <div

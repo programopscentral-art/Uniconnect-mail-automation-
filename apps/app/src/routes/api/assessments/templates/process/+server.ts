@@ -12,9 +12,12 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         type: z.literal('text'),
         x: z.number(),
         y: z.number(),
-        width: z.number(),
-        height: z.number(),
-        text: z.string(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        text: z.string().optional(),
+        value: z.string().optional(),
         style: z.record(z.any()).optional()
     }).passthrough(),
     z.object({
@@ -22,9 +25,12 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         type: z.literal('field'),
         x: z.number(),
         y: z.number(),
-        width: z.number(),
-        height: z.number(),
-        value: z.string(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        value: z.string().optional(),
+        text: z.string().optional(),
         fieldType: z.string().optional(),
         is_header: z.boolean().optional()
     }).passthrough(),
@@ -33,9 +39,11 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         type: z.literal('rect'),
         x: z.number(),
         y: z.number(),
-        width: z.number(),
-        height: z.number(),
-        strokeWidth: z.number(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        strokeWidth: z.number().optional(),
         backgroundColor: z.string().optional(),
         borderColor: z.string().optional()
     }).passthrough(),
@@ -50,6 +58,8 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         y2: z.number().optional(),
         width: z.number().optional(),
         height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
         strokeWidth: z.number().optional(),
         orientation: z.enum(['horizontal', 'vertical']).optional(),
         color: z.string().optional()
@@ -59,11 +69,23 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         type: z.literal('image-slot'),
         x: z.number(),
         y: z.number(),
-        width: z.number(),
-        height: z.number(),
-        slotName: z.string()
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        slotName: z.string().optional()
     }).passthrough()
 ]);
+
+// V34: Standardize elements for store
+const standardizeElement = (el: any) => {
+    return {
+        ...el,
+        w: el.w ?? el.width ?? 0.1,
+        h: el.h ?? el.height ?? 0.05,
+        value: el.value ?? el.text ?? el.value ?? ''
+    };
+};
 
 const LayoutSchema = z.object({
     page: z.object({
@@ -200,9 +222,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
     ];
 
+    // V34: Standardize all elements for Design Studio editability
+    const finalLayout = JSON.parse(JSON.stringify(validation.data));
+    if (finalLayout.pages) {
+        finalLayout.pages = finalLayout.pages.map((p: any) => ({
+            ...p,
+            elements: (p.elements || []).map(standardizeElement)
+        }));
+    }
+    if (finalLayout.regions) {
+        finalLayout.regions = finalLayout.regions.map(standardizeElement);
+    }
+
     try {
         const slug = `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}-${Date.now()}`;
-        console.log(`[V12_PROCESS] 💾 Committing to DB: slug="${slug}"`);
+        console.log(`[V34_PROCESS] 💾 Committing to DB: slug="${slug}"`);
 
         const template = await createAssessmentTemplate({
             university_id: universityId,
@@ -210,9 +244,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             slug,
             exam_type: exam_type,
             status: 'draft',
-            layout_schema: JSON.parse(JSON.stringify(validation.data)),
-            backgroundImageUrl: validation.data.debugImage,
-            regions: validation.data.regions || validation.data.pages?.[0]?.elements || [],
+            layout_schema: finalLayout,
+            backgroundImageUrl: finalLayout.debugImage,
+            regions: finalLayout.regions || finalLayout.pages?.[0]?.elements || [],
             config: defaultConfig,
             assets: [],
             created_by: locals.user.id
