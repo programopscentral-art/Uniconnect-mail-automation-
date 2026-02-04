@@ -1,6 +1,6 @@
 import { TableDetector, type CellBoundingBox } from './table-detector';
 import Tesseract from 'tesseract.js';
-import { createCanvas, loadImage, Image } from '@napi-rs/canvas';
+import { createCanvas, loadImage, type Image } from '@napi-rs/canvas';
 
 export interface TemplateElement {
     id: string;
@@ -23,8 +23,8 @@ export interface TemplateElement {
 }
 
 /**
- * V49: Enhanced extraction engine that generates granular, editable elements
- * instead of page-level OCR blocks
+ * V49/V53: Enhanced extraction engine using @napi-rs/canvas (no native deps)
+ * Generates granular, editable elements instead of page-level OCR blocks
  */
 export class GranularExtractionEngine {
     private tableDetector: TableDetector;
@@ -208,10 +208,9 @@ export class GranularExtractionEngine {
     /**
      * Extract text from image region using Tesseract
      */
-    private async extractTextFromRegion(regionImage: Jimp): Promise<string> {
+    private async extractTextFromRegion(regionBuffer: Buffer): Promise<string> {
         try {
-            const buffer = await regionImage.getBufferAsync(Jimp.MIME_PNG);
-            const result = await Tesseract.recognize(buffer, 'eng', {
+            const result = await Tesseract.recognize(regionBuffer, 'eng', {
                 logger: () => { } // Suppress logs
             });
             return result.data.text || '';
