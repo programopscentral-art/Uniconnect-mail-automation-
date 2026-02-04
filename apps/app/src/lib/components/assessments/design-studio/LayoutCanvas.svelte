@@ -45,6 +45,21 @@
     (activePage?.elements || []).filter((el: any) => el.type === "image-slot"),
   );
 
+  // V25: Unified list of interactive nodes (Manual elements + OCR regions)
+  let interactiveNodes = $derived([
+    ...(activePage?.elements || []).filter((el: any) => el.type !== "line" && el.type !== "image-slot"),
+    ...(layout.regions || [])
+  ]);
+
+  let selectedElementId = $state<string | null>(null);
+
+  function handleSelect(id: string, e: PointerEvent) {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onElementSelect?.(id);
+    selectedElementId = id;
+  }
+
   function getFontSize(el: any) {
     const hPx = (el.height || el.h) * canvasHeight;
     if (el.is_header || el.type === "label") {
@@ -115,16 +130,18 @@
   {/if}
 
   {#if activePage || layout.regions}
-    <!-- V22: High-Fidelity Region Overlays -->
-    {#each regions as el (el.id)}
+    <!-- V25: High-Fidelity Unified Overlays (Regions + Elements) -->
+    {#each interactiveNodes as el (el.id)}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute group transition-colors"
+        class="absolute group transition-all {selectedElementId === el.id ? 'z-50 ring-2 ring-indigo-500 shadow-xl' : 'z-20'}"
+        onpointerdown={(e) => handleSelect(el.id, e)}
         style="
           left: {el.x * canvasWidth}px; 
           top: {el.y * canvasHeight}px; 
           width: {(el.width || el.w) * canvasWidth}px; 
           height: {(el.height || el.h) * canvasHeight}px;
-          z-index: 20;
+          cursor: move;
         "
       >
         {#if (el.height || el.h) > 0.05}
@@ -132,7 +149,8 @@
             bind:value={el.value}
             oninput={(e) =>
               onElementChange?.(el.id, (e.target as HTMLTextAreaElement).value)}
-            class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
+            onpointerdown={(e) => handleSelect(el.id, e)}
+            class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId === el.id ? 'bg-white/90' : 'bg-transparent'}"
             style="
               font-size: {getFontSize(el)}px;
               text-align: {el.is_header || el.type === 'label'
@@ -143,9 +161,10 @@
               : '400'};
               color: #000;
               font-family: {el.is_header || el.type === 'label'
-              ? "'Inter', sans-serif"
+              ? \"'Inter', sans-serif\"
               : 'monospace'};
               white-space: pre-wrap;
+              pointer-events: auto;
             "
           ></textarea>
         {:else}
@@ -154,7 +173,8 @@
             bind:value={el.value}
             oninput={(e) =>
               onElementChange?.(el.id, (e.target as HTMLInputElement).value)}
-            class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] focus:bg-white/80 focus:shadow-sm"
+            onpointerdown={(e) => handleSelect(el.id, e)}
+            class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId === el.id ? 'bg-white/90' : 'bg-transparent'}"
             style="
               font-size: {getFontSize(el)}px;
               text-align: {el.is_header || el.type === 'label'
@@ -165,14 +185,15 @@
               : '400'};
               color: #000;
               font-family: {el.is_header || el.type === 'label'
-              ? "'Inter', sans-serif"
+              ? \"'Inter', sans-serif\"
               : 'monospace'};
+              pointer-events: auto;
             "
           />
         {/if}
         <!-- Field Indicator for designers -->
         <div
-          class="absolute inset-0 border border-dashed border-indigo-500/0 group-hover:border-indigo-500/20 pointer-events-none"
+          class="absolute inset-0 border border-dashed {selectedElementId === el.id ? 'border-indigo-500' : 'border-indigo-500/0 group-hover:border-indigo-500/40'} pointer-events-none"
         ></div>
       </div>
     {/each}

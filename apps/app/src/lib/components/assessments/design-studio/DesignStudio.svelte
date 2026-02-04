@@ -127,11 +127,21 @@
     null,
   );
 
-  let selectedElement = $derived(
-    layout.pages
+  let selectedElement = $derived.by(() => {
+    if (!selectedElementId) return null;
+
+    // Search in manual elements
+    const manualEl = layout.pages
       .find((p: any) => p.id === activePageId)
-      ?.elements.find((e: any) => e.id === selectedElementId) || null,
-  ) as any;
+      ?.elements.find((e: any) => e.id === selectedElementId);
+    if (manualEl) return manualEl;
+
+    // Search in OCR regions
+    const regionEl = regions.find((r: any) => r.id === selectedElementId);
+    if (regionEl) return regionEl;
+
+    return null;
+  });
 
   function updateStyle(key: string, value: any) {
     if (!selectedElement) return;
@@ -597,6 +607,7 @@
         }}
         bind:selectedCell
         bind:activeCellId
+        {selectedElementId}
       />
     </main>
 
@@ -623,21 +634,80 @@
               Geometry
             </h3>
             <div class="grid grid-cols-2 gap-4">
-              {#each ["x", "y", "w", "h"] as prop}
-                <div class="space-y-2">
-                  <label
-                    for="geo-{prop}"
-                    class="text-[9px] font-black uppercase text-white/20 ml-1"
-                    >{prop}</label
-                  >
-                  <input
-                    id="geo-{prop}"
-                    type="number"
-                    bind:value={selectedElement[prop]}
-                    class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none transition-all"
-                  />
-                </div>
-              {/each}
+              <div class="space-y-2">
+                <label
+                  for="geo-x"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >x</label
+                >
+                <input
+                  id="geo-x"
+                  type="number"
+                  step="0.001"
+                  bind:value={selectedElement.x}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  for="geo-y"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >y</label
+                >
+                <input
+                  id="geo-y"
+                  type="number"
+                  step="0.001"
+                  bind:value={selectedElement.y}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  for="geo-w"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >w</label
+                >
+                <input
+                  id="geo-w"
+                  type="number"
+                  step="0.001"
+                  value={selectedElement.w ?? selectedElement.width}
+                  oninput={(e) => {
+                    const val = parseFloat(
+                      (e.target as HTMLInputElement).value,
+                    );
+                    if (selectedElement.w !== undefined)
+                      selectedElement.w = val;
+                    if (selectedElement.width !== undefined)
+                      selectedElement.width = val;
+                  }}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  for="geo-h"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >h</label
+                >
+                <input
+                  id="geo-h"
+                  type="number"
+                  step="0.001"
+                  value={selectedElement.h ?? selectedElement.height}
+                  oninput={(e) => {
+                    const val = parseFloat(
+                      (e.target as HTMLInputElement).value,
+                    );
+                    if (selectedElement.h !== undefined)
+                      selectedElement.h = val;
+                    if (selectedElement.height !== undefined)
+                      selectedElement.height = val;
+                  }}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none"
+                />
+              </div>
             </div>
           </section>
 
@@ -649,15 +719,30 @@
                 Typography
               </h3>
               <!-- Typography controls omitted for brevity but would go here -->
-              <div
-                class="p-8 border border-white/5 bg-white/[0.02] rounded-[2rem] text-center"
-              >
-                <Type class="w-8 h-8 text-indigo-500 mx-auto mb-4 opacity-50" />
-                <p
-                  class="text-[9px] font-black uppercase tracking-[0.15em] text-white/20"
+              <div class="space-y-2">
+                <label
+                  for="content-edit"
+                  class="text-[9px] font-black uppercase text-white/20 ml-1"
+                  >Content</label
                 >
-                  Double Click to Edit Content
-                </p>
+                <textarea
+                  id="content-edit"
+                  rows="4"
+                  value={selectedElement.value ??
+                    selectedElement.content ??
+                    selectedElement.defaultText ??
+                    ""}
+                  oninput={(e) => {
+                    const val = (e.target as HTMLTextAreaElement).value;
+                    if (selectedElement.value !== undefined)
+                      selectedElement.value = val;
+                    else if (selectedElement.content !== undefined)
+                      selectedElement.content = val;
+                    else if (selectedElement.defaultText !== undefined)
+                      selectedElement.defaultText = val;
+                  }}
+                  class="w-full bg-black/30 border border-white/5 rounded-xl px-4 py-3 text-xs font-bold focus:border-indigo-500/50 outline-none resize-none"
+                ></textarea>
               </div>
             </section>
           {/if}
