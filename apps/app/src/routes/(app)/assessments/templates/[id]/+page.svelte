@@ -6,14 +6,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  let initialTemplate = data.template;
-  let template = $state(initialTemplate || {});
-
-  $effect(() => {
-    if (data.template) {
-      template = data.template;
-    }
-  });
+  let template = $state(data.template || {});
 
   let isSaving = $state(false);
 
@@ -29,6 +22,8 @@
           exam_type: template.exam_type,
           config: template.config,
           layout_schema: template.layout_schema,
+          backgroundImageUrl: template.backgroundImageUrl,
+          regions: template.regions,
           status: template.status,
           version: (template.version || 1) + 1,
         }),

@@ -201,6 +201,14 @@
     paperMeta = {};
     layoutSchema = {};
   }
+
+  let regions = $derived(
+    layoutSchema?.regions ||
+      layoutSchema?.pages?.[0]?.elements?.filter(
+        (el: any) => el.type === "field",
+      ) ||
+      [],
+  );
 </script>
 
 <div
@@ -548,12 +556,6 @@
       {/if}
 
       <!-- V22 Field Overlays (Standardized Region-Anchored Rendering) -->
-      {@const regions =
-        layoutSchema?.regions ||
-        layoutSchema?.pages?.[0]?.elements?.filter(
-          (el: any) => el.type === "field",
-        ) ||
-        []}
       {#each regions as el}
         <div
           class="absolute pointer-events-none"
