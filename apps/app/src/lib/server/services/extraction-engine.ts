@@ -1,10 +1,11 @@
 import { createWorker } from 'tesseract.js';
 import vision from '@google-cloud/vision';
 import { loadImage, createCanvas, type Image } from '@napi-rs/canvas';
+import type { TemplateElement } from '$lib/types/template';
 
 export interface ExtractionResult {
     page: { width: number; height: number; };
-    pages: Array<{ id: string; elements: Array<any>; }>;
+    pages: Array<{ id: string; elements: TemplateElement[]; }>;
     regions: Array<any>; // V22: Standardized flat regions
     metadata_fields?: Record<string, string>;
     debugImage?: string;
@@ -72,10 +73,17 @@ export class ExtractionEngine {
                 id: 'page-1',
                 elements: finalizedRegions.map(r => ({
                     ...r,
-                    type: 'field', // Backward compatibility with elements renderer
-                    width: r.w,
-                    height: r.h,
-                    value: r.defaultText
+                    id: r.id,
+                    type: r.type === 'header' ? 'header-field' : 'text',
+                    page: 1,
+                    text: r.defaultText || "",
+                    style: {
+                        fontFamily: r.type === 'header' ? 'Inter' : 'monospace',
+                        fontSize: 12, // Default size
+                        fontWeight: r.type === 'header' ? 'bold' : 'normal',
+                        align: 'left',
+                        color: '#000000'
+                    }
                 }))
             }],
             regions: finalizedRegions,

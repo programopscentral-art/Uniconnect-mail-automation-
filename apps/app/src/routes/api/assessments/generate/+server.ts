@@ -54,6 +54,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ error: 'No questions found for this subject. Please upload questions first.' }, { status: 400 });
         }
 
+        // 1c. Fetch Template Layout for Slot Mapping (V62)
+        let figmaSlots: any[] = [];
+        if (template_id) {
+            const templateRes = await db.query('SELECT layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
+            if (templateRes.rows.length > 0) {
+                const schema = templateRes.rows[0].layout_schema;
+                figmaSlots = schema?.pages?.[0]?.elements?.filter((el: any) => el.slot_id) || [];
+            }
+        }
+
         // 2. Prepare Slots to Process
         const slotsToProcess: any[] = [];
         if (generation_mode === 'Modifiable' && template_config) {
@@ -114,10 +124,40 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
 
             if (!template_config) {
-                template_config = [
-                    { title: 'PART A', marks_per_q: marksA, count: countA, slots: slotsToProcess.filter(s => s.part === 'A') },
-                    { title: 'PART B', marks_per_q: is100 ? 16 : 5, count: realCountB, slots: slotsToProcess.filter(s => s.part === 'B') }
-                ];
+                // If we have Figma slots, we align the config with the slots
+                if (figmaSlots.length > 0) {
+                    const partASlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_A') && s.slot_id.endsWith('_TEXT'));
+                    const partBSlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_B') && s.slot_id.endsWith('_TEXT'));
+
+                    template_config = [
+                        {
+                            title: 'PART A', marks_per_q: marksA, count: partASlots.length, slots: partASlots.map((s, i) => ({
+                                id: s.id,
+                                slot_id: s.slot_id,
+                                label: `${i + 1}`,
+                                marks: marksA,
+                                type: 'SINGLE',
+                                part: 'A'
+                            }))
+                        },
+                        {
+                            title: 'PART B', marks_per_q: is100 ? 16 : 5, count: partBSlots.length, slots: partBSlots.map((s, i) => ({
+                                id: s.id,
+                                slot_id: s.slot_id,
+                                label: `${i + 1}`,
+                                marks: is100 ? 16 : 5,
+                                type: 'SINGLE', // Figma templates usually designate specific slots
+                                part: 'B'
+                            }))
+                        }
+                    ];
+                    slotsToProcess.push(...template_config[0].slots, ...template_config[1].slots);
+                } else {
+                    template_config = [
+                        { title: 'PART A', marks_per_q: marksA, count: countA, slots: slotsToProcess.filter(s => s.part === 'A') },
+                        { title: 'PART B', marks_per_q: is100 ? 16 : 5, count: realCountB, slots: slotsToProcess.filter(s => s.part === 'B') }
+                    ];
+                }
             }
         }
 
@@ -271,7 +311,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setQuestions.push({ id: slot.id, type: 'OR_GROUP', part: slot.part, choice1: { questions: c1 }, choice2: { questions: c2 } });
                 } else {
                     const qs = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.subMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
-                    setQuestions.push({ id: slot.id, type: 'SINGLE', part: slot.part, questions: qs, marks: slot.marks });
+                    setQuestions.push({
+                        id: slot.id,
+                        slot_id: slot.slot_id, // Pass slot_id to the resulting questions array
+                        type: 'SINGLE',
+                        part: slot.part,
+                        questions: qs,
+                        marks: slot.marks
+                    });
                 }
             }
             generatedSets[setName] = { questions: setQuestions, setName };

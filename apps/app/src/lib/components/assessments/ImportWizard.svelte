@@ -23,6 +23,9 @@
 
   let step = $state(1); // 1: Upload, 2: Preview & Confirm, 3: Success
   let isAnalyzing = $state(false);
+  let importMode = $state<"upload" | "figma">("upload");
+  let figmaUrl = $state("");
+  let figmaToken = $state("");
   let importName = $state("");
   let importExamType = $state("MID1");
   let importFile = $state<File | null>(null);
@@ -48,17 +51,27 @@
     isAnalyzing = true;
     errorMsg = "";
     const formData = new FormData();
-    formData.append("file", importFile);
+
+    if (importMode === "upload") {
+      formData.append("file", importFile!);
+    } else {
+      formData.append("figmaFileUrl", figmaUrl);
+      formData.append("figmaAccessToken", figmaToken);
+    }
+    formData.append("name", importName);
+    formData.append("exam_type", importExamType);
+    formData.append("dryRun", "true");
 
     try {
-      // Step 1: Free Internal Analysis
-      const res = await fetch("/api/templates/analyze", {
+      // Step 1: Analysis (Now using the process API with dryRun=true)
+      const res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
 
       if (res.ok) {
-        detectedLayout = await res.json();
+        const data = await res.json();
+        detectedLayout = data.template.layout_schema;
         metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
@@ -158,6 +171,10 @@
     }
 
     if (importFile) formData.append("file", importFile);
+    if (importMode === "figma") {
+      formData.append("figmaFileUrl", figmaUrl);
+      formData.append("figmaAccessToken", figmaToken);
+    }
 
     try {
       const res = await fetch("/api/assessments/templates/process", {
@@ -343,32 +360,89 @@
 
               <div class="space-y-3">
                 <label
-                  for="doc-source"
                   class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >Document Source</label
+                  >Source Type</label
                 >
-                <div class="relative group">
-                  <input
-                    id="doc-source"
-                    type="file"
-                    accept=".pdf,image/*"
-                    onchange={(e) =>
-                      (importFile = e.currentTarget.files?.[0] || null)}
-                    class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  />
-                  <div
-                    class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-6 text-center"
+                <div
+                  class="flex gap-2 p-1 bg-white/[0.03] border border-white/5 rounded-2xl"
+                >
+                  <button
+                    onclick={() => (importMode = "upload")}
+                    class="flex-1 py-3 text-[9px] font-black uppercase rounded-xl transition-all {importMode ===
+                    'upload'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : 'text-white/20 hover:text-white/40'}"
                   >
-                    <Upload class="w-6 h-6 text-indigo-500/40 mx-auto mb-2" />
-                    <span
-                      class="text-[9px] font-black text-white/40 uppercase block"
-                      >{importFile
-                        ? importFile.name
-                        : "Drop Template Image"}</span
-                    >
-                  </div>
+                    Upload
+                  </button>
+                  <button
+                    onclick={() => (importMode = "figma")}
+                    class="flex-1 py-3 text-[9px] font-black uppercase rounded-xl transition-all {importMode ===
+                    'figma'
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                      : 'text-white/20 hover:text-white/40'}"
+                  >
+                    Figma
+                  </button>
                 </div>
               </div>
+
+              {#if importMode === "upload"}
+                <div class="space-y-3" transition:slide>
+                  <label
+                    for="doc-source"
+                    class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
+                    >Document Source</label
+                  >
+                  <div class="relative group">
+                    <input
+                      id="doc-source"
+                      type="file"
+                      accept=".pdf,image/*"
+                      onchange={(e) =>
+                        (importFile = e.currentTarget.files?.[0] || null)}
+                      class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    <div
+                      class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-6 text-center"
+                    >
+                      <Upload class="w-6 h-6 text-indigo-500/40 mx-auto mb-2" />
+                      <span
+                        class="text-[9px] font-black text-white/40 uppercase block"
+                        >{importFile
+                          ? importFile.name
+                          : "Drop Template Image"}</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              {:else}
+                <div class="space-y-4" transition:slide>
+                  <div class="space-y-2">
+                    <label
+                      class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                      >Figma File URL</label
+                    >
+                    <input
+                      bind:value={figmaUrl}
+                      placeholder="https://figma.com/file/..."
+                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono"
+                    />
+                  </div>
+                  <div class="space-y-2">
+                    <label
+                      class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                      >Access Token</label
+                    >
+                    <input
+                      type="password"
+                      bind:value={figmaToken}
+                      placeholder="figd_..."
+                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono"
+                    />
+                  </div>
+                </div>
+              {/if}
 
               <div class="space-y-3">
                 <label

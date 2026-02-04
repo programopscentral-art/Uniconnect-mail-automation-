@@ -1,26 +1,7 @@
 import { TableDetector, type CellBoundingBox } from './table-detector';
 import Tesseract from 'tesseract.js';
 import { createCanvas, loadImage, type Image } from '@napi-rs/canvas';
-
-export interface TemplateElement {
-    id: string;
-    type: 'text' | 'table-cell' | 'header-field';
-    page: number;
-    x: number;  // normalized [0..1]
-    y: number;  // normalized [0..1]
-    w: number;  // normalized [0..1]
-    h: number;  // normalized [0..1]
-    text: string;
-    style: {
-        fontSize: number;
-        fontWeight: string;
-        align: string;
-        color: string;
-    };
-    role: string;
-    row?: number;
-    col?: number;
-}
+import type { TemplateElement } from '$lib/types/template';
 
 /**
  * V49/V53: Enhanced extraction engine using @napi-rs/canvas (no native deps)
@@ -123,6 +104,7 @@ export class GranularExtractionEngine {
                 h: field.h,
                 text: text.trim(),
                 style: {
+                    fontFamily: 'Inter',
                     fontSize: 12,
                     fontWeight: 'normal',
                     align: 'left',
@@ -176,6 +158,7 @@ export class GranularExtractionEngine {
                 h: cell.h,
                 text: text.trim(),
                 style: {
+                    fontFamily: 'Inter',
                     fontSize: 10,
                     fontWeight: 'normal',
                     align: cell.col === 0 ? 'center' : 'left',
