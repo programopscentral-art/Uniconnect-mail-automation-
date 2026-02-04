@@ -1,3 +1,4 @@
+# Deploy V39: Diagnostic and Migration Sync
 [build]
 builder = "nixpacks"
 # Using pnpm@8.15.4 as specified in root package.json
