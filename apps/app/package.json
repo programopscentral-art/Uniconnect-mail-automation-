@@ -22,7 +22,6 @@
         "dotenv": "^16.4.5",
         "googleapis": "^126.0.1",
         "ioredis": "^5.4.1",
-        "jimp": "^0.22.12",
         "jose": "^5.9.6",
         "lucide-svelte": "^0.474.0",
         "mammoth": "^1.8.0",
