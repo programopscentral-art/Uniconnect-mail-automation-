@@ -589,6 +589,8 @@
         backgroundImage={template.backgroundImageUrl || layout.debugImage}
         bgOpacity={1.0}
         {showRegions}
+        {regions}
+        {selectedElementId}
         mode={editingElementId ? "edit" : "view"}
         elementComponent={ElementWrapper}
         onElementSelect={(id: string) => {

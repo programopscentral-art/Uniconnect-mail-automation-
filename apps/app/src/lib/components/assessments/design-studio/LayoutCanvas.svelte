@@ -17,6 +17,8 @@
     highContrast = false,
     showRegions = false,
     onElementChange = null,
+    selectedElementId = null,
+    regions = [],
   } = $props();
 
   const A4_WIDTH_MM = 210;
@@ -30,13 +32,7 @@
     layout.pages?.find((p: any) => p.id === activePageId) || layout.pages?.[0],
   );
 
-  // V22: Use explicit regions if available, fallback to elements
-  let regions = $derived(
-    layout.regions ||
-      (activePage?.elements || []).filter(
-        (el: any) => el.type === "field" || el.type === "text",
-      ),
-  );
+  // V22/V27: Data sources are now passed in via props
 
   let lineElements = $derived(
     (activePage?.elements || []).filter((el: any) => el.type === "line"),
@@ -45,21 +41,10 @@
     (activePage?.elements || []).filter((el: any) => el.type === "image-slot"),
   );
 
-  // V25: Unified list of interactive nodes (Manual elements + OCR regions)
-  let interactiveNodes = $derived([
-    ...(activePage?.elements || []).filter(
-      (el: any) => el.type !== "line" && el.type !== "image-slot",
-    ),
-    ...(layout.regions || []),
-  ]);
-
-  let selectedElementId = $state<string | null>(null);
-
   function handleSelect(id: string, e: PointerEvent) {
     if (e.button !== 0) return;
     e.stopPropagation();
     onElementSelect?.(id);
-    selectedElementId = id;
   }
 
   function getFontSize(el: any) {
@@ -131,9 +116,26 @@
     </div>
   {/if}
 
-  {#if activePage || layout.regions}
-    <!-- V25: High-Fidelity Unified Overlays (Regions + Elements) -->
-    {#each interactiveNodes as el (el.id)}
+  {#if activePage || regions.length > 0}
+    <!-- V25: High-Fidelity Manual Draggable Elements -->
+    {#if activePage}
+      {#each activePage.elements || [] as el (el.id)}
+        {#if ElementComponent && el.type !== "line" && el.type !== "image-slot"}
+          <ElementComponent
+            bind:element={el}
+            selected={selectedElementId === el.id}
+            onSelect={() => onElementSelect?.(el.id)}
+            {zoom}
+            mmToPx={MM_TO_PX}
+            bind:selectedCell
+            bind:activeCellId
+          />
+        {/if}
+      {/each}
+    {/if}
+
+    <!-- V25: High-Fidelity OCR Locked Overlays (Regions) -->
+    {#each regions as el (el.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="absolute group transition-all {selectedElementId === el.id
@@ -146,6 +148,7 @@
           width: {(el.width || el.w) * canvasWidth}px; 
           height: {(el.height || el.h) * canvasHeight}px;
           cursor: move;
+          pointer-events: auto;
         "
       >
         {#if (el.height || el.h) > 0.05}
@@ -166,10 +169,10 @@
               font-weight: {el.is_header || el.type === 'label'
               ? '700'
               : '400'};
+              color: #000;
               font-family: {el.is_header || el.type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
-              color: #000;
               white-space: pre-wrap;
               pointer-events: auto;
             "
@@ -193,10 +196,10 @@
               font-weight: {el.is_header || el.type === 'label'
               ? '700'
               : '400'};
+              color: #000;
               font-family: {el.is_header || el.type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
-              color: #000;
               pointer-events: auto;
             "
           />
