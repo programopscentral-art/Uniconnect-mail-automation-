@@ -164,9 +164,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
         }
     } else if (file) {
-        // --- Monolithic Extraction ---
+        // --- V49: Granular Element Extraction ---
         try {
-            const extractor = new ExtractionEngine();
+            const { GranularExtractionEngine } = await import('$lib/server/services/granular-extraction-engine');
+            const extractor = new GranularExtractionEngine();
             let buffer = Buffer.from(await file.arrayBuffer());
 
             if (file.type === 'application/pdf') {
@@ -174,18 +175,39 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 buffer = Buffer.from(pdfArray[0]);
             }
 
-            const blueprint = await extractor.analyze(buffer, file.type);
+            // Use granular extraction to get individual elements
+            const result = await extractor.analyzeDocument(buffer, 210, 297); // A4 dimensions in mm
+
             detectedLayout = {
-                page: { ...blueprint.page, unit: "mm" },
-                pages: blueprint.pages,
-                metadata_fields: blueprint.metadata_fields || {},
-                originalWidth: blueprint.originalWidth,
-                originalHeight: blueprint.originalHeight,
-                debugImage: blueprint.debugImage
+                page: { width: 210, height: 297, unit: "mm" },
+                pages: [{
+                    id: 'page-1',
+                    elements: result.elements.map(el => ({
+                        id: el.id,
+                        type: el.type,
+                        x: el.x,
+                        y: el.y,
+                        w: el.w,
+                        h: el.h,
+                        text: el.text,
+                        value: el.text,
+                        style: el.style,
+                        role: el.role,
+                        row: el.row,
+                        col: el.col
+                    }))
+                }],
+                metadata_fields: result.metadata,
+                originalWidth: 210,
+                originalHeight: 297,
+                debugImage: result.backgroundImage,
+                regions: result.elements // V49: Store elements as regions for compatibility
             };
+
+            console.log(`[V49_PROCESS] ✅ Generated ${result.elements.length} granular elements`);
         } catch (re: any) {
-            console.error(`[V12_PROCESS] ❌ Extraction Engine Failure:`, re);
-            return json({ success: false, message: re.message || 'System Analysis Failed' }, { status: 500 });
+            console.error(`[V49_PROCESS] ❌ Granular Extraction Failure:`, re);
+            return json({ success: false, message: re.message || 'Granular Analysis Failed' }, { status: 500 });
         }
     } else {
         return json({ success: false, message: 'Document file or existing layout required' }, { status: 400 });
