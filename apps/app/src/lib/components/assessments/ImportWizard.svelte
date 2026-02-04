@@ -83,12 +83,18 @@
     isAnalyzing = true;
     errorMsg = "";
 
+    // V30: Capture background image separately to stay under 512KB limit
+    const bgImage =
+      detectedLayout.debugImage || detectedLayout.backgroundImageUrl;
+
     const cleanLayout = JSON.parse(JSON.stringify(detectedLayout));
     const recursiveClean = (obj: any) => {
       if (!obj || typeof obj !== "object") return;
-      // V21: Stop stripping debugImage - it is required for high-fidelity editor
-      // delete obj.debugImage;
-      // delete obj.base64;
+
+      // V30: Strip large base64 strings from JSON to prevent payload overflow
+      delete obj.debugImage;
+      delete obj.base64;
+
       if (Array.isArray(obj)) obj.forEach(recursiveClean);
       else Object.values(obj).forEach(recursiveClean);
     };
@@ -103,7 +109,10 @@
       metadata: metadataFields,
     };
 
-    console.log(`[V28_COMMIT] 📤 Request Payload:`, payload);
+    console.log(`[V30_COMMIT] 📤 Request Payload (Optimized):`, {
+      ...payload,
+      layout: "{stripped}",
+    });
 
     const formData = new FormData();
     formData.append("name", payload.name);
@@ -118,8 +127,7 @@
       payload.layout.regions || payload.layout.pages?.[0]?.elements || [];
     formData.append("regions", JSON.stringify(regionsToPass));
 
-    if (payload.layout.debugImage)
-      formData.append("backgroundImageUrl", payload.layout.debugImage);
+    if (bgImage) formData.append("backgroundImageUrl", bgImage);
 
     if (importFile) formData.append("file", importFile);
 
