@@ -32,6 +32,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 
                 // Ensure plain objects for serialization
                 event.locals.user = JSON.parse(JSON.stringify(user));
+
+                // V43: Dynamic Central BOA Override
+                // Only Central BOA (no university_id OR Team university) get full features
+                const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
+                if (isCentralBOA || user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
+                    event.locals.user!.permissions = [
+                        'dashboard', 'tasks', 'universities', 'students', 'users',
+                        'analytics', 'mailboxes', 'templates', 'campaigns',
+                        'assessments', 'mail-logs', 'permissions', 'day-plan'
+                    ];
+                }
             }
         } catch (e) {
             console.error('Session validation error:', e);
@@ -72,7 +83,8 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/campaigns': 'campaigns',
             '/assessments': 'assessments',
             '/mail-logs': 'mail-logs',
-            '/permissions': 'permissions'
+            '/permissions': 'permissions',
+            '/day-plan': 'day-plan'
         };
 
         const matchingPath = Object.keys(featureMap).find(p => path.startsWith(p));
