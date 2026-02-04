@@ -1,7 +1,7 @@
 [build]
 builder = "nixpacks"
 # Using pnpm@8.15.4 as specified in root package.json
-buildCommand = "pnpm install && pnpm build"
+buildCommand = "pnpm install && pnpm build && pnpm -F @uniconnect/shared migrate"
 
 [services.app]
 # UniConnect Main SvelteKit Application
