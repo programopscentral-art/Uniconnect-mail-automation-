@@ -40,7 +40,9 @@ export class FigmaService {
     static extractNodeId(url: string): string | null {
         try {
             const urlObj = new URL(url);
-            return urlObj.searchParams.get('node-id');
+            const nodeId = urlObj.searchParams.get('node-id');
+            // Figma URLs use '-' for ':', but the API generally prefers ':'
+            return nodeId ? nodeId.replace('-', ':') : null;
         } catch (e) {
             return null;
         }
@@ -115,8 +117,11 @@ export class FigmaService {
     static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<FigmaImportResult> {
         console.log(`[FIGMA_SERVICE] 🎨 Importing file: ${fileKey} (Frame: ${frameId || 'Default'})`);
 
-        const url = frameId
-            ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${frameId}`
+        // V82: Normalize frameId (ensure colon for API)
+        const normalizedFrameId = frameId ? frameId.replace('-', ':') : frameId;
+
+        const url = normalizedFrameId
+            ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${normalizedFrameId}`
             : `${this.FIGMA_API_BASE}/files/${fileKey}`;
 
         const response = await fetch(url, {
@@ -132,29 +137,27 @@ export class FigmaService {
         const elements: TemplateElement[] = [];
         let backgroundImageUrl: string | undefined;
 
-        if (frameId && data.nodes?.[frameId]) {
-            const node = data.nodes[frameId].document;
+        // V82: The /nodes endpoint has a different structure than /files
+        if (normalizedFrameId && data.nodes?.[normalizedFrameId]) {
+            const node = data.nodes[normalizedFrameId].document;
             const bbox = node.absoluteBoundingBox;
             this.traverseNode(node, 1, elements);
             this.normalizeElements(elements, bbox);
 
             try {
-                backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, frameId);
+                backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, normalizedFrameId);
             } catch (ie) {
                 console.warn(`[FIGMA_SERVICE] ⚠️ Could not fetch background image:`, ie);
             }
-        } else {
+        } else if (data.document) {
             const document = data.document;
             const pages = document.children.filter((c: any) => c.type === 'CANVAS');
             pages.forEach((pageNode: any, pageIdx: number) => {
                 this.traverseNode(pageNode, pageIdx + 1, elements);
             });
-            // V73: Even without frameId, we must normalize to SOMETHING if results are huge
-            // This is a fallback to avoid elements being off-screen
-            if (elements.length > 0) {
-                const firstElement = elements[0];
-                // Use a heuristic or assume first element's page start
-            }
+        } else {
+            console.error(`[FIGMA_SERVICE] ❌ Unexpected Data Structure:`, JSON.stringify(data).substring(0, 500));
+            throw new Error(`Target node or document not found in Figma response`);
         }
 
         return { elements, backgroundImageUrl };
