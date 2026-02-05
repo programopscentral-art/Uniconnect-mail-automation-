@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 else if (lowName.includes('very short')) sheetDefaultType = 'VERY_SHORT';
                 else if (lowName.includes('long')) sheetDefaultType = 'LONG';
                 else if (lowName.includes('fill')) sheetDefaultType = 'FILL_IN_BLANK';
-                else if (lowName.includes('paragraph')) sheetDefaultType = 'PARAGRAPH';
+                else if (lowName.includes('paragraph') || lowName.includes('essay') || lowName.includes('descriptive')) sheetDefaultType = 'PARAGRAPH';
 
                 for (const row of rows as any[]) {
                     const qTextFull = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true)?.toString().trim();
@@ -144,12 +144,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const marksNum = parseFloat(marksRaw?.toString());
                     const marks = !isNaN(marksNum) ? marksNum : (finalQType === 'MCQ' ? 1 : (finalQType === 'LONG' ? 5 : 2));
 
-                    // Final fallback refinement: If marks are 5 or 10 and type is still SHORT, it's likely LONG
-                    if (options.length > 0) finalQType = 'MCQ';
-                    else if (finalQType === 'SHORT' || !rowType) {
+                    // Final fallback refinement:
+                    // If the type is still SHORT or unassigned, and we have options, it's an MCQ.
+                    // BUT: If the type was already set to LONG/VERY_LONG by sheet name or column, we TRUST IT.
+                    const isExplicitDeepType = ['LONG', 'VERY_LONG', 'PARAGRAPH', 'DESCRIPTIVE', 'ESSAY'].includes(finalQType);
+
+                    if (options.length > 0 && !isExplicitDeepType) {
+                        finalQType = 'MCQ';
+                    } else if (finalQType === 'SHORT' || !rowType) {
                         if (marks >= 10) finalQType = 'VERY_LONG';
                         else if (marks >= 5) finalQType = 'LONG';
                         else if (marks === 1) finalQType = 'VERY_SHORT';
+                    }
+
+                    // If it's NOT an MCQ, discard any accidental options found in columns A-D
+                    if (finalQType !== 'MCQ') {
+                        options = [];
                     }
 
                     // 1d. Resolve Unit & Topic
