@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 export interface FigmaImportResult {
     template: CanonicalTemplate;
     backgroundImageUrl?: string;
+    warnings?: string[];
 }
 
 export class FigmaService {
@@ -98,18 +99,15 @@ export class FigmaService {
         };
     }
 
-    static async importFromFigma(fileKey: string, accessToken: string, universityId: string, frameId?: string, rawData?: any): Promise<FigmaImportResult> {
-        console.log(`[V94_FIGMA] 🎨 Deterministic Import: ${fileKey} (Frame: ${frameId || 'Default'})`);
+    static async importFromFigma(fileKey: string, accessToken: string, universityId: string, pageName?: string, frameId?: string, rawData?: any): Promise<FigmaImportResult> {
+        console.log(`[V94_FIGMA] 🎨 Universal Import: ${fileKey} (Page: ${pageName || 'Any'}, Frame: ${frameId || 'Default'})`);
 
         // V82: Normalize frameId (ensure colon for API)
         const normalizedFrameId = frameId ? frameId.replace('-', ':').replace('%3A', ':') : frameId;
 
         let data = rawData;
         if (!data) {
-            const url = normalizedFrameId
-                ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}&access_token=${accessToken}`
-                : `${this.FIGMA_API_BASE}/files/${fileKey}?access_token=${accessToken}`;
-
+            const url = `${this.FIGMA_API_BASE}/files/${fileKey}?access_token=${accessToken}`;
             const response = await fetch(url, { headers: { 'X-Figma-Token': accessToken } });
             if (response.ok) {
                 data = await response.json();
@@ -120,28 +118,51 @@ export class FigmaService {
 
         const staticElements: StaticElement[] = [];
         const slots: Record<string, SlotDefinition> = {};
+        const warnings: string[] = [];
         let backgroundImageUrl: string | undefined;
 
         try {
             let node = null;
             let usedId = normalizedFrameId;
 
-            if (normalizedFrameId) {
-                node = data.nodes?.[normalizedFrameId]?.document;
-                if (!node) {
-                    const dashId = normalizedFrameId.replace(':', '-');
-                    node = data.nodes?.[dashId]?.document;
-                    if (node) usedId = dashId;
-                }
-            }
+            // Spec Rule: Fetch only figma_page_name / Target specific page
+            if (pageName && data.document) {
+                const targetPage = data.document.children.find((c: any) =>
+                    c.type === 'CANVAS' && (c.name === pageName || c.name.toLowerCase() === pageName.toLowerCase())
+                );
 
-            if (!node && data.document) {
-                node = data.document.children.find((c: any) => c.type === 'CANVAS')?.children[0];
+                if (!targetPage) {
+                    throw new Error(`Figma Page Not Found: "${pageName}"`);
+                }
+
+                // If frameId is provided, look within that page
+                if (normalizedFrameId) {
+                    const findFrame = (n: any): any => {
+                        if (n.id === normalizedFrameId) return n;
+                        if (n.children) {
+                            for (const child of n.children) {
+                                const found = findFrame(child);
+                                if (found) return found;
+                            }
+                        }
+                        return null;
+                    };
+                    node = findFrame(targetPage);
+                } else {
+                    // Default to first frame on page if none specified
+                    node = targetPage.children.find((c: any) => c.type === 'FRAME');
+                }
+            } else if (normalizedFrameId && data.nodes) {
+                node = data.nodes[normalizedFrameId]?.document;
+            } else if (data.document) {
+                // Fallback: First page, first frame
+                const firstPage = data.document.children.find((c: any) => c.type === 'CANVAS');
+                node = firstPage?.children.find((c: any) => c.type === 'FRAME');
             }
 
             if (node) {
                 const frameBbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 210 * 2.834, height: 297 * 2.834 };
-                this.traverseNodeDeterministic(node, frameBbox, staticElements, slots);
+                this.traverseNodeDeterministic(node, frameBbox, staticElements, slots, warnings);
 
                 try {
                     backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId || node.id);
@@ -151,15 +172,20 @@ export class FigmaService {
 
                 const template: CanonicalTemplate = {
                     templateId: randomUUID(),
+                    blueprint_id: `bp_${universityId}_${Date.now()}`,
                     universityId,
+                    template_type: 'exam_question_paper',
                     version: 1,
                     page: { widthMM: 210, heightMM: 297 },
                     staticElements,
                     slots,
+                    constraints: {
+                        max_questions_per_page: 10
+                    },
                     metadata: { figmaFileKey: fileKey, figmaNodeId: usedId || node.id }
                 };
 
-                return { template, backgroundImageUrl };
+                return { template, backgroundImageUrl, warnings };
             } else {
                 throw new Error(`Target node not found`);
             }
@@ -182,7 +208,7 @@ export class FigmaService {
         return data.images?.[frameId] || '';
     }
 
-    private static traverseNodeDeterministic(node: any, frameBbox: any, staticElements: StaticElement[], slots: Record<string, SlotDefinition>) {
+    private static traverseNodeDeterministic(node: any, frameBbox: any, staticElements: StaticElement[], slots: Record<string, SlotDefinition>, warnings: string[]) {
         const bbox = node.absoluteBoundingBox;
         if (!bbox) return;
 
@@ -192,11 +218,29 @@ export class FigmaService {
         const wMM = bbox.width / MM_PT;
         const hMM = bbox.height / MM_PT;
 
-        // V94: Explicit Slot Detection (node name prefix)
-        if (node.name.toLowerCase().startsWith('slot.')) {
-            const slotName = node.name.substring(5).trim();
-            slots[slotName] = {
+        // V94: Semantic Slot Detection (Prefixes: Q_, M_, INST_, HDR_, FTR_)
+        const name = node.name.trim();
+        const upperName = name.toUpperCase();
+        let slotType: 'QUESTION' | 'MARKS' | 'INSTRUCTIONS' | 'HEADER' | 'FOOTER' | null = null;
+
+        if (upperName.startsWith('Q_')) slotType = 'QUESTION';
+        else if (upperName.startsWith('M_')) slotType = 'MARKS';
+        else if (upperName.startsWith('INST_')) slotType = 'INSTRUCTIONS';
+        else if (upperName.startsWith('HDR_')) slotType = 'HEADER';
+        else if (upperName.startsWith('FTR_')) slotType = 'FOOTER';
+        else if (name.toLowerCase().startsWith('slot.')) {
+            slotType = 'QUESTION';
+            warnings.push(`Legacy prefix 'slot.' used for '${name}'. Use 'Q_', 'M_', etc.`);
+        }
+
+        if (slotType) {
+            const slotId = slotType === 'QUESTION' && name.toLowerCase().startsWith('slot.')
+                ? name.substring(5).trim()
+                : name;
+
+            slots[slotId] = {
                 id: node.id,
+                slot_type: slotType,
                 xMM, yMM, widthMM: wMM, heightMM: hMM,
                 style: {
                     fontFamily: node.style?.fontFamily || 'Inter',
@@ -206,6 +250,7 @@ export class FigmaService {
                     align: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
                 },
                 overflow: 'clip',
+                repeatable: slotType === 'QUESTION',
                 isRequired: true
             };
         } else if (node.type === 'TEXT' && node.characters?.trim()) {
@@ -233,7 +278,7 @@ export class FigmaService {
         }
 
         if (node.children) {
-            node.children.forEach((child: any) => this.traverseNodeDeterministic(child, frameBbox, staticElements, slots));
+            node.children.forEach((child: any) => this.traverseNodeDeterministic(child, frameBbox, staticElements, slots, warnings));
         }
     }
 

@@ -162,10 +162,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     let detectedLayout;
+    let warnings: string[] = [];
     const explicitRegions = formData.get('regions') as string;
     const explicitBackground = formData.get('backgroundImageUrl') as string;
     const figmaFileUrl = formData.get('figmaFileUrl') as string;
     const figmaAccessToken = formData.get('figmaAccessToken') as string;
+    const figmaPageName = formData.get('figma_page_name') as string || formData.get('figmaPageName') as string;
     const figmaDataRaw = formData.get('figmaData') as string;
     const manualBgImage = formData.get('manualBgImage') as string;
     const submittedLayout = formData.get('layout') as string;
@@ -193,47 +195,43 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         } catch (pe) {
             console.error(`[V32_PROCESS] ❌ Payload Parse Failure:`, pe);
-            return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
+            return json({ status: 'ANALYSIS_FAILED', error_code: 'INVALID_PAYLOAD', message: 'Invalid layout data received' }, { status: 400 });
         }
     } else if (figmaFileUrl && figmaAccessToken) {
-        // --- V94: Deterministic Figma-First Import ---
+        // --- V94: Universal Figma Spec Import ---
         try {
             const figmaFrameId = formData.get('figmaFrameId') as string;
             const fileKey = FigmaService.extractFileKey(figmaFileUrl);
             const rawData = figmaDataRaw ? JSON.parse(figmaDataRaw) : undefined;
 
-            // New signature requires universityId
-            const { template, backgroundImageUrl } = await FigmaService.importFromFigma(
+            // Spec Alignment: Pass figmaPageName
+            const result = await FigmaService.importFromFigma(
                 fileKey,
                 figmaAccessToken,
                 universityId,
+                figmaPageName,
                 figmaFrameId,
                 rawData
             );
 
-            detectedLayout = template;
-            console.log(`[V94_PROCESS] 🎨 Deterministic Figma import successful: ${Object.keys(template.slots).length} slots found.`);
+            detectedLayout = result.template;
+            warnings = result.warnings || [];
+            console.log(`[V94_PROCESS] ✅ Universal Figma import: ${Object.keys(result.template.slots).length} slots, ${warnings.length} warnings.`);
 
             // Overwrite background if provided
-            if (manualBgImage || backgroundImageUrl) {
-                detectedLayout.backgroundImageUrl = manualBgImage || backgroundImageUrl;
+            if (manualBgImage || result.backgroundImageUrl) {
+                detectedLayout.backgroundImageUrl = manualBgImage || result.backgroundImageUrl;
             }
         } catch (fe: any) {
-            console.error(`[V94_CRITICAL] ❌ Deterministic Figma Import Failure:`, fe);
-            if (figmaDataRaw) throw fe;
-
-            // Fallback stubborn stub
-            detectedLayout = {
-                templateId: randomUUID(),
-                universityId,
-                version: 1,
-                page: { widthMM: 210, heightMM: 297 },
-                staticElements: [],
-                slots: {},
-                metadata: { error: fe.message }
-            };
+            console.error(`[V94_CRITICAL] ❌ Universal Figma Import Failure:`, fe);
+            return json({
+                status: 'ANALYSIS_FAILED',
+                error_code: 'INVALID_PAGE_STRUCTURE',
+                message: fe.message || 'No detectable slots found on page'
+            }, { status: 422 });
         }
-    } else if (file) {
+    }
+    else if (file) {
         // --- V49: Granular Element Extraction ---
         try {
             const { GranularExtractionEngine } = await import('$lib/server/services/granular-extraction-engine');
@@ -332,8 +330,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (dryRun) {
         return json({
-            success: true,
-            template: { name, exam_type, universityId, layout_schema: validatedLayout },
+            status: 'ANALYSIS_COMPLETE',
+            blueprint_id: (validatedLayout as any).blueprint_id,
+            template: {
+                name,
+                exam_type,
+                universityId,
+                layout_schema: validatedLayout,
+                warnings: warnings
+            },
+            warnings: warnings,
             message: 'Analysis successful'
         });
     }

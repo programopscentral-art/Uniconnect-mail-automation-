@@ -44,7 +44,9 @@
   let previewZoom = $state(0.75);
   let lastVerifiedKey = $state("");
   let figmaFileKey = $state("");
+  let figmaPageName = $state("");
   let isFetchingFrames = $state(false);
+  let analysisWarnings = $state<string[]>([]);
 
   // Visibility Controls
   let showLines = $state(true);
@@ -170,6 +172,7 @@
           isFigmaVerified = true;
           lastVerifiedKey = currentKey;
           selectedPageId = "quick";
+          figmaPageName = "Browser Sync";
           if (nodeId) selectedFrameId = nodeId;
           if (!importName) importName = data.name || "Figma Design";
           return;
@@ -246,6 +249,7 @@
           },
         ];
         selectedPageId = "quick";
+        figmaPageName = "Direct Design";
         selectedFrameId = nodeId;
       } else {
         selectedPageId = "";
@@ -319,7 +323,10 @@
   }
 
   async function startAnalysis() {
-    if (!figmaUrl || !figmaToken || !selectedFrameId) return;
+    if (!figmaUrl || !figmaToken || !selectedFrameId || !figmaPageName) {
+      errorMsg = "URL, Token, Page, and Frame are all mandatory.";
+      return;
+    }
     if (!importName) return;
 
     isAnalyzing = true;
@@ -329,6 +336,7 @@
     formData.append("figmaFileUrl", figmaUrl);
     formData.append("figmaAccessToken", figmaToken);
     formData.append("figmaFrameId", selectedFrameId);
+    formData.append("figma_page_name", figmaPageName);
     formData.append("name", importName);
     formData.append("universityId", universityId);
     formData.append("exam_type", importExamType);
@@ -431,6 +439,7 @@
       if (res.ok) {
         const data = await res.json();
         detectedLayout = data.template.layout_schema;
+        analysisWarnings = data.warnings || [];
         metadataFields = detectedLayout.metadata_fields || {};
         step = 2;
       } else {
@@ -834,7 +843,13 @@
                       >
                       <select
                         id="figma-page"
-                        bind:value={selectedPageId}
+                        value={selectedPageId}
+                        onchange={(e) => {
+                          const val = e.currentTarget.value;
+                          selectedPageId = val;
+                          const p = figmaPages.find((pg) => pg.id === val);
+                          if (p) figmaPageName = p.name;
+                        }}
                         class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                       >
                         <option value="" class="bg-[#1a1a1a] text-white"
@@ -890,6 +905,11 @@
                         </select>
 
                         <div class="pt-2">
+                          <input
+                            placeholder="Page Name (Mandatory)"
+                            bind:value={figmaPageName}
+                            class="w-full bg-white/[0.05] border border-indigo-500/30 rounded-xl px-4 py-2 text-[9px] font-bold text-indigo-400 outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10 mb-2"
+                          />
                           <input
                             placeholder="OR PASTE MANUAL FRAME ID (e.g. 3:1620)"
                             bind:value={selectedFrameId}
@@ -1141,9 +1161,34 @@
               <p
                 class="text-xs font-medium text-white/30 max-w-md mx-auto leading-relaxed uppercase tracking-widest"
               >
-                FREE MONOLITHIC ENGINE. NO BILLING. NO EXTERNAL SERVICES.
+                {analysisWarnings.length > 0
+                  ? `Blueprinting Complete (${analysisWarnings.length} Alerts)`
+                  : "FREE MONOLITHIC ENGINE. NO BILLING. NO EXTERNAL SERVICES."}
               </p>
             </div>
+
+            {#if analysisWarnings.length > 0}
+              <div
+                class="w-full max-w-md p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-2"
+                transition:slide
+              >
+                <div
+                  class="flex items-center gap-2 text-amber-500 text-[10px] font-black uppercase"
+                >
+                  <AlertCircle class="w-4 h-4" />
+                  Blueprint Alerts
+                </div>
+                <ul class="space-y-1">
+                  {#each analysisWarnings as warning}
+                    <li
+                      class="text-[9px] text-amber-500/80 font-medium leading-tight"
+                    >
+                      • {warning}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
           </div>
         {:else if step === 2}
           <!-- Step 2 Layout: 3-Column Balanced View -->
@@ -1444,7 +1489,10 @@
             </button>
             <button
               onclick={step === 1 ? startAnalysis : confirmImport}
-              disabled={isAnalyzing || !selectedFrameId || !importName}
+              disabled={isAnalyzing ||
+                !selectedFrameId ||
+                !importName ||
+                (step === 1 && !figmaPageName)}
               class="flex items-center gap-4 px-10 py-4 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 disabled:opacity-20 transition-all shadow-xl shadow-indigo-600/20 group"
             >
               <span

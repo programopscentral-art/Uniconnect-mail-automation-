@@ -63,29 +63,36 @@ export const StaticElementSchema = z.discriminatedUnion('type', [
  */
 export const SlotSchema = z.object({
     id: z.string(),
+    slot_type: z.enum(['QUESTION', 'MARKS', 'INSTRUCTIONS', 'HEADER', 'FOOTER']).default('QUESTION'),
     xMM: z.number(),
     yMM: z.number(),
     widthMM: z.number(),
     heightMM: z.number(),
     maxCharacters: z.number().optional(),
     style: TypographySchema,
-    overflow: z.enum(['clip', 'shrink', 'next_page']).default('clip'),
+    overflow: z.enum(['clip', 'shrink', 'next_page', 'push_down']).default('clip'),
+    repeatable: z.boolean().default(false),
     isRequired: z.boolean().default(false),
 });
 
 /**
- * Canonical Template (The frozen design artifact)
+ * Canonical Template (The frozen design artifact / Blueprint)
  */
 export const CanonicalTemplateSchema = z.object({
     templateId: z.string(),
+    blueprint_id: z.string().optional(), // Spec alignment
     universityId: z.string(),
+    template_type: z.string().default('exam_question_paper'),
     version: z.number().default(1),
     page: z.object({
         widthMM: z.number().default(210),
         heightMM: z.number().default(297),
     }),
     staticElements: z.array(StaticElementSchema),
-    slots: z.record(SlotSchema), // Map of slot.name -> Slot definition
+    slots: z.record(SlotSchema), // Map of slot name -> Slot definition
+    constraints: z.object({
+        max_questions_per_page: z.number().optional(),
+    }).default({}),
     backgroundImageUrl: z.string().optional(),
     metadata: z.record(z.any()).optional(),
     checksum: z.string().optional(),
