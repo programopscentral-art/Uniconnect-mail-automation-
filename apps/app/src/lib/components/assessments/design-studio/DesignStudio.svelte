@@ -38,7 +38,7 @@
     Underline as UnderlineIcon,
     Minus,
   } from "lucide-svelte";
-  import { onMount, tick } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { fade } from "svelte/transition";
   import ElementWrapper from "./ElementWrapper.svelte";
   import LayoutCanvas from "./LayoutCanvas.svelte";
@@ -93,53 +93,64 @@
 
   let showRegions = $state(false);
 
-  // Sync state from template prop
+  // V70: Robust Sync Strategy
   $effect(() => {
-    if (template.regions?.length > 0 && regions.length === 0) {
-      regions = template.regions;
-    }
+    // 1. Sync from Prop (Initial load only)
     if (template.layout_schema?.pages?.length > 0) {
-      const isEmpty = !layout.pages?.[0]?.elements?.length;
-      if (isEmpty) {
-        layout = JSON.parse(JSON.stringify(template.layout_schema));
+      const currentElementCount = layout.pages?.[0]?.elements?.length || 0;
+
+      // Only sync if locally empty to avoid loop
+      if (currentElementCount === 0) {
+        untrack(() => {
+          layout = JSON.parse(JSON.stringify(template.layout_schema));
+          if (template.regions) regions = template.regions;
+        });
       }
     }
-  });
 
-  // Ensure activePageId is set when layout becomes available
-  $effect(() => {
+    // 2. Initial Page Selection
     if (layout.pages.length > 0 && !activePageId) {
       activePageId = layout.pages[0].id;
     }
   });
 
-  // V69: Compatibility Layer - Ensure all elements have 'content' and 'styles'
+  // V69/V70: Compatibility Layer & Outbound Sync
   $effect(() => {
-    if (layout.pages?.length > 0) {
-      layout.pages.forEach((p: any) => {
-        p.elements.forEach((el: any) => {
+    // Depend on layout and regions for reactivity
+    const schema = layout;
+    const currentRegions = regions;
+
+    untrack(() => {
+      // 1. Compatibility Logic (Mutations)
+      // We mutate the proxy directly; this is fine in Svelte 5 effects
+      // but we shouldn't trigger an immediate re-run of THIS effect.
+      if (schema.pages?.length > 0) {
+        schema.pages.forEach((p: any) => {
+          p.elements.forEach((el: any) => {
+            if (!el.content && (el.text || el.value))
+              el.content = el.text || el.value;
+            if (!el.styles && el.style) el.styles = el.style;
+            if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
+          });
+        });
+      }
+      if (currentRegions?.length > 0) {
+        currentRegions.forEach((el: any) => {
           if (!el.content && (el.text || el.value))
             el.content = el.text || el.value;
           if (!el.styles && el.style) el.styles = el.style;
           if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
         });
-      });
-    }
-    if (regions?.length > 0) {
-      regions.forEach((el: any) => {
-        if (!el.content && (el.text || el.value))
-          el.content = el.text || el.value;
-        if (!el.styles && el.style) el.styles = el.style;
-        if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
-      });
-    }
-  });
+      }
 
-  // Keep template sync'd
-  $effect(() => {
-    template.layout_schema = layout;
-    template.regions = regions;
-    template.config = template.config || [];
+      // 2. Outbound Sync to Template Prop
+      // Only sync if there is actually data to sync
+      if (schema.pages?.length > 0) {
+        template.layout_schema = schema;
+        template.regions = currentRegions;
+        template.config = template.config || [];
+      }
+    });
   });
 
   let selectedElementId = $state<string | null>(null);

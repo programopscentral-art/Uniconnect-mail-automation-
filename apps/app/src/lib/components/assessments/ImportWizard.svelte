@@ -23,7 +23,7 @@
 
   let step = $state(1); // 1: Upload, 2: Preview & Confirm, 3: Success
   let isAnalyzing = $state(false);
-  let importMode = $state<"upload" | "figma">("upload");
+  let importMode = $state<"figma">("figma");
   let figmaUrl = $state("");
   let figmaToken = $state("");
   let importName = $state("");
@@ -77,25 +77,16 @@
   }
 
   async function startAnalysis() {
-    if (importMode === "upload" && !importFile) return;
-    if (
-      importMode === "figma" &&
-      (!figmaUrl || !figmaToken || !selectedFrameId)
-    )
-      return;
+    if (!figmaUrl || !figmaToken || !selectedFrameId) return;
     if (!importName) return;
 
     isAnalyzing = true;
     errorMsg = "";
     const formData = new FormData();
 
-    if (importMode === "upload") {
-      formData.append("file", importFile!);
-    } else {
-      formData.append("figmaFileUrl", figmaUrl);
-      formData.append("figmaAccessToken", figmaToken);
-      formData.append("figmaFrameId", selectedFrameId);
-    }
+    formData.append("figmaFileUrl", figmaUrl);
+    formData.append("figmaAccessToken", figmaToken);
+    formData.append("figmaFrameId", selectedFrameId);
     formData.append("name", importName);
     formData.append("exam_type", importExamType);
     formData.append("dryRun", "true");
@@ -408,164 +399,123 @@
                   >Source Type</label
                 >
                 <div
-                  class="flex gap-2 p-1 bg-white/[0.03] border border-white/5 rounded-2xl"
+                  class="p-1 px-4 py-3 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center gap-3"
                 >
-                  <button
-                    onclick={() => (importMode = "upload")}
-                    class="flex-1 py-3 text-[9px] font-black uppercase rounded-xl transition-all {importMode ===
-                    'upload'
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                      : 'text-white/20 hover:text-white/40'}"
+                  <div
+                    class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center"
                   >
-                    Upload
-                  </button>
-                  <button
-                    onclick={() => (importMode = "figma")}
-                    class="flex-1 py-3 text-[9px] font-black uppercase rounded-xl transition-all {importMode ===
-                    'figma'
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
-                      : 'text-white/20 hover:text-white/40'}"
+                    <Layout class="w-4 h-4 text-white" />
+                  </div>
+                  <span
+                    class="text-[10px] font-black uppercase tracking-widest text-white/40"
+                    >Figma Design System</span
                   >
-                    Figma
-                  </button>
                 </div>
               </div>
 
-              {#if importMode === "upload"}
-                <div class="space-y-3" transition:slide>
+              <div class="space-y-4" transition:slide>
+                <div class="space-y-2">
                   <label
-                    for="doc-source"
-                    class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                    >Document Source</label
+                    class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                    >Figma File URL</label
                   >
-                  <div class="relative group">
-                    <input
-                      id="doc-source"
-                      type="file"
-                      accept=".pdf,image/*"
-                      onchange={(e) =>
-                        (importFile = e.currentTarget.files?.[0] || null)}
-                      class="absolute inset-0 opacity-0 cursor-pointer z-10"
-                    />
-                    <div
-                      class="w-full bg-indigo-500/5 border-2 border-dashed border-indigo-500/20 rounded-3xl px-6 py-6 text-center"
-                    >
-                      <Upload class="w-6 h-6 text-indigo-500/40 mx-auto mb-2" />
+                  <input
+                    bind:value={figmaUrl}
+                    disabled={isFigmaVerified}
+                    placeholder="https://figma.com/file/..."
+                    class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
+                  />
+                </div>
+                <div class="space-y-2">
+                  <label
+                    class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                    >Access Token</label
+                  >
+                  <input
+                    type="password"
+                    bind:value={figmaToken}
+                    disabled={isFigmaVerified}
+                    placeholder="figd_..."
+                    class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
+                  />
+                </div>
+
+                {#if !isFigmaVerified}
+                  <button
+                    onclick={verifyFigma}
+                    disabled={isVerifyingFigma || !figmaUrl || !figmaToken}
+                    class="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-white/10 transition-all disabled:opacity-20 flex items-center justify-center gap-2"
+                  >
+                    {isVerifyingFigma ? "Syncing..." : "Fetch File Info"}
+                    <ChevronRight class="w-3 h-3" />
+                  </button>
+                {:else}
+                  <div
+                    class="space-y-4 pt-4 border-t border-white/5"
+                    transition:slide
+                  >
+                    <div class="flex items-center justify-between">
                       <span
-                        class="text-[9px] font-black text-white/40 uppercase block"
-                        >{importFile
-                          ? importFile.name
-                          : "Drop Template Image"}</span
+                        class="text-[9px] font-black text-indigo-400 uppercase tracking-widest"
+                        >File Verified</span
+                      >
+                      <button
+                        onclick={() => {
+                          isFigmaVerified = false;
+                          figmaPages = [];
+                        }}
+                        class="text-[8px] font-black text-white/20 hover:text-white uppercase"
+                        >Reset</button
                       >
                     </div>
-                  </div>
-                </div>
-              {:else}
-                <div class="space-y-4" transition:slide>
-                  <div class="space-y-2">
-                    <label
-                      class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                      >Figma File URL</label
-                    >
-                    <input
-                      bind:value={figmaUrl}
-                      disabled={isFigmaVerified}
-                      placeholder="https://figma.com/file/..."
-                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
-                    />
-                  </div>
-                  <div class="space-y-2">
-                    <label
-                      class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                      >Access Token</label
-                    >
-                    <input
-                      type="password"
-                      bind:value={figmaToken}
-                      disabled={isFigmaVerified}
-                      placeholder="figd_..."
-                      class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
-                    />
-                  </div>
 
-                  {#if !isFigmaVerified}
-                    <button
-                      onclick={verifyFigma}
-                      disabled={isVerifyingFigma || !figmaUrl || !figmaToken}
-                      class="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-white/10 transition-all disabled:opacity-20 flex items-center justify-center gap-2"
-                    >
-                      {isVerifyingFigma ? "Syncing..." : "Fetch File Info"}
-                      <ChevronRight class="w-3 h-3" />
-                    </button>
-                  {:else}
-                    <div
-                      class="space-y-4 pt-4 border-t border-white/5"
-                      transition:slide
-                    >
-                      <div class="flex items-center justify-between">
-                        <span
-                          class="text-[9px] font-black text-indigo-400 uppercase tracking-widest"
-                          >File Verified</span
+                    <div class="space-y-2">
+                      <label
+                        class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
+                        >Select Page</label
+                      >
+                      <select
+                        bind:value={selectedPageId}
+                        class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
+                      >
+                        <option value="" class="bg-[#1a1a1a] text-white"
+                          >Choose Page...</option
                         >
-                        <button
-                          onclick={() => {
-                            isFigmaVerified = false;
-                            figmaPages = [];
-                          }}
-                          class="text-[8px] font-black text-white/20 hover:text-white uppercase"
-                          >Reset</button
-                        >
-                      </div>
+                        {#each figmaPages as page}
+                          <option
+                            value={page.id}
+                            class="bg-[#1a1a1a] text-white">{page.name}</option
+                          >
+                        {/each}
+                      </select>
+                    </div>
 
-                      <div class="space-y-2">
+                    {#if selectedPageId}
+                      <div class="space-y-2" transition:slide>
                         <label
                           class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                          >Select Page</label
+                          >Select Frame</label
                         >
                         <select
-                          bind:value={selectedPageId}
+                          bind:value={selectedFrameId}
                           class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                         >
                           <option value="" class="bg-[#1a1a1a] text-white"
-                            >Choose Page...</option
+                            >Choose Frame...</option
                           >
-                          {#each figmaPages as page}
+                          {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
                             <option
-                              value={page.id}
+                              value={frame.id}
                               class="bg-[#1a1a1a] text-white"
-                              >{page.name}</option
+                              >{frame.name}</option
                             >
                           {/each}
                         </select>
                       </div>
-
-                      {#if selectedPageId}
-                        <div class="space-y-2" transition:slide>
-                          <label
-                            class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                            >Select Frame</label
-                          >
-                          <select
-                            bind:value={selectedFrameId}
-                            class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
-                          >
-                            <option value="" class="bg-[#1a1a1a] text-white"
-                              >Choose Frame...</option
-                            >
-                            {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
-                              <option
-                                value={frame.id}
-                                class="bg-[#1a1a1a] text-white"
-                                >{frame.name}</option
-                              >
-                            {/each}
-                          </select>
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </div>
-              {/if}
+                    {/if}
+                  </div>
+                {/if}
+              </div>
 
               <div class="space-y-3">
                 <label
@@ -930,10 +880,7 @@
             </button>
             <button
               onclick={step === 1 ? startAnalysis : confirmImport}
-              disabled={isAnalyzing ||
-                (step === 1 &&
-                  (importMode === "upload" ? !importFile : !selectedFrameId)) ||
-                !importName}
+              disabled={isAnalyzing || !selectedFrameId || !importName}
               class="flex items-center gap-4 px-10 py-4 bg-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-indigo-500 disabled:opacity-20 transition-all shadow-xl shadow-indigo-600/20 group"
             >
               <span
