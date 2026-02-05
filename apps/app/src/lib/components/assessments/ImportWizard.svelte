@@ -158,6 +158,25 @@
     }
   }
 
+  // V81: If frame ID is pasted manually and no page is selected, default to 'quick'
+  $effect(() => {
+    if (selectedFrameId && !selectedPageId && isFigmaVerified) {
+      selectedPageId = "quick";
+      if (
+        figmaPages.length === 0 ||
+        !figmaPages.find((p) => p.id === "quick")
+      ) {
+        figmaPages = [
+          {
+            id: "quick",
+            name: "Direct Design",
+            frames: [{ id: selectedFrameId, name: "Manual Entry" }],
+          },
+        ];
+      }
+    }
+  });
+
   // V77: Lazy Load Frames when page changes
   $effect(() => {
     if (selectedPageId && figmaFileKey && figmaToken) {
@@ -537,8 +556,9 @@
                   <p
                     class="text-[8px] text-white/10 font-medium px-1 leading-relaxed"
                   >
-                    COPY LINK FROM FIGMA: SHARE > COPY LINK (PRO TIP: USE
-                    "DESIGN" LINKS FOR AUTO-DETECTION)
+                    1. FOR SPECIFIC TEMPLATE: RIGHT CLICK FRAME > COPY LINK<br
+                    />
+                    2. FOR BROWSING: COPY FIGMA FILE URL (MAY BE THROTTLED)
                   </p>
                   <input
                     id="figma-url"
@@ -618,11 +638,17 @@
 
                     {#if selectedPageId}
                       <div class="space-y-2" transition:slide>
-                        <label
-                          for="figma-frame"
-                          class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                          >Select Frame</label
-                        >
+                        <div class="flex items-center justify-between ml-1">
+                          <label
+                            for="figma-frame"
+                            class="text-[9px] font-black text-white/20 uppercase tracking-widest"
+                            >Select Frame</label
+                          >
+                          <span
+                            class="text-[8px] font-bold text-white/10 uppercase tracking-tighter"
+                            >Dropdown empty? Paste ID below ↓</span
+                          >
+                        </div>
                         <select
                           id="figma-frame"
                           bind:value={selectedFrameId}
@@ -634,6 +660,13 @@
                               ? "Loading frames..."
                               : "Choose Frame..."}</option
                           >
+                          {#if selectedPageId === "quick"}
+                            <option
+                              value={selectedFrameId}
+                              class="bg-[#1a1a1a] text-white"
+                              >Target Frame (from URL)</option
+                            >
+                          {/if}
                           {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
                             <option
                               value={frame.id}
@@ -642,6 +675,14 @@
                             >
                           {/each}
                         </select>
+
+                        <div class="pt-2">
+                          <input
+                            placeholder="OR PASTE MANUAL FRAME ID (e.g. 3:1620)"
+                            bind:value={selectedFrameId}
+                            class="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-2 text-[9px] font-mono text-white/40 outline-none focus:border-indigo-500/30 transition-all placeholder:text-white/5"
+                          />
+                        </div>
                       </div>
                     {/if}
                   </div>
