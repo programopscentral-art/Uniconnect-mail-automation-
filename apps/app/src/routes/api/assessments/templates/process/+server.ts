@@ -171,7 +171,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         try {
             const figmaFrameId = formData.get('figmaFrameId') as string;
             const fileKey = FigmaService.extractFileKey(figmaFileUrl);
-            const elements = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId);
+            const { elements, backgroundImageUrl } = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId);
 
             detectedLayout = {
                 page: { width: 210, height: 297, unit: "mm" },
@@ -181,9 +181,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }],
                 metadata_fields: {},
                 originalWidth: 210,
-                originalHeight: 297
+                originalHeight: 297,
+                debugImage: backgroundImageUrl, // V68: Set the Figma frame image as debugImage
+                regions: elements // V68: Compatible regions
             };
-            console.log(`[V65_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
+            console.log(`[V68_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
         } catch (fe: any) {
             console.error(`[V62_PROCESS] ❌ Figma Import Failure:`, fe);
             return json({ success: false, message: `Figma Sync Failed: ${fe.message}` }, { status: 500 });

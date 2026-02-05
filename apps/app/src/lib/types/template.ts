@@ -24,6 +24,8 @@ export interface TemplateElement {
     row?: number;
     col?: number;
     placeholderContent?: string;
+    value?: string;
+    is_header?: boolean;
 }
 
 export interface LayoutSchema {

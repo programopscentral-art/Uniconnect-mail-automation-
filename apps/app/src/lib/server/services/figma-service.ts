@@ -16,16 +16,17 @@ interface FigmaNode {
     fills?: any[];
 }
 
+export interface FigmaImportResult {
+    elements: TemplateElement[];
+    backgroundImageUrl?: string;
+}
+
 export class FigmaService {
     private static FIGMA_API_BASE = 'https://api.figma.com/v1';
 
-    /**
-     * Parsing fileKey from Figma URL reliably 
-     * Handles /file/{key}/... and /design/{key}/...
-     */
     static extractFileKey(url: string): string {
         try {
-            if (!url.includes('figma.com')) return url; // Might be just the key
+            if (!url.includes('figma.com')) return url;
             const designMatch = url.match(/\/design\/([a-zA-Z0-9]+)/);
             if (designMatch) return designMatch[1];
             const fileMatch = url.match(/\/file\/([a-zA-Z0-9]+)/);
@@ -36,9 +37,6 @@ export class FigmaService {
         }
     }
 
-    /**
-     * Fetches basic file metadata (name, structure) without full traversal
-     */
     static async getFileMeta(fileKey: string, accessToken: string) {
         const response = await fetch(`${this.FIGMA_API_BASE}/files/${fileKey}?depth=2`, {
             headers: { 'X-Figma-Token': accessToken }
@@ -70,13 +68,9 @@ export class FigmaService {
         };
     }
 
-    /**
-     * Fetches a specific frame from a Figma file and converts it into TemplateElements.
-     */
-    static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<TemplateElement[]> {
+    static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<FigmaImportResult> {
         console.log(`[FIGMA_SERVICE] 🎨 Importing file: ${fileKey} (Frame: ${frameId || 'Default'})`);
 
-        // If we have a specific frameId, we can optimize by only requesting that node
         const url = frameId
             ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${frameId}`
             : `${this.FIGMA_API_BASE}/files/${fileKey}`;
@@ -92,13 +86,19 @@ export class FigmaService {
 
         const data = await response.json();
         const elements: TemplateElement[] = [];
+        let backgroundImageUrl: string | undefined;
 
         if (frameId && data.nodes?.[frameId]) {
             const node = data.nodes[frameId].document;
             const bbox = node.absoluteBoundingBox;
             this.traverseNode(node, 1, elements);
-            // Auto-normalize relative to the imported frame
             this.normalizeElements(elements, bbox);
+
+            try {
+                backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, frameId);
+            } catch (ie) {
+                console.warn(`[FIGMA_SERVICE] ⚠️ Could not fetch background image:`, ie);
+            }
         } else {
             const document = data.document;
             const pages = document.children.filter((c: any) => c.type === 'CANVAS');
@@ -107,14 +107,31 @@ export class FigmaService {
             });
         }
 
-        return elements;
+        return { elements, backgroundImageUrl };
+    }
+
+    private static async fetchFrameImage(fileKey: string, accessToken: string, frameId: string): Promise<string> {
+        const url = `${this.FIGMA_API_BASE}/images/${fileKey}?ids=${frameId}&format=png&scale=2`;
+        const res = await fetch(url, {
+            headers: { 'X-Figma-Token': accessToken }
+        });
+
+        if (!res.ok) return '';
+        const data = await res.json();
+        return data.images[frameId] || '';
     }
 
     private static traverseNode(node: FigmaNode, pageNum: number, elements: TemplateElement[]) {
         if (node.type === 'TEXT' && node.characters) {
             const slotMatch = node.characters.match(/\{\{([^}]+)\}\}/);
-            if (slotMatch) {
-                const slotId = slotMatch[1].trim();
+            const isPlainHeader = !slotMatch && (
+                node.characters.toUpperCase() === node.characters &&
+                node.characters.length > 3 &&
+                (node.characters.includes('EXAM') || node.characters.includes('NAME') || node.characters.includes('SUBJECT') || node.characters.includes('ROLL'))
+            );
+
+            if (slotMatch || isPlainHeader) {
+                const slotId = slotMatch ? slotMatch[1].trim() : node.characters.trim().replace(/\s+/g, '_').toLowerCase();
                 const bbox = node.absoluteBoundingBox;
 
                 const element: TemplateElement = {
@@ -127,7 +144,9 @@ export class FigmaService {
                     w: bbox.width,
                     h: bbox.height,
                     text: node.characters,
+                    value: node.characters,
                     placeholderContent: node.characters,
+                    is_header: !!(isPlainHeader || this.mapSlotToType(slotId) === 'header-field'),
                     style: {
                         fontFamily: node.style?.fontFamily || 'Inter',
                         fontSize: node.style?.fontSize || 12,
@@ -145,7 +164,7 @@ export class FigmaService {
         }
     }
 
-    private static mapSlotToType(slotId: string): any {
+    private static mapSlotToType(slotId: string): 'header-field' | 'table-cell' | 'text' {
         const id = slotId.toUpperCase();
         if (id.includes('TITLE') || id.includes('NAME') || id.includes('SUBJECT')) return 'header-field';
         if (id.includes('TEXT') || id.includes('QUESTION')) return 'text';
