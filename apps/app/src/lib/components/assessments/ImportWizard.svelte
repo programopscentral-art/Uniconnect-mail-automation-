@@ -69,13 +69,13 @@
       : "",
   );
 
-  // V91: Figma API Explorer URL
+  // V91: Figma API Explorer URL (Correct interactive reference)
   let apiExplorerUrl = $derived.by(() => {
     const key =
       figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
       "";
     const nodeId = selectedFrameId.replace("-", ":");
-    return `https://www.figma.com/developers/api#get-nodes-endpoint?file_key=${key}&ids=${encodeURIComponent(nodeId)}`;
+    return `https://www.figma.com/developers/api#get-nodes-endpoint`;
   });
 
   // V89: Derived FIGMA API URL for manual sync link
