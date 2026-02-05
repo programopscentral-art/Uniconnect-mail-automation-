@@ -60,11 +60,11 @@
   let manualBgImage = $state("");
   let showManualInput = $state(false);
 
-  // V90: Token Type Check
+  // V91.1: Token Type Check (Allow figd_ as it's common on some plans)
   let isDesignToken = $derived(figmaToken.startsWith("figd_"));
   let tokenWarning = $derived(
     isDesignToken
-      ? "❌ STOP! You are using a 'Design Token' (figd_). Designs REQUIRE a 'Personal Access Token' (figu_). Click 'Get API Token' below."
+      ? "⚠️ NOTE: You are using a 'figd_' token. This is fine, but if direct import fails, use the 'Official Sync' below."
       : "",
   );
 
@@ -717,16 +717,16 @@
                   {#if tokenWarning}
                     <div class="space-y-3">
                       <p
-                        class="text-[9px] font-black text-red-500 uppercase tracking-tighter ml-1 animate-pulse"
+                        class="text-[9px] font-black text-amber-500 uppercase tracking-tighter ml-1 animate-pulse"
                       >
                         {tokenWarning}
                       </p>
                       <a
                         href="https://www.figma.com/settings/tokens"
                         target="_blank"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-[9px] font-black uppercase text-red-400 hover:bg-red-500/20 transition-all"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-[9px] font-black uppercase text-indigo-400 hover:bg-indigo-500/20 transition-all"
                       >
-                        Generate Personal Access Token (figu_)
+                        Regenerate Token (if needed)
                       </a>
                     </div>
                   {/if}
