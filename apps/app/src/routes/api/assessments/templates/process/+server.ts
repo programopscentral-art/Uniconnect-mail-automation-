@@ -166,6 +166,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const figmaFileUrl = formData.get('figmaFileUrl') as string;
     const figmaAccessToken = formData.get('figmaAccessToken') as string;
     const figmaDataRaw = formData.get('figmaData') as string;
+    const manualBgImage = formData.get('manualBgImage') as string;
     const submittedLayout = formData.get('layout') as string;
     const submittedMetadata = formData.get('metadata') as string;
 
@@ -210,13 +211,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 metadata_fields: {},
                 originalWidth: 210,
                 originalHeight: 297,
-                debugImage: backgroundImageUrl, // V68: Set the Figma frame image as debugImage
-                regions: elements // V68: Compatible regions
+                debugImage: manualBgImage || backgroundImageUrl || '',
+                regions: elements
             };
-            console.log(`[V68_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
+            console.log(`[V89_PROCESS] 🎨 Figma import successful: ${elements.length} elements (Manual BG: ${!!manualBgImage})`);
         } catch (fe: any) {
-            console.error(`[V85_CRITICAL] ❌ Figma Import Failure. TRIGGERING CRISIS FALLBACK:`, fe);
-            // V85 Nuclear Fallback: If Figma fails, don't 500. Return a stub so user can proceed to editor.
+            console.error(`[V89_CRITICAL] ❌ Figma Import Failure:`, fe);
+
+            // V89: If user provided data, do NOT fall back to blank. Re-throw to show error.
+            if (figmaDataRaw) throw fe;
+
+            // V85 Nuclear Fallback: If Figma fails, don't 500. Return a stub so user can proceed.
             detectedLayout = {
                 page: { width: 210, height: 297, unit: "mm" },
                 pages: [{
@@ -226,10 +231,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 metadata_fields: { import_error: fe.message },
                 originalWidth: 210,
                 originalHeight: 297,
-                debugImage: '',
+                debugImage: manualBgImage || '',
                 regions: []
             };
-            console.warn(`[V85_CRITICAL] ⚠️ Proceeding with empty template due to Figma failure.`);
+            console.warn(`[V89_CRITICAL] ⚠️ Proceeding with empty template due to Figma failure.`);
         }
     } else if (file) {
         // --- V49: Granular Element Extraction ---

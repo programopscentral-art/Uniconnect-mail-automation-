@@ -55,6 +55,11 @@
   let showRegions = $state(false); // V15: Debug regions overlay
   let showDiffOverlay = $state(true);
 
+  // V89: Manual Sync State
+  let manualSyncData = $state("");
+  let manualBgImage = $state("");
+  let showManualInput = $state(false);
+
   async function verifyFigma() {
     if (!figmaUrl || !figmaToken) return;
 
@@ -228,14 +233,35 @@
     formData.append("name", importName);
     formData.append("exam_type", importExamType);
     formData.append("dryRun", "true");
+    if (manualBgImage) formData.append("manualBgImage", manualBgImage);
+
+    // V89: Calculate direct URL for manual sync link
+    const fileKey =
+      figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
+      "";
+    const nodeId = selectedFrameId.replace("-", ":");
+    const directFigmaUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&accessToken=${figmaToken}`;
 
     // V86: Browser-Side Proxy Logic
     let figmaData: any = null;
     let fallbackUsed = false;
 
     async function tryBrowserFetch() {
+      // V89: If manual data is already pasted, use it immediately
+      if (manualSyncData.trim()) {
+        try {
+          figmaData = JSON.parse(manualSyncData);
+          console.log("[V31_MANUAL] ✅ Using pasted manual sync data");
+          return;
+        } catch (e) {
+          console.error("[V31_MANUAL] ❌ Invalid JSON in manual sync field");
+        }
+      }
+
       try {
-        console.log("[V88_BROWSER] 🚀 Attempting Headerless Fetch to Figma...");
+        console.log(
+          "[V89_BROWSER] 🚀 Attempting Proxied Fetch (corsproxy.io)...",
+        );
         const key =
           figmaUrl.match(
             /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
@@ -244,30 +270,36 @@
           selectedFrameId.replace("-", ":"),
         );
 
-        // V88: Use query parameter for auth to avoid CORS preflight (OPTIONS) blocks
+        // V89: Use corsproxy.io as a more stable alternative
         const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&accessToken=${figmaToken}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-        // Try direct first (simplest), then proxied if that fails
-        let figmaRes = await fetch(targetUrl).catch(() => null);
+        const figmaRes = await fetch(proxyUrl);
 
-        if (!figmaRes || !figmaRes.ok) {
-          console.warn(
-            "[V88_BROWSER] ⚠️ Direct fetch failed, trying proxy tunnel...",
-          );
-          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-          figmaRes = await fetch(proxyUrl);
-        }
-
-        if (figmaRes && figmaRes.ok) {
+        if (figmaRes.ok) {
           figmaData = await figmaRes.json();
-          console.log("[V88_BROWSER] ✅ Headerless fetch successful!");
+          console.log("[V89_BROWSER] ✅ Proxied fetch successful!");
         } else {
-          const errText = figmaRes ? await figmaRes.text() : "Network Error";
-          console.error(`[V88_BROWSER] ❌ Figma Fetch Error:`, errText);
+          console.warn(
+            "[V89_BROWSER] ⚠️ Proxied fetch failed, showing manual input link...",
+          );
+          showManualInput = true;
         }
       } catch (err) {
-        console.error("[V88_BROWSER] ❌ Browser fetch CRASHED:", err);
+        console.error("[V89_BROWSER] ❌ Browser fetch CRASHED:", err);
+        showManualInput = true;
       }
+    }
+
+    function handleBackgroundUpload(e: Event) {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        manualBgImage = re.target?.result as string;
+        console.log("[V89_MANUAL] 🖼️ Background image uploaded");
+      };
+      reader.readAsDataURL(file);
     }
 
     try {
@@ -818,8 +850,69 @@
           </div>
 
           <div
-            class="flex-1 flex flex-col items-center justify-center p-20 text-center space-y-8 animate-premium-fade"
+            class="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-8 animate-premium-fade overflow-y-auto"
           >
+            {#if showManualInput || selectedPageId === "quick"}
+              <div
+                class="w-full max-w-lg space-y-6 bg-indigo-500/5 p-8 rounded-3xl border border-indigo-500/10 mb-8"
+                transition:fade
+              >
+                <div class="space-y-2">
+                  <h3
+                    class="text-[11px] font-black text-indigo-400 uppercase tracking-widest"
+                  >
+                    Manual Data Sync (Emergency)
+                  </h3>
+                  <p
+                    class="text-[9px] text-white/40 font-medium leading-relaxed"
+                  >
+                    Figma is blocking direct access. Please open the link below
+                    in a new tab, copy EVERYTHING you see, and paste it here.
+                  </p>
+                </div>
+
+                <a
+                  href={directFigmaUrl}
+                  target="_blank"
+                  class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500 rounded-xl text-[10px] font-black uppercase text-white hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  <SearchCode class="w-4 h-4" />
+                  1. Open Design Data Link
+                </a>
+
+                <div class="space-y-3">
+                  <textarea
+                    bind:value={manualSyncData}
+                    placeholder="PASTE THE COPIED DATA HERE..."
+                    class="w-full h-32 bg-black/40 border border-white/5 rounded-2xl p-4 text-[9px] font-mono text-white/60 outline-none focus:border-indigo-500/30 transition-all placeholder:text-white/10"
+                  ></textarea>
+                </div>
+
+                <div class="pt-2 border-t border-white/5 space-y-3">
+                  <p class="text-[9px] text-white/40 font-medium">
+                    Optional: Upload a screenshot of the frame for the
+                    background.
+                  </p>
+                  <div class="relative group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onchange={handleBackgroundUpload}
+                      class="absolute inset-0 opacity-0 cursor-pointer z-10"
+                    />
+                    <div
+                      class="w-full py-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center justify-center gap-3 text-[9px] font-bold text-white/60 group-hover:bg-white/5 transition-all"
+                    >
+                      <Upload class="w-4 h-4" />
+                      {manualBgImage
+                        ? "✓ Image Uploaded"
+                        : "Upload Template Screenshot"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {/if}
+
             <div
               class="w-24 h-24 rounded-[2.5rem] bg-white/[0.02] border border-white/5 flex items-center justify-center relative group"
             >
