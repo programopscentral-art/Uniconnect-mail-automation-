@@ -168,13 +168,13 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="absolute group transition-shadow duration-200 {isEditing ? '' : 'select-none'}"
+  class="absolute group transition-shadow duration-200 {!selected && !isEditing
+    ? 'hover:ring-1 hover:ring-indigo-500/30'
+    : ''} {isEditing ? '' : 'select-none'}"
   class:cursor-move={!isEditing}
   class:ring-2={selected}
   class:ring-indigo-500={selected}
   class:z-50={selected || isEditing}
-  class:hover:ring-1={!selected && !isEditing}
-  class:hover:ring-indigo-500/30={!selected && !isEditing}
   style="
     left: {element.x}mm; 
     top: {element.y}mm; 

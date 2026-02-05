@@ -394,9 +394,9 @@
               </div>
 
               <div class="space-y-3">
-                <label
-                  class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1"
-                  >Source Type</label
+                <span
+                  class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1 block"
+                  >Source Type</span
                 >
                 <div
                   class="p-1 px-4 py-3 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center gap-3"
@@ -416,10 +416,12 @@
               <div class="space-y-4" transition:slide>
                 <div class="space-y-2">
                   <label
+                    for="figma-url"
                     class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
                     >Figma File URL</label
                   >
                   <input
+                    id="figma-url"
                     bind:value={figmaUrl}
                     disabled={isFigmaVerified}
                     placeholder="https://figma.com/file/..."
@@ -428,10 +430,12 @@
                 </div>
                 <div class="space-y-2">
                   <label
+                    for="figma-token"
                     class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
                     >Access Token</label
                   >
                   <input
+                    id="figma-token"
                     type="password"
                     bind:value={figmaToken}
                     disabled={isFigmaVerified}
@@ -471,10 +475,12 @@
 
                     <div class="space-y-2">
                       <label
+                        for="figma-page"
                         class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
                         >Select Page</label
                       >
                       <select
+                        id="figma-page"
                         bind:value={selectedPageId}
                         class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                       >
@@ -493,10 +499,12 @@
                     {#if selectedPageId}
                       <div class="space-y-2" transition:slide>
                         <label
+                          for="figma-frame"
                           class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
                           >Select Frame</label
                         >
                         <select
+                          id="figma-frame"
                           bind:value={selectedFrameId}
                           class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
                         >
