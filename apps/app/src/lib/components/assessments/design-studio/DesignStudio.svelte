@@ -93,17 +93,34 @@
 
   let showRegions = $state(false);
 
-  // V70: Robust Sync Strategy
-  $effect(() => {
-    // 1. Sync from Prop (Initial load only)
-    if (template.layout_schema?.pages?.length > 0) {
-      const currentElementCount = layout.pages?.[0]?.elements?.length || 0;
+  // V71: Normalization Helper
+  function normalizeElement(el: any) {
+    if (!el.content && (el.text || el.value)) el.content = el.text || el.value;
+    if (!el.styles && el.style) el.styles = el.style;
+    if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
+    return el;
+  }
 
-      // Only sync if locally empty to avoid loop
-      if (currentElementCount === 0) {
+  // V71: Robust Sync Strategy (Initial Load & Normalization)
+  $effect(() => {
+    // 1. Sync from Prop (Triggered when template.layout_schema changes externally or on mount)
+    if (template.layout_schema?.pages?.length > 0) {
+      // Only sync if locally empty to avoid loop during active editing
+      if (layout.pages.length === 0) {
         untrack(() => {
-          layout = JSON.parse(JSON.stringify(template.layout_schema));
-          if (template.regions) regions = template.regions;
+          const schema = JSON.parse(JSON.stringify(template.layout_schema));
+          const currentRegions = template.regions
+            ? JSON.parse(JSON.stringify(template.regions))
+            : [];
+
+          // Standardize data ONCE during load
+          schema.pages.forEach((p: any) => {
+            if (p.elements) p.elements.forEach(normalizeElement);
+          });
+          currentRegions.forEach(normalizeElement);
+
+          layout = schema;
+          regions = currentRegions;
         });
       }
     }
@@ -114,43 +131,20 @@
     }
   });
 
-  // V69/V70: Compatibility Layer & Outbound Sync
+  // V71: Clean Outbound Sync (No Mutations)
   $effect(() => {
-    // Depend on layout and regions for reactivity
+    // React to layout or regions changes
     const schema = layout;
     const currentRegions = regions;
 
-    untrack(() => {
-      // 1. Compatibility Logic (Mutations)
-      // We mutate the proxy directly; this is fine in Svelte 5 effects
-      // but we shouldn't trigger an immediate re-run of THIS effect.
-      if (schema.pages?.length > 0) {
-        schema.pages.forEach((p: any) => {
-          p.elements.forEach((el: any) => {
-            if (!el.content && (el.text || el.value))
-              el.content = el.text || el.value;
-            if (!el.styles && el.style) el.styles = el.style;
-            if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
-          });
-        });
-      }
-      if (currentRegions?.length > 0) {
-        currentRegions.forEach((el: any) => {
-          if (!el.content && (el.text || el.value))
-            el.content = el.text || el.value;
-          if (!el.styles && el.style) el.styles = el.style;
-          if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
-        });
-      }
-
-      // 2. Outbound Sync to Template Prop
-      // Only sync if there is actually data to sync
-      if (schema.pages?.length > 0) {
+    if (schema.pages?.length > 0) {
+      // Sync back to template prop
+      untrack(() => {
         template.layout_schema = schema;
         template.regions = currentRegions;
         template.config = template.config || [];
-      }
-    });
+      });
+    }
   });
 
   let selectedElementId = $state<string | null>(null);
