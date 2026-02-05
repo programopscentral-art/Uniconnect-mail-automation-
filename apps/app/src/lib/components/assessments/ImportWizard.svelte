@@ -41,6 +41,7 @@
   let isFigmaVerified = $state(false);
   let errorMsg = $state("");
   let previewZoom = $state(0.75);
+  let lastVerifiedKey = $state("");
 
   // Visibility Controls
   let showLines = $state(true);
@@ -54,23 +55,35 @@
 
   async function verifyFigma() {
     if (!figmaUrl || !figmaToken) return;
+
+    // V76: Prevent redundant verification
+    const currentKey = `${figmaUrl}:${figmaToken}`;
+    if (isFigmaVerified && lastVerifiedKey === currentKey) {
+      console.log("[FIGMA_UI] ⚡ Using cached verification results");
+      return;
+    }
+
     isVerifyingFigma = true;
     errorMsg = "";
     try {
       const res = await fetch("/api/figma/verify", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: figmaUrl, token: figmaToken }),
       });
       const data = await res.json();
       if (res.ok) {
         figmaPages = data.pages;
         isFigmaVerified = true;
+        lastVerifiedKey = currentKey;
         if (!importName) importName = data.fileName;
       } else {
         errorMsg = data.message || "Figma verification failed";
+        isFigmaVerified = false;
       }
     } catch (e: any) {
       errorMsg = "Verification Error: Could not connect to Figma API relay.";
+      isFigmaVerified = false;
     } finally {
       isVerifyingFigma = false;
     }
