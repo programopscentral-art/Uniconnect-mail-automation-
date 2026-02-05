@@ -118,10 +118,10 @@ export class FigmaService {
         console.log(`[FIGMA_SERVICE] 🎨 Importing file: ${fileKey} (Frame: ${frameId || 'Default'})`);
 
         // V82: Normalize frameId (ensure colon for API)
-        const normalizedFrameId = frameId ? frameId.replace('-', ':') : frameId;
+        const normalizedFrameId = frameId ? frameId.replace('-', ':').replace('%3A', ':') : frameId;
 
         const url = normalizedFrameId
-            ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${normalizedFrameId}`
+            ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}`
             : `${this.FIGMA_API_BASE}/files/${fileKey}`;
 
         const response = await fetch(url, {
@@ -138,40 +138,49 @@ export class FigmaService {
         let backgroundImageUrl: string | undefined;
 
         // V82: The /nodes endpoint has a different structure than /files
-        if (normalizedFrameId && data.nodes?.[normalizedFrameId]) {
-            const node = data.nodes[normalizedFrameId].document;
-            const bbox = node.absoluteBoundingBox;
-            this.traverseNode(node, 1, elements);
-            this.normalizeElements(elements, bbox);
+        try {
+            if (normalizedFrameId && data.nodes?.[normalizedFrameId]) {
+                const node = data.nodes[normalizedFrameId].document;
+                const bbox = node.absoluteBoundingBox;
+                console.log(`[FIGMA_SERVICE] 🔍 Elements found in node: ${node.children?.length || 0}`);
+                this.traverseNode(node, 1, elements);
+                this.normalizeElements(elements, bbox);
 
-            try {
-                backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, normalizedFrameId);
-            } catch (ie) {
-                console.warn(`[FIGMA_SERVICE] ⚠️ Could not fetch background image:`, ie);
+                try {
+                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, normalizedFrameId);
+                } catch (ie) {
+                    console.warn(`[FIGMA_SERVICE] ⚠️ Could not fetch background image:`, ie);
+                }
+            } else if (data.document) {
+                const document = data.document;
+                const pages = document.children.filter((c: any) => c.type === 'CANVAS');
+                console.log(`[FIGMA_SERVICE] 🔍 Elements found in document pages: ${pages.length}`);
+                pages.forEach((pageNode: any, pageIdx: number) => {
+                    this.traverseNode(pageNode, pageIdx + 1, elements);
+                });
+            } else {
+                console.error(`[FIGMA_SERVICE] ❌ Unexpected Data Structure:`, JSON.stringify(data).substring(0, 500));
+                throw new Error(`Target node or document not found in Figma response. Status Code: ${response.status}`);
             }
-        } else if (data.document) {
-            const document = data.document;
-            const pages = document.children.filter((c: any) => c.type === 'CANVAS');
-            pages.forEach((pageNode: any, pageIdx: number) => {
-                this.traverseNode(pageNode, pageIdx + 1, elements);
-            });
-        } else {
-            console.error(`[FIGMA_SERVICE] ❌ Unexpected Data Structure:`, JSON.stringify(data).substring(0, 500));
-            throw new Error(`Target node or document not found in Figma response`);
+        } catch (err: any) {
+            console.error(`[FIGMA_SERVICE] 😱 CRASH inside structure handler:`, err);
+            throw err;
         }
 
         return { elements, backgroundImageUrl };
     }
 
     private static async fetchFrameImage(fileKey: string, accessToken: string, frameId: string): Promise<string> {
-        const url = `${this.FIGMA_API_BASE}/images/${fileKey}?ids=${frameId}&format=png&scale=2`;
+        // V84: Explicit encoding for node ID containing colons
+        const encodedId = encodeURIComponent(frameId);
+        const url = `${this.FIGMA_API_BASE}/images/${fileKey}?ids=${encodedId}&format=png&scale=2`;
         const res = await fetch(url, {
             headers: { 'X-Figma-Token': accessToken }
         });
 
         if (!res.ok) return '';
         const data = await res.json();
-        return data.images[frameId] || '';
+        return data.images?.[frameId] || '';
     }
 
     private static traverseNode(node: FigmaNode, pageNum: number, elements: TemplateElement[]) {

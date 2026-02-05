@@ -214,7 +214,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             console.log(`[V68_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
         } catch (fe: any) {
             console.error(`[V62_PROCESS] ❌ Figma Import Failure:`, fe);
-            return json({ success: false, message: `Figma Sync Failed: ${fe.message}` }, { status: 500 });
+            return json({
+                success: false,
+                message: `Figma Sync Failed: ${fe.message}`,
+                stack: fe.stack,
+                diagnostics: { figmaFileUrl: figmaFileUrl.substring(0, 30) + '...', frameId: formData.get('figmaFrameId') }
+            }, { status: 500 });
         }
     } else if (file) {
         // --- V49: Granular Element Extraction ---
@@ -244,7 +249,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         h: el.h,
                         text: el.text,
                         value: el.text,
-                        style: el.style,
+                        styles: el.styles || el.style,
                         role: el.role,
                         row: el.row,
                         col: el.col
@@ -292,13 +297,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
     }
 
-    const { success, error, data: validatedLayout } = LayoutSchema.safeParse(detectedLayout);
+    const { success, error: parseError, data: validatedLayout } = LayoutSchema.safeParse(detectedLayout);
     if (!success) {
-        console.error('[V12_PROCESS] ❌ Validation Failed (422):', error.format());
+        console.error('[V12_PROCESS] ❌ Validation Failed (422):', parseError.format());
         return json({
             success: false,
             message: 'Architectural Validation Error',
-            details: error.format(),
+            details: parseError.format(),
             type: 'VALIDATION_ERROR'
         }, { status: 422 });
     }
