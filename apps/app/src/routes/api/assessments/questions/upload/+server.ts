@@ -152,6 +152,42 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         else if (marks === 1) finalQType = 'VERY_SHORT';
                     }
 
+                    // 1d. Resolve Unit & Topic
+                    const rawModNum = findVal(row, ['Module Number', 'Unit Number', 'Module #', 'Unit #'])?.toString().trim();
+                    const rawModName = findVal(row, ['NAME OF THE MODULE', 'NAME OF THE UNIT', 'Module Name', 'Unit Name', 'Module', 'Unit']);
+
+                    let unit = null;
+                    if (rawModNum) {
+                        const digitMatch = rawModNum.match(/\d+/);
+                        const n = digitMatch ? parseInt(digitMatch[0]) : NaN;
+                        if (!isNaN(n)) {
+                            unit = allUnits.find(u => u.unit_number === n);
+                        }
+                    }
+                    if (!unit && rawModName) {
+                        const search = rawModName.toString().trim().toLowerCase();
+                        unit = allUnits.find(u => (u.name || '').toLowerCase().includes(search) || search.includes((u.name || '').toLowerCase()));
+                    }
+
+                    if (!unit) {
+                        unit = (unitId !== 'GLOBAL') ? allUnits.find(u => u.id === unitId) : allUnits[0];
+                        if (!unit) {
+                            const res = await db.query('INSERT INTO assessment_units (subject_id, unit_number, name) VALUES ($1, 1, \'Unit 1\') RETURNING *', [subjectId]);
+                            unit = res.rows[0]; allUnits.push(unit);
+                        }
+                    }
+
+                    const tName = findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString().trim() || 'General';
+                    let topic = allTopics.find(t => t.unit_id === unit.id && t.name.toLowerCase() === tName.toLowerCase());
+                    if (!topic) {
+                        const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, tName]);
+                        topic = res.rows[0]; allTopics.push(topic);
+                    }
+
+                    const bloomRaw = (findVal(row, ['Difficulty level', 'Blooms Level', 'Bloom Level', 'bloom_level', 'Difficulty']) || 'L1').toString().toUpperCase().trim();
+                    const bloomMatch = bloomRaw.match(/L\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*([1-5])/i);
+                    const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
+
                     const coCode = (findVal(row, ['CO', 'Course Outcome', 'co_code']) || '').toString().toUpperCase().trim();
 
                     questionsToCreate.push({
