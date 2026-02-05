@@ -66,7 +66,7 @@
       figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
       "";
     const nodeId = selectedFrameId.replace("-", ":");
-    return `https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}&accessToken=${figmaToken}`;
+    return `https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}&access_token=${figmaToken}`;
   });
 
   // V89: Manual image upload helper (moved to component scope)
@@ -285,7 +285,7 @@
         );
 
         // V89: Use corsproxy.io as a more stable alternative
-        const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&accessToken=${figmaToken}`;
+        const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&access_token=${figmaToken}`;
         const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
         const figmaRes = await fetch(proxyUrl);
