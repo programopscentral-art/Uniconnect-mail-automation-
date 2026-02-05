@@ -229,12 +229,67 @@
     formData.append("exam_type", importExamType);
     formData.append("dryRun", "true");
 
+    // V86: Browser-Side Proxy Logic
+    let figmaData: any = null;
+    let fallbackUsed = false;
+
+    async function tryBrowserFetch() {
+      try {
+        console.log(
+          "[V86_BROWSER] 🚀 Attempting Direct Browser Fetch to Figma...",
+        );
+        const key =
+          figmaUrl.match(
+            /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
+          )?.[1] || figmaUrl.trim();
+        const encodedNodeId = encodeURIComponent(
+          selectedFrameId.replace("-", ":"),
+        );
+        const figmaRes = await fetch(
+          `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}`,
+          {
+            headers: { "X-Figma-Token": figmaToken },
+          },
+        );
+        if (figmaRes.ok) {
+          figmaData = await figmaRes.json();
+          formData.append("figmaData", JSON.stringify(figmaData));
+          fallbackUsed = true;
+          console.log("[V86_BROWSER] ✅ Browser fetch successful!");
+        }
+      } catch (err) {
+        console.error(
+          "[V86_BROWSER] ❌ Browser fetch failed (CORS or Network):",
+          err,
+        );
+      }
+    }
+
     try {
-      // Step 1: Analysis (Now using the process API with dryRun=true)
-      const res = await fetch("/api/assessments/templates/process", {
+      // Step 1: Pre-fetch via browser if we already know we're in bypass mode or if server failed previously
+      if (selectedPageId === "quick") {
+        await tryBrowserFetch();
+      }
+
+      // Step 2: Analysis (Now using the process API with dryRun=true)
+      let res = await fetch("/api/assessments/templates/process", {
         method: "POST",
         body: formData,
       });
+
+      // V86: Fallback if server returns 429
+      if (res.status === 429 && !fallbackUsed) {
+        console.warn(
+          "[V86_FALLBACK] ⚠️ Server 429 detected. Retrying via Browser...",
+        );
+        await tryBrowserFetch();
+        if (fallbackUsed) {
+          res = await fetch("/api/assessments/templates/process", {
+            method: "POST",
+            body: formData,
+          });
+        }
+      }
 
       if (res.ok) {
         const data = await res.json();

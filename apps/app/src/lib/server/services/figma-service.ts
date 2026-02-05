@@ -114,26 +114,37 @@ export class FigmaService {
         };
     }
 
-    static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<FigmaImportResult> {
+    static async importFromFigma(fileKey: string, accessToken: string, frameId?: string, rawData?: any): Promise<FigmaImportResult> {
         console.log(`[FIGMA_SERVICE] 🎨 Importing file: ${fileKey} (Frame: ${frameId || 'Default'})`);
 
         // V82: Normalize frameId (ensure colon for API)
         const normalizedFrameId = frameId ? frameId.replace('-', ':').replace('%3A', ':') : frameId;
 
-        const url = normalizedFrameId
-            ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}`
-            : `${this.FIGMA_API_BASE}/files/${fileKey}`;
+        let data = rawData;
+        let responseOk = true;
+        let responseStatus = 200;
 
-        const response = await fetch(url, {
-            headers: { 'X-Figma-Token': accessToken }
-        });
+        if (!data) {
+            const url = normalizedFrameId
+                ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}`
+                : `${this.FIGMA_API_BASE}/files/${fileKey}`;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Figma API Error (${response.status}): ${errorText}`);
+            const response = await fetch(url, {
+                headers: { 'X-Figma-Token': accessToken }
+            });
+
+            responseOk = response.ok;
+            responseStatus = response.status;
+            if (response.ok) {
+                data = await response.json();
+            } else {
+                const errorText = await response.text();
+                throw new Error(`Figma API Error (${response.status}): ${errorText}`);
+            }
+        } else {
+            console.log(`[FIGMA_SERVICE] 🛡️ Using pre-fetched data from client`);
         }
 
-        const data = await response.json();
         const elements: TemplateElement[] = [];
         let backgroundImageUrl: string | undefined;
 
@@ -168,7 +179,7 @@ export class FigmaService {
                 this.normalizeElements(elements, bbox);
 
                 try {
-                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId);
+                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId || 'unknown');
                 } catch (ie) {
                     console.warn(`[FIGMA_SERVICE] ⚠️ Background fail:`, ie);
                 }

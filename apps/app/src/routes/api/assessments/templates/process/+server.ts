@@ -165,6 +165,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const explicitBackground = formData.get('backgroundImageUrl') as string;
     const figmaFileUrl = formData.get('figmaFileUrl') as string;
     const figmaAccessToken = formData.get('figmaAccessToken') as string;
+    const figmaDataRaw = formData.get('figmaData') as string;
     const submittedLayout = formData.get('layout') as string;
     const submittedMetadata = formData.get('metadata') as string;
 
@@ -197,7 +198,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         try {
             const figmaFrameId = formData.get('figmaFrameId') as string;
             const fileKey = FigmaService.extractFileKey(figmaFileUrl);
-            const { elements, backgroundImageUrl } = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId);
+            const rawData = figmaDataRaw ? JSON.parse(figmaDataRaw) : undefined;
+            const { elements, backgroundImageUrl } = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId, rawData);
 
             detectedLayout = {
                 page: { width: 210, height: 297, unit: "mm" },
