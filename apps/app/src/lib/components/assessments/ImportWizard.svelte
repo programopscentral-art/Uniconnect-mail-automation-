@@ -60,6 +60,15 @@
   let manualBgImage = $state("");
   let showManualInput = $state(false);
 
+  // V89: Derived FIGMA API URL for manual sync link
+  let directFigmaUrl = $derived.by(() => {
+    const key =
+      figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
+      "";
+    const nodeId = selectedFrameId.replace("-", ":");
+    return `https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}&accessToken=${figmaToken}`;
+  });
+
   async function verifyFigma() {
     if (!figmaUrl || !figmaToken) return;
 
@@ -234,13 +243,6 @@
     formData.append("exam_type", importExamType);
     formData.append("dryRun", "true");
     if (manualBgImage) formData.append("manualBgImage", manualBgImage);
-
-    // V89: Calculate direct URL for manual sync link
-    const fileKey =
-      figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
-      "";
-    const nodeId = selectedFrameId.replace("-", ":");
-    const directFigmaUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}&accessToken=${figmaToken}`;
 
     // V86: Browser-Side Proxy Logic
     let figmaData: any = null;
