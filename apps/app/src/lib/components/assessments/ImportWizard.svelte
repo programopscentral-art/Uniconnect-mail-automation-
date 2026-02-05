@@ -236,7 +236,7 @@
     async function tryBrowserFetch() {
       try {
         console.log(
-          "[V86_BROWSER] 🚀 Attempting Direct Browser Fetch to Figma...",
+          "[V87_BROWSER] 🚀 Attempting Proxied Browser Fetch to Figma...",
         );
         const key =
           figmaUrl.match(
@@ -245,30 +245,38 @@
         const encodedNodeId = encodeURIComponent(
           selectedFrameId.replace("-", ":"),
         );
-        const figmaRes = await fetch(
-          `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}`,
-          {
-            headers: { "X-Figma-Token": figmaToken },
-          },
-        );
+
+        // V87: Use a CORS Proxy to ensure the browser fetch doesn't get blocked by CORS or IP limits
+        const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+
+        const figmaRes = await fetch(proxyUrl, {
+          headers: { "X-Figma-Token": figmaToken },
+        });
+
         if (figmaRes.ok) {
           figmaData = await figmaRes.json();
-          formData.append("figmaData", JSON.stringify(figmaData));
-          fallbackUsed = true;
-          console.log("[V86_BROWSER] ✅ Browser fetch successful!");
+          console.log("[V87_BROWSER] ✅ Proxied fetch successful!");
+        } else {
+          const errText = await figmaRes.text();
+          console.error(
+            `[V87_BROWSER] ❌ Figma Proxy Error (${figmaRes.status}):`,
+            errText,
+          );
         }
       } catch (err) {
-        console.error(
-          "[V86_BROWSER] ❌ Browser fetch failed (CORS or Network):",
-          err,
-        );
+        console.error("[V87_BROWSER] ❌ Browser fetch CRASHED:", err);
       }
     }
 
     try {
-      // Step 1: Pre-fetch via browser if we already know we're in bypass mode or if server failed previously
+      // Step 1: Pre-fetch via browser if we already know we're in bypass mode
       if (selectedPageId === "quick") {
         await tryBrowserFetch();
+        if (figmaData) {
+          formData.append("figmaData", JSON.stringify(figmaData));
+          fallbackUsed = true;
+        }
       }
 
       // Step 2: Analysis (Now using the process API with dryRun=true)
@@ -277,13 +285,15 @@
         body: formData,
       });
 
-      // V86: Fallback if server returns 429
+      // V86/V87: Fallback if server returns 429
       if (res.status === 429 && !fallbackUsed) {
         console.warn(
-          "[V86_FALLBACK] ⚠️ Server 429 detected. Retrying via Browser...",
+          "[V87_FALLBACK] ⚠️ Server 429 detected. Retrying via Browser Proxy...",
         );
         await tryBrowserFetch();
-        if (fallbackUsed) {
+        if (figmaData) {
+          formData.append("figmaData", JSON.stringify(figmaData));
+          fallbackUsed = true;
           res = await fetch("/api/assessments/templates/process", {
             method: "POST",
             body: formData,
