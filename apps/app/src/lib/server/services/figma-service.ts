@@ -137,33 +137,52 @@ export class FigmaService {
         const elements: TemplateElement[] = [];
         let backgroundImageUrl: string | undefined;
 
-        // V82: The /nodes endpoint has a different structure than /files
+        // V85: Multi-attempt ID matching. Figma is picky about : vs -
         try {
-            if (normalizedFrameId && data.nodes?.[normalizedFrameId]) {
-                const node = data.nodes[normalizedFrameId].document;
-                const bbox = node.absoluteBoundingBox;
-                console.log(`[FIGMA_SERVICE] 🔍 Elements found in node: ${node.children?.length || 0}`);
+            let node = null;
+            let usedId = normalizedFrameId;
+
+            if (normalizedFrameId) {
+                // Try direct match
+                node = data.nodes?.[normalizedFrameId]?.document;
+
+                // Try dash-sync fallback
+                if (!node) {
+                    const dashId = normalizedFrameId.replace(':', '-');
+                    node = data.nodes?.[dashId]?.document;
+                    if (node) usedId = dashId;
+                }
+
+                // Try first available node if only one was requested
+                if (!node && Object.keys(data.nodes || {}).length === 1) {
+                    const firstId = Object.keys(data.nodes)[0];
+                    node = data.nodes[firstId].document;
+                    if (node) usedId = firstId;
+                }
+            }
+
+            if (node) {
+                const bbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 1000, height: 1000 };
+                console.log(`[FIGMA_SERVICE] ✅ Target node found (${usedId}). Children: ${node.children?.length || 0}`);
                 this.traverseNode(node, 1, elements);
                 this.normalizeElements(elements, bbox);
 
                 try {
-                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, normalizedFrameId);
+                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId);
                 } catch (ie) {
-                    console.warn(`[FIGMA_SERVICE] ⚠️ Could not fetch background image:`, ie);
+                    console.warn(`[FIGMA_SERVICE] ⚠️ Background fail:`, ie);
                 }
             } else if (data.document) {
-                const document = data.document;
-                const pages = document.children.filter((c: any) => c.type === 'CANVAS');
-                console.log(`[FIGMA_SERVICE] 🔍 Elements found in document pages: ${pages.length}`);
+                console.log(`[FIGMA_SERVICE] 📂 Using full document fallback`);
+                const pages = data.document.children.filter((c: any) => c.type === 'CANVAS');
                 pages.forEach((pageNode: any, pageIdx: number) => {
                     this.traverseNode(pageNode, pageIdx + 1, elements);
                 });
             } else {
-                console.error(`[FIGMA_SERVICE] ❌ Unexpected Data Structure:`, JSON.stringify(data).substring(0, 500));
-                throw new Error(`Target node or document not found in Figma response. Status Code: ${response.status}`);
+                throw new Error(`Target node ${normalizedFrameId} (or fallback) not found. Keys returned: ${Object.keys(data.nodes || {}).join(',')}`);
             }
         } catch (err: any) {
-            console.error(`[FIGMA_SERVICE] 😱 CRASH inside structure handler:`, err);
+            console.error(`[FIGMA_SERVICE] 😱 CRASH:`, err.message);
             throw err;
         }
 
@@ -252,10 +271,10 @@ export class FigmaService {
             const rw = el.w / frameBBox.width;
             const rh = el.h / frameBBox.height;
 
-            el.x = Math.round(rx * 210 * 10) / 10;
-            el.y = Math.round(ry * 297 * 10) / 10;
-            el.w = Math.round(rw * 210 * 10) / 10;
-            el.h = Math.round(rh * 297 * 10) / 10;
+            el.x = isNaN(rx) ? 0 : Math.round(rx * 210 * 10) / 10;
+            el.y = isNaN(ry) ? 0 : Math.round(ry * 297 * 10) / 10;
+            el.w = isNaN(rw) ? 20 : Math.round(rw * 210 * 10) / 10;
+            el.h = isNaN(rh) ? 10 : Math.round(rh * 297 * 10) / 10;
         });
     }
 }

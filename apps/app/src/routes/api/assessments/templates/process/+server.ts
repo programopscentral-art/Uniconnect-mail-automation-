@@ -213,13 +213,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             };
             console.log(`[V68_PROCESS] 🎨 Figma import (Frame: ${figmaFrameId || 'Default'}) successful: ${elements.length} slots extracted`);
         } catch (fe: any) {
-            console.error(`[V62_PROCESS] ❌ Figma Import Failure:`, fe);
-            return json({
-                success: false,
-                message: `Figma Sync Failed: ${fe.message}`,
-                stack: fe.stack,
-                diagnostics: { figmaFileUrl: figmaFileUrl.substring(0, 30) + '...', frameId: formData.get('figmaFrameId') }
-            }, { status: 500 });
+            console.error(`[V85_CRITICAL] ❌ Figma Import Failure. TRIGGERING CRISIS FALLBACK:`, fe);
+            // V85 Nuclear Fallback: If Figma fails, don't 500. Return a stub so user can proceed to editor.
+            detectedLayout = {
+                page: { width: 210, height: 297, unit: "mm" },
+                pages: [{
+                    id: 'page-1',
+                    elements: []
+                }],
+                metadata_fields: { import_error: fe.message },
+                originalWidth: 210,
+                originalHeight: 297,
+                debugImage: '',
+                regions: []
+            };
+            console.warn(`[V85_CRITICAL] ⚠️ Proceeding with empty template due to Figma failure.`);
         }
     } else if (file) {
         // --- V49: Granular Element Extraction ---
