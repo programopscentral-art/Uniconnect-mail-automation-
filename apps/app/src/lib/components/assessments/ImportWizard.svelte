@@ -16,6 +16,7 @@
     Type,
     ArrowRight,
     SearchCode,
+    ExternalLink,
   } from "lucide-svelte";
   import LayoutCanvas from "$lib/components/assessments/design-studio/LayoutCanvas.svelte";
 
