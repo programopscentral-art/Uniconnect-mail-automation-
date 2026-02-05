@@ -133,8 +133,6 @@
       figmaFileKey = key;
       isFigmaVerified = true;
       if (nodeId) {
-        selectedPageId = "quick";
-        selectedFrameId = nodeId;
         figmaPages = [
           {
             id: "quick",
@@ -142,6 +140,8 @@
             frames: [{ id: nodeId, name: "Target Frame" }],
           },
         ];
+        selectedPageId = "quick";
+        selectedFrameId = nodeId;
       } else {
         selectedPageId = "";
         selectedFrameId = "";
@@ -166,7 +166,7 @@
   });
 
   async function fetchFrames(pageId: string) {
-    if (isFetchingFrames) return;
+    if (isFetchingFrames || pageId === "quick") return; // V80: Never fetch for the 'quick' bypass ID
     isFetchingFrames = true;
     try {
       const res = await fetch("/api/figma/frames", {
