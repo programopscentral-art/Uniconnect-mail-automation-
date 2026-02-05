@@ -69,13 +69,14 @@
       : "",
   );
 
-  // V91: Figma API Explorer URL (Correct interactive reference)
+  // V92: Figma API Explorer URL (Point to explicit reference for 'Try it' button)
   let apiExplorerUrl = $derived.by(() => {
     const key =
       figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
       "";
     const nodeId = selectedFrameId.replace("-", ":");
-    return `https://www.figma.com/developers/api#get-nodes-endpoint`;
+    // Directly target the interactive reference page
+    return `https://www.figma.com/developers/api/reference/get-nodes`;
   });
 
   // V89: Derived FIGMA API URL for manual sync link
@@ -111,21 +112,55 @@
   async function verifyFigma() {
     if (!figmaUrl || !figmaToken) return;
 
-    // V76: Prevent redundant verification
     const currentKey = `${figmaUrl}:${figmaToken}`;
     if (isFigmaVerified && lastVerifiedKey === currentKey) {
-      console.log("[FIGMA_UI] ⚡ Using cached verification results");
       return;
     }
 
     isVerifyingFigma = true;
     errorMsg = "";
     try {
-      const res = await fetch("/api/figma/verify", {
+      let res = await fetch("/api/figma/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: figmaUrl, token: figmaToken }),
       });
+
+      // V92: If server is rate-limited (429), try browser-side fallback immediately
+      if (res.status === 429) {
+        console.warn("[FIGMA_UI] ⚠️ Server 429. Trying Browser-Side Sync...");
+        const key =
+          figmaUrl.match(
+            /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
+          )?.[1] || figmaUrl.trim();
+        const urlObj = new URL(figmaUrl);
+        let nodeId = urlObj.searchParams.get("node-id");
+        if (nodeId) nodeId = nodeId.replace("-", ":");
+
+        // Try a direct browser fetch via CORS proxy for verification
+        const targetUrl = `https://api.figma.com/v1/files/${key}${nodeId ? `/nodes?ids=${nodeId}` : ""}`;
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl + (targetUrl.includes("?") ? "&" : "?") + "access_token=" + figmaToken)}`;
+
+        const browserRes = await fetch(proxyUrl);
+        if (browserRes.ok) {
+          const data = await browserRes.json();
+          figmaPages = [
+            {
+              id: "quick",
+              name: "Browser Sync",
+              frames: nodeId ? [{ id: nodeId, name: "Target Frame" }] : [],
+            },
+          ];
+          figmaFileKey = key;
+          isFigmaVerified = true;
+          lastVerifiedKey = currentKey;
+          selectedPageId = "quick";
+          if (nodeId) selectedFrameId = nodeId;
+          if (!importName) importName = data.name || "Figma Design";
+          return;
+        }
+      }
+
       const data = await res.json();
       if (res.ok) {
         figmaPages = data.pages;
@@ -134,24 +169,20 @@
         lastVerifiedKey = currentKey;
         if (!importName) importName = data.fileName;
 
-        // V77: Auto-detect frame if node-id is in URL
         if (data.extractedNodeId) {
-          console.log(
-            `[FIGMA_UI] 🎯 Auto-detected node-id: ${data.extractedNodeId}`,
-          );
-          if (data.pages.length === 1 && data.pages[0].id === "quick") {
-            selectedPageId = "quick";
-            selectedFrameId = data.extractedNodeId;
-          } else {
-            selectedFrameId = data.extractedNodeId;
-          }
+          selectedFrameId = data.extractedNodeId;
+          selectedPageId =
+            data.pages.length === 1 && data.pages[0].id === "quick"
+              ? "quick"
+              : selectedPageId;
         }
       } else {
         errorMsg = data.message || "Figma verification failed";
         isFigmaVerified = false;
+        if (res.status === 429) showManualInput = true;
       }
     } catch (e: any) {
-      errorMsg = "Verification Error: Could not connect to Figma API relay.";
+      errorMsg = "Verification Error: Connection blocked.";
       isFigmaVerified = false;
     } finally {
       isVerifyingFigma = false;
@@ -307,9 +338,8 @@
           figmaUrl.match(
             /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
           )?.[1] || figmaUrl.trim();
-        const encodedNodeId = encodeURIComponent(
-          selectedFrameId.replace("-", ":"),
-        );
+        const rawNodeId = selectedFrameId || "";
+        const encodedNodeId = encodeURIComponent(rawNodeId.replace("-", ":"));
 
         // V89: Use corsproxy.io as a more stable alternative
         const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&access_token=${figmaToken}`;
@@ -916,54 +946,79 @@
                     official <b>API Explorer</b> to grab the design data safely.
                   </p>
                 </div>
-
                 <div
-                  class="p-6 bg-black/40 border border-white/5 rounded-3xl space-y-5"
+                  class="p-6 bg-black/40 border border-white/5 rounded-3xl space-y-6"
                 >
-                  <div class="space-y-1">
-                    <p class="text-[10px] font-black text-indigo-500 uppercase">
-                      Step 1
-                    </p>
-                    <p class="text-[9px] text-white/60">
-                      Open our Official API Explorer Link:
-                    </p>
-                  </div>
-
-                  <a
-                    href={apiExplorerUrl}
-                    target="_blank"
-                    class="w-full py-4 bg-indigo-600 rounded-2xl text-[11px] font-black uppercase text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
-                  >
-                    <ExternalLink class="w-4 h-4" />
-                    Open Official Figma Explorer
-                  </a>
-
-                  <div class="pt-2 border-t border-white/5 space-y-4">
-                    <div class="flex items-start gap-4">
-                      <div
-                        class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
-                      >
-                        2
-                      </div>
+                  <div class="space-y-4">
+                    <div class="space-y-1">
                       <p
-                        class="text-[9px] text-white/40 leading-relaxed text-left"
+                        class="text-[10px] font-black text-indigo-500 uppercase"
                       >
-                        On the Figma page, scroll to the **"Try it"** button and
-                        click it (you might need to Login).
+                        Option 1: Direct JSON Link (Fastest)
+                      </p>
+                      <p class="text-[9px] text-white/40">
+                        Try opening this link first. If it shows JSON text, copy
+                        it all.
                       </p>
                     </div>
-                    <div class="flex items-start gap-4">
-                      <div
-                        class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
-                      >
-                        3
-                      </div>
+                    <a
+                      href={directFigmaUrl}
+                      target="_blank"
+                      class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl text-[11px] font-black uppercase text-white hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                    >
+                      <SearchCode class="w-4 h-4" />
+                      Open Direct JSON Link
+                    </a>
+                  </div>
+
+                  <div class="pt-4 border-t border-white/10 space-y-4">
+                    <div class="space-y-1 text-left">
                       <p
-                        class="text-[9px] text-white/40 leading-relaxed text-left"
+                        class="text-[10px] font-black text-indigo-500 uppercase"
                       >
-                        Copy everything from the **"Response Box"** and paste it
-                        here.
+                        Option 2: Official Figma Explorer (Fail-safe)
                       </p>
+                      <p class="text-[9px] text-white/40">
+                        Use this if Option 1 shows an error.
+                      </p>
+                    </div>
+
+                    <a
+                      href={apiExplorerUrl}
+                      target="_blank"
+                      class="w-full py-4 bg-indigo-600 rounded-2xl text-[11px] font-black uppercase text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
+                    >
+                      <ExternalLink class="w-4 h-4" />
+                      Open Official Figma Explorer
+                    </a>
+
+                    <div class="space-y-3">
+                      <div class="flex items-start gap-4">
+                        <div
+                          class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
+                        >
+                          1
+                        </div>
+                        <p
+                          class="text-[9px] text-white/40 leading-relaxed text-left"
+                        >
+                          Click the link above, scroll to the blue **"Try it"**
+                          button on that page, and click it.
+                        </p>
+                      </div>
+                      <div class="flex items-start gap-4">
+                        <div
+                          class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
+                        >
+                          2
+                        </div>
+                        <p
+                          class="text-[9px] text-white/40 leading-relaxed text-left"
+                        >
+                          Copy everything from the **"Response"** box and paste
+                          it below.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
