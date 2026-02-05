@@ -42,6 +42,8 @@
   let errorMsg = $state("");
   let previewZoom = $state(0.75);
   let lastVerifiedKey = $state("");
+  let figmaFileKey = $state("");
+  let isFetchingFrames = $state(false);
 
   // Visibility Controls
   let showLines = $state(true);
@@ -74,9 +76,21 @@
       const data = await res.json();
       if (res.ok) {
         figmaPages = data.pages;
+        figmaFileKey = data.fileKey;
         isFigmaVerified = true;
         lastVerifiedKey = currentKey;
         if (!importName) importName = data.fileName;
+
+        // V77: Auto-detect frame if node-id is in URL
+        if (data.extractedNodeId) {
+          console.log(
+            `[FIGMA_UI] 🎯 Auto-detected node-id: ${data.extractedNodeId}`,
+          );
+          // Logic to find which page contains this node would be heavy,
+          // so we just fetch frames for all pages or assume user picks page.
+          // But we can at least pre-set the frameId if it's found in the fetched list eventually.
+          selectedFrameId = data.extractedNodeId;
+        }
       } else {
         errorMsg = data.message || "Figma verification failed";
         isFigmaVerified = false;
@@ -86,6 +100,38 @@
       isFigmaVerified = false;
     } finally {
       isVerifyingFigma = false;
+    }
+  }
+
+  // V77: Lazy Load Frames when page changes
+  $effect(() => {
+    if (selectedPageId && figmaFileKey && figmaToken) {
+      fetchFrames(selectedPageId);
+    }
+  });
+
+  async function fetchFrames(pageId: string) {
+    if (isFetchingFrames) return;
+    isFetchingFrames = true;
+    try {
+      const res = await fetch("/api/figma/frames", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileKey: figmaFileKey,
+          nodeId: pageId,
+          token: figmaToken,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const page = figmaPages.find((p) => p.id === pageId);
+        if (page) page.frames = data.frames;
+      }
+    } catch (e) {
+      console.error("[FIGMA_UI] Failed to fetch frames:", e);
+    } finally {
+      isFetchingFrames = false;
     }
   }
 
@@ -431,13 +477,19 @@
                   <label
                     for="figma-url"
                     class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1"
-                    >Figma File URL</label
+                    >Figma Design URL</label
                   >
+                  <p
+                    class="text-[8px] text-white/10 font-medium px-1 leading-relaxed"
+                  >
+                    COPY LINK FROM FIGMA: SHARE > COPY LINK (PRO TIP: USE
+                    "DESIGN" LINKS FOR AUTO-DETECTION)
+                  </p>
                   <input
                     id="figma-url"
                     bind:value={figmaUrl}
                     disabled={isFigmaVerified}
-                    placeholder="https://figma.com/file/..."
+                    placeholder="https://figma.com/design/..."
                     class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
                   />
                 </div>
@@ -519,10 +571,13 @@
                         <select
                           id="figma-frame"
                           bind:value={selectedFrameId}
-                          class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark]"
+                          class="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all [color-scheme:dark] disabled:opacity-50"
+                          disabled={isFetchingFrames}
                         >
                           <option value="" class="bg-[#1a1a1a] text-white"
-                            >Choose Frame...</option
+                            >{isFetchingFrames
+                              ? "Loading frames..."
+                              : "Choose Frame..."}</option
                           >
                           {#each figmaPages.find((p) => p.id === selectedPageId)?.frames || [] as frame}
                             <option

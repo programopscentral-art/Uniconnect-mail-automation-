@@ -28,18 +28,26 @@ export class FigmaService {
     static extractFileKey(url: string): string {
         try {
             if (!url.includes('figma.com')) return url;
-            const designMatch = url.match(/\/design\/([a-zA-Z0-9]+)/);
+            const designMatch = url.match(/\/(?:design|file)\/([a-zA-Z0-9]+)/);
             if (designMatch) return designMatch[1];
-            const fileMatch = url.match(/\/file\/([a-zA-Z0-9]+)/);
-            if (fileMatch) return fileMatch[1];
             return url;
         } catch (e) {
             return url;
         }
     }
 
+    static extractNodeId(url: string): string | null {
+        try {
+            const urlObj = new URL(url);
+            return urlObj.searchParams.get('node-id');
+        } catch (e) {
+            return null;
+        }
+    }
+
     static async getFileMeta(fileKey: string, accessToken: string) {
-        const response = await fetch(`${this.FIGMA_API_BASE}/files/${fileKey}?depth=2`, {
+        // V77: Use depth=1 to avoid 429 on large files. Fetch pages only.
+        const response = await fetch(`${this.FIGMA_API_BASE}/files/${fileKey}?depth=1`, {
             headers: { 'X-Figma-Token': accessToken }
         });
 
@@ -54,12 +62,7 @@ export class FigmaService {
             .map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                frames: (p.children || [])
-                    .filter((c: any) => c.type === 'FRAME')
-                    .map((f: any) => ({
-                        id: f.id,
-                        name: f.name
-                    }))
+                frames: [] // Frames will be loaded lazily in the next step
             }));
 
         return {
@@ -67,6 +70,24 @@ export class FigmaService {
             lastModified: data.lastModified,
             pages
         };
+    }
+
+    static async getNodeFrames(fileKey: string, accessToken: string, nodeId: string) {
+        const response = await fetch(`${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${nodeId}&depth=1`, {
+            headers: { 'X-Figma-Token': accessToken }
+        });
+
+        if (!response.ok) return [];
+        const data = await response.json();
+        const node = data.nodes?.[nodeId]?.document;
+        if (!node || !node.children) return [];
+
+        return node.children
+            .filter((c: any) => c.type === 'FRAME')
+            .map((f: any) => ({
+                id: f.id,
+                name: f.name
+            }));
     }
 
     static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<FigmaImportResult> {

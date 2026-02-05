@@ -14,11 +14,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     try {
         console.log(`[FIGMA_VERIFY] 🔍 Verifying: ${url}`);
         const fileKey = FigmaService.extractFileKey(url);
+        const extractedNodeId = FigmaService.extractNodeId(url);
         const meta = await FigmaService.getFileMeta(fileKey, token);
 
         return json({
             success: true,
             fileKey,
+            extractedNodeId,
             fileName: meta.name,
             pages: meta.pages
         });
