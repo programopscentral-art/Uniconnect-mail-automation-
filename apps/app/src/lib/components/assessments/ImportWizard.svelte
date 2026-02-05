@@ -69,6 +69,18 @@
     return `https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}&accessToken=${figmaToken}`;
   });
 
+  // V89: Manual image upload helper (moved to component scope)
+  function handleBackgroundUpload(e: Event) {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (re) => {
+      manualBgImage = re.target?.result as string;
+      console.log("[V89_MANUAL] 🖼️ Background image uploaded");
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function verifyFigma() {
     if (!figmaUrl || !figmaToken) return;
 
@@ -291,17 +303,6 @@
         console.error("[V89_BROWSER] ❌ Browser fetch CRASHED:", err);
         showManualInput = true;
       }
-    }
-
-    function handleBackgroundUpload(e: Event) {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (re) => {
-        manualBgImage = re.target?.result as string;
-        console.log("[V89_MANUAL] 🖼️ Background image uploaded");
-      };
-      reader.readAsDataURL(file);
     }
 
     try {
