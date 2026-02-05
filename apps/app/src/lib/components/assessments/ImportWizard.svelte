@@ -61,11 +61,21 @@
   let showManualInput = $state(false);
 
   // V90: Token Type Check
+  let isDesignToken = $derived(figmaToken.startsWith("figd_"));
   let tokenWarning = $derived(
-    figmaToken.startsWith("figd_")
-      ? "⚠️ CAUTION: You are using a 'Design Token' (figd_). Designs often require a 'Personal Access Token' (figu_). Create one in Figma -> Settings."
+    isDesignToken
+      ? "❌ STOP! You are using a 'Design Token' (figd_). Designs REQUIRE a 'Personal Access Token' (figu_). Click 'Get API Token' below."
       : "",
   );
+
+  // V91: Figma API Explorer URL
+  let apiExplorerUrl = $derived.by(() => {
+    const key =
+      figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
+      "";
+    const nodeId = selectedFrameId.replace("-", ":");
+    return `https://www.figma.com/developers/api#get-nodes-endpoint?file_key=${key}&ids=${encodeURIComponent(nodeId)}`;
+  });
 
   // V89: Derived FIGMA API URL for manual sync link
   let directFigmaUrl = $derived.by(() => {
@@ -541,7 +551,7 @@
         errorMsg = data.message || `Eradication failed (${res.status}).`;
       }
     } catch (e: any) {
-      console.error("[V12_DELETE] 🚨 Error:", e);
+      console.error("[V12_DELETE] 🚨 Critical Error:", e);
       errorMsg = `Transmission failure: ${e.message}`;
     } finally {
       isAnalyzing = false;
@@ -705,11 +715,20 @@
                     class="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
                   />
                   {#if tokenWarning}
-                    <p
-                      class="text-[8px] font-bold text-amber-500/80 uppercase tracking-tighter ml-1 animate-pulse"
-                    >
-                      {tokenWarning}
-                    </p>
+                    <div class="space-y-3">
+                      <p
+                        class="text-[9px] font-black text-red-500 uppercase tracking-tighter ml-1 animate-pulse"
+                      >
+                        {tokenWarning}
+                      </p>
+                      <a
+                        href="https://www.figma.com/settings/tokens"
+                        target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-[9px] font-black uppercase text-red-400 hover:bg-red-500/20 transition-all"
+                      >
+                        Generate Personal Access Token (figu_)
+                      </a>
+                    </div>
                   {/if}
                 </div>
 
@@ -880,85 +899,92 @@
           >
             {#if showManualInput || selectedPageId === "quick"}
               <div
-                class="w-full max-w-lg space-y-6 bg-indigo-500/5 p-8 rounded-3xl border border-indigo-500/10 mb-8 overflow-y-auto max-h-[500px]"
+                class="w-full max-w-lg space-y-6 bg-indigo-500/5 p-10 rounded-[2.5rem] border border-indigo-500/10 mb-8 overflow-y-auto max-h-[600px] shadow-2xl shadow-black/50"
                 transition:fade
               >
                 <div class="space-y-2">
                   <h3
-                    class="text-[11px] font-black text-indigo-400 uppercase tracking-widest"
+                    class="text-[14px] font-black text-indigo-400 uppercase tracking-widest"
                   >
-                    Manual Data Sync (UNBLOCKABLE)
+                    Official Sync (UNBLOCKABLE)
                   </h3>
                   <p
-                    class="text-[9px] text-white/40 font-medium leading-relaxed"
+                    class="text-[10px] text-white/40 font-medium leading-relaxed"
                   >
-                    Figma is blocking automatic access. Use the <b
-                      >Browser Scout</b
-                    > below to get the data through your own logged-in session.
+                    Figma blocks all unofficial tools. You MUST use their
+                    official <b>API Explorer</b> to grab the design data safely.
                   </p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
-                  <div
-                    class="p-4 bg-black/40 border border-white/5 rounded-2xl space-y-3"
-                  >
-                    <p
-                      class="text-[9px] text-white/60 font-bold uppercase tracking-wider text-left"
-                    >
-                      Option A: Browser Scout (Best)
+                <div
+                  class="p-6 bg-black/40 border border-white/5 rounded-3xl space-y-5"
+                >
+                  <div class="space-y-1">
+                    <p class="text-[10px] font-black text-indigo-500 uppercase">
+                      Step 1
                     </p>
-                    <button
-                      onclick={() => {
-                        navigator.clipboard.writeText(scoutScript);
-                        alert(
-                          "Scout Script Copied! Paste it in the Console of your Figma tab.",
-                        );
-                      }}
-                      class="w-full py-3 bg-indigo-600 rounded-xl text-[10px] font-black uppercase text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-                    >
-                      <Zap class="w-4 h-4" />
-                      1. Copy Scout Script
-                    </button>
-                    <p class="text-[8px] text-white/20 italic">
-                      Go to your Figma tab -> Right Click -> Inspect -> Console
-                      -> Paste & Enter.
+                    <p class="text-[9px] text-white/60">
+                      Open our Official API Explorer Link:
                     </p>
                   </div>
 
-                  <div
-                    class="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3"
+                  <a
+                    href={apiExplorerUrl}
+                    target="_blank"
+                    class="w-full py-4 bg-indigo-600 rounded-2xl text-[11px] font-black uppercase text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
                   >
-                    <p
-                      class="text-[9px] text-white/60 font-bold uppercase tracking-wider text-left"
-                    >
-                      Option B: Manual Link
-                    </p>
-                    <a
-                      href={directFigmaUrl}
-                      target="_blank"
-                      class="inline-flex w-full items-center justify-center gap-2 px-6 py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-[10px] font-black uppercase text-indigo-400 hover:bg-indigo-500/20 transition-all"
-                    >
-                      <SearchCode class="w-4 h-4" />
-                      Open Data Link
-                    </a>
+                    <ExternalLink class="w-4 h-4" />
+                    Open Official Figma Explorer
+                  </a>
+
+                  <div class="pt-2 border-t border-white/5 space-y-4">
+                    <div class="flex items-start gap-4">
+                      <div
+                        class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
+                      >
+                        2
+                      </div>
+                      <p
+                        class="text-[9px] text-white/40 leading-relaxed text-left"
+                      >
+                        On the Figma page, scroll to the **"Try it"** button and
+                        click it (you might need to Login).
+                      </p>
+                    </div>
+                    <div class="flex items-start gap-4">
+                      <div
+                        class="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/40 shrink-0"
+                      >
+                        3
+                      </div>
+                      <p
+                        class="text-[9px] text-white/40 leading-relaxed text-left"
+                      >
+                        Copy everything from the **"Response Box"** and paste it
+                        here.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 <div class="space-y-3">
                   <label
-                    class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1 block text-left"
-                    >Pasted Layout Data</label
+                    for="manual-json-data"
+                    class="text-[10px] font-black text-white/20 uppercase tracking-widest ml-1 block text-left"
+                    >Pasted JSON Data</label
                   >
                   <textarea
+                    id="manual-json-data"
                     bind:value={manualSyncData}
-                    placeholder="PASTE THE COPIED DATA HERE..."
-                    class="w-full h-24 bg-black/40 border border-white/5 rounded-2xl p-4 text-[9px] font-mono text-white/60 outline-none focus:border-indigo-500/30 transition-all placeholder:text-white/10"
+                    placeholder="PASTE JSON FROM FIGMA EXPLORER HERE..."
+                    class="w-full h-32 bg-black/60 border border-white/10 rounded-3xl p-6 text-[10px] font-mono text-white/80 outline-none focus:border-indigo-500/50 transition-all placeholder:text-white/10"
                   ></textarea>
                 </div>
 
                 <div class="pt-2 border-t border-white/5 space-y-3">
-                  <p class="text-[9px] text-white/40 font-medium text-left">
-                    Optional: Upload a screenshot for the background.
+                  <p class="text-[10px] text-white/40 font-medium text-left">
+                    Final Check: Upload a frame screenshot for the editor
+                    background.
                   </p>
                   <div class="relative group">
                     <input
@@ -968,11 +994,11 @@
                       class="absolute inset-0 opacity-0 cursor-pointer z-10"
                     />
                     <div
-                      class="w-full py-3 bg-white/[0.03] border border-white/5 rounded-xl flex items-center justify-center gap-3 text-[9px] font-bold text-white/60 group-hover:bg-white/5 transition-all"
+                      class="w-full py-4 bg-white/[0.03] border border-white/10 rounded-2xl flex items-center justify-center gap-3 text-[10px] font-bold text-white/60 group-hover:bg-white/5 transition-all"
                     >
                       <Upload class="w-4 h-4" />
                       {manualBgImage
-                        ? "✓ Image Uploaded"
+                        ? "✓ Background Ready"
                         : "Upload Template Screenshot"}
                     </div>
                   </div>
