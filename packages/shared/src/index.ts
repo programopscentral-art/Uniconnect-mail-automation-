@@ -18,3 +18,4 @@ export * from './crypto';
 export * from './db/assessments';
 export * from './canonical-template';
 export * from './db/permissions';
+export * from './template';
