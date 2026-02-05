@@ -639,9 +639,19 @@
   }
 
   function applyTemplate(templateId: string) {
-    selectedTemplateId = templateId;
     const template = availableTemplates.find((t) => t.id === templateId);
-    paperStructure = JSON.parse(JSON.stringify(template.config));
+    if (!template) return;
+
+    selectedTemplateId = template.id;
+    if (
+      template.config &&
+      Array.isArray(template.config) &&
+      template.config.length > 0
+    ) {
+      paperStructure = JSON.parse(JSON.stringify(template.config));
+    } else {
+      initializeStructure(true);
+    }
 
     // Resolve Course Outcomes (mapping target_co code to co_id)
     paperStructure.forEach((section: any) => {
@@ -954,54 +964,6 @@
     previewPaperMeta.partB_title = previewPaperMeta.partB_title || "PART B";
     previewPaperMeta.partC_title = previewPaperMeta.partC_title || "PART C";
   });
-  async function fetchTemplates() {
-    if (!selectedUniversityId) return;
-    try {
-      const res = await fetch(
-        `/api/assessments/templates?universityId=${selectedUniversityId}`,
-      );
-      if (res.ok) {
-        availableTemplates = await res.json();
-      }
-    } catch (e) {
-      console.error("Failed to fetch templates", e);
-    }
-  }
-
-  function applyTemplate(templateId: string) {
-    const template = availableTemplates.find((t) => t.id === templateId);
-    if (!template) return;
-
-    selectedTemplateId = template.id;
-    lastLoadedLayout = template.layout_schema || {};
-
-    // If the template has a hardcoded config, use it
-    if (
-      template.config &&
-      Array.isArray(template.config) &&
-      template.config.length > 0
-    ) {
-      paperStructure = JSON.parse(JSON.stringify(template.config));
-    } else {
-      // Re-initialize structure to align with marks/marks per q of the template if available
-      initializeStructure(true);
-    }
-  }
-
-  function refreshLabels() {
-    // Helper to fix label numbering 1, 2, 3... across sections
-    let currentNum = 1;
-    paperStructure.forEach((section) => {
-      section.slots.forEach((slot: any) => {
-        if (slot.type === "SINGLE") {
-          slot.label = `${currentNum++}`;
-        } else if (slot.choices) {
-          slot.label = `${currentNum++}`;
-          slot.displayLabel = `${slot.label} OR ${currentNum++}`;
-        }
-      });
-    });
-  }
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 pb-32">
