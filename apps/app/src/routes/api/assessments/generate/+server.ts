@@ -82,10 +82,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 1c. Fetch Template Layout for Slot Mapping (V62)
         let figmaSlots: any[] = [];
+        let isVGUTemplate = false;
         if (template_id) {
-            const templateRes = await db.query('SELECT layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
+            const templateRes = await db.query('SELECT name, slug, layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
             if (templateRes.rows.length > 0) {
-                const schema = templateRes.rows[0].layout_schema;
+                const tRow = templateRes.rows[0];
+                isVGUTemplate = tRow.slug?.includes('vgu') || tRow.name?.toLowerCase().includes('vgu');
+                const schema = tRow.layout_schema;
                 // V94: Support both Legacy (pages array) and Canonical (slots record)
                 if (schema?.slots && !Array.isArray(schema.slots)) {
                     figmaSlots = Object.entries(schema.slots).map(([name, slot]: [string, any]) => ({
@@ -160,31 +163,54 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!template_config) {
                 // If we have Figma slots, we align the config with the slots
                 if (figmaSlots.length > 0) {
-                    const partASlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_A') && s.slot_id.endsWith('_TEXT'));
-                    const partBSlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_B') && s.slot_id.endsWith('_TEXT'));
+                    // Determine Part A/B slots more robustly (VGU uses Q_1..10 for A, Q_11..14 for B)
+                    let partASlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_A') && s.slot_id.endsWith('_TEXT'));
+                    let partBSlots = figmaSlots.filter(s => s.slot_id.startsWith('PART_B') && s.slot_id.endsWith('_TEXT'));
+
+                    if (isVGUTemplate) {
+                        // VGU Specific Slot Logic
+                        partASlots = figmaSlots.filter(s => {
+                            const num = parseInt(s.slot_id.replace('Q_', ''));
+                            return !isNaN(num) && num <= 10;
+                        }).sort((a, b) => parseInt(a.slot_id.replace('Q_', '')) - parseInt(b.slot_id.replace('Q_', '')));
+
+                        partBSlots = figmaSlots.filter(s => {
+                            const num = parseInt(s.slot_id.replace('Q_', ''));
+                            return !isNaN(num) && num > 10;
+                        }).sort((a, b) => parseInt(a.slot_id.replace('Q_', '')) - parseInt(b.slot_id.replace('Q_', '')));
+                    }
 
                     template_config = [
                         {
-                            title: 'PART A', marks_per_q: marksA, count: partASlots.length, slots: partASlots.map((s, i) => ({
+                            title: 'PART A',
+                            marks_per_q: isVGUTemplate ? 1 : marksA,
+                            count: partASlots.length,
+                            slots: partASlots.map((s, i) => ({
                                 id: s.id,
                                 slot_id: s.slot_id,
                                 label: `${i + 1}`,
-                                marks: marksA,
+                                marks: isVGUTemplate ? 1 : marksA,
                                 type: 'SINGLE',
+                                qType: isVGUTemplate ? 'MCQ' : 'ANY', // FORCE MCQ FOR VGU PART A
                                 part: 'A'
                             }))
                         },
                         {
-                            title: 'PART B', marks_per_q: is100 ? 16 : 5, count: partBSlots.length, slots: partBSlots.map((s, i) => ({
+                            title: 'PART B',
+                            marks_per_q: isVGUTemplate ? 5 : (is100 ? 16 : 5),
+                            count: partBSlots.length,
+                            slots: partBSlots.map((s, i) => ({
                                 id: s.id,
                                 slot_id: s.slot_id,
-                                label: `${i + 1}`,
-                                marks: is100 ? 16 : 5,
-                                type: 'SINGLE', // Figma templates usually designate specific slots
+                                label: `${partASlots.length + i + 1}`,
+                                marks: isVGUTemplate ? 5 : (is100 ? 16 : 5),
+                                type: 'SINGLE',
+                                qType: isVGUTemplate ? 'LONG' : 'ANY', // FORCE LONG FOR VGU PART B
                                 part: 'B'
                             }))
                         }
                     ];
+                    slotsToProcess.length = 0; // Clear auto-generated slots
                     slotsToProcess.push(...template_config[0].slots, ...template_config[1].slots);
                 } else {
                     template_config = [

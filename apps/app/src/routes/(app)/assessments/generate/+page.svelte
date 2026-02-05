@@ -157,6 +157,56 @@
     }
     structure.push(partB);
 
+    if (isVGU) {
+      // FORCE VGU RIGID STRUCTURE (10x1 + 4x5)
+      structure.length = 0;
+
+      const partA = {
+        title: "SECTION A (1*10=10 Marks) Answer all",
+        part: "A",
+        answered_count: 10,
+        marks_per_q: 1,
+        slots: [] as any[],
+      };
+      for (let i = 1; i <= 10; i++) {
+        partA.slots.push({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i}`,
+          part: "A",
+          type: "SINGLE",
+          marks: 1,
+          unit: "Auto",
+          qType: "MCQ",
+          bloom: "ANY",
+        });
+      }
+      structure.push(partA);
+
+      const partB = {
+        title: "SECTION B (5*4=20 Marks) Answer all",
+        part: "B",
+        answered_count: 4,
+        marks_per_q: 5,
+        slots: [] as any[],
+      };
+      for (let i = 1; i <= 4; i++) {
+        partB.slots.push({
+          id: `B-${i}-${Math.random()}`,
+          label: `${10 + i}`,
+          part: "B",
+          type: "SINGLE", // VGU standard long questions
+          marks: 5,
+          unit: "Auto",
+          qType: "LONG",
+          bloom: "ANY",
+        });
+      }
+      structure.push(partB);
+
+      paperStructure = structure;
+      return;
+    }
+
     if (generationMode === "Chaitanya") {
       const partA = {
         title: "Section - A",
@@ -904,6 +954,54 @@
     previewPaperMeta.partB_title = previewPaperMeta.partB_title || "PART B";
     previewPaperMeta.partC_title = previewPaperMeta.partC_title || "PART C";
   });
+  async function fetchTemplates() {
+    if (!selectedUniversityId) return;
+    try {
+      const res = await fetch(
+        `/api/assessments/templates?universityId=${selectedUniversityId}`,
+      );
+      if (res.ok) {
+        availableTemplates = await res.json();
+      }
+    } catch (e) {
+      console.error("Failed to fetch templates", e);
+    }
+  }
+
+  function applyTemplate(templateId: string) {
+    const template = availableTemplates.find((t) => t.id === templateId);
+    if (!template) return;
+
+    selectedTemplateId = template.id;
+    lastLoadedLayout = template.layout_schema || {};
+
+    // If the template has a hardcoded config, use it
+    if (
+      template.config &&
+      Array.isArray(template.config) &&
+      template.config.length > 0
+    ) {
+      paperStructure = JSON.parse(JSON.stringify(template.config));
+    } else {
+      // Re-initialize structure to align with marks/marks per q of the template if available
+      initializeStructure(true);
+    }
+  }
+
+  function refreshLabels() {
+    // Helper to fix label numbering 1, 2, 3... across sections
+    let currentNum = 1;
+    paperStructure.forEach((section) => {
+      section.slots.forEach((slot: any) => {
+        if (slot.type === "SINGLE") {
+          slot.label = `${currentNum++}`;
+        } else if (slot.choices) {
+          slot.label = `${currentNum++}`;
+          slot.displayLabel = `${slot.label} OR ${currentNum++}`;
+        }
+      });
+    });
+  }
 </script>
 
 <div class="max-w-6xl mx-auto space-y-8 pb-32">
@@ -2345,12 +2443,19 @@
                   {courseOutcomes}
                   mode="preview"
                 />
-              {:else if selectedTemplate === "standard" && (!lastLoadedLayout || Object.keys(lastLoadedLayout).length === 0)}
                 <StandardTemplate
                   paperMeta={previewPaperMeta}
                   {paperStructure}
                   currentSetData={previewSetData}
                   {courseOutcomes}
+                  mode="preview"
+                />
+              {:else if (selectedTemplate === "vgu-standard-mid-term" || isVGU) && lastLoadedLayout}
+                <AssessmentPaperRenderer
+                  paperMeta={previewPaperMeta}
+                  {paperStructure}
+                  currentSetData={previewSetData}
+                  layoutSchema={lastLoadedLayout}
                   mode="preview"
                 />
               {:else}
