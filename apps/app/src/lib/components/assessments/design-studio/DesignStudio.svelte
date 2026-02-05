@@ -85,6 +85,30 @@
   if (!template.layout_schema) template.layout_schema = { pages: [] };
   if (!template.regions) template.regions = [];
 
+  // V72: Global Key Listeners for Selection Management
+  const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    // Only delete if an element is selected AND not currently typing/editing
+    const isEditingMode = editingElementId !== null || activeCellId !== null;
+    const isInputActive = ["INPUT", "TEXTAREA"].includes(
+      document.activeElement?.tagName || "",
+    );
+
+    if (
+      selectedElementId &&
+      !isEditingMode &&
+      !isInputActive &&
+      (e.key === "Delete" || e.key === "Backspace")
+    ) {
+      e.preventDefault();
+      deleteElement(selectedElementId);
+    }
+  };
+
+  onMount(() => {
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  });
+
   let layout = $state(template.layout_schema);
   let regions = $state(template.regions || []);
   let activePageId = $state<string>(
@@ -101,11 +125,10 @@
     return el;
   }
 
-  // V71: Robust Sync Strategy (Initial Load & Normalization)
+  // V71/V72: Robust Sync Strategy (Initial Load & Normalization)
   $effect(() => {
-    // 1. Sync from Prop (Triggered when template.layout_schema changes externally or on mount)
+    // 1. Sync from Prop (Triggered when template.layout_schema changes externally)
     if (template.layout_schema?.pages?.length > 0) {
-      // Only sync if locally empty to avoid loop during active editing
       if (layout.pages.length === 0) {
         untrack(() => {
           const schema = JSON.parse(JSON.stringify(template.layout_schema));
@@ -113,11 +136,29 @@
             ? JSON.parse(JSON.stringify(template.regions))
             : [];
 
-          // Standardize data ONCE during load
+          // V72: Migration Layer - Convert relative coordinates (0..1) to mm (210/297)
+          // This fixes existing imports that are unclickable/tiny
+          const migrateCoords = (el: any) => {
+            normalizeElement(el);
+            // If x, y, w, h are all tiny (< 1.5) and not zero, they are likely relative
+            const isRelative =
+              el.x < 1.5 &&
+              el.y < 1.5 &&
+              el.w < 1.5 &&
+              el.h < 1.5 &&
+              (el.x > 0 || el.y > 0 || el.w > 0 || el.h > 0);
+            if (isRelative) {
+              el.x = Math.round(el.x * 210 * 10) / 10;
+              el.y = Math.round(el.y * 297 * 10) / 10;
+              el.w = Math.round(el.w * 210 * 10) / 10;
+              el.h = Math.round(el.h * 297 * 10) / 10;
+            }
+          };
+
           schema.pages.forEach((p: any) => {
-            if (p.elements) p.elements.forEach(normalizeElement);
+            if (p.elements) p.elements.forEach(migrateCoords);
           });
-          currentRegions.forEach(normalizeElement);
+          currentRegions.forEach(migrateCoords);
 
           layout = schema;
           regions = currentRegions;
@@ -299,6 +340,15 @@
     layout = { ...layout };
     selectedElementId = newEl.id;
     return newEl;
+  }
+
+  function deleteElement(id: string) {
+    layout.pages.forEach((p: any) => {
+      p.elements = p.elements.filter((el: any) => el.id !== id);
+    });
+    regions = regions.filter((r: any) => r.id !== id);
+    if (selectedElementId === id) selectedElementId = null;
+    layout = { ...layout };
   }
 
   function autoFit() {

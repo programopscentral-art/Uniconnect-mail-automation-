@@ -75,15 +75,41 @@ const LayoutElementSchema = z.discriminatedUnion('type', [
         w: z.number().optional(),
         h: z.number().optional(),
         slotName: z.string().optional()
+    }).passthrough(),
+    z.object({
+        id: z.string(),
+        type: z.literal('header-field'),
+        x: z.number(),
+        y: z.number(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        content: z.string().optional(),
+        value: z.string().optional(),
+        styles: z.record(z.any()).optional()
+    }).passthrough(),
+    z.object({
+        id: z.string(),
+        type: z.literal('table-cell'),
+        x: z.number(),
+        y: z.number(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+        w: z.number().optional(),
+        h: z.number().optional(),
+        content: z.string().optional(),
+        value: z.string().optional(),
+        styles: z.record(z.any()).optional()
     }).passthrough()
 ]);
 
-// V34: Standardize elements for store
+// V72: Standardize elements for store using mm defaults
 const standardizeElement = (el: any) => {
     return {
         ...el,
-        w: el.w ?? el.width ?? 0.1,
-        h: el.h ?? el.height ?? 0.05,
+        w: el.w ?? el.width ?? 50, // 50mm default width
+        h: el.h ?? el.height ?? 10, // 10mm default height
         value: el.value ?? el.text ?? el.value ?? ''
     };
 };
@@ -240,14 +266,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ success: false, message: 'Document file or existing layout required' }, { status: 400 });
     }
 
-    // Strict Validation
-    // V69: Standardize for editability
+    // V69/V72: Standardize for editability
     detectedLayout.pages.forEach((p: any) => {
         p.elements = (p.elements || []).map((el: any) => {
-            // Ensure content exists (favor content > text)
+            // Ensure content exists
             el.content = el.content || el.text || el.value || "";
             // Ensure styles exists (favor styles > style)
-            el.styles = el.styles || el.style || { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#000000', align: 'left' };
+            el.styles = el.styles || el.style || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', textAlign: 'left' };
+            // Coordinate sanity check: Convert relative to absolute if we missed it
+            if (el.x < 1.1 && el.y < 1.1 && el.w < 1.1 && el.h < 1.1 && (el.x > 0 || el.y > 0)) {
+                el.x = Math.round(el.x * 210 * 10) / 10;
+                el.y = Math.round(el.y * 297 * 10) / 10;
+                el.w = Math.round(el.w * 210 * 10) / 10;
+                el.h = Math.round(el.h * 297 * 10) / 10;
+            }
             return el;
         });
     });
@@ -274,7 +306,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (dryRun) {
         return json({
             success: true,
-            template: { name, exam_type, universityId, layout_schema: validation.data },
+            template: { name, exam_type, universityId, layout_schema: validatedLayout },
             message: 'Analysis successful'
         });
     }
@@ -294,8 +326,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
     ];
 
-    // V34: Standardize all elements for Design Studio editability
-    const finalLayout = JSON.parse(JSON.stringify(validation.data));
+    // V72: Final standardization before DB commit
+    const finalLayout = JSON.parse(JSON.stringify(validatedLayout));
     if (finalLayout.pages) {
         finalLayout.pages = finalLayout.pages.map((p: any) => ({
             ...p,

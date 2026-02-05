@@ -1,4 +1,5 @@
 import type { TemplateElement } from '$lib/types/template';
+import { randomUUID } from 'node:crypto';
 
 interface FigmaNode {
     id: string;
@@ -122,75 +123,79 @@ export class FigmaService {
     }
 
     private static traverseNode(node: FigmaNode, pageNum: number, elements: TemplateElement[]) {
-        if (node.type === 'TEXT' && node.characters) {
+        if (node.characters && node.absoluteBoundingBox) {
             const slotMatch = node.characters.match(/\{\{([^}]+)\}\}/);
             const isPlainHeader = !slotMatch && (
                 node.characters.toUpperCase() === node.characters &&
-                node.characters.length > 3 &&
-                (node.characters.includes('EXAM') || node.characters.includes('NAME') || node.characters.includes('SUBJECT') || node.characters.includes('ROLL'))
+                node.characters.length > 2
             );
 
-            if (slotMatch || isPlainHeader) {
-                const slotId = slotMatch ? slotMatch[1].trim() : node.characters.trim().replace(/\s+/g, '_').toLowerCase();
-                const bbox = node.absoluteBoundingBox;
+            const slotId = slotMatch ? slotMatch[1].trim() : node.characters.trim().replace(/\s+/g, '_').toLowerCase().substring(0, 32);
+            const bbox = node.absoluteBoundingBox;
 
-                const element: TemplateElement = {
-                    id: crypto.randomUUID(),
-                    slot_id: slotId,
-                    type: this.mapSlotToType(slotId),
-                    page: pageNum,
-                    x: bbox.x,
-                    y: bbox.y,
-                    w: bbox.width,
-                    h: bbox.height,
-                    text: node.characters,
-                    content: node.characters, // V69: Populating content alias
-                    value: node.characters,
-                    placeholderContent: node.characters,
-                    is_header: !!(isPlainHeader || this.mapSlotToType(slotId) === 'header-field'),
-                    styles: { // V69: Renamed to styles
-                        fontFamily: node.style?.fontFamily || 'Inter',
-                        fontSize: node.style?.fontSize || 12,
-                        fontWeight: String(node.style?.fontWeight || 400),
-                        color: this.extractHexColor(node.fills),
-                        align: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
-                    }
-                };
-                elements.push(element);
-            }
-        }
-
-        if (node.children) {
-            node.children.forEach(child => this.traverseNode(child, pageNum, elements));
+            const element: TemplateElement = {
+                id: randomUUID(),
+                slot_id: slotId,
+                type: this.mapSlotToType(slotId),
+                page: pageNum,
+                x: bbox.x,
+                y: bbox.y,
+                w: bbox.width,
+                h: bbox.height,
+                text: node.characters,
+                content: node.characters,
+                value: node.characters,
+                placeholderContent: node.characters,
+                is_header: !!(isPlainHeader || this.mapSlotToType(slotId) === 'header-field'),
+                styles: {
+                    fontFamily: node.style?.fontFamily || 'Outfit',
+                    fontSize: node.style?.fontSize || 14,
+                    fontWeight: String(node.style?.fontWeight || 400),
+                    color: this.extractHexColor(node.fills),
+                    textAlign: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
+                }
+            };
+            elements.push(element);
         }
     }
+
+    if(node.children) {
+        node.children.forEach(child => this.traverseNode(child, pageNum, elements));
+    }
+}
 
     private static mapSlotToType(slotId: string): 'header-field' | 'table-cell' | 'text' {
-        const id = slotId.toUpperCase();
-        if (id.includes('TITLE') || id.includes('NAME') || id.includes('SUBJECT')) return 'header-field';
-        if (id.includes('TEXT') || id.includes('QUESTION')) return 'text';
-        if (id.includes('MARKS') || id.includes('CO') || id.includes('BLOOM')) return 'table-cell';
-        return 'text';
-    }
+    const id = slotId.toUpperCase();
+    if (id.includes('TITLE') || id.includes('NAME') || id.includes('SUBJECT')) return 'header-field';
+    if (id.includes('TEXT') || id.includes('QUESTION')) return 'text';
+    if (id.includes('MARKS') || id.includes('CO') || id.includes('BLOOM')) return 'table-cell';
+    return 'text';
+}
 
-    private static extractHexColor(fills?: any[]): string {
-        if (!fills || fills.length === 0) return '#000000';
-        const fill = fills.find(f => f.type === 'SOLID' && f.visible !== false);
-        if (!fill || !fill.color) return '#000000';
+    private static extractHexColor(fills ?: any[]): string {
+    if (!fills || fills.length === 0) return '#000000';
+    const fill = fills.find(f => f.type === 'SOLID' && f.visible !== false);
+    if (!fill || !fill.color) return '#000000';
 
-        const r = Math.round(fill.color.r * 255).toString(16).padStart(2, '0');
-        const g = Math.round(fill.color.g * 255).toString(16).padStart(2, '0');
-        const b = Math.round(fill.color.b * 255).toString(16).padStart(2, '0');
+    const r = Math.round(fill.color.r * 255).toString(16).padStart(2, '0');
+    const g = Math.round(fill.color.g * 255).toString(16).padStart(2, '0');
+    const b = Math.round(fill.color.b * 255).toString(16).padStart(2, '0');
 
-        return `#${r}${g}${b}`;
-    }
+    return `#${r}${g}${b}`;
+}
 
     static normalizeElements(elements: TemplateElement[], frameBBox: { x: number; y: number; width: number; height: number }) {
-        elements.forEach(el => {
-            el.x = (el.x - frameBBox.x) / frameBBox.width;
-            el.y = (el.y - frameBBox.y) / frameBBox.height;
-            el.w = el.w / frameBBox.width;
-            el.h = el.h / frameBBox.height;
-        });
-    }
+    elements.forEach(el => {
+        // V72: Convert directly to mm (A4: 210 x 297)
+        const rx = (el.x - frameBBox.x) / frameBBox.width;
+        const ry = (el.y - frameBBox.y) / frameBBox.height;
+        const rw = el.w / frameBBox.width;
+        const rh = el.h / frameBBox.height;
+
+        el.x = Math.round(rx * 210 * 10) / 10;
+        el.y = Math.round(ry * 297 * 10) / 10;
+        el.w = Math.round(rw * 210 * 10) / 10;
+        el.h = Math.round(rh * 297 * 10) / 10;
+    });
+}
 }
