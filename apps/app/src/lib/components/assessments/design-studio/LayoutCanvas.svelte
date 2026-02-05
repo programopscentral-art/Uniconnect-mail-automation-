@@ -41,6 +41,13 @@
     (activePage?.elements || []).filter((el: any) => el.type === "image-slot"),
   );
 
+  // V69: Only render regions that are NOT already present as manual elements to avoid double-rendering
+  let filteredRegions = $derived(
+    regions.filter(
+      (r: any) => !activePage?.elements?.some((el: any) => el.id === r.id),
+    ),
+  );
+
   function handleSelect(id: string, e: PointerEvent) {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -135,46 +142,46 @@
     {/if}
 
     <!-- V25: High-Fidelity OCR Locked Overlays (Regions) -->
-    {#each regions as _, i (regions[i].id)}
+    <!-- V69: Only render regions that are NOT already present as manual elements to avoid double-rendering -->
+    {#each filteredRegions as region (region.id)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class="absolute group transition-all {selectedElementId ===
-        regions[i].id
+        class="absolute group transition-all {selectedElementId === region.id
           ? 'z-50 ring-2 ring-indigo-500 shadow-xl'
           : 'z-20'}"
-        onpointerdown={(e) => handleSelect(regions[i].id, e)}
+        onpointerdown={(e) => handleSelect(region.id, e)}
         style="
-          left: {regions[i].x * canvasWidth}px; 
-          top: {regions[i].y * canvasHeight}px; 
-          width: {(regions[i].width || regions[i].w) * canvasWidth}px; 
-          height: {(regions[i].height || regions[i].h) * canvasHeight}px;
+          left: {region.x * canvasWidth}px; 
+          top: {region.y * canvasHeight}px; 
+          width: {(region.width || region.w) * canvasWidth}px; 
+          height: {(region.height || region.h) * canvasHeight}px;
           cursor: move;
           pointer-events: auto;
         "
       >
-        {#if (regions[i].height || regions[i].h) > 0.05}
+        {#if (region.height || region.h) > 0.05}
           <textarea
-            bind:value={regions[i].value}
+            bind:value={region.value}
             oninput={(e) =>
               onElementChange?.(
-                regions[i].id,
+                region.id,
                 (e.target as HTMLTextAreaElement).value,
               )}
-            onpointerdown={(e) => handleSelect(regions[i].id, e)}
+            onpointerdown={(e) => handleSelect(region.id, e)}
             class="w-full h-full bg-transparent border-none outline-none resize-none px-1 py-0.5 block leading-tight overflow-hidden selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
-            regions[i].id
+            region.id
               ? 'bg-white/90'
               : 'bg-transparent'}"
             style="
-              font-size: {getFontSize(regions[i])}px;
-              text-align: {regions[i].is_header || regions[i].type === 'label'
+              font-size: {getFontSize(region)}px;
+              text-align: {region.is_header || region.type === 'label'
               ? 'center'
               : 'left'};
-              font-weight: {regions[i].is_header || regions[i].type === 'label'
+              font-weight: {region.is_header || region.type === 'label'
               ? '700'
               : '400'};
               color: #000;
-              font-family: {regions[i].is_header || regions[i].type === 'label'
+              font-family: {region.is_header || region.type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
               white-space: pre-wrap;
@@ -184,27 +191,27 @@
         {:else}
           <input
             type="text"
-            bind:value={regions[i].value}
+            bind:value={region.value}
             oninput={(e) =>
               onElementChange?.(
-                regions[i].id,
+                region.id,
                 (e.target as HTMLInputElement).value,
               )}
-            onpointerdown={(e) => handleSelect(regions[i].id, e)}
+            onpointerdown={(e) => handleSelect(region.id, e)}
             class="w-full h-full bg-transparent border-none outline-none px-1 py-0.5 block leading-tight selection:bg-indigo-500/30 transition-all hover:bg-black/[0.02] {selectedElementId ===
-            regions[i].id
+            region.id
               ? 'bg-white/90'
               : 'bg-transparent'}"
             style="
-              font-size: {getFontSize(regions[i])}px;
-              text-align: {regions[i].is_header || regions[i].type === 'label'
+              font-size: {getFontSize(region)}px;
+              text-align: {region.is_header || region.type === 'label'
               ? 'center'
               : 'left'};
-              font-weight: {regions[i].is_header || regions[i].type === 'label'
+              font-weight: {region.is_header || region.type === 'label'
               ? '700'
               : '400'};
               color: #000;
-              font-family: {regions[i].is_header || regions[i].type === 'label'
+              font-family: {region.is_header || region.type === 'label'
               ? "'Inter', sans-serif"
               : 'monospace'};
               pointer-events: auto;
@@ -214,7 +221,7 @@
         <!-- Field Indicator for designers -->
         <div
           class="absolute inset-0 border border-dashed {selectedElementId ===
-          regions[i].id
+          region.id
             ? 'border-indigo-500'
             : 'border-indigo-500/0 group-hover:border-indigo-500/40'} pointer-events-none"
         ></div>

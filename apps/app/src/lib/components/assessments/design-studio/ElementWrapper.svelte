@@ -73,7 +73,10 @@
       // Single click on already selected element enters edit mode
       if (
         selected &&
-        (element.type === "text" || element.type === "table") &&
+        (element.type === "text" ||
+          element.type === "table" ||
+          element.type === "header-field" ||
+          element.type === "table-cell") &&
         !isEditing
       ) {
         isEditing = true;
@@ -134,7 +137,12 @@
   }
 
   function handleDoubleClick(e: MouseEvent) {
-    if (element.type === "text" || element.type === "table") {
+    if (
+      element.type === "text" ||
+      element.type === "table" ||
+      element.type === "header-field" ||
+      element.type === "table-cell"
+    ) {
       isEditing = true;
     }
   }
@@ -245,7 +253,7 @@
     text-align: {element.styles?.textAlign || 'left'};
   "
   >
-    {#if element.type === "text"}
+    {#if element.type === "text" || element.type === "header-field" || element.type === "table-cell"}
       <RichTextEditor
         bind:this={editorRef}
         bind:value={element.content}

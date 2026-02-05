@@ -804,13 +804,27 @@
                   if (detectedLayout.regions) {
                     detectedLayout.regions = detectedLayout.regions.map(
                       (r: any) =>
-                        r.id === elId ? { ...r, value: newContent } : r,
+                        r.id === elId
+                          ? {
+                              ...r,
+                              value: newContent,
+                              content: newContent,
+                              text: newContent,
+                            }
+                          : r,
                     );
                   }
                   if (detectedLayout.pages?.[0]?.elements) {
                     detectedLayout.pages[0].elements =
                       detectedLayout.pages[0].elements.map((el: any) =>
-                        el.id === elId ? { ...el, value: newContent } : el,
+                        el.id === elId
+                          ? {
+                              ...el,
+                              value: newContent,
+                              content: newContent,
+                              text: newContent,
+                            }
+                          : el,
                       );
                   }
                 }}

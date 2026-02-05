@@ -241,13 +241,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     // Strict Validation
-    const validation = LayoutSchema.safeParse(detectedLayout);
-    if (!validation.success) {
-        console.error('[V12_PROCESS] ❌ Validation Failed (422):', validation.error.format());
+    // V69: Standardize for editability
+    detectedLayout.pages.forEach((p: any) => {
+        p.elements = (p.elements || []).map((el: any) => {
+            // Ensure content exists (favor content > text)
+            el.content = el.content || el.text || el.value || "";
+            // Ensure styles exists (favor styles > style)
+            el.styles = el.styles || el.style || { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#000000', align: 'left' };
+            return el;
+        });
+    });
+
+    if (detectedLayout.regions) {
+        detectedLayout.regions = detectedLayout.regions.map((el: any) => {
+            el.content = el.content || el.text || el.value || "";
+            el.styles = el.styles || el.style || { fontFamily: 'Inter', fontSize: 12, fontWeight: '400', color: '#000000', align: 'left' };
+            return el;
+        });
+    }
+
+    const { success, error, data: validatedLayout } = LayoutSchema.safeParse(detectedLayout);
+    if (!success) {
+        console.error('[V12_PROCESS] ❌ Validation Failed (422):', error.format());
         return json({
             success: false,
             message: 'Architectural Validation Error',
-            details: validation.error.format(),
+            details: error.format(),
             type: 'VALIDATION_ERROR'
         }, { status: 422 });
     }

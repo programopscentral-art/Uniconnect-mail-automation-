@@ -144,10 +144,11 @@ export class FigmaService {
                     w: bbox.width,
                     h: bbox.height,
                     text: node.characters,
+                    content: node.characters, // V69: Populating content alias
                     value: node.characters,
                     placeholderContent: node.characters,
                     is_header: !!(isPlainHeader || this.mapSlotToType(slotId) === 'header-field'),
-                    style: {
+                    styles: { // V69: Renamed to styles
                         fontFamily: node.style?.fontFamily || 'Inter',
                         fontSize: node.style?.fontSize || 12,
                         fontWeight: String(node.style?.fontWeight || 400),

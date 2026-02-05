@@ -13,7 +13,8 @@ export interface TemplateElement {
     w: number; // normalized [0..1]
     h: number; // normalized [0..1]
     text: string;
-    style: {
+    content?: string; // V69: Alias for text to match editor expectation
+    styles: { // V69: Renamed from style to styles
         fontFamily: string;
         fontSize: number;
         fontWeight: string;

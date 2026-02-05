@@ -113,6 +113,28 @@
     }
   });
 
+  // V69: Compatibility Layer - Ensure all elements have 'content' and 'styles'
+  $effect(() => {
+    if (layout.pages?.length > 0) {
+      layout.pages.forEach((p: any) => {
+        p.elements.forEach((el: any) => {
+          if (!el.content && (el.text || el.value))
+            el.content = el.text || el.value;
+          if (!el.styles && el.style) el.styles = el.style;
+          if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
+        });
+      });
+    }
+    if (regions?.length > 0) {
+      regions.forEach((el: any) => {
+        if (!el.content && (el.text || el.value))
+          el.content = el.text || el.value;
+        if (!el.styles && el.style) el.styles = el.style;
+        if (!el.styles) el.styles = { fontFamily: "Outfit", fontSize: 14 };
+      });
+    }
+  });
+
   // Keep template sync'd
   $effect(() => {
     template.layout_schema = layout;
@@ -599,12 +621,20 @@
         }}
         onElementChange={(id: string, value: string) => {
           const reg = regions.find((r: any) => r.id === id);
-          if (reg) reg.value = value;
+          if (reg) {
+            reg.value = value;
+            reg.content = value;
+            reg.text = value;
+          }
 
           // Also sync to layout.pages elements if they exist (backward compatibility)
           layout.pages.forEach((p: any) => {
             const el = p.elements.find((e: any) => e.id === id);
-            if (el) el.value = value;
+            if (el) {
+              el.value = value;
+              el.content = value;
+              el.text = value;
+            }
           });
         }}
         bind:selectedCell
@@ -712,7 +742,7 @@
             </div>
           </section>
 
-          {#if selectedElement.type === "text"}
+          {#if selectedElement.type === "text" || selectedElement.type === "header-field" || selectedElement.type === "table-cell"}
             <section class="pt-6 border-t border-white/5 space-y-6">
               <h3
                 class="text-[9px] font-black text-white/10 uppercase tracking-[0.2em]"
