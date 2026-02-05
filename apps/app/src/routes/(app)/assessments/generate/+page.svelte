@@ -41,6 +41,8 @@
   );
   let selectedExamType = $state("MID1");
   let selectedUnitIds = $state<string[]>([]);
+  let selectedTopicIds = $state<string[]>([]);
+  let expandedUnitId = $state<string | null>(null);
 
   let generationMode = $state("Standard");
   let selectedTemplate = $state("standard");
@@ -351,10 +353,27 @@
     const pool: Record<number, number> = {};
     unitsWithTopics.forEach((u) => {
       if (selectedUnitIds.includes(u.id)) {
-        Object.entries(u.question_counts || {}).forEach(([marks, count]) => {
-          const m = Number(marks);
-          pool[m] = (pool[m] || 0) + (count as number);
-        });
+        // If specific topics are selected in this unit, use only their counts
+        const unitTopicsSelected = u.topics.filter((t: any) =>
+          selectedTopicIds.includes(t.id),
+        );
+
+        if (unitTopicsSelected.length > 0) {
+          unitTopicsSelected.forEach((t: any) => {
+            Object.entries(t.question_counts || {}).forEach(
+              ([marks, count]) => {
+                const m = Number(marks);
+                pool[m] = (pool[m] || 0) + (count as number);
+              },
+            );
+          });
+        } else {
+          // Otherwise use full unit counts
+          Object.entries(u.question_counts || {}).forEach(([marks, count]) => {
+            const m = Number(marks);
+            pool[m] = (pool[m] || 0) + (count as number);
+          });
+        }
       }
     });
     return pool;
@@ -441,19 +460,41 @@
   function toggleUnit(unitId: string) {
     if (selectedUnitIds.includes(unitId)) {
       selectedUnitIds = selectedUnitIds.filter((id) => id !== unitId);
+      // Also unselect all topics for this unit
+      const unit = unitsWithTopics.find((u) => u.id === unitId);
+      if (unit?.topics) {
+        const topicIds = unit.topics.map((t: any) => t.id);
+        selectedTopicIds = selectedTopicIds.filter(
+          (id) => !topicIds.includes(id),
+        );
+      }
     } else {
       selectedUnitIds = [...selectedUnitIds, unitId];
     }
   }
 
+  function toggleTopic(topicId: string, unitId: string) {
+    if (!selectedUnitIds.includes(unitId)) {
+      selectedUnitIds = [...selectedUnitIds, unitId];
+    }
+
+    if (selectedTopicIds.includes(topicId)) {
+      selectedTopicIds = selectedTopicIds.filter((id) => id !== topicId);
+    } else {
+      selectedTopicIds = [...selectedTopicIds, topicId];
+    }
+  }
+
   function selectAllUnits() {
     selectedUnitIds = unitsWithTopics.map((u) => u.id);
+    selectedTopicIds = []; // Reset topic filters to use full units
   }
 
   function selectUpToUnit(unitNum: number) {
     selectedUnitIds = unitsWithTopics
       .filter((u) => u.unit_number <= unitNum)
       .map((u) => u.id);
+    selectedTopicIds = []; // Reset topic filters
   }
 
   async function generateSets() {
@@ -470,6 +511,7 @@
           exam_type: selectedExamType,
           semester: selectedSemester,
           unit_ids: selectedUnitIds,
+          topic_ids: selectedTopicIds,
           paper_date: examDate,
           exam_time: examTime,
           duration_minutes: examDuration,
@@ -1235,54 +1277,183 @@
                 ></div>
               </div>
             {:else}
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="flex flex-col gap-4">
                 {#each unitsWithTopics as unit}
-                  <button
-                    onclick={() => toggleUnit(unit.id)}
-                    class="p-5 rounded-2xl border-2 text-left transition-all flex items-center justify-between
-                                        {selectedUnitIds.includes(unit.id)
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 border-indigo-600 shadow-xl shadow-indigo-100 dark:shadow-indigo-950'
-                      : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 hover:border-indigo-100 dark:hover:border-indigo-900'}"
+                  <div
+                    class="flex flex-col bg-white dark:bg-slate-900 rounded-2xl border-2 transition-all overflow-hidden
+                                     {selectedUnitIds.includes(unit.id)
+                      ? 'border-indigo-600 shadow-xl'
+                      : 'border-gray-100 dark:border-slate-800'}"
                   >
-                    <div>
-                      <h4
-                        class="text-[10px] font-black uppercase text-indigo-400 mb-1"
-                      >
-                        Unit {unit.unit_number}
-                      </h4>
-                      <h3
-                        class="text-xs font-black {selectedUnitIds.includes(
-                          unit.id,
-                        )
-                          ? 'text-indigo-700 dark:text-indigo-400'
-                          : 'text-gray-900 dark:text-slate-200'}"
-                      >
-                        {unit.name}
-                      </h3>
-                    </div>
                     <div
-                      class="w-6 h-6 rounded-lg border-2 flex items-center justify-center {selectedUnitIds.includes(
-                        unit.id,
-                      )
-                        ? 'bg-indigo-600 border-indigo-600'
-                        : 'border-gray-200 dark:border-slate-700'}"
+                      class="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50"
+                      onclick={() => toggleUnit(unit.id)}
                     >
-                      {#if selectedUnitIds.includes(unit.id)}
-                        <svg
-                          class="w-3"
-                          fill="none"
-                          stroke="white"
-                          viewBox="0 0 24 24"
-                          ><path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            stroke-width="4"
-                            d="M5 13l4 4L19 7"
-                          /></svg
+                      <div class="flex items-center gap-4">
+                        <button
+                          class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                          onclick={(e) => {
+                            e.stopPropagation();
+                            expandedUnitId =
+                              expandedUnitId === unit.id ? null : unit.id;
+                          }}
                         >
-                      {/if}
+                          <svg
+                            class="w-4 h-4 transition-transform {expandedUnitId ===
+                            unit.id
+                              ? 'rotate-180'
+                              : ''}"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2.5"
+                              d="M19 9l-7 7-7-7"
+                            />
+                          </svg>
+                        </button>
+                        <div>
+                          <h4
+                            class="text-[10px] font-black uppercase text-indigo-400 mb-0.5"
+                          >
+                            Unit {unit.unit_number}
+                          </h4>
+                          <h3
+                            class="text-xs font-black {selectedUnitIds.includes(
+                              unit.id,
+                            )
+                              ? 'text-indigo-700 dark:text-indigo-400'
+                              : 'text-gray-900 dark:text-slate-200'}"
+                          >
+                            {unit.name}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div class="flex items-center gap-4">
+                        <!-- Count Summary -->
+                        <div class="hidden sm:flex items-center gap-2">
+                          {#each Object.entries(unit.question_counts || {}) as [m, count]}
+                            <span
+                              class="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 rounded text-[9px] font-bold text-gray-500"
+                              >{count}×{m}M</span
+                            >
+                          {/each}
+                        </div>
+
+                        <div
+                          class="w-7 h-7 rounded-xl border-2 flex items-center justify-center {selectedUnitIds.includes(
+                            unit.id,
+                          )
+                            ? 'bg-indigo-600 border-indigo-600'
+                            : 'border-gray-200 dark:border-slate-700'}"
+                        >
+                          {#if selectedUnitIds.includes(unit.id)}
+                            <svg
+                              class="w-4"
+                              fill="none"
+                              stroke="white"
+                              viewBox="0 0 24 24"
+                              ><path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="4"
+                                d="M5 13l4 4L19 7"
+                              /></svg
+                            >
+                          {/if}
+                        </div>
+                      </div>
                     </div>
-                  </button>
+
+                    {#if expandedUnitId === unit.id}
+                      <div
+                        class="px-5 pb-5 pt-2 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50"
+                        transition:slide
+                      >
+                        <div class="grid grid-cols-1 gap-2">
+                          <div class="flex items-center justify-between mb-2">
+                            <h5
+                              class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                            >
+                              Select Specific Topics
+                            </h5>
+                            <button
+                              class="text-[9px] font-black text-indigo-600 uppercase tracking-tighter"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                const topicIds = unit.topics.map(
+                                  (t: any) => t.id,
+                                );
+                                selectedTopicIds = [
+                                  ...new Set([
+                                    ...selectedTopicIds,
+                                    ...topicIds,
+                                  ]),
+                                ];
+                              }}>Select All</button
+                            >
+                          </div>
+
+                          {#each unit.topics as topic}
+                            <button
+                              class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
+                                     {selectedTopicIds.includes(topic.id)
+                                ? 'bg-white dark:bg-slate-800 border-indigo-400 shadow-sm'
+                                : 'bg-white/50 dark:bg-slate-900/50 border-gray-100 dark:border-slate-800'}"
+                              onclick={(e) => {
+                                e.stopPropagation();
+                                toggleTopic(topic.id, unit.id);
+                              }}
+                            >
+                              <div class="flex items-center gap-3">
+                                <div
+                                  class="w-4 h-4 rounded border flex items-center justify-center {selectedTopicIds.includes(
+                                    topic.id,
+                                  )
+                                    ? 'bg-indigo-500 border-indigo-500'
+                                    : 'border-gray-300'}"
+                                >
+                                  {#if selectedTopicIds.includes(topic.id)}
+                                    <svg
+                                      class="w-2.5"
+                                      fill="none"
+                                      stroke="white"
+                                      viewBox="0 0 24 24"
+                                      ><path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="5"
+                                        d="M5 13l4 4L19 7"
+                                      ></path></svg
+                                    >
+                                  {/if}
+                                </div>
+                                <span
+                                  class="text-[10px] font-bold {selectedTopicIds.includes(
+                                    topic.id,
+                                  )
+                                    ? 'text-gray-900 dark:text-white'
+                                    : 'text-gray-500'}">{topic.name}</span
+                                >
+                              </div>
+                              <div class="flex gap-1">
+                                {#each Object.entries(topic.question_counts || {}) as [m, count]}
+                                  <span
+                                    class="text-[8px] font-black text-indigo-400/70"
+                                    >{count}×{m}M</span
+                                  >
+                                {/each}
+                              </div>
+                            </button>
+                          {/each}
+                        </div>
+                      </div>
+                    {/if}
+                  </div>
                 {/each}
               </div>
             {/if}

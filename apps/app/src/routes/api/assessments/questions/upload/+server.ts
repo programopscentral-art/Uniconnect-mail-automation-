@@ -69,13 +69,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const sheet = workbook.Sheets[sName];
                 const rows = XLSX.utils.sheet_to_json(sheet);
                 const lowName = sName.toLowerCase();
-                let qType: any = 'SHORT';
-                if (lowName.includes('mcq')) qType = 'MCQ';
-                else if (lowName.includes('very long')) qType = 'VERY_LONG';
-                else if (lowName.includes('very short')) qType = 'VERY_SHORT';
-                else if (lowName.includes('long')) qType = 'LONG';
-                else if (lowName.includes('fill')) qType = 'FILL_IN_BLANK';
-                else if (lowName.includes('paragraph')) qType = 'PARAGRAPH';
+                let sheetDefaultType: any = 'SHORT';
+                if (lowName.includes('mcq')) sheetDefaultType = 'MCQ';
+                else if (lowName.includes('very long')) sheetDefaultType = 'VERY_LONG';
+                else if (lowName.includes('very short')) sheetDefaultType = 'VERY_SHORT';
+                else if (lowName.includes('long')) sheetDefaultType = 'LONG';
+                else if (lowName.includes('fill')) sheetDefaultType = 'FILL_IN_BLANK';
+                else if (lowName.includes('paragraph')) sheetDefaultType = 'PARAGRAPH';
 
                 for (const row of rows as any[]) {
                     const qTextFull = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true)?.toString().trim();
@@ -122,44 +122,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                                 const e = seqMatches[k + 1] ? seqMatches[k + 1].index : qTextFull.length;
                                 options.push(`${seqMatches[k][1].toUpperCase()}. ${qTextFull.substring(s, e).trim()}`);
                             }
-                            if (qType !== 'MCQ') qType = 'MCQ';
                         }
                     }
 
-                    const rawModNum = findVal(row, ['Module Number', 'Unit Number', 'Module #', 'Unit #']);
-                    const rawModName = findVal(row, ['NAME OF THE MODULE', 'NAME OF THE UNIT', 'Module Name', 'Unit Name', 'Module', 'Unit']);
+                    // 1b. Detect explicit Type column or infer from sheet
+                    let rowType = findVal(row, ['Type', 'Question Type', 'Category', 'qType'])?.toString().toUpperCase().trim();
+                    let finalQType = sheetDefaultType;
 
-                    let unit = null;
-                    if (rawModNum && !isNaN(parseInt(rawModNum))) {
-                        unit = allUnits.find(u => u.unit_number === parseInt(rawModNum));
-                    }
-                    if (!unit && rawModName) {
-                        const search = rawModName.toString().trim().toLowerCase();
-                        unit = allUnits.find(u => (u.name || '').toLowerCase().includes(search) || search.includes((u.name || '').toLowerCase()));
-                    }
-
-                    if (!unit) {
-                        unit = (unitId !== 'GLOBAL') ? allUnits.find(u => u.id === unitId) : allUnits[0];
-                        if (!unit) {
-                            const res = await db.query('INSERT INTO assessment_units (subject_id, unit_number, name) VALUES ($1, 1, \'Unit 1\') RETURNING *', [subjectId]);
-                            unit = res.rows[0]; allUnits.push(unit);
-                        }
+                    if (rowType) {
+                        if (rowType.includes('MCQ')) finalQType = 'MCQ';
+                        else if (rowType.includes('VERY LONG')) finalQType = 'VERY_LONG';
+                        else if (rowType.includes('VERY SHORT')) finalQType = 'VERY_SHORT';
+                        else if (rowType.includes('LONG')) finalQType = 'LONG';
+                        else if (rowType.includes('FILL')) finalQType = 'FILL_IN_BLANK';
+                        else if (rowType.includes('PARAGRAPH')) finalQType = 'PARAGRAPH';
+                        else if (rowType.includes('SHORT')) finalQType = 'SHORT';
                     }
 
-                    const tName = findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString().trim() || 'General';
-                    let topic = allTopics.find(t => t.unit_id === unit.id && t.name.toLowerCase() === tName.toLowerCase());
-                    if (!topic) {
-                        const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, tName]);
-                        topic = res.rows[0]; allTopics.push(topic);
-                    }
-
-                    const bloomRaw = (findVal(row, ['Difficulty level', 'Bloom Level', 'bloom_level', 'Difficulty']) || 'L1').toString().toUpperCase().trim();
-                    const bloomMatch = bloomRaw.match(/L\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*([1-5])/i);
-                    const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
-
+                    // 1c. Marks and final type inference
                     const marksRaw = findVal(row, ['Marks', 'marks', 'Points', 'Weightage', 'Mark', 'marks_per_q']);
                     const marksNum = parseFloat(marksRaw?.toString());
-                    const marks = !isNaN(marksNum) ? marksNum : (qType === 'MCQ' ? 1 : (qType === 'LONG' ? 5 : 2));
+                    const marks = !isNaN(marksNum) ? marksNum : (finalQType === 'MCQ' ? 1 : (finalQType === 'LONG' ? 5 : 2));
+
+                    // Final fallback refinement: If marks are 5 or 10 and type is still SHORT, it's likely LONG
+                    if (options.length > 0) finalQType = 'MCQ';
+                    else if (finalQType === 'SHORT' || !rowType) {
+                        if (marks >= 10) finalQType = 'VERY_LONG';
+                        else if (marks >= 5) finalQType = 'LONG';
+                        else if (marks === 1) finalQType = 'VERY_SHORT';
+                    }
 
                     const coCode = (findVal(row, ['CO', 'Course Outcome', 'co_code']) || '').toString().toUpperCase().trim();
 
@@ -170,7 +161,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         question_text: qText.toString().trim(),
                         bloom_level: bloomLevel,
                         marks: marks,
-                        type: qType,
+                        type: finalQType,
                         answer_key: (findVal(row, ['Solution', 'Answer', 'answer_key', 'Correct Answer']) || '').toString().trim(),
                         options: options && options.length > 0 ? options : null,
                         image_url: null // XLSX image support is limited in current library

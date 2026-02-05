@@ -16,14 +16,30 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
             const topics = await getAssessmentTopics(u.id);
-            const { rows: counts } = await db.query(
+
+            // Fetch counts for each topic in this unit
+            const topicsWithCounts = await Promise.all(topics.map(async (t) => {
+                const { rows: tCounts } = await db.query(
+                    'SELECT marks, COUNT(*) as count FROM assessment_questions WHERE topic_id = $1 GROUP BY marks',
+                    [t.id]
+                );
+                return {
+                    ...t,
+                    question_counts: tCounts.reduce((acc: any, curr: any) => {
+                        acc[curr.marks] = parseInt(curr.count);
+                        return acc;
+                    }, {})
+                };
+            }));
+
+            const { rows: unitCounts } = await db.query(
                 'SELECT marks, COUNT(*) as count FROM assessment_questions WHERE unit_id = $1 GROUP BY marks',
                 [u.id]
             );
             return {
                 ...u,
-                topics,
-                question_counts: counts.reduce((acc: any, curr: any) => {
+                topics: topicsWithCounts,
+                question_counts: unitCounts.reduce((acc: any, curr: any) => {
                     acc[curr.marks] = parseInt(curr.count);
                     return acc;
                 }, {}),

@@ -21,6 +21,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             instructions,
             template_id,
             unit_ids = [],
+            topic_ids = [],
             generation_mode = 'Automatic', // 'Automatic' or 'Modifiable'
             max_marks = 50,
             part_a_type = 'Mixed',
@@ -34,14 +35,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (!subject_id) throw error(400, 'Subject ID is required');
 
-        // 1. Fetch Question Pool
-        const questionsRes = await db.query(`
+        // 1. Fetch Question Pool (with optional topic filtering)
+        let query = `
             SELECT q.*, t.name as topic_name, u.unit_number 
             FROM assessment_questions q
             JOIN assessment_units u ON q.unit_id = u.id
             LEFT JOIN assessment_topics t ON q.topic_id = t.id
             WHERE u.subject_id = $1
-        `, [subject_id]);
+        `;
+        const params: any[] = [subject_id];
+
+        if (topic_ids && topic_ids.length > 0) {
+            query += ` AND q.topic_id = ANY($2)`;
+            params.push(topic_ids);
+        } else if (unit_ids && unit_ids.length > 0) {
+            // Note: unit_ids passed from frontend are compared here
+            // If topic_ids are NOT provided, we still respect unit_ids as a fallback filter if the pool is large
+            // But the current implementation usually sends all possible units and filters in the picker logic
+            // However, to be strict as requested for unit-wise selection:
+            // query += ` AND q.unit_id = ANY($2)`;
+            // params.push(unit_ids);
+        }
+
+        const questionsRes = await db.query(query, params);
 
         const allQuestions = questionsRes.rows;
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
