@@ -235,9 +235,7 @@
 
     async function tryBrowserFetch() {
       try {
-        console.log(
-          "[V87_BROWSER] 🚀 Attempting Proxied Browser Fetch to Figma...",
-        );
+        console.log("[V88_BROWSER] 🚀 Attempting Headerless Fetch to Figma...");
         const key =
           figmaUrl.match(
             /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
@@ -246,26 +244,29 @@
           selectedFrameId.replace("-", ":"),
         );
 
-        // V87: Use a CORS Proxy to ensure the browser fetch doesn't get blocked by CORS or IP limits
-        const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}`;
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        // V88: Use query parameter for auth to avoid CORS preflight (OPTIONS) blocks
+        const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&accessToken=${figmaToken}`;
 
-        const figmaRes = await fetch(proxyUrl, {
-          headers: { "X-Figma-Token": figmaToken },
-        });
+        // Try direct first (simplest), then proxied if that fails
+        let figmaRes = await fetch(targetUrl).catch(() => null);
 
-        if (figmaRes.ok) {
-          figmaData = await figmaRes.json();
-          console.log("[V87_BROWSER] ✅ Proxied fetch successful!");
-        } else {
-          const errText = await figmaRes.text();
-          console.error(
-            `[V87_BROWSER] ❌ Figma Proxy Error (${figmaRes.status}):`,
-            errText,
+        if (!figmaRes || !figmaRes.ok) {
+          console.warn(
+            "[V88_BROWSER] ⚠️ Direct fetch failed, trying proxy tunnel...",
           );
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+          figmaRes = await fetch(proxyUrl);
+        }
+
+        if (figmaRes && figmaRes.ok) {
+          figmaData = await figmaRes.json();
+          console.log("[V88_BROWSER] ✅ Headerless fetch successful!");
+        } else {
+          const errText = figmaRes ? await figmaRes.text() : "Network Error";
+          console.error(`[V88_BROWSER] ❌ Figma Fetch Error:`, errText);
         }
       } catch (err) {
-        console.error("[V87_BROWSER] ❌ Browser fetch CRASHED:", err);
+        console.error("[V88_BROWSER] ❌ Browser fetch CRASHED:", err);
       }
     }
 

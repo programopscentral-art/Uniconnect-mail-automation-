@@ -125,9 +125,10 @@ export class FigmaService {
         let responseStatus = 200;
 
         if (!data) {
+            // V88: Try both Header and Query Param for maximum resilience
             const url = normalizedFrameId
-                ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}`
-                : `${this.FIGMA_API_BASE}/files/${fileKey}`;
+                ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}&accessToken=${accessToken}`
+                : `${this.FIGMA_API_BASE}/files/${fileKey}?accessToken=${accessToken}`;
 
             const response = await fetch(url, {
                 headers: { 'X-Figma-Token': accessToken }
