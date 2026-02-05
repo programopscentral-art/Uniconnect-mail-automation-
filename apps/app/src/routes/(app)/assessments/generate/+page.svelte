@@ -69,6 +69,7 @@
   let unitsWithTopics = $state<any[]>([]);
   let courseOutcomes = $state<any[]>([]);
   let availableTemplates = $state<any[]>([]);
+  let selectedTemplateId = $state<string>("");
   let isLoadingTopics = $state(false);
   let isGenerating = $state(false);
 
@@ -516,6 +517,7 @@
           exam_time: examTime,
           duration_minutes: examDuration,
           max_marks: maxMarks,
+          template_id: selectedTemplateId,
           course_code: courseCodeManual,
           exam_title: examTitleHeader,
           instructions: paperInstructions,
@@ -587,6 +589,7 @@
   }
 
   function applyTemplate(templateId: string) {
+    selectedTemplateId = templateId;
     const template = availableTemplates.find((t) => t.id === templateId);
     paperStructure = JSON.parse(JSON.stringify(template.config));
 
@@ -806,6 +809,14 @@
   const isCrescent = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("crescent"),
   );
+  const isVGU = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("viv") ||
+      activeUniversity?.name?.toLowerCase()?.includes("vgu") ||
+      activeUniversity?.slug?.includes("vgu") ||
+      selectedUniversityId === "c40ed15d-b3e4-49ba-a469-b0bd-a2ac8b2A" ||
+      (typeof window !== "undefined" &&
+        window.location.search.toLowerCase().includes("c40ed15d")),
+  );
 
   $effect(() => {
     if (!selectedUniversityId) return;
@@ -820,6 +831,19 @@
       selectedTemplate = "crescent";
       maxMarks = 50;
       examDuration = 90;
+    } else if (isVGU) {
+      selectedTemplate = "vgu-standard-mid-term";
+      // Auto-apply VGU template if found in availableTemplates
+      const vguT = availableTemplates.find(
+        (t: any) =>
+          t.slug === "vgu-standard-mid-term" ||
+          t.name.toLowerCase().includes("vgu"),
+      );
+      if (vguT) {
+        applyTemplate(vguT.id);
+        maxMarks = 30; // VGU Mid-term MM
+        examDuration = 90;
+      }
     } else {
       selectedTemplate = "standard";
     }
@@ -827,7 +851,13 @@
 
   // Determine the user-facing label for the "Standard" mode
   let universityLabel = $derived(
-    isChaitanya ? "Chaitanya" : isCrescent ? "Crescent" : "University Standard",
+    isChaitanya
+      ? "Chaitanya"
+      : isCrescent
+        ? "Crescent"
+        : isVGU
+          ? "VGU University"
+          : "University Standard",
   );
 
   let previewPaperMeta = $state<any>({
@@ -2228,7 +2258,14 @@
               <option value="" class="dark:bg-slate-800"
                 >-- Select a Format --</option
               >
-              {#each availableTemplates as template}
+              {#each availableTemplates.filter((t) => {
+                if (t.slug?.includes("vgu") || t.name
+                    ?.toLowerCase()
+                    .includes("vgu")) {
+                  return isVGU;
+                }
+                return true;
+              }) as template}
                 <option value={template.id} class="dark:bg-slate-800"
                   >{template.name} ({template.exam_type})</option
                 >
