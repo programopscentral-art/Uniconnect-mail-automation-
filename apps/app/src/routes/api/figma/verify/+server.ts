@@ -15,8 +15,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         console.log(`[FIGMA_VERIFY] 🔍 Verifying: ${url}`);
         const fileKey = FigmaService.extractFileKey(url);
         const extractedNodeId = FigmaService.extractNodeId(url);
-        const meta = await FigmaService.getFileMeta(fileKey, token);
 
+        if (extractedNodeId) {
+            console.log(`[FIGMA_VERIFY] 🎯 Quick Verify for Node: ${extractedNodeId}`);
+            const quick = await FigmaService.verifyQuick(fileKey, token, extractedNodeId);
+            return json({
+                success: true,
+                fileKey,
+                extractedNodeId,
+                fileName: quick.fileName,
+                pages: [{ id: 'quick', name: 'Direct Design', frames: [{ id: extractedNodeId, name: quick.nodeName }] }]
+            });
+        }
+
+        const meta = await FigmaService.getFileMeta(fileKey, token);
         return json({
             success: true,
             fileKey,

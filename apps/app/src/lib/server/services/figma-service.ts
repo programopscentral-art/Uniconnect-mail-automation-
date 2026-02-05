@@ -27,12 +27,13 @@ export class FigmaService {
 
     static extractFileKey(url: string): string {
         try {
-            if (!url.includes('figma.com')) return url;
-            const designMatch = url.match(/\/(?:design|file)\/([a-zA-Z0-9]+)/);
-            if (designMatch) return designMatch[1];
-            return url;
+            if (!url.includes('figma.com')) return url.trim();
+            // Refined regex to handle /design/key/title and /file/key/title accurately
+            const match = url.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/);
+            if (match) return match[1];
+            return url.trim();
         } catch (e) {
-            return url;
+            return url.trim();
         }
     }
 
@@ -88,6 +89,27 @@ export class FigmaService {
                 id: f.id,
                 name: f.name
             }));
+    }
+
+    static async verifyQuick(fileKey: string, accessToken: string, nodeId: string) {
+        // V78: Direct node fetch is much lighter than fetching the whole file.
+        const response = await fetch(`${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${nodeId}`, {
+            headers: { 'X-Figma-Token': accessToken }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Figma Node Error (${response.status}): ${errorText}`);
+        }
+
+        const data = await response.json();
+        const node = data.nodes?.[nodeId]?.document;
+        if (!node) throw new Error('Target node (frame) not found in this file');
+
+        return {
+            fileName: data.name || 'Figma Design',
+            nodeName: node.name
+        };
     }
 
     static async importFromFigma(fileKey: string, accessToken: string, frameId?: string): Promise<FigmaImportResult> {
@@ -179,7 +201,7 @@ export class FigmaService {
                     fontSize: node.style?.fontSize || 14,
                     fontWeight: String(node.style?.fontWeight || 400),
                     color: this.extractHexColor(node.fills),
-                    textAlign: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
+                    align: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
                 }
             };
             elements.push(element);

@@ -86,10 +86,12 @@
           console.log(
             `[FIGMA_UI] 🎯 Auto-detected node-id: ${data.extractedNodeId}`,
           );
-          // Logic to find which page contains this node would be heavy,
-          // so we just fetch frames for all pages or assume user picks page.
-          // But we can at least pre-set the frameId if it's found in the fetched list eventually.
-          selectedFrameId = data.extractedNodeId;
+          if (data.pages.length === 1 && data.pages[0].id === "quick") {
+            selectedPageId = "quick";
+            selectedFrameId = data.extractedNodeId;
+          } else {
+            selectedFrameId = data.extractedNodeId;
+          }
         }
       } else {
         errorMsg = data.message || "Figma verification failed";
@@ -97,6 +99,44 @@
       }
     } catch (e: any) {
       errorMsg = "Verification Error: Could not connect to Figma API relay.";
+      isFigmaVerified = false;
+    } finally {
+      isVerifyingFigma = false;
+    }
+  }
+
+  async function bypassVerification() {
+    if (!figmaUrl || !figmaToken) return;
+    isVerifyingFigma = true;
+    errorMsg = "";
+    try {
+      const key = FigmaService.extractFileKey(figmaUrl);
+      const nodeId = FigmaService.extractNodeId(figmaUrl);
+
+      if (!key) throw new Error("Invalid Figma URL format");
+
+      figmaFileKey = key;
+      isFigmaVerified = true;
+      if (nodeId) {
+        selectedPageId = "quick";
+        selectedFrameId = nodeId;
+        figmaPages = [
+          {
+            id: "quick",
+            name: "Direct Design",
+            frames: [{ id: nodeId, name: "Target Frame" }],
+          },
+        ];
+      } else {
+        selectedPageId = "";
+        selectedFrameId = "";
+        figmaPages = [];
+        errorMsg =
+          "Warning: Manual bypass without node-id requires choosing a frame later.";
+      }
+      if (!importName) importName = "Manual Figma Import";
+    } catch (e: any) {
+      errorMsg = e.message;
       isFigmaVerified = false;
     } finally {
       isVerifyingFigma = false;
@@ -625,10 +665,27 @@
             </div>
 
             {#if errorMsg}
-              <div
-                class="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase"
-              >
-                {errorMsg}
+              <div class="space-y-4">
+                <div
+                  class="p-6 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-bold uppercase leading-relaxed"
+                >
+                  {errorMsg}
+                </div>
+
+                {#if errorMsg.includes("429") || errorMsg.includes("Verification Error")}
+                  <button
+                    onclick={bypassVerification}
+                    class="w-full py-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-[10px] font-black uppercase text-indigo-400 hover:bg-indigo-500/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Zap class="w-4 h-4" />
+                    Bypass Limit & Force Import
+                  </button>
+                  <p
+                    class="text-[8px] text-white/20 font-bold uppercase text-center tracking-widest px-4"
+                  >
+                    ONLY USE IF FIGMA API IS PERSISTENTLY BLOCKED
+                  </p>
+                {/if}
               </div>
             {/if}
           </div>
