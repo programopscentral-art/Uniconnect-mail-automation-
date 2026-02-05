@@ -6,11 +6,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
 
     try {
+        const body = await request.json();
+
+        const sanitizeUUID = (id: any) => (id === '' || id === undefined || id === 'undefined' ? null : id);
+
         const {
-            subject_id,
-            university_id,
-            batch_id,
-            branch_id,
+            subject_id: raw_subject_id,
+            university_id: raw_university_id,
+            batch_id: raw_batch_id,
+            branch_id: raw_branch_id,
             exam_type,
             semester,
             paper_date,
@@ -19,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             course_code,
             exam_title,
             instructions,
-            template_id,
+            template_id: raw_template_id,
             unit_ids = [],
             topic_ids = [],
             generation_mode = 'Automatic', // 'Automatic' or 'Modifiable'
@@ -29,7 +33,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             selected_template = 'standard',
             preview_only = false,
             template_config: incoming_template_config
-        } = await request.json();
+        } = body;
+
+        const subject_id = sanitizeUUID(raw_subject_id);
+        const university_id = sanitizeUUID(raw_university_id);
+        const batch_id = sanitizeUUID(raw_batch_id);
+        const branch_id = sanitizeUUID(raw_branch_id);
+        const template_id = sanitizeUUID(raw_template_id);
 
         let template_config = incoming_template_config;
 

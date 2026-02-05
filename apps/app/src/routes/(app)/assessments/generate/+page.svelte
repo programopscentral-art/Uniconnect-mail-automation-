@@ -20,9 +20,9 @@
   ];
 
   // Selections
-  let selectedUniversityId = $state("");
-  let selectedBatchId = $state("");
-  let selectedBranchId = $state("");
+  let selectedUniversityId = $state<string | null>(null);
+  let selectedBatchId = $state<string | null>(null);
+  let selectedBranchId = $state<string | null>(null);
   let selectedSemester = $state(1);
   let selectedSubjectId = $state("");
   let universitySearch = $state("");
@@ -69,7 +69,7 @@
   let unitsWithTopics = $state<any[]>([]);
   let courseOutcomes = $state<any[]>([]);
   let availableTemplates = $state<any[]>([]);
-  let selectedTemplateId = $state<string>("");
+  let selectedTemplateId = $state<string | null>(null);
   let isLoadingTopics = $state(false);
   let isGenerating = $state(false);
 
@@ -2359,7 +2359,6 @@
                   {paperStructure}
                   currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
-                  {courseOutcomes}
                   mode="preview"
                 />
               {/if}
