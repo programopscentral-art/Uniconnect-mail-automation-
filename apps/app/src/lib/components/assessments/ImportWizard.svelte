@@ -126,9 +126,11 @@
         body: JSON.stringify({ url: figmaUrl, token: figmaToken }),
       });
 
-      // V92: If server is rate-limited (429), try browser-side fallback immediately
-      if (res.status === 429) {
-        console.warn("[FIGMA_UI] ⚠️ Server 429. Trying Browser-Side Sync...");
+      // V93: Enhanced Tiered Proxy Fallback (429/403 resilient)
+      if (res.status === 429 || res.status === 401) {
+        console.warn(
+          "[FIGMA_UI] ⚠️ Server Blocked. Trying Browser-Side Sync...",
+        );
         const key =
           figmaUrl.match(
             /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
@@ -137,13 +139,26 @@
         let nodeId = urlObj.searchParams.get("node-id");
         if (nodeId) nodeId = nodeId.replace("-", ":");
 
-        // Try a direct browser fetch via CORS proxy for verification
         const targetUrl = `https://api.figma.com/v1/files/${key}${nodeId ? `/nodes?ids=${nodeId}` : ""}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl + (targetUrl.includes("?") ? "&" : "?") + "access_token=" + figmaToken)}`;
+        const accessTokenParam =
+          (targetUrl.includes("?") ? "&" : "?") + "access_token=" + figmaToken;
 
-        const browserRes = await fetch(proxyUrl);
+        console.log("[FIGMA_UI] 🚀 Tier 1: corsproxy.io");
+        let proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl + accessTokenParam)}`;
+        let browserRes = await fetch(proxyUrl);
+
+        if (!browserRes.ok) {
+          console.warn(
+            "[FIGMA_UI] ⚠️ Tier 1 Failed. Trying Tier 2: allorigins.win",
+          );
+          proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl + accessTokenParam)}`;
+          browserRes = await fetch(proxyUrl);
+        }
+
         if (browserRes.ok) {
-          const data = await browserRes.json();
+          let data = await browserRes.json();
+          if (data.contents) data = JSON.parse(data.contents);
+
           figmaPages = [
             {
               id: "quick",
@@ -158,6 +173,10 @@
           if (nodeId) selectedFrameId = nodeId;
           if (!importName) importName = data.name || "Figma Design";
           return;
+        } else {
+          showManualInput = true;
+          errorMsg =
+            "API Throttled. Please use Option 3 below (Console Script).";
         }
       }
 
@@ -182,8 +201,9 @@
         if (res.status === 429) showManualInput = true;
       }
     } catch (e: any) {
-      errorMsg = "Verification Error: Connection blocked.";
+      errorMsg = "Verification Error: Connection blocked. Use Manual Sync.";
       isFigmaVerified = false;
+      showManualInput = true;
     } finally {
       isVerifyingFigma = false;
     }
@@ -341,18 +361,31 @@
         const rawNodeId = selectedFrameId || "";
         const encodedNodeId = encodeURIComponent(rawNodeId.replace("-", ":"));
 
-        // V89: Use corsproxy.io as a more stable alternative
+        // V93: Enhanced Tiered Proxy for Analysis
         const targetUrl = `https://api.figma.com/v1/files/${key}/nodes?ids=${encodedNodeId}&access_token=${figmaToken}`;
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
 
-        const figmaRes = await fetch(proxyUrl);
+        console.log("[V93_BROWSER] 🚀 Tier 1 (corsproxy.io)...");
+        let figmaRes = await fetch(
+          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        );
+
+        if (!figmaRes.ok) {
+          console.warn(
+            "[V93_BROWSER] ⚠️ Tier 1 Failed. Trying Tier 2 (allorigins.win)...",
+          );
+          figmaRes = await fetch(
+            `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+          );
+        }
 
         if (figmaRes.ok) {
-          figmaData = await figmaRes.json();
-          console.log("[V89_BROWSER] ✅ Proxied fetch successful!");
+          let data = await figmaRes.json();
+          if (data.contents) data = JSON.parse(data.contents);
+          figmaData = data;
+          console.log("[V93_BROWSER] ✅ Browser proxy successful!");
         } else {
           console.warn(
-            "[V89_BROWSER] ⚠️ Proxied fetch failed, showing manual input link...",
+            "[V93_BROWSER] ❌ All proxies failed, enforcing manual input...",
           );
           showManualInput = true;
         }
@@ -1002,8 +1035,8 @@
                         <p
                           class="text-[9px] text-white/40 leading-relaxed text-left"
                         >
-                          Click the link above, scroll to the blue **"Try it"**
-                          button on that page, and click it.
+                          Click the link above, scroll to the **"Call
+                          Endpoint"** section on that page.
                         </p>
                       </div>
                       <div class="flex items-start gap-4">
@@ -1015,11 +1048,39 @@
                         <p
                           class="text-[9px] text-white/40 leading-relaxed text-left"
                         >
-                          Copy everything from the **"Response"** box and paste
-                          it below.
+                          Ensure your **node-id** matches what is on this
+                          screen, then click **"Try it"**.
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  <div class="pt-4 border-t border-white/10 space-y-4">
+                    <div class="space-y-1 text-left">
+                      <p
+                        class="text-[10px] font-black text-amber-500 uppercase"
+                      >
+                        Option 3: Console Scout (Guaranteed)
+                      </p>
+                      <p class="text-[9px] text-white/40">
+                        Total bypass. Copy this script, paste it in your <b
+                          >Figma browser tab's console</b
+                        >, and hit enter.
+                      </p>
+                    </div>
+
+                    <button
+                      onclick={() => {
+                        navigator.clipboard.writeText(scoutScript);
+                        alert(
+                          "Scout Script Copied! Paste it in Figma Console.",
+                        );
+                      }}
+                      class="w-full py-4 bg-amber-600/20 border border-amber-500/30 rounded-2xl text-[11px] font-black uppercase text-amber-400 hover:bg-amber-600/30 transition-all flex items-center justify-center gap-2"
+                    >
+                      <SearchCode class="w-4 h-4" />
+                      Copy Console Scout Script
+                    </button>
                   </div>
                 </div>
 
