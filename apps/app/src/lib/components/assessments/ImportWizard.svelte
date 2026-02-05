@@ -60,6 +60,13 @@
   let manualBgImage = $state("");
   let showManualInput = $state(false);
 
+  // V90: Token Type Check
+  let tokenWarning = $derived(
+    figmaToken.startsWith("figd_")
+      ? "⚠️ CAUTION: You are using a 'Design Token' (figd_). Designs often require a 'Personal Access Token' (figu_). Create one in Figma -> Settings."
+      : "",
+  );
+
   // V89: Derived FIGMA API URL for manual sync link
   let directFigmaUrl = $derived.by(() => {
     const key =
@@ -67,6 +74,15 @@
       "";
     const nodeId = selectedFrameId.replace("-", ":");
     return `https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}&access_token=${figmaToken}`;
+  });
+
+  // V90: Browser-Scout Script (The "Nuclear" Bypass)
+  let scoutScript = $derived.by(() => {
+    const key =
+      figmaUrl.match(/\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/)?.[1] ||
+      "";
+    const nodeId = selectedFrameId.replace("-", ":");
+    return `fetch("https://api.figma.com/v1/files/${key}/nodes?ids=${encodeURIComponent(nodeId)}").then(r=>r.json()).then(d=>{copy(JSON.stringify(d));console.log("✅ DATA COPIED! Paste it back in the app.")}).catch(e=>alert("Design Blocked: Try opening this frame in a new tab first."))`;
   });
 
   // V89: Manual image upload helper (moved to component scope)
@@ -685,9 +701,16 @@
                     type="password"
                     bind:value={figmaToken}
                     disabled={isFigmaVerified}
-                    placeholder="figd_..."
-                    class="w-full bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
+                    placeholder="Enter figu_ token..."
+                    class="w-full bg-white/[0.02] border border-white/5 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-indigo-500/50 transition-all font-mono disabled:opacity-50"
                   />
+                  {#if tokenWarning}
+                    <p
+                      class="text-[8px] font-bold text-amber-500/80 uppercase tracking-tighter ml-1 animate-pulse"
+                    >
+                      {tokenWarning}
+                    </p>
+                  {/if}
                 </div>
 
                 {#if !isFigmaVerified}
@@ -857,44 +880,85 @@
           >
             {#if showManualInput || selectedPageId === "quick"}
               <div
-                class="w-full max-w-lg space-y-6 bg-indigo-500/5 p-8 rounded-3xl border border-indigo-500/10 mb-8"
+                class="w-full max-w-lg space-y-6 bg-indigo-500/5 p-8 rounded-3xl border border-indigo-500/10 mb-8 overflow-y-auto max-h-[500px]"
                 transition:fade
               >
                 <div class="space-y-2">
                   <h3
                     class="text-[11px] font-black text-indigo-400 uppercase tracking-widest"
                   >
-                    Manual Data Sync (Emergency)
+                    Manual Data Sync (UNBLOCKABLE)
                   </h3>
                   <p
                     class="text-[9px] text-white/40 font-medium leading-relaxed"
                   >
-                    Figma is blocking direct access. Please open the link below
-                    in a new tab, copy EVERYTHING you see, and paste it here.
+                    Figma is blocking automatic access. Use the <b
+                      >Browser Scout</b
+                    > below to get the data through your own logged-in session.
                   </p>
                 </div>
 
-                <a
-                  href={directFigmaUrl}
-                  target="_blank"
-                  class="inline-flex items-center gap-2 px-6 py-3 bg-indigo-500 rounded-xl text-[10px] font-black uppercase text-white hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20"
-                >
-                  <SearchCode class="w-4 h-4" />
-                  1. Open Design Data Link
-                </a>
+                <div class="grid grid-cols-1 gap-4">
+                  <div
+                    class="p-4 bg-black/40 border border-white/5 rounded-2xl space-y-3"
+                  >
+                    <p
+                      class="text-[9px] text-white/60 font-bold uppercase tracking-wider text-left"
+                    >
+                      Option A: Browser Scout (Best)
+                    </p>
+                    <button
+                      onclick={() => {
+                        navigator.clipboard.writeText(scoutScript);
+                        alert(
+                          "Scout Script Copied! Paste it in the Console of your Figma tab.",
+                        );
+                      }}
+                      class="w-full py-3 bg-indigo-600 rounded-xl text-[10px] font-black uppercase text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Zap class="w-4 h-4" />
+                      1. Copy Scout Script
+                    </button>
+                    <p class="text-[8px] text-white/20 italic">
+                      Go to your Figma tab -> Right Click -> Inspect -> Console
+                      -> Paste & Enter.
+                    </p>
+                  </div>
+
+                  <div
+                    class="p-4 bg-white/[0.02] border border-white/5 rounded-2xl space-y-3"
+                  >
+                    <p
+                      class="text-[9px] text-white/60 font-bold uppercase tracking-wider text-left"
+                    >
+                      Option B: Manual Link
+                    </p>
+                    <a
+                      href={directFigmaUrl}
+                      target="_blank"
+                      class="inline-flex w-full items-center justify-center gap-2 px-6 py-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-[10px] font-black uppercase text-indigo-400 hover:bg-indigo-500/20 transition-all"
+                    >
+                      <SearchCode class="w-4 h-4" />
+                      Open Data Link
+                    </a>
+                  </div>
+                </div>
 
                 <div class="space-y-3">
+                  <label
+                    class="text-[9px] font-black text-white/20 uppercase tracking-widest ml-1 block text-left"
+                    >Pasted Layout Data</label
+                  >
                   <textarea
                     bind:value={manualSyncData}
                     placeholder="PASTE THE COPIED DATA HERE..."
-                    class="w-full h-32 bg-black/40 border border-white/5 rounded-2xl p-4 text-[9px] font-mono text-white/60 outline-none focus:border-indigo-500/30 transition-all placeholder:text-white/10"
+                    class="w-full h-24 bg-black/40 border border-white/5 rounded-2xl p-4 text-[9px] font-mono text-white/60 outline-none focus:border-indigo-500/30 transition-all placeholder:text-white/10"
                   ></textarea>
                 </div>
 
                 <div class="pt-2 border-t border-white/5 space-y-3">
-                  <p class="text-[9px] text-white/40 font-medium">
-                    Optional: Upload a screenshot of the frame for the
-                    background.
+                  <p class="text-[9px] text-white/40 font-medium text-left">
+                    Optional: Upload a screenshot for the background.
                   </p>
                   <div class="relative group">
                     <input
