@@ -330,6 +330,7 @@
     formData.append("figmaAccessToken", figmaToken);
     formData.append("figmaFrameId", selectedFrameId);
     formData.append("name", importName);
+    formData.append("universityId", universityId);
     formData.append("exam_type", importExamType);
     formData.append("dryRun", "true");
     if (manualBgImage) formData.append("manualBgImage", manualBgImage);

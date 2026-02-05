@@ -60,7 +60,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const templateRes = await db.query('SELECT layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
             if (templateRes.rows.length > 0) {
                 const schema = templateRes.rows[0].layout_schema;
-                figmaSlots = schema?.pages?.[0]?.elements?.filter((el: any) => el.slot_id) || [];
+                // V94: Support both Legacy (pages array) and Canonical (slots record)
+                if (schema?.slots && !Array.isArray(schema.slots)) {
+                    figmaSlots = Object.entries(schema.slots).map(([name, slot]: [string, any]) => ({
+                        ...slot,
+                        slot_id: name // Map key to slot_id for legacy compatibility
+                    }));
+                } else {
+                    figmaSlots = schema?.pages?.[0]?.elements?.filter((el: any) => el.slot_id) || [];
+                }
             }
         }
 
@@ -333,13 +341,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             `INSERT INTO assessment_papers (
                 university_id, batch_id, branch_id, subject_id, 
                 exam_type, semester, paper_date, 
-                duration_minutes, max_marks, sets_data
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                duration_minutes, max_marks, template_id, sets_data
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             RETURNING id`,
             [
                 university_id, batch_id, branch_id, subject_id,
                 exam_type ?? 'MID1', semester, paper_date,
-                duration_minutes, max_marks,
+                duration_minutes, max_marks, template_id,
                 JSON.stringify({
                     ...generatedSets,
                     metadata: {

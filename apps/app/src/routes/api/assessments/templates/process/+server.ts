@@ -4,7 +4,8 @@ import { ExtractionEngine } from '$lib/server/services/extraction-engine';
 import { FigmaService } from '$lib/server/services/figma-service';
 import pdf from 'pdf-img-convert';
 import { z } from 'zod';
-import { createAssessmentTemplate } from '@uniconnect/shared';
+import { createAssessmentTemplate, CanonicalTemplateSchema } from '@uniconnect/shared';
+import { randomUUID } from 'node:crypto';
 
 // V12: Robust Schema supporting both line formats
 const LayoutElementSchema = z.discriminatedUnion('type', [
@@ -195,46 +196,42 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ success: false, message: 'Invalid layout data received' }, { status: 400 });
         }
     } else if (figmaFileUrl && figmaAccessToken) {
-        // --- V62/V65: Figma-First Import ---
+        // --- V94: Deterministic Figma-First Import ---
         try {
             const figmaFrameId = formData.get('figmaFrameId') as string;
             const fileKey = FigmaService.extractFileKey(figmaFileUrl);
             const rawData = figmaDataRaw ? JSON.parse(figmaDataRaw) : undefined;
-            const { elements, backgroundImageUrl } = await FigmaService.importFromFigma(fileKey, figmaAccessToken, figmaFrameId, rawData);
 
-            detectedLayout = {
-                page: { width: 210, height: 297, unit: "mm" },
-                pages: [{
-                    id: 'page-1',
-                    elements: elements
-                }],
-                metadata_fields: {},
-                originalWidth: 210,
-                originalHeight: 297,
-                debugImage: manualBgImage || backgroundImageUrl || '',
-                regions: elements
-            };
-            console.log(`[V89_PROCESS] 🎨 Figma import successful: ${elements.length} elements (Manual BG: ${!!manualBgImage})`);
+            // New signature requires universityId
+            const { template, backgroundImageUrl } = await FigmaService.importFromFigma(
+                fileKey,
+                figmaAccessToken,
+                universityId,
+                figmaFrameId,
+                rawData
+            );
+
+            detectedLayout = template;
+            console.log(`[V94_PROCESS] 🎨 Deterministic Figma import successful: ${Object.keys(template.slots).length} slots found.`);
+
+            // Overwrite background if provided
+            if (manualBgImage || backgroundImageUrl) {
+                detectedLayout.backgroundImageUrl = manualBgImage || backgroundImageUrl;
+            }
         } catch (fe: any) {
-            console.error(`[V89_CRITICAL] ❌ Figma Import Failure:`, fe);
-
-            // V89: If user provided data, do NOT fall back to blank. Re-throw to show error.
+            console.error(`[V94_CRITICAL] ❌ Deterministic Figma Import Failure:`, fe);
             if (figmaDataRaw) throw fe;
 
-            // V85 Nuclear Fallback: If Figma fails, don't 500. Return a stub so user can proceed.
+            // Fallback stubborn stub
             detectedLayout = {
-                page: { width: 210, height: 297, unit: "mm" },
-                pages: [{
-                    id: 'page-1',
-                    elements: []
-                }],
-                metadata_fields: { import_error: fe.message },
-                originalWidth: 210,
-                originalHeight: 297,
-                debugImage: manualBgImage || '',
-                regions: []
+                templateId: randomUUID(),
+                universityId,
+                version: 1,
+                page: { widthMM: 210, heightMM: 297 },
+                staticElements: [],
+                slots: {},
+                metadata: { error: fe.message }
             };
-            console.warn(`[V89_CRITICAL] ⚠️ Proceeding with empty template due to Figma failure.`);
         }
     } else if (file) {
         // --- V49: Granular Element Extraction ---
@@ -264,7 +261,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         h: el.h,
                         text: el.text,
                         value: el.text,
-                        styles: el.styles || el.style,
+                        styles: el.styles || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', align: 'left' },
                         role: el.role,
                         row: el.row,
                         col: el.col
@@ -286,23 +283,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({ success: false, message: 'Document file or existing layout required' }, { status: 400 });
     }
 
-    // V69/V72: Standardize for editability
-    detectedLayout.pages.forEach((p: any) => {
-        p.elements = (p.elements || []).map((el: any) => {
-            // Ensure content exists
-            el.content = el.content || el.text || el.value || "";
-            // Ensure styles exists (favor styles > style)
-            el.styles = el.styles || el.style || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', align: 'left' };
-            // Coordinate sanity check: Convert relative to absolute if we missed it
-            if (el.x < 1.1 && el.y < 1.1 && el.w < 1.1 && el.h < 1.1 && (el.x > 0 || el.y > 0)) {
-                el.x = Math.round(el.x * 210 * 10) / 10;
-                el.y = Math.round(el.y * 297 * 10) / 10;
-                el.w = Math.round(el.w * 210 * 10) / 10;
-                el.h = Math.round(el.h * 297 * 10) / 10;
-            }
-            return el;
+    // V94: Only run legacy standardization if it's NOT a canonical template
+    if (detectedLayout.pages) {
+        detectedLayout.pages.forEach((p: any) => {
+            p.elements = (p.elements || []).map((el: any) => {
+                // Ensure content exists
+                el.content = el.content || el.text || el.value || "";
+                // Ensure styles exists (favor styles > style)
+                el.styles = el.styles || el.style || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', align: 'left' };
+                // Coordinate sanity check: Convert relative to absolute if we missed it
+                if (el.x < 1.1 && el.y < 1.1 && el.w < 1.1 && el.h < 1.1 && (el.x > 0 || el.y > 0)) {
+                    el.x = Math.round(el.x * 210 * 10) / 10;
+                    el.y = Math.round(el.y * 297 * 10) / 10;
+                    el.w = Math.round(el.w * 210 * 10) / 10;
+                    el.h = Math.round(el.h * 297 * 10) / 10;
+                }
+                return el;
+            });
         });
-    });
+    }
 
     if (detectedLayout.regions) {
         detectedLayout.regions = detectedLayout.regions.map((el: any) => {
@@ -312,9 +311,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         });
     }
 
-    const { success, error: parseError, data: validatedLayout } = LayoutSchema.safeParse(detectedLayout);
+    // V94: Use specialized validation for Canonical vs Legacy
+    let validationResult;
+    if (figmaFileUrl || (detectedLayout && detectedLayout.slots)) {
+        validationResult = CanonicalTemplateSchema.safeParse(detectedLayout);
+    } else {
+        validationResult = LayoutSchema.safeParse(detectedLayout);
+    }
+
+    const { success, error: parseError, data: validatedLayout } = validationResult;
     if (!success) {
-        console.error('[V12_PROCESS] ❌ Validation Failed (422):', parseError.format());
+        console.error('[V94_PROCESS] ❌ Validation Failed (422):', parseError.format());
         return json({
             success: false,
             message: 'Architectural Validation Error',

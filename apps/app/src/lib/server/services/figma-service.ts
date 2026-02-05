@@ -1,24 +1,8 @@
-import type { TemplateElement } from '$lib/types/template';
+import type { CanonicalTemplate, SlotDefinition, StaticElement } from '@uniconnect/shared';
 import { randomUUID } from 'node:crypto';
 
-interface FigmaNode {
-    id: string;
-    name: string;
-    type: string;
-    absoluteBoundingBox: { x: number; y: number; width: number; height: number };
-    characters?: string;
-    style?: {
-        fontFamily: string;
-        fontSize: number;
-        fontWeight: number;
-        textAlignHorizontal: 'LEFT' | 'CENTER' | 'RIGHT';
-    };
-    children?: FigmaNode[];
-    fills?: any[];
-}
-
 export interface FigmaImportResult {
-    elements: TemplateElement[];
+    template: CanonicalTemplate;
     backgroundImageUrl?: string;
 }
 
@@ -114,91 +98,75 @@ export class FigmaService {
         };
     }
 
-    static async importFromFigma(fileKey: string, accessToken: string, frameId?: string, rawData?: any): Promise<FigmaImportResult> {
-        console.log(`[FIGMA_SERVICE] 🎨 Importing file: ${fileKey} (Frame: ${frameId || 'Default'})`);
+    static async importFromFigma(fileKey: string, accessToken: string, universityId: string, frameId?: string, rawData?: any): Promise<FigmaImportResult> {
+        console.log(`[V94_FIGMA] 🎨 Deterministic Import: ${fileKey} (Frame: ${frameId || 'Default'})`);
 
         // V82: Normalize frameId (ensure colon for API)
         const normalizedFrameId = frameId ? frameId.replace('-', ':').replace('%3A', ':') : frameId;
 
         let data = rawData;
-        let responseOk = true;
-        let responseStatus = 200;
-
         if (!data) {
-            // V88: Try both Header and Query Param for maximum resilience
             const url = normalizedFrameId
                 ? `${this.FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(normalizedFrameId)}&access_token=${accessToken}`
                 : `${this.FIGMA_API_BASE}/files/${fileKey}?access_token=${accessToken}`;
 
-            const response = await fetch(url, {
-                headers: { 'X-Figma-Token': accessToken }
-            });
-
-            responseOk = response.ok;
-            responseStatus = response.status;
+            const response = await fetch(url, { headers: { 'X-Figma-Token': accessToken } });
             if (response.ok) {
                 data = await response.json();
             } else {
-                const errorText = await response.text();
-                throw new Error(`Figma API Error (${response.status}): ${errorText}`);
+                throw new Error(`Figma API Error (${response.status})`);
             }
-        } else {
-            console.log(`[FIGMA_SERVICE] 🛡️ Using pre-fetched data from client`);
         }
 
-        const elements: TemplateElement[] = [];
+        const staticElements: StaticElement[] = [];
+        const slots: Record<string, SlotDefinition> = {};
         let backgroundImageUrl: string | undefined;
 
-        // V85: Multi-attempt ID matching. Figma is picky about : vs -
         try {
             let node = null;
             let usedId = normalizedFrameId;
 
             if (normalizedFrameId) {
-                // Try direct match
                 node = data.nodes?.[normalizedFrameId]?.document;
-
-                // Try dash-sync fallback
                 if (!node) {
                     const dashId = normalizedFrameId.replace(':', '-');
                     node = data.nodes?.[dashId]?.document;
                     if (node) usedId = dashId;
                 }
+            }
 
-                // Try first available node if only one was requested
-                if (!node && Object.keys(data.nodes || {}).length === 1) {
-                    const firstId = Object.keys(data.nodes)[0];
-                    node = data.nodes[firstId].document;
-                    if (node) usedId = firstId;
-                }
+            if (!node && data.document) {
+                node = data.document.children.find((c: any) => c.type === 'CANVAS')?.children[0];
             }
 
             if (node) {
-                const bbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 1000, height: 1000 };
-                console.log(`[FIGMA_SERVICE] ✅ Target node found (${usedId}). Children: ${node.children?.length || 0}`);
-                this.traverseNode(node, 1, elements);
-                this.normalizeElements(elements, bbox);
+                const frameBbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 210 * 2.834, height: 297 * 2.834 };
+                this.traverseNodeDeterministic(node, frameBbox, staticElements, slots);
 
                 try {
-                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId || 'unknown');
+                    backgroundImageUrl = await this.fetchFrameImage(fileKey, accessToken, usedId || node.id);
                 } catch (ie) {
                     console.warn(`[FIGMA_SERVICE] ⚠️ Background fail:`, ie);
                 }
-            } else if (data.document) {
-                console.log(`[FIGMA_SERVICE] 📂 Using full document fallback`);
-                const pages = data.document.children.filter((c: any) => c.type === 'CANVAS');
-                pages.forEach((pageNode: any, pageIdx: number) => {
-                    this.traverseNode(pageNode, pageIdx + 1, elements);
-                });
+
+                const template: CanonicalTemplate = {
+                    templateId: randomUUID(),
+                    universityId,
+                    version: 1,
+                    page: { widthMM: 210, heightMM: 297 },
+                    staticElements,
+                    slots,
+                    metadata: { figmaFileKey: fileKey, figmaNodeId: usedId || node.id }
+                };
+
+                return { template, backgroundImageUrl };
             } else {
-                throw new Error(`Target node ${normalizedFrameId} (or fallback) not found. Keys returned: ${Object.keys(data.nodes || {}).join(',')}`);
+                throw new Error(`Target node not found`);
             }
         } catch (err: any) {
             console.error(`[FIGMA_SERVICE] 😱 CRASH:`, err.message);
             throw err;
         }
-
-        return { elements, backgroundImageUrl };
     }
 
     private static async fetchFrameImage(fileKey: string, accessToken: string, frameId: string): Promise<string> {
@@ -214,53 +182,59 @@ export class FigmaService {
         return data.images?.[frameId] || '';
     }
 
-    private static traverseNode(node: FigmaNode, pageNum: number, elements: TemplateElement[]) {
-        if (node.characters && node.characters.trim().length > 0 && node.absoluteBoundingBox) {
-            const slotMatch = node.characters.match(/\{\{([^}]+)\}\}/);
-            const isPlainHeader = !slotMatch && (
-                node.characters.toUpperCase() === node.characters &&
-                node.characters.length > 2
-            );
+    private static traverseNodeDeterministic(node: any, frameBbox: any, staticElements: StaticElement[], slots: Record<string, SlotDefinition>) {
+        const bbox = node.absoluteBoundingBox;
+        if (!bbox) return;
 
-            const slotId = slotMatch ? slotMatch[1].trim() : node.characters.trim().replace(/\s+/g, '_').toLowerCase().substring(0, 32);
-            const bbox = node.absoluteBoundingBox;
+        const MM_PT = 2.83465;
+        const xMM = (bbox.x - frameBbox.x) / MM_PT;
+        const yMM = (bbox.y - frameBbox.y) / MM_PT;
+        const wMM = bbox.width / MM_PT;
+        const hMM = bbox.height / MM_PT;
 
-            const element: TemplateElement = {
-                id: randomUUID(),
-                slot_id: slotId,
-                type: this.mapSlotToType(slotId),
-                page: pageNum,
-                x: bbox.x,
-                y: bbox.y,
-                w: bbox.width,
-                h: bbox.height,
-                text: node.characters.trim(),
+        // V94: Explicit Slot Detection (node name prefix)
+        if (node.name.toLowerCase().startsWith('slot.')) {
+            const slotName = node.name.substring(5).trim();
+            slots[slotName] = {
+                id: node.id,
+                xMM, yMM, widthMM: wMM, heightMM: hMM,
+                style: {
+                    fontFamily: node.style?.fontFamily || 'Inter',
+                    fontSizeMM: (node.style?.fontSize || 12) / MM_PT,
+                    fontWeight: node.style?.fontWeight || 400,
+                    color: this.extractHexColor(node.fills),
+                    align: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
+                },
+                overflow: 'clip',
+                isRequired: true
+            };
+        } else if (node.type === 'TEXT' && node.characters?.trim()) {
+            staticElements.push({
+                id: node.id,
+                type: 'text',
+                xMM, yMM, widthMM: wMM, heightMM: hMM,
                 content: node.characters.trim(),
-                value: node.characters.trim(),
-                placeholderContent: node.characters,
-                is_header: !!(isPlainHeader || this.mapSlotToType(slotId) === 'header-field'),
-                styles: {
-                    fontFamily: node.style?.fontFamily || 'Outfit',
-                    fontSize: node.style?.fontSize || 14,
-                    fontWeight: String(node.style?.fontWeight || 400),
+                style: {
+                    fontFamily: node.style?.fontFamily || 'Inter',
+                    fontSizeMM: (node.style?.fontSize || 12) / MM_PT,
+                    fontWeight: node.style?.fontWeight || 400,
                     color: this.extractHexColor(node.fills),
                     align: (node.style?.textAlignHorizontal?.toLowerCase() || 'left') as any
                 }
-            };
-            elements.push(element);
+            });
+        } else if (node.type === 'RECTANGLE' && node.fills?.length > 0) {
+            staticElements.push({
+                id: node.id,
+                type: 'rect',
+                xMM, yMM, widthMM: wMM, heightMM: hMM,
+                backgroundColor: this.extractHexColor(node.fills),
+                strokeWidthMM: (node.strokeWeight || 0.2) / MM_PT
+            });
         }
 
         if (node.children) {
-            node.children.forEach(child => this.traverseNode(child, pageNum, elements));
+            node.children.forEach((child: any) => this.traverseNodeDeterministic(child, frameBbox, staticElements, slots));
         }
-    }
-
-    private static mapSlotToType(slotId: string): 'header-field' | 'table-cell' | 'text' {
-        const id = slotId.toUpperCase();
-        if (id.includes('TITLE') || id.includes('NAME') || id.includes('SUBJECT')) return 'header-field';
-        if (id.includes('TEXT') || id.includes('QUESTION')) return 'text';
-        if (id.includes('MARKS') || id.includes('CO') || id.includes('BLOOM')) return 'table-cell';
-        return 'text';
     }
 
     private static extractHexColor(fills?: any[]): string {
@@ -273,20 +247,5 @@ export class FigmaService {
         const b = Math.round(fill.color.b * 255).toString(16).padStart(2, '0');
 
         return `#${r}${g}${b}`;
-    }
-
-    static normalizeElements(elements: TemplateElement[], frameBBox: { x: number; y: number; width: number; height: number }) {
-        elements.forEach(el => {
-            // V72: Convert directly to mm (A4: 210 x 297)
-            const rx = (el.x - frameBBox.x) / frameBBox.width;
-            const ry = (el.y - frameBBox.y) / frameBBox.height;
-            const rw = el.w / frameBBox.width;
-            const rh = el.h / frameBBox.height;
-
-            el.x = isNaN(rx) ? 0 : Math.round(rx * 210 * 10) / 10;
-            el.y = isNaN(ry) ? 0 : Math.round(ry * 297 * 10) / 10;
-            el.w = isNaN(rw) ? 20 : Math.round(rw * 210 * 10) / 10;
-            el.h = isNaN(rh) ? 10 : Math.round(rh * 297 * 10) / 10;
-        });
     }
 }

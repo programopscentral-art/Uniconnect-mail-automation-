@@ -78,7 +78,7 @@ export interface AssessmentTemplate {
     slug?: string;
     exam_type: string;
     version: number;
-    status: 'draft' | 'published' | 'archived';
+    status: 'draft' | 'published' | 'approved' | 'archived';
     source_type: 'imported' | 'manual';
     config: any;
     layout_schema: any;
@@ -86,6 +86,7 @@ export interface AssessmentTemplate {
     regions?: any[]; // V22: Core normalized geometry regions
     assets: any; // Renamed from assets_json for contract alignment
     base_template_id?: string;
+    checksum?: string; // V93: Deterministic signature
     created_by?: string;
     updated_by?: string;
     created_at: Date;
@@ -414,8 +415,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
     const slug = data.slug || data.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || `template-${Date.now()}`;
     const { rows } = await db.query(
         `INSERT INTO assessment_templates
-        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by, background_image_url, regions)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        (university_id, name, slug, exam_type, config, layout_schema, assets_json, base_template_id, version, status, created_by, background_image_url, regions, checksum)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING *`,
         [
             data.university_id,
@@ -430,7 +431,8 @@ export async function createAssessmentTemplate(data: Partial<AssessmentTemplate>
             data.status || 'published',
             data.created_by,
             data.backgroundImageUrl,
-            JSON.stringify(data.regions || [])
+            JSON.stringify(data.regions || []),
+            data.checksum
         ]
     );
     return rows[0];
@@ -441,8 +443,10 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     const current = await getAssessmentTemplateById(id, universityId);
     if (!current) throw new Error('Template not found or access denied');
 
-    // 2. If template is published, any "edit" should actually create a new draft (except for status changes to archived)
-    if (current.status === 'published' && !data.status) {
+    // 2. If template is immutable (published/approved), any "edit" MUST create a new draft
+    const isImmutable = current.status === 'published' || current.status === 'approved';
+    if (isImmutable && !data.status) {
+        console.warn(`[V94_DB] 🛡️ Template ${id} is locked (status=${current.status}). Forking new version...`);
         // Forking into a new draft version
         const newData: Partial<AssessmentTemplate> = {
             ...current,
@@ -453,7 +457,8 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
             base_template_id: current.id,
             created_by: data.updated_by || current.created_by,
             created_at: undefined,
-            updated_at: undefined
+            updated_at: undefined,
+            checksum: undefined // New version needs new checksum calculated on finalization
         };
         return createAssessmentTemplate(newData);
     }
@@ -478,6 +483,7 @@ export async function updateAssessmentTemplate(id: string, data: Partial<Assessm
     if (data.regions) { fields.push(`regions = $${i++}`); params.push(JSON.stringify(data.regions)); }
     if (data.version) { fields.push(`version = $${i++}`); params.push(data.version); }
     if (data.status) { fields.push(`status = $${i++}`); params.push(data.status); }
+    if (data.checksum) { fields.push(`checksum = $${i++}`); params.push(data.checksum); }
     if (data.updated_by) { fields.push(`updated_by = $${i++}`); params.push(data.updated_by); }
 
     fields.push(`updated_at = NOW()`);
