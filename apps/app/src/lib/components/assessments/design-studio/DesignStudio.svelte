@@ -89,9 +89,10 @@
   const handleGlobalKeyDown = (e: KeyboardEvent) => {
     // Only delete if an element is selected AND not currently typing/editing
     const isEditingMode = editingElementId !== null || activeCellId !== null;
-    const isInputActive = ["INPUT", "TEXTAREA"].includes(
-      document.activeElement?.tagName || "",
-    );
+    // V72/V74: Robust Input Detection for Keyboard Listeners
+    const isInputActive =
+      ["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "") ||
+      (document.activeElement as HTMLElement)?.isContentEditable;
 
     if (
       selectedElementId &&
