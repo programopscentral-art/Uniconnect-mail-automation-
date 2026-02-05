@@ -123,6 +123,7 @@
         try {
           const urlObj = new URL(figmaUrl);
           nodeId = urlObj.searchParams.get("node-id");
+          if (nodeId) nodeId = nodeId.replace("-", ":"); // V83: Normalize to colon for API
         } catch (e) {
           /* ignore */
         }
@@ -161,6 +162,10 @@
   // V81: If frame ID is pasted manually and no page is selected, default to 'quick'
   $effect(() => {
     if (selectedFrameId && !selectedPageId && isFigmaVerified) {
+      // V83: Auto-normalize manual paste if it contains a dash
+      if (selectedFrameId.includes("-")) {
+        selectedFrameId = selectedFrameId.replace("-", ":");
+      }
       selectedPageId = "quick";
       if (
         figmaPages.length === 0 ||

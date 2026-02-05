@@ -272,7 +272,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // Ensure content exists
             el.content = el.content || el.text || el.value || "";
             // Ensure styles exists (favor styles > style)
-            el.styles = el.styles || el.style || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', textAlign: 'left' };
+            el.styles = el.styles || el.style || { fontFamily: 'Outfit', fontSize: 14, fontWeight: '400', color: '#000000', align: 'left' };
             // Coordinate sanity check: Convert relative to absolute if we missed it
             if (el.x < 1.1 && el.y < 1.1 && el.w < 1.1 && el.h < 1.1 && (el.x > 0 || el.y > 0)) {
                 el.x = Math.round(el.x * 210 * 10) / 10;

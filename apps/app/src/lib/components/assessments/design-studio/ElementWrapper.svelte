@@ -252,7 +252,7 @@
     font-weight: {element.styles?.fontWeight || 'normal'};
     font-style: {element.styles?.fontStyle || 'normal'};
     text-decoration: {element.styles?.textDecoration || 'none'};
-    text-align: {element.styles?.textAlign || 'left'};
+    text-align: {element.styles?.align || 'left'};
   "
   >
     {#if element.type === "text" || element.type === "header-field" || element.type === "table-cell"}
