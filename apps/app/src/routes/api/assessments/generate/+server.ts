@@ -83,11 +83,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // 1c. Fetch Template Layout for Slot Mapping (V62)
         let figmaSlots: any[] = [];
         let isVGUTemplate = false;
+        let isCrescentTemplate = false;
+        let isCDUTemplate = false;
         if (template_id) {
             const templateRes = await db.query('SELECT name, slug, layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
             if (templateRes.rows.length > 0) {
                 const tRow = templateRes.rows[0];
-                isVGUTemplate = tRow.slug?.includes('vgu') || tRow.name?.toLowerCase().includes('vgu');
+                const slug = tRow.slug?.toLowerCase() || '';
+                const name = tRow.name?.toLowerCase() || '';
+                isVGUTemplate = slug.includes('vgu') || name.includes('vgu');
+                isCrescentTemplate = slug.includes('crescent') || name.includes('crescent');
+                isCDUTemplate = slug.includes('cdu') || name.includes('chaitanya');
                 const schema = tRow.layout_schema;
                 // V94: Support both Legacy (pages array) and Canonical (slots record)
                 if (schema?.slots && !Array.isArray(schema.slots)) {
@@ -160,7 +166,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
             }
 
-            if (!template_config) {
+            if (!template_config || isVGUTemplate || isCrescentTemplate || isCDUTemplate) {
                 // If we have Figma slots, we align the config with the slots
                 if (figmaSlots.length > 0) {
                     // Determine Part A/B slots more robustly (VGU uses Q_1..10 for A, Q_11..14 for B)
@@ -182,9 +188,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     template_config = [
                         {
-                            title: 'PART A',
+                            title: isVGUTemplate ? 'Section A (1*10=10 Marks) Answer all Question No- 1-10' : 'PART A',
                             marks_per_q: isVGUTemplate ? 1 : marksA,
                             count: partASlots.length,
+                            answered_count: isVGUTemplate ? 10 : partASlots.length,
                             slots: partASlots.map((s, i) => ({
                                 id: s.id,
                                 slot_id: s.slot_id,
@@ -196,13 +203,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             }))
                         },
                         {
-                            title: 'PART B',
+                            title: isVGUTemplate ? 'Section B (5*3=15 Marks) Attempt any three questions' : 'PART B',
                             marks_per_q: isVGUTemplate ? 5 : (is100 ? 16 : 5),
                             count: partBSlots.length,
+                            answered_count: isVGUTemplate ? 3 : partBSlots.length,
                             slots: partBSlots.map((s, i) => ({
                                 id: s.id,
                                 slot_id: s.slot_id,
-                                label: `${partASlots.length + i + 1}`,
+                                label: `Q.${partASlots.length + i + 1}`,
                                 marks: isVGUTemplate ? 5 : (is100 ? 16 : 5),
                                 type: 'SINGLE',
                                 qType: isVGUTemplate ? 'LONG' : 'ANY', // FORCE LONG FOR VGU PART B

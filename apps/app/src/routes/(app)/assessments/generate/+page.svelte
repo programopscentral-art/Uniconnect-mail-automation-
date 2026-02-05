@@ -158,11 +158,11 @@
     structure.push(partB);
 
     if (isVGU) {
-      // FORCE VGU RIGID STRUCTURE (10x1 + 4x5)
+      // FORCE VGU RIGID STRUCTURE (10x1 + 3/4x5)
       structure.length = 0;
 
       const partA = {
-        title: "SECTION A (1*10=10 Marks) Answer all",
+        title: "SECTION A (1*10=10 Marks) Answer all Question No- 1-10",
         part: "A",
         answered_count: 10,
         marks_per_q: 1,
@@ -183,18 +183,19 @@
       structure.push(partA);
 
       const partB = {
-        title: "SECTION B (5*4=20 Marks) Answer all",
+        title: "SECTION B (5*3=15 Marks) Attempt any three questions",
         part: "B",
-        answered_count: 4,
+        answered_count: 3,
         marks_per_q: 5,
         slots: [] as any[],
       };
       for (let i = 1; i <= 4; i++) {
         partB.slots.push({
           id: `B-${i}-${Math.random()}`,
-          label: `${10 + i}`,
+          label: `Q.${10 + i}`,
+          slot_id: `Q_${10 + i}`,
           part: "B",
-          type: "SINGLE", // VGU standard long questions
+          type: "SINGLE",
           marks: 5,
           unit: "Auto",
           qType: "LONG",
@@ -693,7 +694,11 @@
     paperStructure.forEach((section: any) => {
       section.slots.forEach((slot: any) => {
         if (slot.type === "SINGLE") {
-          slot.label = `${currentNum}`;
+          if (isVGU && slot.part === "B") {
+            slot.label = `Q.${currentNum}`;
+          } else {
+            slot.label = `${currentNum}`;
+          }
           currentNum++;
         } else if (slot.type === "OR_GROUP") {
           const n1 = currentNum;
@@ -808,6 +813,7 @@
           unit_ids: selectedUnitIds,
           max_marks: maxMarks,
           template_config: paperStructure,
+          selected_template: isVGU ? "vgu-standard-mid-term" : selectedTemplate,
           generation_mode: "Standard", // Use standard for preview to get 1 set
           preview_only: true,
         }),
@@ -893,6 +899,7 @@
       examDuration = 90;
     } else if (isVGU) {
       selectedTemplate = "vgu-standard-mid-term";
+      paperStructure = []; // Clear current structure to force VGU rigid initialization
       // Auto-apply VGU template if found in availableTemplates
       const vguT = availableTemplates.find(
         (t: any) =>
@@ -901,8 +908,8 @@
       );
       if (vguT) {
         applyTemplate(vguT.id);
-        maxMarks = 30; // VGU Mid-term MM
-        examDuration = 90;
+        maxMarks = 25; // VGU Design shows 25 (10+15)
+        examDuration = 60; // Design shows 1 Hr
       }
     } else {
       selectedTemplate = "standard";
