@@ -110,8 +110,23 @@
     isVerifyingFigma = true;
     errorMsg = "";
     try {
-      const key = FigmaService.extractFileKey(figmaUrl);
-      const nodeId = FigmaService.extractNodeId(figmaUrl);
+      // V79: Handle extraction inline because FigmaService is server-only
+      let key = figmaUrl.trim();
+      let nodeId = null;
+
+      if (figmaUrl.includes("figma.com")) {
+        const match = figmaUrl.match(
+          /\/(?:design|file)\/([a-zA-Z0-9]+)(?:\/|[\?#]|$)/,
+        );
+        if (match) key = match[1];
+
+        try {
+          const urlObj = new URL(figmaUrl);
+          nodeId = urlObj.searchParams.get("node-id");
+        } catch (e) {
+          /* ignore */
+        }
+      }
 
       if (!key) throw new Error("Invalid Figma URL format");
 
