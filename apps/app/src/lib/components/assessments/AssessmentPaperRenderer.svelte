@@ -376,7 +376,7 @@
           <div class="mb-4">
             <div class="flex items-center justify-between pb-2">
               <!-- Left Logo -->
-              <div class="w-12 h-12">
+              <div class="w-16 h-16">
                 <img
                   src="/vgu-logo.png"
                   alt="VGU Logo"
@@ -405,11 +405,11 @@
               </div>
 
               <!-- Right Logo (NAAC) -->
-              <div class="w-12 h-12">
+              <div class="w-16 h-16 text-right">
                 <img
                   src="/vgu-naac-badge.png"
                   alt="NAAC A+ accredited"
-                  class="w-full h-full object-contain"
+                  class="w-full h-full object-contain ml-auto"
                 />
               </div>
             </div>
