@@ -178,10 +178,17 @@
       : Array.isArray(currentSetData)
         ? currentSetData
         : [];
-    return all.filter(
-      (q: any) =>
-        q && (q.part === part || (!q.part && (part === "A" || idx === 0))),
-    );
+    return all.filter((q: any) => {
+      if (!q) return false;
+      const qPart = String(q.part || "").toUpperCase();
+      const sPart = String(part || "").toUpperCase();
+      return (
+        qPart === sPart ||
+        (qPart.includes("A") && sPart.includes("A")) ||
+        (qPart.includes("B") && sPart.includes("B")) ||
+        (!qPart && (sPart === "A" || sPart.includes("A") || idx === 0))
+      );
+    });
   };
 
   const getSnoStart = (part: string) => {
@@ -818,13 +825,21 @@
                 >
               </tr>
             </thead>
-            <tbody>
-              {#each activePaperStructure || [] as section, idx}
-                {@const sectionQuestions = getQuestionsByPart(
-                  section.part,
-                  idx,
-                )}
-                {#if sectionQuestions.length > 0 || isEditable}
+            {#each activePaperStructure || [] as section, idx}
+              {@const sectionQuestions = getQuestionsByPart(section.part, idx)}
+              {#if sectionQuestions.length > 0 || isEditable}
+                <tbody
+                  use:dndzone={{
+                    items: sectionQuestions,
+                    flipDurationMs: 200,
+                    dragDisabled: !isEditable,
+                  }}
+                  onconsider={(e) =>
+                    handleDndSync(section.part, (e.detail as any).items)}
+                  onfinalize={(e) =>
+                    handleDndSync(section.part, (e.detail as any).items)}
+                  class="border-black"
+                >
                   <!-- SECTION HEADER ROW -->
                   <tr
                     class="bg-gray-50/50 border border-black font-bold text-[10pt]"
@@ -845,13 +860,9 @@
 
                   <!-- QUESTION ROWS -->
                   {#each sectionQuestions as q, i (q.id + activeSet)}
-                    {@const sectionIndex = sectionQuestions.findIndex(
-                      (x) => x.id === q.id,
-                    )}
-
                     <AssessmentVguSlot
                       slot={q}
-                      qNumber={getSnoStart(section.part) + sectionIndex}
+                      qNumber={getSnoStart(section.part) + i}
                       {isEditable}
                       onSwap={() => openSwapSidebar(q, section.part)}
                       onRemove={() => removeQuestion(q)}
@@ -919,9 +930,9 @@
                       </tr>
                     {/if}
                   {/each}
-                {/if}
-              {/each}
-            </tbody>
+                </tbody>
+              {/if}
+            {/each}
           </table>
         {:else}
           {#each paperStructure || [] as section, idx}

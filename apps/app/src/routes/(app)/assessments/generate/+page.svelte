@@ -2429,6 +2429,10 @@
                   {paperStructure}
                   currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
+                  {courseOutcomes}
+                  questionPool={unitsWithTopics.flatMap((u: any) =>
+                    (u.topics || []).flatMap((t: any) => t.questions || []),
+                  )}
                   mode="preview"
                 />
               {:else}
@@ -2437,6 +2441,10 @@
                   {paperStructure}
                   currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
+                  {courseOutcomes}
+                  questionPool={unitsWithTopics.flatMap((u: any) =>
+                    (u.topics || []).flatMap((t: any) => t.questions || []),
+                  )}
                   mode="preview"
                 />
               {/if}
