@@ -7,6 +7,7 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentVguSlot from "./shared/AssessmentVguSlot.svelte";
+  import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -145,13 +146,14 @@
     if (!swapContext) return;
     const arr = Array.isArray(currentSetData)
       ? currentSetData
-      : currentSetData.questions;
-    const slot = arr.find((s: any) => s.id === swapContext.slotId);
-    if (!slot) return;
+      : currentSetData?.questions || [];
+
+    // 1. Try to find existing slot
+    const index = arr.findIndex((s: any) => s.id === swapContext.slotId);
 
     const nQ = {
       id: question.id,
-      text: question.question_text,
+      text: question.question_text || question.text,
       marks: question.marks,
       options: question.options,
       image_url: question.image_url,
@@ -163,23 +165,34 @@
         : "K1",
       co_indicator: question.co_indicator || question.target_co || "CO1",
       unit_id: question.unit_id,
+      part: swapContext.part,
     };
 
-    if (slot.type === "OR_GROUP") {
-      if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
-      else slot.choice2.questions = [nQ];
-    } else {
-      // VGU Specific: slot might be the question itself or have a questions array
-      if (Array.isArray(slot.questions)) {
-        slot.questions = [nQ];
+    if (index !== -1) {
+      const slot = arr[index];
+      if (slot.type === "OR_GROUP") {
+        if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
+        else slot.choice2.questions = [nQ];
       } else {
-        // Update properties on the slot itself if it's a flat question
-        Object.assign(slot, nQ);
+        if (Array.isArray(slot.questions)) {
+          slot.questions = [nQ];
+        } else {
+          // Replace the whole object in the array for better reactivity
+          arr[index] = { ...slot, ...nQ };
+        }
       }
+    } else {
+      // 2. New slot (was a skeleton swap)
+      // Use the skeleton ID so it correctly maps to the structural slot in rendering
+      const newSlot = { ...nQ, id: swapContext.slotId };
+      if (Array.isArray(currentSetData)) currentSetData = [...arr, newSlot];
+      else if (currentSetData) currentSetData.questions = [...arr, newSlot];
     }
 
     if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
-    else currentSetData.questions = [...currentSetData.questions];
+    else if (currentSetData)
+      currentSetData.questions = [...currentSetData.questions];
+
     isSwapSidebarOpen = false;
   }
 
@@ -887,74 +900,72 @@
                     </td>
                   </tr>
 
-                  <!-- QUESTION ROWS -->
-                  {#each sectionQuestions as q, i (q.id + activeSet)}
-                    <AssessmentVguSlot
-                      slot={q}
-                      qNumber={getSnoStart(section.part) + i}
-                      {isEditable}
-                      onSwap={() => openSwapSidebar(q, section.part)}
-                      onRemove={() => removeQuestion(q)}
-                      onUpdateText={(v: string, qid: string) =>
-                        updateText(v, "QUESTION", "text", q.id, qid)}
-                    />
-                  {:else}
-                    <!-- SKELETON SLOTS (For Generator Preview/Empty Section) -->
-                    {#if isEditable && ((section.slots && section.slots.length > 0) || (section.answered_count || 0) > 0)}
-                      {@const skeletonCount =
-                        section.slots?.length || section.answered_count || 5}
-                      {#each Array(skeletonCount) as _, sidx}
-                        {@const slot = section.slots?.[sidx] || {}}
-                        <tr
-                          class="border-b border-black opacity-40 bg-gray-50/10"
-                        >
-                          <td
-                            class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt]"
-                          >
-                            {section.part !== "A" ? "Q." : ""}{slot.label ||
-                              getSnoStart(section.part) + sidx}{section.part ===
-                            "A"
-                              ? "."
-                              : ""}
-                          </td>
-                          <td
-                            class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
-                          >
-                            <div
-                              class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
-                            >
-                              Draft Slot
-                            </div>
-                            [ {slot.type === "OR_GROUP"
-                              ? "OR Pair"
-                              : "Single Question"} ] - {slot.marks ||
-                              section.marks_per_q} Marks
-                          </td>
-                          <td
-                            class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
-                          >
-                            {slot.marks || section.marks_per_q}
-                          </td>
-                          <td
-                            class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
-                          >
-                            {slot.bloom || "ANY"}
-                          </td>
-                          <td
-                            class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
-                          >
-                            {slot.target_co || "CO1"}
-                          </td>
-                        </tr>
-                      {/each}
+                  <!-- QUESTION ROWS (Structure-Aware) -->
+                  {#each section.slots || [] as structuralSlot, sidx}
+                    {@const q = sectionQuestions.find(
+                      (sq) =>
+                        sq.id === structuralSlot.id ||
+                        sq.slot_id === structuralSlot.slot_id,
+                    )}
+                    {#if q}
+                      <AssessmentVguSlot
+                        slot={q}
+                        qNumber={getSnoStart(section.part) + sidx}
+                        {isEditable}
+                        onSwap={() => openSwapSidebar(q, section.part)}
+                        onRemove={() => removeQuestion(q)}
+                        onUpdateText={(v: string, qid: string) =>
+                          updateText(v, "QUESTION", "text", q.id, qid)}
+                      />
                     {:else if isEditable}
-                      <tr>
+                      <!-- SKELETON SLOT -->
+                      <tr
+                        class="border-b border-black opacity-40 bg-gray-50/10 group/row"
+                      >
                         <td
-                          colspan="5"
-                          class="p-8 text-center text-gray-400 border border-black italic text-[9pt]"
+                          class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
                         >
-                          No questions in this section. Drag questions here to
-                          add them.
+                          <AssessmentRowActions
+                            {isEditable}
+                            onSwap={() =>
+                              openSwapSidebar(structuralSlot, section.part)}
+                            class="-left-2 top-2"
+                          />
+                          {section.part !== "A"
+                            ? "Q."
+                            : ""}{structuralSlot.label ||
+                            getSnoStart(section.part) + sidx}{section.part ===
+                          "A"
+                            ? "."
+                            : ""}
+                        </td>
+                        <td
+                          class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
+                        >
+                          <div
+                            class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
+                          >
+                            Draft Slot
+                          </div>
+                          [ {structuralSlot.type === "OR_GROUP"
+                            ? "OR Pair"
+                            : "Single Question"} ] - {structuralSlot.marks ||
+                            section.marks_per_q} Marks
+                        </td>
+                        <td
+                          class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
+                        >
+                          {structuralSlot.marks || section.marks_per_q}
+                        </td>
+                        <td
+                          class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
+                        >
+                          {structuralSlot.bloom || "ANY"}
+                        </td>
+                        <td
+                          class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
+                        >
+                          {structuralSlot.target_co || "CO1"}
                         </td>
                       </tr>
                     {/if}
