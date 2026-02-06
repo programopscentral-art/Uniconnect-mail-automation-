@@ -66,19 +66,30 @@ export class DeterministicRenderer {
             await this.drawImage(doc, page, `file:///${naacBadgePath}`, 172, 10, 25, 18);
         }
 
-        // Center Title
-        page.drawText('VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR', {
-            x: 105 * MM_TO_PT - (fontBold.widthOfTextAtSize('VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR', 14) / 2),
-            y: pageHeight - (16 * MM_TO_PT),
+        // Center Title (2 Lines)
+        const line1 = 'VIVEKANANDA GLOBAL';
+        const line2 = 'UNIVERSITY, JAIPUR';
+
+        page.drawText(line1, {
+            x: 105 * MM_TO_PT - (fontBold.widthOfTextAtSize(line1, 16) / 2),
+            y: pageHeight - (15 * MM_TO_PT),
+            size: 16,
+            font: fontBold,
+            color: rgb(0, 0, 0)
+        });
+
+        page.drawText(line2, {
+            x: 105 * MM_TO_PT - (fontBold.widthOfTextAtSize(line2, 14) / 2),
+            y: pageHeight - (20 * MM_TO_PT),
             size: 14,
             font: fontBold,
             color: rgb(0, 0, 0)
         });
 
         page.drawText('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', {
-            x: 105 * MM_TO_PT - (fontRegular.widthOfTextAtSize('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', 7.5) / 2),
-            y: pageHeight - (20 * MM_TO_PT),
-            size: 7.5,
+            x: 105 * MM_TO_PT - (fontRegular.widthOfTextAtSize('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', 7) / 2),
+            y: pageHeight - (24 * MM_TO_PT),
+            size: 7,
             font: fontRegular,
             color: rgb(0.1, 0.1, 0.1)
         });
@@ -157,68 +168,75 @@ export class DeterministicRenderer {
         currentY += 4;
         const colWidths = [24, 96, 20, 20, 20]; // Total 180 (15 start, 195 end)
         const colStarts = [15, 39, 135, 155, 175];
-        const headers = ["Question", "Question", "Mark", "K Level", "CO"];
+        const headers = ["Question", "Question", "Mark", "K Level (K1/K6)", "CO Indicators"];
 
         for (let i = 0; i < headers.length; i++) {
-            // Updated K Level header for 1:1 match
-            const label = headers[i] === "K Level" ? "K Level (K1/K6)" : headers[i];
-            drawCell(colStarts[i], currentY, colWidths[i], 10, label, true, true);
+            drawCell(colStarts[i], currentY, colWidths[i], 12, headers[i], true, true);
         }
-        currentY += 10;
+        currentY += 12;
 
-        // 4. Render Questions
-        // Note: data should have questions in a specific way or we use slots
-        // For simplicity, we assume slots map to Q_1, Q_2 etc and use renderSlot logic
-        const slots = Object.entries(template.slots).sort((a, b) => a[0].localeCompare(b[0]));
+        // 6. Render Questions
+        const questions = Array.isArray(data['questions']) ? data['questions'] : (Array.isArray(data) ? data : []);
+        const paperStructure = (template.metadata as any)?.paperStructure || [
+            { part: 'A', title: 'Section A (1*10=10 Marks) Answer all Question No- 1-10', marks_per_q: 1 },
+            { part: 'B', title: 'Section B (5*3=15 Marks) Attempt any three questions', marks_per_q: 5 }
+        ];
 
-        for (const [key, slot] of slots) {
-            const val = data[key] || "";
-            if (!val) continue;
+        let qNumberCounter = 1;
+        for (const section of paperStructure) {
+            const sectionQuestions = questions.filter((q: any) => q && (q.part === section.part || (!q.part && section.part === 'A')));
 
-            const sno = key.replace('Q_', '');
+            if (sectionQuestions.length > 0) {
+                // Section Header Row
+                drawCell(15, currentY, 180, 8, section.title, true);
+                currentY += 8;
 
-            // Extract rich data if possible (thanks to the updated render API)
-            const slotData = typeof val === 'object' ? val : { questions: [{ text: val }] };
-            const qObj = slotData.questions?.[0] || slotData;
-            const qText = qObj.text || qObj.question_text || "";
-            const marks = String(qObj.marks || "1");
-            const kLevel = qObj.k_level || "K1";
-            const co = qObj.co_indicator || "CO1";
+                for (const qObj of sectionQuestions) {
+                    const qText = qObj.text || qObj.question_text || "";
+                    const marks = String(qObj.marks || section.marks_per_q || "1");
+                    const kLevel = qObj.k_level || "K1";
+                    const co = qObj.co_indicator || "CO1";
+                    const sno = (section.part !== 'A' ? "Q." : "") + qNumberCounter + (section.part === 'A' ? "." : "");
 
-            // Draw SNo
-            drawCell(colStarts[0], currentY, colWidths[0], 20, sno);
+                    // Draw SNo
+                    drawCell(colStarts[0], currentY, colWidths[0], 20, sno, true, true);
 
-            // Draw Question (with wrapping)
-            const qX = colStarts[1] * MM_TO_PT;
-            const qY = pageHeight - (currentY * MM_TO_PT);
-            const qW = colWidths[1] * MM_TO_PT;
+                    // Draw Question (with wrapping)
+                    const qX = colStarts[1] * MM_TO_PT;
+                    const qY = pageHeight - (currentY * MM_TO_PT);
+                    const qW = colWidths[1] * MM_TO_PT;
 
-            // Custom simplified wrap just for this table
-            const words = qText.split(' ');
-            let line = '';
-            let lineY = qY - 10;
-            for (const word of words) {
-                const test = line ? line + ' ' + word : word;
-                if (fontRegular.widthOfTextAtSize(test, 9) > qW - 10) {
-                    page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
-                    line = word;
-                    lineY -= 12;
-                } else {
-                    line = test;
+                    // Just draw the border box first
+                    drawCell(colStarts[1], currentY, colWidths[1], 20, "");
+
+                    // Draw the wrapped text
+                    const words = qText.split(' ');
+                    let line = '';
+                    let lineY = qY - 10;
+                    for (const word of words) {
+                        const test = line ? line + ' ' + word : word;
+                        if (fontRegular.widthOfTextAtSize(test, 9) > qW - 10) {
+                            page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
+                            line = word;
+                            lineY -= 12;
+                        } else {
+                            line = test;
+                        }
+                    }
+                    if (line) page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
+
+                    // Draw Rest of columns
+                    drawCell(colStarts[2], currentY, colWidths[2], 20, marks, false, true);
+                    drawCell(colStarts[3], currentY, colWidths[3], 20, kLevel, false, true);
+                    drawCell(colStarts[4], currentY, colWidths[4], 20, co, false, true);
+
+                    currentY += 20;
+                    qNumberCounter++;
+
+                    if (currentY > 270) {
+                        // TODO: handle page break properly
+                    }
                 }
-            }
-            if (line) page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
-
-            // Draw Rest of columns
-            drawCell(colStarts[1], currentY, colWidths[1], 20, ""); // Just the border for Q cell
-            drawCell(colStarts[2], currentY, colWidths[2], 20, marks);
-            drawCell(colStarts[3], currentY, colWidths[3], 20, kLevel);
-            drawCell(colStarts[4], currentY, colWidths[4], 20, co);
-
-            currentY += 20;
-
-            if (currentY > 270) {
-                // TODO: page break
             }
         }
 

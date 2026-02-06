@@ -72,7 +72,9 @@
       class="inline-block min-w-[2ch] text-center"
     />
   </td>
-  <td class="w-[100px] text-center align-top p-2 text-[10pt] font-medium">
+  <td
+    class="w-[100px] text-center align-top p-2 text-[10pt] font-medium border-r border-black last:border-r-0"
+  >
     <AssessmentEditable
       value={target.co_indicator || target.target_co || "CO1"}
       onUpdate={(v: string) => {

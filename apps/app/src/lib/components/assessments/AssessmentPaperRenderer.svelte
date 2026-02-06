@@ -175,7 +175,9 @@
   const getQuestionsByPart = (part: string) => {
     const all = Array.isArray(currentSetData.questions)
       ? currentSetData.questions
-      : [];
+      : Array.isArray(currentSetData)
+        ? currentSetData
+        : [];
     return all.filter((q: any) => q && q.part === part);
   };
 
@@ -374,7 +376,7 @@
           <div class="mb-4">
             <div class="flex items-center justify-between pb-2">
               <!-- Left Logo -->
-              <div class="w-16">
+              <div class="w-18">
                 <img
                   src="/vgu-logo.png"
                   alt="VGU Logo"
@@ -383,14 +385,17 @@
               </div>
 
               <!-- Center Text -->
-              <div class="flex-1 text-center px-2">
-                <AssessmentEditable
-                  value={"VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR"}
-                  onUpdate={(v: string) => {
-                    layoutSchema.universityName = v;
-                  }}
-                  class="text-[15pt] font-black uppercase leading-[1.1] font-serif"
-                />
+              <div class="flex-1 text-center px-1">
+                <div
+                  class="text-[17pt] font-black uppercase leading-[1] font-serif tracking-tight"
+                >
+                  VIVEKANANDA GLOBAL
+                </div>
+                <div
+                  class="text-[15pt] font-black uppercase leading-[1] font-serif tracking-tight mt-0.5"
+                >
+                  UNIVERSITY, JAIPUR
+                </div>
                 <div
                   class="text-[7pt] font-medium leading-tight mt-1 opacity-90 italic font-serif"
                 >
@@ -400,7 +405,7 @@
               </div>
 
               <!-- Right Logo (NAAC) -->
-              <div class="w-20">
+              <div class="w-24">
                 <img
                   src="/vgu-naac-badge.png"
                   alt="NAAC A+ accredited"
@@ -814,14 +819,20 @@
                   </tr>
 
                   <!-- QUESTION ROWS -->
-                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
-                    {#if q && q.part === section.part}
+                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : (Array.isArray(currentSetData) ? currentSetData : [] as q, i (q.id + activeSet)}
+                    {#if q && (q.part === section.part || (!q.part && idx === 0))}
                       {@const sectionIndex = (
                         Array.isArray(currentSetData.questions)
                           ? currentSetData.questions
-                          : []
+                          : Array.isArray(currentSetData)
+                            ? currentSetData
+                            : []
                       )
-                        .filter((x) => x && x.part === section.part)
+                        .filter(
+                          (x) =>
+                            x &&
+                            (x.part === section.part || (!x.part && idx === 0)),
+                        )
                         .findIndex((x) => x.id === q.id)}
 
                       <AssessmentVguSlot
