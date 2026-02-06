@@ -562,9 +562,7 @@
                     <div class="flex gap-2">
                       <span class="font-bold whitespace-nowrap">{co.code}:</span
                       >
-                      <span class="opacity-80 line-clamp-1"
-                        >{co.name || ""}</span
-                      >
+                      <span class="opacity-90">{co.name || ""}</span>
                     </div>
                   {/each}
                 </div>
