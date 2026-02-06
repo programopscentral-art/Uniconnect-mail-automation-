@@ -825,7 +825,7 @@
       });
       if (res.ok) {
         const data = await res.json();
-        previewSetData = data.A; // API returns { A: ... }
+        previewSetData = data.sets.A; // API returns { sets: { A: ... } }
       }
     } catch (e) {
       console.error("Preview fetch failed", e);
