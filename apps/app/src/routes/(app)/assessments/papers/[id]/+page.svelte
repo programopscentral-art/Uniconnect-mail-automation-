@@ -23,7 +23,9 @@
     if (
       metaTemplate?.includes("vgu") ||
       uniName.includes("vgu") ||
-      uniName.includes("vivekananda")
+      uniName.includes("vivekananda") ||
+      uniId === "c40ed15d-b3e4-49ba-b1c4-71a2a8526a6f" ||
+      data?.paper?.layout_schema?.style === "vgu"
     ) {
       return "vgu";
     }

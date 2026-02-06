@@ -422,7 +422,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         generation_mode,
                         part_a_type,
                         sets_config,
-                        selected_template,
+                        selected_template: isVGUTemplate ? 'vgu' : selected_template,
                         exam_time,
                         course_code,
                         exam_title,
