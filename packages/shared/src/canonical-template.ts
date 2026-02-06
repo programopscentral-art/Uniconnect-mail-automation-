@@ -96,6 +96,7 @@ export const CanonicalTemplateSchema = z.object({
     backgroundImageUrl: z.string().optional(),
     metadata: z.record(z.any()).optional(),
     checksum: z.string().optional(),
+    style: z.string().optional(), // 'vgu' | 'crescent' | 'cdu'
 });
 
 export type CanonicalTemplate = z.infer<typeof CanonicalTemplateSchema>;

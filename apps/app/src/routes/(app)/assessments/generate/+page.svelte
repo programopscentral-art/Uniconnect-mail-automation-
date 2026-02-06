@@ -670,11 +670,15 @@
     lastLoadedLayout = template.layout_schema || {};
 
     // Auto-detect template type or use generic
-    if (
+    if (template.layout_schema?.style) {
+      selectedTemplate = template.layout_schema.style;
+    } else if (
       template.layout_schema &&
       Object.keys(template.layout_schema).length > 0
     ) {
       selectedTemplate = "generic";
+    } else if (template.name.toLowerCase().includes("vgu") || isVGU) {
+      selectedTemplate = "vgu";
     } else if (template.name.toLowerCase().includes("crescent")) {
       selectedTemplate = "crescent";
     } else if (

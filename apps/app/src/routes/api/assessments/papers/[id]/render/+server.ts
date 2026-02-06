@@ -38,16 +38,19 @@ export const GET: RequestHandler = async ({ params, url, locals }: any) => {
         const renderData: Record<string, string> = {};
 
         // Map questions to slots
+        const isVGU = paper.layout_schema?.style === 'vgu';
         setData.questions.forEach((slot: any) => {
             if (!slot.slot_id) return;
 
-            if (slot.type === 'OR_GROUP') {
+            if (isVGU) {
+                renderData[slot.slot_id] = slot; // Pass full object for VGU
+            } else if (slot.type === 'OR_GROUP') {
                 // For OR groups, we typically fill based on the specific selection or joined text
-                const q1 = slot.choice1?.questions?.[0]?.text || '';
+                const q1 = slot.questions?.[0]?.text || slot.choice1?.questions?.[0]?.text || '';
                 const q2 = slot.choice2?.questions?.[0]?.text || '';
                 renderData[slot.slot_id] = q1 + (q2 ? ` \nOR\n ` + q2 : '');
             } else {
-                const q = slot.questions?.[0]?.text || '';
+                const q = slot.questions?.[0]?.text || slot.text || '';
                 renderData[slot.slot_id] = q;
             }
         });

@@ -14,6 +14,11 @@ export class DeterministicRenderer {
     public static async renderToBuffer(template: CanonicalTemplate, data: Record<string, any>): Promise<Buffer> {
         const pdfDoc = await PDFDocument.create();
 
+        // 0. specialized Style Overrides
+        if (template.style === 'vgu') {
+            return await this.drawVguLayout(pdfDoc, template, data);
+        }
+
         // A4 Dimensions: 210mm x 297mm
         const page = pdfDoc.addPage([
             template.page.widthMM * MM_TO_PT,
@@ -43,6 +48,153 @@ export class DeterministicRenderer {
         return Buffer.from(pdfBytes);
     }
 
+    private static async drawVguLayout(doc: PDFDocument, template: CanonicalTemplate, data: Record<string, any>): Promise<Buffer> {
+        const page = doc.addPage([210 * MM_TO_PT, 297 * MM_TO_PT]);
+        const { height: pageHeight } = page.getSize();
+        const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+        const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+
+        // 1. Header & Logo
+        const logoPath = 'c:/Desktop/uniconnect-mail-automation/apps/app/static/vgu-logo.png';
+        if (fs.existsSync(logoPath)) {
+            await this.drawImage(doc, page, `file:///${logoPath}`, 15, 10, 25, 25);
+        }
+
+        // Center Title
+        page.drawText('VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR', {
+            x: 55 * MM_TO_PT,
+            y: pageHeight - (18 * MM_TO_PT),
+            size: 13,
+            font: fontBold,
+            color: rgb(0, 0, 0)
+        });
+
+        page.drawText('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', {
+            x: 45 * MM_TO_PT,
+            y: pageHeight - (22 * MM_TO_PT),
+            size: 7,
+            font: fontRegular,
+            color: rgb(0.2, 0.2, 0.2)
+        });
+
+        // NAAC Info (Right)
+        page.drawText('NAAC ACCREDITED', { x: 175 * MM_TO_PT, y: pageHeight - (14 * MM_TO_PT), size: 6, font: fontBold });
+        page.drawText('A+', { x: 180 * MM_TO_PT, y: pageHeight - (20 * MM_TO_PT), size: 16, font: fontBold, color: rgb(0.7, 0, 0) });
+        page.drawText('UNIVERSITY', { x: 175 * MM_TO_PT, y: pageHeight - (24 * MM_TO_PT), size: 6, font: fontBold });
+
+        // Exam Title
+        const examTitle = data['exam_title'] || 'II MID TERM EXAMINATIONS (THEORY), December 2025';
+        const etWidth = fontBold.widthOfTextAtSize(examTitle, 9);
+        page.drawRectangle({
+            x: (105 * MM_TO_PT) - (etWidth / 2) - 10,
+            y: pageHeight - (32 * MM_TO_PT),
+            width: etWidth + 20,
+            height: 12,
+            borderColor: rgb(0, 0, 0),
+            borderWidth: 0.5
+        });
+        page.drawText(examTitle, {
+            x: (105 * MM_TO_PT) - (etWidth / 2),
+            y: pageHeight - (29.5 * MM_TO_PT),
+            size: 9,
+            font: fontBold
+        });
+
+        // 2. Metadata Table
+        const drawCell = (x: number, y: number, w: number, h: number, text: string, isBold = false) => {
+            page.drawRectangle({ x: x * MM_TO_PT, y: pageHeight - ((y + h) * MM_TO_PT), width: w * MM_TO_PT, height: h * MM_TO_PT, borderColor: rgb(0, 0, 0), borderWidth: 0.5 });
+            page.drawText(text, { x: (x + 2) * MM_TO_PT, y: pageHeight - ((y + h - 2) * MM_TO_PT), size: 8, font: isBold ? fontBold : fontRegular });
+        };
+
+        let currentY = 38;
+        drawCell(15, currentY, 40, 6, "Programme & Batch", true);
+        drawCell(55, currentY, 70, 6, data['programme'] || "");
+        drawCell(125, currentY, 35, 6, "Semester", true);
+        drawCell(160, currentY, 35, 6, data['semester'] || "");
+
+        currentY += 6;
+        drawCell(15, currentY, 40, 6, "Course Name", true);
+        drawCell(55, currentY, 70, 6, data['subject_name'] || "");
+        drawCell(125, currentY, 35, 6, "Course Code", true);
+        drawCell(160, currentY, 35, 6, data['course_code'] || "");
+
+        currentY += 6;
+        drawCell(15, currentY, 40, 6, "Duration", true);
+        drawCell(55, currentY, 70, 6, (data['duration'] || "1") + " Hr");
+        drawCell(125, currentY, 35, 6, "M.M.", true);
+        drawCell(160, currentY, 35, 6, data['max_marks'] || "25");
+
+        // 3. Question Table Header
+        currentY += 5; // Tighter gap
+        const colWidths = [12, 112, 18, 18, 20]; // Total 180
+        const colStarts = [15, 27, 139, 157, 175];
+        const headers = ["S.No", "Question", "Mark", "K Level", "CO"];
+
+        for (let i = 0; i < headers.length; i++) {
+            drawCell(colStarts[i], currentY, colWidths[i], 8, headers[i], true);
+        }
+        currentY += 8;
+
+        // 4. Render Questions
+        // Note: data should have questions in a specific way or we use slots
+        // For simplicity, we assume slots map to Q_1, Q_2 etc and use renderSlot logic
+        const slots = Object.entries(template.slots).sort((a, b) => a[0].localeCompare(b[0]));
+
+        for (const [key, slot] of slots) {
+            const val = data[key] || "";
+            if (!val) continue;
+
+            const sno = key.replace('Q_', '');
+
+            // Extract rich data if possible (thanks to the updated render API)
+            const slotData = typeof val === 'object' ? val : { questions: [{ text: val }] };
+            const qObj = slotData.questions?.[0] || slotData;
+            const qText = qObj.text || qObj.question_text || "";
+            const marks = String(qObj.marks || "1");
+            const kLevel = qObj.k_level || "K1";
+            const co = qObj.co_indicator || "CO1";
+
+            // Draw SNo
+            drawCell(colStarts[0], currentY, colWidths[0], 20, sno);
+
+            // Draw Question (with wrapping)
+            const qX = colStarts[1] * MM_TO_PT;
+            const qY = pageHeight - (currentY * MM_TO_PT);
+            const qW = colWidths[1] * MM_TO_PT;
+
+            // Custom simplified wrap just for this table
+            const words = qText.split(' ');
+            let line = '';
+            let lineY = qY - 10;
+            for (const word of words) {
+                const test = line ? line + ' ' + word : word;
+                if (fontRegular.widthOfTextAtSize(test, 9) > qW - 10) {
+                    page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
+                    line = word;
+                    lineY -= 12;
+                } else {
+                    line = test;
+                }
+            }
+            if (line) page.drawText(line, { x: qX + 5, y: lineY, size: 9, font: fontRegular });
+
+            // Draw Rest of columns
+            drawCell(colStarts[1], currentY, colWidths[1], 20, ""); // Just the border for Q cell
+            drawCell(colStarts[2], currentY, colWidths[2], 20, marks);
+            drawCell(colStarts[3], currentY, colWidths[3], 20, kLevel);
+            drawCell(colStarts[4], currentY, colWidths[4], 20, co);
+
+            currentY += 20;
+
+            if (currentY > 270) {
+                // TODO: page break
+            }
+        }
+
+        const pdfBytes = await doc.save();
+        return Buffer.from(pdfBytes);
+    }
+
     private static async renderStaticElement(page: PDFPage, el: StaticElement, doc: PDFDocument) {
         const { height } = page.getSize();
 
@@ -62,7 +214,7 @@ export class DeterministicRenderer {
                     width: el.widthMM * MM_TO_PT,
                     height: el.heightMM * MM_TO_PT,
                     borderColor: el.borderColor ? this.hexToRgb(el.borderColor) : undefined,
-                    backgroundColor: el.backgroundColor ? this.hexToRgb(el.backgroundColor) : undefined,
+                    color: el.backgroundColor ? this.hexToRgb(el.backgroundColor) : undefined,
                     borderWidth: (el.strokeWidthMM || 0) * MM_TO_PT,
                 });
                 break;

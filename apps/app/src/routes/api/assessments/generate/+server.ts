@@ -313,12 +313,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     excludeInSet.add(choice.id);
                     globalExcluded.add(choice.id);
 
+                    // Map bloom_level to k_level for VGU
+                    const kLevel = choice.bloom_level ?
+                        (choice.bloom_level.startsWith('K') ? choice.bloom_level : `K${choice.bloom_level.charAt(0)}`)
+                        : 'K1';
+
                     // STRICT DEEP CLONE to prevent shared reference mutation bugs
                     return {
                         id: choice.id,
                         text: choice.question_text,
                         marks: choice.marks,
                         bloom: choice.bloom_level,
+                        k_level: kLevel,
+                        co_indicator: choice.target_co || 'CO1',
                         co_id: choice.co_id,
                         unit_id: choice.unit_id,
                         type: choice.type || 'NORMAL',

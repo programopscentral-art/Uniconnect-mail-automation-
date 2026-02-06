@@ -6,6 +6,7 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
+  import AssessmentVguSlot from "./shared/AssessmentVguSlot.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -37,7 +38,7 @@
     headerStyle: layoutSchema?.headerStyle || "centered", // 'centered' | 'split'
     showRRN: layoutSchema?.showRRN ?? true,
     courseCodeLabel: layoutSchema?.courseCodeLabel || "Course Code",
-    style: layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu'
+    style: layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'
@@ -367,6 +368,126 @@
               />
             </div>
           </div>
+        {:else if layout.style === "vgu"}
+          <!-- VGU HIGH FIDELITY HEADER -->
+          <div class="flex items-start justify-between mb-2">
+            <div class="w-24">
+              <img src="/vgu-logo.png" alt="VGU Logo" class="w-full" />
+            </div>
+            <div class="flex-1 text-center px-4 pt-2">
+              <AssessmentEditable
+                value={"VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR"}
+                onUpdate={(v: string) => {
+                  layoutSchema.universityName = v;
+                }}
+                class="text-[14pt] font-black uppercase leading-tight"
+              />
+              <div class="text-[8pt] font-medium leading-tight mt-1 opacity-70">
+                (Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of
+                UGC Act, 1956)
+              </div>
+              <div class="mt-4 border-y border-black py-1 px-4 inline-block">
+                <AssessmentEditable
+                  value={paperMeta.exam_title ||
+                    "II MID TERM EXAMINATIONS (THEORY), December 2025"}
+                  onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+                  class="text-[10pt] font-black uppercase tracking-wider"
+                />
+              </div>
+            </div>
+            <div class="w-32 text-right">
+              <div class="text-[7pt] font-bold uppercase leading-tight">
+                NAAC<br />ACCREDITED
+              </div>
+              <div class="text-[16pt] font-black text-red-700 leading-none">
+                A+
+              </div>
+              <div class="text-[7pt] font-bold uppercase leading-tight">
+                UNIVERSITY
+              </div>
+            </div>
+          </div>
+
+          <!-- VGU METADATA TABLE -->
+          <table
+            class="w-full border-collapse border border-black text-[9pt] mb-2 leading-tight"
+          >
+            <tbody>
+              <tr>
+                <td class="border border-black px-2 py-1 w-[20%] font-bold"
+                  >Programme & Batch</td
+                >
+                <td class="border border-black px-2 py-1 w-[35%]">
+                  <AssessmentEditable
+                    value={paperMeta.programme}
+                    onUpdate={(v: string) => updateText(v, "META", "programme")}
+                  />
+                </td>
+                <td class="border border-black px-2 py-1 w-[20%] font-bold"
+                  >Semester</td
+                >
+                <td class="border border-black px-2 py-1 w-[25%]">
+                  <AssessmentEditable
+                    value={paperMeta.semester}
+                    onUpdate={(v: string) => updateText(v, "META", "semester")}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black px-2 py-1 font-bold"
+                  >Course Name</td
+                >
+                <td class="border border-black px-2 py-1">
+                  <AssessmentEditable
+                    value={paperMeta.subject_name}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "subject_name")}
+                  />
+                </td>
+                <td class="border border-black px-2 py-1 font-bold"
+                  >Course Code</td
+                >
+                <td class="border border-black px-2 py-1">
+                  <AssessmentEditable
+                    value={paperMeta.course_code}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "course_code")}
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td class="border border-black px-2 py-1 font-bold">Duration</td
+                >
+                <td class="border border-black px-2 py-1">
+                  <AssessmentEditable
+                    value={paperMeta.duration_minutes + " Hr"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "duration_minutes")}
+                  />
+                </td>
+                <td class="border border-black px-2 py-1 font-bold">M.M.</td>
+                <td class="border border-black px-2 py-1">
+                  <AssessmentEditable
+                    value={paperMeta.max_marks}
+                    onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- VGU COURSE OUTCOMES (Dummy for now) -->
+          <div class="text-[8pt] mb-4">
+            <div class="font-bold border-b border-black mb-1">
+              Course Outcomes:
+            </div>
+            <div class="grid grid-cols-2 gap-x-8">
+              <div>CO1: CO_1_TEXT</div>
+              <div>CO2: CO_2_TEXT</div>
+              <div>CO3: CO_3_TEXT</div>
+              <div>CO4: CO_4_TEXT</div>
+            </div>
+          </div>
         {:else}
           <div class="text-center mb-8 border-b-2 border-black pb-4">
             {#if layout.logoUrl}
@@ -421,10 +542,43 @@
           >
             <tbody>
               <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_student || "Name of the Student"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_student")}
+                  />
+                </td>
                 <td
-                  class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
-                  >Programme & Branch</td
+                  colspan="3"
+                  class="border border-black p-2 italic text-gray-400"
+                  >:
+                  __________________________________________________________________</td
                 >
+              </tr>
+              <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_enroll || "Enrollment No."}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_enroll")}
+                  />
+                </td>
+                <td
+                  colspan="3"
+                  class="border border-black p-2 italic text-gray-400"
+                  >:
+                  __________________________________________________________________</td
+                >
+              </tr>
+              <tr>
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_programme || "Programme"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_programme")}
+                  />
+                </td>
                 <td colspan="3" class="border border-black p-2">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -438,9 +592,13 @@
                 </td>
               </tr>
               <tr>
-                <td class="border border-black p-2 font-bold bg-gray-50/10"
-                  >Semester</td
-                >
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_semester || "Semester"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_semester")}
+                  />
+                </td>
                 <td class="border border-black p-2 w-[30%]">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -453,8 +611,13 @@
                 </td>
                 <td
                   class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
-                  >Date & Session</td
                 >
+                  <AssessmentEditable
+                    value={paperMeta.lbl_date_session || "Date & Session"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_date_session")}
+                  />
+                </td>
                 <td class="border border-black p-2 w-[30%]">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -467,9 +630,13 @@
                 </td>
               </tr>
               <tr>
-                <td class="border border-black p-2 font-bold bg-gray-50/10"
-                  >Course Code & Name</td
-                >
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_course || "Course Code & Name"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_course")}
+                  />
+                </td>
                 <td colspan="3" class="border border-black p-2">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -482,9 +649,13 @@
                 </td>
               </tr>
               <tr>
-                <td class="border border-black p-2 font-bold bg-gray-50/10"
-                  >Duration</td
-                >
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_duration || "Duration"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_duration")}
+                  />
+                </td>
                 <td class="border border-black p-2">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -496,9 +667,13 @@
                     <span>minutes</span>
                   </div>
                 </td>
-                <td class="border border-black p-2 font-bold bg-gray-50/10"
-                  >Maximum Marks</td
-                >
+                <td class="border border-black p-2 font-bold bg-gray-50/10">
+                  <AssessmentEditable
+                    value={paperMeta.lbl_max_marks || "Maximum Marks"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "lbl_max_marks")}
+                  />
+                </td>
                 <td class="border border-black p-2">
                   <div class="flex gap-2">
                     <span>:</span>
@@ -644,38 +819,82 @@
                       )
                         .filter((x) => x && x.part === section.part)
                         .findIndex((x) => x.id === q.id) + 1}
-                    <div
-                      class={section.part === "A"
-                        ? "border-b border-black"
-                        : "border-2 border-black mb-6 shadow-sm"}
-                    >
-                      {#if q.type === "OR_GROUP"}
-                        <AssessmentSlotOrGroup
-                          slot={q}
-                          qNumber={getSnoStart(section.part) + (qNum - 1) * 2}
-                          {isEditable}
-                          snoWidth={35}
-                          onSwap1={() => openSwapSidebar(q, section.part, "q1")}
-                          onSwap2={() => openSwapSidebar(q, section.part, "q2")}
-                          onRemove={() => removeQuestion(q)}
-                          onUpdateText1={(v: string, qid: string) =>
-                            updateText(v, "QUESTION", "text", q.id, qid)}
-                          onUpdateText2={(v: string, qid: string) =>
-                            updateText(v, "QUESTION", "text", q.id, qid)}
-                        />
-                      {:else}
-                        <AssessmentSlotSingle
-                          slot={q}
-                          qNumber={getSnoStart(section.part) + (qNum - 1)}
-                          {isEditable}
-                          snoWidth={35}
-                          onSwap={() => openSwapSidebar(q, section.part)}
-                          onRemove={() => removeQuestion(q)}
-                          onUpdateText={(v: string, qid: string) =>
-                            updateText(v, "QUESTION", "text", q.id, qid)}
-                        />
-                      {/if}
-                    </div>
+
+                    {#if layout.style === "vgu"}
+                      <table
+                        class="w-full border-collapse border border-black table-fixed"
+                      >
+                        {#if qNum === 1}
+                          <thead>
+                            <tr
+                              class="bg-gray-100/50 text-[8pt] font-black uppercase border-b border-black"
+                            >
+                              <th class="w-12 border-r border-black p-1"
+                                >S.No</th
+                              >
+                              <th class="p-1 border-r border-black">Question</th
+                              >
+                              <th class="w-16 border-r border-black p-1"
+                                >Mark</th
+                              >
+                              <th
+                                class="w-16 border-r border-black p-1 text-center"
+                                >K Level<br />(K1-K6)</th
+                              >
+                              <th class="w-16 p-1 text-center"
+                                >CO<br />Indicators</th
+                              >
+                            </tr>
+                          </thead>
+                        {/if}
+                        <tbody>
+                          <AssessmentVguSlot
+                            slot={q}
+                            qNumber={getSnoStart(section.part) + (qNum - 1)}
+                            {isEditable}
+                            onSwap={() => openSwapSidebar(q, section.part)}
+                            onRemove={() => removeQuestion(q)}
+                            onUpdateText={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                          />
+                        </tbody>
+                      </table>
+                    {:else}
+                      <div
+                        class={section.part === "A"
+                          ? "border-b border-black"
+                          : "border-2 border-black mb-6 shadow-sm"}
+                      >
+                        {#if q.type === "OR_GROUP"}
+                          <AssessmentSlotOrGroup
+                            slot={q}
+                            qNumber={getSnoStart(section.part) + (qNum - 1) * 2}
+                            {isEditable}
+                            snoWidth={35}
+                            onSwap1={() =>
+                              openSwapSidebar(q, section.part, "q1")}
+                            onSwap2={() =>
+                              openSwapSidebar(q, section.part, "q2")}
+                            onRemove={() => removeQuestion(q)}
+                            onUpdateText1={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                            onUpdateText2={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                          />
+                        {:else}
+                          <AssessmentSlotSingle
+                            slot={q}
+                            qNumber={getSnoStart(section.part) + (qNum - 1)}
+                            {isEditable}
+                            snoWidth={35}
+                            onSwap={() => openSwapSidebar(q, section.part)}
+                            onRemove={() => removeQuestion(q)}
+                            onUpdateText={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                          />
+                        {/if}
+                      </div>
+                    {/if}
                   {/if}
                 {/each}
               </div>
