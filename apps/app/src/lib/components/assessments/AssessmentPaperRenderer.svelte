@@ -46,6 +46,26 @@
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'
   });
 
+  // Debug logging for VGU rendering
+  $effect(() => {
+    if (layout.style === "vgu" && currentSetData) {
+      console.log("[VGU DEBUG] Current set data:", currentSetData);
+      console.log("[VGU DEBUG] Paper structure:", paperStructure);
+      const questions = Array.isArray(currentSetData)
+        ? currentSetData
+        : currentSetData?.questions || [];
+      console.log("[VGU DEBUG] Questions array:", questions);
+      if (paperStructure && paperStructure.length > 0) {
+        paperStructure.forEach((section: any) => {
+          console.log(`[VGU DEBUG] Section ${section.part}:`, {
+            slots: section.slots,
+            questions: questions.filter((q: any) => q.part === section.part),
+          });
+        });
+      }
+    }
+  });
+
   function handleDndSync(part: string, items: any[]) {
     const arr = (
       Array.isArray(currentSetData)
@@ -930,6 +950,22 @@
                             sq.slot_id === structuralSlot.slot_id,
                         )
                       : structuralSlot}
+                    {#if sidx === 0}
+                      {console.log("[VGU RENDER] Section:", section.part)}
+                      {console.log(
+                        "[VGU RENDER] Section slots:",
+                        section.slots,
+                      )}
+                      {console.log(
+                        "[VGU RENDER] Section questions:",
+                        sectionQuestions,
+                      )}
+                      {console.log(
+                        "[VGU RENDER] First structural slot:",
+                        structuralSlot,
+                      )}
+                      {console.log("[VGU RENDER] First matched question:", q)}
+                    {/if}
                     {#if q && q.id}
                       <AssessmentVguSlot
                         slot={q}
