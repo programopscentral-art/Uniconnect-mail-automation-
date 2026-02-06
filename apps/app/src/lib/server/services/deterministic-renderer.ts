@@ -83,25 +83,36 @@ export class DeterministicRenderer {
             color: rgb(0.1, 0.1, 0.1)
         });
 
-        // Exam Title
-        const examTitle = data['exam_title'] || 'II MID TERM EXAMINATIONS (THEORY), December 2025';
+        // 2. Exam Title Bar
+        const examTitle = (data['exam_title'] || 'II MID TERM EXAMINATIONS (THEORY), December 2025').toUpperCase();
         const etWidth = fontBold.widthOfTextAtSize(examTitle, 10);
+        const etBoxW = etWidth + 60;
+
         page.drawRectangle({
-            x: (105 * MM_TO_PT) - (etWidth / 2) - 15,
-            y: pageHeight - (32 * MM_TO_PT),
-            width: etWidth + 30,
-            height: 14,
+            x: (105 * MM_TO_PT) - (etBoxW / 2),
+            y: pageHeight - (35 * MM_TO_PT),
+            width: etBoxW,
+            height: 18,
             borderColor: rgb(0, 0, 0),
             borderWidth: 0.5
         });
-        page.drawText(examTitle.toUpperCase(), {
+
+        page.drawText(examTitle, {
             x: (105 * MM_TO_PT) - (etWidth / 2),
-            y: pageHeight - (29 * MM_TO_PT),
+            y: pageHeight - (32 * MM_TO_PT),
             size: 10,
             font: fontBold
         });
 
-        // 2. Metadata Table
+        // Horizontal Line
+        page.drawLine({
+            start: { x: 15 * MM_TO_PT, y: pageHeight - (42 * MM_TO_PT) },
+            end: { x: 195 * MM_TO_PT, y: pageHeight - (42 * MM_TO_PT) },
+            thickness: 0.5,
+            color: rgb(0, 0, 0)
+        });
+
+        // Helper for table cells
         const drawCell = (x: number, y: number, w: number, h: number, text: string, isBold = false, isCentered = false) => {
             page.drawRectangle({ x: x * MM_TO_PT, y: pageHeight - ((y + h) * MM_TO_PT), width: w * MM_TO_PT, height: h * MM_TO_PT, borderColor: rgb(0, 0, 0), borderWidth: 0.5 });
             const fontSize = 8.5;
@@ -110,32 +121,48 @@ export class DeterministicRenderer {
             page.drawText(text, { x: textX, y: pageHeight - ((y + h - 1.8) * MM_TO_PT), size: fontSize, font: isBold ? fontBold : fontRegular });
         };
 
-        let currentY = 38;
-        drawCell(15, currentY, 40, 7, "Programme & Batch", true);
-        drawCell(55, currentY, 80, 7, (data['programme'] || "").toUpperCase());
-        drawCell(135, currentY, 30, 7, "Semester", true);
-        drawCell(165, currentY, 30, 7, data['semester'] || "");
+        // 3. Metadata (Text Layout, No Borders)
+        const drawMeta = (x: number, y: number, label: string, value: string, alignRight = false) => {
+            const fontSize = 9;
+            const labelWidth = fontBold.widthOfTextAtSize(label, fontSize);
+            const valX = alignRight ? (195 * MM_TO_PT) - fontRegular.widthOfTextAtSize(value, fontSize) : (x + 2) * MM_TO_PT + labelWidth;
+            const lblX = alignRight ? (195 * MM_TO_PT) - fontRegular.widthOfTextAtSize(value, fontSize) - labelWidth - 2 : (x + 2) * MM_TO_PT;
 
-        currentY += 7;
-        drawCell(15, currentY, 40, 7, "Course Name", true);
-        drawCell(55, currentY, 80, 7, (data['subject_name'] || "").toUpperCase());
-        drawCell(135, currentY, 30, 7, "Course Code", true);
-        drawCell(165, currentY, 30, 7, (data['course_code'] || "").toUpperCase());
+            page.drawText(label, { x: lblX, y: pageHeight - (y * MM_TO_PT), size: fontSize, font: fontBold });
+            page.drawText(value, { x: valX, y: pageHeight - (y * MM_TO_PT), size: fontSize, font: fontRegular });
+        };
 
-        currentY += 7;
-        drawCell(15, currentY, 40, 7, "Duration", true);
-        drawCell(55, currentY, 80, 7, (data['duration_minutes'] || "60") + " Hr");
-        drawCell(135, currentY, 30, 7, "M.M.", true);
-        drawCell(165, currentY, 30, 7, data['max_marks'] || "50");
+        const proBatch = (data['programme'] || "B.Tech-Software Engineering").toUpperCase();
+        drawMeta(15, 48, "Programme & Batch: ", proBatch);
+        drawMeta(135, 48, "Semester: ", data['semester'] || "1", true);
 
-        // 3. Question Table Header
-        currentY += 6;
-        const colWidths = [30, 90, 20, 20, 20]; // Total 180 (15 start, 195 end)
-        const colStarts = [15, 45, 135, 155, 175];
+        const courseName = (data['subject_name'] || "Computer Programming").toUpperCase();
+        drawMeta(15, 53, "Course Name: ", courseName);
+        drawMeta(135, 53, "Course Code: ", (data['course_code'] || "UQSE103").toUpperCase(), true);
+
+        drawMeta(15, 58, "Duration: ", (data['duration_minutes'] || "60") + " Hr");
+        drawMeta(135, 58, "M.M.: ", data['max_marks'] || "50", true);
+
+        // 4. Instructions & COs
+        let currentY = 64;
+        page.drawText('Instructions: ' + (data['instructions'] || 'Before attempting any question, be sure that you get the correct question paper.'), {
+            x: 17 * MM_TO_PT,
+            y: pageHeight - (currentY * MM_TO_PT),
+            size: 9,
+            font: fontBold
+        });
+        currentY += 5;
+
+        // 5. Question Table Header
+        currentY += 4;
+        const colWidths = [24, 96, 20, 20, 20]; // Total 180 (15 start, 195 end)
+        const colStarts = [15, 39, 135, 155, 175];
         const headers = ["Question", "Question", "Mark", "K Level", "CO"];
 
         for (let i = 0; i < headers.length; i++) {
-            drawCell(colStarts[i], currentY, colWidths[i], 10, headers[i], true, true);
+            // Updated K Level header for 1:1 match
+            const label = headers[i] === "K Level" ? "K Level (K1/K6)" : headers[i];
+            drawCell(colStarts[i], currentY, colWidths[i], 10, label, true, true);
         }
         currentY += 10;
 
