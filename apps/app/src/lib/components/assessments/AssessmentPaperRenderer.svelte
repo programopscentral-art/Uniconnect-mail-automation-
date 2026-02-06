@@ -774,6 +774,23 @@
 
         {#if layout.style === "vgu"}
           <!-- VGU STYLE UNIFIED TABLE -->
+          {@const activePaperStructure =
+            paperStructure && paperStructure.length > 0
+              ? paperStructure
+              : [
+                  {
+                    part: "A",
+                    title:
+                      "Section A (1*10=10 Marks) Answer all Question No- 1-10",
+                    marks_per_q: 1,
+                  },
+                  {
+                    part: "B",
+                    title:
+                      "Section B (5*3=15 Marks) Attempt any three questions",
+                    marks_per_q: 5,
+                  },
+                ]}
           <table
             class="w-full border-collapse border border-black table-fixed font-serif"
           >
@@ -797,7 +814,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each paperStructure || [] as section}
+              {#each activePaperStructure || [] as section, idx}
                 {@const sectionQuestions = getQuestionsByPart(section.part)}
                 {#if sectionQuestions.length > 0 || mode === "preview"}
                   <!-- SECTION HEADER ROW -->
