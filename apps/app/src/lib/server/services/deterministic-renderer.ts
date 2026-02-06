@@ -54,86 +54,90 @@ export class DeterministicRenderer {
         const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
         const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
 
-        // 1. Header & Logo
-        const logoPath = 'c:/Desktop/uniconnect-mail-automation/apps/app/static/vgu-logo.png';
-        if (fs.existsSync(logoPath)) {
-            await this.drawImage(doc, page, `file:///${logoPath}`, 15, 10, 25, 25);
+        // 1. Header & Logos
+        const vguLogoPath = 'c:/Desktop/uniconnect-mail-automation/apps/app/static/vgu-logo.png';
+        const naacBadgePath = 'c:/Desktop/uniconnect-mail-automation/apps/app/static/vgu-naac-badge.png';
+
+        if (fs.existsSync(vguLogoPath)) {
+            await this.drawImage(doc, page, `file:///${vguLogoPath}`, 15, 10, 22, 22);
+        }
+
+        if (fs.existsSync(naacBadgePath)) {
+            await this.drawImage(doc, page, `file:///${naacBadgePath}`, 172, 10, 25, 18);
         }
 
         // Center Title
         page.drawText('VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR', {
-            x: 55 * MM_TO_PT,
-            y: pageHeight - (18 * MM_TO_PT),
-            size: 13,
+            x: 105 * MM_TO_PT - (fontBold.widthOfTextAtSize('VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR', 14) / 2),
+            y: pageHeight - (16 * MM_TO_PT),
+            size: 14,
             font: fontBold,
             color: rgb(0, 0, 0)
         });
 
         page.drawText('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', {
-            x: 45 * MM_TO_PT,
-            y: pageHeight - (22 * MM_TO_PT),
-            size: 7,
+            x: 105 * MM_TO_PT - (fontRegular.widthOfTextAtSize('(Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of UGC Act, 1956)', 7.5) / 2),
+            y: pageHeight - (20 * MM_TO_PT),
+            size: 7.5,
             font: fontRegular,
-            color: rgb(0.2, 0.2, 0.2)
+            color: rgb(0.1, 0.1, 0.1)
         });
-
-        // NAAC Info (Right)
-        page.drawText('NAAC ACCREDITED', { x: 175 * MM_TO_PT, y: pageHeight - (14 * MM_TO_PT), size: 6, font: fontBold });
-        page.drawText('A+', { x: 180 * MM_TO_PT, y: pageHeight - (20 * MM_TO_PT), size: 16, font: fontBold, color: rgb(0.7, 0, 0) });
-        page.drawText('UNIVERSITY', { x: 175 * MM_TO_PT, y: pageHeight - (24 * MM_TO_PT), size: 6, font: fontBold });
 
         // Exam Title
         const examTitle = data['exam_title'] || 'II MID TERM EXAMINATIONS (THEORY), December 2025';
-        const etWidth = fontBold.widthOfTextAtSize(examTitle, 9);
+        const etWidth = fontBold.widthOfTextAtSize(examTitle, 10);
         page.drawRectangle({
-            x: (105 * MM_TO_PT) - (etWidth / 2) - 10,
+            x: (105 * MM_TO_PT) - (etWidth / 2) - 15,
             y: pageHeight - (32 * MM_TO_PT),
-            width: etWidth + 20,
-            height: 12,
+            width: etWidth + 30,
+            height: 14,
             borderColor: rgb(0, 0, 0),
             borderWidth: 0.5
         });
-        page.drawText(examTitle, {
+        page.drawText(examTitle.toUpperCase(), {
             x: (105 * MM_TO_PT) - (etWidth / 2),
-            y: pageHeight - (29.5 * MM_TO_PT),
-            size: 9,
+            y: pageHeight - (29 * MM_TO_PT),
+            size: 10,
             font: fontBold
         });
 
         // 2. Metadata Table
-        const drawCell = (x: number, y: number, w: number, h: number, text: string, isBold = false) => {
+        const drawCell = (x: number, y: number, w: number, h: number, text: string, isBold = false, isCentered = false) => {
             page.drawRectangle({ x: x * MM_TO_PT, y: pageHeight - ((y + h) * MM_TO_PT), width: w * MM_TO_PT, height: h * MM_TO_PT, borderColor: rgb(0, 0, 0), borderWidth: 0.5 });
-            page.drawText(text, { x: (x + 2) * MM_TO_PT, y: pageHeight - ((y + h - 2) * MM_TO_PT), size: 8, font: isBold ? fontBold : fontRegular });
+            const fontSize = 8.5;
+            const textWidth = (isBold ? fontBold : fontRegular).widthOfTextAtSize(text, fontSize);
+            const textX = isCentered ? (x + (w / 2)) * MM_TO_PT - (textWidth / 2) : (x + 2) * MM_TO_PT;
+            page.drawText(text, { x: textX, y: pageHeight - ((y + h - 1.8) * MM_TO_PT), size: fontSize, font: isBold ? fontBold : fontRegular });
         };
 
         let currentY = 38;
-        drawCell(15, currentY, 40, 6, "Programme & Batch", true);
-        drawCell(55, currentY, 70, 6, data['programme'] || "");
-        drawCell(125, currentY, 35, 6, "Semester", true);
-        drawCell(160, currentY, 35, 6, data['semester'] || "");
+        drawCell(15, currentY, 40, 7, "Programme & Batch", true);
+        drawCell(55, currentY, 80, 7, (data['programme'] || "").toUpperCase());
+        drawCell(135, currentY, 30, 7, "Semester", true);
+        drawCell(165, currentY, 30, 7, data['semester'] || "");
 
-        currentY += 6;
-        drawCell(15, currentY, 40, 6, "Course Name", true);
-        drawCell(55, currentY, 70, 6, data['subject_name'] || "");
-        drawCell(125, currentY, 35, 6, "Course Code", true);
-        drawCell(160, currentY, 35, 6, data['course_code'] || "");
+        currentY += 7;
+        drawCell(15, currentY, 40, 7, "Course Name", true);
+        drawCell(55, currentY, 80, 7, (data['subject_name'] || "").toUpperCase());
+        drawCell(135, currentY, 30, 7, "Course Code", true);
+        drawCell(165, currentY, 30, 7, (data['course_code'] || "").toUpperCase());
 
-        currentY += 6;
-        drawCell(15, currentY, 40, 6, "Duration", true);
-        drawCell(55, currentY, 70, 6, (data['duration'] || "1") + " Hr");
-        drawCell(125, currentY, 35, 6, "M.M.", true);
-        drawCell(160, currentY, 35, 6, data['max_marks'] || "25");
+        currentY += 7;
+        drawCell(15, currentY, 40, 7, "Duration", true);
+        drawCell(55, currentY, 80, 7, (data['duration_minutes'] || "60") + " Hr");
+        drawCell(135, currentY, 30, 7, "M.M.", true);
+        drawCell(165, currentY, 30, 7, data['max_marks'] || "50");
 
         // 3. Question Table Header
-        currentY += 5; // Tighter gap
-        const colWidths = [12, 112, 18, 18, 20]; // Total 180
-        const colStarts = [15, 27, 139, 157, 175];
-        const headers = ["S.No", "Question", "Mark", "K Level", "CO"];
+        currentY += 6;
+        const colWidths = [18, 102, 20, 20, 20]; // Total 180 (15 start, 195 end)
+        const colStarts = [15, 33, 135, 155, 175];
+        const headers = ["Question", "Question", "Mark", "K Level", "CO"];
 
         for (let i = 0; i < headers.length; i++) {
-            drawCell(colStarts[i], currentY, colWidths[i], 8, headers[i], true);
+            drawCell(colStarts[i], currentY, colWidths[i], 10, headers[i], true, true);
         }
-        currentY += 8;
+        currentY += 10;
 
         // 4. Render Questions
         // Note: data should have questions in a specific way or we use slots

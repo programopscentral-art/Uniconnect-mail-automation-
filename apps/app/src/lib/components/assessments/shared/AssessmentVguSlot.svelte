@@ -18,24 +18,26 @@
 
 <tr class="border-b border-black {className}">
   <td
-    class="w-12 border-r border-black p-2 text-center align-top font-bold text-[9pt]"
+    class="w-[50px] border-r border-black p-2 text-center align-top font-bold text-[10pt]"
   >
     {qNumber}.
   </td>
   <td
-    class="flex-1 p-2 text-[10pt] relative group whitespace-pre-wrap align-top border-r border-black"
+    class="relative p-2 text-[11pt] group whitespace-pre-wrap align-top border-r border-black min-h-[80px]"
   >
     <AssessmentRowActions {isEditable} {onSwap} onDelete={onRemove} />
-    <AssessmentEditable
-      value={target.text || ""}
-      onUpdate={(v: string) => {
-        target.text = v;
-        target.question_text = v;
-        if (onUpdateText) onUpdateText(v, target.id);
-      }}
-      multiline={true}
-      class="question-text-content"
-    />
+    <div class="pr-8">
+      <AssessmentEditable
+        value={target.text || ""}
+        onUpdate={(v: string) => {
+          target.text = v;
+          target.question_text = v;
+          if (onUpdateText) onUpdateText(v, target.id);
+        }}
+        multiline={true}
+        class="question-text-content italic font-medium"
+      />
+    </div>
     <AssessmentMcqOptions options={target.options} />
     {#if target.image_url}
       <div class="mt-2 max-w-full overflow-hidden">
@@ -48,7 +50,7 @@
     {/if}
   </td>
   <td
-    class="w-16 border-r border-black text-center align-top p-2 text-[9pt] font-medium"
+    class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
   >
     <AssessmentEditable
       value={String(target.marks || "")}
@@ -60,7 +62,7 @@
     />
   </td>
   <td
-    class="w-16 border-r border-black text-center align-top p-2 text-[9pt] font-medium"
+    class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
   >
     <AssessmentEditable
       value={target.k_level || "K1"}
@@ -70,7 +72,7 @@
       class="inline-block min-w-[2ch] text-center"
     />
   </td>
-  <td class="w-16 text-center align-top p-2 text-[9pt] font-medium">
+  <td class="w-[100px] text-center align-top p-2 text-[10pt] font-medium">
     <AssessmentEditable
       value={target.co_indicator || target.target_co || "CO1"}
       onUpdate={(v: string) => {

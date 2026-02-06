@@ -371,63 +371,76 @@
           </div>
         {:else if layout.style === "vgu"}
           <!-- VGU HIGH FIDELITY HEADER -->
-          <div class="flex items-start justify-between mb-2">
+          <div
+            class="flex items-center justify-between mb-4 border-b border-black pb-4"
+          >
+            <!-- Left Logo -->
             <div class="w-24">
-              <img src="/vgu-logo.png" alt="VGU Logo" class="w-full" />
+              <img
+                src="/vgu-logo.png"
+                alt="VGU Logo"
+                class="w-full h-auto object-contain"
+              />
             </div>
-            <div class="flex-1 text-center px-4 pt-2">
+
+            <!-- Center Text -->
+            <div class="flex-1 text-center px-4">
               <AssessmentEditable
                 value={"VIVEKANANDA GLOBAL UNIVERSITY, JAIPUR"}
                 onUpdate={(v: string) => {
                   layoutSchema.universityName = v;
                 }}
-                class="text-[14pt] font-black uppercase leading-tight"
+                class="text-[14pt] font-black uppercase leading-[1.1] font-serif"
               />
-              <div class="text-[8pt] font-medium leading-tight mt-1 opacity-70">
+              <div
+                class="text-[7.5pt] font-medium leading-tight mt-1 opacity-90 italic font-serif"
+              >
                 (Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of
                 UGC Act, 1956)
               </div>
-              <div class="mt-4 border-y border-black py-1 px-4 inline-block">
+              <div class="mt-4 border border-black py-1 px-8 inline-block">
                 <AssessmentEditable
                   value={paperMeta.exam_title ||
                     "II MID TERM EXAMINATIONS (THEORY), December 2025"}
                   onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-                  class="text-[10pt] font-black uppercase tracking-wider"
+                  class="text-[10pt] font-black uppercase tracking-wide font-serif"
                 />
               </div>
             </div>
-            <div class="w-32 text-right">
-              <div class="text-[7pt] font-bold uppercase leading-tight">
-                NAAC<br />ACCREDITED
-              </div>
-              <div class="text-[16pt] font-black text-red-700 leading-none">
-                A+
-              </div>
-              <div class="text-[7pt] font-bold uppercase leading-tight">
-                UNIVERSITY
-              </div>
+
+            <!-- Right Logo (NAAC) -->
+            <div class="w-28 flex items-center justify-end">
+              <img
+                src="/vgu-naac-badge.png"
+                alt="NAAC A+ Accredited"
+                class="w-full h-auto object-contain"
+              />
             </div>
           </div>
 
-          <!-- VGU METADATA TABLE -->
+          <!-- VGU METADATA TABLE (2-Column) -->
           <table
-            class="w-full border-collapse border border-black text-[9pt] mb-2 leading-tight"
+            class="w-full border-collapse border border-black text-[9.5pt] mb-4 leading-normal font-serif"
           >
             <tbody>
               <tr>
-                <td class="border border-black px-2 py-1 w-[20%] font-bold"
+                <td
+                  class="border border-black px-3 py-1.5 w-[20%] font-bold bg-gray-50/10"
                   >Programme & Batch</td
                 >
-                <td class="border border-black px-2 py-1 w-[35%]">
+                <td
+                  class="border border-black px-3 py-1.5 w-[45%] font-medium uppercase"
+                >
                   <AssessmentEditable
                     value={paperMeta.programme}
                     onUpdate={(v: string) => updateText(v, "META", "programme")}
                   />
                 </td>
-                <td class="border border-black px-2 py-1 w-[20%] font-bold"
+                <td
+                  class="border border-black px-3 py-1.5 w-[15%] font-bold bg-gray-50/10"
                   >Semester</td
                 >
-                <td class="border border-black px-2 py-1 w-[25%]">
+                <td class="border border-black px-3 py-1.5 w-[20%] font-medium">
                   <AssessmentEditable
                     value={paperMeta.semester}
                     onUpdate={(v: string) => updateText(v, "META", "semester")}
@@ -435,20 +448,26 @@
                 </td>
               </tr>
               <tr>
-                <td class="border border-black px-2 py-1 font-bold"
+                <td
+                  class="border border-black px-3 py-1.5 font-bold bg-gray-50/10"
                   >Course Name</td
                 >
-                <td class="border border-black px-2 py-1">
+                <td
+                  class="border border-black px-3 py-1.5 font-medium uppercase"
+                >
                   <AssessmentEditable
                     value={paperMeta.subject_name}
                     onUpdate={(v: string) =>
                       updateText(v, "META", "subject_name")}
                   />
                 </td>
-                <td class="border border-black px-2 py-1 font-bold"
+                <td
+                  class="border border-black px-3 py-1.5 font-bold bg-gray-50/10"
                   >Course Code</td
                 >
-                <td class="border border-black px-2 py-1">
+                <td
+                  class="border border-black px-3 py-1.5 font-medium uppercase"
+                >
                   <AssessmentEditable
                     value={paperMeta.course_code}
                     onUpdate={(v: string) =>
@@ -457,17 +476,22 @@
                 </td>
               </tr>
               <tr>
-                <td class="border border-black px-2 py-1 font-bold">Duration</td
+                <td
+                  class="border border-black px-3 py-1.5 font-bold bg-gray-50/10"
+                  >Duration</td
                 >
-                <td class="border border-black px-2 py-1">
+                <td class="border border-black px-3 py-1.5 font-medium">
                   <AssessmentEditable
                     value={paperMeta.duration_minutes + " Hr"}
                     onUpdate={(v: string) =>
                       updateText(v, "META", "duration_minutes")}
                   />
                 </td>
-                <td class="border border-black px-2 py-1 font-bold">M.M.</td>
-                <td class="border border-black px-2 py-1">
+                <td
+                  class="border border-black px-3 py-1.5 font-bold bg-gray-50/10"
+                  >M.M.</td
+                >
+                <td class="border border-black px-3 py-1.5 font-medium">
                   <AssessmentEditable
                     value={paperMeta.max_marks}
                     onUpdate={(v: string) => updateText(v, "META", "max_marks")}
@@ -477,19 +501,38 @@
             </tbody>
           </table>
 
-          <!-- VGU COURSE OUTCOMES -->
-          {#if courseOutcomes && courseOutcomes.length > 0}
-            <div class="text-[8pt] mb-4">
-              <div class="font-bold border-b border-black mb-1">
-                Course Outcomes:
-              </div>
-              <div class="grid grid-cols-2 gap-x-8">
-                {#each courseOutcomes.slice(0, 4) as co}
-                  <div>{co.code}: {co.name || ""}</div>
-                {/each}
-              </div>
+          <!-- Instructions & Course Outcomes -->
+          <div class="mb-4 font-serif">
+            <div class="flex gap-2 text-[10pt] font-black italic mb-3">
+              <span>Instructions:</span>
+              <AssessmentEditable
+                value={paperMeta.instructions ||
+                  "Before attempting any question, be sure that you get the correct question paper."}
+                onUpdate={(v: string) => updateText(v, "META", "instructions")}
+              />
             </div>
-          {/if}
+
+            {#if courseOutcomes && courseOutcomes.length > 0}
+              <div class="text-[9pt]">
+                <div
+                  class="font-bold border-b border-black mb-1 uppercase tracking-tight"
+                >
+                  Course Outcomes:
+                </div>
+                <div class="grid grid-cols-2 gap-x-12 mt-2">
+                  {#each courseOutcomes.slice(0, 4) as co}
+                    <div class="flex gap-2">
+                      <span class="font-bold whitespace-nowrap">{co.code}:</span
+                      >
+                      <span class="opacity-80 line-clamp-1"
+                        >{co.name || ""}</span
+                      >
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
         {:else}
           <div class="text-center mb-8 border-b-2 border-black pb-4">
             {#if layout.logoUrl}
@@ -828,23 +871,25 @@
                       >
                         {#if qNum === 1}
                           <thead>
-                            <tr
-                              class="bg-gray-100/50 text-[8pt] font-black uppercase border-b border-black"
-                            >
-                              <th class="w-12 border-r border-black p-1"
-                                >S.No</th
+                            <tr class="bg-gray-50/20 font-serif">
+                              <th
+                                class="w-[50px] border-r border-black p-2 text-[10pt]"
+                                >Question</th
                               >
-                              <th class="p-1 border-r border-black">Question</th
+                              <th
+                                class="p-2 border-r border-black text-[10pt] text-left"
+                                >Question</th
                               >
-                              <th class="w-16 border-r border-black p-1"
+                              <th
+                                class="w-[60px] border-r border-black p-2 text-[10pt]"
                                 >Mark</th
                               >
                               <th
-                                class="w-16 border-r border-black p-1 text-center"
+                                class="w-[80px] border-r border-black p-2 text-[10pt] text-center"
                                 >K Level<br />(K1-K6)</th
                               >
-                              <th class="w-16 p-1 text-center"
-                                >CO<br />Indicators</th
+                              <th class="w-[100px] p-2 text-[10pt] text-center"
+                                >CO Indicators</th
                               >
                             </tr>
                           </thead>
