@@ -58,10 +58,10 @@
     class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
   >
     <AssessmentEditable
-      value={String(target.marks || "")}
+      value={String(slot.marks || target.marks || "")}
       onUpdate={(v: string) => {
-        target.marks = Number(v);
         slot.marks = Number(v);
+        if (target) target.marks = Number(v);
       }}
       class="inline-block min-w-[1ch] text-center"
     />

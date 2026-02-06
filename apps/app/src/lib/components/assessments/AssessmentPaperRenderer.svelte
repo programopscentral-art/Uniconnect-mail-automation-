@@ -148,12 +148,23 @@
           ? slot.choice1?.questions?.[0]
           : slot.choice2?.questions?.[0]
         : slot.questions?.[0] || slot;
+
+    // CRITICAL: Use slot.marks (structural marks) NOT question marks
     const marks = Number(
-      cQ?.marks ||
-        slot.marks ||
+      slot.marks ||
         paperStructure.find((s: any) => s.part === part)?.marks_per_q ||
+        cQ?.marks ||
         0,
     );
+
+    console.log("[SWAP OPEN] Slot:", slot);
+    console.log(
+      "[SWAP OPEN] Using marks:",
+      marks,
+      "from slot.marks:",
+      slot.marks,
+    );
+
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData.questions;
@@ -163,6 +174,7 @@
 
     swapContext = {
       slotId: slot.id, // Store ID instead of index for more robust lookup
+      slotMarks: marks, // Store the slot's marks
       part,
       subPart,
       currentMark: marks,
@@ -170,6 +182,14 @@
         (q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id,
       ),
     };
+
+    console.log("[SWAP OPEN] Swap context:", swapContext);
+    console.log(
+      "[SWAP OPEN] Found",
+      swapContext.alternates.length,
+      "alternates",
+    );
+
     isSwapSidebarOpen = true;
   }
 
@@ -198,7 +218,7 @@
       question_id: question.id, // Store the actual question ID for reference
       text: question.question_text || question.text,
       question_text: question.question_text || question.text,
-      marks: question.marks,
+      marks: swapContext.slotMarks || question.marks, // Use slot marks, not question marks
       options: question.options,
       image_url: question.image_url,
       bloom_level: question.bloom_level,
