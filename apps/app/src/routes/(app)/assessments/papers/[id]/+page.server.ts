@@ -40,19 +40,23 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         let questionPool = [];
         if (unitIds.length > 0) {
             const { rows: pool } = await db.query(
-                `SELECT id, question_text, marks, bloom_level, co_id, type, options 
-                 FROM assessment_questions 
-                 WHERE unit_id = ANY($1) 
-                 ORDER BY marks ASC, created_at DESC`,
+                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options,
+                        co.code as target_co, co.name as co_name, co.description as co_description
+                 FROM assessment_questions q
+                 LEFT JOIN assessment_course_outcomes co ON q.co_id = co.id
+                 WHERE q.unit_id = ANY($1) 
+                 ORDER BY q.marks ASC, q.created_at DESC`,
                 [unitIds]
             );
             questionPool = pool;
         } else {
             // Fallback: Fetch all questions for the subject
             const { rows: pool } = await db.query(
-                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options 
+                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options,
+                        co.code as target_co, co.name as co_name, co.description as co_description
                  FROM assessment_questions q
                  JOIN assessment_units u ON q.unit_id = u.id
+                 LEFT JOIN assessment_course_outcomes co ON q.co_id = co.id
                  WHERE u.subject_id = $1
                  ORDER BY q.marks ASC, q.created_at DESC`,
                 [paper.subject_id]

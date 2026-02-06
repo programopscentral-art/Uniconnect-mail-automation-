@@ -563,7 +563,9 @@
                     <div class="flex gap-2">
                       <span class="font-bold whitespace-nowrap">{co.code}:</span
                       >
-                      <span class="opacity-90">{co.name || ""}</span>
+                      <span class="opacity-90"
+                        >{co.name || co.description || co.title || ""}</span
+                      >
                     </div>
                   {/each}
                 </div>
