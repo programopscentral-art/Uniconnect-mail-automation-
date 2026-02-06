@@ -18,7 +18,7 @@
 
 <tr class="border-b border-black {className}">
   <td
-    class="w-[60px] border-r border-black p-2 text-center align-top font-bold text-[10pt]"
+    class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt]"
   >
     {slot.part !== "A" ? "Q." : ""}{qNumber}{slot.part === "A" ? "." : ""}
   </td>

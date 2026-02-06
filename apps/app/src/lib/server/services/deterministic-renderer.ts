@@ -130,8 +130,8 @@ export class DeterministicRenderer {
 
         // 3. Question Table Header
         currentY += 6;
-        const colWidths = [18, 102, 20, 20, 20]; // Total 180 (15 start, 195 end)
-        const colStarts = [15, 33, 135, 155, 175];
+        const colWidths = [30, 90, 20, 20, 20]; // Total 180 (15 start, 195 end)
+        const colStarts = [15, 45, 135, 155, 175];
         const headers = ["Question", "Question", "Mark", "K Level", "CO"];
 
         for (let i = 0; i < headers.length; i++) {
