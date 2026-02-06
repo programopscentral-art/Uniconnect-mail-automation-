@@ -819,7 +819,7 @@
                   </tr>
 
                   <!-- QUESTION ROWS -->
-                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : (Array.isArray(currentSetData) ? currentSetData : [] as q, i (q.id + activeSet)}
+                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : Array.isArray(currentSetData) ? currentSetData : [] as q, i (q.id + activeSet)}
                     {#if q && (q.part === section.part || (!q.part && idx === 0))}
                       {@const sectionIndex = (
                         Array.isArray(currentSetData.questions)
