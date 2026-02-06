@@ -844,35 +844,67 @@
                   </tr>
 
                   <!-- QUESTION ROWS -->
-                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : Array.isArray(currentSetData) ? currentSetData : [] as q, i (q.id + activeSet)}
-                    {#if q && (q.part === section.part || (!q.part && (section.part === "A" || idx === 0)))}
-                      {@const sectionIndex = (
-                        Array.isArray(currentSetData.questions)
-                          ? currentSetData.questions
-                          : Array.isArray(currentSetData)
-                            ? currentSetData
-                            : []
-                      )
-                        .filter(
-                          (x) =>
-                            x &&
-                            (x.part === section.part ||
-                              (!x.part && (section.part === "A" || idx === 0))),
-                        )
-                        .findIndex((x) => x.id === q.id)}
+                  {#each sectionQuestions as q, i (q.id + activeSet)}
+                    {@const sectionIndex = sectionQuestions.findIndex(
+                      (x) => x.id === q.id,
+                    )}
 
-                      <AssessmentVguSlot
-                        slot={q}
-                        qNumber={getSnoStart(section.part) + sectionIndex}
-                        {isEditable}
-                        onSwap={() => openSwapSidebar(q, section.part)}
-                        onRemove={() => removeQuestion(q)}
-                        onUpdateText={(v: string, qid: string) =>
-                          updateText(v, "QUESTION", "text", q.id, qid)}
-                      />
-                    {/if}
+                    <AssessmentVguSlot
+                      slot={q}
+                      qNumber={getSnoStart(section.part) + sectionIndex}
+                      {isEditable}
+                      onSwap={() => openSwapSidebar(q, section.part)}
+                      onRemove={() => removeQuestion(q)}
+                      onUpdateText={(v: string, qid: string) =>
+                        updateText(v, "QUESTION", "text", q.id, qid)}
+                    />
                   {:else}
-                    {#if isEditable}
+                    <!-- SKELETON SLOTS (For Generator Preview/Empty Section) -->
+                    {#if isEditable && section.slots && section.slots.length > 0}
+                      {#each section.slots as slot, sidx}
+                        <tr
+                          class="border-b border-black opacity-40 bg-gray-50/10"
+                        >
+                          <td
+                            class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt]"
+                          >
+                            {section.part !== "A" ? "Q." : ""}{slot.label ||
+                              getSnoStart(section.part) + sidx}{section.part ===
+                            "A"
+                              ? "."
+                              : ""}
+                          </td>
+                          <td
+                            class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
+                          >
+                            <div
+                              class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
+                            >
+                              Draft Slot
+                            </div>
+                            [ {slot.type === "OR_GROUP"
+                              ? "OR Pair"
+                              : "Single Question"} ] - {slot.marks ||
+                              section.marks_per_q} Marks
+                          </td>
+                          <td
+                            class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
+                          >
+                            {slot.marks || section.marks_per_q}
+                          </td>
+                          <td
+                            class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
+                          >
+                            {slot.bloom || "ANY"}
+                          </td>
+                          <td
+                            class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
+                          >
+                            {slot.target_co || "CO1"}
+                          </td>
+                        </tr>
+                      {/each}
+                    {:else if isEditable}
                       <tr>
                         <td
                           colspan="5"
