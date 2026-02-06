@@ -82,18 +82,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 1c. Fetch Template Layout for Slot Mapping (V62)
         let figmaSlots: any[] = [];
-        let isVGUTemplate = false;
-        let isCrescentTemplate = false;
-        let isCDUTemplate = false;
+        let isVGUTemplate = String(university_id).toLowerCase().startsWith('c40ed15d') || String(selected_template).toLowerCase().includes('vgu');
+        let isCrescentTemplate = String(selected_template).toLowerCase().includes('crescent');
+        let isCDUTemplate = String(selected_template).toLowerCase().includes('cdu') || String(selected_template).toLowerCase().includes('chaitanya');
         if (template_id) {
             const templateRes = await db.query('SELECT name, slug, layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
             if (templateRes.rows.length > 0) {
                 const tRow = templateRes.rows[0];
                 const slug = tRow.slug?.toLowerCase() || '';
                 const name = tRow.name?.toLowerCase() || '';
-                isVGUTemplate = slug.includes('vgu') || name.includes('vgu');
-                isCrescentTemplate = slug.includes('crescent') || name.includes('crescent');
-                isCDUTemplate = slug.includes('cdu') || name.includes('chaitanya');
+                isVGUTemplate = isVGUTemplate || slug.includes('vgu') || name.includes('vgu');
+                isCrescentTemplate = isCrescentTemplate || slug.includes('crescent') || name.includes('crescent');
+                isCDUTemplate = isCDUTemplate || slug.includes('cdu') || name.includes('chaitanya');
                 const schema = tRow.layout_schema;
                 // V94: Support both Legacy (pages array) and Canonical (slots record)
                 if (schema?.slots && !Array.isArray(schema.slots)) {

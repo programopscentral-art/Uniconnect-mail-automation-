@@ -884,8 +884,7 @@
     activeUniversity?.name?.toLowerCase()?.includes("viv") ||
       activeUniversity?.name?.toLowerCase()?.includes("vgu") ||
       activeUniversity?.slug?.includes("vgu") ||
-      String(selectedUniversityId).toLowerCase() ===
-        "c40ed15d-b3e4-49ba-a469-b0bd-a2ac8b2a" ||
+      String(selectedUniversityId).toLowerCase().startsWith("c40ed15d") ||
       (typeof window !== "undefined" &&
         window.location.search.toLowerCase().includes("c40ed15d")),
   );

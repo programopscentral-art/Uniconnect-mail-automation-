@@ -21,10 +21,10 @@
     const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
 
     if (
-      metaTemplate?.includes("vgu") ||
+      String(metaTemplate).toLowerCase().includes("vgu") ||
       uniName.includes("vgu") ||
       uniName.includes("vivekananda") ||
-      uniId === "c40ed15d-b3e4-49ba-b1c4-71a2a8526a6f" ||
+      String(uniId).toLowerCase().startsWith("c40ed15d") ||
       data?.paper?.layout_schema?.style === "vgu"
     ) {
       return "vgu";
