@@ -860,8 +860,11 @@
                     />
                   {:else}
                     <!-- SKELETON SLOTS (For Generator Preview/Empty Section) -->
-                    {#if isEditable && section.slots && section.slots.length > 0}
-                      {#each section.slots as slot, sidx}
+                    {#if isEditable && ((section.slots && section.slots.length > 0) || (section.answered_count || 0) > 0)}
+                      {@const skeletonCount =
+                        section.slots?.length || section.answered_count || 5}
+                      {#each Array(skeletonCount) as _, sidx}
+                        {@const slot = section.slots?.[sidx] || {}}
                         <tr
                           class="border-b border-black opacity-40 bg-gray-50/10"
                         >
