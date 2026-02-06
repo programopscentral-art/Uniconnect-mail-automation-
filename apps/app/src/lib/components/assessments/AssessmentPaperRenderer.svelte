@@ -950,22 +950,6 @@
                             sq.slot_id === structuralSlot.slot_id,
                         )
                       : structuralSlot}
-                    {#if sidx === 0}
-                      {console.log("[VGU RENDER] Section:", section.part)}
-                      {console.log(
-                        "[VGU RENDER] Section slots:",
-                        section.slots,
-                      )}
-                      {console.log(
-                        "[VGU RENDER] Section questions:",
-                        sectionQuestions,
-                      )}
-                      {console.log(
-                        "[VGU RENDER] First structural slot:",
-                        structuralSlot,
-                      )}
-                      {console.log("[VGU RENDER] First matched question:", q)}
-                    {/if}
                     {#if q && q.id}
                       <AssessmentVguSlot
                         slot={q}
