@@ -143,13 +143,24 @@
   }
 
   function selectAlternate(question: any) {
+    console.log("[SWAP] Starting swap with question:", question);
+    console.log("[SWAP] Swap context:", swapContext);
+
     if (!swapContext) return;
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData?.questions || [];
 
+    console.log("[SWAP] Current data array:", arr);
+
     // 1. Try to find existing slot
     const index = arr.findIndex((s: any) => s.id === swapContext.slotId);
+    console.log(
+      "[SWAP] Found slot at index:",
+      index,
+      "for slotId:",
+      swapContext.slotId,
+    );
 
     const nQ = {
       id: swapContext.slotId, // CRITICAL: Keep the original slot ID for structural matching
@@ -169,8 +180,11 @@
       part: swapContext.part,
     };
 
+    console.log("[SWAP] New question object:", nQ);
+
     if (index !== -1) {
       const slot = arr[index];
+      console.log("[SWAP] Updating existing slot:", slot);
       if (slot.type === "OR_GROUP") {
         if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
         else slot.choice2.questions = [nQ];
@@ -180,20 +194,27 @@
           (slot as any)[key] = (nQ as any)[key];
         });
       }
+      console.log("[SWAP] Slot after update:", slot);
     } else {
+      console.log("[SWAP] Creating new slot (skeleton swap)");
       // 2. New slot (was a skeleton swap)
       const newSlot = { ...nQ, id: swapContext.slotId };
       arr.push(newSlot);
     }
 
+    console.log("[SWAP] Array before reassignment:", arr);
+
     // CRITICAL: Force reactivity by reassigning
     if (Array.isArray(currentSetData)) {
       currentSetData = [...arr];
+      console.log("[SWAP] Reassigned currentSetData (array):", currentSetData);
     } else if (currentSetData) {
       currentSetData = { ...currentSetData, questions: [...arr] };
+      console.log("[SWAP] Reassigned currentSetData (object):", currentSetData);
     }
 
     isSwapSidebarOpen = false;
+    console.log("[SWAP] Swap complete, sidebar closed");
   }
 
   const calcTotal = (part: string) => {
