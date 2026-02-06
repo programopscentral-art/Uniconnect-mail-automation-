@@ -22,6 +22,12 @@ export const GET: RequestHandler = async ({ params, url, locals }: any) => {
         if (papers.length === 0) throw error(404, 'Paper not found');
         const paper = papers[0];
 
+        // Fetch Course Outcomes for the subject
+        const { rows: courseOutcomes } = await db.query(
+            'SELECT * FROM assessment_course_outcomes WHERE subject_id = $1 ORDER BY code ASC',
+            [paper.subject_id]
+        );
+
         // 2. Check if we have a Canonical Template
         if (!paper.layout_schema || !paper.layout_schema.slots) {
             return json({
@@ -63,6 +69,7 @@ export const GET: RequestHandler = async ({ params, url, locals }: any) => {
         renderData['duration'] = String(paper.duration_minutes || meta.duration_minutes || '');
         renderData['course_code'] = meta.course_code || '';
         renderData['paper_date'] = meta.paper_date || '';
+        (renderData as any)['course_outcomes'] = courseOutcomes;
 
         // 4. Render
         const pdfBuffer = await DeterministicRenderer.renderToBuffer(paper.layout_schema, renderData);

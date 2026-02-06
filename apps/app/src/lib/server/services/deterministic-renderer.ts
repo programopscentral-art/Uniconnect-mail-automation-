@@ -162,7 +162,36 @@ export class DeterministicRenderer {
             size: 9,
             font: fontBold
         });
-        currentY += 5;
+        currentY += 6;
+
+        const cos = (data as any)['course_outcomes'] || [];
+        if (cos.length > 0) {
+            page.drawText('COURSE OUTCOMES:', {
+                x: 17 * MM_TO_PT,
+                y: pageHeight - (currentY * MM_TO_PT),
+                size: 9,
+                font: fontBold
+            });
+            currentY += 1.2;
+            page.drawLine({
+                start: { x: 17 * MM_TO_PT, y: pageHeight - (currentY * MM_TO_PT) },
+                end: { x: 197 * MM_TO_PT, y: pageHeight - (currentY * MM_TO_PT) },
+                thickness: 0.5,
+                color: rgb(0, 0, 0)
+            });
+            currentY += 4;
+
+            for (const co of cos.slice(0, 4)) {
+                page.drawText(`${co.code}: ${co.name || ''}`, {
+                    x: 17 * MM_TO_PT,
+                    y: pageHeight - (currentY * MM_TO_PT),
+                    size: 8,
+                    font: fontRegular
+                });
+                currentY += 4;
+            }
+        }
+        currentY += 2;
 
         // 5. Question Table Header
         currentY += 4;

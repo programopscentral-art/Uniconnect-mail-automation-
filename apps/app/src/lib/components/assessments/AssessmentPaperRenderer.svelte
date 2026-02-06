@@ -506,7 +506,7 @@
                 >
                   Course Outcomes:
                 </div>
-                <div class="grid grid-cols-2 gap-x-12 mt-2">
+                <div class="mt-2 space-y-1">
                   {#each courseOutcomes.slice(0, 4) as co}
                     <div class="flex gap-2">
                       <span class="font-bold whitespace-nowrap">{co.code}:</span
