@@ -184,7 +184,7 @@
     for (const section of paperStructure) {
       if (section.part === part) break;
       const qs = getQuestionsByPart(section.part);
-      count += section.slots.length; // Approximate or use actual count
+      count += section.slots?.length || qs.length || 0;
     }
     return count + 1;
   };
@@ -533,55 +533,10 @@
               </div>
             {/if}
           </div>
-        {:else}
-          <div class="text-center mb-8 border-b-2 border-black pb-4">
-            {#if layout.logoUrl}
-              <img
-                src={layout.logoUrl}
-                alt="University Logo"
-                class="h-16 mx-auto mb-2"
-              />
-            {/if}
-            <AssessmentEditable
-              value={layout.universityName}
-              onUpdate={(v: string) => {
-                layoutSchema.universityName = v;
-              }}
-              class="text-xl font-black uppercase tracking-tight"
-              style="color: {layout.primaryColor}"
-            />
-            {#if layout.universitySubName || isEditable}
-              <AssessmentEditable
-                value={layout.universitySubName}
-                onUpdate={(v: string) => {
-                  layoutSchema.universitySubName = v;
-                }}
-                class="text-lg font-bold uppercase tracking-tight"
-                placeholder="(SUB-HEADER)"
-              />
-            {/if}
-            {#if layout.universityAddress || isEditable}
-              <AssessmentEditable
-                value={layout.universityAddress}
-                onUpdate={(v: string) => {
-                  layoutSchema.universityAddress = v;
-                }}
-                class="text-[10px] font-bold text-gray-600 uppercase tracking-widest leading-none mt-1"
-                placeholder="ADDRESS / TAGLINE"
-              />
-            {/if}
-            <div class="mt-4 py-1 border-y border-black/10">
-              <AssessmentEditable
-                value={paperMeta.exam_title}
-                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-                class="text-sm font-black uppercase"
-              />
-            </div>
-          </div>
         {/if}
 
-        <!-- Paper Metadata -->
-        {#if layoutSchema?.showMetadataTable}
+        <!-- Paper Metadata Table (Non-VGU only) -->
+        {#if layout.style !== "vgu" && layoutSchema?.showMetadataTable}
           <table
             class="w-full border-collapse border border-black text-[9pt] mb-8"
           >
@@ -776,7 +731,7 @@
         {/if}
       {/if}
 
-      <!-- V22 Field Overlays (Standardized Region-Anchored Rendering) -->
+      <!-- V22 Field Overlays -->
       {#each regions as el}
         <div
           class="absolute pointer-events-none"
@@ -805,8 +760,8 @@
         </div>
       {/each}
 
-      <!-- Dynamic Sections -->
-      <div class="space-y-[1cm] relative z-10">
+      <!-- Dynamic Sections & Question Area -->
+      <div class="space-y-[1cm] relative z-10 w-full">
         {#if (paperStructure || []).length === 0}
           <div
             class="py-20 flex flex-col items-center justify-center text-center opacity-30 select-none"
@@ -827,86 +782,117 @@
           </div>
         {/if}
 
-        {#each paperStructure || [] as section, idx}
-          {@const questions = getQuestionsByPart(section.part)}
-          {#if questions.length > 0 || mode === "preview"}
-            <div>
-              <div
-                class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
-              >
-                <AssessmentEditable
-                  value={section.title}
-                  onUpdate={(v: string) => {
-                    section.title = v;
-                    paperStructure = [...paperStructure];
-                  }}
-                  class="inline-block font-bold"
-                />
-                <span class="text-xs">
-                  ({section.answered_count} x {section.marks_per_q} = {section.answered_count *
-                    section.marks_per_q} Marks)
-                </span>
-              </div>
+        {#if layout.style === "vgu"}
+          <!-- VGU STYLE UNIFIED TABLE -->
+          <table
+            class="w-full border-collapse border border-black table-fixed font-serif"
+          >
+            <thead>
+              <tr class="bg-gray-100/30 text-center font-bold">
+                <th class="w-[50px] border border-black p-2 text-[10pt]"
+                  >Question</th
+                >
+                <th class="border border-black p-2 text-[10pt] text-left"
+                  >Question</th
+                >
+                <th class="w-[60px] border border-black p-2 text-[10pt]"
+                  >Mark</th
+                >
+                <th class="w-[80px] border border-black p-2 text-[10pt]"
+                  >K Level<br />(K1-K6)</th
+                >
+                <th class="w-[100px] border border-black p-2 text-[10pt]"
+                  >CO Indicators</th
+                >
+              </tr>
+            </thead>
+            <tbody>
+              {#each paperStructure || [] as section}
+                {@const sectionQuestions = getQuestionsByPart(section.part)}
+                {#if sectionQuestions.length > 0 || mode === "preview"}
+                  <!-- SECTION HEADER ROW -->
+                  <tr
+                    class="bg-gray-50/50 border border-black font-bold text-[10pt]"
+                  >
+                    <td
+                      colspan="5"
+                      class="p-2 italic tracking-tight border border-black"
+                    >
+                      <AssessmentEditable
+                        value={section.title}
+                        onUpdate={(v: string) => {
+                          section.title = v;
+                          paperStructure = [...paperStructure];
+                        }}
+                      />
+                    </td>
+                  </tr>
 
-              <div
-                use:dndzone={{ items: questions, flipDurationMs: 200 }}
-                onconsider={(e) =>
-                  handleDndSync(section.part, (e.detail as any).items)}
-                onfinalize={(e) =>
-                  handleDndSync(section.part, (e.detail as any).items)}
-              >
-                {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
-                  {#if q && q.part === section.part}
-                    {@const qNum =
-                      (Array.isArray(currentSetData.questions)
-                        ? currentSetData.questions
-                        : []
+                  <!-- QUESTION ROWS -->
+                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
+                    {#if q && q.part === section.part}
+                      {@const sectionIndex = (
+                        Array.isArray(currentSetData.questions)
+                          ? currentSetData.questions
+                          : []
                       )
                         .filter((x) => x && x.part === section.part)
-                        .findIndex((x) => x.id === q.id) + 1}
+                        .findIndex((x) => x.id === q.id)}
 
-                    {#if layout.style === "vgu"}
-                      <table
-                        class="w-full border-collapse border border-black table-fixed"
-                      >
-                        {#if qNum === 1}
-                          <thead>
-                            <tr class="bg-gray-50/20 font-serif">
-                              <th
-                                class="w-[50px] border-r border-black p-2 text-[10pt]"
-                                >Question</th
-                              >
-                              <th
-                                class="p-2 border-r border-black text-[10pt] text-left"
-                                >Question</th
-                              >
-                              <th
-                                class="w-[60px] border-r border-black p-2 text-[10pt]"
-                                >Mark</th
-                              >
-                              <th
-                                class="w-[80px] border-r border-black p-2 text-[10pt] text-center"
-                                >K Level<br />(K1-K6)</th
-                              >
-                              <th class="w-[100px] p-2 text-[10pt] text-center"
-                                >CO Indicators</th
-                              >
-                            </tr>
-                          </thead>
-                        {/if}
-                        <tbody>
-                          <AssessmentVguSlot
-                            slot={q}
-                            qNumber={getSnoStart(section.part) + (qNum - 1)}
-                            {isEditable}
-                            onSwap={() => openSwapSidebar(q, section.part)}
-                            onRemove={() => removeQuestion(q)}
-                            onUpdateText={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                          />
-                        </tbody>
-                      </table>
-                    {:else}
+                      <AssessmentVguSlot
+                        slot={q}
+                        qNumber={getSnoStart(section.part) + sectionIndex}
+                        {isEditable}
+                        onSwap={() => openSwapSidebar(q, section.part)}
+                        onRemove={() => removeQuestion(q)}
+                        onUpdateText={(v: string, qid: string) =>
+                          updateText(v, "QUESTION", "text", q.id, qid)}
+                      />
+                    {/if}
+                  {/each}
+                {/if}
+              {/each}
+            </tbody>
+          </table>
+        {:else}
+          {#each paperStructure || [] as section, idx}
+            {@const questions = getQuestionsByPart(section.part)}
+            {#if questions.length > 0 || mode === "preview"}
+              <div>
+                <div
+                  class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
+                >
+                  <AssessmentEditable
+                    value={section.title}
+                    onUpdate={(v: string) => {
+                      section.title = v;
+                      paperStructure = [...paperStructure];
+                    }}
+                    class="inline-block font-bold"
+                  />
+                  <span class="text-xs">
+                    ({section.answered_count} x {section.marks_per_q} = {section.answered_count *
+                      section.marks_per_q} Marks)
+                  </span>
+                </div>
+
+                <div
+                  use:dndzone={{ items: questions, flipDurationMs: 200 }}
+                  onconsider={(e) =>
+                    handleDndSync(section.part, (e.detail as any).items)}
+                  onfinalize={(e) =>
+                    handleDndSync(section.part, (e.detail as any).items)}
+                >
+                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
+                    {#if q && q.part === section.part}
+                      {@const qNum =
+                        (Array.isArray(currentSetData.questions)
+                          ? currentSetData.questions
+                          : []
+                        )
+                          .filter((x) => x && x.part === section.part)
+                          .findIndex((x) => x.id === q.id) + 1}
+
                       <div
                         class={section.part === "A"
                           ? "border-b border-black"
@@ -942,12 +928,12 @@
                         {/if}
                       </div>
                     {/if}
-                  {/if}
-                {/each}
+                  {/each}
+                </div>
               </div>
-            </div>
-          {/if}
-        {/each}
+            {/if}
+          {/each}
+        {/if}
       </div>
 
       <!-- Footer / Instructions -->
