@@ -220,16 +220,29 @@
         if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
         else slot.choice2.questions = [nQ];
       } else {
-        // Direct property assignment for better reactivity
-        Object.keys(nQ).forEach((key) => {
-          (slot as any)[key] = (nQ as any)[key];
-        });
+        // VGU structure: slot has a nested questions array
+        // Update the questions array instead of copying properties to slot
+        if (slot.questions && Array.isArray(slot.questions)) {
+          slot.questions = [nQ];
+        } else {
+          // Fallback: if no questions array, copy properties directly
+          Object.keys(nQ).forEach((key) => {
+            (slot as any)[key] = (nQ as any)[key];
+          });
+        }
       }
       console.log("[SWAP] Slot after update:", slot);
     } else {
       console.log("[SWAP] Creating new slot (skeleton swap)");
       // 2. New slot (was a skeleton swap)
-      const newSlot = { ...nQ, id: swapContext.slotId };
+      const newSlot = {
+        id: swapContext.slotId,
+        slot_id: swapContext.slotId,
+        type: "SINGLE",
+        part: swapContext.part,
+        questions: [nQ],
+        marks: nQ.marks,
+      };
       arr.push(newSlot);
     }
 
