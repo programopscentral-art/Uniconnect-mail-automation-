@@ -255,6 +255,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             let setUnitCounter = 0;
 
             const pickOne = (targetMarks: number, unitId: string, qType?: string, bloomArr?: string[], co_id?: string) => {
+                const requestedCoCode = coRes.rows.find(c => c.id === co_id)?.code;
                 const isShortOrMcq = (q: any) => {
                     const text = (q.question_text || '').toLowerCase();
                     return text.includes('___') || text.includes('....') || (Array.isArray(q.options) && q.options.length > 0);
@@ -326,7 +327,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         marks: choice.marks,
                         bloom: choice.bloom_level,
                         k_level: kLevel,
-                        co_indicator: choice.target_co || 'CO1',
+                        co_code: requestedCoCode || choice.target_co || 'CO1',
                         co_id: choice.co_id,
                         unit_id: choice.unit_id,
                         type: choice.type || 'NORMAL',
@@ -343,16 +344,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const attempts = [
                     // Priority 1: Fresh in Unit + Strict Marks + Strict Bloom
                     () => getCandidates(unitPool, true, true, false),
-                    // Priority 2: Fresh in Unit + Strict Marks + Any Bloom (VARIETY OVER DIFFICULTY)
                     () => getCandidates(unitPool, true, false, false),
-                    // Priority 3: Fresh in Global + Strict Marks + Any Bloom
                     () => getCandidates(globalPool, true, false, false),
-                    // Priority 4: Reuse in Unit + Strict Marks + Strict Bloom (BLOOM OVER REUSE)
+                    () => getCandidates(globalPool, true, false, false, false), // NEW: Fresh in Global + Strict Marks + ANY Type
                     () => getCandidates(unitPool, true, true, true),
-                    // Priority 5: Reuse in Global + Any Marks (LAST RESORT)
+                    () => getCandidates(globalPool, true, false, true, false), // NEW: Reuse in Global + Strict Marks + ANY Type
                     () => getCandidates(globalPool, false, false, true),
-                    // Priority 6: Fresh in Global + Strict Marks + ANY Type (TYPE RELAXATION)
-                    () => getCandidates(globalPool, true, false, false, false)
                 ];
 
                 for (const attempt of attempts) {
@@ -429,7 +426,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         exam_time,
                         course_code,
                         exam_title,
-                        instructions
+                        instructions,
+                        template_config
                     }
                 })
             ]

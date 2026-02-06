@@ -172,7 +172,24 @@
       const marks = Number(meta.max_marks || paper.max_marks || 100);
       const is100 = marks === 100;
       const isMCQ = meta.part_a_type === "MCQ";
-      if (is100) {
+      if (selectedTemplate === "vgu") {
+        structure = [
+          {
+            title: "SECTION A (1*10=10 Marks) Answer all Question No- 1-10",
+            marks_per_q: 1,
+            count: 10,
+            answered_count: 10,
+            part: "A",
+          },
+          {
+            title: "SECTION B (5*3=15 Marks) Attempt any three questions",
+            marks_per_q: 5,
+            count: 4,
+            answered_count: 3,
+            part: "B",
+          },
+        ];
+      } else if (is100) {
         structure = [
           {
             title: "PART A",

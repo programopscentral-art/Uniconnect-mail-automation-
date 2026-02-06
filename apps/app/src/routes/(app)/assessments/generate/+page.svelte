@@ -79,6 +79,57 @@
     const is100 = Number(maxMarks) === 100;
     const structure = [];
 
+    if (isVGU) {
+      // FORCE VGU RIGID STRUCTURE (10x1 + 3/4x5)
+      const partA = {
+        title: "SECTION A (1*10=10 Marks) Answer all Question No- 1-10",
+        part: "A",
+        answered_count: 10,
+        marks_per_q: 1,
+        slots: [] as any[],
+      };
+      for (let i = 1; i <= 10; i++) {
+        partA.slots.push({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i}`,
+          part: "A",
+          type: "SINGLE",
+          marks: 1,
+          unit: "Auto",
+          qType: "MCQ",
+          bloom: "ANY",
+          target_co: "CO1",
+        });
+      }
+      structure.push(partA);
+
+      const partB = {
+        title: "SECTION B (5*3=15 Marks) Attempt any three questions",
+        part: "B",
+        answered_count: 3,
+        marks_per_q: 5,
+        slots: [] as any[],
+      };
+      for (let i = 1; i <= 4; i++) {
+        partB.slots.push({
+          id: `B-${i}-${Math.random()}`,
+          label: `Q.${10 + i}`,
+          slot_id: `Q_${10 + i}`,
+          part: "B",
+          type: "SINGLE",
+          marks: 5,
+          unit: "Auto",
+          qType: "LONG",
+          bloom: "ANY",
+          target_co: "CO1",
+        });
+      }
+      structure.push(partB);
+
+      paperStructure = structure;
+      return;
+    }
+
     // Part A
     const isMCQ = partAType === "MCQ";
     const countA = is100 ? (isMCQ ? 20 : 10) : isMCQ ? 10 : 5;
@@ -156,57 +207,6 @@
       });
     }
     structure.push(partB);
-
-    if (isVGU) {
-      // FORCE VGU RIGID STRUCTURE (10x1 + 3/4x5)
-      structure.length = 0;
-
-      const partA = {
-        title: "SECTION A (1*10=10 Marks) Answer all Question No- 1-10",
-        part: "A",
-        answered_count: 10,
-        marks_per_q: 1,
-        slots: [] as any[],
-      };
-      for (let i = 1; i <= 10; i++) {
-        partA.slots.push({
-          id: `A-${i}-${Math.random()}`,
-          label: `${i}`,
-          part: "A",
-          type: "SINGLE",
-          marks: 1,
-          unit: "Auto",
-          qType: "MCQ",
-          bloom: "ANY",
-        });
-      }
-      structure.push(partA);
-
-      const partB = {
-        title: "SECTION B (5*3=15 Marks) Attempt any three questions",
-        part: "B",
-        answered_count: 3,
-        marks_per_q: 5,
-        slots: [] as any[],
-      };
-      for (let i = 1; i <= 4; i++) {
-        partB.slots.push({
-          id: `B-${i}-${Math.random()}`,
-          label: `Q.${10 + i}`,
-          slot_id: `Q_${10 + i}`,
-          part: "B",
-          type: "SINGLE",
-          marks: 5,
-          unit: "Auto",
-          qType: "LONG",
-          bloom: "ANY",
-        });
-      }
-      structure.push(partB);
-
-      paperStructure = structure;
-      return;
-    }
 
     if (generationMode === "Chaitanya") {
       const partA = {
