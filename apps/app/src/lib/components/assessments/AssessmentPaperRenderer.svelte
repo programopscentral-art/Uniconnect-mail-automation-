@@ -52,7 +52,13 @@
         : currentSetData?.questions || []
     ).filter(Boolean);
     const otherQuestions = arr.filter((q: any) => q.part !== part);
-    const result = [...otherQuestions, ...items.map((i) => ({ ...i, part }))];
+
+    // CRITICAL: Update part on items but MAINTAIN REFERENCES
+    items.forEach((item) => {
+      item.part = part;
+    });
+
+    const result = [...otherQuestions, ...items];
     if (Array.isArray(currentSetData)) currentSetData = result;
     else currentSetData.questions = result;
   }
@@ -119,10 +125,12 @@
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData.questions;
-    const index = arr.indexOf(slot);
+
+    // Use findIndex by ID because references can change during DND/Sync
+    const index = arr.findIndex((s: any) => s.id === slot.id);
 
     swapContext = {
-      slotIndex: index,
+      slotId: slot.id, // Store ID instead of index for more robust lookup
       part,
       subPart,
       currentMark: marks,
@@ -138,17 +146,38 @@
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData.questions;
-    const slot = arr[swapContext.slotIndex];
+    const slot = arr.find((s: any) => s.id === swapContext.slotId);
+    if (!slot) return;
+
     const nQ = {
       id: question.id,
       text: question.question_text,
       marks: question.marks,
       options: question.options,
+      image_url: question.image_url,
+      bloom_level: question.bloom_level,
+      k_level: question.bloom_level
+        ? question.bloom_level.startsWith("K")
+          ? question.bloom_level
+          : `K${question.bloom_level.charAt(0)}`
+        : "K1",
+      co_indicator: question.co_indicator || question.target_co || "CO1",
+      unit_id: question.unit_id,
     };
+
     if (slot.type === "OR_GROUP") {
       if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
       else slot.choice2.questions = [nQ];
-    } else slot.questions = [nQ];
+    } else {
+      // VGU Specific: slot might be the question itself or have a questions array
+      if (Array.isArray(slot.questions)) {
+        slot.questions = [nQ];
+      } else {
+        // Update properties on the slot itself if it's a flat question
+        Object.assign(slot, nQ);
+      }
+    }
+
     if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
     else currentSetData.questions = [...currentSetData.questions];
     isSwapSidebarOpen = false;
