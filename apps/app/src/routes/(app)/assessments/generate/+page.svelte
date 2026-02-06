@@ -872,7 +872,8 @@
   // Absolute Template Enforcement for Chaitanya
   const isChaitanya = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("chaitanya") ||
-      selectedUniversityId === "8e5403f9-505a-44d4-add4-aae3efaa9248" ||
+      String(selectedUniversityId).toLowerCase() ===
+        "8e5403f9-505a-44d4-add4-aae3efaa9248" ||
       (typeof window !== "undefined" &&
         window.location.search.toLowerCase().includes("8e5403f9")),
   );
@@ -883,7 +884,8 @@
     activeUniversity?.name?.toLowerCase()?.includes("viv") ||
       activeUniversity?.name?.toLowerCase()?.includes("vgu") ||
       activeUniversity?.slug?.includes("vgu") ||
-      selectedUniversityId === "c40ed15d-b3e4-49ba-a469-b0bd-a2ac8b2A" ||
+      String(selectedUniversityId).toLowerCase() ===
+        "c40ed15d-b3e4-49ba-a469-b0bd-a2ac8b2a" ||
       (typeof window !== "undefined" &&
         window.location.search.toLowerCase().includes("c40ed15d")),
   );

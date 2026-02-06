@@ -260,7 +260,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     return text.includes('___') || text.includes('....') || (Array.isArray(q.options) && q.options.length > 0);
                 };
 
-                const getCandidates = (pool: any[], strictMarks: boolean, strictBloom: boolean, allowGlobalReuse: boolean) => {
+                const getCandidates = (pool: any[], strictMarks: boolean, strictBloom: boolean, allowGlobalReuse: boolean, strictType: boolean = true) => {
                     let cand = pool;
 
                     // 1. Uniqueness Filter (Most Important)
@@ -297,9 +297,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     // 4. Type Filter
-                    if (qType && qType !== 'ANY') {
+                    if (qType && qType !== 'ANY' && strictType) {
                         if (qType === 'MIXED') cand = cand.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));
-                        else if (qType === 'MCQ') cand = cand.filter(q => q.type === 'MCQ' || isShortOrMcq(q));
+                        else if (qType === 'MCQ') cand = cand.filter(q => ['MCQ', 'VERY_SHORT', 'SHORT', 'FILL_IN_BLANK'].includes(q.type || '') || isShortOrMcq(q));
+                        else if (qType === 'LONG') cand = cand.filter(q => ['LONG', 'VERY_LONG', 'NORMAL', 'DESCRIPTIVE'].includes(q.type || '') || Number(q.marks) >= 5);
                         else if (qType === 'NORMAL' && targetMarks < 5) cand = cand.filter(q => !['MCQ', 'FILL_IN_BLANK'].includes(q.type || '') && !isShortOrMcq(q));
                         else cand = cand.filter(q => q.type === qType);
                     }
@@ -349,7 +350,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     // Priority 4: Reuse in Unit + Strict Marks + Strict Bloom (BLOOM OVER REUSE)
                     () => getCandidates(unitPool, true, true, true),
                     // Priority 5: Reuse in Global + Any Marks (LAST RESORT)
-                    () => getCandidates(globalPool, false, false, true)
+                    () => getCandidates(globalPool, false, false, true),
+                    // Priority 6: Fresh in Global + Strict Marks + ANY Type (TYPE RELAXATION)
+                    () => getCandidates(globalPool, true, false, false, false)
                 ];
 
                 for (const attempt of attempts) {
