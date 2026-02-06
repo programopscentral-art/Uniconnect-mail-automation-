@@ -214,8 +214,11 @@ export class DeterministicRenderer {
         ];
 
         let qNumberCounter = 1;
-        for (const section of paperStructure) {
-            const sectionQuestions = questions.filter((q: any) => q && (q.part === section.part || (!q.part && section.part === 'A')));
+        for (let i = 0; i < paperStructure.length; i++) {
+            const section = paperStructure[i];
+            const sectionQuestions = questions.filter((q: any) =>
+                q && (q.part === section.part || (!q.part && (section.part === 'A' || i === 0)))
+            );
 
             if (sectionQuestions.length > 0) {
                 // Section Header Row

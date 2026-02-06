@@ -172,20 +172,23 @@
     }, 0);
   };
 
-  const getQuestionsByPart = (part: string) => {
+  const getQuestionsByPart = (part: string, idx: number) => {
     const all = Array.isArray(currentSetData.questions)
       ? currentSetData.questions
       : Array.isArray(currentSetData)
         ? currentSetData
         : [];
-    return all.filter((q: any) => q && q.part === part);
+    return all.filter(
+      (q: any) =>
+        q && (q.part === part || (!q.part && (part === "A" || idx === 0))),
+    );
   };
 
   const getSnoStart = (part: string) => {
     let count = 0;
-    for (const section of paperStructure) {
+    for (const [i, section] of paperStructure.entries()) {
       if (section.part === part) break;
-      const qs = getQuestionsByPart(section.part);
+      const qs = getQuestionsByPart(section.part, i);
       count += section.slots?.length || qs.length || 0;
     }
     return count + 1;
@@ -775,7 +778,9 @@
         {#if layout.style === "vgu"}
           <!-- VGU STYLE UNIFIED TABLE -->
           {@const activePaperStructure =
-            paperStructure && paperStructure.length > 0
+            paperStructure &&
+            Array.isArray(paperStructure) &&
+            paperStructure.length > 0
               ? paperStructure
               : [
                   {
@@ -815,8 +820,11 @@
             </thead>
             <tbody>
               {#each activePaperStructure || [] as section, idx}
-                {@const sectionQuestions = getQuestionsByPart(section.part)}
-                {#if sectionQuestions.length > 0 || mode === "preview"}
+                {@const sectionQuestions = getQuestionsByPart(
+                  section.part,
+                  idx,
+                )}
+                {#if sectionQuestions.length > 0 || isEditable}
                   <!-- SECTION HEADER ROW -->
                   <tr
                     class="bg-gray-50/50 border border-black font-bold text-[10pt]"
@@ -837,7 +845,7 @@
 
                   <!-- QUESTION ROWS -->
                   {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : Array.isArray(currentSetData) ? currentSetData : [] as q, i (q.id + activeSet)}
-                    {#if q && (q.part === section.part || (!q.part && idx === 0))}
+                    {#if q && (q.part === section.part || (!q.part && (section.part === "A" || idx === 0)))}
                       {@const sectionIndex = (
                         Array.isArray(currentSetData.questions)
                           ? currentSetData.questions
@@ -848,7 +856,8 @@
                         .filter(
                           (x) =>
                             x &&
-                            (x.part === section.part || (!x.part && idx === 0)),
+                            (x.part === section.part ||
+                              (!x.part && (section.part === "A" || idx === 0))),
                         )
                         .findIndex((x) => x.id === q.id)}
 
@@ -862,6 +871,18 @@
                           updateText(v, "QUESTION", "text", q.id, qid)}
                       />
                     {/if}
+                  {:else}
+                    {#if isEditable}
+                      <tr>
+                        <td
+                          colspan="5"
+                          class="p-8 text-center text-gray-400 border border-black italic text-[9pt]"
+                        >
+                          No questions in this section. Drag questions here to
+                          add them.
+                        </td>
+                      </tr>
+                    {/if}
                   {/each}
                 {/if}
               {/each}
@@ -869,8 +890,8 @@
           </table>
         {:else}
           {#each paperStructure || [] as section, idx}
-            {@const questions = getQuestionsByPart(section.part)}
-            {#if questions.length > 0 || mode === "preview"}
+            {@const questions = getQuestionsByPart(section.part, idx)}
+            {#if questions.length > 0 || isEditable}
               <div>
                 <div
                   class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
