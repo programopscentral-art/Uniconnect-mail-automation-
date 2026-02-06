@@ -154,6 +154,7 @@
     const nQ = {
       id: question.id,
       text: question.question_text || question.text,
+      question_text: question.question_text || question.text,
       marks: question.marks,
       options: question.options,
       image_url: question.image_url,
@@ -162,6 +163,7 @@
         ? String(question.bloom_level).replace(/^L/i, "K")
         : "K1",
       co_indicator: question.target_co || question.co_code || "CO1",
+      target_co: question.target_co || question.co_code || "CO1",
       unit_id: question.unit_id,
       part: swapContext.part,
     };
@@ -172,24 +174,23 @@
         if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
         else slot.choice2.questions = [nQ];
       } else {
-        if (Array.isArray(slot.questions)) {
-          slot.questions = [nQ];
-        } else {
-          // Replace the whole object in the array for better reactivity
-          arr[index] = { ...slot, ...nQ };
-        }
+        // Direct property assignment for better reactivity
+        Object.keys(nQ).forEach((key) => {
+          (slot as any)[key] = (nQ as any)[key];
+        });
       }
     } else {
       // 2. New slot (was a skeleton swap)
-      // Use the skeleton ID so it correctly maps to the structural slot in rendering
       const newSlot = { ...nQ, id: swapContext.slotId };
-      if (Array.isArray(currentSetData)) currentSetData = [...arr, newSlot];
-      else if (currentSetData) currentSetData.questions = [...arr, newSlot];
+      arr.push(newSlot);
     }
 
-    if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
-    else if (currentSetData)
-      currentSetData.questions = [...currentSetData.questions];
+    // CRITICAL: Force reactivity by reassigning
+    if (Array.isArray(currentSetData)) {
+      currentSetData = [...arr];
+    } else if (currentSetData) {
+      currentSetData = { ...currentSetData, questions: [...arr] };
+    }
 
     isSwapSidebarOpen = false;
   }
@@ -929,6 +930,7 @@
                             {isEditable}
                             onSwap={() =>
                               openSwapSidebar(structuralSlot, section.part)}
+                            onDelete={() => {}}
                             class="-left-2 top-2"
                           />
                           {section.part !== "A"
