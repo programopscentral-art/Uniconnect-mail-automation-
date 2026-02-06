@@ -227,8 +227,9 @@
           ? '1in'
           : '0.75in'}; border-color: {layout.showBorder
         ? layout.primaryColor + '33'
-        : 'transparent'}; background: {layoutSchema?.debugImage
-        ? `url(${layoutSchema.debugImage})`
+        : 'transparent'}; background: {layoutSchema?.debugImage ||
+      layoutSchema?.backgroundImageUrl
+        ? `url(${layoutSchema.debugImage || layoutSchema.backgroundImageUrl})`
         : 'white'}; background-size: 100% 100%;"
     >
       <!-- Watermark -->
@@ -246,7 +247,7 @@
       {/if}
 
       <!-- Dynamic Header & Metadata (V16 Image-As-Template Support) -->
-      {#if !layoutSchema?.debugImage}
+      {#if !layoutSchema?.debugImage && !layoutSchema?.backgroundImageUrl}
         {#if layout.style === "cdu"}
           <div
             class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative"

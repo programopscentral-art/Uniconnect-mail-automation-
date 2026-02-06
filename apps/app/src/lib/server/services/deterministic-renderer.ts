@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, StandardFonts, type PDFPage } from 'pdf-lib';
+import fs from 'node:fs';
 import type { CanonicalTemplate, SlotDefinition, StaticElement } from '@uniconnect/shared';
 
 /**
@@ -19,9 +20,14 @@ export class DeterministicRenderer {
             template.page.heightMM * MM_TO_PT,
         ]);
 
+        // 0. Render Background Image
+        if (template.backgroundImageUrl) {
+            await this.renderBackground(pdfDoc, page, template.backgroundImageUrl);
+        }
+
         // 1. Render Static Elements
         for (const el of template.staticElements) {
-            await this.renderStaticElement(page, el);
+            await this.renderStaticElement(page, el, pdfDoc);
         }
 
         // 2. Render Slots
@@ -37,7 +43,7 @@ export class DeterministicRenderer {
         return Buffer.from(pdfBytes);
     }
 
-    private static async renderStaticElement(page: PDFPage, el: StaticElement) {
+    private static async renderStaticElement(page: PDFPage, el: StaticElement, doc: PDFDocument) {
         const { height } = page.getSize();
 
         switch (el.type) {
@@ -68,6 +74,42 @@ export class DeterministicRenderer {
                     color: this.hexToRgb(el.color),
                 });
                 break;
+            case 'image':
+                await this.drawImage(doc, page, el.url, el.xMM, el.yMM, el.widthMM, el.heightMM);
+                break;
+        }
+    }
+
+    private static async renderBackground(doc: PDFDocument, page: PDFPage, url: string) {
+        const { width, height } = page.getSize();
+        await this.drawImage(doc, page, url, 0, 0, width / MM_TO_PT, height / MM_TO_PT);
+    }
+
+    private static async drawImage(doc: PDFDocument, page: PDFPage, url: string, xMM: number, yMM: number, widthMM: number, heightMM: number) {
+        try {
+            const { height: pageHeight } = page.getSize();
+            let imagePath = url;
+            if (url.startsWith('file:///')) {
+                imagePath = url.replace('file:///', '');
+            }
+
+            if (!fs.existsSync(imagePath)) {
+                console.warn(`[DeterministicRenderer] Image not found: ${imagePath}`);
+                return;
+            }
+
+            const imageBytes = fs.readFileSync(imagePath);
+            const isPng = imagePath.toLowerCase().endsWith('.png');
+            const image = isPng ? await doc.embedPng(imageBytes) : await doc.embedJpg(imageBytes);
+
+            page.drawImage(image, {
+                x: xMM * MM_TO_PT,
+                y: pageHeight - (yMM * MM_TO_PT) - (heightMM * MM_TO_PT),
+                width: widthMM * MM_TO_PT,
+                height: heightMM * MM_TO_PT,
+            });
+        } catch (err) {
+            console.error(`[DeterministicRenderer] Failed to draw image: ${url}`, err);
         }
     }
 
