@@ -152,7 +152,8 @@
     const index = arr.findIndex((s: any) => s.id === swapContext.slotId);
 
     const nQ = {
-      id: question.id,
+      id: swapContext.slotId, // CRITICAL: Keep the original slot ID for structural matching
+      question_id: question.id, // Store the actual question ID for reference
       text: question.question_text || question.text,
       question_text: question.question_text || question.text,
       marks: question.marks,
