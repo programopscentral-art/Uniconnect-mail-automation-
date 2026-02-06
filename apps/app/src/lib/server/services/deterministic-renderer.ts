@@ -59,11 +59,13 @@ export class DeterministicRenderer {
         const naacBadgePath = 'c:/Desktop/uniconnect-mail-automation/apps/app/static/vgu-naac-badge.png';
 
         if (fs.existsSync(vguLogoPath)) {
-            await this.drawImage(doc, page, `file:///${vguLogoPath}`, 15, 10, 22, 22);
+            // New VGU Logo is roughly square (Swami Vivekananda)
+            await this.drawImage(doc, page, `file:///${vguLogoPath}`, 15, 8, 20, 20);
         }
 
         if (fs.existsSync(naacBadgePath)) {
-            await this.drawImage(doc, page, `file:///${naacBadgePath}`, 172, 10, 25, 18);
+            // New NAAC Badge is a vertical rectangle
+            await this.drawImage(doc, page, `file:///${naacBadgePath}`, 180, 8, 15, 20);
         }
 
         // Center Title (2 Lines)
@@ -181,7 +183,7 @@ export class DeterministicRenderer {
             });
             currentY += 4;
 
-            for (const co of cos.slice(0, 4)) {
+            for (const co of cos) {
                 page.drawText(`${co.code}: ${co.name || ''}`, {
                     x: 17 * MM_TO_PT,
                     y: pageHeight - (currentY * MM_TO_PT),
