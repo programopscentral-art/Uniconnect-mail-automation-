@@ -50,11 +50,22 @@
   $effect(() => {
     if (layout.style === "vgu" && currentSetData) {
       console.log("[VGU DEBUG] Current set data:", currentSetData);
+      console.log(
+        "[VGU DEBUG] Current set data type:",
+        typeof currentSetData,
+        Array.isArray(currentSetData),
+      );
+      console.log(
+        "[VGU DEBUG] Current set data keys:",
+        Object.keys(currentSetData || {}),
+      );
       console.log("[VGU DEBUG] Paper structure:", paperStructure);
       const questions = Array.isArray(currentSetData)
         ? currentSetData
         : currentSetData?.questions || [];
       console.log("[VGU DEBUG] Questions array:", questions);
+      console.log("[VGU DEBUG] Questions length:", questions.length);
+      console.log("[VGU DEBUG] First question:", questions[0]);
       if (paperStructure && paperStructure.length > 0) {
         paperStructure.forEach((section: any) => {
           console.log(`[VGU DEBUG] Section ${section.part}:`, {
