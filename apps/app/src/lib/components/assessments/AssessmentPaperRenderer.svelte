@@ -15,6 +15,7 @@
     layoutSchema = $bindable({}),
     activeSet = "A",
     questionPool = [],
+    courseOutcomes = [],
     mode = "view",
   } = $props();
 
@@ -476,18 +477,19 @@
             </tbody>
           </table>
 
-          <!-- VGU COURSE OUTCOMES (Dummy for now) -->
-          <div class="text-[8pt] mb-4">
-            <div class="font-bold border-b border-black mb-1">
-              Course Outcomes:
+          <!-- VGU COURSE OUTCOMES -->
+          {#if courseOutcomes && courseOutcomes.length > 0}
+            <div class="text-[8pt] mb-4">
+              <div class="font-bold border-b border-black mb-1">
+                Course Outcomes:
+              </div>
+              <div class="grid grid-cols-2 gap-x-8">
+                {#each courseOutcomes.slice(0, 4) as co}
+                  <div>{co.code}: {co.name || ""}</div>
+                {/each}
+              </div>
             </div>
-            <div class="grid grid-cols-2 gap-x-8">
-              <div>CO1: CO_1_TEXT</div>
-              <div>CO2: CO_2_TEXT</div>
-              <div>CO3: CO_3_TEXT</div>
-              <div>CO4: CO_4_TEXT</div>
-            </div>
-          </div>
+          {/if}
         {:else}
           <div class="text-center mb-8 border-b-2 border-black pb-4">
             {#if layout.logoUrl}

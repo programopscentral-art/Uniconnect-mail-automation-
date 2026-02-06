@@ -8,11 +8,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     try {
         const { rows } = await db.query(
-            `SELECT p.*, s.name as subject_name, s.code as subject_code, b.name as branch_name, u.name as university_name
+            `SELECT p.*, s.name as subject_name, s.code as subject_code, b.name as branch_name, u.name as university_name,
+                    t.name as template_name, t.layout_schema
              FROM assessment_papers p
              JOIN assessment_subjects s ON p.subject_id = s.id
              JOIN assessment_branches b ON p.branch_id = b.id
              JOIN universities u ON p.university_id = u.id
+             LEFT JOIN assessment_templates t ON p.template_id = t.id
              WHERE p.id = $1`,
             [paperId]
         );

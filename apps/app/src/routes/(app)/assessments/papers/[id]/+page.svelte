@@ -5,6 +5,7 @@
   import CrescentTemplate from "$lib/components/assessments/CrescentTemplate.svelte";
   import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
+  import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
 
@@ -20,6 +21,13 @@
     const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
 
     if (
+      metaTemplate?.includes("vgu") ||
+      uniName.includes("vgu") ||
+      uniName.includes("vivekananda")
+    ) {
+      return "vgu";
+    }
+    if (
       metaTemplate === "cdu" ||
       uniName.includes("chaitanya") ||
       uniId === "8e5403f9-505a-44d4-add4-aae3efaa9248"
@@ -34,11 +42,13 @@
   });
 
   let universityLabel = $derived(
-    selectedTemplate === "cdu"
-      ? "Chaitanya (CDU)"
-      : selectedTemplate === "crescent"
-        ? "Crescent (IST)"
-        : "University Standard",
+    selectedTemplate === "vgu"
+      ? "Vivekananda Global University (VGU)"
+      : selectedTemplate === "cdu"
+        ? "Chaitanya (CDU)"
+        : selectedTemplate === "crescent"
+          ? "Crescent (IST)"
+          : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -869,7 +879,18 @@
           </div>
         </div>
 
-        {#if selectedTemplate === "cdu"}
+        {#if selectedTemplate === "vgu"}
+          <AssessmentPaperRenderer
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            layoutSchema={data.paper.layout_schema || { style: "vgu" }}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+          />
+        {:else if selectedTemplate === "cdu"}
           <CDUTemplate
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
