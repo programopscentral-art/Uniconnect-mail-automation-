@@ -400,16 +400,12 @@
               </div>
 
               <!-- Right Logo (NAAC) -->
-              <div class="w-20 flex flex-col items-center justify-center">
-                <div class="text-[6pt] font-bold text-center leading-none mb-1">
-                  NAAC<br />ACCREDITED
-                </div>
-                <div class="text-[20pt] font-black leading-none text-red-800">
-                  A+
-                </div>
-                <div class="text-[6pt] font-bold text-center leading-none mt-1">
-                  UNIVERSITY
-                </div>
+              <div class="w-20">
+                <img
+                  src="/vgu-naac-badge.png"
+                  alt="NAAC A+ accredited"
+                  class="w-full h-auto object-contain"
+                />
               </div>
             </div>
 
