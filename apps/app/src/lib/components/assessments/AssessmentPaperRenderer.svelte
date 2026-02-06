@@ -159,11 +159,9 @@
       image_url: question.image_url,
       bloom_level: question.bloom_level,
       k_level: question.bloom_level
-        ? question.bloom_level.startsWith("K")
-          ? question.bloom_level
-          : `K${question.bloom_level.charAt(0)}`
+        ? String(question.bloom_level).replace(/^L/i, "K")
         : "K1",
-      co_indicator: question.co_indicator || question.target_co || "CO1",
+      co_indicator: question.target_co || question.co_code || "CO1",
       unit_id: question.unit_id,
       part: swapContext.part,
     };
@@ -900,14 +898,16 @@
                     </td>
                   </tr>
 
-                  <!-- QUESTION ROWS (Structure-Aware) -->
-                  {#each section.slots || [] as structuralSlot, sidx}
-                    {@const q = sectionQuestions.find(
-                      (sq) =>
-                        sq.id === structuralSlot.id ||
-                        sq.slot_id === structuralSlot.slot_id,
-                    )}
-                    {#if q}
+                  <!-- QUESTION ROWS (Union of Structure and Questions) -->
+                  {#each section.slots && section.slots.length > 0 ? section.slots : sectionQuestions as structuralSlot, sidx}
+                    {@const q = section.slots?.length
+                      ? sectionQuestions.find(
+                          (sq) =>
+                            sq.id === structuralSlot.id ||
+                            sq.slot_id === structuralSlot.slot_id,
+                        )
+                      : structuralSlot}
+                    {#if q && q.id}
                       <AssessmentVguSlot
                         slot={q}
                         qNumber={getSnoStart(section.part) + sidx}
