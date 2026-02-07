@@ -1,4 +1,4 @@
-import { getAllUniversities, getAssessmentBatches, getAssessmentBranches, getUniversityById } from '@uniconnect/shared';
+import { getAllUniversities, getUniversityById, db } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -25,12 +25,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     if (activeUniId) {
         const results = await Promise.allSettled([
-            getAssessmentBatches(activeUniId),
-            getAssessmentBranches(activeUniId)
+            db.query('SELECT * FROM assessment_batches WHERE university_id = $1 ORDER BY name ASC', [activeUniId]),
+            db.query('SELECT * FROM assessment_branches WHERE university_id = $1 ORDER BY name ASC', [activeUniId])
         ]);
 
-        if (results[0].status === 'fulfilled') batches = results[0].value;
-        if (results[1].status === 'fulfilled') branches = results[1].value;
+        if (results[0].status === 'fulfilled') batches = results[0].value.rows;
+        if (results[1].status === 'fulfilled') branches = results[1].value.rows;
     }
 
     return {
