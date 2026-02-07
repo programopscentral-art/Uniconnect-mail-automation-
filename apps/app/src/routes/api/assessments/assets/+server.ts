@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { createUniversityAsset } from '@uniconnect/shared';
+import { db } from '@uniconnect/shared';
 
 export const POST = async ({ request, locals }: { request: Request, locals: any }) => {
     if (!locals.user) throw error(401);
@@ -18,24 +18,21 @@ export const POST = async ({ request, locals }: { request: Request, locals: any 
     }
 
     // MOCK: In production, upload to S3/Supabase and get real URL
-    // For this context, we'll use a data URL or a placeholder with the filename
-    // Actually, let's use a placeholder but include the name to make it look real
     const mockUrl = `https://via.placeholder.com/300?text=${encodeURIComponent(name)}`;
 
     try {
-        const asset = await createUniversityAsset({
-            university_id,
-            name,
-            url: mockUrl,
-            type,
-            metadata: {
+        const { rows } = await db.query(
+            `INSERT INTO university_assets (university_id, name, url, type, metadata)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *`,
+            [university_id, name, mockUrl, type, {
                 size: file.size,
                 mimeType: file.type,
                 lastModified: file.lastModified
-            }
-        });
+            }]
+        );
 
-        return json({ success: true, asset });
+        return json({ success: true, asset: rows[0] });
     } catch (e: any) {
         console.error(e);
         throw error(500, e.message || 'Failed to save asset');
