@@ -229,17 +229,147 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        // 2a. Shuffle pool for variety
-        // 2a. Shuffle pool for variety (Fisher-Yates)
+        // Common declarations for all templates
+        const sets = ['A', 'B', 'C', 'D'];
+        const generatedSets: Record<string, any> = {};
+        const globalExcluded = new Set<string>();
         const globalShuffledPool = [...allQuestions];
         for (let i = globalShuffledPool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [globalShuffledPool[i], globalShuffledPool[j]] = [globalShuffledPool[j], globalShuffledPool[i]];
         }
 
-        const sets = ['A', 'B', 'C', 'D'];
-        const generatedSets: Record<string, any> = {};
-        const globalExcluded = new Set<string>(); // Tracking VARIETY across sets
+        // 2. VGU Structured Generation (JSON-First)
+        if (isVGUTemplate) {
+            console.log("[VGU GENERATOR] Starting structured JSON-first generation...");
+
+            const validateVguPaper = (paper: any) => {
+                const results: string[] = [];
+                const sets = Object.keys(paper);
+                sets.forEach(setName => {
+                    const q = paper[setName].questions;
+                    const secA = q.filter((s: any) => s.part === 'A');
+                    const secB = q.filter((s: any) => s.part === 'B');
+
+                    if (secA.length !== 10) results.push(`Set ${setName}: Section A has ${secA.length}/10 questions.`);
+                    if (secB.length < 3) results.push(`Set ${setName}: Section B has ${secB.length}/4 questions (Needs at least 3 for "Attempt 3").`);
+
+                    secA.forEach((s: any, i: number) => {
+                        const target = s.questions?.[0];
+                        if (!target) results.push(`Set ${setName} Q.${i + 1}: Missing question content.`);
+                        else if (target.type !== 'MCQ') results.push(`Set ${setName} Q.${i + 1}: Invalid type ${target.type} (Expected MCQ).`);
+                    });
+
+                    secB.forEach((s: any, i: number) => {
+                        const target = s.questions?.[0];
+                        if (!target) results.push(`Set ${setName} Q.1${i + 1}: Missing descriptive content.`);
+                        else if (['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(target.type))
+                            results.push(`Set ${setName} Q.1${i + 1}: Invalid type ${target.type} (Expected Descriptive).`);
+                    });
+                });
+                return { pass: results.length === 0, errors: results };
+            };
+
+            for (const setName of sets) {
+                const setQuestions: any[] = [];
+                const excludeInSet = new Set<string>();
+                let unitIdx = 0;
+
+                // Helper to pick strictly by type
+                const pickStrict = (qType: 'MCQ' | 'LONG', targetMarks: number, uId: string) => {
+                    let pool = allQuestions.filter(q => {
+                        if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
+                        if (q.unit_id !== uId) return false;
+
+                        if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
+                        if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) && Number(q.marks) >= 4;
+                        return false;
+                    });
+
+                    // Fallback to global if unit is empty
+                    if (pool.length === 0) {
+                        pool = allQuestions.filter(q => {
+                            if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
+                            if (qType === 'MCQ') return q.type === 'MCQ';
+                            if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type);
+                            return false;
+                        });
+                    }
+
+                    if (pool.length === 0) return null;
+                    const choice = pool[Math.floor(Math.random() * pool.length)];
+                    excludeInSet.add(choice.id);
+                    globalExcluded.add(choice.id);
+
+                    const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
+
+                    return {
+                        id: choice.id,
+                        question_id: choice.id,
+                        text: choice.question_text,
+                        question_text: choice.question_text,
+                        marks: targetMarks,
+                        bloom_level: choice.bloom_level,
+                        k_level: choice.bloom_level ? `K${choice.bloom_level.charAt(1)}` : 'K1',
+                        co_indicator: coCode,
+                        target_co: coCode,
+                        options: choice.options,
+                        image_url: choice.image_url,
+                        type: choice.type,
+                        part: qType === 'MCQ' ? 'A' : 'B'
+                    };
+                };
+
+                // Populate Section A (Slots Q_1 to Q_10)
+                const aSlots = slotsToProcess.filter(s => s.part === 'A');
+                aSlots.forEach(slot => {
+                    const uId = unit_ids[unitIdx++ % unit_ids.length];
+                    const q = pickStrict('MCQ', 1, uId);
+                    setQuestions.push({
+                        id: slot.id,
+                        slot_id: slot.slot_id,
+                        type: 'SINGLE',
+                        part: 'A',
+                        marks: 1,
+                        questions: q ? [q] : []
+                    });
+                });
+
+                // Populate Section B (Slots Q_11 to Q_14)
+                const bSlots = slotsToProcess.filter(s => s.part === 'B');
+                bSlots.forEach(slot => {
+                    const uId = unit_ids[unitIdx++ % unit_ids.length];
+                    const q = pickStrict('LONG', 5, uId);
+                    setQuestions.push({
+                        id: slot.id,
+                        slot_id: slot.slot_id,
+                        type: 'SINGLE',
+                        part: 'B',
+                        marks: 5,
+                        questions: q ? [q] : []
+                    });
+                });
+
+                generatedSets[setName] = { questions: setQuestions, setName };
+            }
+
+            const validation = validateVguPaper(generatedSets);
+            console.log("[VGU VALIDATOR] Result:", validation);
+
+            if (preview_only) {
+                return json({ sets: generatedSets, template_config, validation });
+            }
+
+            // Persistence
+            const paperRes = await db.query(
+                `INSERT INTO assessment_papers (university_id, subject_id, exam_type, semester, paper_date, duration_minutes, max_marks, template_id, sets_data)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+                [university_id, subject_id, exam_type, semester, paper_date, duration_minutes, max_marks, template_id, JSON.stringify({ ...generatedSets, validation, metadata: { template_config, selected_template: 'vgu' } })]
+            );
+            return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config, validation });
+        }
+
+        // 2a. Variety shuffle for non-VGU templates
 
         for (const setName of sets) {
             const setQuestions: any[] = [];

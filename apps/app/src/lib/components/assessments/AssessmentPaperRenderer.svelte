@@ -18,6 +18,7 @@
     questionPool = [],
     courseOutcomes = [],
     mode = "view",
+    onSwap = null as ((updatedSet: any) => void) | null,
   } = $props();
 
   let isSwapSidebarOpen = $state(false);
@@ -280,6 +281,12 @@
 
     // Secondary trigger for any derived states
     activeSet = activeSet;
+
+    // Call persistence callback if provided
+    if (onSwap && typeof onSwap === "function") {
+      console.log("[SWAP] Calling onSwap persistence callback...");
+      onSwap(currentSetData);
+    }
 
     console.log(
       "[SWAP] New currentSetData questions length:",
@@ -1223,6 +1230,56 @@
           No matching questions found in pool.
         </div>
       {/each}
+    </div>
+  {/if}
+
+  {#if layout.style === "vgu" && currentSetData?.validation}
+    <div
+      class="max-w-[210mm] mx-auto mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl no-print"
+    >
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          <div
+            class="w-2 h-2 rounded-full {currentSetData.validation.pass
+              ? 'bg-green-500'
+              : 'bg-red-500'}"
+          ></div>
+          VGU Academic Validation
+        </h3>
+        <span class="text-xs font-mono bg-slate-200 px-2 py-1 rounded"
+          >JSON-FIRST GENERATION</span
+        >
+      </div>
+
+      {#if !currentSetData.validation.pass}
+        <div class="space-y-2 mb-4">
+          {#each currentSetData.validation.errors as err}
+            <div class="text-sm text-red-600 flex gap-2">
+              <span class="font-bold">❌</span>
+              <span>{err}</span>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="text-sm text-green-600 mb-4 flex gap-2 items-center">
+          <span class="font-bold text-lg">✅</span>
+          <span
+            >All VGU Academic Rules Passed! (10 MCQs, 5-Mark Descriptives
+            preserved)</span
+          >
+        </div>
+      {/if}
+
+      <details class="mt-4">
+        <summary
+          class="text-xs text-slate-500 cursor-pointer hover:text-slate-700 transition-colors"
+          >Show Generated JSON Structure</summary
+        >
+        <pre
+          class="mt-2 text-[10px] bg-slate-900 text-slate-300 p-4 rounded-lg selection:bg-slate-700 overflow-x-auto max-h-[400px]">
+          {JSON.stringify(currentSetData, null, 2)}
+        </pre>
+      </details>
     </div>
   {/if}
 </div>

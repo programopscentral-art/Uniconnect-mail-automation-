@@ -98,9 +98,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     let qText = qTextFull;
 
                     // Aggressive in-text option extraction for XLSX if columns are empty or not enough options
-                    // CRITICAL: Only do this for MCQ candidates. Descriptive questions (LONG/SHORT) 
-                    // often contain (a), (b) markers within the question text itself.
-                    const isCandidateForMcq = finalQType === 'MCQ' || (!rowType && options.length === 0);
+                    // CRITICAL: Only do this if we are SURE it's an MCQ or if type is unknown.
+                    // If the sheet or column explicitly says it's LONG/DESCRIPTIVE, we MUST NOT split.
+                    const isExplicitlyDescriptive = ['LONG', 'VERY_LONG', 'PARAGRAPH', 'DESCRIPTIVE', 'ESSAY'].includes(finalQType);
+                    const isCandidateForMcq = finalQType === 'MCQ' || (!rowType && options.length === 0 && !isExplicitlyDescriptive);
+
                     if (qTextFull && qTextFull.length > 10 && isCandidateForMcq) {
                         const optRegex = /(?:\s|^|\()([A-Da-d])[\.\)]\s+/g;
                         const allMatches = [...qTextFull.matchAll(optRegex)];

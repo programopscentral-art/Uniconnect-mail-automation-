@@ -303,6 +303,13 @@
     }
   }
 
+  async function handleSetUpdate(updatedSet: any) {
+    console.log("[PERSISTENCE] handleSetUpdate called for Set", activeSet);
+    editableSets[activeSet] = updatedSet;
+    // Auto-save the paper to ensure persistence of the swap
+    await saveChanges();
+  }
+
   async function downloadPDF() {
     const paper = data?.paper;
     const meta = paperMeta;
@@ -908,6 +915,7 @@
             courseOutcomes={data.courseOutcomes}
             questionPool={data.questionPool}
             mode="edit"
+            onSwap={handleSetUpdate}
           />
         {:else if selectedTemplate === "cdu"}
           <CDUTemplate
