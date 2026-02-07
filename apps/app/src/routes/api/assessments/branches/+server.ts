@@ -1,4 +1,4 @@
-import { createAssessmentBranch, getAssessmentBranches, updateAssessmentBranch, deleteAssessmentBranch } from '@uniconnect/shared';
+import { db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -14,8 +14,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     }
 
     try {
-        const branches = await getAssessmentBranches(universityId, batchId || undefined);
-        return json(branches);
+        let query = 'SELECT * FROM assessment_branches WHERE university_id = $1';
+        const params = [universityId];
+
+        if (batchId) {
+            query += ' AND batch_id = $2';
+            params.push(batchId);
+        }
+
+        query += ' ORDER BY name ASC';
+
+        const { rows } = await db.query(query, params);
+        return json(rows);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -34,8 +44,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const branch = await createAssessmentBranch(body);
-        return json(branch);
+        const { rows } = await db.query(
+            `INSERT INTO assessment_branches (university_id, batch_id, name, code)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *`,
+            [body.university_id, body.batch_id, body.name, body.code]
+        );
+        return json(rows[0]);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -50,8 +65,14 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const branch = await updateAssessmentBranch(body.id, body);
-        return json(branch);
+        const { rows } = await db.query(
+            `UPDATE assessment_branches
+            SET name = $1, code = $2, updated_at = NOW()
+            WHERE id = $3
+            RETURNING *`,
+            [body.name, body.code, body.id]
+        );
+        return json(rows[0]);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -64,7 +85,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     if (!id) throw error(400, 'ID is required');
 
     try {
-        await deleteAssessmentBranch(id);
+        await db.query('DELETE FROM assessment_branches WHERE id = $1', [id]);
         return json({ success: true });
     } catch (err: any) {
         throw error(500, err.message);
