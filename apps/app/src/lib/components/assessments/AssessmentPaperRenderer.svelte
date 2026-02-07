@@ -94,6 +94,11 @@
     const result = [...otherQuestions, ...items];
     if (Array.isArray(currentSetData)) currentSetData = result;
     else currentSetData.questions = result;
+
+    // CRITICAL: Trigger persistence after DND
+    if (onSwap) {
+      onSwap($state.snapshot(currentSetData));
+    }
   }
 
   function updateText(
@@ -184,8 +189,8 @@
       ),
     );
 
-    const universityLabel = layout.universityName;
-    const selectedTemplate = layout.style;
+    const slotType =
+      slot.qType?.toUpperCase() || (part === "A" ? "MCQ" : "LONG");
 
     swapContext = {
       slotId: slot.id, // Store ID instead of index for more robust lookup
@@ -199,20 +204,28 @@
         if (!sameMarks) return false;
         if (usedQuestionIds.has(q.id)) return false;
 
-        // VGU Strictness: Section A = MCQ, Section B = LONG
-        if (
-          String(universityLabel).toLowerCase().includes("vgu") ||
-          String(selectedTemplate).toLowerCase() === "vgu"
-        ) {
-          if (part === "A") {
-            return (
-              q.type === "MCQ" ||
-              (Array.isArray(q.options) && q.options.length > 0)
-            );
-          } else {
-            return !["MCQ", "VERY_SHORT", "FILL_IN_BLANK"].includes(q.type);
-          }
+        // Strict type filtering
+        if (slotType === "MCQ") {
+          return (
+            q.type === "MCQ" ||
+            (Array.isArray(q.options) && q.options.length > 0)
+          );
         }
+        if (slotType === "FILL_IN_BLANK") {
+          return q.type === "FILL_IN_BLANK" || q.type === "FIB";
+        }
+        if (slotType === "SHORT") {
+          return (
+            q.type === "SHORT" || (Number(q.marks) >= 2 && Number(q.marks) <= 3)
+          );
+        }
+        if (slotType === "LONG") {
+          return (
+            !["MCQ", "FILL_IN_BLANK", "FIB"].includes(q.type) &&
+            Number(q.marks) >= 4
+          );
+        }
+
         return true;
       }),
     };
@@ -266,6 +279,7 @@
       co_indicator: question.target_co || question.co_code || "CO1",
       target_co: question.target_co || question.co_code || "CO1",
       unit_id: question.unit_id,
+      type: question.type || "NORMAL",
       sub_label: swapContext.subLabel || null,
       part: swapContext.part,
     };
@@ -1281,51 +1295,36 @@
     </div>
   {/if}
 
-  {#if layout.style === "vgu" && currentSetData?.validation}
+  {#if currentSetData?.debug}
     <div
       class="max-w-[210mm] mx-auto mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl no-print"
     >
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <div
-            class="w-2 h-2 rounded-full {currentSetData.validation.pass
-              ? 'bg-green-500'
-              : 'bg-red-500'}"
-          ></div>
-          VGU Academic Validation
+          <div class="w-2 h-2 rounded-full bg-green-500"></div>
+          Academic Validation
         </h3>
         <span class="text-xs font-mono bg-slate-200 px-2 py-1 rounded"
-          >JSON-FIRST GENERATION</span
+          >CONFIG-DRIVEN GENERATION</span
         >
       </div>
 
-      {#if !currentSetData.validation.pass}
-        <div class="space-y-2 mb-4">
-          {#each currentSetData.validation.errors as err}
-            <div class="text-sm text-red-600 flex gap-2">
-              <span class="font-bold">❌</span>
-              <span>{err}</span>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="text-sm text-green-600 mb-4 flex gap-2 items-center">
-          <span class="font-bold text-lg">✅</span>
-          <span
-            >All VGU Academic Rules Passed! (10 MCQs, 5-Mark Descriptives
-            preserved)</span
-          >
-        </div>
-      {/if}
+      <div class="text-sm text-green-600 mb-4 flex gap-2 items-center">
+        <span class="font-bold text-lg">✅</span>
+        <span
+          >Structure follows UI configuration. Seed: {currentSetData.debug
+            ?.seed || "Auto"}</span
+        >
+      </div>
 
       <details class="mt-4">
         <summary
           class="text-xs text-slate-500 cursor-pointer hover:text-slate-700 transition-colors"
-          >Show Generated JSON Structure</summary
+          >Show Generation Meta</summary
         >
         <pre
           class="mt-2 text-[10px] bg-slate-900 text-slate-300 p-4 rounded-lg selection:bg-slate-700 overflow-x-auto max-h-[400px]">
-          {JSON.stringify(currentSetData, null, 2)}
+          {JSON.stringify(currentSetData.debug, null, 2)}
         </pre>
       </details>
     </div>
