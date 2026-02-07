@@ -1,4 +1,4 @@
-import { getAllUniversities, getAssessmentBatches, getAssessmentBranches, getAssessmentSubjects } from '@uniconnect/shared';
+import { getAllUniversities, db } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -11,11 +11,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     try {
         console.log('[GENERATE_LOAD] universityId:', universityId, 'batchId:', batchId);
-        const [universities, batches, branches] = await Promise.all([
+        const [universities, batchesResult, branchesResult] = await Promise.all([
             locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' ? getAllUniversities() : Promise.resolve([]),
-            universityId ? getAssessmentBatches(universityId) : Promise.resolve([]),
-            universityId ? getAssessmentBranches(universityId, batchId || undefined) : Promise.resolve([])
+            universityId ? db.query('SELECT * FROM assessment_batches WHERE university_id = $1 ORDER BY name ASC', [universityId]) : Promise.resolve({ rows: [] }),
+            universityId ? db.query(
+                batchId
+                    ? 'SELECT * FROM assessment_branches WHERE university_id = $1 AND batch_id = $2 ORDER BY name ASC'
+                    : 'SELECT * FROM assessment_branches WHERE university_id = $1 ORDER BY name ASC',
+                batchId ? [universityId, batchId] : [universityId]
+            ) : Promise.resolve({ rows: [] })
         ]);
+
+        const batches = batchesResult.rows || [];
+        const branches = branchesResult.rows || [];
 
         console.log(`[GENERATE_LOAD] Found ${batches.length} batches and ${branches.length} branches for universityId:`, universityId);
         if (batches.length > 0) {
@@ -24,7 +32,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
         let subjects: any[] = [];
         if (branchId) {
-            subjects = await getAssessmentSubjects(branchId, undefined, batchId || undefined);
+            const subjectsResult = await db.query(
+                batchId
+                    ? 'SELECT * FROM assessment_subjects WHERE branch_id = $1 AND batch_id = $2 ORDER BY name ASC'
+                    : 'SELECT * FROM assessment_subjects WHERE branch_id = $1 ORDER BY name ASC',
+                batchId ? [branchId, batchId] : [branchId]
+            );
+            subjects = subjectsResult.rows;
         }
 
         return {
