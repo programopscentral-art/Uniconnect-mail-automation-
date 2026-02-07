@@ -1,5 +1,5 @@
-import { createAssessmentUnit, deleteAssessmentUnit } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
+import { db } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -11,8 +11,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const unit = await createAssessmentUnit(body);
-        return json(unit);
+        const { rows } = await db.query(
+            `INSERT INTO assessment_units (subject_id, unit_number, name)
+            VALUES ($1, $2, $3)
+            RETURNING *`,
+            [body.subject_id, body.unit_number, body.name]
+        );
+        return json(rows[0]);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -25,7 +30,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     if (!id) throw error(400, 'ID is required');
 
     try {
-        await deleteAssessmentUnit(id);
+        await db.query('DELETE FROM assessment_units WHERE id = $1', [id]);
         return json({ success: true });
     } catch (err: any) {
         throw error(500, err.message);

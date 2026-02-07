@@ -1,4 +1,4 @@
-import { db, createAssessmentTopic, getAssessmentTopics, deleteAssessmentTopic } from '@uniconnect/shared';
+import { db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -36,7 +36,10 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         };
 
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
-            const topics = await getAssessmentTopics(u.id);
+            const { rows: topics } = await db.query(
+                'SELECT * FROM assessment_topics WHERE unit_id = $1 ORDER BY name ASC',
+                [u.id]
+            );
 
             // Fetch questions and their topics for this unit
             const { rows: unitQuestions } = await db.query(
@@ -131,8 +134,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const topic = await createAssessmentTopic(body);
-        return json(topic);
+        const { rows } = await db.query(
+            `INSERT INTO assessment_topics (unit_id, name)
+            VALUES ($1, $2)
+            RETURNING *`,
+            [body.unit_id, body.name]
+        );
+        return json(rows[0]);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -145,7 +153,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     if (!id) throw error(400, 'ID is required');
 
     try {
-        await deleteAssessmentTopic(id);
+        await db.query('DELETE FROM assessment_topics WHERE id = $1', [id]);
         return json({ success: true });
     } catch (err: any) {
         throw error(500, err.message);
