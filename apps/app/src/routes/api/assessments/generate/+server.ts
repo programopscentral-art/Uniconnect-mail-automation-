@@ -173,84 +173,64 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const random = createSeededRandom(setSeed);
 
             const setQuestions: any[] = [];
-            const excludeIdsInSet = new Set<string>();
-            const excludeTextsInSet = new Set<string>();
+            const usedMcqQuestionIds = new Set<string>();
+            const usedMcqTexts = new Set<string>();
             let setUnitIdx = 0;
             const setTraceInfo: any[] = [];
 
             const pickStrict = (qType: string, targetMarks: number, uId: string, sectionTitle: string, slotId: string) => {
-                // Map frontend type to backend type if needed
-                let searchType = qType?.toUpperCase() || 'ANY';
-                if (searchType === 'NORMAL') searchType = 'ANY';
+                const searchType = qType?.toUpperCase() || 'ANY';
 
-                let pool = allQuestions.filter((q: any) => {
-                    // ID level exclusion (Set wide)
-                    if (excludeIdsInSet.has(q.id)) return false;
+                // 1. FILTER POOL FOR UNIQUENESS
+                const pool = allQuestions.filter((q: any) => {
+                    if (usedMcqQuestionIds.has(q.id)) return false;
+                    if (usedMcqTexts.has(normalizeText(q.question_text))) return false;
 
-                    // Text level exclusion (Set wide)
-                    if (excludeTextsInSet.has(normalizeText(q.question_text))) return false;
-
-                    // 1. Strict Topic Filtering (If topic_ids provided from UI)
-                    if (topic_ids && topic_ids.length > 0) {
-                        const isMatch = topic_ids.includes(q.topic_id) ||
-                            (q.topic_id === null && topic_ids.some((id: string) => id.startsWith('temp-')));
+                    if (topic_ids?.length > 0) {
+                        const isMatch = topic_ids.includes(q.topic_id) || (q.topic_id === null && topic_ids.some((id: string) => id.startsWith('temp-')));
                         if (!isMatch) return false;
                     }
-
-                    // 2. Unit Filtering
                     if (uId !== 'Auto' && q.unit_id !== uId) return false;
-
-                    // 3. Mark check
                     if (Number(q.marks) !== Number(targetMarks)) return false;
 
-                    // 4. Type check
                     if (searchType === 'MCQ') {
-                        const isMcq = q.type === 'MCQ' ||
-                            (Array.isArray(q.options) && q.options.length > 0) ||
-                            (Number(q.marks) === 1 && (!q.type || q.type === 'VERY_SHORT'));
-                        return isMcq;
+                        return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0) || (Number(q.marks) === 1 && (!q.type || q.type === 'VERY_SHORT'));
                     }
-                    if (searchType === 'FILL_IN_BLANK') {
-                        return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
-                    }
-                    if (searchType === 'SHORT') {
-                        return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
-                    }
-                    if (searchType === 'LONG') {
-                        return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
-                    }
-
+                    if (searchType === 'FILL_IN_BLANK') return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
+                    if (searchType === 'SHORT') return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                    if (searchType === 'LONG') return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
                     return true;
                 });
 
                 if (pool.length === 0) {
-                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). Required marks: ${targetMarks}. Not enough content under selected topics.`);
+                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). Pool exhausted.`);
                 }
 
-                // Pick from units specified in generation or pool
                 let choicePool = pool;
                 if (uId === 'Auto') {
-                    const targetUnitId = (unit_ids && unit_ids.length > 0)
-                        ? (unit_ids[setUnitIdx % unit_ids.length])
-                        : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
-
+                    const targetUnitId = (unit_ids?.length > 0) ? unit_ids[setUnitIdx % unit_ids.length] : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
                     const unitCand = choicePool.filter((q: any) => q.unit_id === targetUnitId);
                     if (unitCand.length > 0) choicePool = unitCand;
                     setUnitIdx++;
                 }
 
-                // Variety across sets (A, B, C, D) using extreme normalization
-                const varietyPoolById = choicePool.filter((q: any) => !globalExcluded.has(q.id));
-                const varietyPoolByText = varietyPoolById.filter((q: any) => !globalExcludedTexts.has(normalizeText(q.question_text)));
+                // Variety across sets
+                const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id) && !globalExcludedTexts.has(normalizeText(q.question_text)));
+                const finalPool = varietyPool.length > 0 ? varietyPool : choicePool;
 
-                const finalPool = varietyPoolByText.length > 0 ? varietyPoolByText : (varietyPoolById.length > 0 ? varietyPoolById : choicePool);
                 const choice = finalPool[Math.floor(random() * finalPool.length)];
 
-                // Update exclusion lists IMMEDIATELY
-                excludeIdsInSet.add(choice.id);
-                excludeTextsInSet.add(normalizeText(choice.question_text));
+                // CRITICAL: Update used IDs and texts immediately
+                usedMcqQuestionIds.add(choice.id);
+                usedMcqTexts.add(normalizeText(choice.question_text));
                 globalExcluded.add(choice.id);
                 globalExcludedTexts.add(normalizeText(choice.question_text));
+
+                console.assert(usedMcqQuestionIds.size >= 1, "At least one MCQ should be picked");
+                if (usedMcqQuestionIds.size > 1) {
+                    const ids = Array.from(usedMcqQuestionIds);
+                    console.log(`[PROOF] Picked different IDs: ${ids[ids.length - 2]} !== ${ids[ids.length - 1]}`);
+                }
 
                 setTraceInfo.push({
                     slotId,
