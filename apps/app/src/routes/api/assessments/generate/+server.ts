@@ -65,6 +65,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 .join(' ');
         };
 
+        const normalizeText = (text: string): string => {
+            if (!text) return '';
+            return text
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .trim();
+        };
+
         // 1. Fetch Question Pool (with optional topic filtering)
         // Use DISTINCT ON (q.id) to ensure we don't get duplicates if join on topics yields multiple rows
         let query = `
@@ -203,16 +211,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     throw new Error(`Insufficient ${searchType} questions available for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}). Required marks: ${targetMarks}.`);
                 }
 
-                // 5. Within-Set Text Deduplication
+                // 5. Within-Set Text Deduplication (using extreme normalization)
                 const usedTextsInSet = new Set(setQuestions.flatMap(sq => {
-                    if (sq.type === 'OR_GROUP') {
-                        return [...(sq.choice1?.questions || []), ...(sq.choice2?.questions || [])].map(q => (q.question_text || '').trim().toLowerCase());
-                    }
-                    return (sq.questions || []).map((q: any) => (q.question_text || '').trim().toLowerCase());
+                    const qs = sq.type === 'OR_GROUP'
+                        ? [...(sq.choice1?.questions || []), ...(sq.choice2?.questions || [])]
+                        : (sq.questions || []);
+                    return qs.map((q: any) => normalizeText(q.question_text));
                 }));
 
-                let deDupedPool = pool.filter((q: any) => !usedTextsInSet.has((q.question_text || '').trim().toLowerCase()));
-                if (deDupedPool.length === 0) deDupedPool = pool; // Fallback to avoid crash if pool is exhausted by text-only dups
+                const deDupedPool = pool.filter((q: any) => !usedTextsInSet.has(normalizeText(q.question_text)));
+
+                if (deDupedPool.length === 0) {
+                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). The pool only contains duplicates of already selected questions.`);
+                }
 
                 // Pick from units specified in generation or pool
                 let choicePool = deDupedPool;
@@ -226,11 +237,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setUnitIdx++;
                 }
 
-                // Variety across sets (A, B, C, D)
+                // Variety across sets (A, B, C, D) using extreme normalization
                 const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id));
-                const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter(q => {
-                    const normalized = (q.question_text || '').trim().toLowerCase();
-                    return !globalExcludedTexts.has(normalized);
+                const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter((q: any) => {
+                    return !globalExcludedTexts.has(normalizeText(q.question_text));
                 });
 
                 const finalPool = textVarietyPool.length > 0 ? textVarietyPool : (varietyPool.length > 0 ? varietyPool : choicePool);
@@ -238,7 +248,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 excludeInSet.add(choice.id);
                 globalExcluded.add(choice.id);
-                globalExcludedTexts.add((choice.question_text || '').trim().toLowerCase());
+                globalExcludedTexts.add(normalizeText(choice.question_text));
 
                 const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
 
