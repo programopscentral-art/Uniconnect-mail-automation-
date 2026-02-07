@@ -85,7 +85,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const params: any[] = [subject_id];
 
         if (topic_ids && topic_ids.length > 0) {
-            query += ` AND q.topic_id = ANY($2)`;
+            const hasTempId = topic_ids.some((id: string) => id.startsWith('temp-'));
+            if (hasTempId) {
+                query += ` AND (q.topic_id = ANY($2) OR q.topic_id IS NULL)`;
+            } else {
+                query += ` AND q.topic_id = ANY($2)`;
+            }
             params.push(topic_ids);
         }
 
@@ -181,7 +186,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     // 1. Strict Topic Filtering (If topic_ids provided from UI)
                     if (topic_ids && topic_ids.length > 0) {
-                        if (!topic_ids.includes(q.topic_id)) return false;
+                        const isMatch = topic_ids.includes(q.topic_id) ||
+                            (q.topic_id === null && topic_ids.some((id: string) => id.startsWith('temp-')));
+                        if (!isMatch) return false;
                     }
 
                     // 2. Unit Filtering
@@ -192,7 +199,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     // 4. Type check
                     if (searchType === 'MCQ') {
-                        return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                        const isMcq = q.type === 'MCQ' ||
+                            (Array.isArray(q.options) && q.options.length > 0) ||
+                            (Number(q.marks) === 1 && (!q.type || q.type === 'VERY_SHORT'));
+                        return isMcq;
                     }
                     if (searchType === 'FILL_IN_BLANK') {
                         return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
