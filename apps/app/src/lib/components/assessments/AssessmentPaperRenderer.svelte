@@ -173,6 +173,20 @@
     // Use findIndex by ID because references can change during DND/Sync
     const index = arr.findIndex((s: any) => s.id === slot.id);
 
+    const usedQuestionIds = new Set(
+      arr.flatMap((slot: any) =>
+        (
+          slot.questions ||
+          slot.choice1?.questions ||
+          slot.choice2?.questions ||
+          []
+        ).map((q: any) => q.question_id || q.id),
+      ),
+    );
+
+    const universityLabel = layout.universityName;
+    const selectedTemplate = layout.style;
+
     swapContext = {
       slotId: slot.id, // Store ID instead of index for more robust lookup
       slotMarks: marks, // Store the slot's marks
@@ -180,9 +194,27 @@
       subPart,
       subLabel: cQ?.sub_label || null,
       currentMark: marks,
-      alternates: (questionPool || []).filter(
-        (q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id,
-      ),
+      alternates: (questionPool || []).filter((q: any) => {
+        const sameMarks = Number(q.marks || q.mark) === marks;
+        if (!sameMarks) return false;
+        if (usedQuestionIds.has(q.id)) return false;
+
+        // VGU Strictness: Section A = MCQ, Section B = LONG
+        if (
+          String(universityLabel).toLowerCase().includes("vgu") ||
+          String(selectedTemplate).toLowerCase() === "vgu"
+        ) {
+          if (part === "A") {
+            return (
+              q.type === "MCQ" ||
+              (Array.isArray(q.options) && q.options.length > 0)
+            );
+          } else {
+            return !["MCQ", "VERY_SHORT", "FILL_IN_BLANK"].includes(q.type);
+          }
+        }
+        return true;
+      }),
     };
 
     console.log("[SWAP OPEN] Swap context:", swapContext);
@@ -216,17 +248,21 @@
     );
 
     const nQ = {
-      id: swapContext.slotId, // CRITICAL: Keep the original slot ID for structural matching
-      question_id: question.id, // Store the actual question ID for reference
+      id: swapContext.slotId, // CRITICAL: Keep original slot ID
+      question_id: question.id,
       text: question.question_text || question.text,
       question_text: question.question_text || question.text,
-      marks: swapContext.slotMarks || question.marks, // Use slot marks, not question marks
-      options: question.options,
+      marks: swapContext.slotMarks || question.marks,
+      options: Array.isArray(question.options) ? [...question.options] : null,
       image_url: question.image_url,
-      bloom_level: question.bloom_level,
-      k_level: question.bloom_level
-        ? String(question.bloom_level).replace(/^L/i, "K")
-        : "K1",
+      bloom_level: question.bloom_level || question.bloom,
+      k_level:
+        question.bloom_level || question.bloom
+          ? String(question.bloom_level || question.bloom)
+              .replace(/[^0-9]/g, "")
+              .padStart(1, "1")
+              .replace(/^/, "K")
+          : "K1",
       co_indicator: question.target_co || question.co_code || "CO1",
       target_co: question.target_co || question.co_code || "CO1",
       unit_id: question.unit_id,

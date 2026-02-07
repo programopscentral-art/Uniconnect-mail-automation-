@@ -10,6 +10,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const sanitizeUUID = (id: any) => (id === '' || id === undefined || id === 'undefined' ? null : id);
 
+        // Seeded random helper for reproducible variety per set
+        const createSeededRandom = (seed: number) => {
+            return () => {
+                seed = (seed * 9301 + 49297) % 233280;
+                return seed / 233280;
+            };
+        };
+
         const {
             subject_id: raw_subject_id,
             university_id: raw_university_id,
@@ -238,75 +246,49 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (isVGUTemplate) {
             console.log("[VGU GENERATOR] Starting structured JSON-first generation...");
 
-            // V97: Standardize VGU paper structure for structured JSON
             const paperStructureVgu = [
-                { part: 'A', title: 'SECTION A (1*10=10 Marks)' },
-                { part: 'B', title: 'SECTION B (5*3=15 Marks)' }
+                { part: 'A', title: 'Section A (1*10=10 Marks) Answer all Question No- 1-10', marks_per_q: 1, answered_count: 10, count: 10 },
+                { part: 'B', title: 'Section B (5*3=15 Marks) Attempt any three questions', marks_per_q: 5, answered_count: 3, count: 4 }
             ];
 
-            const validateVguPaper = (paper: any) => {
-                const results: string[] = [];
-                Object.keys(paper).forEach(setName => {
-                    const qData = paper[setName];
-                    if (!qData || !qData.questions) return;
-                    const questions = qData.questions;
-                    const secA = questions.filter((s: any) => s.part === 'A');
-                    const secB = questions.filter((s: any) => s.part === 'B');
-
-                    if (secA.length !== 10) results.push(`Set ${setName}: Section A has ${secA.length}/10 questions.`);
-                    if (secB.length < 3) results.push(`Set ${setName}: Section B has ${secB.length}/3 questions.`);
-
-                    secA.forEach((s: any, i: number) => {
-                        const target = s.questions?.[0];
-                        if (!target) results.push(`Set ${setName} Q.${i + 1}: Missing question content.`);
-                        else if (target.type !== 'MCQ') results.push(`Set ${setName} Q.${i + 1}: Invalid type ${target.type} (Expected MCQ).`);
-                    });
-
-                    secB.forEach((s: any, i: number) => {
-                        const target = s.questions?.[0];
-                        if (!target) results.push(`Set ${setName} Q.1${i + 1}: Missing descriptive content.`);
-                        else if (['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(target.type))
-                            results.push(`Set ${setName} Q.1${i + 1}: Invalid type ${target.type} (Expected Descriptive).`);
-                    });
-                });
-                return { pass: results.length === 0, errors: results };
-            };
-
-            const pickedTexts = new Set<string>();
+            const setDebugInfo: Record<string, any> = {};
 
             for (const setName of sets) {
+                // Each set gets a unique seed based on the name and current timestamp bits
+                const setSeed = (Date.now() % 100000) + (setName.charCodeAt(0) * 1000) + Math.floor(Math.random() * 1000);
+                const random = createSeededRandom(setSeed);
+
                 const setQuestions: any[] = [];
                 const excludeInSet = new Set<string>();
                 let unitIdx = 0;
 
-                // Helper to pick strictly by type
                 const pickStrict = (qType: 'MCQ' | 'LONG', targetMarks: number, uId: string) => {
                     let pool = allQuestions.filter(q => {
-                        if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
-                        if (pickedTexts.has(q.question_text?.trim())) return false;
+                        if (excludeInSet.has(q.id)) return false;
                         if (q.unit_id !== uId) return false;
 
-                        if (qType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
-                        if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) && Number(q.marks) >= 4;
+                        if (qType === 'MCQ') {
+                            return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                        }
+                        if (qType === 'LONG') {
+                            return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) && Number(q.marks) >= 4;
+                        }
                         return false;
                     });
 
-                    // Fallback to global if unit is empty
                     if (pool.length === 0) {
                         pool = allQuestions.filter(q => {
-                            if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
-                            if (pickedTexts.has(q.question_text?.trim())) return false;
+                            if (excludeInSet.has(q.id)) return false;
                             if (qType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
-                            if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) || Number(q.marks) >= 5;
+                            if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) && Number(q.marks) >= 4;
                             return false;
                         });
                     }
 
                     if (pool.length === 0) return null;
-                    const choice = pool[Math.floor(Math.random() * pool.length)];
+
+                    const choice = pool[Math.floor(random() * pool.length)];
                     excludeInSet.add(choice.id);
-                    globalExcluded.add(choice.id);
-                    if (choice.question_text) pickedTexts.add(choice.question_text.trim());
 
                     const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
 
@@ -317,7 +299,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         question_text: choice.question_text,
                         marks: targetMarks,
                         bloom_level: choice.bloom_level,
-                        k_level: choice.bloom_level ? `K${choice.bloom_level.charAt(1)}` : 'K1',
+                        k_level: choice.bloom_level ? `K${choice.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1',
                         co_indicator: coCode,
                         target_co: coCode,
                         options: choice.options,
@@ -327,7 +309,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     };
                 };
 
-                // Populate Section A (Slots Q_1 to Q_10)
                 const aSlots = slotsToProcess.filter(s => s.part === 'A');
                 aSlots.forEach(slot => {
                     const uId = unit_ids[unitIdx++ % unit_ids.length];
@@ -342,7 +323,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     });
                 });
 
-                // Populate Section B (Slots Q_11 to Q_14)
                 const bSlots = slotsToProcess.filter(s => s.part === 'B');
                 bSlots.forEach(slot => {
                     const uId = unit_ids[unitIdx++ % unit_ids.length];
@@ -358,16 +338,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
 
                 generatedSets[setName] = { questions: setQuestions, setName };
+                setDebugInfo[setName] = {
+                    seed: setSeed,
+                    questionIds: setQuestions.flatMap(s => s.questions.map((q: any) => q.id))
+                };
             }
 
-            const validation = validateVguPaper(generatedSets);
-            console.log("[VGU VALIDATOR] Result:", validation);
+            // Overlap Validation
+            console.log("=== VGU OVERLAP VALIDATION ===");
+            for (let i = 0; i < sets.length; i++) {
+                for (let j = i + 1; j < sets.length; j++) {
+                    const set1Ids = new Set(setDebugInfo[sets[i]].questionIds);
+                    const intersection = setDebugInfo[sets[j]].questionIds.filter((id: string) => set1Ids.has(id));
+                    const overlap = (intersection.length / set1Ids.size) * 100;
+                    console.log(`[VGU] Set ${sets[i]} vs Set ${sets[j]}: ${overlap.toFixed(2)}% overlap`);
+                }
+            }
 
             if (preview_only) {
-                return json({ sets: generatedSets, template_config: paperStructureVgu, validation });
+                return json({ sets: generatedSets, template_config: paperStructureVgu, debug: setDebugInfo });
             }
 
-            // Persistence
             const paperRes = await db.query(
                 `INSERT INTO assessment_papers (
                         university_id, batch_id, branch_id, subject_id, 
@@ -381,7 +372,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     duration_minutes, max_marks, template_id,
                     JSON.stringify({
                         ...generatedSets,
-                        validation,
+                        debug: setDebugInfo,
                         metadata: {
                             unit_ids,
                             generation_mode,
@@ -397,7 +388,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     })
                 ]
             );
-            return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config: paperStructureVgu, validation });
+            return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config: paperStructureVgu, debug: setDebugInfo });
         }
 
         // 2a. Variety shuffle for non-VGU templates
