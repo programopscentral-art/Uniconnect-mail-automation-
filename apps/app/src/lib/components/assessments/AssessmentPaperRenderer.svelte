@@ -233,28 +233,26 @@
 
     console.log("[SWAP] New question object:", nQ);
 
+    console.log("[SWAP] Updating slot in data structure...");
+
     if (index !== -1) {
       const slot = arr[index];
-      console.log("[SWAP] Updating existing slot:", slot);
+      console.log("[SWAP] Found existing slot to update:", slot);
       if (slot.type === "OR_GROUP") {
-        if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
-        else slot.choice2.questions = [nQ];
+        if (swapContext.subPart === "q1") {
+          slot.choice1 = { ...slot.choice1, questions: [nQ] };
+        } else {
+          slot.choice2 = { ...slot.choice2, questions: [nQ] };
+        }
       } else {
         // VGU structure: slot has a nested questions array
-        // Update the questions array instead of copying properties to slot
-        if (slot.questions && Array.isArray(slot.questions)) {
-          slot.questions = [nQ];
-        } else {
-          // Fallback: if no questions array, copy properties directly
-          Object.keys(nQ).forEach((key) => {
-            (slot as any)[key] = (nQ as any)[key];
-          });
-        }
+        console.log("[SWAP] Before update, questions:", slot.questions);
+        slot.questions = [nQ];
+        slot.marks = nQ.marks; // Ensure slot level marks are also updated
+        console.log("[SWAP] After update, questions:", slot.questions);
       }
-      console.log("[SWAP] Slot after update:", slot);
     } else {
-      console.log("[SWAP] Creating new slot (skeleton swap)");
-      // 2. New slot (was a skeleton swap)
+      console.log("[SWAP] Slot not found in current array, adding as new...");
       const newSlot = {
         id: swapContext.slotId,
         slot_id: swapContext.slotId,
@@ -266,19 +264,27 @@
       arr.push(newSlot);
     }
 
-    console.log("[SWAP] Array before reassignment:", arr);
-
-    // CRITICAL: Force reactivity by reassigning
+    // CRITICAL: Force reactivity by reassigning the root state
+    console.log("[SWAP] Triggering reactivity reassignment...");
     if (Array.isArray(currentSetData)) {
       currentSetData = [...arr];
-      console.log("[SWAP] Reassigned currentSetData (array):", currentSetData);
-    } else if (currentSetData) {
-      currentSetData = { ...currentSetData, questions: [...arr] };
-      console.log("[SWAP] Reassigned currentSetData (object):", currentSetData);
+    } else if (currentSetData && typeof currentSetData === "object") {
+      // Reassign whole object to trigger Svelte 5 deep reactivity reliably
+      currentSetData = {
+        ...currentSetData,
+        questions: [...arr],
+      };
     }
 
+    console.log(
+      "[SWAP] New currentSetData questions length:",
+      Array.isArray(currentSetData)
+        ? currentSetData.length
+        : currentSetData?.questions?.length,
+    );
+
     isSwapSidebarOpen = false;
-    console.log("[SWAP] Swap complete, sidebar closed");
+    console.log("[SWAP] Success. Sidebar closed.");
   }
 
   const calcTotal = (part: string) => {

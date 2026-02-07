@@ -57,11 +57,18 @@
   <td
     class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
   >
+    <!-- VGU Marks Logic: Prioritize structural slot marks over question pool marks -->
     <AssessmentEditable
-      value={String(slot.marks || target.marks || "")}
+      value={String(
+        slot.marks || target.marks || slot.mark || target.mark || "",
+      )}
       onUpdate={(v: string) => {
-        slot.marks = Number(v);
-        if (target) target.marks = Number(v);
+        const m = Number(v);
+        slot.marks = m;
+        if (target) {
+          target.marks = m;
+          target.mark = m;
+        }
       }}
       class="inline-block min-w-[1ch] text-center"
     />
