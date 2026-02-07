@@ -296,6 +296,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 trace: setTraceInfo,
                 questionIds: setQuestions.flatMap(s => s.type === 'OR_GROUP' ? [...s.choice1.questions.map((q: any) => q.id), ...s.choice2.questions.map((q: any) => q.id)] : s.questions.map((q: any) => q.id))
             };
+
+            // RUNTIME PROOF: Log all MCQ IDs for this set
+            const mcqsInSet = setQuestions.flatMap(s => {
+                const qs = s.type === 'OR_GROUP' ? [...s.choice1.questions, ...s.choice2.questions] : s.questions;
+                return qs.filter((q: any) => q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0));
+            });
+            console.log(`[MCQ IDS] Set ${setName}:`, mcqsInSet.map(q => q.id));
         }
 
         // Overlap Validation
