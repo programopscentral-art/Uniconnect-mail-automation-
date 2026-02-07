@@ -525,6 +525,42 @@
     }
   }
 
+  async function fetchTopicsForSubject() {
+    if (
+      !selectedSubjectId ||
+      selectedSubjectId === "" ||
+      selectedSubjectId === "undefined"
+    ) {
+      unitsWithTopics = [];
+      return;
+    }
+
+    isLoadingTopics = true;
+    try {
+      const res = await fetch(
+        `/api/assessments/topics?subjectId=${selectedSubjectId}`,
+      );
+      if (res.ok) {
+        unitsWithTopics = await res.json();
+      } else {
+        console.error("Failed to fetch topics");
+        unitsWithTopics = [];
+      }
+    } catch (e) {
+      console.error("Error fetching topics:", e);
+      unitsWithTopics = [];
+    } finally {
+      isLoadingTopics = false;
+    }
+  }
+
+  // Reactive: fetch topics when subject changes
+  $effect(() => {
+    if (selectedSubjectId) {
+      fetchTopicsForSubject();
+    }
+  });
+
   function toggleTopic(topicId: string, unitId: string) {
     if (!selectedUnitIds.includes(unitId)) {
       selectedUnitIds = [...selectedUnitIds, unitId];
