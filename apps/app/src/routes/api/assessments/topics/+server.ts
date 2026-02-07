@@ -17,20 +17,56 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
             const topics = await getAssessmentTopics(u.id);
 
-            // Fetch counts for each topic in this unit
-            const topicsWithCounts = await Promise.all(topics.map(async (t) => {
-                const { rows: tCounts } = await db.query(
-                    'SELECT marks, COUNT(*) as count FROM assessment_questions WHERE topic_id = $1 GROUP BY marks',
-                    [t.id]
-                );
-                return {
-                    ...t,
-                    question_counts: tCounts.reduce((acc: any, curr: any) => {
-                        acc[curr.marks] = parseInt(curr.count);
-                        return acc;
-                    }, {})
-                };
-            }));
+            // Fetch counts for all questions in this unit to group by topic name
+            const { rows: unitQuestions } = await db.query(
+                `SELECT q.marks, q.topic_id, t.name as topic_name
+                 FROM assessment_questions q
+                 LEFT JOIN assessment_topics t ON q.topic_id = t.id
+                 WHERE q.unit_id = $1`,
+                [u.id]
+            );
+
+            // Grouping logic
+            const topicGroupsMap = new Map<string, any>();
+
+            // Initialize groups from known topics to ensure even zero-count topics appear
+            topics.forEach(t => {
+                const normName = (t.name || 'General').trim();
+                const key = normName.toLowerCase();
+                if (!topicGroupsMap.has(key)) {
+                    topicGroupsMap.set(key, {
+                        name: normName,
+                        all_ids: [t.id],
+                        id: t.id, // Representative ID
+                        question_counts: {}
+                    });
+                } else {
+                    topicGroupsMap.get(key).all_ids.push(t.id);
+                }
+            });
+
+            // Aggregate counts from questions
+            unitQuestions.forEach(q => {
+                const normName = (q.topic_name || 'General').trim();
+                const key = normName.toLowerCase();
+
+                let group = topicGroupsMap.get(key);
+                if (!group) {
+                    // Handle cases where question refers to a topic name not in explicit topics table
+                    group = {
+                        name: normName,
+                        all_ids: q.topic_id ? [q.topic_id] : [],
+                        id: q.topic_id || `temp-${key}`,
+                        question_counts: {}
+                    };
+                    topicGroupsMap.set(key, group);
+                }
+
+                const marks = q.marks;
+                group.question_counts[marks] = (group.question_counts[marks] || 0) + 1;
+            });
+
+            const topicGroups = Array.from(topicGroupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
             const { rows: unitCounts } = await db.query(
                 'SELECT marks, COUNT(*) as count FROM assessment_questions WHERE unit_id = $1 GROUP BY marks',
@@ -38,7 +74,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             );
             return {
                 ...u,
-                topics: topicsWithCounts,
+                topics: topicGroups,
                 question_counts: unitCounts.reduce((acc: any, curr: any) => {
                     acc[curr.marks] = parseInt(curr.count);
                     return acc;

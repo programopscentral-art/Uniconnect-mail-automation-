@@ -561,15 +561,20 @@
     }
   });
 
-  function toggleTopic(topicId: string, unitId: string) {
+  function toggleTopic(topic: any, unitId: string) {
     if (!selectedUnitIds.includes(unitId)) {
       selectedUnitIds = [...selectedUnitIds, unitId];
     }
 
-    if (selectedTopicIds.includes(topicId)) {
-      selectedTopicIds = selectedTopicIds.filter((id) => id !== topicId);
+    const tids = topic.all_ids || [topic.id];
+    const allSelected = tids.every((id: string) =>
+      selectedTopicIds.includes(id),
+    );
+
+    if (allSelected) {
+      selectedTopicIds = selectedTopicIds.filter((id) => !tids.includes(id));
     } else {
-      selectedTopicIds = [...selectedTopicIds, topicId];
+      selectedTopicIds = [...new Set([...selectedTopicIds, ...tids])];
     }
   }
 
@@ -1528,41 +1533,41 @@
                               class="text-[9px] font-black text-indigo-600 uppercase tracking-tighter"
                               onclick={(e) => {
                                 e.stopPropagation();
-                                const topicIds = unit.topics.map(
-                                  (t: any) => t.id,
-                                );
+                                const allTopicIdsInUnit = (
+                                  unit.topics || []
+                                ).flatMap((t: any) => t.all_ids || [t.id]);
                                 selectedTopicIds = [
                                   ...new Set([
                                     ...selectedTopicIds,
-                                    ...topicIds,
+                                    ...allTopicIdsInUnit,
                                   ]),
                                 ];
                               }}>Select All</button
                             >
                           </div>
 
-                          {#each Array.from(new Map((unit.topics || [])
-                                .filter((t) => t && t.id)
-                                .map((t) => [t.id, t])).values()) as topic}
+                          {#each unit.topics || [] as topic}
                             <button
                               class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
-                                     {selectedTopicIds.includes(topic.id)
+                                     {topic.all_ids.every((tid) =>
+                                selectedTopicIds.includes(tid),
+                              )
                                 ? 'bg-white dark:bg-slate-800 border-indigo-400 shadow-sm'
                                 : 'bg-white/50 dark:bg-slate-900/50 border-gray-100 dark:border-slate-800'}"
                               onclick={(e) => {
                                 e.stopPropagation();
-                                toggleTopic(topic.id, unit.id);
+                                toggleTopic(topic, unit.id);
                               }}
                             >
                               <div class="flex items-center gap-3">
                                 <div
-                                  class="w-4 h-4 rounded border flex items-center justify-center {selectedTopicIds.includes(
-                                    topic.id,
+                                  class="w-4 h-4 rounded border flex items-center justify-center {topic.all_ids.every(
+                                    (tid) => selectedTopicIds.includes(tid),
                                   )
                                     ? 'bg-indigo-500 border-indigo-500'
                                     : 'border-gray-300'}"
                                 >
-                                  {#if selectedTopicIds.includes(topic.id)}
+                                  {#if topic.all_ids.every( (tid) => selectedTopicIds.includes(tid), )}
                                     <svg
                                       class="w-2.5"
                                       fill="none"
@@ -1578,8 +1583,8 @@
                                   {/if}
                                 </div>
                                 <span
-                                  class="text-[10px] font-bold {selectedTopicIds.includes(
-                                    topic.id,
+                                  class="text-[10px] font-bold {topic.all_ids.every(
+                                    (tid) => selectedTopicIds.includes(tid),
                                   )
                                     ? 'text-gray-900 dark:text-white'
                                     : 'text-gray-500'}">{topic.name}</span
