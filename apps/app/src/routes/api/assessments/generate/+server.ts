@@ -290,8 +290,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     if (pool.length === 0) {
                         pool = allQuestions.filter(q => {
                             if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
-                            if (qType === 'MCQ') return q.type === 'MCQ';
-                            if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type);
+                            if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
+                            if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) || Number(q.marks) >= 5;
                             return false;
                         });
                     }
@@ -360,11 +360,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return json({ sets: generatedSets, template_config, validation });
             }
 
-            // Persistence
+            // Persistence with full field set to satisfy constraints
             const paperRes = await db.query(
-                `INSERT INTO assessment_papers (university_id, subject_id, exam_type, semester, paper_date, duration_minutes, max_marks, template_id, sets_data)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-                [university_id, subject_id, exam_type, semester, paper_date, duration_minutes, max_marks, template_id, JSON.stringify({ ...generatedSets, validation, metadata: { template_config, selected_template: 'vgu' } })]
+                `INSERT INTO assessment_papers (
+                    university_id, batch_id, branch_id, subject_id, 
+                    exam_type, semester, paper_date, 
+                    duration_minutes, max_marks, template_id, sets_data
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING id`,
+                [
+                    university_id, batch_id, branch_id, subject_id,
+                    exam_type || 'MID1', semester, paper_date,
+                    duration_minutes, max_marks, template_id,
+                    JSON.stringify({
+                        ...generatedSets,
+                        validation,
+                        metadata: {
+                            unit_ids,
+                            generation_mode,
+                            part_a_type,
+                            sets_config,
+                            selected_template: 'vgu',
+                            exam_time,
+                            course_code,
+                            exam_title,
+                            instructions,
+                            template_config
+                        }
+                    })
+                ]
             );
             return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config, validation });
         }
