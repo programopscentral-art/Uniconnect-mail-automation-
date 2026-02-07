@@ -50,6 +50,31 @@
             />
           </div>
         </div>
+
+        <!-- Render subQuestions (a, b, c) if present -->
+        {#if q.subQuestions && q.subQuestions.length > 0}
+          <div class="mt-4 space-y-3 pl-6">
+            {#each q.subQuestions as sub}
+              <div class="flex gap-3">
+                <span class="font-bold">({sub.label})</span>
+                <div class="flex-1">
+                  <AssessmentEditable
+                    value={sub.text || ""}
+                    onUpdate={(v: string) => {
+                      sub.text = v;
+                      if (onUpdateText) onUpdateText(v, q.id);
+                    }}
+                    multiline={true}
+                    class="italic font-medium"
+                  />
+                </div>
+                {#if sub.marks}
+                  <span class="text-[9pt] opacity-50">[{sub.marks}M]</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
       </div>
       <AssessmentMcqOptions options={q.options} />
       {#if q.image_url}
@@ -86,8 +111,9 @@
     class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
   >
     <AssessmentEditable
-      value={target.k_level || "K1"}
+      value={target.bloomLevel || target.k_level || "K1"}
       onUpdate={(v: string) => {
+        target.bloomLevel = v;
         target.k_level = v;
       }}
       class="inline-block min-w-[2ch] text-center"
@@ -97,9 +123,10 @@
     class="w-[100px] text-center align-top p-2 text-[10pt] font-medium border-r border-black last:border-r-0"
   >
     <AssessmentEditable
-      value={target.co_indicator || target.target_co || "CO1"}
+      value={target.co || target.co_indicator || target.target_co || "CO1"}
       onUpdate={(v: string) => {
-        target.co_indicator = v;
+        target.co = v;
+        target.target_co = v;
       }}
       class="inline-block min-w-[3ch] text-center"
     />

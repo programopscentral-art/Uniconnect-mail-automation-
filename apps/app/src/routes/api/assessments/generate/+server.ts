@@ -57,7 +57,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // 1. Fetch Question Pool (with optional topic filtering)
         // Use DISTINCT ON (q.id) to ensure we don't get duplicates if join on topics yields multiple rows
         let query = `
-            SELECT DISTINCT ON (q.id) q.*, t.name as topic_name, u.unit_number 
+            SELECT DISTINCT ON (q.id) q.*, t.name as raw_topic_name, u.unit_number 
             FROM assessment_questions q
             JOIN assessment_units u ON q.unit_id = u.id
             LEFT JOIN assessment_topics t ON q.topic_id = t.id
@@ -72,8 +72,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const questionsRes = await db.query(query, params);
 
-        // SHUFFLE the entire pool immediately for better variety in all loops
-        const allQuestions = questionsRes.rows.sort(() => Math.random() - 0.5);
+        // NORMALIZE TOPICS & SHUFFLE
+        const allQuestions = questionsRes.rows.map(q => ({
+            ...q,
+            topic_name: (q.raw_topic_name || 'General').trim()
+        })).sort(() => Math.random() - 0.5);
+
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
 
         // 1b. Fetch Course Outcomes for mapping CO1 -> ID
@@ -120,7 +124,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     part: part,
                     section_title: section.title,
                     // If qType is missing, infer from section or name
-                    qType: slot.qType || (part === 'A' ? 'MCQ' : 'LONG'),
+                    qType: slot.qType || 'ANY',
                     co_id: slot.target_co ? coMap.get(slot.target_co) : slot.co_id
                 });
             });
@@ -153,15 +157,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 let searchType = qType?.toUpperCase() || 'ANY';
                 if (searchType === 'NORMAL') searchType = 'ANY';
 
-                let pool = allQuestions.filter(q => {
+                let pool = allQuestions.filter((q: any) => {
                     if (excludeInSet.has(q.id)) return false;
-
-                    // CRITICAL: Prevent same question text from appearing multiple times in the same set
-                    const normalizedText = (q.question_text || '').trim().toLowerCase();
-                    const usedTextsInSet = new Set([...excludeInSet].map(id =>
-                        allQuestions.find(aq => aq.id === id)?.question_text?.trim().toLowerCase()
-                    ).filter(Boolean));
-                    if (usedTextsInSet.has(normalizedText)) return false;
 
                     // 1. Strict Topic Filtering (If topic_ids provided from UI)
                     if (topic_ids && topic_ids.length > 0) {
@@ -195,34 +192,39 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     throw new Error(`Insufficient ${searchType} questions available for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}). Required marks: ${targetMarks}.`);
                 }
 
+                // 5. Within-Set Text Deduplication
+                const usedTextsInSet = new Set(setQuestions.flatMap(sq => {
+                    if (sq.type === 'OR_GROUP') {
+                        return [...(sq.choice1?.questions || []), ...(sq.choice2?.questions || [])].map(q => (q.question_text || '').trim().toLowerCase());
+                    }
+                    return (sq.questions || []).map(q => (q.question_text || '').trim().toLowerCase());
+                }));
+
+                let deDupedPool = pool.filter(q => !usedTextsInSet.has((q.question_text || '').trim().toLowerCase()));
+                if (deDupedPool.length === 0) deDupedPool = pool; // Fallback to avoid crash if pool is exhausted by text-only dups
+
                 // Pick from units specified in generation or pool
-                let choicePool = pool;
+                let choicePool = deDupedPool;
                 if (uId === 'Auto') {
                     const targetUnitId = (unit_ids && unit_ids.length > 0)
                         ? (unit_ids[setUnitIdx % unit_ids.length])
                         : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
 
-                    const unitCand = pool.filter(q => q.unit_id === targetUnitId);
+                    const unitCand = deDupedPool.filter(q => q.unit_id === targetUnitId);
                     if (unitCand.length > 0) choicePool = unitCand;
                     setUnitIdx++;
                 }
 
-                // CRITICAL: Maximize variety across sets (A, B, C, D)
-                // Filter by ID variety first
+                // Variety across sets (A, B, C, D)
                 const varietyPool = choicePool.filter(q => !globalExcluded.has(q.id));
-
-                // Then filter by Text variety (to catch same question with different ID)
                 const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter(q => {
                     const normalized = (q.question_text || '').trim().toLowerCase();
                     return !globalExcludedTexts.has(normalized);
                 });
 
                 const finalPool = textVarietyPool.length > 0 ? textVarietyPool : (varietyPool.length > 0 ? varietyPool : choicePool);
-
-                // CRITICAL: Pick a random question from the filtered pool
                 const choice = finalPool[Math.floor(random() * finalPool.length)];
 
-                // CRITICAL: Add to exclusion sets
                 excludeInSet.add(choice.id);
                 globalExcluded.add(choice.id);
                 globalExcludedTexts.add((choice.question_text || '').trim().toLowerCase());
@@ -235,14 +237,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     text: choice.question_text,
                     question_text: choice.question_text,
                     marks: targetMarks,
-                    bloom_level: choice.bloom_level,
+                    bloomLevel: choice.bloom_level,
                     k_level: choice.bloom_level ? `K${choice.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1',
-                    co_indicator: coCode,
+                    co: coCode,
                     target_co: coCode,
                     options: choice.options,
                     image_url: choice.image_url,
                     type: choice.type,
-                    unit_id: choice.unit_id
+                    unit: choice.unit_number,
+                    topic: choice.topic_name,
+                    unit_id: choice.unit_id,
+                    topic_id: choice.topic_id
                 };
             };
 

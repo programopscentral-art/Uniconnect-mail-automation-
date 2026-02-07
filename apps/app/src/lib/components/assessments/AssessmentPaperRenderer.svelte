@@ -188,8 +188,7 @@
       ),
     );
 
-    const slotType =
-      slot.qType?.toUpperCase() || (part === "A" ? "MCQ" : "LONG");
+    const slotType = slot.qType?.toUpperCase() || "ANY";
 
     swapContext = {
       slotId: slot.id, // Store ID instead of index for more robust lookup
@@ -250,9 +249,17 @@
     };
 
     isSwapSidebarOpen = true;
-
-    isSwapSidebarOpen = true;
   }
+
+  // Manage body scroll lock when sidebar is open
+  $effect(() => {
+    if (isSwapSidebarOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  });
 
   function selectAlternate(question: any) {
     if (!swapContext) return;
@@ -982,7 +989,7 @@
             <thead>
               <tr class="bg-gray-100/30 text-center font-bold">
                 <th class="w-[85px] border border-black p-2 text-[10pt]"
-                  >Question</th
+                  >Q.No</th
                 >
                 <th class="border border-black p-2 text-[10pt] text-left"
                   >Question</th
@@ -1264,41 +1271,6 @@
           No matching questions found in pool.
         </div>
       {/each}
-    </div>
-  {/if}
-
-  {#if currentSetData?.debug}
-    <div
-      class="max-w-[210mm] mx-auto mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl no-print"
-    >
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-green-500"></div>
-          Academic Validation
-        </h3>
-        <span class="text-xs font-mono bg-slate-200 px-2 py-1 rounded"
-          >CONFIG-DRIVEN GENERATION</span
-        >
-      </div>
-
-      <div class="text-sm text-green-600 mb-4 flex gap-2 items-center">
-        <span class="font-bold text-lg">✅</span>
-        <span
-          >Structure follows UI configuration. Seed: {currentSetData.debug
-            ?.seed || "Auto"}</span
-        >
-      </div>
-
-      <details class="mt-4">
-        <summary
-          class="text-xs text-slate-500 cursor-pointer hover:text-slate-700 transition-colors"
-          >Show Generation Meta</summary
-        >
-        <pre
-          class="mt-2 text-[10px] bg-slate-900 text-slate-300 p-4 rounded-lg selection:bg-slate-700 overflow-x-auto max-h-[400px]">
-          {JSON.stringify(currentSetData.debug, null, 2)}
-        </pre>
-      </details>
     </div>
   {/if}
 </div>

@@ -1541,9 +1541,9 @@
                             >
                           </div>
 
-                          {#each Array.from(new Map<string, any>((unit.topics || []).map( (t: any) => [t.name
-                                    .trim()
-                                    .toLowerCase(), t], )).values()) as topic}
+                          {#each Array.from(new Map((unit.topics || [])
+                                .filter((t) => t && t.id)
+                                .map((t) => [t.id, t])).values()) as topic}
                             <button
                               class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
                                      {selectedTopicIds.includes(topic.id)
