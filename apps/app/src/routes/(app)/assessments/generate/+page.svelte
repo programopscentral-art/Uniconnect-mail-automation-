@@ -734,11 +734,7 @@
     paperStructure.forEach((section: any) => {
       section.slots.forEach((slot: any) => {
         if (slot.type === "SINGLE") {
-          if (isVGU && slot.part === "B") {
-            slot.label = `Q.${currentNum}`;
-          } else {
-            slot.label = `${currentNum}`;
-          }
+          slot.label = `${currentNum}`;
           currentNum++;
         } else if (slot.type === "OR_GROUP") {
           const n1 = currentNum;
@@ -1545,7 +1541,9 @@
                             >
                           </div>
 
-                          {#each unit.topics as topic}
+                          {#each Array.from(new Map<string, any>((unit.topics || []).map( (t: any) => [t.name
+                                    .trim()
+                                    .toLowerCase(), t], )).values()) as topic}
                             <button
                               class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
                                      {selectedTopicIds.includes(topic.id)
@@ -2473,25 +2471,27 @@
                 <AssessmentPaperRenderer
                   paperMeta={previewPaperMeta}
                   {paperStructure}
-                  currentSetData={previewSetData}
+                  bind:currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
                   {courseOutcomes}
                   questionPool={unitsWithTopics.flatMap((u: any) =>
                     (u.topics || []).flatMap((t: any) => t.questions || []),
                   )}
                   mode="preview"
+                  onSwap={(updated) => (previewSetData = updated)}
                 />
               {:else}
                 <AssessmentPaperRenderer
                   paperMeta={previewPaperMeta}
                   {paperStructure}
-                  currentSetData={previewSetData}
+                  bind:currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
                   {courseOutcomes}
                   questionPool={unitsWithTopics.flatMap((u: any) =>
                     (u.topics || []).flatMap((t: any) => t.questions || []),
                   )}
                   mode="preview"
+                  onSwap={(updated) => (previewSetData = updated)}
                 />
               {/if}
             </div>

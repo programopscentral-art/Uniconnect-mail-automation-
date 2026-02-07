@@ -130,6 +130,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const sets = ['A', 'B', 'C', 'D'];
         const generatedSets: Record<string, any> = {};
         const globalExcluded = new Set<string>();
+        const globalExcludedTexts = new Set<string>();
         const globalShuffledPool = [...allQuestions];
         for (let i = globalShuffledPool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -154,6 +155,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 let pool = allQuestions.filter(q => {
                     if (excludeInSet.has(q.id)) return false;
+
+                    // CRITICAL: Prevent same question text from appearing multiple times in the same set
+                    const normalizedText = (q.question_text || '').trim().toLowerCase();
+                    const usedTextsInSet = new Set([...excludeInSet].map(id =>
+                        allQuestions.find(aq => aq.id === id)?.question_text?.trim().toLowerCase()
+                    ).filter(Boolean));
+                    if (usedTextsInSet.has(normalizedText)) return false;
 
                     // 1. Strict Topic Filtering (If topic_ids provided from UI)
                     if (topic_ids && topic_ids.length > 0) {
@@ -199,16 +207,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setUnitIdx++;
                 }
 
-                // CRITICAL: Validate pool has questions after exclusions
-                if (choicePool.length === 0) {
-                    throw new Error(`No available ${searchType} questions left for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}, Marks: ${targetMarks}). Already used ${excludeInSet.size} questions in this set.`);
-                }
+                // CRITICAL: Maximize variety across sets (A, B, C, D)
+                // Filter by ID variety first
+                const varietyPool = choicePool.filter(q => !globalExcluded.has(q.id));
+
+                // Then filter by Text variety (to catch same question with different ID)
+                const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter(q => {
+                    const normalized = (q.question_text || '').trim().toLowerCase();
+                    return !globalExcludedTexts.has(normalized);
+                });
+
+                const finalPool = textVarietyPool.length > 0 ? textVarietyPool : (varietyPool.length > 0 ? varietyPool : choicePool);
 
                 // CRITICAL: Pick a random question from the filtered pool
-                const choice = choicePool[Math.floor(random() * choicePool.length)];
+                const choice = finalPool[Math.floor(random() * finalPool.length)];
 
-                // CRITICAL: Add to exclusion set IMMEDIATELY to prevent duplicates within the same set
+                // CRITICAL: Add to exclusion sets
                 excludeInSet.add(choice.id);
+                globalExcluded.add(choice.id);
+                globalExcludedTexts.add((choice.question_text || '').trim().toLowerCase());
 
                 const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
 

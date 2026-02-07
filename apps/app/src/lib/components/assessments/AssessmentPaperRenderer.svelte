@@ -50,31 +50,9 @@
   // Debug logging for VGU rendering
   $effect(() => {
     if (layout.style === "vgu" && currentSetData) {
-      console.log("[VGU DEBUG] Current set data:", currentSetData);
-      console.log(
-        "[VGU DEBUG] Current set data type:",
-        typeof currentSetData,
-        Array.isArray(currentSetData),
-      );
-      console.log(
-        "[VGU DEBUG] Current set data keys:",
-        Object.keys(currentSetData || {}),
-      );
-      console.log("[VGU DEBUG] Paper structure:", paperStructure);
       const questions = Array.isArray(currentSetData)
         ? currentSetData
         : currentSetData?.questions || [];
-      console.log("[VGU DEBUG] Questions array:", questions);
-      console.log("[VGU DEBUG] Questions length:", questions.length);
-      console.log("[VGU DEBUG] First question:", questions[0]);
-      if (paperStructure && paperStructure.length > 0) {
-        paperStructure.forEach((section: any) => {
-          console.log(`[VGU DEBUG] Section ${section.part}:`, {
-            slots: section.slots,
-            questions: questions.filter((q: any) => q.part === section.part),
-          });
-        });
-      }
     }
   });
 
@@ -94,6 +72,25 @@
     const result = [...otherQuestions, ...items];
     if (Array.isArray(currentSetData)) currentSetData = result;
     else currentSetData.questions = result;
+
+    // CRITICAL: For VGU/Unified tables, we MUST also update the structural slot order
+    // as the renderer iterates over section.slots for layout stability.
+    const sectionIndex = paperStructure.findIndex(
+      (s: any) => s.part === part || s.section === part,
+    );
+    if (sectionIndex !== -1 && paperStructure[sectionIndex].slots) {
+      // Create a map of items by their structural ID
+      const itemMap = new Map(items.map((it: any) => [it.id, it]));
+      // Reorder the slots to match the DND items
+      paperStructure[sectionIndex].slots = items.map((it: any) => {
+        // Find existing slot or use item
+        const existingSlot = (paperStructure[sectionIndex].slots || []).find(
+          (s: any) => s.id === it.id,
+        );
+        return existingSlot || it;
+      });
+      paperStructure = [...paperStructure];
+    }
 
     // CRITICAL: Trigger persistence after DND
     if (onSwap) {
@@ -173,14 +170,6 @@
         0,
     );
 
-    console.log("[SWAP OPEN] Slot:", slot);
-    console.log(
-      "[SWAP OPEN] Using marks:",
-      marks,
-      "from slot.marks:",
-      slot.marks,
-    );
-
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData.questions;
@@ -214,6 +203,26 @@
         if (!sameMarks) return false;
         if (usedQuestionIds.has(q.id)) return false;
 
+        // Prevent text-level repeats during swap
+        const normalizedText = (q.question_text || q.text || "")
+          .trim()
+          .toLowerCase();
+        const existingTexts = new Set(
+          arr
+            .flatMap((slot: any) =>
+              (
+                slot.questions ||
+                slot.choice1?.questions ||
+                slot.choice2?.questions ||
+                []
+              ).map((cq: any) =>
+                (cq.question_text || cq.text || "").trim().toLowerCase(),
+              ),
+            )
+            .filter(Boolean),
+        );
+        if (existingTexts.has(normalizedText)) return false;
+
         // Strict type filtering
         if (slotType === "MCQ") {
           return (
@@ -240,35 +249,19 @@
       }),
     };
 
-    console.log("[SWAP OPEN] Swap context:", swapContext);
-    console.log(
-      "[SWAP OPEN] Found",
-      swapContext.alternates.length,
-      "alternates",
-    );
+    isSwapSidebarOpen = true;
 
     isSwapSidebarOpen = true;
   }
 
   function selectAlternate(question: any) {
-    console.log("[SWAP] Starting swap with question:", question);
-    console.log("[SWAP] Swap context:", swapContext);
-
     if (!swapContext) return;
     const arr = Array.isArray(currentSetData)
       ? currentSetData
       : currentSetData?.questions || [];
 
-    console.log("[SWAP] Current data array:", arr);
-
     // 1. Try to find existing slot
     const index = arr.findIndex((s: any) => s.id === swapContext.slotId);
-    console.log(
-      "[SWAP] Found slot at index:",
-      index,
-      "for slotId:",
-      swapContext.slotId,
-    );
 
     const nQ = {
       id: swapContext.slotId, // CRITICAL: Keep original slot ID
@@ -294,13 +287,8 @@
       part: swapContext.part,
     };
 
-    console.log("[SWAP] New question object:", nQ);
-
-    console.log("[SWAP] Updating slot in data structure...");
-
     if (index !== -1) {
       const slot = arr[index];
-      console.log("[SWAP] Found existing slot to update:", slot);
       if (slot.type === "OR_GROUP") {
         if (swapContext.subPart === "q1") {
           arr[index] = {
@@ -324,7 +312,6 @@
         };
       }
     } else {
-      console.log("[SWAP] Slot not found in current array, adding as new...");
       const newSlot = {
         id: swapContext.slotId,
         slot_id: swapContext.slotId,
@@ -337,7 +324,6 @@
     }
 
     // CRITICAL: Force reactivity by reassigning the root state using a fresh clone
-    console.log("[SWAP] Triggering aggressive reactivity reassignment...");
     if (Array.isArray(currentSetData)) {
       currentSetData = [...arr];
     } else if (currentSetData && typeof currentSetData === "object") {
@@ -350,24 +336,13 @@
       currentSetData = updatedData;
     }
 
-    console.log("[SWAP] Final currentSetData state:", currentSetData);
-
     // Call persistence callback if provided
     if (onSwap && typeof onSwap === "function") {
-      console.log("[SWAP] Calling onSwap persistence callback...");
       // Pass a fresh snapshot to avoid proxy-related delay or mutation issues in parent
       onSwap($state.snapshot(currentSetData));
     }
 
-    console.log(
-      "[SWAP] New currentSetData questions length:",
-      Array.isArray(currentSetData)
-        ? currentSetData.length
-        : currentSetData?.questions?.length,
-    );
-
     isSwapSidebarOpen = false;
-    console.log("[SWAP] Success. Sidebar closed.");
   }
 
   const calcTotal = (part: string) => {
@@ -1000,25 +975,7 @@
 
         {#if layout.style === "vgu"}
           <!-- VGU STYLE UNIFIED TABLE -->
-          {@const activePaperStructure =
-            paperStructure &&
-            Array.isArray(paperStructure) &&
-            paperStructure.length > 0
-              ? paperStructure
-              : [
-                  {
-                    part: "A",
-                    title:
-                      "Section A (1*10=10 Marks) Answer all Question No- 1-10",
-                    marks_per_q: 1,
-                  },
-                  {
-                    part: "B",
-                    title:
-                      "Section B (5*3=15 Marks) Attempt any three questions",
-                    marks_per_q: 5,
-                  },
-                ]}
+          {@const activePaperStructure = paperStructure}
           <table
             class="w-full border-collapse border border-black table-fixed font-serif"
           >
@@ -1246,8 +1203,13 @@
   <!-- Swap Sidebar -->
   {#if isSwapSidebarOpen && isEditable}
     <div
+      class="fixed inset-0 bg-black/20 z-[200] no-print"
+      role="none"
+      onclick={() => (isSwapSidebarOpen = false)}
+    ></div>
+    <div
       transition:slide={{ axis: "x" }}
-      class="w-96 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl p-6 overflow-y-auto no-print z-[100]"
+      class="fixed right-0 top-0 bottom-0 w-[500px] bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl p-6 overflow-y-auto no-print z-[210] flex flex-col"
     >
       <div class="flex items-center justify-between mb-6">
         <h3
