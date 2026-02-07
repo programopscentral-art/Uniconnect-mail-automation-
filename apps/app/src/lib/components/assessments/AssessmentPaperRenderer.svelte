@@ -292,13 +292,11 @@
 
     console.log("[SWAP] Final currentSetData state:", currentSetData);
 
-    // Secondary trigger for any derived states
-    activeSet = activeSet;
-
     // Call persistence callback if provided
     if (onSwap && typeof onSwap === "function") {
       console.log("[SWAP] Calling onSwap persistence callback...");
-      onSwap(currentSetData);
+      // Pass a fresh snapshot to avoid proxy-related delay or mutation issues in parent
+      onSwap($state.snapshot(currentSetData));
     }
 
     console.log(

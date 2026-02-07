@@ -292,8 +292,14 @@
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        alert("Changes saved successfully!");
+        // alert("Changes saved successfully!");
+        // Refresh local data from server after successful persistence
         await invalidateAll();
+        // Svelte 5: editableSets is NOT automatically reactive to data changes after init
+        // We must manually re-sync to ensure local state reflects DB reality precisely
+        editableSets = initializeSets();
+        paperMeta = initializeMeta();
+        console.log("[PERSISTENCE] Sync complete.");
       }
     } catch (err) {
       console.error(err);
