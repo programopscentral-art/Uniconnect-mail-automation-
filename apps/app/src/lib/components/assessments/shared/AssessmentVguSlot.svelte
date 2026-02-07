@@ -31,28 +31,37 @@
   <td
     class="relative p-2 text-[11pt] group whitespace-pre-wrap align-top border-r border-black min-h-[80px]"
   >
-    <div class="pr-2">
-      <AssessmentEditable
-        value={target.text || ""}
-        onUpdate={(v: string) => {
-          target.text = v;
-          target.question_text = v;
-          if (onUpdateText) onUpdateText(v, target.id);
-        }}
-        multiline={true}
-        class="question-text-content italic font-medium"
-      />
-    </div>
-    <AssessmentMcqOptions options={target.options} />
-    {#if target.image_url}
-      <div class="mt-2 max-w-full overflow-hidden">
-        <img
-          src={target.image_url}
-          alt="Question"
-          class="max-h-[300px] object-contain"
-        />
+    {#each slot.questions && slot.questions.length > 0 ? slot.questions : [slot] as q, qidx}
+      <div class="pr-2 {qidx > 0 ? 'mt-4 pt-4 border-t border-black/10' : ''}">
+        <div class="flex gap-2">
+          {#if q.sub_label}
+            <span class="font-bold min-w-[20px]">{q.sub_label}</span>
+          {/if}
+          <div class="flex-1">
+            <AssessmentEditable
+              value={q.text || q.question_text || ""}
+              onUpdate={(v: string) => {
+                q.text = v;
+                q.question_text = v;
+                if (onUpdateText) onUpdateText(v, q.id);
+              }}
+              multiline={true}
+              class="question-text-content italic font-medium"
+            />
+          </div>
+        </div>
       </div>
-    {/if}
+      <AssessmentMcqOptions options={q.options} />
+      {#if q.image_url}
+        <div class="mt-2 max-w-full overflow-hidden">
+          <img
+            src={q.image_url}
+            alt="Question"
+            class="max-h-[300px] object-contain"
+          />
+        </div>
+      {/if}
+    {/each}
   </td>
   <td
     class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"

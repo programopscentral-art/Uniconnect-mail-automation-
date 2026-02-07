@@ -78,14 +78,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 else if (lowName.includes('paragraph') || lowName.includes('essay') || lowName.includes('descriptive')) sheetDefaultType = 'PARAGRAPH';
 
                 for (const row of rows as any[]) {
+                    let options: string[] = [row['A'], row['B'], row['C'], row['D']].filter(Boolean).map(o => o.toString().trim());
                     const qTextFull = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true)?.toString().trim();
-                    if (!qTextFull || qTextFull.length < 5) continue;
+
+                    // 1b. Detect explicit Type column or infer from sheet
+                    let rowType = findVal(row, ['Type', 'Question Type', 'Category', 'qType'])?.toString().toUpperCase().trim();
+                    let finalQType = sheetDefaultType;
+
+                    if (rowType) {
+                        if (rowType.includes('MCQ')) finalQType = 'MCQ';
+                        else if (rowType.includes('VERY LONG')) finalQType = 'VERY_LONG';
+                        else if (rowType.includes('VERY SHORT')) finalQType = 'VERY_SHORT';
+                        else if (rowType.includes('LONG')) finalQType = 'LONG';
+                        else if (rowType.includes('FILL')) finalQType = 'FILL_IN_BLANK';
+                        else if (rowType.includes('PARAGRAPH')) finalQType = 'PARAGRAPH';
+                        else if (rowType.includes('SHORT')) finalQType = 'SHORT';
+                    }
 
                     let qText = qTextFull;
-                    let options: string[] = [row['A'], row['B'], row['C'], row['D']].filter(Boolean).map(o => o.toString().trim());
 
                     // Aggressive in-text option extraction for XLSX if columns are empty or not enough options
-                    if (qTextFull && qTextFull.length > 10) {
+                    // CRITICAL: Only do this for MCQ candidates. Descriptive questions (LONG/SHORT) 
+                    // often contain (a), (b) markers within the question text itself.
+                    const isCandidateForMcq = finalQType === 'MCQ' || (!rowType && options.length === 0);
+                    if (qTextFull && qTextFull.length > 10 && isCandidateForMcq) {
                         const optRegex = /(?:\s|^|\()([A-Da-d])[\.\)]\s+/g;
                         const allMatches = [...qTextFull.matchAll(optRegex)];
 
@@ -123,20 +139,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                                 options.push(`${seqMatches[k][1].toUpperCase()}. ${qTextFull.substring(s, e).trim()}`);
                             }
                         }
-                    }
-
-                    // 1b. Detect explicit Type column or infer from sheet
-                    let rowType = findVal(row, ['Type', 'Question Type', 'Category', 'qType'])?.toString().toUpperCase().trim();
-                    let finalQType = sheetDefaultType;
-
-                    if (rowType) {
-                        if (rowType.includes('MCQ')) finalQType = 'MCQ';
-                        else if (rowType.includes('VERY LONG')) finalQType = 'VERY_LONG';
-                        else if (rowType.includes('VERY SHORT')) finalQType = 'VERY_SHORT';
-                        else if (rowType.includes('LONG')) finalQType = 'LONG';
-                        else if (rowType.includes('FILL')) finalQType = 'FILL_IN_BLANK';
-                        else if (rowType.includes('PARAGRAPH')) finalQType = 'PARAGRAPH';
-                        else if (rowType.includes('SHORT')) finalQType = 'SHORT';
                     }
 
                     // 1c. Marks and final type inference

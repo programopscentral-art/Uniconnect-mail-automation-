@@ -264,17 +264,22 @@
       arr.push(newSlot);
     }
 
-    // CRITICAL: Force reactivity by reassigning the root state
-    console.log("[SWAP] Triggering reactivity reassignment...");
+    // CRITICAL: Force reactivity by reassigning the root state using a fresh clone
+    console.log("[SWAP] Triggering aggressive reactivity reassignment...");
     if (Array.isArray(currentSetData)) {
       currentSetData = [...arr];
     } else if (currentSetData && typeof currentSetData === "object") {
       // Reassign whole object to trigger Svelte 5 deep reactivity reliably
-      currentSetData = {
+      // We use a spread to ensure a new object reference is created
+      const updatedData = {
         ...currentSetData,
         questions: [...arr],
       };
+      currentSetData = updatedData;
     }
+
+    // Secondary trigger for any derived states
+    activeSet = activeSet;
 
     console.log(
       "[SWAP] New currentSetData questions length:",
