@@ -1388,12 +1388,21 @@
                       : 'border-gray-100 dark:border-slate-800'}"
                   >
                     <div
+                      role="button"
+                      tabindex="0"
                       class="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50"
                       onclick={() => toggleUnit(unit.id)}
+                      onkeydown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleUnit(unit.id);
+                        }
+                      }}
                     >
                       <div class="flex items-center gap-4">
                         <button
                           class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                          aria-label="Toggle unit expansion"
                           onclick={(e) => {
                             e.stopPropagation();
                             expandedUnitId =
