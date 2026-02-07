@@ -191,24 +191,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         }
                     }
 
-                    const rawTopic = findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString() || 'General';
-                    const normalizedTName = rawTopic
-                        .trim()
-                        .replace(/[-_]/g, ' ')
-                        .split(/\s+/)
-                        .map(word => {
-                            const clean = word.replace(/[^a-zA-Z0-9]/g, '');
-                            if (!clean) return word;
-                            return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
-                        })
-                        .join(' ');
-
-                    const getCanonical = (name: string): string => {
-                        return name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w && !['and', 'of', 'the', 'in'].includes(w)).map(w => w.replace(/s$/, '')).join(' ').trim();
+                    const getStrictDisplay = (name: string): string => {
+                        if (!name) return 'General';
+                        return name
+                            .replace(/&/g, 'And')
+                            .replace(/[^a-zA-Z0-9\s]/g, ' ')
+                            .trim()
+                            .split(/\s+/)
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                            .join(' ');
                     };
-                    const canonicalTarget = getCanonical(normalizedTName);
 
-                    let topic = allTopics.find(t => t.unit_id === unit.id && getCanonical(t.name) === canonicalTarget);
+                    const getExtremeCanonical = (name: string): string => {
+                        if (!name) return 'general';
+                        return name
+                            .toLowerCase()
+                            .replace(/&/g, 'and')
+                            .replace(/[^a-z0-9]/g, '')
+                            .replace(/s$/, '')
+                            .trim() || 'general';
+                    };
+
+                    const rawTopic = findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString() || 'General';
+                    const normalizedTName = getStrictDisplay(rawTopic);
+                    const canonicalTarget = getExtremeCanonical(rawTopic);
+
+                    let topic = allTopics.find(t => t.unit_id === unit.id && getExtremeCanonical(t.name) === canonicalTarget);
                     if (!topic) {
                         const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, normalizedTName]);
                         topic = res.rows[0]; allTopics.push(topic);

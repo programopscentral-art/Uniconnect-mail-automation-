@@ -54,17 +54,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (!subject_id) throw error(400, 'Subject ID is required');
 
-        const normalizeTopicName = (name: string): string => {
+        const getStrictDisplay = (name: string): string => {
             if (!name) return 'General';
             return name
+                .replace(/&/g, 'And')
+                .replace(/[^a-zA-Z0-9\s]/g, ' ')
                 .trim()
-                .replace(/[-_]/g, ' ')
                 .split(/\s+/)
-                .map(word => {
-                    const clean = word.replace(/[^a-zA-Z0-9]/g, '');
-                    if (!clean) return word;
-                    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
-                })
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                 .join(' ');
         };
 
@@ -87,9 +84,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const questionsRes = await db.query(query, params);
 
         // NORMALIZE TOPICS & SHUFFLE
-        const allQuestions = questionsRes.rows.map(q => ({
+        const allQuestions = questionsRes.rows.map((q: any) => ({
             ...q,
-            topic_name: normalizeTopicName(q.raw_topic_name)
+            topic_name: getStrictDisplay(q.raw_topic_name)
         })).sort(() => Math.random() - 0.5);
 
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
@@ -211,10 +208,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     if (sq.type === 'OR_GROUP') {
                         return [...(sq.choice1?.questions || []), ...(sq.choice2?.questions || [])].map(q => (q.question_text || '').trim().toLowerCase());
                     }
-                    return (sq.questions || []).map(q => (q.question_text || '').trim().toLowerCase());
+                    return (sq.questions || []).map((q: any) => (q.question_text || '').trim().toLowerCase());
                 }));
 
-                let deDupedPool = pool.filter(q => !usedTextsInSet.has((q.question_text || '').trim().toLowerCase()));
+                let deDupedPool = pool.filter((q: any) => !usedTextsInSet.has((q.question_text || '').trim().toLowerCase()));
                 if (deDupedPool.length === 0) deDupedPool = pool; // Fallback to avoid crash if pool is exhausted by text-only dups
 
                 // Pick from units specified in generation or pool
@@ -224,13 +221,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         ? (unit_ids[setUnitIdx % unit_ids.length])
                         : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
 
-                    const unitCand = deDupedPool.filter(q => q.unit_id === targetUnitId);
+                    const unitCand = deDupedPool.filter((q: any) => q.unit_id === targetUnitId);
                     if (unitCand.length > 0) choicePool = unitCand;
                     setUnitIdx++;
                 }
 
                 // Variety across sets (A, B, C, D)
-                const varietyPool = choicePool.filter(q => !globalExcluded.has(q.id));
+                const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id));
                 const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter(q => {
                     const normalized = (q.question_text || '').trim().toLowerCase();
                     return !globalExcludedTexts.has(normalized);

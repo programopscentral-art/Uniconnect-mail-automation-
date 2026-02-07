@@ -14,30 +14,24 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             [subjectId]
         );
 
-        const normalizeTopicName = (name: string): string => {
+        const getStrictDisplay = (name: string): string => {
             if (!name) return 'General';
             return name
+                .replace(/&/g, 'And')
+                .replace(/[^a-zA-Z0-9\s]/g, ' ')
                 .trim()
-                .replace(/[-_]/g, ' ')
                 .split(/\s+/)
-                .map(word => {
-                    const clean = word.replace(/[^a-zA-Z0-9]/g, '');
-                    if (!clean) return word;
-                    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
-                })
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
                 .join(' ');
         };
 
-        const getCanonicalKey = (name: string): string => {
+        const getExtremeCanonical = (name: string): string => {
             if (!name) return 'general';
             return name
                 .toLowerCase()
                 .replace(/&/g, 'and')
-                .replace(/[^a-z0-9\s]/g, '')
-                .split(/\s+/)
-                .filter(word => word && !['and', 'of', 'the', 'in'].includes(word))
-                .map(word => word.replace(/s$/, '')) // Basic singularization
-                .join(' ')
+                .replace(/[^a-z0-9]/g, '')
+                .replace(/s$/, '')
                 .trim() || 'general';
         };
 
@@ -58,8 +52,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
             // Initialize groups from known topics
             topics.forEach(t => {
-                const displayName = normalizeTopicName(t.name);
-                const key = getCanonicalKey(t.name);
+                const displayName = getStrictDisplay(t.name);
+                const key = getExtremeCanonical(t.name);
                 if (!topicGroupsMap.has(key)) {
                     topicGroupsMap.set(key, {
                         name: displayName,
@@ -75,8 +69,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
             // Aggregate counts and questions
             unitQuestions.forEach(q => {
-                const displayName = normalizeTopicName(q.topic_name);
-                const key = getCanonicalKey(q.topic_name);
+                const displayName = getStrictDisplay(q.topic_name);
+                const key = getExtremeCanonical(q.topic_name);
 
                 let group = topicGroupsMap.get(key);
                 if (!group) {
