@@ -246,13 +246,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             const validateVguPaper = (paper: any) => {
                 const results: string[] = [];
-                const sNames = Object.keys(paper);
-                sNames.forEach(setName => {
+                Object.keys(paper).forEach(setName => {
                     const qData = paper[setName];
                     if (!qData || !qData.questions) return;
-                    const q = qData.questions;
-                    const secA = q.filter((s: any) => s.part === 'A');
-                    const secB = q.filter((s: any) => s.part === 'B');
+                    const questions = qData.questions;
+                    const secA = questions.filter((s: any) => s.part === 'A');
+                    const secB = questions.filter((s: any) => s.part === 'B');
 
                     if (secA.length !== 10) results.push(`Set ${setName}: Section A has ${secA.length}/10 questions.`);
                     if (secB.length < 3) results.push(`Set ${setName}: Section B has ${secB.length}/3 questions.`);
@@ -287,7 +286,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         if (pickedTexts.has(q.question_text?.trim())) return false;
                         if (q.unit_id !== uId) return false;
 
-                        if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
+                        if (qType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
                         if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) && Number(q.marks) >= 4;
                         return false;
                     });
@@ -297,7 +296,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         pool = allQuestions.filter(q => {
                             if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
                             if (pickedTexts.has(q.question_text?.trim())) return false;
-                            if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
+                            if (qType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
                             if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) || Number(q.marks) >= 5;
                             return false;
                         });
@@ -368,7 +367,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return json({ sets: generatedSets, template_config: paperStructureVgu, validation });
             }
 
-            // Persistence with full field set to satisfy constraints
+            // Persistence
             const paperRes = await db.query(
                 `INSERT INTO assessment_papers (
                         university_id, batch_id, branch_id, subject_id, 
@@ -402,13 +401,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         // 2a. Variety shuffle for non-VGU templates
-
         for (const setName of sets) {
             const setQuestions: any[] = [];
             const setDifficulty = sets_config[setName] || ['ANY'];
             const excludeInSet = new Set<string>();
 
-            // Randomize unit order for each set to ensure different question distribution (Fisher-Yates)
+            // Randomize unit order for each set for variety
             const shuffledUnitIds = [...unit_ids];
             for (let i = shuffledUnitIds.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -418,15 +416,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             const pickOne = (targetMarks: number, unitId: string, qType?: string, bloomArr?: string[], co_id?: string) => {
                 const requestedCoCode = coRes.rows.find(c => c.id === co_id)?.code;
-                const isShortOrMcq = (q: any) => {
-                    const text = (q.question_text || '').toLowerCase();
-                    return text.includes('___') || text.includes('....') || (Array.isArray(q.options) && q.options.length > 0);
-                };
 
                 const getCandidates = (pool: any[], strictMarks: boolean, strictBloom: boolean, allowGlobalReuse: boolean, strictType: boolean = true) => {
                     let cand = pool;
-
-                    // 1. Uniqueness Filter (Most Important)
                     if (!allowGlobalReuse) {
                         cand = cand.filter(q => !excludeInSet.has(q.id) && !globalExcluded.has(q.id));
                     } else {
@@ -434,55 +426,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     if (cand.length === 0) return [];
-
-                    // 1b. CO Filter (High Priority)
                     if (co_id) {
                         const coCand = cand.filter(q => q.co_id === co_id);
                         if (coCand.length > 0) cand = coCand;
-                        // No fallback for CO - if a slot is mapped to CO, we stay strict or handle it in picking attempts
                     }
-
-                    // 2. Marks Filter
                     if (strictMarks) {
                         const mCand = cand.filter(q => Number(q.marks) === Number(targetMarks));
                         if (mCand.length > 0) cand = mCand;
                         else {
-                            // Lenient Marks (+/- 1)
                             const lCand = cand.filter(q => Math.abs(Number(q.marks) - Number(targetMarks)) <= 1);
                             if (lCand.length > 0) cand = lCand;
                         }
                     }
-
-                    // 3. Bloom Filter
                     if (strictBloom && bloomArr && bloomArr.length > 0 && !bloomArr.includes('ANY')) {
                         const bCand = cand.filter(q => bloomArr.includes(q.bloom_level));
                         if (bCand.length > 0) cand = bCand;
                     }
-
-                    // 4. Type Filter
                     if (qType && qType !== 'ANY' && strictType) {
-                        if (qType === 'MIXED') cand = cand.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG', 'PARAGRAPH'].includes(q.type || '') || isShortOrMcq(q));
-                        else if (qType === 'MCQ') cand = cand.filter(q => ['MCQ', 'VERY_SHORT', 'SHORT', 'FILL_IN_BLANK'].includes(q.type || '') || isShortOrMcq(q));
+                        if (qType === 'MIXED') cand = cand.filter(q => ['MCQ', 'FILL_IN_BLANK', 'VERY_SHORT', 'SHORT', 'LONG', 'VERY_LONG'].includes(q.type || ''));
+                        else if (qType === 'MCQ') cand = cand.filter(q => ['MCQ', 'VERY_SHORT', 'SHORT', 'FILL_IN_BLANK'].includes(q.type || ''));
                         else if (qType === 'LONG') cand = cand.filter(q => ['LONG', 'VERY_LONG', 'NORMAL', 'DESCRIPTIVE'].includes(q.type || '') || Number(q.marks) >= 5);
-                        else if (qType === 'NORMAL' && targetMarks < 5) cand = cand.filter(q => !['MCQ', 'FILL_IN_BLANK'].includes(q.type || '') && !isShortOrMcq(q));
                         else cand = cand.filter(q => q.type === qType);
                     }
-
                     return cand;
                 };
 
                 const finalize = (cand: any[]) => {
-                    // Random pick from best available candidates
                     const choice = cand[Math.floor(Math.random() * cand.length)];
                     excludeInSet.add(choice.id);
                     globalExcluded.add(choice.id);
-
-                    // Map bloom_level to k_level for VGU
-                    const kLevel = choice.bloom_level ?
-                        (choice.bloom_level.startsWith('K') ? choice.bloom_level : `K${choice.bloom_level.charAt(0)}`)
-                        : 'K1';
-
-                    // STRICT DEEP CLONE to prevent shared reference mutation bugs
+                    const kLevel = choice.bloom_level ? (choice.bloom_level.startsWith('K') ? choice.bloom_level : `K${choice.bloom_level.charAt(0)}`) : 'K1';
                     return {
                         id: choice.id,
                         text: choice.question_text,
@@ -500,25 +473,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 const unitPool = globalShuffledPool.filter(q => q.unit_id === unitId);
                 const globalPool = globalShuffledPool;
-
-                // VARIETY-FIRST FALLBACK CHAIN
-                // The goal is to traverse sets without repeating questions if possible.
                 const attempts = [
-                    // Priority 1: Fresh in Unit + Strict Marks + Strict Bloom
                     () => getCandidates(unitPool, true, true, false),
                     () => getCandidates(unitPool, true, false, false),
                     () => getCandidates(globalPool, true, false, false),
-                    () => getCandidates(globalPool, true, false, false, false), // NEW: Fresh in Global + Strict Marks + ANY Type
+                    () => getCandidates(globalPool, true, false, false, false),
                     () => getCandidates(unitPool, true, true, true),
-                    () => getCandidates(globalPool, true, false, true, false), // NEW: Reuse in Global + Strict Marks + ANY Type
+                    () => getCandidates(globalPool, true, false, true, false),
                     () => getCandidates(globalPool, false, false, true),
                 ];
-
-                for (const attempt of attempts) {
-                    const c = attempt();
-                    if (c.length > 0) return finalize(c);
-                }
-
+                for (const attempt of attempts) { const c = attempt(); if (c.length > 0) return finalize(c); }
                 return null;
             };
 
@@ -539,23 +503,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             };
 
             for (const slot of slotsToProcess) {
-                // Unit shuffling per set is happening here via shuffledUnitIds and setUnitCounter
                 const uToUse = slot.unit === 'Auto' ? (shuffledUnitIds[setUnitCounter++ % shuffledUnitIds.length] || allPossibleUnitIdsArr[0]) : slot.unit;
-
                 if (slot.type === 'OR_GROUP') {
                     const c1 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[0]?.manualMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
                     const c2 = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.choices?.[1]?.manualMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
                     setQuestions.push({ id: slot.id, type: 'OR_GROUP', part: slot.part, choice1: { questions: c1 }, choice2: { questions: c2 } });
                 } else {
                     const qs = pickChoice(slot.marks, uToUse, slot.hasSubQuestions, slot.subMarks, slot.qType, slot.bloom, slot.co_id || slot.co);
-                    setQuestions.push({
-                        id: slot.id,
-                        slot_id: slot.slot_id, // Pass slot_id to the resulting questions array
-                        type: 'SINGLE',
-                        part: slot.part,
-                        questions: qs,
-                        marks: slot.marks
-                    });
+                    setQuestions.push({ id: slot.id, slot_id: slot.slot_id, type: 'SINGLE', part: slot.part, questions: qs, marks: slot.marks });
                 }
             }
             generatedSets[setName] = { questions: setQuestions, setName };
