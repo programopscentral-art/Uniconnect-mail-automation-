@@ -198,11 +198,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         topic = res.rows[0]; allTopics.push(topic);
                     }
 
-                    const bloomRaw = (findVal(row, ['Difficulty level', 'Blooms Level', 'Bloom Level', 'bloom_level', 'Difficulty']) || 'L1').toString().toUpperCase().trim();
-                    const bloomMatch = bloomRaw.match(/L\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*([1-5])/i);
+                    const bloomRaw = (findVal(row, ['Blooms Level', 'Blooms Level (K-Level)', 'Difficulty level', 'Difficulty', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
+                    // Refined regex to handle "Level - 3", "Level 3", "L-3", "L3", "K3" etc.
+                    const bloomMatch = bloomRaw.match(/[LK]\s*[-]?\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*[-]?\s*([1-5])/i);
                     const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
 
-                    const coCode = (findVal(row, ['CO', 'Course Outcome', 'co_code']) || '').toString().toUpperCase().trim();
+                    const coCodeRaw = (findVal(row, ['CO', 'Course Outcome', 'Course Outcomes', 'co_code']) || '').toString().toUpperCase().trim();
+                    // Normalize CO codes: "CO 2" -> "CO2"
+                    const coCode = coCodeRaw.replace(/\s+/g, '');
 
                     questionsToCreate.push({
                         unit_id: unit.id,
