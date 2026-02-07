@@ -4,7 +4,7 @@ import { ExtractionEngine } from '$lib/server/services/extraction-engine';
 import { FigmaService } from '$lib/server/services/figma-service';
 import pdf from 'pdf-img-convert';
 import { z } from 'zod';
-import { createAssessmentTemplate, CanonicalTemplateSchema } from '@uniconnect/shared';
+import { db, CanonicalTemplateSchema } from '@uniconnect/shared';
 import { randomUUID } from 'node:crypto';
 
 // V12: Robust Schema supporting both line formats
@@ -377,19 +377,28 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         let template;
         try {
-            template = await createAssessmentTemplate({
-                university_id: universityId,
-                name: `${name} (Imported ${new Date().toLocaleDateString()})`,
-                slug,
-                exam_type: exam_type,
-                status: 'draft',
-                layout_schema: finalLayout,
-                backgroundImageUrl: finalLayout.debugImage,
-                regions: finalLayout.regions || finalLayout.pages?.[0]?.elements || [],
-                config: defaultConfig,
-                assets: [],
-                created_by: locals.user.id
-            });
+            const { rows } = await db.query(
+                `INSERT INTO assessment_templates (
+                    university_id, name, slug, exam_type, status, layout_schema, 
+                    background_image_url, regions, config, assets, created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                RETURNING *`,
+                [
+                    universityId,
+                    `${name} (Imported ${new Date().toLocaleDateString()})`,
+                    slug,
+                    exam_type,
+                    'draft',
+                    JSON.stringify(finalLayout),
+                    finalLayout.debugImage,
+                    JSON.stringify(finalLayout.regions || finalLayout.pages?.[0]?.elements || []),
+                    JSON.stringify(defaultConfig),
+                    JSON.stringify([]),
+                    locals.user.id
+                ]
+            );
+            template = rows[0];
         } catch (dbErr: any) {
             console.error(`[V38_DB_CRITICAL] 🚨 Database Save Failure:`, dbErr);
             return json({
