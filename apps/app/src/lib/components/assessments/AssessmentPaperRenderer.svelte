@@ -178,6 +178,7 @@
       slotMarks: marks, // Store the slot's marks
       part,
       subPart,
+      subLabel: cQ?.sub_label || null,
       currentMark: marks,
       alternates: (questionPool || []).filter(
         (q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id,
@@ -229,6 +230,7 @@
       co_indicator: question.target_co || question.co_code || "CO1",
       target_co: question.target_co || question.co_code || "CO1",
       unit_id: question.unit_id,
+      sub_label: swapContext.subLabel || null,
       part: swapContext.part,
     };
 
@@ -280,13 +282,15 @@
       currentSetData = [...arr];
     } else if (currentSetData && typeof currentSetData === "object") {
       // Reassign whole object to trigger Svelte 5 deep reactivity reliably
-      // We use a spread to ensure a new object reference is created
       const updatedData = {
         ...currentSetData,
         questions: [...arr],
+        _swap_ts: Date.now(),
       };
       currentSetData = updatedData;
     }
+
+    console.log("[SWAP] Final currentSetData state:", currentSetData);
 
     // Secondary trigger for any derived states
     activeSet = activeSet;
@@ -326,7 +330,7 @@
     }, 0);
   };
 
-  const getQuestionsByPart = (part: string, idx: number) => {
+  const getQuestionsByPart = (part: string, idx: number, data?: any) => {
     const all = Array.isArray(currentSetData.questions)
       ? currentSetData.questions
       : Array.isArray(currentSetData)
@@ -349,7 +353,7 @@
     let count = 0;
     for (const [i, section] of paperStructure.entries()) {
       if (section.part === part) break;
-      const qs = getQuestionsByPart(section.part, i);
+      const qs = getQuestionsByPart(section.part, i, currentSetData);
       count += section.slots?.length || qs.length || 0;
     }
     return count + 1;
@@ -980,7 +984,11 @@
               </tr>
             </thead>
             {#each activePaperStructure || [] as section, idx}
-              {@const sectionQuestions = getQuestionsByPart(section.part, idx)}
+              {@const sectionQuestions = getQuestionsByPart(
+                section.part,
+                idx,
+                currentSetData,
+              )}
               {#if sectionQuestions.length > 0 || isEditable}
                 <tbody
                   use:dndzone={{
@@ -1091,7 +1099,11 @@
           </table>
         {:else}
           {#each paperStructure || [] as section, idx}
-            {@const questions = getQuestionsByPart(section.part, idx)}
+            {@const questions = getQuestionsByPart(
+              section.part,
+              idx,
+              currentSetData,
+            )}
             {#if questions.length > 0 || isEditable}
               <div>
                 <div
