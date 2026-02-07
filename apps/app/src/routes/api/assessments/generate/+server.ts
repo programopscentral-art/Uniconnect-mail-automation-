@@ -199,6 +199,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setUnitIdx++;
                 }
 
+                // CRITICAL: Validate pool has questions after exclusions
+                if (choicePool.length === 0) {
+                    throw new Error(`No available ${searchType} questions left for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}, Marks: ${targetMarks}). Already used ${excludeInSet.size} questions in this set.`);
+                }
+
                 // CRITICAL: Pick a random question from the filtered pool
                 const choice = choicePool[Math.floor(random() * choicePool.length)];
 
