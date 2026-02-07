@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db, getCourseOutcomes } from '@uniconnect/shared';
+import { db } from '@uniconnect/shared';
 import { createRequire } from 'module';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -35,8 +35,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         `, [subjectId]);
         const allTopics = subjectTopicsRes.rows;
 
-        const subjectCos = await getCourseOutcomes(subjectId);
-        const coMap = new Map(subjectCos.map(co => [co.code.toUpperCase(), co.id]));
+        const subjectCosRes = await db.query('SELECT * FROM course_outcomes WHERE subject_id = $1 ORDER BY code ASC', [subjectId]);
+        const coMap = new Map(subjectCosRes.rows.map((co: any) => [co.code.toUpperCase(), co.id]));
 
         const questionsToCreate: any[] = [];
 
