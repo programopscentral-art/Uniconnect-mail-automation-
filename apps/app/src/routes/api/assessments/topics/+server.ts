@@ -14,12 +14,22 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             [subjectId]
         );
 
+        const normalizeTopicName = (name: string): string => {
+            if (!name) return 'General';
+            return name
+                .trim()
+                .replace(/[-_]/g, ' ')
+                .split(/\s+/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+        };
+
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
             const topics = await getAssessmentTopics(u.id);
 
-            // Fetch counts for all questions in this unit to group by topic name
+            // Fetch questions and their topics for this unit
             const { rows: unitQuestions } = await db.query(
-                `SELECT q.marks, q.topic_id, t.name as topic_name
+                `SELECT q.*, t.name as topic_name
                  FROM assessment_questions q
                  LEFT JOIN assessment_topics t ON q.topic_id = t.id
                  WHERE q.unit_id = $1`,
@@ -29,41 +39,47 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             // Grouping logic
             const topicGroupsMap = new Map<string, any>();
 
-            // Initialize groups from known topics to ensure even zero-count topics appear
+            // Initialize groups from known topics
             topics.forEach(t => {
-                const normName = (t.name || 'General').trim();
-                const key = normName.toLowerCase();
+                const displayName = normalizeTopicName(t.name);
+                const key = displayName.toLowerCase();
                 if (!topicGroupsMap.has(key)) {
                     topicGroupsMap.set(key, {
-                        name: normName,
+                        name: displayName,
                         all_ids: [t.id],
-                        id: t.id, // Representative ID
-                        question_counts: {}
+                        id: t.id,
+                        question_counts: {},
+                        questions: []
                     });
                 } else {
                     topicGroupsMap.get(key).all_ids.push(t.id);
                 }
             });
 
-            // Aggregate counts from questions
+            // Aggregate counts and questions
             unitQuestions.forEach(q => {
-                const normName = (q.topic_name || 'General').trim();
-                const key = normName.toLowerCase();
+                const displayName = normalizeTopicName(q.topic_name);
+                const key = displayName.toLowerCase();
 
                 let group = topicGroupsMap.get(key);
                 if (!group) {
-                    // Handle cases where question refers to a topic name not in explicit topics table
                     group = {
-                        name: normName,
+                        name: displayName,
                         all_ids: q.topic_id ? [q.topic_id] : [],
                         id: q.topic_id || `temp-${key}`,
-                        question_counts: {}
+                        question_counts: {},
+                        questions: []
                     };
                     topicGroupsMap.set(key, group);
                 }
 
                 const marks = q.marks;
                 group.question_counts[marks] = (group.question_counts[marks] || 0) + 1;
+                group.questions.push({
+                    ...q,
+                    topic: displayName,
+                    topic_name: displayName
+                });
             });
 
             const topicGroups = Array.from(topicGroupsMap.values()).sort((a, b) => a.name.localeCompare(b.name));

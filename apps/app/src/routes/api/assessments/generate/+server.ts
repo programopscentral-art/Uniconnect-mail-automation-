@@ -54,6 +54,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (!subject_id) throw error(400, 'Subject ID is required');
 
+        const normalizeTopicName = (name: string): string => {
+            if (!name) return 'General';
+            return name
+                .trim()
+                .replace(/[-_]/g, ' ')
+                .split(/\s+/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+        };
+
         // 1. Fetch Question Pool (with optional topic filtering)
         // Use DISTINCT ON (q.id) to ensure we don't get duplicates if join on topics yields multiple rows
         let query = `
@@ -75,7 +85,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // NORMALIZE TOPICS & SHUFFLE
         const allQuestions = questionsRes.rows.map(q => ({
             ...q,
-            topic_name: (q.raw_topic_name || 'General').trim()
+            topic_name: normalizeTopicName(q.raw_topic_name)
         })).sort(() => Math.random() - 0.5);
 
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
