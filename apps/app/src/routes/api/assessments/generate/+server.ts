@@ -173,8 +173,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const random = createSeededRandom(setSeed);
 
             const setQuestions: any[] = [];
-            const excludeInSet = new Set<string>();
+            const excludeIdsInSet = new Set<string>();
+            const excludeTextsInSet = new Set<string>();
             let setUnitIdx = 0;
+            const setTraceInfo: any[] = [];
 
             const pickStrict = (qType: string, targetMarks: number, uId: string, sectionTitle: string, slotId: string) => {
                 // Map frontend type to backend type if needed
@@ -182,7 +184,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 if (searchType === 'NORMAL') searchType = 'ANY';
 
                 let pool = allQuestions.filter((q: any) => {
-                    if (excludeInSet.has(q.id)) return false;
+                    // ID level exclusion (Set wide)
+                    if (excludeIdsInSet.has(q.id)) return false;
+
+                    // Text level exclusion (Set wide)
+                    if (excludeTextsInSet.has(normalizeText(q.question_text))) return false;
 
                     // 1. Strict Topic Filtering (If topic_ids provided from UI)
                     if (topic_ids && topic_ids.length > 0) {
@@ -218,50 +224,41 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 });
 
                 if (pool.length === 0) {
-                    throw new Error(`Insufficient ${searchType} questions available for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}). Required marks: ${targetMarks}.`);
-                }
-
-                // 5. Within-Set Text Deduplication (using extreme normalization)
-                const usedTextsInSet = new Set(setQuestions.flatMap(sq => {
-                    const qs = sq.type === 'OR_GROUP'
-                        ? [...(sq.choice1?.questions || []), ...(sq.choice2?.questions || [])]
-                        : (sq.questions || []);
-                    return qs.map((q: any) => normalizeText(q.question_text));
-                }));
-
-                const deDupedPool = pool.filter((q: any) => !usedTextsInSet.has(normalizeText(q.question_text)));
-
-                console.log(`[DEBUG_GEN] Set: ${setName}, Slot: ${slotId}, Pool size: ${pool.length}, deDuped size: ${deDupedPool.length}, already used texts: ${usedTextsInSet.size}`);
-
-                if (deDupedPool.length === 0) {
-                    console.error(`[DEBUG_GEN_FAIL] Set ${setName} Slot ${slotId} - NO UNIQUE QUESTIONS LEFT. Pool IDs: ${pool.map((p: any) => p.id).join(', ')}`);
-                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). The pool only contains duplicates of already selected questions.`);
+                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). Required marks: ${targetMarks}. Not enough content under selected topics.`);
                 }
 
                 // Pick from units specified in generation or pool
-                let choicePool = deDupedPool;
+                let choicePool = pool;
                 if (uId === 'Auto') {
                     const targetUnitId = (unit_ids && unit_ids.length > 0)
                         ? (unit_ids[setUnitIdx % unit_ids.length])
                         : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
 
-                    const unitCand = deDupedPool.filter((q: any) => q.unit_id === targetUnitId);
+                    const unitCand = choicePool.filter((q: any) => q.unit_id === targetUnitId);
                     if (unitCand.length > 0) choicePool = unitCand;
                     setUnitIdx++;
                 }
 
                 // Variety across sets (A, B, C, D) using extreme normalization
-                const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id));
-                const textVarietyPool = (varietyPool.length > 0 ? varietyPool : choicePool).filter((q: any) => {
-                    return !globalExcludedTexts.has(normalizeText(q.question_text));
-                });
+                const varietyPoolById = choicePool.filter((q: any) => !globalExcluded.has(q.id));
+                const varietyPoolByText = varietyPoolById.filter((q: any) => !globalExcludedTexts.has(normalizeText(q.question_text)));
 
-                const finalPool = textVarietyPool.length > 0 ? textVarietyPool : (varietyPool.length > 0 ? varietyPool : choicePool);
+                const finalPool = varietyPoolByText.length > 0 ? varietyPoolByText : (varietyPoolById.length > 0 ? varietyPoolById : choicePool);
                 const choice = finalPool[Math.floor(random() * finalPool.length)];
 
-                excludeInSet.add(choice.id);
+                // Update exclusion lists IMMEDIATELY
+                excludeIdsInSet.add(choice.id);
+                excludeTextsInSet.add(normalizeText(choice.question_text));
                 globalExcluded.add(choice.id);
                 globalExcludedTexts.add(normalizeText(choice.question_text));
+
+                setTraceInfo.push({
+                    slotId,
+                    pickedId: choice.id,
+                    text: choice.question_text?.substring(0, 50),
+                    poolSize: pool.length,
+                    finalPoolSize: finalPool.length
+                });
 
                 const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
 
@@ -316,6 +313,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             generatedSets[setName] = { questions: setQuestions, setName };
             setDebugInfo[setName] = {
                 seed: setSeed,
+                trace: setTraceInfo,
                 questionIds: setQuestions.flatMap(s => s.type === 'OR_GROUP' ? [...s.choice1.questions.map((q: any) => q.id), ...s.choice2.questions.map((q: any) => q.id)] : s.questions.map((q: any) => q.id))
             };
         }
