@@ -196,9 +196,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         .trim()
                         .replace(/[-_]/g, ' ')
                         .split(/\s+/)
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                        .map(word => {
+                            const clean = word.replace(/[^a-zA-Z0-9]/g, '');
+                            if (!clean) return word;
+                            return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+                        })
                         .join(' ');
-                    let topic = allTopics.find(t => t.unit_id === unit.id && t.name.toLowerCase() === normalizedTName.toLowerCase());
+
+                    const getCanonical = (name: string): string => {
+                        return name.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w && !['and', 'of', 'the', 'in'].includes(w)).map(w => w.replace(/s$/, '')).join(' ').trim();
+                    };
+                    const canonicalTarget = getCanonical(normalizedTName);
+
+                    let topic = allTopics.find(t => t.unit_id === unit.id && getCanonical(t.name) === canonicalTarget);
                     if (!topic) {
                         const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, normalizedTName]);
                         topic = res.rows[0]; allTopics.push(topic);

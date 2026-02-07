@@ -60,7 +60,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 .trim()
                 .replace(/[-_]/g, ' ')
                 .split(/\s+/)
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .map(word => {
+                    const clean = word.replace(/[^a-zA-Z0-9]/g, '');
+                    if (!clean) return word;
+                    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+                })
                 .join(' ');
         };
 

@@ -20,8 +20,25 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 .trim()
                 .replace(/[-_]/g, ' ')
                 .split(/\s+/)
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .map(word => {
+                    const clean = word.replace(/[^a-zA-Z0-9]/g, '');
+                    if (!clean) return word;
+                    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+                })
                 .join(' ');
+        };
+
+        const getCanonicalKey = (name: string): string => {
+            if (!name) return 'general';
+            return name
+                .toLowerCase()
+                .replace(/&/g, 'and')
+                .replace(/[^a-z0-9\s]/g, '')
+                .split(/\s+/)
+                .filter(word => word && !['and', 'of', 'the', 'in'].includes(word))
+                .map(word => word.replace(/s$/, '')) // Basic singularization
+                .join(' ')
+                .trim() || 'general';
         };
 
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
@@ -42,7 +59,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             // Initialize groups from known topics
             topics.forEach(t => {
                 const displayName = normalizeTopicName(t.name);
-                const key = displayName.toLowerCase();
+                const key = getCanonicalKey(t.name);
                 if (!topicGroupsMap.has(key)) {
                     topicGroupsMap.set(key, {
                         name: displayName,
@@ -59,7 +76,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             // Aggregate counts and questions
             unitQuestions.forEach(q => {
                 const displayName = normalizeTopicName(q.topic_name);
-                const key = displayName.toLowerCase();
+                const key = getCanonicalKey(q.topic_name);
 
                 let group = topicGroupsMap.get(key);
                 if (!group) {
