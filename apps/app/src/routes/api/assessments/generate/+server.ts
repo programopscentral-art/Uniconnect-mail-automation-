@@ -176,7 +176,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const excludeInSet = new Set<string>();
             let setUnitIdx = 0;
 
-            const pickStrict = (qType: string, targetMarks: number, uId: string, sectionTitle: string) => {
+            const pickStrict = (qType: string, targetMarks: number, uId: string, sectionTitle: string, slotId: string) => {
                 // Map frontend type to backend type if needed
                 let searchType = qType?.toUpperCase() || 'ANY';
                 if (searchType === 'NORMAL') searchType = 'ANY';
@@ -231,7 +231,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 const deDupedPool = pool.filter((q: any) => !usedTextsInSet.has(normalizeText(q.question_text)));
 
+                console.log(`[DEBUG_GEN] Set: ${setName}, Slot: ${slotId}, Pool size: ${pool.length}, deDuped size: ${deDupedPool.length}, already used texts: ${usedTextsInSet.size}`);
+
                 if (deDupedPool.length === 0) {
+                    console.error(`[DEBUG_GEN_FAIL] Set ${setName} Slot ${slotId} - NO UNIQUE QUESTIONS LEFT. Pool IDs: ${pool.map((p: any) => p.id).join(', ')}`);
                     throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Unit: ${uId}). The pool only contains duplicates of already selected questions.`);
                 }
 
@@ -286,8 +289,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const uId = slot.unit === 'Auto' ? (unit_ids[setUnitIdx++ % unit_ids.length] || allPossibleUnitIdsArr[0]) : slot.unit;
 
                 if (slot.type === 'OR_GROUP') {
-                    const q1 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title);
-                    const q2 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title);
+                    const q1 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title, slot.slot_id);
+                    const q2 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title, slot.slot_id);
                     setQuestions.push({
                         id: slot.id,
                         slot_id: slot.slot_id,
@@ -298,7 +301,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         choice2: { questions: [q2] }
                     });
                 } else {
-                    const q = pickStrict(slot.qType, slot.marks, uId, slot.section_title);
+                    const q = pickStrict(slot.qType, slot.marks, uId, slot.section_title, slot.slot_id);
                     setQuestions.push({
                         id: slot.id,
                         slot_id: slot.slot_id,
