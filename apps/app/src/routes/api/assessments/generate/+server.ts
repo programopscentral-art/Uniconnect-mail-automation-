@@ -199,7 +199,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setUnitIdx++;
                 }
 
+                // CRITICAL: Pick a random question from the filtered pool
                 const choice = choicePool[Math.floor(random() * choicePool.length)];
+
+                // CRITICAL: Add to exclusion set IMMEDIATELY to prevent duplicates within the same set
                 excludeInSet.add(choice.id);
 
                 const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
