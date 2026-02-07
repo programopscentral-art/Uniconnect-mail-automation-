@@ -155,10 +155,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 let pool = allQuestions.filter(q => {
                     if (excludeInSet.has(q.id)) return false;
 
-                    // Marks check (exact or close)
+                    // 1. Strict Topic Filtering (If topic_ids provided from UI)
+                    if (topic_ids && topic_ids.length > 0) {
+                        if (!topic_ids.includes(q.topic_id)) return false;
+                    }
+
+                    // 2. Unit Filtering
+                    if (uId !== 'Auto' && q.unit_id !== uId) return false;
+
+                    // 3. Mark check
                     if (Number(q.marks) !== Number(targetMarks)) return false;
 
-                    // Type check
+                    // 4. Type check
                     if (searchType === 'MCQ') {
                         return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
                     }
@@ -175,21 +183,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     return true;
                 });
 
-                // Unit filtering (if Auto, try to pick from unit pool, else global)
-                let finalPool = pool;
-                if (uId !== 'Auto') {
-                    finalPool = pool.filter(q => q.unit_id === uId);
-                    if (finalPool.length === 0) {
-                        // Fallback to global pool but keep the type/mark strictness
-                        finalPool = pool;
-                    }
+                if (pool.length === 0) {
+                    throw new Error(`Insufficient ${searchType} questions available for section "${sectionTitle}" (Unit: ${uId}, Topics: ${topic_ids?.length || 'All'}). Required marks: ${targetMarks}.`);
                 }
 
-                if (finalPool.length === 0) {
-                    throw new Error(`Insufficient ${searchType} questions available for section "${sectionTitle}" (Target Marks: ${targetMarks}).`);
+                // Pick from units specified in generation or pool
+                let choicePool = pool;
+                if (uId === 'Auto') {
+                    const targetUnitId = (unit_ids && unit_ids.length > 0)
+                        ? (unit_ids[setUnitIdx % unit_ids.length])
+                        : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
+
+                    const unitCand = pool.filter(q => q.unit_id === targetUnitId);
+                    if (unitCand.length > 0) choicePool = unitCand;
+                    setUnitIdx++;
                 }
 
-                const choice = finalPool[Math.floor(random() * finalPool.length)];
+                const choice = choicePool[Math.floor(random() * choicePool.length)];
                 excludeInSet.add(choice.id);
 
                 const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';

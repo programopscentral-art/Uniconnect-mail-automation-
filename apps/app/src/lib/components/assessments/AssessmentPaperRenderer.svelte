@@ -135,6 +135,11 @@
         else currentSetData.questions = [...currentSetData.questions];
       }
     }
+
+    // CRITICAL: Trigger persistence after text update
+    if (onSwap) {
+      onSwap($state.snapshot(currentSetData));
+    }
   }
 
   function removeQuestion(slot: any) {
@@ -145,6 +150,11 @@
       currentSetData.questions = currentSetData.questions.filter(
         (s: any) => s.id !== slot.id,
       );
+
+    // CRITICAL: Trigger persistence after deletion
+    if (onSwap) {
+      onSwap($state.snapshot(currentSetData));
+    }
   }
 
   function openSwapSidebar(slot: any, part: string, subPart?: "q1" | "q2") {

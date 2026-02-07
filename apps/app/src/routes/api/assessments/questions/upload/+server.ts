@@ -191,10 +191,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         }
                     }
 
-                    const tName = findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString().trim() || 'General';
-                    let topic = allTopics.find(t => t.unit_id === unit.id && t.name.toLowerCase() === tName.toLowerCase());
+                    const normalizedTName = (findVal(row, ['Topic name', 'Topic', 'topic_name'])?.toString().trim() || 'General').trim();
+                    let topic = allTopics.find(t => t.unit_id === unit.id && t.name.toLowerCase() === normalizedTName.toLowerCase());
                     if (!topic) {
-                        const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, tName]);
+                        const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, normalizedTName]);
                         topic = res.rows[0]; allTopics.push(topic);
                     }
 
@@ -452,9 +452,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     // Find Topic ID if present
                     let topicId = null;
                     if (meta.topicName) {
-                        let topic = allTopics.find(t => t.unit_id === currentDetectedUnitId && t.name.toLowerCase() === meta.topicName.toLowerCase());
+                        const normalizedTopicName = meta.topicName.trim();
+                        let topic = allTopics.find(t => t.unit_id === currentDetectedUnitId && t.name.toLowerCase() === normalizedTopicName.toLowerCase());
                         if (!topic) {
-                            const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [currentDetectedUnitId, meta.topicName]);
+                            const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [currentDetectedUnitId, normalizedTopicName]);
                             topic = res.rows[0]; allTopics.push(topic);
                         }
                         topicId = topic.id;
