@@ -19,3 +19,4 @@ export * from './db/assessments';
 export * from './canonical-template';
 export * from './db/permissions';
 export * from './template';
+// Ensure all assessment functions including createUniversityAsset are exported
