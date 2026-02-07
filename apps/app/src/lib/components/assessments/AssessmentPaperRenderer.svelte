@@ -241,16 +241,25 @@
       console.log("[SWAP] Found existing slot to update:", slot);
       if (slot.type === "OR_GROUP") {
         if (swapContext.subPart === "q1") {
-          slot.choice1 = { ...slot.choice1, questions: [nQ] };
+          arr[index] = {
+            ...slot,
+            choice1: { ...slot.choice1, questions: [nQ] },
+            marks: nQ.marks,
+          };
         } else {
-          slot.choice2 = { ...slot.choice2, questions: [nQ] };
+          arr[index] = {
+            ...slot,
+            choice2: { ...slot.choice2, questions: [nQ] },
+            marks: nQ.marks,
+          };
         }
       } else {
         // VGU structure: slot has a nested questions array
-        console.log("[SWAP] Before update, questions:", slot.questions);
-        slot.questions = [nQ];
-        slot.marks = nQ.marks; // Ensure slot level marks are also updated
-        console.log("[SWAP] After update, questions:", slot.questions);
+        arr[index] = {
+          ...slot,
+          questions: [nQ],
+          marks: nQ.marks,
+        };
       }
     } else {
       console.log("[SWAP] Slot not found in current array, adding as new...");
@@ -1162,12 +1171,7 @@
         {/if}
       </div>
 
-      <!-- Footer / Instructions -->
-      {#if paperMeta.instructions}
-        <div class="mt-12 pt-4 border-t border-black text-[10px] italic">
-          <p><b>Instructions:</b> {paperMeta.instructions}</p>
-        </div>
-      {/if}
+      </div>
     </div>
   </div>
 

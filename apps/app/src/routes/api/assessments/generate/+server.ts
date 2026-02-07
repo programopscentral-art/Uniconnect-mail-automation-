@@ -46,8 +46,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (!subject_id) throw error(400, 'Subject ID is required');
 
         // 1. Fetch Question Pool (with optional topic filtering)
+        // Use DISTINCT ON (q.id) to ensure we don't get duplicates if join on topics yields multiple rows
         let query = `
-            SELECT q.*, t.name as topic_name, u.unit_number 
+            SELECT DISTINCT ON (q.id) q.*, t.name as topic_name, u.unit_number 
             FROM assessment_questions q
             JOIN assessment_units u ON q.unit_id = u.id
             LEFT JOIN assessment_topics t ON q.topic_id = t.id
@@ -58,18 +59,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (topic_ids && topic_ids.length > 0) {
             query += ` AND q.topic_id = ANY($2)`;
             params.push(topic_ids);
-        } else if (unit_ids && unit_ids.length > 0) {
-            // Note: unit_ids passed from frontend are compared here
-            // If topic_ids are NOT provided, we still respect unit_ids as a fallback filter if the pool is large
-            // But the current implementation usually sends all possible units and filters in the picker logic
-            // However, to be strict as requested for unit-wise selection:
-            // query += ` AND q.unit_id = ANY($2)`;
-            // params.push(unit_ids);
         }
 
         const questionsRes = await db.query(query, params);
 
-        const allQuestions = questionsRes.rows;
+        // SHUFFLE the entire pool immediately for better variety in all loops
+        const allQuestions = questionsRes.rows.sort(() => Math.random() - 0.5);
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
 
         // 1b. Fetch Course Outcomes for mapping CO1 -> ID
@@ -243,16 +238,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (isVGUTemplate) {
             console.log("[VGU GENERATOR] Starting structured JSON-first generation...");
 
+            // V97: Standardize VGU paper structure for structured JSON
+            const paperStructureVgu = [
+                { part: 'A', title: 'SECTION A (1*10=10 Marks)' },
+                { part: 'B', title: 'SECTION B (5*3=15 Marks)' }
+            ];
+
             const validateVguPaper = (paper: any) => {
                 const results: string[] = [];
-                const sets = Object.keys(paper);
-                sets.forEach(setName => {
-                    const q = paper[setName].questions;
+                const sNames = Object.keys(paper);
+                sNames.forEach(setName => {
+                    const qData = paper[setName];
+                    if (!qData || !qData.questions) return;
+                    const q = qData.questions;
                     const secA = q.filter((s: any) => s.part === 'A');
                     const secB = q.filter((s: any) => s.part === 'B');
 
                     if (secA.length !== 10) results.push(`Set ${setName}: Section A has ${secA.length}/10 questions.`);
-                    if (secB.length < 3) results.push(`Set ${setName}: Section B has ${secB.length}/4 questions (Needs at least 3 for "Attempt 3").`);
+                    if (secB.length < 3) results.push(`Set ${setName}: Section B has ${secB.length}/3 questions.`);
 
                     secA.forEach((s: any, i: number) => {
                         const target = s.questions?.[0];
@@ -270,6 +273,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return { pass: results.length === 0, errors: results };
             };
 
+            const pickedTexts = new Set<string>();
+
             for (const setName of sets) {
                 const setQuestions: any[] = [];
                 const excludeInSet = new Set<string>();
@@ -279,6 +284,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const pickStrict = (qType: 'MCQ' | 'LONG', targetMarks: number, uId: string) => {
                     let pool = allQuestions.filter(q => {
                         if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
+                        if (pickedTexts.has(q.question_text?.trim())) return false;
                         if (q.unit_id !== uId) return false;
 
                         if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
@@ -290,6 +296,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     if (pool.length === 0) {
                         pool = allQuestions.filter(q => {
                             if (excludeInSet.has(q.id) || globalExcluded.has(q.id)) return false;
+                            if (pickedTexts.has(q.question_text?.trim())) return false;
                             if (qType === 'MCQ') return q.type === 'MCQ' || (q.options && q.options.length > 0);
                             if (qType === 'LONG') return !['MCQ', 'VERY_SHORT', 'FILL_IN_BLANK'].includes(q.type) || Number(q.marks) >= 5;
                             return false;
@@ -300,6 +307,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const choice = pool[Math.floor(Math.random() * pool.length)];
                     excludeInSet.add(choice.id);
                     globalExcluded.add(choice.id);
+                    if (choice.question_text) pickedTexts.add(choice.question_text.trim());
 
                     const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
 
@@ -357,17 +365,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             console.log("[VGU VALIDATOR] Result:", validation);
 
             if (preview_only) {
-                return json({ sets: generatedSets, template_config, validation });
+                return json({ sets: generatedSets, template_config: paperStructureVgu, validation });
             }
 
             // Persistence with full field set to satisfy constraints
             const paperRes = await db.query(
                 `INSERT INTO assessment_papers (
-                    university_id, batch_id, branch_id, subject_id, 
-                    exam_type, semester, paper_date, 
-                    duration_minutes, max_marks, template_id, sets_data
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                RETURNING id`,
+                        university_id, batch_id, branch_id, subject_id, 
+                        exam_type, semester, paper_date, 
+                        duration_minutes, max_marks, template_id, sets_data
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    RETURNING id`,
                 [
                     university_id, batch_id, branch_id, subject_id,
                     exam_type || 'MID1', semester, paper_date,
@@ -385,12 +393,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             course_code,
                             exam_title,
                             instructions,
-                            template_config
+                            template_config: paperStructureVgu
                         }
                     })
                 ]
             );
-            return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config, validation });
+            return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config: paperStructureVgu, validation });
         }
 
         // 2a. Variety shuffle for non-VGU templates
