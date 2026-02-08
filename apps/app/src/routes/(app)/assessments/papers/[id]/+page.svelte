@@ -727,6 +727,30 @@
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }
+
+  async function downloadAnswerSheet(format = "csv") {
+    const paperId = data?.paper?.id;
+    if (!paperId) return;
+
+    try {
+      const response = await fetch(
+        `/api/assessments/generate?paperId=${paperId}&set=${activeSet}&format=${format}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch answer sheet");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Answer_Sheet_Set_${activeSet}.${format === "csv" ? "csv" : "json"}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to download answer sheet");
+    }
+  }
 </script>
 
 <div
@@ -863,6 +887,26 @@
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           /></svg
         >
+      </button>
+
+      <button
+        onclick={() => downloadAnswerSheet("csv")}
+        aria-label="Download Answer Sheet"
+        class="inline-flex items-center px-4 py-3 bg-white/5 text-amber-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-amber-500/20"
+      >
+        <svg
+          class="w-3.5 h-3.5 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2.5"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          /></svg
+        >
+        ANS KEY
       </button>
     </div>
   </div>
