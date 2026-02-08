@@ -11,14 +11,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const sanitizeUUID = (id: any) => (id === '' || id === undefined || id === 'undefined' ? null : id);
 
-        // Seeded random helper for reproducible variety per set
-        const createSeededRandom = (seed: number) => {
-            return () => {
-                seed = (seed * 9301 + 49297) % 233280;
-                return seed / 233280;
-            };
-        };
-
         const {
             subject_id: raw_subject_id,
             university_id: raw_university_id,
@@ -35,10 +27,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             template_id: raw_template_id,
             unit_ids = [],
             topic_ids = [],
-            generation_mode = 'Automatic', // 'Automatic' or 'Modifiable'
+            generation_mode = 'Automatic',
             max_marks = 50,
             part_a_type = 'Mixed',
-            sets_config = {}, // { 'A': ['L1'], 'B': ['L2'], ... }
+            sets_config = {},
             selected_template = 'standard',
             preview_only = false,
             template_config: incoming_template_config
@@ -82,8 +74,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return crypto.createHash('sha256').update(`${normalizedText}:${normalizedOptions}`).digest('hex');
         };
 
-        // 1. Fetch Question Pool (with optional topic filtering)
-        // Use DISTINCT ON (q.id) to ensure we don't get duplicates if join on topics yields multiple rows
+        // 1. FETCH QUESTION POOL
         let query = `
             SELECT DISTINCT ON (q.id) q.*, t.name as raw_topic_name, u.unit_number 
             FROM assessment_questions q
@@ -104,350 +95,163 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         const questionsRes = await db.query(query, params);
-
-        // NORMALIZE TOPICS & SHUFFLE
         let allQuestions = questionsRes.rows.map((q: any) => ({
             ...q,
             topic_name: getStrictDisplay(q.raw_topic_name)
         }));
 
-        // Fisher-Yates Shuffle for better variety
+        // Initial global shuffle for fair distribution
         for (let i = allQuestions.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
         }
 
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
-
-        // 1b. Fetch Course Outcomes for mapping CO1 -> ID
         const coRes = await db.query('SELECT id, code FROM assessment_course_outcomes WHERE subject_id = $1', [subject_id]);
-        const coMap = new Map(coRes.rows.map(co => [co.code, co.id]));
 
         if (allQuestions.length === 0) {
-            return json({ error: 'No questions found for this subject. Please upload questions first.' }, { status: 400 });
+            return json({ error: 'No questions found for this subject.' }, { status: 400 });
         }
 
-        // 1c. Paper Identity check
-        let isVGUTemplate = String(university_id).toLowerCase().startsWith('c40ed15d') || String(selected_template).toLowerCase().includes('vgu');
-        let isCrescentTemplate = String(selected_template).toLowerCase().includes('crescent');
-        let isCDUTemplate = String(selected_template).toLowerCase().includes('cdu') || String(selected_template).toLowerCase().includes('chaitanya');
-
-        if (template_id) {
-            const templateRes = await db.query('SELECT name, slug, layout_schema FROM assessment_templates WHERE id = $1', [template_id]);
-            if (templateRes.rows.length > 0) {
-                const tRow = templateRes.rows[0];
-                const slug = tRow.slug?.toLowerCase() || '';
-                const name = tRow.name?.toLowerCase() || '';
-                isVGUTemplate = isVGUTemplate || slug.includes('vgu') || name.includes('vgu');
-            }
-        }
-
-        // 2. Prepare Slots to Process (STRICTLY FROM template_config)
-        if (!template_config || !Array.isArray(template_config)) {
-            throw error(400, 'Paper structure configuration (template_config) is missing or invalid.');
-        }
-
-        const slotsToProcess: any[] = [];
-        template_config.forEach((section: any) => {
-            const part = section.part || section.section || (section.title?.toUpperCase()?.includes('PART A') ? 'A' : (section.title?.toUpperCase()?.includes('PART B') ? 'B' : 'C'));
-
-            if (!section.slots || !Array.isArray(section.slots)) {
-                throw error(400, `Section ${section.title || part} is missing slots.`);
-            }
-
-            section.slots.forEach((slot: any) => {
-                slotsToProcess.push({
-                    ...slot,
-                    id: slot.id || crypto.randomUUID(),
-                    marks: Number(slot.marks || section.marks_per_q || 0),
-                    part: part,
-                    section_title: section.title,
-                    // If qType is missing, infer from section or name
-                    qType: slot.qType || 'ANY',
-                    co_id: slot.target_co ? coMap.get(slot.target_co) : slot.co_id
-                });
-            });
-        });
-
-        // Common declarations for all templates
-        const sets = ['A', 'B', 'C', 'D'];
-        const generatedSets: Record<string, any> = {};
-        const globalExcluded = new Set<string>();
-        const globalExcludedTexts = new Set<string>();
-        const globalExcludedHashes = new Set<string>();
-
-        const setDebugInfo: Record<string, any> = {};
+        // 2. GLOBAL ARCHITECTURE: REGISTRY & STATE
+        const globalUsedIds = new Set<string>();
+        const globalUsedTexts = new Set<string>();
+        const globalUsedHashes = new Set<string>();
 
         /**
-         * SINGLE SOURCE OF TRUTH FOR MCQ SELECTION
-         * Implements Strict Deduplication: ID, Text, and Hash.
+         * GLOBAL PICK OR SWAP (Mandatory Engine)
+         * Enforces absolute uniqueness across all sets.
          */
-        const generateMcqSection = (params: {
+        const globalPickOrSwap = (params: {
             pool: any[],
-            targetCount: number,
-            setName: string,
-            globalIds: Set<string>,
-            globalTexts: Set<string>,
-            globalHashes: Set<string>
+            qType: string,
+            targetMarks: number,
+            unitId: string,
+            sectionTitle: string,
+            slotId: string,
+            setName: string
         }) => {
-            const { pool, targetCount, setName, globalIds, globalTexts, globalHashes } = params;
-            const selected: any[] = [];
+            const { pool, qType, targetMarks, unitId, sectionTitle, slotId, setName } = params;
+            const searchType = qType?.toUpperCase() || 'ANY';
 
-            const usedIds = new Set<string>();
-            const usedTexts = new Set<string>();
-            const usedHashes = new Set<string>();
+            // Filter by structural requirements
+            const candidatePool = pool.filter(q => {
+                if (unitId !== 'Auto' && q.unit_id !== unitId) return false;
+                if (Number(q.marks) !== Number(targetMarks)) return false;
 
-            // 1. Filter pool for MCQs
-            const mcqPool = [...pool].filter(q => {
-                const isMcq = q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0) || (Number(q.marks) === 1 && (!q.type || q.type === 'VERY_SHORT'));
-                return isMcq;
+                if (searchType === 'SHORT') return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                if (searchType === 'LONG') return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
+                if (searchType === 'FILL_IN_BLANK') return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
+                if (searchType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0) || (Number(q.marks) === 1);
+                return true;
             });
 
-            // Fisher-Yates Shuffle BEFORE selection to ensure randomization
-            for (let i = mcqPool.length - 1; i > 0; i--) {
+            // Fisher-Yates Shuffle for variety within the candidates
+            for (let i = candidatePool.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
-                [mcqPool[i], mcqPool[j]] = [mcqPool[j], mcqPool[i]];
+                [candidatePool[i], candidatePool[j]] = [candidatePool[j], candidatePool[i]];
             }
 
-            for (let i = 0; i < targetCount; i++) {
-                let found = false;
+            // CRITICAL: Global variety check
+            let choice: any = null;
+            for (const candidate of candidatePool) {
+                const id = candidate.id;
+                const text = normalizeText(candidate.question_text);
+                const hash = createQuestionHash(candidate);
 
-                // PRIORITY 1: Cross-Set Variety (Search for question not used in ANY set)
-                for (let j = 0; j < mcqPool.length; j++) {
-                    const candidate = mcqPool[j];
-                    const id = candidate.id;
-                    const text = normalizeText(candidate.question_text);
-                    const hash = createQuestionHash(candidate);
+                const isGlobalDuplicate = globalUsedIds.has(id) || globalUsedTexts.has(text) || globalUsedHashes.has(hash);
 
-                    const isGlobalDuplicate = globalIds.has(id) || globalTexts.has(text) || globalHashes.has(hash);
-                    const isWithinSetDuplicate = usedIds.has(id) || usedTexts.has(text) || usedHashes.has(hash);
-
-                    if (!isGlobalDuplicate && !isWithinSetDuplicate) {
-                        selected.push(candidate);
-                        usedIds.add(id);
-                        usedTexts.add(text);
-                        usedHashes.add(hash);
-                        globalIds.add(id);
-                        globalTexts.add(text);
-                        globalHashes.add(hash);
-                        mcqPool.splice(j, 1);
-                        found = true;
-                        break;
-                    }
-                }
-
-                // PRIORITY 2: Graceful Fallback (Allow cross-set duplicates, but STICK to within-set uniqueness)
-                if (!found) {
-                    for (let j = 0; j < mcqPool.length; j++) {
-                        const candidate = mcqPool[j];
-                        const id = candidate.id;
-                        const text = normalizeText(candidate.question_text);
-                        const hash = createQuestionHash(candidate);
-
-                        const isWithinSetDuplicate = usedIds.has(id) || usedTexts.has(text) || usedHashes.has(hash);
-
-                        if (!isWithinSetDuplicate) {
-                            selected.push(candidate);
-                            usedIds.add(id);
-                            usedTexts.add(text);
-                            usedHashes.add(hash);
-                            // Important: We don't add to global sets here to allow other papers to also "borrow" this if needed
-                            mcqPool.splice(j, 1);
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found) {
-                    throw new Error(`[FAIL LOUDLY] Pool exhausted for Set ${setName}. Cannot fulfill ${targetCount} unique MCQs even with fallback. Pool search failed.`);
+                if (!isGlobalDuplicate) {
+                    choice = candidate;
+                    break;
                 }
             }
 
-            // Step 4: Runtime Proof (Assertions)
-            if (selected.length !== new Set(selected.map(q => q.id)).size) {
-                throw new Error(`[CRITICAL] DUPLICATE MCQ IDS FOUND IN SET ${setName}`);
-            }
-            if (selected.length !== new Set(selected.map(q => normalizeText(q.question_text))).size) {
-                throw new Error(`[CRITICAL] DUPLICATE MCQ TEXT FOUND IN SET ${setName}`);
-            }
-            if (selected.length !== new Set(selected.map(q => createQuestionHash(q))).size) {
-                throw new Error(`[CRITICAL] DUPLICATE MCQ HASHES FOUND IN SET ${setName}`);
+            if (!choice) {
+                throw new Error(`[FAIL LOUDLY] NO UNIQUE QUESTIONS AVAILABLE TO SWAP for Set ${setName}, section "${sectionTitle}" (Slot: ${slotId}). Pool size: ${candidatePool.length}`);
             }
 
-            return selected;
+            // Register choice immediately
+            globalUsedIds.add(choice.id);
+            globalUsedTexts.add(normalizeText(choice.question_text));
+            globalUsedHashes.add(createQuestionHash(choice));
+
+            return choice;
         };
 
-        for (const setName of sets) {
-            // Seeded randomness per set
-            const setSeed = (Date.now() % 100000) + (setName.charCodeAt(0) * 1000) + Math.floor(Math.random() * 1000);
-            const random = createSeededRandom(setSeed);
+        const sets = ['A', 'B', 'C', 'D'];
+        const generatedSets: Record<string, any> = {};
+        const setDebugInfo: Record<string, any> = {};
 
+        // 3. SEQUENTIAL SET-AWARE GENERATION (A->B->C->D)
+        for (const setName of sets) {
             const setQuestions: any[] = [];
-            const currentSetUsedIds = new Set<string>();
-            const currentSetUsedTexts = new Set<string>();
+            const setAnswerSheet: any[] = [];
             let setUnitIdx = 0;
 
-            const pickStrict = (qType: string, targetMarks: number, uId: string, sectionTitle: string, slotId: string) => {
-                const searchType = qType?.toUpperCase() || 'ANY';
-
-                // FILTER POOL FOR UNIQUENESS (IDs and Normalized Text)
-                const pool = allQuestions.filter((q: any) => {
-                    if (currentSetUsedIds.has(q.id)) return false;
-                    if (currentSetUsedTexts.has(normalizeText(q.question_text))) return false;
-
-                    if (topic_ids?.length > 0) {
-                        const isMatch = topic_ids.includes(q.topic_id) || (q.topic_id === null && topic_ids.some((id: string) => id.startsWith('temp-')));
-                        if (!isMatch) return false;
-                    }
-                    if (uId !== 'Auto' && q.unit_id !== uId) return false;
-                    if (Number(q.marks) !== Number(targetMarks)) return false;
-
-                    // Exclude MCQ/FIB types if searchType is LONG/SHORT
-                    if (searchType === 'SHORT') return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
-                    if (searchType === 'LONG') return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
-                    if (searchType === 'FILL_IN_BLANK') return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
-                    return true;
-                });
-
-                if (pool.length === 0) {
-                    throw new Error(`Insufficient unique questions for section "${sectionTitle}" (Slot: ${slotId}). Pool exhausted.`);
-                }
-
-                let choicePool = pool;
-                if (uId === 'Auto') {
-                    const targetUnitId = (unit_ids?.length > 0) ? unit_ids[setUnitIdx % unit_ids.length] : allPossibleUnitIdsArr[setUnitIdx % allPossibleUnitIdsArr.length];
-                    const unitCand = choicePool.filter((q: any) => q.unit_id === targetUnitId);
-                    if (unitCand.length > 0) choicePool = unitCand;
-                    setUnitIdx++;
-                }
-
-                // Variety across papers
-                const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id) && !globalExcludedTexts.has(normalizeText(q.question_text)));
-                const finalPool = varietyPool.length > 0 ? varietyPool : choicePool;
-                const choice = finalPool[Math.floor(random() * finalPool.length)];
-
-                currentSetUsedIds.add(choice.id);
-                currentSetUsedTexts.add(normalizeText(choice.question_text));
-                globalExcluded.add(choice.id);
-                globalExcludedTexts.add(normalizeText(choice.question_text));
-
-                const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
-
-                return {
-                    id: choice.id,
-                    question_id: choice.id,
-                    text: choice.question_text,
-                    question_text: choice.question_text,
-                    marks: targetMarks,
-                    bloomLevel: choice.bloom_level,
-                    k_level: choice.bloom_level ? `K${choice.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1',
-                    co: coCode,
-                    target_co: coCode,
-                    options: choice.options,
-                    image_url: choice.image_url,
-                    type: choice.type,
-                    unit: choice.unit_number,
-                    topic: choice.topic_name,
-                    unit_id: choice.unit_id,
-                    topic_id: choice.topic_id
-                };
-            };
-
-            // Pre-calculate Section A (MCQs) if it exists
-            const mcqSection = template_config.find((s: any) => (s.part === 'A' || s.title?.toUpperCase().includes('PART A')) && s.slots?.length > 0);
-            if (mcqSection) {
-                const targetCount = mcqSection.slots.length;
-                const selectedMcqs = generateMcqSection({
-                    pool: allQuestions,
-                    targetCount,
-                    setName,
-                    globalIds: globalExcluded,
-                    globalTexts: globalExcludedTexts,
-                    globalHashes: globalExcludedHashes,
-                });
-
-                mcqSection.slots.forEach((slot: any, idx: number) => {
-                    const choice = selectedMcqs[idx];
-                    const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
-
-                    currentSetUsedIds.add(choice.id);
-                    currentSetUsedTexts.add(normalizeText(choice.question_text));
-
-                    setQuestions.push({
-                        id: slot.id,
-                        slot_id: slot.id,
-                        type: 'SINGLE',
-                        part: slot.part || 'A',
-                        marks: Number(slot.marks || mcqSection.marks_per_q || 1),
-                        questions: [{
-                            ...choice,
-                            question_id: choice.id,
-                            text: choice.question_text,
-                            marks: Number(slot.marks || mcqSection.marks_per_q || 1),
-                            k_level: choice.bloom_level ? `K${choice.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1',
-                            co: coCode,
-                            target_co: coCode,
-                            unit: choice.unit_number,
-                            topic: choice.topic_name,
-                        }]
-                    });
-                });
+            if (!template_config || !Array.isArray(template_config)) {
+                throw error(400, 'Invalid template configuration');
             }
 
-            // Process non-MCQ slots
-            const nonMcqSlots = slotsToProcess.filter(slot => {
-                const isPartA = slot.part === 'A' || slot.section_title?.toUpperCase().includes('PART A');
-                return !isPartA;
+            template_config.forEach((section: any) => {
+                const part = section.part || section.section || (section.title?.toUpperCase()?.includes('PART A') ? 'A' : (section.title?.toUpperCase()?.includes('PART B') ? 'B' : 'C'));
+
+                section.slots.forEach((slot: any) => {
+                    const uId = slot.unit === 'Auto' ? (unit_ids[setUnitIdx++ % unit_ids.length] || allPossibleUnitIdsArr[0]) : slot.unit;
+
+                    if (slot.type === 'OR_GROUP') {
+                        const q1 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType || 'LONG', targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: `${slot.id}_C1`, setName });
+                        const q2 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType || 'LONG', targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: `${slot.id}_C2`, setName });
+
+                        const co1 = coRes.rows.find(c => c.id === q1.co_id)?.code || 'CO1';
+                        const co2 = coRes.rows.find(c => c.id === q2.co_id)?.code || 'CO1';
+
+                        const fQ1 = { ...q1, co: co1, target_co: co1, k_level: q1.bloom_level ? `K${q1.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1' };
+                        const fQ2 = { ...q2, co: co2, target_co: co2, k_level: q2.bloom_level ? `K${q2.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1' };
+
+                        setQuestions.push({
+                            id: slot.id, slot_id: slot.id, type: 'OR_GROUP', part, marks: slot.marks,
+                            choice1: { questions: [fQ1] },
+                            choice2: { questions: [fQ2] }
+                        });
+
+                        // Answers
+                        if (q1.options?.length > 0) setAnswerSheet.push({ questionId: q1.id, correctOption: q1.correct_option, explanation: q1.explanation });
+                        if (q2.options?.length > 0) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.correct_option, explanation: q2.explanation });
+
+                    } else {
+                        const q = globalPickOrSwap({ pool: allQuestions, qType: slot.qType || 'ANY', targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: slot.id, setName });
+                        const coIdx = coRes.rows.find(c => c.id === q.co_id)?.code || 'CO1';
+                        const fQ = { ...q, co: coIdx, target_co: coIdx, k_level: q.bloom_level ? `K${q.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1' };
+
+                        setQuestions.push({
+                            id: slot.id, slot_id: slot.id, type: 'SINGLE', part, marks: slot.marks,
+                            questions: [fQ]
+                        });
+
+                        if (q.options?.length > 0) {
+                            setAnswerSheet.push({ questionId: q.id, correctOption: q.correct_option, explanation: q.explanation });
+                        }
+                    }
+                });
             });
 
-            for (const slot of nonMcqSlots) {
-                const uId = slot.unit === 'Auto' ? (unit_ids[setUnitIdx++ % unit_ids.length] || allPossibleUnitIdsArr[0]) : slot.unit;
-
-                if (slot.type === 'OR_GROUP') {
-                    const q1 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title, slot.id);
-                    const q2 = pickStrict(slot.qType || 'LONG', slot.marks, uId, slot.section_title, slot.id);
-                    setQuestions.push({
-                        id: slot.id,
-                        slot_id: slot.id,
-                        type: 'OR_GROUP',
-                        part: slot.part,
-                        marks: slot.marks,
-                        choice1: { questions: [q1] },
-                        choice2: { questions: [q2] }
-                    });
-                } else {
-                    const q = pickStrict(slot.qType, slot.marks, uId, slot.section_title, slot.id);
-                    setQuestions.push({
-                        id: slot.id,
-                        slot_id: slot.id,
-                        type: 'SINGLE',
-                        part: slot.part,
-                        marks: slot.marks,
-                        questions: [q]
-                    });
-                }
-            }
-
-            generatedSets[setName] = { questions: setQuestions, setName };
-            setDebugInfo[setName] = {
-                seed: setSeed,
-                questionIds: setQuestions.flatMap(s => s.type === 'OR_GROUP' ? [...s.choice1.questions.map((q: any) => q.id), ...s.choice2.questions.map((q: any) => q.id)] : s.questions.map((q: any) => q.id))
+            generatedSets[setName] = {
+                questions: setQuestions,
+                setName,
+                answerSheet: { setId: setName, answers: setAnswerSheet }
             };
-        }
+            setDebugInfo[setName] = {
+                questionIds: setQuestions.flatMap(s => s.type === 'OR_GROUP' ? [s.choice1.questions[0].id, s.choice2.questions[0].id] : [s.questions[0].id])
+            };
 
-        // Overlap Validation
-        console.log("=== GENERATION OVERLAP VALIDATION ===");
-        for (let i = 0; i < sets.length; i++) {
-            for (let j = i + 1; j < sets.length; j++) {
-                const set1Ids = new Set(setDebugInfo[sets[i]].questionIds || []);
-                const intersection = (setDebugInfo[sets[j]]?.questionIds || []).filter((id: string) => set1Ids.has(id));
-                const overlap = (intersection.length / Math.max(set1Ids.size, 1)) * 100;
-                console.log(`[OVERLAP] Set ${sets[i]} vs Set ${sets[j]}: ${overlap.toFixed(2)}% overlap`);
-
-                if (overlap === 100 && allQuestions.length > set1Ids.size) {
-                    throw new Error(`Invalid generation: Set ${sets[i]} and Set ${sets[j]} are identical. Check question pool diversity.`);
-                }
+            // Rule 4: Overlap Constraint (<50%)
+            for (const prevSet of Object.keys(generatedSets)) {
+                if (prevSet === setName) continue;
+                const prevIds = new Set(setDebugInfo[prevSet].questionIds);
+                const intersection = setDebugInfo[setName].questionIds.filter((id: string) => prevIds.has(id));
+                const overlap = (intersection.length / Math.max(prevIds.size, 1)) * 100;
+                if (overlap > 50) throw new Error(`Set Variety Violation: ${setName} vs ${prevSet} overlap ${overlap.toFixed(2)}% > 50%`);
             }
         }
 
@@ -455,38 +259,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return json({ sets: generatedSets, template_config, debug: setDebugInfo });
         }
 
-        // 3. PERSIST THE PAPER
+        // 4. PERSISTENCE
         const paperRes = await db.query(
             `INSERT INTO assessment_papers (
-                university_id, batch_id, branch_id, subject_id, 
-                exam_type, semester, paper_date, 
-                duration_minutes, max_marks, template_id, sets_data
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-            RETURNING id`,
+                university_id, batch_id, branch_id, subject_id, exam_type, semester, 
+                paper_date, duration_minutes, max_marks, template_id, sets_data
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
             [
-                university_id, batch_id, branch_id, subject_id,
-                exam_type ?? 'MID1', semester, paper_date,
-                duration_minutes, max_marks, template_id,
+                university_id, batch_id, branch_id, subject_id, exam_type || 'MID1', semester,
+                paper_date, duration_minutes, max_marks, template_id,
                 JSON.stringify({
                     ...generatedSets,
                     debug: setDebugInfo,
-                    metadata: {
-                        unit_ids,
-                        generation_mode,
-                        part_a_type,
-                        sets_config,
-                        selected_template: isVGUTemplate ? 'vgu' : selected_template,
-                        exam_time,
-                        course_code,
-                        exam_title,
-                        instructions,
-                        template_config
-                    }
+                    metadata: { unit_ids, generation_mode, part_a_type, sets_config, exam_time, course_code, exam_title, instructions, template_config }
                 })
             ]
         );
 
-        return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config, debug: setDebugInfo });
+        return json({ id: paperRes.rows[0].id, sets: generatedSets, template_config });
+
     } catch (err: any) {
         console.error('Generation Error:', err);
         throw error(500, err.message || 'Failed to generate paper');
