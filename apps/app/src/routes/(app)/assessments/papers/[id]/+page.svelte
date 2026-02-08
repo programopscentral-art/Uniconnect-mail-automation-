@@ -951,7 +951,7 @@
             <div
               class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
             ></div>
-            V2.2.6 - UI FIXED
+            V2.2.7 - ANS KEY READY
           </div>
         </div>
 
