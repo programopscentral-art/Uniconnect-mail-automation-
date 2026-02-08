@@ -23,9 +23,27 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const result = await db.query('SELECT sets_data FROM assessment_papers WHERE id = $1', [paperId]);
     if (result.rows.length === 0) throw error(404, 'Paper not found');
 
-    const paperData = result.rows[0].sets_data;
-    const setData = paperData[setName];
-    if (!setData || !setData.answerSheet) throw error(404, `Answer sheet for Set ${setName} not found`);
+    let paperData = result.rows[0].sets_data;
+    if (typeof paperData === 'string') {
+        try {
+            paperData = JSON.parse(paperData);
+        } catch (e) {
+            throw error(500, 'Failed to parse sets_data');
+        }
+    }
+
+    const setData = paperData[setName] || paperData[setName.toLowerCase()];
+    if (!setData) {
+        console.error(`[ANS_KEY] Set ${setName} not found in paper ${paperId}`);
+        throw error(404, `Set ${setName} not found in paper`);
+    }
+
+    if (!setData.answerSheet) {
+        console.warn(`[ANS_KEY] Answer sheet for Set ${setName} missing in paper ${paperId}. Returning empty skeleton.`);
+        return format === 'csv'
+            ? new Response('QuestionID,CorrectOption,Explanation\n', { headers: { 'Content-Type': 'text/csv' } })
+            : json({ setId: setName, answers: [] });
+    }
 
     const { answers } = setData.answerSheet;
 
@@ -62,6 +80,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             paper_date,
             exam_time,
             duration_minutes,
+            max_marks,
             course_code,
             exam_title,
             instructions,
@@ -199,8 +218,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         });
 
                         // Store answers for BOTH (Step 6)
-                        if (q1.options?.length > 0) setAnswerSheet.push({ questionId: q1.id, correctOption: q1.correct_option, explanation: q1.explanation });
-                        if (q2.options?.length > 0) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.correct_option, explanation: q2.explanation });
+                        if (q1.options?.length > 0 || q1.answer_key) setAnswerSheet.push({ questionId: q1.id, correctOption: q1.answer_key || '', explanation: q1.explanation || '' });
+                        if (q2.options?.length > 0 || q2.answer_key) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.answer_key || '', explanation: q2.explanation || '' });
 
                     } else {
                         const q = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: slot.id, setName });
@@ -210,8 +229,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             questions: [q]
                         });
 
-                        if (q.options?.length > 0) {
-                            setAnswerSheet.push({ questionId: q.id, correctOption: q.correct_option, explanation: q.explanation });
+                        if (q.options?.length > 0 || q.answer_key) {
+                            setAnswerSheet.push({ questionId: q.id, correctOption: q.answer_key || '', explanation: q.explanation || '' });
                         }
                     }
                 }
