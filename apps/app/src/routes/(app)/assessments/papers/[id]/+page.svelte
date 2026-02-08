@@ -1108,6 +1108,7 @@
             courseOutcomes={data.courseOutcomes}
             questionPool={data.questionPool}
             mode="edit"
+            onSwap={handleSetUpdate}
           />
         {:else if selectedTemplate === "crescent"}
           <CrescentTemplate
@@ -1118,6 +1119,7 @@
             courseOutcomes={data.courseOutcomes}
             questionPool={data.questionPool}
             mode="edit"
+            onSwap={handleSetUpdate}
           />
         {:else}
           <StandardTemplate
@@ -1128,6 +1130,7 @@
             courseOutcomes={data.courseOutcomes}
             questionPool={data.questionPool}
             mode="edit"
+            onSwap={handleSetUpdate}
           />
         {/if}
       </div>
