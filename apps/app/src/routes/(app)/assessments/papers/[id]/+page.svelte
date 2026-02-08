@@ -12,6 +12,7 @@
   // Local state for editing
   let activeSet = $state("A");
   const availableSets = $state(["A", "B", "C", "D"]);
+  let showSaveModal = $state(false);
 
   // Absolute Template Enforcement
   // The university name and ID are the ultimate source of truth
@@ -136,6 +137,8 @@
     const paper = data?.paper;
 
     const defaultMeta = {
+      assessment_title: "New Assessment",
+      exam_type: "MID1",
       paper_date: "",
       exam_time: "",
       duration_minutes: "180",
@@ -227,6 +230,10 @@
     }
 
     return {
+      assessment_title:
+        meta.assessment_title ||
+        `Assessment for ${paper.subject_name || "Subject"}`,
+      exam_type: paper.exam_type || meta.exam_type || "MID1",
       paper_date:
         meta.paper_date ||
         (typeof paper.paper_date === "string"
@@ -287,7 +294,10 @@
               duration_minutes: Number(paperMeta.duration_minutes),
             },
           },
-          ...paperMeta,
+          paper_date: paperMeta.paper_date,
+          exam_type: paperMeta.exam_type,
+          duration_minutes: Number(paperMeta.duration_minutes),
+          max_marks: Number(paperMeta.max_marks),
         }),
         headers: { "Content-Type": "application/json" },
       });
@@ -827,7 +837,7 @@
       </a>
 
       <button
-        onclick={saveChanges}
+        onclick={() => (showSaveModal = true)}
         disabled={isSaving}
         class="inline-flex items-center px-6 py-3 bg-green-600 text-white text-[11px] font-black rounded-xl hover:bg-green-700 transition-all shadow-lg shadow-green-900/40 disabled:opacity-50 active:scale-95 flex-shrink-0"
       >
@@ -1018,6 +1028,110 @@
     {/if}
   </div>
 </div>
+
+{#if showSaveModal}
+  <div
+    class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+    transition:fade
+  >
+    <div
+      class="glass rounded-[3rem] w-full max-w-lg p-10 shadow-2xl border border-white/10"
+      transition:fly={{ y: 30, duration: 500 }}
+    >
+      <div class="flex items-center gap-4 mb-8">
+        <div
+          class="w-12 h-12 rounded-2xl bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-500/20"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2.5"
+              d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+            /></svg
+          >
+        </div>
+        <div>
+          <h3 class="text-2xl font-black text-white uppercase tracking-tighter">
+            Save Assessment
+          </h3>
+          <p
+            class="text-[10px] font-black text-green-500 uppercase tracking-widest mt-1"
+          >
+            Finalize and Label Paper
+          </p>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div class="space-y-2 text-white">
+          <label
+            class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
+            >Assessment Title (Internal Tracking)</label
+          >
+          <input
+            type="text"
+            bind:value={paperMeta.assessment_title}
+            class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
+            placeholder="e.g. Mid Term Exam Nov 2025"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
+              >Exam Type</label
+            >
+            <select
+              bind:value={paperMeta.exam_type}
+              class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
+            >
+              <option value="MID1">MID-1</option>
+              <option value="MID2">MID-2</option>
+              <option value="SEM">SEMESTER</option>
+              <option value="SUPPLY">SUPPLEMENTARY</option>
+              <option value="PRACTICAL">PRACTICAL</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
+              >Exam Date</label
+            >
+            <input
+              type="date"
+              bind:value={paperMeta.paper_date}
+              class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button
+            onclick={() => (showSaveModal = false)}
+            class="flex-1 py-4 bg-white/5 text-gray-400 text-[10px] font-black uppercase tracking-widest rounded-2xl border border-white/5 hover:bg-white/10 transition-all"
+            >CANCEL</button
+          >
+          <button
+            onclick={async () => {
+              await saveChanges();
+              showSaveModal = false;
+            }}
+            disabled={isSaving}
+            class="flex-[2] py-4 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-green-700 transition-all shadow-xl shadow-green-500/20 disabled:opacity-50"
+          >
+            {isSaving ? "PERSISTING..." : "SAVE & PERSIST"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   @media print {

@@ -9,7 +9,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     const body = await request.json();
 
     // We expect sets_data to be updated
-    const { sets_data, paper_date, duration_minutes, max_marks, ...metadata } = body;
+    const { sets_data, paper_date, duration_minutes, max_marks, exam_type, ...metadata } = body;
 
     // We store metadata inside the sets_data JSON structure for full persistence
     const setsWithMeta = sets_data ? {
@@ -24,14 +24,16 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
                  paper_date = COALESCE($2, paper_date),
                  duration_minutes = COALESCE($3, duration_minutes::integer),
                  max_marks = COALESCE($4, max_marks::integer),
+                 exam_type = COALESCE($5, exam_type),
                  updated_at = NOW()
-             WHERE id = $5
+             WHERE id = $6
              RETURNING *`,
             [
                 setsWithMeta ? JSON.stringify(setsWithMeta) : null,
                 paper_date,
                 duration_minutes,
                 max_marks,
+                exam_type,
                 id
             ]
         );

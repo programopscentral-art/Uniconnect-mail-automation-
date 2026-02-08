@@ -58,13 +58,27 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             [subjectId]
         );
 
+        // Fetch Saved Papers
+        const { rows: papers } = await db.query(
+            `SELECT id, exam_type, paper_date, max_marks, created_at,
+                    sets_data->'metadata'->>'assessment_title' as title
+             FROM assessment_papers
+             WHERE subject_id = $1
+             ORDER BY created_at DESC`,
+            [subjectId]
+        );
+
         return {
             subject,
             units,
             allTopics,
             allQuestions,
             courseOutcomes,
-            practicals
+            practicals,
+            papers: papers.map(p => ({
+                ...p,
+                title: p.title || `${p.exam_type} - ${new Date(p.paper_date).toLocaleDateString()}`
+            }))
         };
     } catch (err: any) {
         console.error('[SUBJECT_LOAD] Error:', err);
