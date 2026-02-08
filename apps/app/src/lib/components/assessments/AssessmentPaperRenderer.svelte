@@ -23,6 +23,7 @@
 
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
+  let swapCounter = $state(0);
   const isEditable = $derived(mode === "edit" || mode === "preview");
 
   // Default Layout Settings
@@ -329,6 +330,13 @@
       part: swapContext.part,
     };
 
+    // Use actual question ID for better Svelte 5 list tracking
+    nQ.id = question.id;
+    if (nQ.id === swapContext.slotId) {
+      // Avoid collision if for some reason the slot ID is same as question ID
+      nQ.id = `${question.id}-${Date.now()}`;
+    }
+
     if (index !== -1) {
       const slot = arr[index];
       if (slot.type === "OR_GROUP") {
@@ -385,6 +393,7 @@
       onSwap($state.snapshot(currentSetData));
     }
 
+    swapCounter++;
     isSwapSidebarOpen = false;
   }
 
@@ -769,156 +778,174 @@
         <!-- Paper Metadata Table (Non-VGU only) -->
         {#if layout.style !== "vgu"}
           {#if layoutSchema?.showMetadataTable}
-            <table
-              class="w-full border-collapse border border-black text-[9pt] mb-8"
-            >
-              <tbody>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_student || "Name of the Student"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_student")}
-                    />
-                  </td>
-                  <td
-                    colspan="3"
-                    class="border border-black p-2 italic text-gray-400"
-                    >:
-                    __________________________________________________________________</td
-                  >
-                </tr>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_enroll || "Enrollment No."}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_enroll")}
-                    />
-                  </td>
-                  <td
-                    colspan="3"
-                    class="border border-black p-2 italic text-gray-400"
-                    >:
-                    __________________________________________________________________</td
-                  >
-                </tr>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_programme || "Programme"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_programme")}
-                    />
-                  </td>
-                  <td colspan="3" class="border border-black p-2">
-                    <div class="flex gap-2">
-                      <span>:</span>
+            {#key activeSet + swapCounter}
+              <table
+                class="w-full border-collapse border-[1.2pt] border-black text-sm"
+              >
+                <thead>
+                  <tr class="bg-gray-50/50">
+                    <th class="border border-black p-2 font-bold bg-gray-50/10"
+                      >Particulars</th
+                    >
+                    <th class="border border-black p-2 font-bold bg-gray-50/10"
+                      >Details</th
+                    >
+                    <th class="border border-black p-2 font-bold bg-gray-50/10"
+                      >Particulars</th
+                    >
+                    <th class="border border-black p-2 font-bold bg-gray-50/10"
+                      >Details</th
+                    >
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
                       <AssessmentEditable
-                        value={paperMeta.programme}
+                        value={paperMeta.lbl_student || "Name of the Student"}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "programme")}
-                        class="flex-1"
+                          updateText(v, "META", "lbl_student")}
                       />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_semester || "Semester"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_semester")}
-                    />
-                  </td>
-                  <td class="border border-black p-2 w-[30%]">
-                    <div class="flex gap-2">
-                      <span>:</span>
+                    </td>
+                    <td
+                      colspan="3"
+                      class="border border-black p-2 italic text-gray-400"
+                      >:
+                      __________________________________________________________________</td
+                    >
+                  </tr>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
                       <AssessmentEditable
-                        value={paperMeta.semester}
+                        value={paperMeta.lbl_enroll || "Enrollment No."}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "semester")}
+                          updateText(v, "META", "lbl_enroll")}
                       />
-                    </div>
-                  </td>
-                  <td
-                    class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
-                  >
-                    <AssessmentEditable
-                      value={paperMeta.lbl_date_session || "Date & Session"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_date_session")}
-                    />
-                  </td>
-                  <td class="border border-black p-2 w-[30%]">
-                    <div class="flex gap-2">
-                      <span>:</span>
+                    </td>
+                    <td
+                      colspan="3"
+                      class="border border-black p-2 italic text-gray-400"
+                      >:
+                      __________________________________________________________________</td
+                    >
+                  </tr>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
                       <AssessmentEditable
-                        value={paperMeta.paper_date}
+                        value={paperMeta.lbl_programme || "Programme"}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "paper_date")}
+                          updateText(v, "META", "lbl_programme")}
                       />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_course || "Course Code & Name"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_course")}
-                    />
-                  </td>
-                  <td colspan="3" class="border border-black p-2">
-                    <div class="flex gap-2">
-                      <span>:</span>
+                    </td>
+                    <td colspan="3" class="border border-black p-2">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.programme}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "programme")}
+                          class="flex-1"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
                       <AssessmentEditable
-                        value={paperMeta.subject_name}
+                        value={paperMeta.lbl_semester || "Semester"}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "subject_name")}
+                          updateText(v, "META", "lbl_semester")}
                       />
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_duration || "Duration"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_duration")}
-                    />
-                  </td>
-                  <td class="border border-black p-2">
-                    <div class="flex gap-2">
-                      <span>:</span>
+                    </td>
+                    <td class="border border-black p-2 w-[30%]">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.semester}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "semester")}
+                        />
+                      </div>
+                    </td>
+                    <td
+                      class="border border-black p-2 w-[20%] font-bold bg-gray-50/10"
+                    >
                       <AssessmentEditable
-                        value={paperMeta.duration_minutes}
+                        value={paperMeta.lbl_date_session || "Date & Session"}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "duration_minutes")}
+                          updateText(v, "META", "lbl_date_session")}
                       />
-                      <span>minutes</span>
-                    </div>
-                  </td>
-                  <td class="border border-black p-2 font-bold bg-gray-50/10">
-                    <AssessmentEditable
-                      value={paperMeta.lbl_max_marks || "Maximum Marks"}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "lbl_max_marks")}
-                    />
-                  </td>
-                  <td class="border border-black p-2">
-                    <div class="flex gap-2">
-                      <span>:</span>
+                    </td>
+                    <td class="border border-black p-2 w-[30%]">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.paper_date}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "paper_date")}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
                       <AssessmentEditable
-                        value={paperMeta.max_marks}
+                        value={paperMeta.lbl_course || "Course Code & Name"}
                         onUpdate={(v: string) =>
-                          updateText(v, "META", "max_marks")}
+                          updateText(v, "META", "lbl_course")}
                       />
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    </td>
+                    <td colspan="3" class="border border-black p-2">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.subject_name}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "subject_name")}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
+                      <AssessmentEditable
+                        value={paperMeta.lbl_duration || "Duration"}
+                        onUpdate={(v: string) =>
+                          updateText(v, "META", "lbl_duration")}
+                      />
+                    </td>
+                    <td class="border border-black p-2">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.duration_minutes}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "duration_minutes")}
+                        />
+                        <span>minutes</span>
+                      </div>
+                    </td>
+                    <td class="border border-black p-2 font-bold bg-gray-50/10">
+                      <AssessmentEditable
+                        value={paperMeta.lbl_max_marks || "Maximum Marks"}
+                        onUpdate={(v: string) =>
+                          updateText(v, "META", "lbl_max_marks")}
+                      />
+                    </td>
+                    <td class="border border-black p-2">
+                      <div class="flex gap-2">
+                        <span>:</span>
+                        <AssessmentEditable
+                          value={paperMeta.max_marks}
+                          onUpdate={(v: string) =>
+                            updateText(v, "META", "max_marks")}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            {/key}
           {:else}
             <div
               class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-8 border-b-2 border-black pb-4"
@@ -1188,52 +1215,55 @@
                   onfinalize={(e) =>
                     handleDndSync(section.part, (e.detail as any).items)}
                 >
-                  {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
-                    {#if q && q.part === section.part}
-                      {@const qNum =
-                        (Array.isArray(currentSetData.questions)
-                          ? currentSetData.questions
-                          : []
-                        )
-                          .filter((x) => x && x.part === section.part)
-                          .findIndex((x) => x.id === q.id) + 1}
+                  {#key activeSet + swapCounter}
+                    {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
+                      {#if q && q.part === section.part}
+                        {@const qNum =
+                          (Array.isArray(currentSetData.questions)
+                            ? currentSetData.questions
+                            : []
+                          )
+                            .filter((x) => x && x.part === section.part)
+                            .findIndex((x) => x.id === q.id) + 1}
 
-                      <div
-                        class={section.part === "A"
-                          ? "border-b border-black"
-                          : "border-2 border-black mb-6 shadow-sm"}
-                      >
-                        {#if q.type === "OR_GROUP"}
-                          <AssessmentSlotOrGroup
-                            slot={q}
-                            qNumber={getSnoStart(section.part) + (qNum - 1) * 2}
-                            {isEditable}
-                            snoWidth={35}
-                            onSwap1={() =>
-                              openSwapSidebar(q, section.part, "q1")}
-                            onSwap2={() =>
-                              openSwapSidebar(q, section.part, "q2")}
-                            onRemove={() => removeQuestion(q)}
-                            onUpdateText1={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                            onUpdateText2={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                          />
-                        {:else}
-                          <AssessmentSlotSingle
-                            slot={q}
-                            qNumber={getSnoStart(section.part) + (qNum - 1)}
-                            {isEditable}
-                            snoWidth={35}
-                            onSwap={() => openSwapSidebar(q, section.part)}
-                            onRemove={() => removeQuestion(q)}
-                            onUpdateText={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                          />
-                        {/if}
-                      </div>
-                    {/if}
-                  {/each}
+                        <div
+                          class={section.part === "A"
+                            ? "border-b border-black"
+                            : "border-2 border-black mb-6 shadow-sm"}
+                        >
+                          {#if q.type === "OR_GROUP"}
+                            <AssessmentSlotOrGroup
+                              slot={q}
+                              qNumber={getSnoStart(section.part) +
+                                (qNum - 1) * 2}
+                              {isEditable}
+                              snoWidth={35}
+                              onSwap1={() =>
+                                openSwapSidebar(q, section.part, "q1")}
+                              onSwap2={() =>
+                                openSwapSidebar(q, section.part, "q2")}
+                              onRemove={() => removeQuestion(q)}
+                              onUpdateText1={(v: string, qid: string) =>
+                                updateText(v, "QUESTION", "text", q.id, qid)}
+                              onUpdateText2={(v: string, qid: string) =>
+                                updateText(v, "QUESTION", "text", q.id, qid)}
+                            />
+                          {:else}
+                            <AssessmentSlotSingle
+                              slot={q}
+                              qNumber={getSnoStart(section.part) + (qNum - 1)}
+                              {isEditable}
+                              snoWidth={35}
+                              onSwap={() => openSwapSidebar(q, section.part)}
+                              onRemove={() => removeQuestion(q)}
+                              onUpdateText={(v: string, qid: string) =>
+                                updateText(v, "QUESTION", "text", q.id, qid)}
+                            />
+                          {/if}
+                        </div>
+                      {/if}
+                    {/each}
+                  {/key}
                 </div>
               </div>
             {/if}
