@@ -1,4 +1,4 @@
-import { db } from '@uniconnect/shared';
+import { db, getAssessmentQuestions } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -20,10 +20,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
         const topic = topicRows[0];
         if (!topic) throw error(404, 'Topic not found');
 
-        const { rows: questions } = await db.query(
-            'SELECT * FROM assessment_questions WHERE topic_id = $1 ORDER BY created_at DESC',
-            [topicId]
-        );
+        const questions = await getAssessmentQuestions(topicId);
 
         // Fetch Course Outcomes for the subject
         const { rows: courseOutcomes } = await db.query(

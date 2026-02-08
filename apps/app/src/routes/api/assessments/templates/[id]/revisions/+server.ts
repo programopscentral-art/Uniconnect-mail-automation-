@@ -1,15 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import { db } from '@uniconnect/shared';
+import { getAssessmentTemplateRevisions } from '@uniconnect/shared';
 
 export const GET = async ({ params, locals }: { params: any, locals: any }) => {
     if (!locals.user) throw error(401);
     const { id } = params;
 
     try {
-        const { rows: revisions } = await db.query(
-            'SELECT * FROM assessment_template_revisions WHERE template_id = $1 ORDER BY created_at DESC',
-            [id]
-        );
+        const revisions = await getAssessmentTemplateRevisions(id);
         return json({ success: true, revisions });
     } catch (e: any) {
         console.error(e);

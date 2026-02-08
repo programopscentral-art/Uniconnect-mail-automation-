@@ -1,4 +1,4 @@
-import { db } from '@uniconnect/shared';
+import { db, getAssessmentUnits, getAssessmentTopics, createAssessmentTopic, deleteAssessmentTopic } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -9,10 +9,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (!subjectId) throw error(400, 'Subject ID is required');
 
     try {
-        const { rows: units } = await db.query(
-            `SELECT * FROM assessment_units WHERE subject_id = $1 ORDER BY unit_number ASC`,
-            [subjectId]
-        );
+        const units = await getAssessmentUnits(subjectId);
 
         const getStrictDisplay = (name: string): string => {
             if (!name) return 'General';
@@ -36,10 +33,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         };
 
         const unitsWithTopics = await Promise.all(units.map(async (u) => {
-            const { rows: topics } = await db.query(
-                'SELECT * FROM assessment_topics WHERE unit_id = $1 ORDER BY name ASC',
-                [u.id]
-            );
+            const topics = await getAssessmentTopics(u.id);
 
             // Fetch questions and their topics for this unit
             const { rows: unitQuestions } = await db.query(
@@ -134,13 +128,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
-        const { rows } = await db.query(
-            `INSERT INTO assessment_topics (unit_id, name)
-            VALUES ($1, $2)
-            RETURNING *`,
-            [body.unit_id, body.name]
-        );
-        return json(rows[0]);
+        const topic = await createAssessmentTopic(body);
+        return json(topic);
     } catch (err: any) {
         throw error(500, err.message);
     }
@@ -153,7 +142,7 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     if (!id) throw error(400, 'ID is required');
 
     try {
-        await db.query('DELETE FROM assessment_topics WHERE id = $1', [id]);
+        await deleteAssessmentTopic(id);
         return json({ success: true });
     } catch (err: any) {
         throw error(500, err.message);

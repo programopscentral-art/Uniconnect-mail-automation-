@@ -97,10 +97,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const questionsRes = await db.query(query, params);
 
         // NORMALIZE TOPICS & SHUFFLE
-        const allQuestions = questionsRes.rows.map((q: any) => ({
+        let allQuestions = questionsRes.rows.map((q: any) => ({
             ...q,
             topic_name: getStrictDisplay(q.raw_topic_name)
-        })).sort(() => Math.random() - 0.5);
+        }));
+
+        // Fisher-Yates Shuffle for better variety
+        for (let i = allQuestions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+        }
 
         const allPossibleUnitIdsArr = [...new Set(allQuestions.map(q => q.unit_id))];
 
@@ -214,10 +220,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     setUnitIdx++;
                 }
 
-                // Variety across sets
+                // Variety across sets (globalExcluded)
+                // We only use varietyPool if it has enough questions to fulfill the request, 
+                // but at minimum we MUST respect within-set uniqueness (pool).
                 const varietyPool = choicePool.filter((q: any) => !globalExcluded.has(q.id) && !globalExcludedTexts.has(normalizeText(q.question_text)));
+
+                // If varietyPool is empty, it means we have no "new" questions left across sets.
+                // We fallback to choicePool so we can still fulfill the paper, but we prioritize varietyPool.
                 const finalPool = varietyPool.length > 0 ? varietyPool : choicePool;
 
+                // Within-SET uniqueness is already guaranteed by 'pool' filtering at line 185.
                 const choice = finalPool[Math.floor(random() * finalPool.length)];
 
                 // CRITICAL: Update used IDs and texts immediately
@@ -309,15 +321,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         console.log("=== GENERATION OVERLAP VALIDATION ===");
         for (let i = 0; i < sets.length; i++) {
             for (let j = i + 1; j < sets.length; j++) {
-                const set1Ids = new Set(setDebugInfo[sets[i]].questionIds);
-                const intersection = setDebugInfo[sets[j]].questionIds.filter((id: string) => set1Ids.has(id));
+                const set1Ids = new Set(setDebugInfo[sets[i]].questionIds || []);
+                const intersection = (setDebugInfo[sets[j]].questionIds || []).filter((id: string) => set1Ids.has(id));
                 const overlap = (intersection.length / Math.max(set1Ids.size, 1)) * 100;
                 console.log(`[OVERLAP] Set ${sets[i]} vs Set ${sets[j]}: ${overlap.toFixed(2)}% overlap`);
-                if (overlap === 100) {
+
+                // Only throw if overlap is 100% AND we have enough questions to avoid it
+                if (overlap === 100 && allQuestions.length > set1Ids.size) {
                     throw new Error(`Invalid generation: Set ${sets[i]} and Set ${sets[j]} are identical. Check question pool diversity.`);
-                }
-                if (overlap > 30) {
-                    console.warn(`[WARNING] High overlap detected between Set ${sets[i]} and ${sets[j]}: ${overlap.toFixed(2)}%`);
                 }
             }
         }
