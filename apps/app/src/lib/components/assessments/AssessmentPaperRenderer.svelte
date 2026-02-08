@@ -307,11 +307,11 @@
     const index = arr.findIndex((s: any) => s.id === swapContext.slotId);
 
     const nQ = {
-      id: swapContext.slotId, // CRITICAL: Keep original slot ID
+      id: question.id, // Actual DB ID for the question data
       question_id: question.id,
-      text: question.question_text || question.text,
-      question_text: question.question_text || question.text,
-      marks: swapContext.slotMarks || question.marks,
+      text: question.question_text || question.text || "",
+      question_text: question.question_text || question.text || "",
+      marks: swapContext.slotMarks || question.marks || 0,
       options: Array.isArray(question.options) ? [...question.options] : null,
       image_url: question.image_url,
       bloom_level: question.bloom_level || question.bloom,
@@ -330,15 +330,9 @@
       part: swapContext.part,
     };
 
-    // Use actual question ID for better Svelte 5 list tracking
-    nQ.id = question.id;
-    if (nQ.id === swapContext.slotId) {
-      // Avoid collision if for some reason the slot ID is same as question ID
-      nQ.id = `${question.id}-${Date.now()}`;
-    }
-
     if (index !== -1) {
       const slot = arr[index];
+      // Keep SLOTS stable by maintaining the slot ID at the top level
       if (slot.type === "OR_GROUP") {
         if (swapContext.subPart === "q1") {
           arr[index] = {
@@ -354,14 +348,20 @@
           };
         }
       } else {
-        // VGU structure: slot has a nested questions array
+        // VGU / Standard structure: slot has a nested questions array
         arr[index] = {
           ...slot,
           questions: [nQ],
           marks: nQ.marks,
+          text: nQ.text,
+          options: nQ.options,
+          image_url: nQ.image_url,
+          bloom_level: nQ.bloom_level,
+          target_co: nQ.target_co,
         };
       }
     } else {
+      // Create a NEW slot if it didn't exist (uncommon for VGU but good for fallback)
       const newSlot = {
         id: swapContext.slotId,
         slot_id: swapContext.slotId,
@@ -369,6 +369,8 @@
         part: swapContext.part,
         questions: [nQ],
         marks: nQ.marks,
+        text: nQ.text,
+        options: nQ.options,
       };
       arr.push(newSlot);
     }
