@@ -211,17 +211,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             for (let i = 0; i < targetCount; i++) {
                 let found = false;
-                // Step 3: Swap Logic (Search for next valid question)
+
+                // PRIORITY 1: Cross-Set Variety (Search for question not used in ANY set)
                 for (let j = 0; j < mcqPool.length; j++) {
                     const candidate = mcqPool[j];
                     const id = candidate.id;
                     const text = normalizeText(candidate.question_text);
                     const hash = createQuestionHash(candidate);
 
-                    const isDuplicate = usedIds.has(id) || usedTexts.has(text) || usedHashes.has(hash) ||
-                        globalIds.has(id) || globalTexts.has(text) || globalHashes.has(hash);
+                    const isGlobalDuplicate = globalIds.has(id) || globalTexts.has(text) || globalHashes.has(hash);
+                    const isWithinSetDuplicate = usedIds.has(id) || usedTexts.has(text) || usedHashes.has(hash);
 
-                    if (!isDuplicate) {
+                    if (!isGlobalDuplicate && !isWithinSetDuplicate) {
                         selected.push(candidate);
                         usedIds.add(id);
                         usedTexts.add(text);
@@ -229,14 +230,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         globalIds.add(id);
                         globalTexts.add(text);
                         globalHashes.add(hash);
-                        mcqPool.splice(j, 1); // Remove from pool immediately (Swap Logic byproduct)
+                        mcqPool.splice(j, 1);
                         found = true;
                         break;
                     }
                 }
 
+                // PRIORITY 2: Graceful Fallback (Allow cross-set duplicates, but STICK to within-set uniqueness)
                 if (!found) {
-                    throw new Error(`[FAIL LOUDLY] Pool exhausted for Set ${setName}. Cannot fulfill ${targetCount} unique MCQs. Pool search failed.`);
+                    for (let j = 0; j < mcqPool.length; j++) {
+                        const candidate = mcqPool[j];
+                        const id = candidate.id;
+                        const text = normalizeText(candidate.question_text);
+                        const hash = createQuestionHash(candidate);
+
+                        const isWithinSetDuplicate = usedIds.has(id) || usedTexts.has(text) || usedHashes.has(hash);
+
+                        if (!isWithinSetDuplicate) {
+                            selected.push(candidate);
+                            usedIds.add(id);
+                            usedTexts.add(text);
+                            usedHashes.add(hash);
+                            // Important: We don't add to global sets here to allow other papers to also "borrow" this if needed
+                            mcqPool.splice(j, 1);
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) {
+                    throw new Error(`[FAIL LOUDLY] Pool exhausted for Set ${setName}. Cannot fulfill ${targetCount} unique MCQs even with fallback. Pool search failed.`);
                 }
             }
 
