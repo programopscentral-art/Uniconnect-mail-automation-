@@ -135,6 +135,7 @@
 
     // CRITICAL: Trigger persistence after text update
     if (onSwap) {
+      rebuildAnswerSheet();
       onSwap($state.snapshot(currentSetData));
     }
   }
@@ -150,8 +151,42 @@
 
     // CRITICAL: Trigger persistence after deletion
     if (onSwap) {
+      rebuildAnswerSheet();
       onSwap($state.snapshot(currentSetData));
     }
+  }
+
+  function rebuildAnswerSheet() {
+    if (Array.isArray(currentSetData)) return; // Only for object-based sets
+
+    const arr = currentSetData.questions || [];
+    const newAnswers = [];
+
+    arr.forEach((slot) => {
+      const qs = [];
+      if (slot.type === "OR_GROUP") {
+        if (slot.choice1?.questions) qs.push(...slot.choice1.questions);
+        if (slot.choice2?.questions) qs.push(...slot.choice2.questions);
+      } else {
+        if (slot.questions) qs.push(...slot.questions);
+        else qs.push(slot); // Fallback for flattened slots
+      }
+
+      qs.forEach((q) => {
+        if (q && (q.options?.length > 0 || q.answer_key || q.answer)) {
+          newAnswers.push({
+            questionId: q.question_id || q.id,
+            correctOption: q.answer_key || q.answer || "",
+            explanation: q.explanation || "",
+          });
+        }
+      });
+    });
+
+    currentSetData.answerSheet = {
+      setId: activeSet,
+      answers: newAnswers,
+    };
   }
 
   function openSwapSidebar(slot: any, part: string, subPart?: "q1" | "q2") {
@@ -345,6 +380,7 @@
 
     // Call persistence callback if provided
     if (onSwap && typeof onSwap === "function") {
+      rebuildAnswerSheet();
       // Pass a fresh snapshot to avoid proxy-related delay or mutation issues in parent
       onSwap($state.snapshot(currentSetData));
     }

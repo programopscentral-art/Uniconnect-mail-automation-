@@ -302,13 +302,11 @@
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        // alert("Changes saved successfully!");
-        // Refresh local data from server after successful persistence
+        // Refresh local data from server for standard SvelteKit state
         await invalidateAll();
-        // Svelte 5: editableSets is NOT automatically reactive to data changes after init
-        // We must manually re-sync to ensure local state reflects DB reality precisely
-        editableSets = initializeSets();
-        paperMeta = initializeMeta();
+        // NOTE: We used to re-run initializeSets() here, but in Svelte 5 with deep state,
+        // re-initializing while the user might be making subsequent edits causes race conditions.
+        // The local editableSets is already the source of truth sent to the server.
         console.log("[PERSISTENCE] Sync complete.");
       }
     } catch (err) {
@@ -743,10 +741,14 @@
     if (!paperId) return;
 
     try {
+      // Re-save current state to ensure answer sheet is populated in DB before export
+      await saveChanges();
+
       const response = await fetch(
         `/api/assessments/generate?paperId=${paperId}&set=${activeSet}&format=${format}`,
       );
-      if (!response.ok) throw new Error("Failed to fetch answer sheet");
+      if (!response.ok)
+        throw new Error("Failed to fetch answer sheet from server");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -758,8 +760,122 @@
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
-      alert("Failed to download answer sheet");
+      alert(
+        "Failed to download answer sheet via API. Try the PDF version instead.",
+      );
     }
+  }
+
+  function downloadAnswerSheetPDF() {
+    const currentSet = editableSets[activeSet];
+    if (!currentSet) return;
+
+    const meta = paperMeta;
+    const questions = currentSet.questions || [];
+
+    const printWindow = window.open("", "_blank", "width=1100,height=900");
+    if (!printWindow) {
+      alert("Please allow popups to download the answer sheet");
+      return;
+    }
+
+    let answersHtml = "";
+    let qNum = 1;
+
+    // Helper to find question from pool or local list
+    const findQ = (id: string) =>
+      data.questionPool.find((q: any) => q.id === id);
+
+    questions.forEach((slot: any) => {
+      const qs: any[] = [];
+      if (slot.type === "OR_GROUP") {
+        if (slot.choice1?.questions?.[0]) qs.push(slot.choice1.questions[0]);
+        if (slot.choice2?.questions?.[0]) qs.push(slot.choice2.questions[0]);
+      } else {
+        const q = slot.questions?.[0] || slot;
+        if (q) qs.push(q);
+      }
+
+      qs.forEach((q) => {
+        const poolQ = findQ(q.question_id || q.id);
+        const ans = q.answer_key || q.answer || poolQ?.answer_key || "";
+
+        answersHtml += `
+            <div style="margin-bottom: 25px; page-break-inside: avoid; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px;">
+               <div style="font-weight: 800; font-size: 11pt; color: #1e293b; margin-bottom: 8px;">Q.${qNum++}. ${q.question_text || q.text || "No question text"}</div>
+               <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; margin-top: 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <span style="background: #4338ca; color: white; padding: 2px 8px; border-radius: 4px; font-size: 8pt; font-weight: 900; text-transform: uppercase;">Correct Solution</span>
+                  </div>
+                  <div style="font-size: 10pt; line-height: 1.6; color: #334155; font-family: 'Segoe UI', system-ui; white-space: pre-wrap;">${ans || "No solution provided in question bank."}</div>
+                  ${
+                    q.options &&
+                    Array.isArray(q.options) &&
+                    q.options.length > 0
+                      ? `<div style="margin-top: 12px; font-size: 9pt; color: #64748b; border-top: 1px dotted #cbd5e1; pt-8px; margin-top: 8px;">
+                      <strong>Options:</strong> ${q.options.join(", ")}
+                    </div>`
+                      : ""
+                  }
+               </div>
+            </div>
+         `;
+      });
+    });
+
+    const html = `
+      <html>
+        <head>
+          <title>Answer Key - ${meta.subject_name || "Assessment"} - Set ${activeSet}</title>
+          <style>
+             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap');
+             body { font-family: 'Inter', sans-serif; padding: 50px; color: #0f172a; line-height: 1.5; background: white; }
+             .header { text-align: center; border-bottom: 3px solid #0f172a; margin-bottom: 30px; padding-bottom: 20px; }
+             h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase; }
+             h2 { margin: 8px 0 0; font-size: 14px; color: #64748b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+             .meta-grid { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 40px; font-size: 10pt; background: #f1f5f9; padding: 15px; border-radius: 10px; }
+             .meta-item { border-left: 3px solid #4338ca; padding-left: 10px; }
+             .meta-label { font-weight: 800; color: #64748b; font-size: 8pt; text-transform: uppercase; display: block; }
+             .meta-value { font-weight: 700; color: #1e293b; }
+             @media print {
+               @page { size: A4; margin: 20mm; }
+               body { padding: 0; }
+               .no-print { display: none; }
+             }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+             <h1>ANSWER KEY & SOLUTIONS</h1>
+             <h2>FOR FACULTY USE ONLY</h2>
+          </div>
+          <div class="meta-grid">
+             <div class="meta-item">
+               <span class="meta-label">Subject & Course Code</span>
+               <span class="meta-value">${meta.subject_name || "N/A"} (${meta.course_code || "N/A"})</span>
+             </div>
+             <div class="meta-item">
+               <span class="meta-label">Set / Date</span>
+               <span class="meta-value">SET ${activeSet} • ${meta.paper_date || new Date().toLocaleDateString()}</span>
+             </div>
+          </div>
+          <div class="content">
+             ${answersHtml}
+          </div>
+          <script>
+            window.onload = () => {
+               setTimeout(() => { 
+                 window.focus();
+                 window.print(); 
+               }, 800);
+            }
+          </${"script"}>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   }
 </script>
 
@@ -900,9 +1016,8 @@
       </button>
 
       <button
-        onclick={() => downloadAnswerSheet("csv")}
-        aria-label="Download Answer Sheet"
-        class="inline-flex items-center px-4 py-3 bg-white/5 text-amber-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-amber-500/20"
+        onclick={() => downloadAnswerSheetPDF()}
+        class="inline-flex items-center px-4 py-3 bg-white/5 text-amber-400 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-amber-500/20 shadow-lg shadow-amber-900/10"
       >
         <svg
           class="w-3.5 h-3.5 mr-2"
@@ -913,10 +1028,17 @@
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2.5"
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
           /></svg
         >
-        ANS KEY
+        ANS PDF
+      </button>
+
+      <button
+        onclick={() => downloadAnswerSheet("csv")}
+        class="inline-flex items-center px-4 py-3 bg-white/5 text-gray-500 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-white/10"
+      >
+        CSV
       </button>
     </div>
   </div>

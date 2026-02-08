@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         let questionPool = [];
         if (unitIds.length > 0) {
             const { rows: pool } = await db.query(
-                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options,
+                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options, q.answer_key,
                         co.code as target_co
                  FROM assessment_questions q
                  LEFT JOIN assessment_course_outcomes co ON q.co_id = co.id
@@ -52,7 +52,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         } else {
             // Fallback: Fetch all questions for the subject
             const { rows: pool } = await db.query(
-                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options,
+                `SELECT q.id, q.question_text, q.marks, q.bloom_level, q.co_id, q.type, q.options, q.answer_key,
                         co.code as target_co
                  FROM assessment_questions q
                  JOIN assessment_units u ON q.unit_id = u.id
