@@ -313,6 +313,8 @@
       question_text: question.question_text || question.text || "",
       marks: swapContext.slotMarks || question.marks || 0,
       options: Array.isArray(question.options) ? [...question.options] : null,
+      answer_key: question.answer_key || question.answer || "",
+      explanation: question.explanation || "",
       image_url: question.image_url,
       bloom_level: question.bloom_level || question.bloom,
       k_level:
@@ -1108,78 +1110,80 @@
                   </tr>
 
                   <!-- QUESTION ROWS (Union of Structure and Questions) -->
-                  {#each section.slots && section.slots.length > 0 ? section.slots : sectionQuestions as structuralSlot, sidx}
-                    {@const q = section.slots?.length
-                      ? sectionQuestions.find(
-                          (sq) =>
-                            sq.id === structuralSlot.id ||
-                            sq.slot_id === structuralSlot.slot_id,
-                        )
-                      : structuralSlot}
-                    {#if q && q.id}
-                      <AssessmentVguSlot
-                        slot={q}
-                        qNumber={getSnoStart(section.part) + sidx}
-                        {isEditable}
-                        onSwap={() => openSwapSidebar(q, section.part)}
-                        onRemove={() => removeQuestion(q)}
-                        onUpdateText={(v: string, qid: string) =>
-                          updateText(v, "QUESTION", "text", q.id, qid)}
-                      />
-                    {:else if isEditable}
-                      <!-- SKELETON SLOT -->
-                      <tr
-                        class="border-b border-black opacity-40 bg-gray-50/10 group/row"
-                      >
-                        <td
-                          class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
+                  {#key activeSet + swapCounter}
+                    {#each section.slots && section.slots.length > 0 ? section.slots : sectionQuestions as structuralSlot, sidx}
+                      {@const q = section.slots?.length
+                        ? sectionQuestions.find(
+                            (sq) =>
+                              sq.id === structuralSlot.id ||
+                              sq.slot_id === structuralSlot.slot_id,
+                          )
+                        : structuralSlot}
+                      {#if q && q.id}
+                        <AssessmentVguSlot
+                          slot={q}
+                          qNumber={getSnoStart(section.part) + sidx}
+                          {isEditable}
+                          onSwap={() => openSwapSidebar(q, section.part)}
+                          onRemove={() => removeQuestion(q)}
+                          onUpdateText={(v: string, qid: string) =>
+                            updateText(v, "QUESTION", "text", q.id, qid)}
+                        />
+                      {:else if isEditable}
+                        <!-- SKELETON SLOT -->
+                        <tr
+                          class="border-b border-black opacity-40 bg-gray-50/10 group/row"
                         >
-                          <AssessmentRowActions
-                            {isEditable}
-                            onSwap={() =>
-                              openSwapSidebar(structuralSlot, section.part)}
-                            onDelete={() => {}}
-                            class="-left-2 top-2"
-                          />
-                          {section.part !== "A"
-                            ? "Q."
-                            : ""}{structuralSlot.label ||
-                            getSnoStart(section.part) + sidx}{section.part ===
-                          "A"
-                            ? "."
-                            : ""}
-                        </td>
-                        <td
-                          class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
-                        >
-                          <div
-                            class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
+                          <td
+                            class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
                           >
-                            Draft Slot
-                          </div>
-                          [ {structuralSlot.type === "OR_GROUP"
-                            ? "OR Pair"
-                            : "Single Question"} ] - {structuralSlot.marks ||
-                            section.marks_per_q} Marks
-                        </td>
-                        <td
-                          class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
-                        >
-                          {structuralSlot.marks || section.marks_per_q}
-                        </td>
-                        <td
-                          class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
-                        >
-                          {structuralSlot.bloom || "ANY"}
-                        </td>
-                        <td
-                          class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
-                        >
-                          {structuralSlot.target_co || "CO1"}
-                        </td>
-                      </tr>
-                    {/if}
-                  {/each}
+                            <AssessmentRowActions
+                              {isEditable}
+                              onSwap={() =>
+                                openSwapSidebar(structuralSlot, section.part)}
+                              onDelete={() => {}}
+                              class="-left-2 top-2"
+                            />
+                            {section.part !== "A"
+                              ? "Q."
+                              : ""}{structuralSlot.label ||
+                              getSnoStart(section.part) + sidx}{section.part ===
+                            "A"
+                              ? "."
+                              : ""}
+                          </td>
+                          <td
+                            class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
+                          >
+                            <div
+                              class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
+                            >
+                              Draft Slot
+                            </div>
+                            [ {structuralSlot.type === "OR_GROUP"
+                              ? "OR Pair"
+                              : "Single Question"} ] - {structuralSlot.marks ||
+                              section.marks_per_q} Marks
+                          </td>
+                          <td
+                            class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
+                          >
+                            {structuralSlot.marks || section.marks_per_q}
+                          </td>
+                          <td
+                            class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
+                          >
+                            {structuralSlot.bloom || "ANY"}
+                          </td>
+                          <td
+                            class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
+                          >
+                            {structuralSlot.target_co || "CO1"}
+                          </td>
+                        </tr>
+                      {/if}
+                    {/each}
+                  {/key}
                 </tbody>
               {/if}
             {/each}

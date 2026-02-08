@@ -37,18 +37,22 @@
     node.addEventListener("blur", handleBlur);
     node.addEventListener("keydown", handleKeydown);
 
-    return {
-      update() {
+    const cleanup = $effect.root(() => {
+      $effect(() => {
         node.contentEditable = isEditable ? "true" : "false";
         // Only update DOM if the state changed from OUTSIDE
         if (value !== lastValue) {
           lastValue = value;
           node.innerHTML = value || "";
         }
-      },
+      });
+    });
+
+    return {
       destroy() {
         node.removeEventListener("blur", handleBlur);
         node.removeEventListener("keydown", handleKeydown);
+        cleanup();
       },
     };
   }
