@@ -134,45 +134,93 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             pool: any[],
             qType: string,
             targetMarks: number,
-            unitId: string,
+            preferredUnitId: string,
+            allowedUnitIds: string[],
             sectionTitle: string,
             slotId: string,
             setName: string
         }) => {
-            const { pool, qType, targetMarks, unitId, sectionTitle, slotId, setName } = params;
+            const { pool, qType, targetMarks, preferredUnitId, allowedUnitIds, sectionTitle, slotId, setName } = params;
             const searchType = qType?.toUpperCase() || 'ANY';
 
-            // Filter context-specific pool
-            let candidates = pool.filter(q => {
-                if (unitId !== 'Auto' && q.unit_id !== unitId) return false;
+            const isMatch = (q: any, unitFilter: string | null, strictType: boolean) => {
+                // 1. Marks must ALWAYS match
                 if (Number(q.marks) !== Number(targetMarks)) return false;
 
-                if (searchType === 'SHORT') return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
-                if (searchType === 'LONG') return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
-                if (searchType === 'FILL_IN_BLANK') return q.type === 'FILL_IN_BLANK' || q.type === 'FIB';
-                if (searchType === 'MCQ') return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0) || (Number(q.marks) === 1);
-                return true;
-            });
+                // 2. Unit check
+                if (unitFilter && q.unit_id !== unitFilter) return false;
+                if (!unitFilter && allowedUnitIds.length > 0 && !allowedUnitIds.includes(q.unit_id)) return false;
 
-            // Shuffle for variety
-            for (let i = candidates.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                // 3. Type check
+                if (strictType) {
+                    if (searchType === 'MCQ') {
+                        return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                    }
+                    if (searchType === 'FILL_IN_BLANK' || searchType === 'FIB') {
+                        return q.type === 'FILL_IN_BLANK' || q.type === 'FIB' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
+                    }
+                    if (searchType === 'SHORT') {
+                        return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                    }
+                    if (searchType === 'LONG') {
+                        return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
+                    }
+                }
+                return true; // Relaxed type match
+            };
+
+            const findInPool = (unitFilter: string | null, strictType: boolean) => {
+                let candidates = pool.filter(q => isMatch(q, unitFilter, strictType));
+
+                // Shuffle candidates
+                for (let i = candidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                }
+
+                for (const cand of candidates) {
+                    const text = normalizeText(cand.question_text);
+                    const hash = createQuestionHash(cand);
+                    if (!globalUsedIds.has(cand.id) && !globalUsedTexts.has(text) && !globalUsedHashes.has(hash)) {
+                        return cand;
+                    }
+                }
+                return null;
+            };
+
+            // MULTI-STAGE FALLBACK
+            // 1. Strict (Preferred Unit + Strict Type)
+            let choice = findInPool(preferredUnitId !== 'Auto' ? preferredUnitId : null, true);
+
+            // 2. Medium (Any Allowed Unit + Strict Type)
+            if (!choice && preferredUnitId !== 'Auto') {
+                choice = findInPool(null, true);
             }
 
-            // Strict Global Unique Pick
-            let choice = null;
-            for (const cand of candidates) {
-                const text = normalizeText(cand.question_text);
-                const hash = createQuestionHash(cand);
-                if (!globalUsedIds.has(cand.id) && !globalUsedTexts.has(text) && !globalUsedHashes.has(hash)) {
-                    choice = cand;
-                    break;
+            // 3. Relaxed (Any Allowed Unit + Any Type)
+            if (!choice) {
+                choice = findInPool(null, false);
+            }
+
+            // 4. Final (Any Unit in Subject + Any Type)
+            if (!choice) {
+                choice = findInPool(null, false); // findInPool(null) already checks allowedUnitIds, let's try truly ANY
+                if (!choice) {
+                    // Last ditch attempt: ignore ALL unit filters
+                    let candidates = pool.filter(q => Number(q.marks) === Number(targetMarks));
+                    for (const cand of candidates) {
+                        const text = normalizeText(cand.question_text);
+                        const hash = createQuestionHash(cand);
+                        if (!globalUsedIds.has(cand.id) && !globalUsedTexts.has(text) && !globalUsedHashes.has(hash)) {
+                            choice = cand;
+                            break;
+                        }
+                    }
                 }
             }
 
             if (!choice) {
-                throw new Error(`[POOL EXHAUSTED] Cannot find unique question for Set ${setName}, section "${sectionTitle}", Slot ${slotId}. Target: ${targetMarks} Marks, Type: ${searchType}.`);
+                throw new Error(`[POOL EXHAUSTED] Cannot find unique question for Set ${setName}, section "${sectionTitle}", Slot ${slotId}. Target: ${targetMarks} Marks, Type: ${searchType}. PORTION: ${allowedUnitIds.join(',')}`);
             }
 
             // REGISTER IMMEDIATELY
@@ -208,8 +256,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const uId = slot.unit === 'Auto' ? (unit_ids[unitIdx++ % unit_ids.length] || questionsRes.rows[0]?.unit_id) : slot.unit;
 
                     if (slot.type === 'OR_GROUP') {
-                        const q1 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: `${slot.id}_C1`, setName });
-                        const q2 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: `${slot.id}_C2`, setName });
+                        const q1 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: `${slot.id}_C1`, setName });
+                        const q2 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: `${slot.id}_C2`, setName });
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'OR_GROUP', part, marks: slot.marks,
@@ -222,7 +270,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         if (q2.options?.length > 0 || q2.answer_key) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.answer_key || '', explanation: q2.explanation || '' });
 
                     } else {
-                        const q = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, unitId: uId, sectionTitle: section.title, slotId: slot.id, setName });
+                        const q = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: slot.id, setName });
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'SINGLE', part, marks: slot.marks,
