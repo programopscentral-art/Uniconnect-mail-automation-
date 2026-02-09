@@ -5,6 +5,7 @@
   import CrescentTemplate from "$lib/components/assessments/CrescentTemplate.svelte";
   import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
+  import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -2454,7 +2455,7 @@
               Assessment Type
             </h4>
             <div class="grid grid-cols-2 gap-3">
-              {#each ["MID1", "MID2", "SEM", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
+              {#each ["MID1", "MID2", "SEM", "SUPPLY", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
                 <button
                   onclick={() => (selectedExamType = type)}
                   class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
@@ -2526,19 +2527,29 @@
                   {courseOutcomes}
                   mode="preview"
                 />
-              {:else if (selectedTemplate === "vgu-standard-mid-term" || isVGU) && lastLoadedLayout}
-                <AssessmentPaperRenderer
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  bind:currentSetData={previewSetData}
-                  layoutSchema={lastLoadedLayout}
-                  {courseOutcomes}
-                  questionPool={unitsWithTopics.flatMap((u: any) =>
-                    (u.topics || []).flatMap((t: any) => t.questions || []),
-                  )}
-                  mode="preview"
-                  onSwap={(updated) => (previewSetData = updated)}
-                />
+              {:else if selectedTemplate === "vgu-standard-mid-term" || isVGU}
+                {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
+                  <VGUMidTemplate
+                    paperMeta={previewPaperMeta}
+                    {paperStructure}
+                    currentSetData={previewSetData}
+                    {courseOutcomes}
+                    mode="preview"
+                  />
+                {:else}
+                  <AssessmentPaperRenderer
+                    paperMeta={previewPaperMeta}
+                    {paperStructure}
+                    bind:currentSetData={previewSetData}
+                    layoutSchema={lastLoadedLayout}
+                    {courseOutcomes}
+                    questionPool={unitsWithTopics.flatMap((u: any) =>
+                      (u.topics || []).flatMap((t: any) => t.questions || []),
+                    )}
+                    mode="preview"
+                    onSwap={(updated) => (previewSetData = updated)}
+                  />
+                {/if}
               {:else}
                 <AssessmentPaperRenderer
                   paperMeta={previewPaperMeta}
