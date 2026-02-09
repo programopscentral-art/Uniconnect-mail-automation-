@@ -437,12 +437,28 @@
     });
   };
 
-  const getSnoStart = (part: string) => {
+  const getSnoStart = (sectionIndex: number) => {
     let count = 0;
-    for (const [i, section] of paperStructure.entries()) {
-      if (section.part === part) break;
-      const qs = getQuestionsByPart(section.part, i, currentSetData);
-      count += section.slots?.length || qs.length || 0;
+    const allQuestions = Array.isArray(currentSetData.questions)
+      ? currentSetData.questions
+      : Array.isArray(currentSetData)
+        ? currentSetData
+        : [];
+
+    for (let i = 0; i < sectionIndex; i++) {
+      const section = paperStructure[i];
+      if (!section) continue;
+
+      const sectionSlotCount =
+        section.slots?.length ||
+        allQuestions.filter((q) => {
+          const qPart = String(q.part || "").toUpperCase();
+          const sPart = String(section.part || "").toUpperCase();
+          return qPart === sPart || (qPart.includes(sPart) && sPart.length > 0);
+        }).length ||
+        0;
+
+      count += sectionSlotCount;
     }
     return count + 1;
   };
@@ -1072,11 +1088,17 @@
               </tr>
             </thead>
             {#each activePaperStructure || [] as section, idx}
-              {@const sectionQuestions = getQuestionsByPart(
-                section.part,
-                idx,
-                currentSetData,
-              )}
+              {@const allQuestions = Array.isArray(currentSetData.questions)
+                ? currentSetData.questions
+                : Array.isArray(currentSetData)
+                  ? currentSetData
+                  : []}
+              {@const sectionQuestions =
+                section.slots?.length > 0
+                  ? section.slots
+                      .map((s) => allQuestions.find((q) => q.id === s.id))
+                      .filter(Boolean)
+                  : getQuestionsByPart(section.part, idx, currentSetData)}
               {#if sectionQuestions.length > 0 || isEditable}
                 <tbody
                   use:dndzone={{
@@ -1121,7 +1143,7 @@
                       {#if q && q.id}
                         <AssessmentVguSlot
                           slot={q}
-                          qNumber={getSnoStart(section.part) + sidx}
+                          qNumber={getSnoStart(idx) + sidx}
                           {isEditable}
                           onSwap={() => openSwapSidebar(q, section.part)}
                           onRemove={() => removeQuestion(q)}
@@ -1244,7 +1266,7 @@
                         {#if q.type === "OR_GROUP"}
                           <AssessmentSlotOrGroup
                             slot={q}
-                            qNumber={getSnoStart(section.part) + (qNum - 1) * 2}
+                            qNumber={getSnoStart(idx) + i}
                             {isEditable}
                             snoWidth={35}
                             onSwap1={() =>
@@ -1260,7 +1282,7 @@
                         {:else}
                           <AssessmentSlotSingle
                             slot={q}
-                            qNumber={getSnoStart(section.part) + (qNum - 1)}
+                            qNumber={getSnoStart(idx) + i}
                             {isEditable}
                             snoWidth={35}
                             onSwap={() => openSwapSidebar(q, section.part)}

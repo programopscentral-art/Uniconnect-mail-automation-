@@ -205,13 +205,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // 4. Final (Any Unit in Subject + Any Type)
             if (!choice) {
                 choice = findInPool(null, false); // findInPool(null) already checks allowedUnitIds, let's try truly ANY
+                // 5. "JUST WORK" FALLBACK (Emergency Release Valve)
                 if (!choice) {
-                    // Last ditch attempt: ignore ALL unit filters
+                    // If we STILL have nothing, allow REUSE from other sets (Last Resort)
+                    // This prevents [POOL EXHAUSTED] crash for users with small portions
                     let candidates = pool.filter(q => Number(q.marks) === Number(targetMarks));
                     for (const cand of candidates) {
-                        const text = normalizeText(cand.question_text);
-                        const hash = createQuestionHash(cand);
-                        if (!globalUsedIds.has(cand.id) && !globalUsedTexts.has(text) && !globalUsedHashes.has(hash)) {
+                        // Only check if it's already used in THIS SPECIFIC SET
+                        // (We still want uniqueness within a single paper)
+                        const isUsedInCurrentSet = setName && Array.isArray(generatedSets[setName]?.questions) &&
+                            generatedSets[setName].questions.some((s: any) =>
+                                (s.questions || []).some((q: any) => q.id === cand.id)
+                            );
+
+                        if (!isUsedInCurrentSet) {
                             choice = cand;
                             break;
                         }
