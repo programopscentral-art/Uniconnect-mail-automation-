@@ -14,6 +14,7 @@ export * from './db/mail_logs';
 export * from './db/schedule_events';
 export * from './db/day_plans';
 export * from './db/mailbox_permissions';
+export * from './db/communication_tasks';
 export * from './crypto';
 export * from './db/assessments';
 export {

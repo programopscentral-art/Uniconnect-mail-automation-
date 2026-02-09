@@ -60,8 +60,8 @@
 
 <div
   use:editable
-  class="outline-none focus:bg-indigo-50/10 dark:focus:bg-indigo-900/20 min-w-[20px] transition-colors rounded {className} {isEditable
-    ? 'cursor-text hover:bg-slate-50 dark:hover:bg-slate-800'
+  class="outline-none min-w-[20px] transition-colors rounded {className} {isEditable
+    ? 'cursor-text hover:bg-black/5 focus:bg-indigo-50/30'
     : 'pointer-events-none'}"
   style="{style}; white-space: pre-wrap; color: inherit; font-family: {(() => {
     const v = String(value || '');

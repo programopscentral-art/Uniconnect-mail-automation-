@@ -10,6 +10,7 @@ if (process.env.NODE_ENV !== 'production') {
 process.env.ENCRYPTION_KEY_BASE64 = process.env.ENCRYPTION_KEY_BASE64;
 
 import { Worker, Queue, type Job } from 'bullmq';
+import * as admin from 'firebase-admin';
 import {
   db,
   getTemplateById,
@@ -18,7 +19,10 @@ import {
   TemplateRenderer,
   getTasksDueSoon,
   markReminderSent,
-  createNotification
+  createNotification,
+  getDueCommunicationTasks,
+  getUserFcmTokens,
+  updateCommunicationTaskStatus
 } from '@uniconnect/shared';
 import { google } from 'googleapis';
 import IORedis from 'ioredis';
@@ -343,3 +347,66 @@ checkTaskDeadlines();
 console.log('✅ Worker started with Campaign, System, and Reminder support.');
 console.log('📬 Listening for jobs on queue: email-sending');
 console.log('🔔 Listening for jobs on queue: system-notifications');
+
+// 4. Communication Task Management (FCM)
+if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+  try {
+    const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString());
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin initialized with service account.');
+  } catch (e) {
+    console.error('❌ Failed to initialize Firebase Admin:', e);
+  }
+} else {
+  console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT not found. FCM notifications will be skipped.');
+}
+
+async function processCommunicationTasks() {
+  console.log('[COMM-SCHEDULER] Checking for due communication tasks...');
+  try {
+    const tasks = await getDueCommunicationTasks();
+    if (tasks.length > 0) {
+      console.log(`[COMM-SCHEDULER] Found ${tasks.length} due tasks.`);
+
+      for (const task of tasks) {
+        console.log(`[COMM-SCHEDULER] Processing task: ${task.message_title}`);
+
+        const allTokens: string[] = [];
+        for (const userId of task.assigned_to) {
+          const tokens = await getUserFcmTokens(userId);
+          allTokens.push(...tokens);
+        }
+
+        if (allTokens.length > 0 && admin.apps.length > 0) {
+          const message = {
+            notification: {
+              title: 'Communication Task Due',
+              body: `${task.universities.join(', ')} – ${task.channel} message`
+            },
+            data: {
+              taskId: task.id,
+              university: task.universities[0],
+              channel: task.channel,
+              action: 'OPEN_TASK'
+            },
+            tokens: allTokens
+          };
+
+          const response = await admin.messaging().sendEachForMulticast(message);
+          console.log(`[COMM-SCHEDULER] Successfully sent ${response.successCount} notifications for task ${task.id}`);
+        } else if (allTokens.length === 0) {
+          console.log(`[COMM-SCHEDULER] No FCM tokens found for assigned users of task ${task.id}`);
+        }
+
+        await updateCommunicationTaskStatus(task.id, 'Notified', new Date());
+      }
+    }
+  } catch (err) {
+    console.error('[COMM-SCHEDULER] Error processing communication tasks:', err);
+  }
+}
+
+setInterval(processCommunicationTasks, 2 * 60 * 1000);
+processCommunicationTasks();

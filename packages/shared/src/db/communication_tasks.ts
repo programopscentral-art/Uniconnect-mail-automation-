@@ -1,0 +1,120 @@
+import { db } from './client';
+
+export type CommunicationChannel =
+    | 'WhatsApp - Students'
+    | 'WhatsApp - Parents'
+    | 'Student App'
+    | 'Parent App'
+    | 'Email';
+
+export type CommunicationPriority = 'Low' | 'Normal' | 'High';
+export type CommunicationStatus = 'Scheduled' | 'Notified' | 'Completed' | 'Canceled';
+
+export interface CommunicationTask {
+    id: string;
+    universities: string[];
+    channel: CommunicationChannel;
+    assigned_to: string[];
+    message_title: string;
+    message_body: string;
+    scheduled_at: Date;
+    priority: CommunicationPriority;
+    status: CommunicationStatus;
+    notified_at: Date | null;
+    marked_sent_at: Date | null;
+    notes: string | null;
+    created_by: string;
+    created_at: Date;
+}
+
+export async function createCommunicationTask(data: {
+    universities: string[];
+    channel: CommunicationChannel;
+    assigned_to: string[];
+    message_title: string;
+    message_body: string;
+    scheduled_at: Date;
+    priority?: CommunicationPriority;
+    notes?: string;
+    created_by: string;
+}) {
+    const result = await db.query(
+        `INSERT INTO communication_tasks 
+        (universities, channel, assigned_to, message_title, message_body, scheduled_at, priority, notes, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [
+            data.universities,
+            data.channel,
+            data.assigned_to,
+            data.message_title,
+            data.message_body,
+            data.scheduled_at,
+            data.priority || 'Normal',
+            data.notes || null,
+            data.created_by
+        ]
+    );
+    return result.rows[0] as CommunicationTask;
+}
+
+export async function getCommunicationTasks(userId?: string) {
+    let query = `SELECT * FROM communication_tasks`;
+    const params = [];
+
+    if (userId) {
+        query += ` WHERE assigned_to @> ARRAY[$1]::uuid[]`;
+        params.push(userId);
+    }
+
+    query += ` ORDER BY scheduled_at DESC`;
+
+    const result = await db.query(query, params);
+    return result.rows as CommunicationTask[];
+}
+
+export async function getCommunicationTaskById(id: string) {
+    const result = await db.query(`SELECT * FROM communication_tasks WHERE id = $1`, [id]);
+    return result.rows[0] as CommunicationTask | undefined;
+}
+
+export async function updateCommunicationTaskStatus(id: string, status: CommunicationStatus, notifiedAt?: Date, markedSentAt?: Date) {
+    const updates: string[] = [`status = $2`];
+    const params: any[] = [id, status];
+
+    if (notifiedAt) {
+        updates.push(`notified_at = $${params.length + 1}`);
+        params.push(notifiedAt);
+    }
+
+    if (markedSentAt) {
+        updates.push(`marked_sent_at = $${params.length + 1}`);
+        params.push(markedSentAt);
+    }
+
+    const query = `UPDATE communication_tasks SET ${updates.join(', ')} WHERE id = $1 RETURNING *`;
+    const result = await db.query(query, params);
+    return result.rows[0] as CommunicationTask;
+}
+
+// User FCM Token functions
+export async function registerFcmToken(userId: string, token: string, deviceInfo?: any) {
+    await db.query(
+        `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_info, last_active)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (fcm_token) DO UPDATE SET last_active = NOW(), device_info = $3`,
+        [userId, token, deviceInfo || null]
+    );
+}
+
+export async function getUserFcmTokens(userId: string) {
+    const result = await db.query(`SELECT fcm_token FROM user_fcm_tokens WHERE user_id = $1`, [userId]);
+    return result.rows.map(r => r.fcm_token) as string[];
+}
+
+export async function getDueCommunicationTasks() {
+    const result = await db.query(
+        `SELECT * FROM communication_tasks 
+         WHERE scheduled_at <= NOW() AND status = 'Scheduled'`
+    );
+    return result.rows as CommunicationTask[];
+}

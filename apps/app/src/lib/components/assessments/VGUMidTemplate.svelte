@@ -223,23 +223,32 @@
       style="width: 8.27in; min-height: 11.69in;"
     >
       <!-- Header Section -->
-      <div class="text-center mb-8">
-        <h1 class="text-[14pt] font-black uppercase tracking-tight mb-0.5">
+      <div class="text-center mb-10 pt-4">
+        <h1
+          class="text-[20pt] font-black uppercase tracking-[0.15em] mb-1 font-serif text-black leading-tight"
+        >
           VIVEKANANDA GLOBAL UNIVERSITY
         </h1>
-        <h2 class="text-[12pt] font-bold uppercase tracking-tight mb-0.5">
+        <h2
+          class="text-[14pt] font-bold uppercase tracking-wide mb-1 font-serif text-black leading-tight"
+        >
           <AssessmentEditable
             value={paperMeta.programme ||
               "DEPARTMENT OF AGRIBUSINESS MANAGEMENT"}
             onUpdate={(v: string) => updateText(v, "META", "programme")}
+            class="hover:bg-black/5 focus:bg-black/5 text-black"
           />
         </h2>
-        <h3 class="text-[11pt] font-bold uppercase tracking-wide">
+        <h3
+          class="text-[12pt] font-bold uppercase tracking-wider font-serif text-black leading-tight"
+        >
           <AssessmentEditable
             value={paperMeta.exam_title || "MID - TERM : FIRST"}
             onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+            class="hover:bg-black/5 focus:bg-black/5 text-black"
           />
         </h3>
+        <div class="border-b-[1.5pt] border-black mt-6 w-full opacity-20"></div>
       </div>
 
       <!-- Metadata Fields -->
@@ -375,9 +384,19 @@
                         </button>
                       </div>
                       <AssessmentEditable
-                        value={q.text || q.question_text || ""}
+                        value={q.text ||
+                          q.question_text ||
+                          q.questions?.[0]?.question_text ||
+                          q.questions?.[0]?.text ||
+                          ""}
                         onUpdate={(v: string) =>
-                          updateText(v, "QUESTION", "text", q.id, q.id)}
+                          updateText(
+                            v,
+                            "QUESTION",
+                            "text",
+                            q.id,
+                            q.questions?.[0]?.id || q.id,
+                          )}
                         multiline={true}
                       />
                     </div>
@@ -457,18 +476,66 @@
                         >
                       </button>
                     </div>
-                    <AssessmentEditable
-                      value={q.text || q.question_text || ""}
-                      onUpdate={(v: string) =>
-                        updateText(
-                          v,
-                          "QUESTION",
-                          "text",
-                          q.id,
-                          q.questions?.[0]?.id || q.id,
-                        )}
-                      multiline={true}
-                    />
+                    {#if q.type === "OR_GROUP"}
+                      <div class="space-y-4">
+                        <!-- Choice 1 -->
+                        <div>
+                          <AssessmentEditable
+                            value={q.choice1?.questions?.[0]?.question_text ||
+                              q.choice1?.questions?.[0]?.text ||
+                              ""}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "text",
+                                q.id,
+                                q.choice1.questions[0].id,
+                              )}
+                            multiline={true}
+                          />
+                        </div>
+                        <div
+                          class="text-center font-bold italic py-2 text-[9pt]"
+                        >
+                          -- OR --
+                        </div>
+                        <!-- Choice 2 -->
+                        <div>
+                          <AssessmentEditable
+                            value={q.choice2?.questions?.[0]?.question_text ||
+                              q.choice2?.questions?.[0]?.text ||
+                              ""}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "text",
+                                q.id,
+                                q.choice2.questions[0].id,
+                              )}
+                            multiline={true}
+                          />
+                        </div>
+                      </div>
+                    {:else}
+                      <AssessmentEditable
+                        value={q.text ||
+                          q.question_text ||
+                          q.questions?.[0]?.question_text ||
+                          q.questions?.[0]?.text ||
+                          ""}
+                        onUpdate={(v: string) =>
+                          updateText(
+                            v,
+                            "QUESTION",
+                            "text",
+                            q.id,
+                            q.questions?.[0]?.id || q.id,
+                          )}
+                        multiline={true}
+                      />
+                    {/if}
                   </div>
                 </div>
               {/each}

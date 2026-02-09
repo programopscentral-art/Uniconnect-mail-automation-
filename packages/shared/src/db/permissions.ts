@@ -24,15 +24,15 @@ export async function getAllRolePermissions(): Promise<RolePermission[]> {
 }
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "permissions"],
-    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "permissions"],
-    'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments"],
-    'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"],
-    'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments"]
+    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions"],
+    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions"],
+    'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments", "communication-tasks"],
+    'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"],
+    'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"],
+    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"],
+    'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"],
+    'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"],
+    'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks"]
 };
 
 export async function seedDefaultPermissions(): Promise<void> {
