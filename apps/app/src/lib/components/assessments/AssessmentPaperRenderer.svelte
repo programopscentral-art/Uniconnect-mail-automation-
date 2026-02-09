@@ -744,7 +744,7 @@
             <div class="flex">
               <span class="font-bold whitespace-nowrap">Duration:</span>
               <AssessmentEditable
-                value={paperMeta.duration_minutes + " Hr"}
+                value={paperMeta.duration_minutes}
                 onUpdate={(v: string) =>
                   updateText(v, "META", "duration_minutes")}
                 class="ml-1 font-medium"

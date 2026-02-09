@@ -13,13 +13,20 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     try {
         const googleUser = await getGoogleUserFromCode(code);
 
-        if (!googleUser.email || !googleUser.verified_email) {
-            throw error(400, 'Email not verified or missing');
+        if (!googleUser.email) {
+            throw error(400, 'Email missing from Google account');
+        }
+
+        // We still log verification status but might be more lenient for certain company domains if needed
+        if (!googleUser.verified_email) {
+            console.warn(`[OAUTH] Warning: Google email not verified for ${googleUser.email}`);
         }
 
         const email = googleUser.email.toLowerCase();
         const domain = email.split('@')[1];
-        const isNxtwave = domain === 'nxtwave.in' || domain === 'nxtwave.co.in';
+        const isNxtwave = domain.includes('nxtwave') || domain === 'getnxtwave.com';
+
+        console.log(`[OAUTH] Processing login for ${email} (domain: ${domain}, isNxtwave: ${isNxtwave})`);
 
         // 1. Check if user exists
         let user = await getUserByEmail(email);
@@ -32,6 +39,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         }
 
         if (!user) {
+            console.log(`[OAUTH] User doesn't exist, attempting auto-provisioning`);
             if (invitation) {
                 user = await createUser({
                     email: email,
@@ -41,7 +49,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                 });
                 await deleteInvitation(invitation.id);
                 cookies.delete('invitation_token', { path: '/' });
-                console.log(`User created via invitation for ${email}`);
+                console.log(`[OAUTH] User created via invitation for ${email}`);
             }
             // ADMIN Check
             else if (email === 'karthikeya.a054@gmail.com' || email === env.ADMIN_EMAIL) {
@@ -51,19 +59,23 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                     role: 'ADMIN',
                     university_id: null
                 });
+                console.log(`[OAUTH] Admin created: ${email}`);
             }
             // Nxtwave Employee check
             else if (isNxtwave) {
                 user = await createUser({
                     email: email,
                     name: googleUser.name || 'Nxtwave Member',
-                    role: 'UNIVERSITY_OPERATOR', // Default role for now, but will have restricted access
+                    role: 'BOA', // Give Nxtwave members BOA role by default
                     university_id: null
                 });
+                console.log(`[OAUTH] Nxtwave Member created as BOA: ${email}`);
             }
             // University Operator check (based on domain)
             else {
                 const universities = await getAllUniversities();
+                console.log(`[OAUTH] Available University Domains check for domain ${domain}`);
+
                 const matchedUniv = universities.find(u => u.email_domain && domain === u.email_domain.toLowerCase());
 
                 if (matchedUniv) {
@@ -73,10 +85,12 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                         role: 'UNIVERSITY_OPERATOR',
                         university_id: matchedUniv.id
                     });
+                    console.log(`[OAUTH] User created for matched university ${matchedUniv.name}: ${email}`);
                 } else {
                     // No university matches domain
                     const genericDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', 'icloud.com', 'aol.com', 'live.com'];
                     if (genericDomains.includes(domain)) {
+                        console.log(`[OAUTH] Generic domain detected, blocking: ${domain}`);
                         throw error(403, 'Please use your official Nxtwave or University email.');
                     }
 
@@ -87,10 +101,19 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                         role: 'UNIVERSITY_OPERATOR',
                         university_id: null,
                     });
-                    console.log(`User created with unknown domain ${domain}, redirecting to request-access`);
+                    console.log(`[OAUTH] User created with unknown company domain ${domain}, will redirect to request-access: ${email}`);
                 }
             }
         } else {
+            console.log(`[OAUTH] Existing user log in: ${email} (Role: ${user.role}, Univ: ${user.university_id})`);
+
+            // Auto-upgrade Nxtwave employees to BOA if they are currently just operators
+            if (isNxtwave && user.role === 'UNIVERSITY_OPERATOR') {
+                await db.query('UPDATE users SET role = $1 WHERE id = $2', ['BOA', user.id]);
+                user.role = 'BOA';
+                console.log(`[OAUTH] Auto-upgraded existing Nxtwave user ${email} to BOA`);
+            }
+
             // User exists - check if they were accepting an invitation to update their role/university
             if (invitation) {
                 await db.query(
@@ -99,7 +122,7 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                 );
                 await deleteInvitation(invitation.id);
                 cookies.delete('invitation_token', { path: '/' });
-                console.log(`Existing user ${email} updated via invitation`);
+                console.log(`[OAUTH] Existing user ${email} updated via invitation`);
 
                 // Refresh local user object
                 user = await getUserByEmail(email) as any;

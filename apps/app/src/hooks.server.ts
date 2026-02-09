@@ -63,7 +63,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         const user = event.locals.user;
         const isRequestPage = path === '/request-access' || path.startsWith('/api/users/request-access');
 
-        if (user.role !== 'ADMIN' && !user.university_id && !isRequestPage) {
+        if (user.role !== 'ADMIN' && user.role !== 'PROGRAM_OPS' && user.role !== 'BOA' && !user.university_id && !isRequestPage) {
             return new Response(null, {
                 status: 302,
                 headers: { Location: '/request-access' }

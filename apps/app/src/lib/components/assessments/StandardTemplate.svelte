@@ -21,7 +21,7 @@
     if (Array.isArray(currentSetData)) return; // Only for object-based sets
 
     const arr = currentSetData.questions || [];
-    const newAnswers = [];
+    const newAnswers: any[] = [];
 
     arr.forEach((slot: any) => {
       const qs = [];
@@ -269,7 +269,14 @@
             onUpdate={(v: string) => updateText(v, "META", "semester")}
           />
         </div>
-        <div><b>Duration:</b> {paperMeta.duration_minutes} Minutes</div>
+        <div>
+          <b>Duration:</b>
+          <AssessmentEditable
+            value={paperMeta.duration_minutes}
+            onUpdate={(v: string) => updateText(v, "META", "duration_minutes")}
+            style="display: inline-block;"
+          />
+        </div>
         <div><b>Max Marks:</b> {paperMeta.max_marks}</div>
       </div>
 

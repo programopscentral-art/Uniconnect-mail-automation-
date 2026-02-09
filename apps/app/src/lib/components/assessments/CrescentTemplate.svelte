@@ -23,7 +23,7 @@
     if (Array.isArray(currentSetData)) return; // Only for object-based sets
 
     const arr = currentSetData.questions || [];
-    const newAnswers = [];
+    const newAnswers: any[] = [];
 
     arr.forEach((slot: any) => {
       const qs = [];
@@ -400,7 +400,6 @@
                   onUpdate={(v: string) =>
                     updateText(v, "META", "duration_minutes")}
                 />
-                <span>minutes</span>
               </div>
             </td>
             <td class="border border-black p-1 font-bold">Maximum Marks</td>
