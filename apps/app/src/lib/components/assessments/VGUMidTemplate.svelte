@@ -5,6 +5,7 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
+  import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -223,14 +224,16 @@
       style="width: 8.27in; min-height: 11.69in;"
     >
       <!-- Header Section -->
-      <div class="text-center mb-10 pt-4">
+      <div class="text-center mb-10 pt-8 relative z-10">
         <h1
-          class="text-[20pt] font-black uppercase tracking-[0.15em] mb-1 font-serif text-black leading-tight"
+          class="text-[22pt] font-black uppercase tracking-[0.2em] mb-2 font-serif text-black leading-tight"
+          style="color: black !important; display: block;"
         >
           VIVEKANANDA GLOBAL UNIVERSITY
         </h1>
         <h2
-          class="text-[14pt] font-bold uppercase tracking-wide mb-1 font-serif text-black leading-tight"
+          class="text-[14pt] font-bold uppercase tracking-wide mb-2 font-serif text-black leading-tight"
+          style="color: black !important;"
         >
           <AssessmentEditable
             value={paperMeta.programme ||
@@ -241,6 +244,7 @@
         </h2>
         <h3
           class="text-[12pt] font-bold uppercase tracking-wider font-serif text-black leading-tight"
+          style="color: black !important;"
         >
           <AssessmentEditable
             value={paperMeta.exam_title || "MID - TERM : FIRST"}
@@ -248,7 +252,7 @@
             class="hover:bg-black/5 focus:bg-black/5 text-black"
           />
         </h3>
-        <div class="border-b-[1.5pt] border-black mt-6 w-full opacity-20"></div>
+        <div class="border-b-[2pt] border-black mt-8 w-full opacity-40"></div>
       </div>
 
       <!-- Metadata Fields -->
@@ -399,6 +403,10 @@
                           )}
                         multiline={true}
                       />
+                      <AssessmentMcqOptions
+                        options={q.questions?.[0]?.options || q.options}
+                        class="mt-2 text-[9pt]"
+                      />
                     </div>
                   </div>
                 {/each}
@@ -494,6 +502,10 @@
                               )}
                             multiline={true}
                           />
+                          <AssessmentMcqOptions
+                            options={q.choice1?.questions?.[0]?.options}
+                            class="mt-2 text-[9pt]"
+                          />
                         </div>
                         <div
                           class="text-center font-bold italic py-2 text-[9pt]"
@@ -516,6 +528,10 @@
                               )}
                             multiline={true}
                           />
+                          <AssessmentMcqOptions
+                            options={q.choice2?.questions?.[0]?.options}
+                            class="mt-2 text-[9pt]"
+                          />
                         </div>
                       </div>
                     {:else}
@@ -534,6 +550,10 @@
                             q.questions?.[0]?.id || q.id,
                           )}
                         multiline={true}
+                      />
+                      <AssessmentMcqOptions
+                        options={q.questions?.[0]?.options || q.options}
+                        class="mt-2 text-[9pt]"
                       />
                     {/if}
                   </div>

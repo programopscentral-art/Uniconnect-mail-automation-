@@ -36,11 +36,19 @@ export const handle: Handle = async ({ event, resolve }) => {
                 // V43: Dynamic Central BOA Override
                 // Only Central BOA (no university_id OR Team university) get full features
                 const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
-                if (isCentralBOA || user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
+                const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS'].includes(user.role);
+
+                if (isCentralBOA || isStaff) {
                     event.locals.user!.permissions = [
                         'dashboard', 'tasks', 'universities', 'students', 'users',
                         'analytics', 'mailboxes', 'templates', 'campaigns',
-                        'assessments', 'mail-logs', 'permissions', 'day-plan'
+                        'assessments', 'mail-logs', 'permissions', 'day-plan',
+                        'communication-tasks'
+                    ];
+                } else if (user.role) {
+                    // Default permissions for other roles
+                    event.locals.user!.permissions = [
+                        'dashboard', 'tasks', 'communication-tasks'
                     ];
                 }
             }
@@ -84,7 +92,8 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/assessments': 'assessments',
             '/mail-logs': 'mail-logs',
             '/permissions': 'permissions',
-            '/day-plan': 'day-plan'
+            '/day-plan': 'day-plan',
+            '/communication-tasks': 'communication-tasks'
         };
 
         const matchingPath = Object.keys(featureMap).find(p => path.startsWith(p));
