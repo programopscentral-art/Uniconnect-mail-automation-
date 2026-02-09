@@ -57,43 +57,42 @@
     }
   });
 
-  function handleDndSync(part: string, items: any[]) {
+  function handleDndSync(sectionIndex: number, items: any[]) {
+    const section = paperStructure[sectionIndex];
+    if (!section) return;
+
     const arr = (
       Array.isArray(currentSetData)
         ? currentSetData
         : currentSetData?.questions || []
     ).filter(Boolean);
-    const otherQuestions = arr.filter((q: any) => q.part !== part);
 
-    // CRITICAL: Update part on items but MAINTAIN REFERENCES
+    // CRITICAL: Use Slot IDs to isolate questions for THIS specific section.
+    // This prevents "spill-over" or "duplicate" display when multiple sections share a Part tag.
+    const sectionSlotIds = new Set((section.slots || []).map((s: any) => s.id));
+    const otherQuestions = arr.filter((q: any) => !sectionSlotIds.has(q.id));
+
+    // Maintain Part tag for legacy/styling purposes but items are now isolated by identity
     items.forEach((item) => {
-      item.part = part;
+      item.part = section.part;
     });
 
     const result = [...otherQuestions, ...items];
-    if (Array.isArray(currentSetData)) currentSetData = result;
-    else currentSetData.questions = result;
+    if (Array.isArray(currentSetData)) {
+      currentSetData = result;
+    } else {
+      currentSetData.questions = result;
+    }
 
-    // CRITICAL: For VGU/Unified tables, we MUST also update the structural slot order
-    // as the renderer iterates over section.slots for layout stability.
-    const sectionIndex = paperStructure.findIndex(
-      (s: any) => s.part === part || s.section === part,
-    );
-    if (sectionIndex !== -1 && paperStructure[sectionIndex].slots) {
-      // Create a map of items by their structural ID
-      const itemMap = new Map(items.map((it: any) => [it.id, it]));
-      // Reorder the slots to match the DND items
-      paperStructure[sectionIndex].slots = items.map((it: any) => {
-        // Find existing slot or use item
-        const existingSlot = (paperStructure[sectionIndex].slots || []).find(
-          (s: any) => s.id === it.id,
-        );
+    // Update the structural slot order to match the new DND items
+    if (section.slots) {
+      section.slots = items.map((it: any) => {
+        const existingSlot = section.slots.find((s: any) => s.id === it.id);
         return existingSlot || it;
       });
       paperStructure = [...paperStructure];
     }
 
-    // CRITICAL: Trigger persistence after DND
     if (onSwap) {
       onSwap($state.snapshot(currentSetData));
     }
@@ -1086,9 +1085,9 @@
                     dragDisabled: !isEditable,
                   }}
                   onconsider={(e) =>
-                    handleDndSync(section.part, (e.detail as any).items)}
+                    handleDndSync(idx, (e.detail as any).items)}
                   onfinalize={(e) =>
-                    handleDndSync(section.part, (e.detail as any).items)}
+                    handleDndSync(idx, (e.detail as any).items)}
                   class="border-black"
                 >
                   <!-- SECTION HEADER ROW -->
@@ -1190,12 +1189,18 @@
           </table>
         {:else}
           {#each paperStructure || [] as section, idx}
-            {@const questions = getQuestionsByPart(
-              section.part,
-              idx,
-              currentSetData,
-            )}
-            {#if questions.length > 0 || isEditable}
+            {@const sectionQuestions =
+              section.slots?.length > 0
+                ? section.slots
+                    .map((s) =>
+                      (Array.isArray(currentSetData.questions)
+                        ? currentSetData.questions
+                        : []
+                      ).find((q) => q.id === s.id),
+                    )
+                    .filter(Boolean)
+                : getQuestionsByPart(section.part, idx, currentSetData)}
+            {#if sectionQuestions.length > 0 || isEditable}
               <div>
                 <div
                   class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
@@ -1215,59 +1220,56 @@
                 </div>
 
                 <div
-                  use:dndzone={{ items: questions, flipDurationMs: 200 }}
+                  use:dndzone={{ items: sectionQuestions, flipDurationMs: 200 }}
                   onconsider={(e) =>
-                    handleDndSync(section.part, (e.detail as any).items)}
+                    handleDndSync(idx, (e.detail as any).items)}
                   onfinalize={(e) =>
-                    handleDndSync(section.part, (e.detail as any).items)}
+                    handleDndSync(idx, (e.detail as any).items)}
                 >
                   {#key activeSet + swapCounter}
-                    {#each Array.isArray(currentSetData.questions) ? currentSetData.questions : [] as q, i (q.id + activeSet)}
-                      {#if q && q.part === section.part}
-                        {@const qNum =
-                          (Array.isArray(currentSetData.questions)
-                            ? currentSetData.questions
-                            : []
-                          )
-                            .filter((x) => x && x.part === section.part)
-                            .findIndex((x) => x.id === q.id) + 1}
+                    {#each sectionQuestions as q, i (q.id + activeSet)}
+                      {@const qNum =
+                        (Array.isArray(currentSetData.questions)
+                          ? currentSetData.questions
+                          : []
+                        )
+                          .filter((x) => x && x.part === section.part)
+                          .findIndex((x) => x.id === q.id) + 1}
 
-                        <div
-                          class={section.part === "A"
-                            ? "border-b border-black"
-                            : "border-2 border-black mb-6 shadow-sm"}
-                        >
-                          {#if q.type === "OR_GROUP"}
-                            <AssessmentSlotOrGroup
-                              slot={q}
-                              qNumber={getSnoStart(section.part) +
-                                (qNum - 1) * 2}
-                              {isEditable}
-                              snoWidth={35}
-                              onSwap1={() =>
-                                openSwapSidebar(q, section.part, "q1")}
-                              onSwap2={() =>
-                                openSwapSidebar(q, section.part, "q2")}
-                              onRemove={() => removeQuestion(q)}
-                              onUpdateText1={(v: string, qid: string) =>
-                                updateText(v, "QUESTION", "text", q.id, qid)}
-                              onUpdateText2={(v: string, qid: string) =>
-                                updateText(v, "QUESTION", "text", q.id, qid)}
-                            />
-                          {:else}
-                            <AssessmentSlotSingle
-                              slot={q}
-                              qNumber={getSnoStart(section.part) + (qNum - 1)}
-                              {isEditable}
-                              snoWidth={35}
-                              onSwap={() => openSwapSidebar(q, section.part)}
-                              onRemove={() => removeQuestion(q)}
-                              onUpdateText={(v: string, qid: string) =>
-                                updateText(v, "QUESTION", "text", q.id, qid)}
-                            />
-                          {/if}
-                        </div>
-                      {/if}
+                      <div
+                        class={section.part === "A"
+                          ? "border-b border-black"
+                          : "border-2 border-black mb-6 shadow-sm"}
+                      >
+                        {#if q.type === "OR_GROUP"}
+                          <AssessmentSlotOrGroup
+                            slot={q}
+                            qNumber={getSnoStart(section.part) + (qNum - 1) * 2}
+                            {isEditable}
+                            snoWidth={35}
+                            onSwap1={() =>
+                              openSwapSidebar(q, section.part, "q1")}
+                            onSwap2={() =>
+                              openSwapSidebar(q, section.part, "q2")}
+                            onRemove={() => removeQuestion(q)}
+                            onUpdateText1={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                            onUpdateText2={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                          />
+                        {:else}
+                          <AssessmentSlotSingle
+                            slot={q}
+                            qNumber={getSnoStart(section.part) + (qNum - 1)}
+                            {isEditable}
+                            snoWidth={35}
+                            onSwap={() => openSwapSidebar(q, section.part)}
+                            onRemove={() => removeQuestion(q)}
+                            onUpdateText={(v: string, qid: string) =>
+                              updateText(v, "QUESTION", "text", q.id, qid)}
+                          />
+                        {/if}
+                      </div>
                     {/each}
                   {/key}
                 </div>
