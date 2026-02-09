@@ -130,38 +130,79 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         });
 
         throw redirect(302, '/dashboard');
-    } catch (err) {
-        if ((err as any).status === 302) throw err; // Re-throw redirects
+    } catch (err: any) {
+        if (err.status === 302) throw err; // Re-throw redirects
 
-        console.error('CRITICAL Auth Error Details:', {
-            message: (err as Error).message,
-            stack: (err as Error).stack,
-            raw: err
-        });
+        // Extract the most descriptive error message possible
+        let errorMessage = 'An unexpected authentication error occurred';
+        if (err.body?.message) {
+            errorMessage = err.body.message;
+        } else if (err.message) {
+            errorMessage = err.message;
+        } else if (typeof err === 'string') {
+            errorMessage = err;
+        }
 
-        // Return a JSON response for easier debugging in browser if 500
-        // Return an HTML response with a Try Again button
+        const statusCode = err.status || 500;
+
+        // CRITICAL: Log detailed diagnostic info for production troubleshooting
+        console.error('--- OAUTH_FAILURE_DIAGNOSTIC ---');
+        console.error('Status:', statusCode);
+        console.error('Message:', errorMessage);
+        console.error('Code Received:', code ? 'YES' : 'NO');
+        console.error('Stack:', err.stack);
+        console.error('Full Error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+        console.error('---------------------------------');
+
+        // Return a professional, branded HTML response
         const html = `
-            <html>
-                <body style="font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f9fafb;">
-                    <div style="background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); text-align: center; max-width: 400px;">
-                        <h1 style="color: #ef4444; margin-bottom: 1rem;">Authentication Failed</h1>
-                        <p style="color: #374151; margin-bottom: 1.5rem;">
-                            Google refused the login attempt. This usually happens if you <strong>refresh the page</strong> or if the session expired.
-                        </p>
-                        <div style="background: #fee2e2; padding: 0.75rem; border-radius: 4px; margin-bottom: 1.5rem; font-family: monospace; font-size: 0.875rem; color: #b91c1c; word-break: break-all;">
-                            ${(err as Error).message}
-                        </div>
-                        <a href="/api/auth/google/start" style="display: inline-block; background: #2563eb; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 500;">
-                            Try Login Again
-                        </a>
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Authentication Error | UniConnect</title>
+                <style>
+                    body { font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #1e293b; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+                    .card { background: white; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); padding: 40px; max-width: 480px; width: 100%; text-align: center; border: 1px solid #f1f5f9; }
+                    .icon { width: 64px; height: 64px; background: #fee2e2; color: #ef4444; border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+                    h1 { font-size: 24px; font-weight: 800; margin: 0 0 16px; color: #0f172a; letter-spacing: -0.025em; }
+                    p { font-size: 16px; line-height: 1.6; color: #64748b; margin: 0 0 32px; }
+                    .error-box { background: #fff1f2; border: 1px solid #ffe4e6; border-radius: 16px; padding: 20px; text-align: left; margin-bottom: 32px; }
+                    .error-label { font-size: 11px; font-weight: 800; color: #991b1b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+                    .error-msg { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 14px; color: #b91c1c; font-weight: 600; line-height: 1.5; word-break: break-word; }
+                    .btn { display: block; background: #4f46e5; color: white; padding: 16px 24px; border-radius: 16px; text-decoration: none; font-weight: 700; font-size: 14px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); text-transform: uppercase; letter-spacing: 0.025em; }
+                    .btn:hover { background: #4338ca; transform: translateY(-2px); box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4); }
+                    .footer { margin-top: 32px; font-size: 12px; color: #94a3b8; }
+                </style>
+            </head>
+            <body>
+                <div class="card">
+                    <div class="icon">
+                        <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                     </div>
-                </body>
+                    <h1>Authentication Failed</h1>
+                    <p>
+                        We encountered an issue while verifying your account with Google. This can happen if you refresh the login page or use an unauthorized email.
+                    </p>
+                    
+                    <div class="error-box">
+                        <div class="error-label">Technical Details</div>
+                        <div class="error-msg">${errorMessage}</div>
+                    </div>
+
+                    <a href="/api/auth/google/start" class="btn">Return to Login</a>
+                    
+                    <div class="footer">
+                        Status: ${statusCode} &bull; Ref: ${Math.floor(Date.now() / 1000)}
+                    </div>
+                </div>
+            </body>
             </html>
         `;
 
         return new Response(html, {
-            status: 500,
+            status: statusCode,
             headers: { 'Content-Type': 'text/html' }
         });
     }
