@@ -107,11 +107,33 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         } else {
             console.log(`[OAUTH] Existing user log in: ${email} (Role: ${user.role}, Univ: ${user.university_id})`);
 
-            // Auto-upgrade Nxtwave employees to BOA if they are currently just operators
-            if (isNxtwave && user.role === 'UNIVERSITY_OPERATOR') {
-                await db.query('UPDATE users SET role = $1 WHERE id = $2', ['BOA', user.id]);
-                user.role = 'BOA';
-                console.log(`[OAUTH] Auto-upgraded existing Nxtwave user ${email} to BOA`);
+            // Auto-upgrade and Reactivate Nxtwave employees
+            if (isNxtwave) {
+                let needsUpdate = false;
+                const updateFields = [];
+                const queryParams: any[] = [user.id];
+
+                if (user.role === 'UNIVERSITY_OPERATOR') {
+                    updateFields.push(`role = $${updateFields.length + 2}`);
+                    queryParams.push('BOA');
+                    user.role = 'BOA';
+                    needsUpdate = true;
+                }
+
+                if (!user.is_active) {
+                    updateFields.push(`is_active = $${updateFields.length + 2}`);
+                    queryParams.push(true);
+                    user.is_active = true;
+                    needsUpdate = true;
+                }
+
+                if (needsUpdate) {
+                    await db.query(
+                        `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $1`,
+                        queryParams
+                    );
+                    console.log(`[OAUTH] Auto-upgraded/Reactivated Nxtwave user ${email}`);
+                }
             }
 
             // User exists - check if they were accepting an invitation to update their role/university
