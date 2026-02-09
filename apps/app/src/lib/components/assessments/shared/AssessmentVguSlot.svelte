@@ -18,7 +18,7 @@
 
 <tr class="border-b border-black group/row {className}">
   <td
-    class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
+    class="w-[60px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
   >
     <AssessmentRowActions
       {isEditable}
@@ -89,7 +89,7 @@
     {/each}
   </td>
   <td
-    class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
+    class="w-[50px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
   >
     <!-- VGU Marks Logic: Prioritize structural slot marks over question pool marks -->
     <AssessmentEditable
@@ -108,7 +108,7 @@
     />
   </td>
   <td
-    class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
+    class="w-[70px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
   >
     <AssessmentEditable
       value={target.bloomLevel || target.k_level || "K1"}
@@ -120,7 +120,7 @@
     />
   </td>
   <td
-    class="w-[100px] text-center align-top p-2 text-[10pt] font-medium border-r border-black last:border-r-0"
+    class="w-[85px] text-center align-top p-2 text-[10pt] font-medium border-r border-black last:border-r-0"
   >
     <AssessmentEditable
       value={target.co || target.co_indicator || target.target_co || "CO1"}

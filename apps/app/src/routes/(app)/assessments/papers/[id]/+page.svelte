@@ -360,6 +360,7 @@
       document.getElementById("crescent-paper-actual") ||
       document.getElementById("generic-paper-actual") ||
       document.getElementById("cdu-paper-actual");
+
     if (!el) {
       const content = document.getElementById("paper-content")?.innerHTML;
       if (!content) return;
@@ -367,8 +368,14 @@
       return;
     }
 
+    // V101: Ensure relative image URLs work in about:blank print window
+    const htmlWithAbsoluteUrls = el.outerHTML.replace(
+      /src="\//g,
+      `src="${window.location.origin}/`,
+    );
+
     // Use outerHTML to preserve container styles (padding, etc.)
-    printPaper(el.outerHTML);
+    printPaper(htmlWithAbsoluteUrls);
   }
 
   function printPaper(htmlContent: string) {
@@ -404,7 +411,7 @@
                                 display: flex !important;
                                 justify-content: center !important;
                             }
-                            #crescent-paper-actual, .paper-container { 
+                            #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -412,6 +419,9 @@
                                 min-height: 297mm !important;
                                 background: white !important;
                                 box-shadow: none !important;
+                                position: relative !important;
+                                left: 0 !important;
+                                top: 0 !important;
                             }
                             .no-print, nav, header, sidebar, .print\\:hidden, .fixed, button { display: none !important; }
                         }
@@ -420,9 +430,9 @@
                             background: #eee; 
                             display: flex;
                             justify-content: center;
-                            padding: 20px;
+                            padding: 0;
                         }
-                        #crescent-paper-actual, .paper-container { 
+                        #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;

@@ -702,63 +702,88 @@
           </div>
 
           <!-- VGU METADATA (Text Layout, No Borders) -->
-          <div class="grid grid-cols-2 gap-x-8 text-[9pt] mb-3 font-serif">
-            <!-- Row 1 -->
-            <div class="flex">
-              <span class="font-bold whitespace-nowrap">Programme & Batch:</span
-              >
-              <AssessmentEditable
-                value={paperMeta.programme}
-                onUpdate={(v: string) => updateText(v, "META", "programme")}
-                class="ml-1 flex-1 uppercase font-medium"
-              />
-            </div>
-            <div class="flex justify-end">
-              <span class="font-bold">Semester:</span>
-              <AssessmentEditable
-                value={paperMeta.semester}
-                onUpdate={(v: string) => updateText(v, "META", "semester")}
-                class="ml-1 w-12 text-right font-medium"
-              />
-            </div>
-
-            <!-- Row 2 -->
-            <div class="flex">
-              <span class="font-bold whitespace-nowrap">Course Name:</span>
-              <AssessmentEditable
-                value={paperMeta.subject_name}
-                onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-                class="ml-1 flex-1 uppercase font-medium"
-              />
-            </div>
-            <div class="flex justify-end">
-              <span class="font-bold whitespace-nowrap">Course Code:</span>
-              <AssessmentEditable
-                value={paperMeta.course_code}
-                onUpdate={(v: string) => updateText(v, "META", "course_code")}
-                class="ml-1 uppercase font-medium"
-              />
-            </div>
-
-            <!-- Row 3 -->
-            <div class="flex">
-              <span class="font-bold whitespace-nowrap">Duration:</span>
-              <AssessmentEditable
-                value={paperMeta.duration_minutes}
-                onUpdate={(v: string) =>
-                  updateText(v, "META", "duration_minutes")}
-                class="ml-1 font-medium"
-              />
-            </div>
-            <div class="flex justify-end">
-              <span class="font-bold">M.M.:</span>
-              <AssessmentEditable
-                value={paperMeta.max_marks}
-                onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-                class="ml-1 w-12 text-right font-medium"
-              />
-            </div>
-          </div>
+          <!-- VGU METADATA (Table Layout for Print Stability) -->
+          <table class="w-full text-[9pt] mb-3 font-serif border-none">
+            <tbody class="border-none">
+              <tr class="border-none">
+                <td class="w-[60%] border-none p-0 align-bottom">
+                  <div class="flex">
+                    <span class="font-bold whitespace-nowrap"
+                      >Programme & Batch:</span
+                    >
+                    <AssessmentEditable
+                      value={paperMeta.programme}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "programme")}
+                      class="ml-1 flex-1 uppercase font-medium"
+                    />
+                  </div>
+                </td>
+                <td class="w-[40%] border-none p-0 align-bottom text-right">
+                  <div class="flex justify-end">
+                    <span class="font-bold">Semester:</span>
+                    <AssessmentEditable
+                      value={paperMeta.semester}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "semester")}
+                      class="ml-1 w-12 text-right font-medium"
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr class="border-none">
+                <td class="border-none p-0 pt-1 align-bottom">
+                  <div class="flex">
+                    <span class="font-bold whitespace-nowrap">Course Name:</span
+                    >
+                    <AssessmentEditable
+                      value={paperMeta.subject_name}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "subject_name")}
+                      class="ml-1 flex-1 uppercase font-medium"
+                    />
+                  </div>
+                </td>
+                <td class="border-none p-0 pt-1 align-bottom text-right">
+                  <div class="flex justify-end">
+                    <span class="font-bold whitespace-nowrap">Course Code:</span
+                    >
+                    <AssessmentEditable
+                      value={paperMeta.course_code}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "course_code")}
+                      class="ml-1 uppercase font-medium"
+                    />
+                  </div>
+                </td>
+              </tr>
+              <tr class="border-none">
+                <td class="border-none p-0 pt-1 align-bottom">
+                  <div class="flex">
+                    <span class="font-bold whitespace-nowrap">Duration:</span>
+                    <AssessmentEditable
+                      value={paperMeta.duration_minutes}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "duration_minutes")}
+                      class="ml-1 font-medium"
+                    />
+                    <span class="ml-1">Minutes</span>
+                  </div>
+                </td>
+                <td class="border-none p-0 pt-1 align-bottom text-right">
+                  <div class="flex justify-end">
+                    <span class="font-bold">M.M.:</span>
+                    <AssessmentEditable
+                      value={paperMeta.max_marks}
+                      onUpdate={(v: string) =>
+                        updateText(v, "META", "max_marks")}
+                      class="ml-1 w-12 text-right font-medium"
+                    />
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
           <!-- Instructions & Course Outcomes -->
           <div class="mb-4 font-serif">
@@ -768,6 +793,7 @@
                 value={paperMeta.instructions ||
                   "Before attempting any question, be sure that you get the correct question paper."}
                 onUpdate={(v: string) => updateText(v, "META", "instructions")}
+                class="flex-1"
               />
             </div>
 
@@ -778,12 +804,12 @@
                 >
                   Course Outcomes:
                 </div>
-                <div class="flex flex-col gap-1 mt-2">
+                <div class="grid grid-cols-1 gap-1 mt-1">
                   {#each courseOutcomes as co}
                     <div class="flex gap-2">
                       <span class="font-bold whitespace-nowrap">{co.code}:</span
                       >
-                      <span class="opacity-90"
+                      <span class="opacity-90 leading-tight"
                         >{co.name || co.description || co.title || ""}</span
                       >
                     </div>
@@ -1066,23 +1092,23 @@
           <!-- VGU STYLE UNIFIED TABLE -->
           {@const activePaperStructure = paperStructure}
           <table
-            class="w-full border-collapse border border-black table-fixed font-serif"
+            class="w-full border-collapse border border-black table-auto font-serif"
           >
             <thead>
               <tr class="bg-gray-100/30 text-center font-bold">
-                <th class="w-[85px] border border-black p-2 text-[10pt]"
+                <th class="w-[60px] border border-black p-2 text-[10pt]"
                   >Q.No</th
                 >
                 <th class="border border-black p-2 text-[10pt] text-left"
                   >Question</th
                 >
-                <th class="w-[60px] border border-black p-2 text-[10pt]"
+                <th class="w-[50px] border border-black p-2 text-[10pt]"
                   >Mark</th
                 >
-                <th class="w-[80px] border border-black p-2 text-[10pt]"
+                <th class="w-[70px] border border-black p-2 text-[10pt]"
                   >K Level<br />(K1/K6)</th
                 >
-                <th class="w-[100px] border border-black p-2 text-[10pt]"
+                <th class="w-[85px] border border-black p-2 text-[10pt]"
                   >CO Indicators</th
                 >
               </tr>
