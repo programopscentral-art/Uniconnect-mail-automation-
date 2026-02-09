@@ -1,4 +1,4 @@
-import { getUniversities, getUsers } from '@uniconnect/shared';
+import { getAllUniversities, getAllUsers } from '@uniconnect/shared';
 import type { PageServerLoad, Actions } from './$types';
 import { createCommunicationTask } from '@uniconnect/shared';
 import { fail, redirect } from '@sveltejs/kit';
@@ -9,8 +9,8 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw redirect(302, '/communication-tasks');
     }
 
-    const universities = await getUniversities();
-    const users = await getUsers();
+    const universities = await getAllUniversities();
+    const users = await getAllUsers();
 
     return {
         universities,

@@ -566,6 +566,7 @@
         </h3>
         <button
           onclick={() => (isSwapSidebarOpen = false)}
+          aria-label="Close sidebar"
           class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
         >
           <svg

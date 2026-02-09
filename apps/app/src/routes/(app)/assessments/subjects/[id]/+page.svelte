@@ -10,7 +10,7 @@
   let newTopicNames = $state<Record<string, string>>({});
 
   // Paper management state
-  let localPapers = $state<any[]>(data.papers || []);
+  let localPapers = $state<any[]>([]);
   let selectedPaperIds = $state<string[]>([]);
   let isBulkDeleting = $state(false);
 
@@ -2034,6 +2034,7 @@
               >
                 <button
                   onclick={() => togglePaperSelection(paper.id)}
+                  aria-label="Select paper"
                   class="absolute top-6 left-6 w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center z-10
                   {selectedPaperIds.includes(paper.id)
                     ? 'bg-red-500 border-red-500 text-white'
