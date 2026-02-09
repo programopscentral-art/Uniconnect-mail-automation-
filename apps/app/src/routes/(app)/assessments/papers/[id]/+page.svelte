@@ -5,6 +5,7 @@
   import CrescentTemplate from "$lib/components/assessments/CrescentTemplate.svelte";
   import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
+  import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -357,6 +358,7 @@
     }
 
     const el =
+      document.getElementById("vgu-mid-paper-actual") ||
       document.getElementById("crescent-paper-actual") ||
       document.getElementById("generic-paper-actual") ||
       document.getElementById("cdu-paper-actual");
@@ -411,7 +413,7 @@
                                 display: flex !important;
                                 justify-content: center !important;
                             }
-                            #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
+                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -432,7 +434,7 @@
                             justify-content: center;
                             padding: 0;
                         }
-                        #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
+                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;
@@ -1098,17 +1100,32 @@
         </div>
 
         {#if selectedTemplate === "vgu"}
-          <AssessmentPaperRenderer
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            layoutSchema={data.paper.layout_schema || { style: "vgu" }}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
+          {#if paperMeta.exam_type === "MID1" || paperMeta.exam_type === "MID2" || paperMeta.exam_type === "INTERNAL_LAB" || (paperMeta.exam_type === "PRACTICAL" && !paperMeta.exam_title
+                ?.toLowerCase()
+                .includes("external"))}
+            <VGUMidTemplate
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              bind:paperStructure={paperMeta.template_config}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {:else}
+            <AssessmentPaperRenderer
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              bind:paperStructure={paperMeta.template_config}
+              layoutSchema={data.paper.layout_schema || { style: "vgu" }}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {/if}
         {:else if selectedTemplate === "cdu"}
           <CDUTemplate
             bind:paperMeta
@@ -1205,10 +1222,12 @@
       <div class="space-y-6">
         <div class="space-y-2 text-white">
           <label
+            for="assessment-title"
             class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
             >Assessment Title (Internal Tracking)</label
           >
           <input
+            id="assessment-title"
             type="text"
             bind:value={paperMeta.assessment_title}
             class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
@@ -1219,10 +1238,12 @@
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-2">
             <label
+              for="exam-type-select"
               class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
               >Exam Type</label
             >
             <select
+              id="exam-type-select"
               bind:value={paperMeta.exam_type}
               class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
             >
@@ -1239,14 +1260,24 @@
               <option value="PRACTICAL" class="bg-slate-900 text-white"
                 >PRACTICAL</option
               >
+              {#if selectedTemplate === "vgu"}
+                <option value="INTERNAL_LAB" class="bg-slate-900 text-white"
+                  >INTERNAL LAB</option
+                >
+                <option value="EXTERNAL_LAB" class="bg-slate-900 text-white"
+                  >EXTERNAL LAB</option
+                >
+              {/if}
             </select>
           </div>
           <div class="space-y-2">
             <label
+              for="exam-date-input"
               class="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2"
               >Exam Date</label
             >
             <input
+              id="exam-date-input"
               type="date"
               bind:value={paperMeta.paper_date}
               class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
