@@ -143,8 +143,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             setName: string
         }) => {
             const { pool, qType, targetMarks, bloom, co_id, preferredUnitId, allowedUnitIds, sectionTitle, slotId, setName } = params;
-            const sType = (qType || '').toUpperCase().replace(/\s+/g, '_');
-            const searchType = sType === 'FILL_IN_THE_BLANKS' ? 'FILL_IN_BLANK' : sType;
+            const scrub = (s: string) => (s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const sTypeScrubbed = scrub(qType || '');
+
+            let searchType = 'NORMAL';
+            if (sTypeScrubbed.includes('FILL') || sTypeScrubbed.includes('FIB') || sTypeScrubbed.includes('BLANK')) {
+                searchType = 'FILL_IN_BLANK';
+            } else if (sTypeScrubbed === 'MCQ') {
+                searchType = 'MCQ';
+            } else if (sTypeScrubbed === 'SHORT') {
+                searchType = 'SHORT';
+            } else if (sTypeScrubbed === 'LONG') {
+                searchType = 'LONG';
+            }
+
             const targetBloom = bloom?.toUpperCase() === 'ANY' ? null : bloom?.toUpperCase();
 
             const isMatch = (q: any, unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
@@ -155,21 +167,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 if (unitFilter && q.unit_id !== unitFilter) return false;
                 if (!unitFilter && allowedUnitIds.length > 0 && !allowedUnitIds.includes(q.unit_id)) return false;
 
-                const qTypeUpper = (q.type || '').toUpperCase();
+                const qTypeScrubbed = scrub(q.type || '');
 
                 // 3. Type check
                 if (strictType) {
                     if (searchType === 'MCQ') {
-                        const isMcq = qTypeUpper === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                        const isMcq = qTypeScrubbed === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
                         if (!isMcq) return false;
-                    } else if (searchType === 'FILL_IN_BLANK' || searchType === 'FIB' || searchType === 'FILL_IN_BLANKS') {
-                        const isFib = qTypeUpper === 'FILL_IN_BLANK' || qTypeUpper === 'FIB' || qTypeUpper === 'FILL_IN_BLANKS' || qTypeUpper === 'FILL_IN_THE_BLANK' || qTypeUpper === 'FILL_IN_THE_BLANKS' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
+                    } else if (searchType === 'FILL_IN_BLANK') {
+                        const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
                         if (!isFib) return false;
                     } else if (searchType === 'SHORT') {
-                        const isShort = qTypeUpper === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                        const isShort = qTypeScrubbed === 'SHORT' || qTypeScrubbed === 'VERYSHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 4);
                         if (!isShort) return false;
-                    } else if (searchType === 'LONG' || searchType === 'VERY_LONG' || searchType === 'PARAGRAPH') {
-                        const isLong = !['MCQ', 'FILL_IN_BLANK', 'FIB', 'FILL_IN_BLANKS', 'FILL_IN_THE_BLANKS'].includes(qTypeUpper) && Number(q.marks) >= 4;
+                    } else if (searchType === 'LONG') {
+                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'PARAGRAPH' || Number(q.marks) >= 5;
                         if (!isLong) return false;
                     }
                 }

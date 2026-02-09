@@ -888,7 +888,7 @@
   >
     <div class="flex items-center gap-6 px-4 no-print">
       <a
-        href="/assessments"
+        href="/assessments/subjects/{data.paper.subject_id}?activeTab=PAPERS"
         class="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
         title="Back to Papers"
       >
@@ -1216,11 +1216,19 @@
               bind:value={paperMeta.exam_type}
               class="w-full bg-white/5 border border-white/10 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all px-5 py-4 text-white"
             >
-              <option value="MID1">MID-1</option>
-              <option value="MID2">MID-2</option>
-              <option value="SEM">SEMESTER</option>
-              <option value="SUPPLY">SUPPLEMENTARY</option>
-              <option value="PRACTICAL">PRACTICAL</option>
+              <option value="MID1" class="bg-slate-900 text-white">MID-1</option
+              >
+              <option value="MID2" class="bg-slate-900 text-white">MID-2</option
+              >
+              <option value="SEM" class="bg-slate-900 text-white"
+                >SEMESTER</option
+              >
+              <option value="SUPPLY" class="bg-slate-900 text-white"
+                >SUPPLEMENTARY</option
+              >
+              <option value="PRACTICAL" class="bg-slate-900 text-white"
+                >PRACTICAL</option
+              >
             </select>
           </div>
           <div class="space-y-2">

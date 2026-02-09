@@ -70,3 +70,17 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         throw error(500, err.message);
     }
 };
+
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+    if (!locals.user) throw error(401);
+
+    const { id } = params;
+
+    try {
+        await db.query('DELETE FROM assessment_papers WHERE id = $1', [id]);
+        return json({ success: true });
+    } catch (err: any) {
+        console.error('[PAPER_DELETE_API] Error:', err);
+        throw error(500, err.message);
+    }
+};

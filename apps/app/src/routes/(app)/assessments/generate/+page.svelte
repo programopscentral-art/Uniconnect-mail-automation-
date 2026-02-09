@@ -1903,6 +1903,11 @@
                                   slot.marks === 5
                                 ) {
                                   slot.marks = 2;
+                                } else if (
+                                  slot.qType === "MCQ" ||
+                                  slot.qType === "FILL_IN_BLANK"
+                                ) {
+                                  slot.marks = 1;
                                 }
                               }}
                               class="w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-2 text-[10px] font-black text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -2133,6 +2138,14 @@
                                   </div>
                                   <select
                                     bind:value={choice.qType}
+                                    onchange={() => {
+                                      if (
+                                        choice.qType === "MCQ" ||
+                                        choice.qType === "FILL_IN_BLANK"
+                                      ) {
+                                        choice.marks = 1;
+                                      }
+                                    }}
                                     class="w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-lg p-1.5 text-[9px] font-black text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/10"
                                   >
                                     <option
