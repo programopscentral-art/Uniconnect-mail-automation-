@@ -353,7 +353,7 @@
                         <button
                           onclick={() => openSwapSidebar(q, "A")}
                           class="p-1 hover:bg-gray-100 rounded"
-                          title="Swap"
+                          aria-label="Swap question"
                         >
                           <svg
                             class="w-3 h-3"
@@ -371,7 +371,7 @@
                         <button
                           onclick={() => removeQuestion(q)}
                           class="p-1 hover:bg-gray-100 rounded text-red-500"
-                          title="Remove"
+                          aria-label="Remove question"
                         >
                           <svg
                             class="w-3 h-3"
@@ -450,7 +450,7 @@
                       <button
                         onclick={() => openSwapSidebar(q, "B")}
                         class="p-1 hover:bg-gray-100 rounded"
-                        title="Swap"
+                        aria-label="Swap question"
                       >
                         <svg
                           class="w-3 h-3"
@@ -468,7 +468,7 @@
                       <button
                         onclick={() => removeQuestion(q)}
                         class="p-1 hover:bg-gray-100 rounded text-red-500"
-                        title="Remove"
+                        aria-label="Remove question"
                       >
                         <svg
                           class="w-3 h-3"
