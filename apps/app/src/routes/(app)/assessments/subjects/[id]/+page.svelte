@@ -9,6 +9,16 @@
   let unitTabs = $state<Record<string, "PORTION" | "QUESTIONS">>({});
   let newTopicNames = $state<Record<string, string>>({});
 
+  // Paper management state
+  let localPapers = $state<any[]>(data.papers || []);
+  let selectedPaperIds = $state<string[]>([]);
+  let isBulkDeleting = $state(false);
+
+  // Sync localPapers when server data changes
+  $effect(() => {
+    localPapers = data.papers || [];
+  });
+
   function toggleUnit(unitId: string) {
     if (expandedUnits.includes(unitId)) {
       expandedUnits = expandedUnits.filter((id) => id !== unitId);
@@ -509,10 +519,85 @@
 
   async function deletePaper(id: string) {
     if (!confirm("Are you sure you want to delete this saved paper?")) return;
-    const res = await fetch(`/api/assessments/papers/${id}`, {
-      method: "DELETE",
-    });
-    if (res.ok) await invalidateAll();
+
+    // Optimistic update: remove from localPapers immediately
+    const originalPapers = [...localPapers];
+    localPapers = localPapers.filter((p) => p.id !== id);
+
+    try {
+      const res = await fetch(`/api/assessments/papers/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        // Rollback if failed
+        localPapers = originalPapers;
+        const err = await res.json();
+        alert(`Failed to delete: ${err.message || "Unknown error"}`);
+      } else {
+        // Clean up selection if it was selected
+        selectedPaperIds = selectedPaperIds.filter((sid) => sid !== id);
+        // Refresh server data in background
+        invalidateAll();
+      }
+    } catch (err) {
+      localPapers = originalPapers;
+      alert("Error deleting paper. Please check connection.");
+    }
+  }
+
+  async function deleteSelectedPapers() {
+    if (selectedPaperIds.length === 0) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedPaperIds.length} selected papers?`,
+      )
+    )
+      return;
+
+    isBulkDeleting = true;
+    const originalPapers = [...localPapers];
+    const idsToDelete = [...selectedPaperIds];
+
+    // Optimistic update
+    localPapers = localPapers.filter((p) => !idsToDelete.includes(p.id));
+    selectedPaperIds = [];
+
+    try {
+      const res = await fetch(`/api/assessments/papers/bulk-delete`, {
+        method: "POST",
+        body: JSON.stringify({ ids: idsToDelete }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        localPapers = originalPapers;
+        const err = await res.json();
+        alert(`Failed to delete papers: ${err.message || "Unknown error"}`);
+      } else {
+        await invalidateAll();
+      }
+    } catch (err) {
+      localPapers = originalPapers;
+      alert("Error performing bulk deletion.");
+    } finally {
+      isBulkDeleting = false;
+    }
+  }
+
+  function togglePaperSelection(id: string) {
+    if (selectedPaperIds.includes(id)) {
+      selectedPaperIds = selectedPaperIds.filter((sid) => sid !== id);
+    } else {
+      selectedPaperIds = [...selectedPaperIds, id];
+    }
+  }
+
+  function toggleSelectAllPapers() {
+    if (selectedPaperIds.length === localPapers.length) {
+      selectedPaperIds = [];
+    } else {
+      selectedPaperIds = localPapers.map((p) => p.id);
+    }
   }
 
   function generateLevels(n: number) {
@@ -1883,13 +1968,92 @@
           </a>
         </div>
 
-        {#if data.papers && data.papers.length > 0}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {#each data.papers as paper}
-              <div
-                class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all group flex flex-col"
+        {#if localPapers && localPapers.length > 0}
+          {#if selectedPaperIds.length > 0}
+            <div
+              class="bg-red-50 dark:bg-red-900/20 p-4 rounded-[1.5rem] border border-red-100 dark:border-red-800/40 flex items-center justify-between px-6"
+              transition:slide
+            >
+              <div class="flex items-center gap-6">
+                <div class="flex items-center gap-3">
+                  <div
+                    class="w-2 h-2 rounded-full bg-red-500 animate-pulse"
+                  ></div>
+                  <span
+                    class="text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest"
+                  >
+                    {selectedPaperIds.length} Papers Selected
+                  </span>
+                </div>
+                <button
+                  onclick={toggleSelectAllPapers}
+                  class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase hover:underline tracking-tighter"
+                >
+                  {selectedPaperIds.length === localPapers.length
+                    ? "Deselect All"
+                    : "Select All Available"}
+                </button>
+              </div>
+              <button
+                onclick={deleteSelectedPapers}
+                disabled={isBulkDeleting}
+                class="px-6 py-2.5 bg-red-600 text-white text-[9px] font-black rounded-xl uppercase tracking-[0.2em] hover:bg-red-700 transition-all shadow-xl shadow-red-500/20 disabled:opacity-50 flex items-center gap-2"
               >
-                <div class="p-8 space-y-6 flex-1">
+                {#if isBulkDeleting}
+                  <div
+                    class="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                  ></div>
+                  DELETING...
+                {:else}
+                  <svg
+                    class="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    /></svg
+                  >
+                  CONFIRM BULK DELETE
+                {/if}
+              </button>
+            </div>
+          {/if}
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {#each localPapers as paper (paper.id)}
+              <div
+                class="bg-white dark:bg-slate-900 border {selectedPaperIds.includes(
+                  paper.id,
+                )
+                  ? 'border-red-500 ring-2 ring-red-500/10'
+                  : 'border-gray-100 dark:border-slate-800'} rounded-[2.5rem] overflow-hidden shadow-sm hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900/50 transition-all group flex flex-col relative"
+              >
+                <button
+                  onclick={() => togglePaperSelection(paper.id)}
+                  class="absolute top-6 left-6 w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center z-10
+                  {selectedPaperIds.includes(paper.id)
+                    ? 'bg-red-500 border-red-500 text-white'
+                    : 'bg-white/50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-700 text-transparent hover:border-red-400 group-hover:border-red-400'}"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="4"
+                      d="M5 13l4 4L19 7"
+                    /></svg
+                  >
+                </button>
+
+                <div class="p-8 pb-4 space-y-6 flex-1 pt-16">
                   <div class="flex justify-between items-start">
                     <div
                       class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-sm border border-indigo-100 dark:border-indigo-800/50 group-hover:scale-110 transition-transform"
