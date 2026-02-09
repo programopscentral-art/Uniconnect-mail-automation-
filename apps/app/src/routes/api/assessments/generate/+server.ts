@@ -134,16 +134,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             pool: any[],
             qType: string,
             targetMarks: number,
+            bloom?: string,
+            co_id?: string,
             preferredUnitId: string,
             allowedUnitIds: string[],
             sectionTitle: string,
             slotId: string,
             setName: string
         }) => {
-            const { pool, qType, targetMarks, preferredUnitId, allowedUnitIds, sectionTitle, slotId, setName } = params;
+            const { pool, qType, targetMarks, bloom, co_id, preferredUnitId, allowedUnitIds, sectionTitle, slotId, setName } = params;
             const searchType = qType?.toUpperCase() || 'ANY';
+            const targetBloom = bloom?.toUpperCase() === 'ANY' ? null : bloom?.toUpperCase();
 
-            const isMatch = (q: any, unitFilter: string | null, strictType: boolean) => {
+            const isMatch = (q: any, unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
                 // 1. Marks must ALWAYS match
                 if (Number(q.marks) !== Number(targetMarks)) return false;
 
@@ -154,23 +157,35 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 // 3. Type check
                 if (strictType) {
                     if (searchType === 'MCQ') {
-                        return q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
-                    }
-                    if (searchType === 'FILL_IN_BLANK' || searchType === 'FIB') {
-                        return q.type === 'FILL_IN_BLANK' || q.type === 'FIB' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
-                    }
-                    if (searchType === 'SHORT') {
-                        return q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
-                    }
-                    if (searchType === 'LONG') {
-                        return !['MCQ', 'FILL_IN_BLANK', 'FIB'].includes(q.type) && Number(q.marks) >= 4;
+                        const isMcq = q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                        if (!isMcq) return false;
+                    } else if (searchType === 'FILL_IN_BLANK' || searchType === 'FIB' || searchType === 'FILL_IN_BLANKS') {
+                        const isFib = q.type === 'FILL_IN_BLANK' || q.type === 'FIB' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
+                        if (!isFib) return false;
+                    } else if (searchType === 'SHORT') {
+                        const isShort = q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                        if (!isShort) return false;
+                    } else if (searchType === 'LONG') {
+                        const isLong = !['MCQ', 'FILL_IN_BLANK', 'FIB', 'FILL_IN_BLANKS'].includes(q.type) && Number(q.marks) >= 4;
+                        if (!isLong) return false;
                     }
                 }
-                return true; // Relaxed type match
+
+                // 4. Bloom check
+                if (strictBloom && targetBloom) {
+                    if (q.bloom_level?.toUpperCase() !== targetBloom) return false;
+                }
+
+                // 5. CO check
+                if (strictCo && co_id && co_id !== 'null') {
+                    if (q.target_co !== co_id) return false;
+                }
+
+                return true;
             };
 
-            const findInPool = (unitFilter: string | null, strictType: boolean) => {
-                let candidates = pool.filter(q => isMatch(q, unitFilter, strictType));
+            const findInPool = (unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
+                let candidates = pool.filter(q => isMatch(q, unitFilter, strictType, strictBloom, strictCo));
 
                 // Shuffle candidates
                 for (let i = candidates.length - 1; i > 0; i--) {
@@ -188,49 +203,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return null;
             };
 
-            // MULTI-STAGE FALLBACK
-            // 1. Strict (Preferred Unit + Strict Type)
-            let choice = findInPool(preferredUnitId !== 'Auto' ? preferredUnitId : null, true);
+            // TIERED SEARCH
+            const uId = preferredUnitId !== 'Auto' ? preferredUnitId : null;
 
-            // 2. Medium (Any Allowed Unit + Strict Type)
-            if (!choice && preferredUnitId !== 'Auto') {
-                choice = findInPool(null, true);
+            // 1. All Strict (Unit + Type + Bloom + CO)
+            let choice = findInPool(uId, true, true, true);
+
+            // 2. Relax CO
+            if (!choice && co_id) choice = findInPool(uId, true, true, false);
+
+            // 3. Relax Bloom
+            if (!choice && targetBloom) choice = findInPool(uId, true, false, false);
+
+            // 4. Relax Unit (Try any allowed unit)
+            if (!choice && uId) {
+                choice = findInPool(null, true, true, true) ||
+                    findInPool(null, true, false, false);
             }
 
-            // 3. Relaxed (Any Allowed Unit + Any Type)
-            if (!choice) {
-                choice = findInPool(null, false);
-            }
+            // 5. Relax Type
+            if (!choice) choice = findInPool(null, false, false, false);
 
-            // 4. Final (Any Unit in Subject + Any Type)
+            // 6. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness)
             if (!choice) {
-                choice = findInPool(null, false); // findInPool(null) already checks allowedUnitIds, let's try truly ANY
-                // 5. "JUST WORK" FALLBACK (Emergency Release Valve)
-                if (!choice) {
-                    // If we STILL have nothing, allow REUSE from other sets (Last Resort)
-                    // This prevents [POOL EXHAUSTED] crash for users with small portions
-                    let candidates = pool.filter(q => Number(q.marks) === Number(targetMarks));
-                    for (const cand of candidates) {
-                        // Only check if it's already used in THIS SPECIFIC SET
-                        // (We still want uniqueness within a single paper)
-                        const isUsedInCurrentSet = setName && Array.isArray(generatedSets[setName]?.questions) &&
-                            generatedSets[setName].questions.some((s: any) =>
-                                (s.questions || []).some((q: any) => q.id === cand.id)
-                            );
-
-                        if (!isUsedInCurrentSet) {
-                            choice = cand;
-                            break;
-                        }
+                let candidates = pool.filter(q => Number(q.marks) === Number(targetMarks));
+                for (const cand of candidates) {
+                    const isUsedInCurrentSet = setName && Array.isArray(generatedSets[setName]?.questions) &&
+                        generatedSets[setName].questions.some((s: any) =>
+                            (s.questions || []).some((q: any) => q.id === cand.id)
+                        );
+                    if (!isUsedInCurrentSet) {
+                        choice = cand;
+                        break;
                     }
                 }
             }
 
             if (!choice) {
-                throw new Error(`[POOL EXHAUSTED] Cannot find unique question for Set ${setName}, section "${sectionTitle}", Slot ${slotId}. Target: ${targetMarks} Marks, Type: ${searchType}. PORTION: ${allowedUnitIds.join(',')}`);
+                throw new Error(`[POOL EXHAUSTED] Cannot find question for Set ${setName}, section "${sectionTitle}", Slot ${slotId}. Target: ${targetMarks} Marks, Type: ${searchType}, Bloom: ${bloom}, CO: ${co_id}`);
             }
 
-            // REGISTER IMMEDIATELY
+            // REGISTER
             globalUsedIds.add(choice.id);
             globalUsedTexts.add(normalizeText(choice.question_text));
             globalUsedHashes.add(createQuestionHash(choice));

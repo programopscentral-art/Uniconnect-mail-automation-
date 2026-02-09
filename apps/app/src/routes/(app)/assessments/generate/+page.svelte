@@ -620,7 +620,24 @@
             ?.includes("chaitanya")
             ? "cdu"
             : selectedTemplate,
-          template_config: paperStructure,
+          template_config: paperStructure.map((section) => ({
+            ...section,
+            slots: section.slots.map((slot: any) => ({
+              ...slot,
+              // Ensure backend gets the full context
+              qType: slot.qType,
+              marks: slot.marks,
+              bloom: slot.bloom,
+              co_id: slot.co_id,
+              choices: slot.choices?.map((c: any) => ({
+                ...c,
+                qType: c.qType,
+                marks: c.marks,
+                bloom: c.bloom,
+                co_id: c.co_id,
+              })),
+            })),
+          })),
           sets_config: setsConfig,
         }),
         headers: { "Content-Type": "application/json" },
@@ -853,7 +870,15 @@
           subject_id: selectedSubjectId,
           unit_ids: selectedUnitIds,
           max_marks: maxMarks,
-          template_config: paperStructure,
+          template_config: paperStructure.map((section: any) => ({
+            ...section,
+            slots: section.slots.map((slot: any) => ({
+              ...slot,
+              choices: slot.choices?.map((c: any) => ({
+                ...c,
+              })),
+            })),
+          })),
           selected_template: isVGU ? "vgu-standard-mid-term" : selectedTemplate,
           generation_mode: "Standard", // Use standard for preview to get 1 set
           preview_only: true,
@@ -1755,6 +1780,14 @@
                       <input
                         type="number"
                         bind:value={section.marks_per_q}
+                        oninput={() => {
+                          const m = Number(section.marks_per_q || 0);
+                          section.slots.forEach((s: any) => {
+                            s.marks = m;
+                            if (s.choices)
+                              s.choices.forEach((c: any) => (c.marks = m));
+                          });
+                        }}
                         class="w-12 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-lg p-1.5 text-[10px] font-black text-gray-900 dark:text-white text-center focus:ring-2 focus:ring-indigo-500/20"
                       />
                       <span
@@ -1864,6 +1897,14 @@
                             </div>
                             <select
                               bind:value={slot.qType}
+                              onchange={() => {
+                                if (
+                                  slot.qType === "SHORT" &&
+                                  slot.marks === 5
+                                ) {
+                                  slot.marks = 2;
+                                }
+                              }}
                               class="w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl p-2 text-[10px] font-black text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             >
                               <option value="ANY" class="dark:bg-slate-800"
