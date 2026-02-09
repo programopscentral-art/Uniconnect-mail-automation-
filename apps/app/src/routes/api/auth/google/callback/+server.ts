@@ -66,10 +66,10 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                 user = await createUser({
                     email: email,
                     name: googleUser.name || 'Nxtwave Member',
-                    role: 'BOA', // Give Nxtwave members BOA role by default
+                    role: 'UNIVERSITY_OPERATOR', // Default role - will redirect to /request-access
                     university_id: null
                 });
-                console.log(`[OAUTH] Nxtwave Member created as BOA: ${email}`);
+                console.log(`[OAUTH] Nxtwave Member created as UNIVERSITY_OPERATOR: ${email}`);
             }
             // University Operator check (based on domain)
             else {
@@ -107,33 +107,14 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         } else {
             console.log(`[OAUTH] Existing user log in: ${email} (Role: ${user.role}, Univ: ${user.university_id})`);
 
-            // Auto-upgrade and Reactivate Nxtwave employees
-            if (isNxtwave) {
-                let needsUpdate = false;
-                const updateFields = [];
-                const queryParams: any[] = [user.id];
-
-                if (user.role === 'UNIVERSITY_OPERATOR') {
-                    updateFields.push(`role = $${updateFields.length + 2}`);
-                    queryParams.push('BOA');
-                    user.role = 'BOA';
-                    needsUpdate = true;
-                }
-
-                if (!user.is_active) {
-                    updateFields.push(`is_active = $${updateFields.length + 2}`);
-                    queryParams.push(true);
-                    user.is_active = true;
-                    needsUpdate = true;
-                }
-
-                if (needsUpdate) {
-                    await db.query(
-                        `UPDATE users SET ${updateFields.join(', ')}, updated_at = NOW() WHERE id = $1`,
-                        queryParams
-                    );
-                    console.log(`[OAUTH] Auto-upgraded/Reactivated Nxtwave user ${email}`);
-                }
+            // Auto-Reactivate Nxtwave employees if they were deactivated
+            if (isNxtwave && !user.is_active) {
+                await db.query(
+                    `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2`,
+                    [true, user.id]
+                );
+                user.is_active = true;
+                console.log(`[OAUTH] Auto-Reactivated Nxtwave user ${email}`);
             }
 
             // User exists - check if they were accepting an invitation to update their role/university
