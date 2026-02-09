@@ -143,42 +143,47 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             setName: string
         }) => {
             const { pool, qType, targetMarks, bloom, co_id, preferredUnitId, allowedUnitIds, sectionTitle, slotId, setName } = params;
-            const searchType = qType?.toUpperCase() || 'ANY';
+            const sType = (qType || '').toUpperCase().replace(/\s+/g, '_');
+            const searchType = sType === 'FILL_IN_THE_BLANKS' ? 'FILL_IN_BLANK' : sType;
             const targetBloom = bloom?.toUpperCase() === 'ANY' ? null : bloom?.toUpperCase();
 
             const isMatch = (q: any, unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
                 // 1. Marks must ALWAYS match
-                if (Number(q.marks) !== Number(targetMarks)) return false;
+                if (Math.round(Number(q.marks)) !== Math.round(Number(targetMarks))) return false;
 
                 // 2. Unit check
                 if (unitFilter && q.unit_id !== unitFilter) return false;
                 if (!unitFilter && allowedUnitIds.length > 0 && !allowedUnitIds.includes(q.unit_id)) return false;
 
+                const qTypeUpper = (q.type || '').toUpperCase();
+
                 // 3. Type check
                 if (strictType) {
                     if (searchType === 'MCQ') {
-                        const isMcq = q.type === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+                        const isMcq = qTypeUpper === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
                         if (!isMcq) return false;
                     } else if (searchType === 'FILL_IN_BLANK' || searchType === 'FIB' || searchType === 'FILL_IN_BLANKS') {
-                        const isFib = q.type === 'FILL_IN_BLANK' || q.type === 'FIB' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
+                        const isFib = qTypeUpper === 'FILL_IN_BLANK' || qTypeUpper === 'FIB' || qTypeUpper === 'FILL_IN_BLANKS' || qTypeUpper === 'FILL_IN_THE_BLANK' || qTypeUpper === 'FILL_IN_THE_BLANKS' || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
                         if (!isFib) return false;
                     } else if (searchType === 'SHORT') {
-                        const isShort = q.type === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
+                        const isShort = qTypeUpper === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 3);
                         if (!isShort) return false;
-                    } else if (searchType === 'LONG') {
-                        const isLong = !['MCQ', 'FILL_IN_BLANK', 'FIB', 'FILL_IN_BLANKS'].includes(q.type) && Number(q.marks) >= 4;
+                    } else if (searchType === 'LONG' || searchType === 'VERY_LONG' || searchType === 'PARAGRAPH') {
+                        const isLong = !['MCQ', 'FILL_IN_BLANK', 'FIB', 'FILL_IN_BLANKS', 'FILL_IN_THE_BLANKS'].includes(qTypeUpper) && Number(q.marks) >= 4;
                         if (!isLong) return false;
                     }
                 }
 
                 // 4. Bloom check
                 if (strictBloom && targetBloom) {
-                    if (q.bloom_level?.toUpperCase() !== targetBloom) return false;
+                    const qBloom = (q.bloom_level || '').toUpperCase().replace(/^L/, '');
+                    const tBloom = targetBloom.replace(/^L/, '');
+                    if (qBloom !== tBloom) return false;
                 }
 
                 // 5. CO check
-                if (strictCo && co_id && co_id !== 'null') {
-                    if (q.target_co !== co_id) return false;
+                if (strictCo && co_id && co_id !== 'null' && co_id !== 'undefined') {
+                    if (q.co_id !== co_id) return false;
                 }
 
                 return true;
@@ -248,14 +253,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             globalUsedTexts.add(normalizeText(choice.question_text));
             globalUsedHashes.add(createQuestionHash(choice));
 
-            const coCode = coRes.rows.find(c => c.id === choice.co_id)?.code || 'CO1';
+            const coCode = (coRes.rows.find(c => c.id === choice.co_id) || coRes.rows.find(c => c.id === co_id))?.code || 'CO1';
 
             return {
                 ...choice,
                 question_id: choice.id,
                 co: coCode,
                 target_co: coCode,
-                k_level: choice.bloom_level ? `K${choice.bloom_level.replace(/[^0-9]/g, '') || '1'}` : 'K1'
+                k_level: choice.bloom_level ? `K${choice.bloom_level.toUpperCase().replace(/[^0-9]/g, '') || '1'}` : 'K1'
             };
         };
 
@@ -276,8 +281,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const uId = slot.unit === 'Auto' ? (unit_ids[unitIdx++ % unit_ids.length] || questionsRes.rows[0]?.unit_id) : slot.unit;
 
                     if (slot.type === 'OR_GROUP') {
-                        const q1 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: `${slot.id}_C1`, setName });
-                        const q2 = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: `${slot.id}_C2`, setName });
+                        const q1 = globalPickOrSwap({
+                            pool: allQuestions,
+                            qType: slot.choices[0].qType,
+                            targetMarks: slot.choices[0].marks,
+                            bloom: slot.choices[0].bloom,
+                            co_id: slot.choices[0].co_id,
+                            preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
+                            allowedUnitIds: unit_ids,
+                            sectionTitle: section.title,
+                            slotId: `${slot.id}_C1`,
+                            setName
+                        });
+                        const q2 = globalPickOrSwap({
+                            pool: allQuestions,
+                            qType: slot.choices[1].qType,
+                            targetMarks: slot.choices[1].marks,
+                            bloom: slot.choices[1].bloom,
+                            co_id: slot.choices[1].co_id,
+                            preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
+                            allowedUnitIds: unit_ids,
+                            sectionTitle: section.title,
+                            slotId: `${slot.id}_C2`,
+                            setName
+                        });
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'OR_GROUP', part, marks: slot.marks,
@@ -285,12 +312,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             choice2: { questions: [q2] }
                         });
 
-                        // Store answers for BOTH (Step 6)
                         if (q1.options?.length > 0 || q1.answer_key) setAnswerSheet.push({ questionId: q1.id, correctOption: q1.answer_key || '', explanation: q1.explanation || '' });
                         if (q2.options?.length > 0 || q2.answer_key) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.answer_key || '', explanation: q2.explanation || '' });
 
                     } else {
-                        const q = globalPickOrSwap({ pool: allQuestions, qType: slot.qType, targetMarks: slot.marks, preferredUnitId: uId, allowedUnitIds: unit_ids, sectionTitle: section.title, slotId: slot.id, setName });
+                        const q = globalPickOrSwap({
+                            pool: allQuestions,
+                            qType: slot.qType,
+                            targetMarks: slot.marks,
+                            bloom: slot.bloom,
+                            co_id: slot.co_id,
+                            preferredUnitId: uId,
+                            allowedUnitIds: unit_ids,
+                            sectionTitle: section.title,
+                            slotId: slot.id,
+                            setName
+                        });
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'SINGLE', part, marks: slot.marks,
