@@ -36,7 +36,7 @@ export const handle: Handle = async ({ event, resolve }) => {
                 // V43: Dynamic Central BOA Override
                 // Only Central BOA (no university_id OR Team university) get full features
                 const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
-                const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS'].includes(user.role);
+                const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(user.role);
 
                 if (isCentralBOA || isStaff) {
                     event.locals.user!.permissions = [
