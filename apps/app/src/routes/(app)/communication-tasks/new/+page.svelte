@@ -9,6 +9,7 @@
     ArrowLeft,
     Send,
     Sparkles,
+    Search,
   } from "lucide-svelte";
 
   let { data, form } = $props();
@@ -20,8 +21,9 @@
 
   const filteredUsers = $derived(
     users.filter((u) => {
+      const name = u.name || "";
       const matchesSearch =
-        u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
         u.role.toLowerCase().includes(userSearchQuery.toLowerCase());
 
       if (selectedUniversities.length === 0) return matchesSearch;
@@ -33,8 +35,8 @@
         .map((uni) => uni.id);
 
       const userUniIds = [
-        u.university_id,
-        ...(u.universities || []).map((un: any) => un.id),
+        (u as any).university_id,
+        ...((u as any).universities || []).map((un: any) => un.id),
       ].filter(Boolean);
       return (
         matchesSearch && selectedUniIds.some((id) => userUniIds.includes(id))

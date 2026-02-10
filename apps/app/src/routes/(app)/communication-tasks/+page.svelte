@@ -79,6 +79,7 @@
   }
 
   let deletingId = $state<string | null>(null);
+  let optimisticDeletedIds = $state<string[]>([]);
 </script>
 
 <div class="space-y-8" in:fade>
@@ -151,7 +152,7 @@
 
   <!-- Task Cards -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-    {#each filteredTasks as task (task.id)}
+    {#each filteredTasks.filter((t) => !optimisticDeletedIds.includes(t.id)) as task (task.id)}
       {@const statusBadge = getStatusBadge(task.status)}
       <div
         class="group bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm hover:shadow-2xl hover:shadow-indigo-500/5 transition-all relative overflow-hidden"
@@ -174,10 +175,15 @@
                   method="POST"
                   action="?/delete"
                   use:enhance={() => {
-                    return async ({ result }) => {
-                      if (result.type === "success") {
-                        deletingId = null;
+                    optimisticDeletedIds = [...optimisticDeletedIds, task.id];
+                    return async ({ result, update }) => {
+                      if (result.type !== "success") {
+                        optimisticDeletedIds = optimisticDeletedIds.filter(
+                          (id) => id !== task.id,
+                        );
                       }
+                      deletingId = null;
+                      await update();
                     };
                   }}
                 >
