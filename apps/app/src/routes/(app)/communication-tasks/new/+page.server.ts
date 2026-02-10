@@ -2,6 +2,7 @@ import { getAllUniversities, getAllUsers } from '@uniconnect/shared';
 import type { PageServerLoad, Actions } from './$types';
 import { createCommunicationTask } from '@uniconnect/shared';
 import { fail, redirect } from '@sveltejs/kit';
+import { triggerCommTaskCheck } from '$lib/server/queue';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { user } = locals;
@@ -49,13 +50,20 @@ export const actions: Actions = {
         }
 
         try {
+            // Normalize the scheduled time to UTC by appending the local offset if missing
+            // datetime-local input sends YYYY-MM-DDTHH:MM which is local.
+            // We assume IST (+05:30) for the primary users.
+            const dateStr = scheduledAt.includes('+') || scheduledAt.includes('Z')
+                ? scheduledAt
+                : `${scheduledAt}:00+05:30`;
+
             await createCommunicationTask({
                 universities,
                 channel,
                 assigned_to: assignedTo,
                 message_title: title,
                 message_body: body,
-                scheduled_at: new Date(scheduledAt),
+                scheduled_at: new Date(dateStr),
                 priority,
                 notes,
                 created_by: user.id,
@@ -64,6 +72,9 @@ export const actions: Actions = {
                 content_type: contentType,
                 link: link || undefined
             });
+
+            // Trigger immediate worker check
+            await triggerCommTaskCheck();
         } catch (error) {
             console.error('Failed to create communication task:', error);
             return fail(500, { error: 'Internal server error' });

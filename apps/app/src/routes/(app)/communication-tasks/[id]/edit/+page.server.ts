@@ -1,6 +1,7 @@
 import { getAllUniversities, getCommunicationTaskById, updateCommunicationTask } from '@uniconnect/shared';
 import type { PageServerLoad, Actions } from './$types';
 import { fail, redirect } from '@sveltejs/kit';
+import { triggerCommTaskCheck } from '$lib/server/queue';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
     const { user } = locals;
@@ -43,12 +44,19 @@ export const actions: Actions = {
         }
 
         try {
+            // Normalize the scheduled time to UTC by appending the local offset if missing
+            // datetime-local input sends YYYY-MM-DDTHH:MM which is local.
+            // We assume IST (+05:30) for the primary users.
+            const dateStr = scheduledAt.includes('+') || scheduledAt.includes('Z')
+                ? scheduledAt
+                : `${scheduledAt}:00+05:30`;
+
             await updateCommunicationTask(params.id, {
                 universities,
                 channel,
                 message_title: title,
                 message_body: body,
-                scheduled_at: new Date(scheduledAt),
+                scheduled_at: new Date(dateStr),
                 priority,
                 notes,
                 update_type: updateType,
@@ -56,6 +64,9 @@ export const actions: Actions = {
                 content_type: contentType,
                 link: link || undefined
             });
+
+            // Trigger immediate worker check
+            await triggerCommTaskCheck();
         } catch (error) {
             console.error('Failed to update communication task:', error);
             return fail(500, { error: 'Internal server error' });

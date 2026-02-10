@@ -16,9 +16,11 @@ connection.on('error', (err) => console.error('[QUEUE] ❌ Redis error:', err));
 
 export const emailQueue = new Queue('email-sending', { connection });
 export const systemNotificationQueue = new Queue('system-notifications', { connection });
+export const commTaskNotificationQueue = new Queue('comm-task-notifications', { connection });
 
 console.log('[QUEUE_INIT] Email queue created for: email-sending');
 console.log('[QUEUE_INIT] System queue created for: system-notifications');
+console.log('[QUEUE_INIT] Comm task queue created for: comm-task-notifications');
 
 export async function addEmailJob(data: {
     recipientId: string;
@@ -61,6 +63,12 @@ export async function addNotificationJob(data: {
 }) {
     await systemNotificationQueue.add('send-notification', data, {
         attempts: 3,
+        removeOnComplete: true
+    });
+}
+
+export async function triggerCommTaskCheck() {
+    await commTaskNotificationQueue.add('check-tasks', {}, {
         removeOnComplete: true
     });
 }

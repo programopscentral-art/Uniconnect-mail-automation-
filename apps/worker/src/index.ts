@@ -40,6 +40,7 @@ console.log(`[WORKER_INIT] Database Host: ${dbHost}`);
 
 // Queues (for adding jobs from worker if needed)
 const systemNotificationQueue = new Queue('system-notifications', { connection });
+const commTaskNotificationQueue = new Queue('comm-task-notifications', { connection });
 
 // Updates status of individual recipient atomically
 async function updateRecipientStatus(id: string, status: 'SENT' | 'FAILED' | 'CANCELLED', messageId?: string, error?: string) {
@@ -299,6 +300,11 @@ const systemWorker = new Worker('system-notifications', async (job: Job) => {
 systemWorker.on('error', err => console.error('[SYSTEM_WORKER_ERROR]', err));
 systemWorker.on('failed', (job, err) => console.error('[SYSTEM_JOB_FAILED]', job?.id, err));
 systemWorker.on('completed', job => console.log(`[SYSTEM_WORKER_SUCCESS] Job ${job?.id} finished.`));
+const commTaskWorker = new Worker('comm-task-notifications', async () => {
+  console.log('[COMM-TASK-WORKER] 🔔 Triggered immediate task check');
+  await processCommunicationTasks();
+}, { connection });
+commTaskWorker.on('error', err => console.error('[COMM_TASK_WORKER_ERROR]', err));
 
 // 3. Task Deadline Reminder Logic
 async function checkTaskDeadlines() {
