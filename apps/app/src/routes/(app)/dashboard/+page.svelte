@@ -495,6 +495,59 @@
       console.error("Error promoting task:", e);
     }
   }
+  // Notification Diagnostic
+  import { getFcmToken } from "$lib/firebase";
+  let notificationStatus = $state<
+    "NOT_SUPPORTED" | "GRANTED" | "DENIED" | "DEFAULT"
+  >("DEFAULT");
+  let isTestingNotification = $state(false);
+
+  $effect(() => {
+    if (!("Notification" in window)) {
+      notificationStatus = "NOT_SUPPORTED";
+    } else {
+      notificationStatus = Notification.permission as any;
+    }
+  });
+
+  async function requestNotificationPermission() {
+    if (!("Notification" in window)) return;
+    const permission = await Notification.requestPermission();
+    notificationStatus = permission as any;
+    if (permission === "GRANTED") {
+      const token = await getFcmToken();
+      if (token) {
+        await fetch("/api/fcm/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token,
+            deviceInfo: { userAgent: navigator.userAgent },
+          }),
+        });
+        alert("Notifications enabled successfully!");
+      }
+    }
+  }
+
+  async function testNotification() {
+    isTestingNotification = true;
+    try {
+      const res = await fetch("/api/fcm/test", { method: "POST" });
+      if (res.ok) {
+        alert(
+          "A test notification has been queued. You should receive it in a few seconds.",
+        );
+      } else {
+        const err = await res.json();
+        alert("Failed to send test notification: " + err.message);
+      }
+    } catch (e) {
+      alert("Error triggering test notification.");
+    } finally {
+      isTestingNotification = false;
+    }
+  }
 </script>
 
 <div class="flex flex-col 2xl:flex-row gap-8 min-h-screen relative" in:fade>
@@ -534,6 +587,62 @@
         </div>
       {/if}
     </div>
+
+    <!-- Notification Status Card -->
+    {#if notificationStatus !== "GRANTED"}
+      <div
+        class="bg-indigo-600 rounded-[2rem] p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-500/20 animate-premium-slide"
+        style="animation-delay: 50ms;"
+      >
+        <div class="flex items-center gap-4">
+          <div
+            class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl"
+          >
+            🔔
+          </div>
+          <div class="space-y-1">
+            <h3 class="font-black uppercase tracking-tight">
+              Enable Desktop Notifications
+            </h3>
+            <p
+              class="text-xs font-bold text-indigo-100 uppercase tracking-widest opacity-80"
+            >
+              Don't miss your scheduled communication tasks and reminders
+            </p>
+          </div>
+        </div>
+        <button
+          onclick={requestNotificationPermission}
+          class="px-8 py-3 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap"
+        >
+          Enable Now
+        </button>
+      </div>
+    {:else}
+      <div
+        class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] p-4 flex items-center justify-between gap-4 shadow-sm"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl flex items-center justify-center text-xs"
+          >
+            ✅
+          </div>
+          <div
+            class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest"
+          >
+            Notifications are active
+          </div>
+        </div>
+        <button
+          onclick={testNotification}
+          disabled={isTestingNotification}
+          class="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
+        >
+          {isTestingNotification ? "Sending..." : "Send Test Ping"}
+        </button>
+      </div>
+    {/if}
 
     <!-- Task Stats -->
     <div

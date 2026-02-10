@@ -107,25 +107,25 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         } else {
             console.log(`[OAUTH] Existing user log in: ${email} (Role: ${user.role}, Univ: ${user.university_id})`);
 
-            // Auto-Reactivate Nxtwave employees if they were deactivated
-            if (isNxtwave && !user.is_active) {
+            // Auto-Reactivate if they were deactivated but successfully logged in via Google SSO
+            if (!user.is_active) {
                 await db.query(
                     `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2`,
                     [true, user.id]
                 );
                 user.is_active = true;
-                console.log(`[OAUTH] Auto-Reactivated Nxtwave user ${email}`);
+                console.log(`[OAUTH] Auto-Reactivated user ${email} on successful login`);
             }
 
             // User exists - check if they were accepting an invitation to update their role/university
             if (invitation) {
                 await db.query(
-                    `UPDATE users SET role = $1, university_id = $2, updated_at = NOW() WHERE id = $3`,
+                    `UPDATE users SET role = $1, university_id = $2, is_active = true, updated_at = NOW() WHERE id = $3`,
                     [invitation.role, invitation.university_id, user.id]
                 );
                 await deleteInvitation(invitation.id);
                 cookies.delete('invitation_token', { path: '/' });
-                console.log(`[OAUTH] Existing user ${email} updated via invitation`);
+                console.log(`[OAUTH] Existing user ${email} updated and reactivated via invitation`);
 
                 // Refresh local user object
                 user = await getUserByEmail(email) as any;

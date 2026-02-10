@@ -212,14 +212,20 @@ const systemWorker = new Worker('system-notifications', async (job: Job) => {
   console.log(`[SYSTEM-NOTIF] Processing job ${job.id} for ${to}`);
 
   try {
-    // 1. Try to find any connected mailbox to use for system notifications
-    // This bypasses Port 587/465 blocks by using the Gmail API (Port 443)
-    const mailboxRes = await db.query(
+    // 1. Try to find an ADMIN or PROGRAM_OPS mailbox first
+    let mailboxRes = await db.query(
       `SELECT m.* FROM mailbox_connections m 
        JOIN users u ON m.email = u.email 
        WHERE u.role IN ('ADMIN', 'PROGRAM_OPS') AND m.status = 'ACTIVE'
        LIMIT 1`
     );
+
+    // 1b. Fallback to ANY active mailbox if no admin mailbox found
+    if (mailboxRes.rows.length === 0) {
+      mailboxRes = await db.query(
+        `SELECT * FROM mailbox_connections WHERE status = 'ACTIVE' LIMIT 1`
+      );
+    }
 
     if (mailboxRes.rows[0]) {
       const mailbox = mailboxRes.rows[0];
@@ -442,11 +448,18 @@ async function processCommunicationTasks() {
       // Update DB state
       let updateQuery = '';
       const params: any[] = [task.id];
-      if (notificationType === 'CREATION') {
+      const taskAgeMinutes = (now.getTime() - new Date(task.created_at).getTime()) / (60000);
+
+      // ONLY mark as notified if we actually sent something OR if we've tried for 5 minutes
+      const shouldMark = allTokens.length > 0 || taskAgeMinutes > 5;
+
+      if (notificationType === 'CREATION' && shouldMark) {
         updateQuery = 'UPDATE communication_tasks SET creation_notified_at = NOW() WHERE id = $1';
-      } else if (notificationType === 'DAY_START') {
+      } else if (notificationType === 'DAY_START' && (allTokens.length > 0 || now.getHours() > 10)) {
+        // Mark as day-start notified if tokens found OR if it's past 10 AM (don't retry all day)
         updateQuery = 'UPDATE communication_tasks SET day_start_notified_at = NOW() WHERE id = $1';
       } else if (notificationType === 'TEN_MIN') {
+        // Ten min reminders are one-shot
         updateQuery = 'UPDATE communication_tasks SET ten_min_reminder_sent = true WHERE id = $1';
       } else if (notificationType === 'DUE') {
         await updateCommunicationTaskStatus(task.id, 'Notified', now);
