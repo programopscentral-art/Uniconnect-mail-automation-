@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db, getUserFcmTokens } from '@uniconnect/shared';
-import admin from 'firebase-admin';
+import admin from '$lib/server/firebase-admin';
 
 export const POST: RequestHandler = async ({ locals }) => {
     if (!locals.user) throw error(401);

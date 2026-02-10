@@ -1,6 +1,7 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { validateSession, getRolePermissions } from '@uniconnect/shared';
+import '$lib/server/firebase-admin';
 
 // Pre-populate process.env for shared packages that depend on it
 process.env.DATABASE_URL = env.DATABASE_URL;
