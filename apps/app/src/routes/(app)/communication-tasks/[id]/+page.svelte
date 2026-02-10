@@ -66,7 +66,8 @@
   };
 
   const config = $derived(
-    statusConfig[task.status] || statusConfig["Scheduled"],
+    statusConfig[task.status as keyof typeof statusConfig] ||
+      statusConfig["Scheduled"],
   );
 </script>
 
@@ -113,18 +114,31 @@
       </div>
     </div>
 
-    <div
-      class="flex items-center gap-4 px-6 py-4 rounded-[2rem] border {config.border} {config.bg} transition-all duration-500"
-    >
-      <config.icon size={24} class={config.color} />
-      <div class="flex flex-col">
-        <span
-          class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1"
-          >Current Status</span
+    <div class="flex items-center gap-3">
+      {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM", "CMA", "CMA_MANAGER"].includes(user.role)}
+        <a
+          href="/communication-tasks/{task.id}/edit"
+          class="flex items-center gap-2 px-6 py-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-indigo-600 hover:border-indigo-100 dark:hover:border-indigo-900/50 transition-all shadow-sm"
         >
-        <span class="text-sm font-black {config.color} uppercase tracking-tight"
-          >{config.label}</span
-        >
+          <ClipboardList size={16} />
+          Edit Task
+        </a>
+      {/if}
+
+      <div
+        class="flex items-center gap-4 px-6 py-4 rounded-[2rem] border {config.border} {config.bg} transition-all duration-500"
+      >
+        <config.icon size={24} class={config.color} />
+        <div class="flex flex-col">
+          <span
+            class="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1"
+            >Current Status</span
+          >
+          <span
+            class="text-sm font-black {config.color} uppercase tracking-tight"
+            >{config.label}</span
+          >
+        </div>
       </div>
     </div>
   </div>
@@ -316,7 +330,7 @@
               Universities
             </div>
             <div class="flex flex-wrap gap-2">
-              {#each task.universities as uni}
+              {#each task.resolved_universities as uni}
                 <span
                   class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold"
                   >{uni}</span
@@ -372,22 +386,21 @@
               class="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3"
             >
               <Users size={14} />
-              Assigned Staff
+              Notification Scope
             </div>
-            <div class="space-y-3">
-              {#each task.assigned_to as staffId}
-                <div class="flex items-center gap-3">
-                  <div
-                    class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase border border-indigo-100/50 dark:border-indigo-800/50"
-                  >
-                    ID
-                  </div>
-                  <span
-                    class="text-xs font-bold text-gray-600 dark:text-gray-300"
-                    >Staff #{staffId.split("-")[0]}</span
-                  >
-                </div>
-              {/each}
+            <div
+              class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100/50 dark:border-indigo-800/50"
+            >
+              <span
+                class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest"
+              >
+                University-Wide Broadcast
+              </span>
+              <p
+                class="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-tighter mt-1"
+              >
+                All staff members in the selected universities will be notified.
+              </p>
             </div>
           </div>
         </div>

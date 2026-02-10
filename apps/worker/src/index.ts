@@ -404,7 +404,32 @@ async function processCommunicationTasks() {
       if (!notificationType) continue;
 
       const allTokens: string[] = [];
-      for (const userId of task.assigned_to) {
+
+      // 1. Get all users associated with these universities
+      // We check both university IDs and names (for backward compatibility)
+      const usersRes = await db.query(
+        `SELECT DISTINCT u.id FROM users u
+         LEFT JOIN user_universities uu ON u.id = uu.user_id
+         LEFT JOIN universities un ON (u.university_id = un.id OR uu.university_id = un.id)
+         WHERE u.is_active = true 
+         AND (
+           un.id::text = ANY($1::text[]) OR 
+           un.name = ANY($1::text[]) OR 
+           un.short_name = ANY($1::text[])
+         )`,
+        [task.universities]
+      );
+
+      const recipientIds = usersRes.rows.map(r => r.id);
+
+      // Also include any specifically assigned staff (if any)
+      if (task.assigned_to && task.assigned_to.length > 0) {
+        recipientIds.push(...task.assigned_to);
+      }
+
+      const uniqueRecipientIds = [...new Set(recipientIds)];
+
+      for (const userId of uniqueRecipientIds) {
         const tokens = await getUserFcmTokens(userId);
         allTokens.push(...tokens);
       }

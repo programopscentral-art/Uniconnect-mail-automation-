@@ -77,23 +77,51 @@ export async function createCommunicationTask(data: {
 }
 
 export async function getCommunicationTasks(userId?: string) {
-    let query = `SELECT * FROM communication_tasks`;
+    let query = `
+        SELECT ct.*,
+               (SELECT COALESCE(json_agg(COALESCE(u.short_name, u.name)), '[]'::json)
+                FROM universities u
+                WHERE u.id::text = ANY(ct.universities)
+                   OR u.name = ANY(ct.universities)
+                   OR u.short_name = ANY(ct.universities)
+               ) as university_names
+        FROM communication_tasks ct`;
     const params = [];
 
     if (userId) {
-        query += ` WHERE assigned_to @> ARRAY[$1]::uuid[]`;
+        query += ` WHERE ct.assigned_to @> ARRAY[$1]::uuid[]`;
         params.push(userId);
     }
 
-    query += ` ORDER BY created_at DESC`;
+    query += ` ORDER BY ct.created_at DESC`;
 
     const result = await db.query(query, params);
-    return result.rows as CommunicationTask[];
+    return result.rows.map(row => ({
+        ...row,
+        // Fallback to original universities list if resolving names failed for some reason
+        resolved_universities: row.university_names && row.university_names.length > 0 ? row.university_names : row.universities
+    }));
 }
 
 export async function getCommunicationTaskById(id: string) {
-    const result = await db.query(`SELECT * FROM communication_tasks WHERE id = $1`, [id]);
-    return result.rows[0] as CommunicationTask | undefined;
+    const result = await db.query(`
+        SELECT ct.*,
+               (SELECT COALESCE(json_agg(COALESCE(u.short_name, u.name)), '[]'::json)
+                FROM universities u
+                WHERE u.id::text = ANY(ct.universities)
+                   OR u.name = ANY(ct.universities)
+                   OR u.short_name = ANY(ct.universities)
+               ) as university_names
+        FROM communication_tasks ct
+        WHERE ct.id = $1`, [id]);
+
+    if (!result.rows[0]) return undefined;
+
+    const row = result.rows[0];
+    return {
+        ...row,
+        resolved_universities: row.university_names && row.university_names.length > 0 ? row.university_names : row.universities
+    };
 }
 
 export async function deleteCommunicationTask(id: string) {
@@ -132,6 +160,40 @@ export async function registerFcmToken(userId: string, token: string, deviceInfo
 export async function getUserFcmTokens(userId: string) {
     const result = await db.query(`SELECT fcm_token FROM user_fcm_tokens WHERE user_id = $1`, [userId]);
     return result.rows.map(r => r.fcm_token) as string[];
+}
+
+export async function updateCommunicationTask(id: string, data: {
+    universities?: string[];
+    channel?: CommunicationChannel;
+    assigned_to?: string[];
+    message_title?: string;
+    message_body?: string;
+    scheduled_at?: Date;
+    priority?: CommunicationPriority;
+    notes?: string;
+    update_type?: CommunicationUpdateType;
+    team?: CommunicationTeam;
+    content_type?: CommunicationContentType;
+    link?: string;
+}) {
+    const sets: string[] = [];
+    const params: any[] = [id];
+
+    Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined) {
+            sets.push(`${key} = $${params.length + 1}`);
+            params.push(value);
+        }
+    });
+
+    // Reset notification flags when updated so people get re-notified if content changed
+    sets.push(`creation_notified_at = NULL`);
+    sets.push(`day_start_notified_at = NULL`);
+    sets.push(`ten_min_reminder_sent = false`);
+
+    const query = `UPDATE communication_tasks SET ${sets.join(', ')} WHERE id = $1 RETURNING *`;
+    const result = await db.query(query, params);
+    return result.rows[0] as CommunicationTask;
 }
 
 export async function getDueCommunicationTasks() {

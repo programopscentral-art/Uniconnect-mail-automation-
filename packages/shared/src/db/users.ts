@@ -58,6 +58,20 @@ export async function getAllUsers(universityId?: string) {
     return result.rows as (User & { university_name: string | null; universities: Array<{ id: string; name: string }> })[];
 }
 
+export async function getUsersByUniversities(universityIds: string[]) {
+    if (!universityIds.length) return [];
+
+    // Find users where their primary university IS in the list OR they have a junction entry in user_universities
+    const result = await db.query(
+        `SELECT DISTINCT u.* FROM users u
+         LEFT JOIN user_universities uu ON u.id = uu.user_id
+         WHERE u.is_active = true 
+         AND (u.university_id = ANY($1::uuid[]) OR uu.university_id = ANY($1::uuid[]))`,
+        [universityIds]
+    );
+    return result.rows as User[];
+}
+
 export async function createUser(data: {
     email: string;
     name: string;

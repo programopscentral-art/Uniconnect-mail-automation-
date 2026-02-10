@@ -25,7 +25,7 @@
     tasks.filter((t) => {
       const matchesSearch =
         t.message_title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.universities.some((u) =>
+        t.resolved_universities.some((u: string) =>
           u.toLowerCase().includes(searchQuery.toLowerCase()),
         );
       const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
@@ -242,7 +242,7 @@
                     >{task.team}</span
                   >
                 {/if}
-                {#each task.universities as uni}
+                {#each task.resolved_universities as uni}
                   <span
                     class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50"
                     >{uni}</span

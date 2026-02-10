@@ -13,8 +13,9 @@
 
   let { data, form } = $props();
   let universities = $derived(data.universities);
+  let task = $derived(data.task);
 
-  let selectedUniversities = $state<string[]>([]);
+  let selectedUniversities = $state<string[]>(task.universities || []);
 
   const channels = [
     "WhatsApp - Students",
@@ -35,23 +36,22 @@
   const teams = ["Student Engagement", "Parent Communication"];
   const contentTypes = ["Plain Text", "Markdown"];
 
-  // Set default scheduled time to 1 hour from now
-  const defaultDate = new Date();
-  defaultDate.setHours(defaultDate.getHours() + 1);
-  const defaultScheduledAt = defaultDate.toISOString().slice(0, 16);
+  const scheduledAt = $state(
+    new Date(task.scheduled_at).toISOString().slice(0, 16),
+  );
 </script>
 
 <div class="max-w-4xl mx-auto space-y-8" in:fade>
   <!-- Simple Breadcrumb -->
   <a
-    href="/communication-tasks"
+    href="/communication-tasks/{task.id}"
     class="inline-flex items-center gap-2 text-[10px] font-black text-gray-400 hover:text-indigo-600 uppercase tracking-[0.2em] transition-colors group"
   >
     <ArrowLeft
       size={14}
       class="group-hover:-translate-x-1 transition-transform"
     />
-    Back to Tasks
+    Back to Task Details
   </a>
 
   <!-- Header Section -->
@@ -65,12 +65,12 @@
       <h1
         class="text-3xl font-black text-gray-900 dark:text-white tracking-tight"
       >
-        Schedule New Message
+        Edit Message Task
       </h1>
       <p
         class="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1"
       >
-        Define task parameters for university-wide notification
+        Modify parameters for university-wide notification
       </p>
     </div>
   </div>
@@ -148,6 +148,7 @@
                     type="radio"
                     name="channel"
                     value={channel}
+                    checked={task.channel === channel}
                     class="w-4 h-4 border-gray-300 text-indigo-600 focus:ring-indigo-500"
                     required
                   />
@@ -181,6 +182,7 @@
               <select
                 name="update_type"
                 id="update_type"
+                value={task.update_type}
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
               >
                 {#each updateTypes as type}
@@ -196,6 +198,7 @@
               <select
                 name="team"
                 id="team"
+                value={task.team || ""}
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
               >
                 <option value="">Select Team</option>
@@ -219,7 +222,7 @@
                 type="datetime-local"
                 name="scheduled_at"
                 id="scheduled_at"
-                value={defaultScheduledAt}
+                bind:value={scheduledAt}
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
                 required
               />
@@ -235,6 +238,7 @@
               <select
                 name="priority"
                 id="priority"
+                value={task.priority}
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
               >
                 {#each priorities as p}
@@ -253,6 +257,7 @@
               type="text"
               name="message_title"
               id="title"
+              value={task.message_title}
               placeholder="e.g. ⚠️ GSOC 2026 – Final Reminder"
               class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
               required
@@ -268,6 +273,7 @@
               <select
                 name="content_type"
                 id="content_type"
+                value={task.content_type}
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
               >
                 {#each contentTypes as type}
@@ -284,6 +290,7 @@
                 type="url"
                 name="link"
                 id="link"
+                value={task.link || ""}
                 placeholder="https://..."
                 class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
               />
@@ -299,6 +306,7 @@
               name="message_body"
               id="body"
               rows="6"
+              value={task.message_body}
               placeholder="Paste the message content here..."
               class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none resize-none"
               required
@@ -319,13 +327,14 @@
           <h4
             class="text-xs font-black text-indigo-900 dark:text-indigo-100 uppercase tracking-tight"
           >
-            Automatic Staff Notification
+            Automatic Staff Re-notification
           </h4>
           <p
             class="text-[10px] font-bold text-indigo-700/70 dark:text-indigo-400/70 uppercase tracking-widest mt-1"
           >
-            All registered staff members of the selected universities will
-            receive push notifications for this task.
+            Updating this task will reset notification triggers. All registered
+            staff members of the selected universities will be re-notified of
+            the changes.
           </p>
         </div>
       </div>
@@ -337,7 +346,7 @@
           class="w-full md:w-auto px-12 py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] hover:bg-indigo-700 hover:shadow-2xl hover:shadow-indigo-500/20 transition-all active:scale-95 flex items-center justify-center gap-3"
         >
           <Send size={18} />
-          Schedule Communication
+          Save Changes & Notify
         </button>
       </div>
     </div>
