@@ -10,7 +10,9 @@
     ExternalLink,
     Filter,
     Search,
+    Trash2,
   } from "lucide-svelte";
+  import { enhance } from "$app/forms";
 
   let { data } = $props();
   let tasks = $derived(data.tasks);
@@ -75,6 +77,8 @@
     navigator.clipboard.writeText(text);
     // Toast?
   }
+
+  let deletingId = $state<string | null>(null);
 </script>
 
 <div class="space-y-8" in:fade>
@@ -93,7 +97,7 @@
       </p>
     </div>
 
-    {#if user.role === "ADMIN" || user.role === "PROGRAM_OPS" || user.role === "COS"}
+    {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM"].includes(user.role)}
       <a
         href="/communication-tasks/new"
         class="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/20 transition-all active:scale-95"
@@ -154,7 +158,7 @@
         in:fly={{ y: 20, duration: 400 }}
       >
         <!-- Priority Dot -->
-        <div class="absolute top-0 right-0 p-8">
+        <div class="absolute top-0 right-0 p-8 flex items-center gap-3">
           <span
             class="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border {getPriorityColor(
               task.priority,
@@ -162,6 +166,47 @@
           >
             {task.priority}
           </span>
+
+          {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM"].includes(user.role)}
+            {#if deletingId === task.id}
+              <div class="flex items-center gap-2" in:fly={{ x: 10 }}>
+                <form
+                  method="POST"
+                  action="?/delete"
+                  use:enhance={() => {
+                    return async ({ result }) => {
+                      if (result.type === "success") {
+                        deletingId = null;
+                      }
+                    };
+                  }}
+                >
+                  <input type="hidden" name="id" value={task.id} />
+                  <button
+                    type="submit"
+                    class="p-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+                    title="Confirm Delete"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </form>
+                <button
+                  onclick={() => (deletingId = null)}
+                  class="p-2 bg-gray-100 dark:bg-slate-800 text-gray-500 rounded-xl hover:bg-gray-200 transition-colors text-[10px] font-black uppercase"
+                >
+                  Cancel
+                </button>
+              </div>
+            {:else}
+              <button
+                onclick={() => (deletingId = task.id)}
+                class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all"
+                title="Delete Task"
+              >
+                <Trash2 size={16} />
+              </button>
+            {/if}
+          {/if}
         </div>
 
         <div class="space-y-6">
@@ -181,6 +226,16 @@
                 {task.message_title}
               </h3>
               <div class="flex flex-wrap gap-2 pt-1">
+                <span
+                  class="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-tighter bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-lg border border-amber-100/50 dark:border-amber-800/50"
+                  >{task.update_type}</span
+                >
+                {#if task.team}
+                  <span
+                    class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-lg border border-emerald-100/50 dark:border-emerald-800/50"
+                    >{task.team}</span
+                  >
+                {/if}
                 {#each task.universities as uni}
                   <span
                     class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50"

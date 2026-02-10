@@ -10,6 +10,10 @@ export type CommunicationChannel =
 export type CommunicationPriority = 'Low' | 'Normal' | 'High';
 export type CommunicationStatus = 'Scheduled' | 'Notified' | 'Completed' | 'Canceled';
 
+export type CommunicationUpdateType = 'Announcement' | 'Reminder' | 'Event Campaign' | 'Positive Message' | 'Other';
+export type CommunicationTeam = 'Student Engagement' | 'Parent Communication';
+export type CommunicationContentType = 'Markdown' | 'Plain Text';
+
 export interface CommunicationTask {
     id: string;
     universities: string[];
@@ -25,6 +29,10 @@ export interface CommunicationTask {
     notes: string | null;
     created_by: string;
     created_at: Date;
+    update_type: CommunicationUpdateType;
+    team: CommunicationTeam | null;
+    content_type: CommunicationContentType;
+    link: string | null;
 }
 
 export async function createCommunicationTask(data: {
@@ -37,11 +45,15 @@ export async function createCommunicationTask(data: {
     priority?: CommunicationPriority;
     notes?: string;
     created_by: string;
+    update_type?: CommunicationUpdateType;
+    team?: CommunicationTeam;
+    content_type?: CommunicationContentType;
+    link?: string;
 }) {
     const result = await db.query(
         `INSERT INTO communication_tasks 
-        (universities, channel, assigned_to, message_title, message_body, scheduled_at, priority, notes, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        (universities, channel, assigned_to, message_title, message_body, scheduled_at, priority, notes, created_by, update_type, team, content_type, link)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
         [
             data.universities,
             data.channel,
@@ -51,7 +63,11 @@ export async function createCommunicationTask(data: {
             data.scheduled_at,
             data.priority || 'Normal',
             data.notes || null,
-            data.created_by
+            data.created_by,
+            data.update_type || 'Announcement',
+            data.team || null,
+            data.content_type || 'Plain Text',
+            data.link || null
         ]
     );
     return result.rows[0] as CommunicationTask;
@@ -66,7 +82,7 @@ export async function getCommunicationTasks(userId?: string) {
         params.push(userId);
     }
 
-    query += ` ORDER BY scheduled_at DESC`;
+    query += ` ORDER BY created_at DESC`;
 
     const result = await db.query(query, params);
     return result.rows as CommunicationTask[];
@@ -75,6 +91,10 @@ export async function getCommunicationTasks(userId?: string) {
 export async function getCommunicationTaskById(id: string) {
     const result = await db.query(`SELECT * FROM communication_tasks WHERE id = $1`, [id]);
     return result.rows[0] as CommunicationTask | undefined;
+}
+
+export async function deleteCommunicationTask(id: string) {
+    await db.query(`DELETE FROM communication_tasks WHERE id = $1`, [id]);
 }
 
 export async function updateCommunicationTaskStatus(id: string, status: CommunicationStatus, notifiedAt?: Date, markedSentAt?: Date) {

@@ -14,6 +14,10 @@
     AlertTriangle,
     Info,
     Share2,
+    Tag,
+    ExternalLink,
+    Link,
+    ClipboardList,
   } from "lucide-svelte";
   import { enhance } from "$app/forms";
 
@@ -94,6 +98,18 @@
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
           >Added {new Date(task.created_at).toLocaleDateString()}</span
         >
+        <span class="text-gray-300 dark:text-gray-700">•</span>
+        <span
+          class="px-3 py-1 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 rounded-full text-[9px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400"
+          >{task.update_type}</span
+        >
+        {#if task.team}
+          <span class="text-gray-300 dark:text-gray-700">•</span>
+          <span
+            class="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800/50 rounded-full text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400"
+            >{task.team}</span
+          >
+        {/if}
       </div>
     </div>
 
@@ -141,9 +157,24 @@
             class="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest"
           >
             <MessageSquare size={14} />
-            Message Content to Send
+            Message Content to Send ({task.content_type})
           </div>
         </div>
+
+        {#if task.link}
+          <div class="mb-4">
+            <a
+              href={task.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-800 transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/40"
+            >
+              <Link size={12} />
+              Reference Link
+              <ExternalLink size={10} />
+            </a>
+          </div>
+        {/if}
 
         <div
           class="p-8 bg-gray-50 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800/50 relative group"
@@ -262,7 +293,9 @@
             <p
               class="text-[10px] font-black text-emerald-600/60 uppercase tracking-widest"
             >
-              Marked sent on {new Date(task.marked_sent_at).toLocaleString()}
+              Marked sent on {task.marked_sent_at
+                ? new Date(task.marked_sent_at).toLocaleString()
+                : "N/A"}
             </p>
           </div>
         </div>
