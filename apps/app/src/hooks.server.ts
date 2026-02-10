@@ -1,6 +1,6 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { validateSession } from '@uniconnect/shared';
+import { validateSession, getRolePermissions } from '@uniconnect/shared';
 
 // Pre-populate process.env for shared packages that depend on it
 process.env.DATABASE_URL = env.DATABASE_URL;
@@ -33,23 +33,27 @@ export const handle: Handle = async ({ event, resolve }) => {
                 // Ensure plain objects for serialization
                 event.locals.user = JSON.parse(JSON.stringify(user));
 
-                // V43: Dynamic Central BOA Override
-                // Only Central BOA (no university_id OR Team university) get full features
-                const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
-                const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(user.role);
+                // Permission Resolution
+                const dynamicPermissions = await getRolePermissions(user.role);
+                if (dynamicPermissions && dynamicPermissions.length > 0) {
+                    event.locals.user!.permissions = dynamicPermissions;
+                } else {
+                    // Legacy Fallback Logic
+                    const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
+                    const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(user.role);
 
-                if (isCentralBOA || isStaff) {
-                    event.locals.user!.permissions = [
-                        'dashboard', 'tasks', 'universities', 'students', 'users',
-                        'analytics', 'mailboxes', 'templates', 'campaigns',
-                        'assessments', 'mail-logs', 'permissions', 'day-plan',
-                        'communication-tasks'
-                    ];
-                } else if (user.role) {
-                    // Default permissions for other roles
-                    event.locals.user!.permissions = [
-                        'dashboard', 'tasks', 'communication-tasks'
-                    ];
+                    if (isCentralBOA || isStaff) {
+                        event.locals.user!.permissions = [
+                            'dashboard', 'tasks', 'universities', 'students', 'users',
+                            'analytics', 'mailboxes', 'templates', 'campaigns',
+                            'assessments', 'mail-logs', 'permissions', 'day-plan',
+                            'communication-tasks'
+                        ];
+                    } else if (user.role) {
+                        event.locals.user!.permissions = [
+                            'dashboard', 'tasks', 'communication-tasks'
+                        ];
+                    }
                 }
             }
         } catch (e) {
