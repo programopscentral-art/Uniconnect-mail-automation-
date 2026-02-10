@@ -168,7 +168,7 @@
             {task.priority}
           </span>
 
-          {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM"].includes(user.role)}
+          {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM", "CMA", "CMA_MANAGER"].includes(user.role)}
             {#if deletingId === task.id}
               <div class="flex items-center gap-2" in:fly={{ x: 10 }}>
                 <form

@@ -1,22 +1,69 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { fade, fly } from 'svelte/transition';
-  import { invalidateAll } from '$app/navigation';
+  import { onMount } from "svelte";
+  import { fade, fly } from "svelte/transition";
+  import { invalidateAll } from "$app/navigation";
 
-  let roles = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'BOA', 'CMA', 'CMA_MANAGER'];
+  let roles = [
+    "ADMIN",
+    "PROGRAM_OPS",
+    "UNIVERSITY_OPERATOR",
+    "COS",
+    "PM",
+    "PMA",
+    "BOA",
+    "CMA",
+    "CMA_MANAGER",
+  ];
   let features = [
-    { id: 'dashboard', label: 'Dashboard', desc: 'Main overview and stats' },
-    { id: 'tasks', label: 'Tasks', desc: 'Task management and tracking' },
-    { id: 'universities', label: 'Universities', desc: 'University management (Admin only)' },
-    { id: 'students', label: 'Students', desc: 'Student and recipient directory' },
-    { id: 'users', label: 'Team Members', desc: 'User management (Admin only)' },
-    { id: 'analytics', label: 'Analytics', desc: 'Performance reports and data' },
-    { id: 'mailboxes', label: 'Mailboxes', desc: 'Email connection management' },
-    { id: 'templates', label: 'Templates', desc: 'Email template builder' },
-    { id: 'campaigns', label: 'Campaigns', desc: 'Email automation campaigns' },
-    { id: 'assessments', label: 'Assessments', desc: 'PDF parsing and QP generation' },
-    { id: 'mail-logs', label: 'Mail Audit Log', desc: 'System-wide mail tracking' },
-    { id: 'permissions', label: 'Permissions', desc: 'Feature management configuration' }
+    { id: "dashboard", label: "Dashboard", desc: "Main overview and stats" },
+    { id: "tasks", label: "Tasks", desc: "Task management and tracking" },
+    {
+      id: "universities",
+      label: "Universities",
+      desc: "University management (Admin only)",
+    },
+    {
+      id: "students",
+      label: "Students",
+      desc: "Student and recipient directory",
+    },
+    {
+      id: "users",
+      label: "Team Members",
+      desc: "User management (Admin only)",
+    },
+    {
+      id: "analytics",
+      label: "Analytics",
+      desc: "Performance reports and data",
+    },
+    {
+      id: "mailboxes",
+      label: "Mailboxes",
+      desc: "Email connection management",
+    },
+    { id: "templates", label: "Templates", desc: "Email template builder" },
+    { id: "campaigns", label: "Campaigns", desc: "Email automation campaigns" },
+    {
+      id: "assessments",
+      label: "Assessments",
+      desc: "PDF parsing and QP generation",
+    },
+    {
+      id: "communication-tasks",
+      label: "Communication Tasks",
+      desc: "Scheduled manual communication (WhatsApp/Email)",
+    },
+    {
+      id: "mail-logs",
+      label: "Mail Audit Log",
+      desc: "System-wide mail tracking",
+    },
+    {
+      id: "permissions",
+      label: "Permissions",
+      desc: "Feature management configuration",
+    },
   ];
 
   let selectedRole = $state(roles[0]);
@@ -27,14 +74,14 @@
   async function fetchPermissions() {
     isLoading = true;
     try {
-      const res = await fetch('/api/admin/permissions');
+      const res = await fetch("/api/admin/permissions");
       if (res.ok) {
         const data = await res.json();
         // Initialize all roles with fetched data or empty arrays
         const newState: Record<string, string[]> = {};
-        roles.forEach(role => {
+        roles.forEach((role) => {
           const existing = data.find((p: any) => p.role === role);
-          newState[role] = existing ? (existing.features || []) : [];
+          newState[role] = existing ? existing.features || [] : [];
         });
         permissionsState = newState;
       }
@@ -46,26 +93,31 @@
   }
 
   async function restoreDefaults() {
-      if (!confirm('This will overwrite ALL role permissions with system defaults. Continue?')) return;
-      isSaving = true;
-      try {
-          const res = await fetch('/api/admin/permissions', { method: 'PATCH' });
-          if (res.ok) {
-              const data = await res.json();
-              const newState: Record<string, string[]> = {};
-              roles.forEach(role => {
-                  const existing = data.find((p: any) => p.role === role);
-                  newState[role] = existing ? (existing.features || []) : [];
-              });
-              permissionsState = newState;
-              await invalidateAll();
-              alert('Default permissions restored successfully.');
-          }
-      } catch (e) {
-          alert('Failed to restore defaults.');
-      } finally {
-          isSaving = false;
+    if (
+      !confirm(
+        "This will overwrite ALL role permissions with system defaults. Continue?",
+      )
+    )
+      return;
+    isSaving = true;
+    try {
+      const res = await fetch("/api/admin/permissions", { method: "PATCH" });
+      if (res.ok) {
+        const data = await res.json();
+        const newState: Record<string, string[]> = {};
+        roles.forEach((role) => {
+          const existing = data.find((p: any) => p.role === role);
+          newState[role] = existing ? existing.features || [] : [];
+        });
+        permissionsState = newState;
+        await invalidateAll();
+        alert("Default permissions restored successfully.");
       }
+    } catch (e) {
+      alert("Failed to restore defaults.");
+    } finally {
+      isSaving = false;
+    }
   }
 
   onMount(fetchPermissions);
@@ -74,100 +126,167 @@
 
   async function toggleFeature(featureId: string) {
     if (!permissionsState[selectedRole]) return;
-    
+
     const originalFeatures = [...(permissionsState[selectedRole] || [])];
     let updatedFeatures = [...originalFeatures];
 
     if (updatedFeatures.includes(featureId)) {
-        updatedFeatures = updatedFeatures.filter(id => id !== featureId);
+      updatedFeatures = updatedFeatures.filter((id) => id !== featureId);
     } else {
-        updatedFeatures.push(featureId);
+      updatedFeatures.push(featureId);
     }
 
-    if (selectedRole === 'ADMIN' && featureId === 'permissions' && !updatedFeatures.includes('permissions')) {
-        if (!confirm('Warning: You are about to disable this page for Admins. Continue?')) return;
+    if (
+      selectedRole === "ADMIN" &&
+      featureId === "permissions" &&
+      !updatedFeatures.includes("permissions")
+    ) {
+      if (
+        !confirm(
+          "Warning: You are about to disable this page for Admins. Continue?",
+        )
+      )
+        return;
     }
 
     // PHASE 1: Instant UI Update (Zero Latency)
     // We update the state Record directly. Svelte 5 will trigger all dependent UI parts immediately.
     permissionsState[selectedRole] = updatedFeatures;
-    
+
     // PHASE 2: Background Sync (Non-blocking)
     syncToServer(selectedRole, updatedFeatures, originalFeatures);
   }
 
-  async function syncToServer(role: string, features: string[], fallback: string[]) {
-      isSaving = true;
-      try {
-        const res = await fetch('/api/admin/permissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role, features })
-        });
-        
-        if (!res.ok) throw new Error('Sync failed');
-        
-        // Quietly update sidebar data
-        invalidateAll();
-      } catch (e: any) {
-        // Only revert on hard error, and inform the user
-        permissionsState[role] = fallback;
-        alert(`Could not save changes: ${e.message}. Settings have been reverted.`);
-      } finally {
-        isSaving = false;
-      }
+  async function syncToServer(
+    role: string,
+    features: string[],
+    fallback: string[],
+  ) {
+    isSaving = true;
+    try {
+      const res = await fetch("/api/admin/permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role, features }),
+      });
+
+      if (!res.ok) throw new Error("Sync failed");
+
+      // Quietly update sidebar data
+      invalidateAll();
+    } catch (e: any) {
+      // Only revert on hard error, and inform the user
+      permissionsState[role] = fallback;
+      alert(
+        `Could not save changes: ${e.message}. Settings have been reverted.`,
+      );
+    } finally {
+      isSaving = false;
+    }
   }
 
   function getFeatureStatus(role: string, featureId: string) {
-      return (permissionsState[role] || []).includes(featureId);
+    return (permissionsState[role] || []).includes(featureId);
   }
 </script>
 
 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
   <div class="flex items-center justify-between">
     <div class="animate-premium-slide">
-      <h1 class="text-4xl font-black text-gray-900 dark:text-white tracking-tight">Feature Management</h1>
-      <p class="text-gray-500 dark:text-slate-400 mt-2 font-medium">Control role access to core application modules. <span class="text-indigo-600 dark:text-indigo-400 font-bold">v5.0.0</span></p>
+      <h1
+        class="text-4xl font-black text-gray-900 dark:text-white tracking-tight"
+      >
+        Feature Management
+      </h1>
+      <p class="text-gray-500 dark:text-slate-400 mt-2 font-medium">
+        Control role access to core application modules. <span
+          class="text-indigo-600 dark:text-indigo-400 font-bold">v5.0.0</span
+        >
+      </p>
     </div>
-    <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 hidden md:block animate-premium-slide-left stagger-1">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-            </div>
-            <div>
-                <div class="text-[10px] font-black text-indigo-400 dark:text-indigo-300 uppercase tracking-widest leading-none">Global Access Policy</div>
-                <div class="text-sm font-black text-indigo-700 dark:text-indigo-400 mt-0.5 uppercase tracking-tight">Active Matrix Control</div>
-            </div>
-        </div>
-    </div>
-    <button 
-        onclick={restoreDefaults}
-        disabled={isSaving || isLoading}
-        class="px-6 py-3 bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-100 dark:hover:border-red-900/30 transition-all disabled:opacity-50 shadow-sm animate-premium-slide stagger-2"
+    <div
+      class="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50 hidden md:block animate-premium-slide-left stagger-1"
     >
-        Restore System Defaults
+      <div class="flex items-center gap-3">
+        <div
+          class="w-10 h-10 rounded-xl bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+            /></svg
+          >
+        </div>
+        <div>
+          <div
+            class="text-[10px] font-black text-indigo-400 dark:text-indigo-300 uppercase tracking-widest leading-none"
+          >
+            Global Access Policy
+          </div>
+          <div
+            class="text-sm font-black text-indigo-700 dark:text-indigo-400 mt-0.5 uppercase tracking-tight"
+          >
+            Active Matrix Control
+          </div>
+        </div>
+      </div>
+    </div>
+    <button
+      onclick={restoreDefaults}
+      disabled={isSaving || isLoading}
+      class="px-6 py-3 bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-100 dark:hover:border-red-900/30 transition-all disabled:opacity-50 shadow-sm animate-premium-slide stagger-2"
+    >
+      Restore System Defaults
     </button>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
     <!-- Role Selector -->
-    <div class="lg:col-span-1 bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden sticky top-24 animate-premium-slide stagger-3">
-      <div class="p-6 border-b border-gray-50 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-800/20">
-        <h2 class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]">Select Role</h2>
+    <div
+      class="lg:col-span-1 bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden sticky top-24 animate-premium-slide stagger-3"
+    >
+      <div
+        class="p-6 border-b border-gray-50 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-800/20"
+      >
+        <h2
+          class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em]"
+        >
+          Select Role
+        </h2>
       </div>
       <div class="divide-y divide-gray-50 dark:divide-slate-800">
         {#each roles as role}
-          <button 
-            onclick={() => selectedRole = role}
-            class="w-full px-6 py-5 flex items-center justify-between group transition-all 
-            {selectedRole === role ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
+          <button
+            onclick={() => (selectedRole = role)}
+            class="w-full px-6 py-5 flex items-center justify-between group transition-all
+            {selectedRole === role
+              ? 'bg-indigo-50/50 dark:bg-indigo-900/10'
+              : 'hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
           >
             <div class="text-left">
-              <span class="block text-sm font-black {selectedRole === role ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-slate-400'} uppercase tracking-tight">{role}</span>
-              <span class="text-[10px] text-gray-400 dark:text-slate-600 font-bold uppercase tracking-wider">{(permissionsState[role] || []).length} Features Active</span>
+              <span
+                class="block text-sm font-black {selectedRole === role
+                  ? 'text-indigo-600 dark:text-indigo-400'
+                  : 'text-gray-700 dark:text-slate-400'} uppercase tracking-tight"
+                >{role}</span
+              >
+              <span
+                class="text-[10px] text-gray-400 dark:text-slate-600 font-bold uppercase tracking-wider"
+                >{(permissionsState[role] || []).length} Features Active</span
+              >
             </div>
             {#if selectedRole === role}
-              <div transition:fly={{ x: 10, duration: 200 }} class="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-200"></div>
+              <div
+                transition:fly={{ x: 10, duration: 200 }}
+                class="w-2 h-2 rounded-full bg-indigo-500 shadow-sm shadow-indigo-200"
+              ></div>
             {/if}
           </button>
         {/each}
@@ -178,88 +297,155 @@
     <div class="lg:col-span-3 space-y-6">
       {#if isLoading}
         <div class="flex flex-col items-center justify-center py-24 space-y-4">
-          <div class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-          <span class="text-xs font-black text-gray-400 uppercase tracking-widest">Loading permissions matrix...</span>
+          <div
+            class="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"
+          ></div>
+          <span
+            class="text-xs font-black text-gray-400 uppercase tracking-widest"
+            >Loading permissions matrix...</span
+          >
         </div>
       {:else}
         {#key selectedRole}
-        <div class="bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden animate-premium-slide stagger-4" in:fade={{ duration: 200 }}>
-          <div class="px-8 py-6 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between bg-gray-50/10 dark:bg-slate-800/10">
-            <div>
-              <h2 class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Feature Matrix for {selectedRole}</h2>
-              <p class="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1">Changes take effect immediately for all users in this role.</p>
-            </div>
-            {#if isSaving}
-              <div transition:fade class="flex items-center gap-2 text-indigo-600">
-                <div class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <span class="text-[10px] font-black uppercase tracking-widest">Syncing...</span>
+          <div
+            class="bg-white dark:bg-slate-900 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden animate-premium-slide stagger-4"
+            in:fade={{ duration: 200 }}
+          >
+            <div
+              class="px-8 py-6 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between bg-gray-50/10 dark:bg-slate-800/10"
+            >
+              <div>
+                <h2
+                  class="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight"
+                >
+                  Feature Matrix for {selectedRole}
+                </h2>
+                <p
+                  class="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1"
+                >
+                  Changes take effect immediately for all users in this role.
+                </p>
               </div>
-            {/if}
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50 dark:divide-slate-800">
-            {#each features as feature, i (feature.id)}
-              <div class="p-8 hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-all flex items-start gap-4 animate-premium-fade" style="animation-delay: {i * 50}ms">
-                <label class="relative inline-flex items-center cursor-pointer mt-1">
-                  <input 
-                    type="checkbox" 
-                    checked={currentFeatures.includes(feature.id)}
-                    onchange={() => toggleFeature(feature.id)}
-                    class="sr-only peer"
+              {#if isSaving}
+                <div
+                  transition:fade
+                  class="flex items-center gap-2 text-indigo-600"
+                >
+                  <div
+                    class="w-4 h-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"
+                  ></div>
+                  <span class="text-[10px] font-black uppercase tracking-widest"
+                    >Syncing...</span
                   >
-                  <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                </label>
-                <div>
-                  <div class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight">{feature.label}</div>
-                  <p class="text-[11px] text-gray-500 dark:text-slate-400 font-medium mt-1 leading-relaxed">{feature.desc}</p>
-                  
-                  {#if currentFeatures.includes(feature.id)}
-                    <span class="inline-block mt-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-black rounded-lg uppercase tracking-widest border border-green-100 dark:border-green-900/30 shadow-sm">Enabled</span>
-                  {:else}
-                    <span class="inline-block mt-2 px-3 py-1 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-widest border border-gray-200 dark:border-slate-800 opacity-60">Disabled</span>
-                  {/if}
                 </div>
-              </div>
-            {/each}
+              {/if}
+            </div>
+
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-50 dark:divide-slate-800"
+            >
+              {#each features as feature, i (feature.id)}
+                <div
+                  class="p-8 hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-all flex items-start gap-4 animate-premium-fade"
+                  style="animation-delay: {i * 50}ms"
+                >
+                  <label
+                    class="relative inline-flex items-center cursor-pointer mt-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={currentFeatures.includes(feature.id)}
+                      onchange={() => toggleFeature(feature.id)}
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"
+                    ></div>
+                  </label>
+                  <div>
+                    <div
+                      class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight"
+                    >
+                      {feature.label}
+                    </div>
+                    <p
+                      class="text-[11px] text-gray-500 dark:text-slate-400 font-medium mt-1 leading-relaxed"
+                    >
+                      {feature.desc}
+                    </p>
+
+                    {#if currentFeatures.includes(feature.id)}
+                      <span
+                        class="inline-block mt-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 text-[10px] font-black rounded-lg uppercase tracking-widest border border-green-100 dark:border-green-900/30 shadow-sm"
+                        >Enabled</span
+                      >
+                    {:else}
+                      <span
+                        class="inline-block mt-2 px-3 py-1 bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 text-[10px] font-black rounded-lg uppercase tracking-widest border border-gray-200 dark:border-slate-800 opacity-60"
+                        >Disabled</span
+                      >
+                    {/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
           </div>
-        </div>
         {/key}
 
         <!-- Global Roles Summary Table -->
-         <div class="bg-indigo-900 rounded-[32px] p-8 text-white shadow-xl shadow-indigo-900/20 overflow-hidden relative">
-            <div class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-800 rounded-full opacity-50 blur-3xl"></div>
-            <div class="relative z-10">
-                <h3 class="text-lg font-black uppercase tracking-tight mb-6">Global Roles Summary</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="border-b border-indigo-800">
-                                <th class="pb-4 font-black uppercase tracking-widest text-indigo-300">Role</th>
-                                {#each features.slice(0, 6) as f}
-                                    <th class="pb-4 font-black uppercase tracking-widest text-indigo-300">{f.label}</th>
-                                {/each}
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-indigo-800/50">
-                            {#each roles as role}
-                                <tr class="hover:bg-white/5 transition-colors">
-                                    <td class="py-4 font-black uppercase tracking-tight text-white">{role}</td>
-                                    {#each features.slice(0, 6) as f}
-                                        <td class="py-4">
-                                            {#if getFeatureStatus(role, f.id)}
-                                                <div class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"></div>
-                                            {:else}
-                                                <div class="w-2 h-2 rounded-full bg-indigo-800"></div>
-                                            {/if}
-                                        </td>
-                                    {/each}
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
-                </div>
+        <div
+          class="bg-indigo-900 rounded-[32px] p-8 text-white shadow-xl shadow-indigo-900/20 overflow-hidden relative"
+        >
+          <div
+            class="absolute -right-20 -top-20 w-64 h-64 bg-indigo-800 rounded-full opacity-50 blur-3xl"
+          ></div>
+          <div class="relative z-10">
+            <h3 class="text-lg font-black uppercase tracking-tight mb-6">
+              Global Roles Summary
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-indigo-800">
+                    <th
+                      class="pb-4 font-black uppercase tracking-widest text-indigo-300"
+                      >Role</th
+                    >
+                    {#each features.slice(0, 6) as f}
+                      <th
+                        class="pb-4 font-black uppercase tracking-widest text-indigo-300"
+                        >{f.label}</th
+                      >
+                    {/each}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-indigo-800/50">
+                  {#each roles as role}
+                    <tr class="hover:bg-white/5 transition-colors">
+                      <td
+                        class="py-4 font-black uppercase tracking-tight text-white"
+                        >{role}</td
+                      >
+                      {#each features.slice(0, 6) as f}
+                        <td class="py-4">
+                          {#if getFeatureStatus(role, f.id)}
+                            <div
+                              class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"
+                            ></div>
+                          {:else}
+                            <div
+                              class="w-2 h-2 rounded-full bg-indigo-800"
+                            ></div>
+                          {/if}
+                        </td>
+                      {/each}
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
             </div>
-         </div>
+          </div>
+        </div>
       {/if}
     </div>
   </div>

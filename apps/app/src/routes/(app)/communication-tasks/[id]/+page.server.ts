@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     if (!task) throw error(404, 'Task not found');
 
     // Security: only allow admins or assigned users
-    const isAdmin = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM'].includes(user.role);
+    const isAdmin = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER'].includes(user.role);
     const isAssigned = task.assigned_to.includes(user.id);
 
     if (!isAdmin && !isAssigned) {

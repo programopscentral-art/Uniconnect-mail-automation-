@@ -22,24 +22,9 @@
   const filteredUsers = $derived(
     users.filter((u) => {
       const name = u.name || "";
-      const matchesSearch =
-        name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-        u.role.toLowerCase().includes(userSearchQuery.toLowerCase());
-
-      if (selectedUniversities.length === 0) return matchesSearch;
-
-      const selectedUniIds = universities
-        .filter((uni) =>
-          selectedUniversities.includes(uni.short_name || uni.name),
-        )
-        .map((uni) => uni.id);
-
-      const userUniIds = [
-        (u as any).university_id,
-        ...((u as any).universities || []).map((un: any) => un.id),
-      ].filter(Boolean);
       return (
-        matchesSearch && selectedUniIds.some((id) => userUniIds.includes(id))
+        name.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+        u.role.toLowerCase().includes(userSearchQuery.toLowerCase())
       );
     }),
   );
@@ -234,6 +219,44 @@
             </div>
           </div>
 
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label
+                class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight pl-1"
+                for="scheduled_at"
+              >
+                <Calendar size={14} class="text-indigo-500" />
+                Scheduled Time & Date
+              </label>
+              <input
+                type="datetime-local"
+                name="scheduled_at"
+                id="scheduled_at"
+                value={defaultScheduledAt}
+                class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
+                required
+              />
+            </div>
+            <div class="space-y-2">
+              <label
+                class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight pl-1"
+                for="priority"
+              >
+                <ClipboardList size={14} class="text-indigo-500" />
+                Priority Level
+              </label>
+              <select
+                name="priority"
+                id="priority"
+                class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
+              >
+                {#each priorities as p}
+                  <option value={p}>{p}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+
           <div class="space-y-2">
             <label
               class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight pl-1"
@@ -297,111 +320,67 @@
         </div>
       </div>
 
-      <!-- Section 3: Scheduling & Assignment -->
-      <div class="space-y-6">
-        <div
-          class="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest"
+      <div
+        class="flex items-center gap-2 text-[10px] font-black text-indigo-500 uppercase tracking-widest"
+      >
+        <span class="w-8 h-px bg-indigo-100 dark:bg-indigo-900/50"></span>
+        Step 3: Staff Assignment
+      </div>
+
+      <div class="space-y-2 max-w-2xl">
+        <label
+          class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight"
         >
-          <span class="w-8 h-px bg-indigo-100 dark:bg-indigo-900/50"></span>
-          Step 3: Execution Plan
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div class="space-y-4">
-            <div class="space-y-2">
-              <label
-                class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight"
-                for="scheduled_at"
-              >
-                <Calendar size={14} class="text-indigo-500" />
-                Scheduled Time
-              </label>
-              <input
-                type="datetime-local"
-                name="scheduled_at"
-                id="scheduled_at"
-                value={defaultScheduledAt}
-                class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500/50 transition-all outline-none"
-                required
-              />
-            </div>
-
-            <div class="space-y-2">
-              <label
-                class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight"
-                for="priority"
-              >
-                <ClipboardList size={14} class="text-indigo-500" />
-                Priority Level
-              </label>
-              <select
-                name="priority"
-                id="priority"
-                class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all appearance-none outline-none"
-              >
-                {#each priorities as p}
-                  <option value={p}>{p}</option>
-                {/each}
-              </select>
-            </div>
+          <Users size={14} class="text-indigo-500" />
+          Assign Executing Staff Members
+        </label>
+        <div class="space-y-3">
+          <div class="relative">
+            <Search
+              class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={12}
+            />
+            <input
+              type="text"
+              bind:value={userSearchQuery}
+              placeholder="Search staff by name or role..."
+              class="w-full pl-9 pr-3 py-4 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-2xl text-sm font-bold focus:bg-white dark:focus:bg-slate-900 focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none"
+            />
           </div>
-
-          <div class="space-y-2">
-            <label
-              class="flex items-center gap-2 text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight"
-            >
-              <Users size={14} class="text-indigo-500" />
-              Assigned Staff
-            </label>
-            <div class="space-y-3">
-              <div class="relative">
-                <Search
-                  class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={12}
-                />
-                <input
-                  type="text"
-                  bind:value={userSearchQuery}
-                  placeholder="Search staff..."
-                  class="w-full pl-9 pr-3 py-2 bg-gray-50 dark:bg-slate-800/50 border border-transparent rounded-xl text-[10px] font-bold focus:bg-white dark:focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/10 transition-all outline-none"
-                />
-              </div>
-              <div
-                class="h-48 overflow-y-auto p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-transparent custom-scrollbar"
-              >
-                <div class="space-y-2">
-                  {#each filteredUsers as staff (staff.id)}
-                    <label
-                      class="flex items-center gap-3 p-3 hover:bg-white dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors group"
+          <div
+            class="h-64 overflow-y-auto p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-transparent custom-scrollbar"
+          >
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {#each filteredUsers as staff (staff.id)}
+                <label
+                  class="flex items-center gap-3 p-4 bg-white/50 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-all border border-transparent hover:border-indigo-500/20 group"
+                >
+                  <input
+                    type="checkbox"
+                    name="assigned_to"
+                    value={staff.id}
+                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <div class="flex flex-col">
+                    <span
+                      class="text-xs font-bold text-gray-700 dark:text-gray-200"
+                      >{staff.name}</span
                     >
-                      <input
-                        type="checkbox"
-                        name="assigned_to"
-                        value={staff.id}
-                        class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <div class="flex flex-col">
-                        <span
-                          class="text-xs font-bold text-gray-700 dark:text-gray-200"
-                          >{staff.name}</span
-                        >
-                        <span
-                          class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
-                          >{staff.role}</span
-                        >
-                      </div>
-                    </label>
-                  {:else}
-                    <div class="py-10 text-center">
-                      <p
-                        class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-                      >
-                        No matching staff
-                      </p>
-                    </div>
-                  {/each}
+                    <span
+                      class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
+                      >{staff.role}</span
+                    >
+                  </div>
+                </label>
+              {:else}
+                <div class="col-span-full py-10 text-center">
+                  <p
+                    class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                  >
+                    No matching staff found
+                  </p>
                 </div>
-              </div>
+              {/each}
             </div>
           </div>
         </div>

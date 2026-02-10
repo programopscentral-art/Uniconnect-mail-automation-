@@ -5,7 +5,7 @@ import { fail, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { user } = locals;
-    if (!user || !['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM'].includes(user.role)) {
+    if (!user || !['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER'].includes(user.role)) {
         throw redirect(302, '/communication-tasks');
     }
 
@@ -62,7 +62,7 @@ export const actions: Actions = {
                 update_type: updateType,
                 team: team || null,
                 content_type: contentType,
-                link: link || null
+                link: link || undefined
             });
         } catch (error) {
             console.error('Failed to create communication task:', error);
