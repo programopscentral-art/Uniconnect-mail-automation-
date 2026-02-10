@@ -498,8 +498,8 @@
   // Notification Diagnostic
   import { getFcmToken } from "$lib/firebase";
   let notificationStatus = $state<
-    "NOT_SUPPORTED" | "GRANTED" | "DENIED" | "DEFAULT"
-  >("DEFAULT");
+    "NOT_SUPPORTED" | "granted" | "denied" | "default"
+  >("default");
   let isTestingNotification = $state(false);
 
   $effect(() => {
@@ -513,8 +513,8 @@
   async function requestNotificationPermission() {
     if (!("Notification" in window)) return;
     const permission = await Notification.requestPermission();
-    notificationStatus = permission as any;
-    if (permission === "GRANTED") {
+    notificationStatus = permission;
+    if (permission === "granted") {
       const token = await getFcmToken();
       if (token) {
         await fetch("/api/fcm/register", {
@@ -589,7 +589,7 @@
     </div>
 
     <!-- Notification Status Card -->
-    {#if notificationStatus !== "GRANTED"}
+    {#if notificationStatus !== "granted"}
       <div
         class="bg-indigo-600 rounded-[2rem] p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-500/20 animate-premium-slide"
         style="animation-delay: 50ms;"
@@ -602,21 +602,33 @@
           </div>
           <div class="space-y-1">
             <h3 class="font-black uppercase tracking-tight">
-              Enable Desktop Notifications
+              {notificationStatus === "denied"
+                ? "Notifications Blocked"
+                : "Enable Desktop Notifications"}
             </h3>
             <p
               class="text-xs font-bold text-indigo-100 uppercase tracking-widest opacity-80"
             >
-              Don't miss your scheduled communication tasks and reminders
+              {notificationStatus === "denied"
+                ? "Please enable notifications in your browser settings to receive alerts"
+                : "Don't miss your scheduled communication tasks and reminders"}
             </p>
           </div>
         </div>
-        <button
-          onclick={requestNotificationPermission}
-          class="px-8 py-3 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap"
-        >
-          Enable Now
-        </button>
+        {#if notificationStatus !== "denied"}
+          <button
+            onclick={requestNotificationPermission}
+            class="px-8 py-3 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap"
+          >
+            Enable Now
+          </button>
+        {:else}
+          <div
+            class="px-6 py-2 bg-indigo-700/50 rounded-lg text-[10px] font-black uppercase tracking-widest"
+          >
+            Fixed in Settings
+          </div>
+        {/if}
       </div>
     {:else}
       <div
