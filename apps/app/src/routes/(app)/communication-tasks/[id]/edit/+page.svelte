@@ -36,7 +36,7 @@
   const teams = ["Student Engagement", "Parent Communication"];
   const contentTypes = ["Plain Text", "Markdown"];
 
-  const scheduledAt = $state(
+  let scheduledAt = $state(
     new Date(task.scheduled_at).toISOString().slice(0, 16),
   );
 </script>
