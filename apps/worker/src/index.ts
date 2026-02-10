@@ -22,7 +22,8 @@ import {
   createNotification,
   getDueCommunicationTasks,
   getUserFcmTokens,
-  updateCommunicationTaskStatus
+  updateCommunicationTaskStatus,
+  getCommunicationTasksForReminders
 } from '@uniconnect/shared';
 import { google } from 'googleapis';
 import IORedis from 'ioredis';
@@ -364,43 +365,95 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 }
 
 async function processCommunicationTasks() {
-  console.log('[COMM-SCHEDULER] Checking for due communication tasks...');
+  console.log('[COMM-SCHEDULER] Checking for communication task notifications...');
   try {
-    const tasks = await getDueCommunicationTasks();
-    if (tasks.length > 0) {
-      console.log(`[COMM-SCHEDULER] Found ${tasks.length} due tasks.`);
+    // 1. Fetch tasks that need ANY kind of reminder
+    const tasks = await getCommunicationTasksForReminders();
+    if (tasks.length === 0) return;
 
-      for (const task of tasks) {
-        console.log(`[COMM-SCHEDULER] Processing task: ${task.message_title}`);
+    console.log(`[COMM-SCHEDULER] Processing ${tasks.length} tasks for notifications.`);
 
-        const allTokens: string[] = [];
-        for (const userId of task.assigned_to) {
-          const tokens = await getUserFcmTokens(userId);
-          allTokens.push(...tokens);
+    for (const task of tasks) {
+      let notificationType: 'CREATION' | 'DAY_START' | 'TEN_MIN' | 'DUE' | null = null;
+      const now = new Date();
+      const scheduledAt = new Date(task.scheduled_at);
+
+      // A. DUE NOW (Status: Scheduled, time passed)
+      if (task.status === 'Scheduled' && scheduledAt <= now) {
+        notificationType = 'DUE';
+      }
+      // B. 10 MIN REMINDER (Scheduled, within 10-12 mins, not sent)
+      else if (task.status === 'Scheduled' && !task.ten_min_reminder_sent && (scheduledAt.getTime() - now.getTime()) <= 10.5 * 60 * 1000) {
+        notificationType = 'TEN_MIN';
+      }
+      // C. DAY START REMINDER (Scheduled, is today, not sent today)
+      else if (task.status === 'Scheduled' && !task.day_start_notified_at && scheduledAt.toDateString() === now.toDateString()) {
+        notificationType = 'DAY_START';
+      }
+      // D. CREATION ALERT (Unnotified at creation)
+      else if (!task.creation_notified_at) {
+        notificationType = 'CREATION';
+      }
+
+      if (!notificationType) continue;
+
+      const allTokens: string[] = [];
+      for (const userId of task.assigned_to) {
+        const tokens = await getUserFcmTokens(userId);
+        allTokens.push(...tokens);
+      }
+
+      if (allTokens.length > 0 && admin.apps.length > 0) {
+        let title = '';
+        let body = '';
+
+        switch (notificationType) {
+          case 'CREATION':
+            title = 'New Task Assigned';
+            body = `A new ${task.channel} task for ${task.universities.join(', ')} has been scheduled for ${scheduledAt.toLocaleString()}.`;
+            break;
+          case 'DAY_START':
+            title = 'Task Scheduled Today';
+            body = `Reminder: You have a ${task.channel} task due today at ${scheduledAt.toLocaleTimeString()}.`;
+            break;
+          case 'TEN_MIN':
+            title = 'Task Due in 10 Min';
+            body = `Final Reminder: Prepare to send the ${task.channel} message for ${task.universities.join(', ')}.`;
+            break;
+          case 'DUE':
+            title = 'Task Due Now';
+            body = `Action Required: Send ${task.channel} message for ${task.universities.join(', ')}.`;
+            break;
         }
 
-        if (allTokens.length > 0 && admin.apps.length > 0) {
-          const message = {
-            notification: {
-              title: 'Communication Task Due',
-              body: `${task.universities.join(', ')} – ${task.channel} message`
-            },
-            data: {
-              taskId: task.id,
-              university: task.universities[0],
-              channel: task.channel,
-              action: 'OPEN_TASK'
-            },
-            tokens: allTokens
-          };
+        const message = {
+          notification: { title, body },
+          data: {
+            taskId: task.id,
+            action: 'OPEN_TASK'
+          },
+          tokens: allTokens
+        };
 
-          const response = await admin.messaging().sendEachForMulticast(message);
-          console.log(`[COMM-SCHEDULER] Successfully sent ${response.successCount} notifications for task ${task.id}`);
-        } else if (allTokens.length === 0) {
-          console.log(`[COMM-SCHEDULER] No FCM tokens found for assigned users of task ${task.id}`);
-        }
+        const response = await admin.messaging().sendEachForMulticast(message);
+        console.log(`[COMM-SCHEDULER] Sent ${notificationType} notification for task ${task.id}. Success: ${response.successCount}`);
+      }
 
-        await updateCommunicationTaskStatus(task.id, 'Notified', new Date());
+      // Update DB state
+      let updateQuery = '';
+      const params: any[] = [task.id];
+      if (notificationType === 'CREATION') {
+        updateQuery = 'UPDATE communication_tasks SET creation_notified_at = NOW() WHERE id = $1';
+      } else if (notificationType === 'DAY_START') {
+        updateQuery = 'UPDATE communication_tasks SET day_start_notified_at = NOW() WHERE id = $1';
+      } else if (notificationType === 'TEN_MIN') {
+        updateQuery = 'UPDATE communication_tasks SET ten_min_reminder_sent = true WHERE id = $1';
+      } else if (notificationType === 'DUE') {
+        await updateCommunicationTaskStatus(task.id, 'Notified', now);
+      }
+
+      if (updateQuery) {
+        await db.query(updateQuery, params);
       }
     }
   } catch (err) {
@@ -408,5 +461,5 @@ async function processCommunicationTasks() {
   }
 }
 
-setInterval(processCommunicationTasks, 2 * 60 * 1000);
+setInterval(processCommunicationTasks, 60 * 1000); // Check every minute for precision
 processCommunicationTasks();

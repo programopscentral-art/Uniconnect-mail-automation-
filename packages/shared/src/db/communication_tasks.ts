@@ -33,6 +33,9 @@ export interface CommunicationTask {
     team: CommunicationTeam | null;
     content_type: CommunicationContentType;
     link: string | null;
+    creation_notified_at: Date | null;
+    day_start_notified_at: Date | null;
+    ten_min_reminder_sent: boolean;
 }
 
 export async function createCommunicationTask(data: {
@@ -135,6 +138,22 @@ export async function getDueCommunicationTasks() {
     const result = await db.query(
         `SELECT * FROM communication_tasks 
          WHERE scheduled_at <= NOW() AND status = 'Scheduled'`
+    );
+    return result.rows as CommunicationTask[];
+}
+
+export async function getCommunicationTasksForReminders() {
+    // Fetch tasks that:
+    // 1. Need creation notification
+    // 2. Need day-start notification (is today)
+    // 3. Need 10-min notification (due within next 12 mins)
+    // 4. Are due now
+    const result = await db.query(
+        `SELECT * FROM communication_tasks 
+         WHERE (creation_notified_at IS NULL)
+            OR (status = 'Scheduled' AND day_start_notified_at IS NULL AND DATE(scheduled_at) = CURRENT_DATE)
+            OR (status = 'Scheduled' AND ten_min_reminder_sent = false AND scheduled_at <= NOW() + INTERVAL '12 minutes')
+            OR (status = 'Scheduled' AND scheduled_at <= NOW())`
     );
     return result.rows as CommunicationTask[];
 }
