@@ -40,12 +40,21 @@ export async function createStudent(data: { university_id: string; name: string;
 export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; metadata?: any; sort_order?: number }>) {
     if (students.length === 0) return;
 
+    // Deduplicate by (university_id, email) to avoid PostgreSQL ON CONFLICT error
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    const uniqueStudentsMap = new Map();
+    students.forEach(s => {
+        const key = `${s.university_id}:${s.email.toLowerCase()}`;
+        uniqueStudentsMap.set(key, s); // Overwrites with latest occurrence
+    });
+    const uniqueStudents = Array.from(uniqueStudentsMap.values());
+
     // Build multi-row insert query
     // This is significantly faster for large imports
     const values: any[] = [];
     const placeholders: string[] = [];
 
-    students.forEach((s, i) => {
+    uniqueStudents.forEach((s, i) => {
         const offset = i * 6;
         placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`);
         values.push(
