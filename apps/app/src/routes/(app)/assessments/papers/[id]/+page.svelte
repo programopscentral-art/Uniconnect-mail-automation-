@@ -397,8 +397,10 @@
             <html>
                 <head>
                     <title>Assessment Paper</title>
+                    <base href="${window.location.origin}/">
                     ${styles}
                     <style>
+                        * { box-sizing: border-box !important; }
                         @media print {
                             @page { size: A4; margin: 0; }
                             html, body { 
@@ -412,6 +414,7 @@
                             body {
                                 display: flex !important;
                                 justify-content: center !important;
+                                align-items: flex-start !important;
                             }
                             #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                                 width: 210mm !important; 
@@ -424,6 +427,7 @@
                                 position: relative !important;
                                 left: 0 !important;
                                 top: 0 !important;
+                                padding: 0.5in !important;
                             }
                             .no-print, nav, header, sidebar, .print\\:hidden, .fixed, button { display: none !important; }
                         }
@@ -432,7 +436,7 @@
                             background: #eee; 
                             display: flex;
                             justify-content: center;
-                            padding: 0;
+                            padding: 20px;
                         }
                         #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
                             background: white; 
@@ -452,7 +456,7 @@
                             setTimeout(() => { 
                                 window.focus();
                                 window.print(); 
-                            }, 1200);
+                            }, 2000);
                         };
                     </${"script"}>
                 </body>
