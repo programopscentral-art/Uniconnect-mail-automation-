@@ -105,9 +105,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             students.push({
                 university_id: universityId,
-                name: name,
-                email: email.toLowerCase(),
-                external_id: externalId,
+                name: name.trim(),
+                email: email.trim().toLowerCase(),
+                external_id: String(externalId).trim(),
                 metadata,
                 sort_order: index // Preserve original file order
             });

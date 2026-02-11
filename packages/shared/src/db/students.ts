@@ -40,11 +40,10 @@ export async function createStudent(data: { university_id: string; name: string;
 export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; metadata?: any; sort_order?: number }>) {
     if (students.length === 0) return;
 
-    // Deduplicate by (university_id, email) to avoid PostgreSQL ON CONFLICT error
-    // "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    // Deduplicate by (university_id, external_id) to support siblings with shared emails
     const uniqueStudentsMap = new Map();
     students.forEach(s => {
-        const key = `${s.university_id}:${s.email.toLowerCase()}`;
+        const key = `${s.university_id}:${String(s.external_id || s.email).trim().toLowerCase()}`;
         uniqueStudentsMap.set(key, s); // Overwrites with latest occurrence
     });
     const uniqueStudents = Array.from(uniqueStudentsMap.values());
@@ -59,9 +58,9 @@ export async function createStudentsBulk(students: Array<{ university_id: string
         placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`);
         values.push(
             s.university_id,
-            s.name,
-            s.email,
-            s.external_id,
+            s.name.trim(),
+            s.email.trim().toLowerCase(),
+            String(s.external_id || s.email).trim(),
             s.metadata || {},
             s.sort_order || 0
         );
@@ -70,9 +69,9 @@ export async function createStudentsBulk(students: Array<{ university_id: string
     const query = `
         INSERT INTO students (university_id, name, email, external_id, metadata, sort_order) 
         VALUES ${placeholders.join(', ')} 
-        ON CONFLICT (university_id, email) DO UPDATE SET 
+        ON CONFLICT (university_id, external_id) DO UPDATE SET 
             name = EXCLUDED.name, 
-            external_id = EXCLUDED.external_id,
+            email = EXCLUDED.email,
             metadata = EXCLUDED.metadata,
             sort_order = EXCLUDED.sort_order,
             updated_at = NOW()
