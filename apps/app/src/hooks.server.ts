@@ -33,29 +33,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 
                 // Ensure plain objects for serialization
                 event.locals.user = JSON.parse(JSON.stringify(user));
-
-                // Permission Resolution
-                const dynamicPermissions = await getRolePermissions(user.role);
-                if (dynamicPermissions && dynamicPermissions.length > 0) {
-                    event.locals.user!.permissions = dynamicPermissions;
-                } else {
-                    // Legacy Fallback Logic
-                    const isCentralBOA = user.role === 'BOA' && (!user.university_id || user.universities?.some(u => u.is_team && u.id === user.university_id));
-                    const isStaff = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER'].includes(user.role);
-
-                    if (isCentralBOA || isStaff) {
-                        event.locals.user!.permissions = [
-                            'dashboard', 'tasks', 'universities', 'students', 'users',
-                            'analytics', 'mailboxes', 'templates', 'campaigns',
-                            'assessments', 'mail-logs', 'permissions', 'day-plan',
-                            'communication-tasks'
-                        ];
-                    } else if (user.role) {
-                        event.locals.user!.permissions = [
-                            'dashboard', 'tasks', 'communication-tasks'
-                        ];
-                    }
-                }
             }
         } catch (e) {
             console.error('Session validation error:', e);

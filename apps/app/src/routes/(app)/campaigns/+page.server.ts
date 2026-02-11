@@ -13,14 +13,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
-    const [campaigns, universities] = await Promise.all([
-        getCampaigns(universityId || undefined),
-        isGlobal ? getAllUniversities() : Promise.resolve([])
-    ]);
+    const campaigns = await getCampaigns(universityId || undefined);
 
     return {
         campaigns,
-        universities,
         selectedUniversityId: universityId,
         userRole: locals.user.role,
         userPermissions: locals.user.permissions || []
