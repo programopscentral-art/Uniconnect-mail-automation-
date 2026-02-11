@@ -1,4 +1,4 @@
-import { getCampaigns, getAllUniversities } from '@uniconnect/shared';
+import { getCampaigns, db } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -13,10 +13,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
-    const campaigns = await getCampaigns(universityId || undefined);
+    // Parallel fetch: Lean universities list + filtered campaigns
+    const [campaigns, universitiesRes] = await Promise.all([
+        getCampaigns(universityId || undefined),
+        isGlobal
+            ? db.query('SELECT id, name FROM universities ORDER BY name ASC')
+            : Promise.resolve({ rows: [] })
+    ]);
 
     return {
         campaigns,
+        universities: universitiesRes.rows,
         selectedUniversityId: universityId,
         userRole: locals.user.role,
         userPermissions: locals.user.permissions || []
