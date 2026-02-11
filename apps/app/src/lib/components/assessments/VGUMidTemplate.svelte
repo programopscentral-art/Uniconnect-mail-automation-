@@ -223,88 +223,141 @@
       class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
-      <!-- Header Section -->
-      <div class="text-center mb-10 pt-8 relative z-10">
-        <h1
-          class="text-[22pt] font-black uppercase tracking-[0.2em] mb-2 font-serif text-black leading-tight"
-          style="color: black !important; display: block;"
-        >
-          VIVEKANANDA GLOBAL UNIVERSITY
-        </h1>
-        <h2
-          class="text-[14pt] font-bold uppercase tracking-wide mb-2 font-serif text-black leading-tight"
-          style="color: black !important;"
-        >
-          <AssessmentEditable
-            value={paperMeta.programme ||
-              "DEPARTMENT OF AGRIBUSINESS MANAGEMENT"}
-            onUpdate={(v: string) => updateText(v, "META", "programme")}
-            class="hover:bg-black/5 focus:bg-black/5 text-black"
-          />
-        </h2>
-        <h3
-          class="text-[12pt] font-bold uppercase tracking-wider font-serif text-black leading-tight"
-          style="color: black !important;"
-        >
-          <AssessmentEditable
-            value={paperMeta.exam_title || "MID - TERM : FIRST"}
-            onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-            class="hover:bg-black/5 focus:bg-black/5 text-black"
-          />
-        </h3>
-        <div class="border-b-[2pt] border-black mt-8 w-full opacity-40"></div>
+      <!-- VGU HIGH FIDELITY HEADER -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between pb-2">
+          <!-- Left Logo -->
+          <div class="w-16 h-16">
+            <img
+              src="/vgu-logo.png"
+              alt="VGU Logo"
+              class="w-full h-full object-contain"
+            />
+          </div>
+
+          <!-- Center Text -->
+          <div class="flex-1 text-center px-1">
+            <div
+              class="text-[17pt] font-black uppercase leading-[1] font-serif tracking-tight"
+            >
+              VIVEKANANDA GLOBAL
+            </div>
+            <div
+              class="text-[15pt] font-black uppercase leading-[1] font-serif tracking-tight mt-0.5"
+            >
+              UNIVERSITY, JAIPUR
+            </div>
+            <div
+              class="text-[7pt] font-medium leading-tight mt-1 opacity-90 italic font-serif"
+            >
+              (Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of
+              UGC Act, 1956)
+            </div>
+          </div>
+
+          <!-- Right Logo (NAAC) -->
+          <div class="w-16 h-16 text-right">
+            <img
+              src="/vgu-naac-badge.png"
+              alt="NAAC A+ accredited"
+              class="w-full h-full object-contain ml-auto"
+            />
+          </div>
+        </div>
+
+        <!-- Exam Title Row (Dedicated) -->
+        <div class="text-center py-2">
+          <div class="border border-black py-1 px-8 inline-block">
+            <AssessmentEditable
+              value={paperMeta.exam_title || "MID - TERM : FIRST"}
+              onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+              class="text-[10pt] font-black uppercase tracking-wide font-serif"
+            />
+          </div>
+        </div>
+
+        <div class="border-b border-black w-full my-2"></div>
       </div>
 
-      <!-- Metadata Fields -->
-      <div class="space-y-4 text-[10pt] mb-8 font-medium">
-        <div class="flex items-baseline">
-          <span class="font-bold min-w-[120px]">COURSE CODE :</span>
-          <AssessmentEditable
-            value={paperMeta.course_code}
-            onUpdate={(v: string) => updateText(v, "META", "course_code")}
-            class="flex-1 border-b border-dotted border-black px-1"
-          />
-        </div>
-        <div class="flex items-baseline">
-          <span class="font-bold min-w-[120px]">COURSE NAME :</span>
-          <AssessmentEditable
-            value={paperMeta.subject_name}
-            onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-            class="flex-1 border-b border-dotted border-black px-1"
-          />
-        </div>
-        <div class="flex items-baseline">
-          <span class="font-bold min-w-[120px]">SEMESTER :</span>
-          <AssessmentEditable
-            value={paperMeta.semester}
-            onUpdate={(v: string) => updateText(v, "META", "semester")}
-            class="border-b border-dotted border-black px-1 min-w-[30px]"
-          />
-        </div>
-        <div class="flex justify-between items-baseline pt-2">
-          <div class="flex items-baseline">
-            <span class="font-bold">Time :</span>
-            <AssessmentEditable
-              value={paperMeta.duration_minutes}
-              onUpdate={(v: string) =>
-                updateText(v, "META", "duration_minutes")}
-              class="mx-1 font-bold"
-            />
-            <span class="font-bold">Minutes</span>
-          </div>
-          <div class="flex items-baseline">
-            <span class="font-bold">Max. Marks :</span>
-            <AssessmentEditable
-              value={paperMeta.max_marks}
-              onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-              class="ml-1 font-bold"
-            />
-          </div>
-        </div>
-      </div>
+      <!-- VGU METADATA (Table Layout for Print Stability) -->
+      <table class="w-full text-[9pt] mb-3 font-serif border-none">
+        <tbody class="border-none">
+          <tr class="border-none">
+            <td class="w-[60%] border-none p-0 align-bottom">
+              <div class="flex">
+                <span class="font-bold whitespace-nowrap"
+                  >Programme & Batch:</span
+                >
+                <AssessmentEditable
+                  value={paperMeta.programme}
+                  onUpdate={(v: string) => updateText(v, "META", "programme")}
+                  class="ml-1 flex-1 uppercase font-medium"
+                />
+              </div>
+            </td>
+            <td class="w-[40%] border-none p-0 align-bottom text-right">
+              <div class="flex justify-end">
+                <span class="font-bold">Semester:</span>
+                <AssessmentEditable
+                  value={paperMeta.semester}
+                  onUpdate={(v: string) => updateText(v, "META", "semester")}
+                  class="ml-1 w-12 text-right font-medium"
+                />
+              </div>
+            </td>
+          </tr>
+          <tr class="border-none">
+            <td class="border-none p-0 pt-1 align-bottom">
+              <div class="flex">
+                <span class="font-bold whitespace-nowrap">Course Name:</span>
+                <AssessmentEditable
+                  value={paperMeta.subject_name}
+                  onUpdate={(v: string) =>
+                    updateText(v, "META", "subject_name")}
+                  class="ml-1 flex-1 uppercase font-medium"
+                />
+              </div>
+            </td>
+            <td class="border-none p-0 pt-1 align-bottom text-right">
+              <div class="flex justify-end">
+                <span class="font-bold whitespace-nowrap">Course Code:</span>
+                <AssessmentEditable
+                  value={paperMeta.course_code}
+                  onUpdate={(v: string) => updateText(v, "META", "course_code")}
+                  class="ml-1 uppercase font-medium"
+                />
+              </div>
+            </td>
+          </tr>
+          <tr class="border-none">
+            <td class="border-none p-0 pt-1 align-bottom">
+              <div class="flex">
+                <span class="font-bold whitespace-nowrap">Duration:</span>
+                <AssessmentEditable
+                  value={paperMeta.duration_minutes}
+                  onUpdate={(v: string) =>
+                    updateText(v, "META", "duration_minutes")}
+                  class="ml-1 font-medium"
+                />
+                <span class="ml-1">Minutes</span>
+              </div>
+            </td>
+            <td class="border-none p-0 pt-1 align-bottom text-right">
+              <div class="flex justify-end">
+                <span class="font-bold">M.M.:</span>
+                <AssessmentEditable
+                  value={paperMeta.max_marks}
+                  onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+                  class="ml-1 w-12 text-right font-medium"
+                />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <!-- Sections -->
-      <div class="space-y-12">
+      <div class="space-y-6">
         <!-- Section-I -->
         {#if questionsA.length > 0 || mode === "preview"}
           <div>
@@ -644,7 +697,9 @@
   }
   #vgu-mid-paper-actual {
     font-family: "Times New Roman", Times, serif;
-    line-height: 1.5;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Ensure AssessmentEditable fits well in dot-bordered lines */
@@ -656,6 +711,12 @@
   @media print {
     .no-print {
       display: none !important;
+    }
+    #vgu-mid-paper-actual {
+      padding: 0.5in !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      width: 210mm !important;
     }
   }
 </style>
