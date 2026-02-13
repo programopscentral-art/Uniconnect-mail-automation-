@@ -369,11 +369,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             for (const s2 of sets) {
                 if (s1 === s2) continue;
                 const intersection = setDebugInfo[s1].filter(id => setDebugInfo[s2].includes(id));
-                // Only throw if more than 50% of the paper is identical, which indicates a serious pool failure
-                if (intersection.length > (setDebugInfo[s1].length * 0.5) && intersection.length > 5) {
-                    throw new Error(`[CRITICAL UNIQUENESS FAILURE] Sets ${s1} and ${s2} share ${intersection.length} questions. Variety Rule Violated.`);
+                // ULTRA-RELAXED: Only throw if more than 80% of the paper is identical, 
+                // which usually means the database really has only 1-2 questions total for a section.
+                if (intersection.length > (setDebugInfo[s1].length * 0.8) && intersection.length > 10) {
+                    throw new Error(`[POOL EXHAUSTED] Sets ${s1} and ${s2} share ${intersection.length} questions. Please add more questions to your bank for better variety.`);
                 } else if (intersection.length > 0) {
-                    console.warn(`[VARIETY WARNING] Sets ${s1} and ${s2} share ${intersection.length} questions due to small pool.`);
+                    console.warn(`[VARIETY WARNING] Sets ${s1} and ${s2} share ${intersection.length} questions.`);
                 }
             }
         }
