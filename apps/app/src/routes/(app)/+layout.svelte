@@ -252,6 +252,12 @@
 
     // FCM Registration
     if (user) {
+      if (
+        Notification.permission !== "granted" &&
+        Notification.permission !== "denied"
+      ) {
+        Notification.requestPermission();
+      }
       getFcmToken().then((token) => {
         if (token) {
           fetch("/api/fcm/register", {
@@ -268,27 +274,91 @@
         }
       });
 
-      // Handle foreground notifications
+      // Multi-tab Notifications Coordination
+      const processedSourceIds = new Set<string>();
+      const notifChannel = new BroadcastChannel("uni-notifications-coord");
+
+      const triggerNativePopup = (
+        title: string,
+        body: string,
+        url: string | null,
+        taskId: string | undefined,
+        sourceId: string,
+      ) => {
+        if (
+          !browser ||
+          !navigator.serviceWorker ||
+          Notification.permission !== "granted"
+        )
+          return;
+
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.showNotification(title, {
+            body,
+            icon: "/nxtwave-logo.png",
+            tag: sourceId,
+            renotify: !!taskId,
+            data: { url, taskId },
+          } as any);
+        });
+      };
+
       onForegroundMessage((payload) => {
-        console.log("Foreground message received:", payload);
+        const sourceId =
+          payload.data?.sourceId ||
+          payload.data?.taskId ||
+          `notif-${Date.now()}`;
+        const taskId = payload.data?.taskId;
+        const action = payload.data?.action;
+        const title = payload.notification.title;
+        const body = payload.notification.body;
 
-        const newNotification = {
-          id: Math.random().toString(36).substr(2, 9),
-          title: payload.notification.title,
-          message: payload.notification.body,
-          created_at: new Date(),
-          is_read: false,
-          link: payload.data?.taskId
-            ? `/communication-tasks/${payload.data.taskId}`
-            : null,
-        };
+        // 1. DEDUPLICATION (Local & Multi-tab)
+        if (processedSourceIds.has(sourceId)) return;
+        processedSourceIds.add(sourceId);
+        notifChannel.postMessage({ type: "STOP_DUPLICATE", sourceId });
 
-        // Add to local notifications list
-        notifications = [newNotification, ...notifications];
+        let url = taskId ? `/communication-tasks/${taskId}` : null;
+        if (!url && action === "OPEN_REQUESTS") url = "/users";
 
-        // Add to active toasts
-        activeToasts = [...activeToasts, newNotification];
+        // 2. Local State Sync (Tray)
+        notifications = [
+          {
+            id: Math.random().toString(36).substr(2, 9),
+            title,
+            message: body,
+            created_at: new Date(),
+            is_read: false,
+            link: url,
+          },
+          ...notifications,
+        ];
+
+        // 3. UI DISPLAY
+        // Show the in-app toast only on the currently visible tab
+        if (!document.hidden) {
+          activeToasts = [
+            ...activeToasts,
+            {
+              id: Math.random().toString(),
+              title,
+              message: body,
+              link: url,
+            },
+          ];
+        }
+
+        // 4. NATIVE POPUP (Designated Task)
+        // We always try to show the native popup.
+        // Our 'processedSourceIds' + 'notifChannel' logic ensures only ONE tab does this.
+        triggerNativePopup(title, body, url, taskId, sourceId);
       });
+
+      notifChannel.onmessage = (event) => {
+        if (event.data.type === "STOP_DUPLICATE") {
+          processedSourceIds.add(event.data.sourceId);
+        }
+      };
     }
 
     return () => {

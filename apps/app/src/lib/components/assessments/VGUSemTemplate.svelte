@@ -6,6 +6,7 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
+  import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -151,9 +152,7 @@
       part,
       subPart,
       currentMark: marks,
-      alternates: (questionPool || []).filter(
-        (q: any) => Number(q.marks || q.mark) === marks && q.id !== cQ?.id,
-      ),
+      currentId: cQ?.id,
     };
     isSwapSidebarOpen = true;
   }
@@ -166,9 +165,11 @@
     const slot = arr[swapContext.slotIndex];
     const nQ = {
       id: question.id,
-      text: question.question_text,
+      text: question.question_text || question.text,
       marks: question.marks,
       options: question.options,
+      bloom_level: question.bloom_level,
+      co_id: question.co_id,
     };
     if (slot.type === "OR_GROUP") {
       if (swapContext.subPart === "q1") slot.choice1.questions = [nQ];
@@ -660,68 +661,13 @@
     </div>
   </div>
 
-  <!-- Swap Sidebar -->
-  {#if isSwapSidebarOpen && isEditable}
-    <div
-      transition:slide={{ axis: "x" }}
-      class="w-96 bg-white dark:bg-slate-900 border-l border-gray-200 dark:border-slate-800 shadow-2xl p-6 overflow-y-auto no-print z-[100]"
-    >
-      <div class="flex items-center justify-between mb-6">
-        <h3
-          class="font-black text-gray-900 dark:text-white uppercase tracking-tight text-sm"
-        >
-          SWAP QUESTION
-        </h3>
-        <button
-          onclick={() => (isSwapSidebarOpen = false)}
-          aria-label="Close sidebar"
-          class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-        >
-          <svg
-            class="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor font-bold"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M6 18L18 6M6 6l12 12"
-            /></svg
-          >
-        </button>
-      </div>
-
-      {#each swapContext?.alternates || [] as q}
-        <button
-          onclick={() => selectAlternate(q)}
-          class="w-full text-left p-4 mb-3 bg-gray-50 dark:bg-slate-800/50 rounded-2xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-transparent hover:border-indigo-200 dark:hover:border-indigo-800 transition-all group"
-        >
-          <div class="flex items-center justify-between mb-2">
-            <span
-              class="text-[10px] font-black text-indigo-600 tracking-wider font-bold"
-              >{q.marks}M</span
-            >
-            <span
-              class="text-[9px] font-black text-gray-400 uppercase tracking-widest font-bold"
-              >{q.type || "SHORT"}</span
-            >
-          </div>
-          <div
-            class="text-xs font-semibold text-gray-700 dark:text-slate-300 leading-relaxed line-clamp-3"
-          >
-            {@html q.question_text || q.text}
-          </div>
-        </button>
-      {:else}
-        <div
-          class="text-center py-20 text-gray-400 text-[10px] font-black uppercase tracking-widest"
-        >
-          No matching questions found in pool.
-        </div>
-      {/each}
-    </div>
-  {/if}
+  <SwapQuestionSidebar
+    bind:isOpen={isSwapSidebarOpen}
+    {questionPool}
+    currentMark={swapContext?.currentMark}
+    currentQuestionId={swapContext?.currentId}
+    onSelect={selectAlternate}
+  />
 </div>
 
 <style>

@@ -15,31 +15,56 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
-    const notificationTitle = payload.notification.title;
+
+    const title = payload.notification.title;
+    const body = payload.notification.body;
+    const taskId = payload.data?.taskId;
+    const type = payload.data?.type;
+    const action = payload.data?.action;
+    const sourceId = payload.data?.sourceId || taskId || `notif-${Date.now()}`;
+
     const notificationOptions = {
-        body: payload.notification.body,
+        body: body,
         icon: '/nxtwave-logo.png',
-        data: payload.data
+        tag: sourceId,
+        renotify: !!taskId,
+        data: {
+            taskId,
+            type,
+            action,
+            url: taskId ? `/communication-tasks/${taskId}` : (action === 'OPEN_REQUESTS' ? '/users' : null)
+        }
     };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
+    return self.registration.showNotification(title, notificationOptions);
 });
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-    const taskId = event.notification.data?.taskId;
-    const targetUrl = taskId ? `/communication-tasks/${taskId}` : '/';
+
+    const data = event.notification.data;
+    let targetUrl = data?.url || '/';
+    // Ensure absolute path
+    if (targetUrl.startsWith('/')) {
+        targetUrl = self.location.origin + targetUrl;
+    }
 
     event.waitUntil(
         clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-            // Check if there is already a window open with this URL
+            // 1. Try to find existing tab
             for (const client of clientList) {
-                const url = new URL(client.url);
-                if (url.pathname === targetUrl && 'focus' in client) {
+                if (client.url === targetUrl && 'focus' in client) {
                     return client.focus();
                 }
             }
-            // If no window found, open a new one
+            // 2. Try to find ANY app tab and navigate it
+            for (const client of clientList) {
+                if (client.url.includes(self.location.origin) && 'navigate' in client) {
+                    client.navigate(targetUrl);
+                    return client.focus();
+                }
+            }
+            // 3. Open new window
             if (clients.openWindow) {
                 return clients.openWindow(targetUrl);
             }

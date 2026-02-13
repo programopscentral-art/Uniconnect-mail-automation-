@@ -83,11 +83,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 else if (lowName.includes('paragraph') || lowName.includes('essay') || lowName.includes('descriptive')) sheetDefaultType = 'PARAGRAPH';
 
                 for (const row of rows as any[]) {
-                    let options: string[] = [row['A'], row['B'], row['C'], row['D']].filter(Boolean).map(o => o.toString().trim());
-                    const qTextFull = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true)?.toString().trim();
+                    const rawQText = findVal(row, ['Question Description', 'Question Text', 'Questions', 'Question'], true);
+                    if (!rawQText) continue; // Skip rows without question content
+
+                    let options: string[] = [row['A'], row['B'], row['C'], row['D']]
+                        .filter(o => o !== null && o !== undefined)
+                        .map(o => o.toString().trim());
+
+                    const qTextFull = rawQText.toString().trim();
+                    if (!qTextFull) continue;
 
                     // 1b. Detect explicit Type column or infer from sheet
-                    let rowType = findVal(row, ['Type', 'Question Type', 'Category', 'qType'])?.toString().toUpperCase().trim();
+                    let rowType = findVal(row, ['Type', 'Question Type', 'Category', 'qType'])?.toString()?.toUpperCase()?.trim();
                     let finalQType = sheetDefaultType;
 
                     if (rowType) {
@@ -103,8 +110,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     let qText = qTextFull;
 
                     // Aggressive in-text option extraction for XLSX if columns are empty or not enough options
-                    // CRITICAL: Only do this if we are SURE it's an MCQ or if type is unknown.
-                    // If the sheet or column explicitly says it's LONG/DESCRIPTIVE, we MUST NOT split.
                     const isExplicitlyDescriptive = ['LONG', 'VERY_LONG', 'PARAGRAPH', 'DESCRIPTIVE', 'ESSAY'].includes(finalQType);
                     const isCandidateForMcq = finalQType === 'MCQ' || (!rowType && options.length === 0 && !isExplicitlyDescriptive);
 
@@ -112,24 +117,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         const optRegex = /(?:\s|^|\()([A-Da-d])[\.\)]\s+/g;
                         const allMatches = [...qTextFull.matchAll(optRegex)];
 
-                        // Look for a sequence starting with 'A' followed by 'B'
                         let bestSplitIndex = -1;
                         let seqMatches: any[] = [];
 
                         for (let i = 0; i < allMatches.length; i++) {
                             const label = allMatches[i][1].toUpperCase();
                             if (label === 'A') {
-                                // Potential start. Check if followed by B
                                 if (allMatches[i + 1] && allMatches[i + 1][1].toUpperCase() === 'B') {
                                     bestSplitIndex = allMatches[i].index;
-                                    // Collect the full sequence (A, B, C, D)
                                     seqMatches = [allMatches[i]];
-                                    let nextChar = 66; // 'B'
+                                    let nextChar = 66;
                                     for (let j = i + 1; j < allMatches.length; j++) {
                                         if (allMatches[j][1].toUpperCase() === String.fromCharCode(nextChar)) {
                                             seqMatches.push(allMatches[j]);
                                             nextChar++;
-                                            if (nextChar > 68) break; // We got A-D
+                                            if (nextChar > 68) break;
                                         }
                                     }
                                     break;
@@ -150,12 +152,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     // 1c. Marks and final type inference
                     const marksRaw = findVal(row, ['Marks', 'marks', 'Points', 'Weightage', 'Mark', 'marks_per_q']);
-                    const marksNum = parseFloat(marksRaw?.toString());
+                    const marksNum = parseFloat(marksRaw?.toString() || '');
                     const marks = !isNaN(marksNum) ? marksNum : (finalQType === 'MCQ' ? 1 : (finalQType === 'LONG' ? 5 : 2));
 
-                    // Final fallback refinement:
-                    // If the type is still SHORT or unassigned, and we have options, it's an MCQ.
-                    // BUT: If the type was already set to LONG/VERY_LONG by sheet name or column, we TRUST IT.
                     const isExplicitDeepType = ['LONG', 'VERY_LONG', 'PARAGRAPH', 'DESCRIPTIVE', 'ESSAY'].includes(finalQType);
 
                     if (options.length > 0 && !isExplicitDeepType) {
@@ -166,13 +165,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         else if (marks === 1) finalQType = 'VERY_SHORT';
                     }
 
-                    // If it's NOT an MCQ, discard any accidental options found in columns A-D
                     if (finalQType !== 'MCQ') {
                         options = [];
                     }
 
                     // 1d. Resolve Unit & Topic
-                    const rawModNum = findVal(row, ['Module Number', 'Unit Number', 'Module #', 'Unit #'])?.toString().trim();
+                    const rawModNum = findVal(row, ['Module Number', 'Unit Number', 'Module #', 'Unit #'])?.toString()?.trim();
                     const rawModName = findVal(row, ['NAME OF THE MODULE', 'NAME OF THE UNIT', 'Module Name', 'Unit Name', 'Module', 'Unit']);
 
                     let unit = null;
@@ -199,6 +197,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const getStrictDisplay = (name: string): string => {
                         if (!name) return 'General';
                         return name
+                            .toString()
                             .replace(/&/g, 'And')
                             .replace(/[^a-zA-Z0-9\s]/g, ' ')
                             .trim()
@@ -210,6 +209,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const getExtremeCanonical = (name: string): string => {
                         if (!name) return 'general';
                         return name
+                            .toString()
                             .toLowerCase()
                             .replace(/&/g, 'and')
                             .replace(/[^a-z0-9]/g, '')
@@ -228,7 +228,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }
 
                     const bloomRaw = (findVal(row, ['Blooms Level', 'Blooms Level (K-Level)', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
-                    // Refined regex to handle "Level - 3", "Level 3", "L-3", "L3", "K3" etc.
                     const bloomMatch = bloomRaw.match(/[LK]\s*[-]?\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*[-]?\s*([1-5])/i);
                     const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
 
@@ -239,14 +238,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     else difficulty = 'MEDIUM';
 
                     const coCodeRaw = (findVal(row, ['CO', 'Course Outcome', 'Course Outcomes', 'co_code']) || '').toString().toUpperCase().trim();
-                    // Normalize CO codes: "CO 2" -> "CO2"
                     const coCode = coCodeRaw.replace(/\s+/g, '');
 
                     questionsToCreate.push({
                         unit_id: unit.id,
                         topic_id: topic.id,
                         co_id: coCode ? coMap.get(coCode) : null,
-                        question_text: qText.toString().trim(),
+                        question_text: qText.trim(),
                         bloom_level: bloomLevel,
                         difficulty: difficulty,
                         marks: marks,
@@ -254,7 +252,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         answer_key: (findVal(row, ['Solution', 'Answer', 'answer_key', 'Correct Answer']) || '').toString().trim(),
                         explanation: (findVal(row, ['Explanation', 'Rationale', 'hint']) || '').toString().trim(),
                         options: options && options.length > 0 ? options : null,
-                        image_url: null // XLSX image support is limited in current library
+                        image_url: null
                     });
                 }
             }

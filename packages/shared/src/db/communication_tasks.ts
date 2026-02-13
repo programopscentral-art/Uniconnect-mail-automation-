@@ -36,6 +36,8 @@ export interface CommunicationTask {
     creation_notified_at: Date | null;
     day_start_notified_at: Date | null;
     ten_min_reminder_sent: boolean;
+    overdue_10min_notified_at: Date | null;
+    overdue_30min_notified_at: Date | null;
 }
 
 export async function createCommunicationTask(data: {
@@ -149,16 +151,37 @@ export async function updateCommunicationTaskStatus(id: string, status: Communic
 
 // User FCM Token functions
 export async function registerFcmToken(userId: string, token: string, deviceInfo?: any) {
+    // 1. Insert/Update the current token
     await db.query(
         `INSERT INTO user_fcm_tokens (user_id, fcm_token, device_info, last_active)
          VALUES ($1, $2, $3, NOW())
          ON CONFLICT (fcm_token) DO UPDATE SET last_active = NOW(), device_info = $3`,
         [userId, token, deviceInfo || null]
     );
+
+    // 2. SELF-HEALING: Remove very old tokens for this user to prevent 6x spam
+    // We keep only the 3 most recently active tokens for any given user.
+    await db.query(
+        `DELETE FROM user_fcm_tokens 
+         WHERE user_id = $1 
+         AND fcm_token NOT IN (
+           SELECT fcm_token FROM user_fcm_tokens 
+           WHERE user_id = $1 
+           ORDER BY last_active DESC 
+           LIMIT 3
+         )`,
+        [userId]
+    );
 }
 
 export async function getUserFcmTokens(userId: string) {
-    const result = await db.query(`SELECT fcm_token FROM user_fcm_tokens WHERE user_id = $1`, [userId]);
+    const result = await db.query(
+        `SELECT fcm_token FROM user_fcm_tokens 
+         WHERE user_id = $1 
+         ORDER BY last_active DESC 
+         LIMIT 3`,
+        [userId]
+    );
     return result.rows.map(r => r.fcm_token) as string[];
 }
 
@@ -190,6 +213,8 @@ export async function updateCommunicationTask(id: string, data: {
     sets.push(`creation_notified_at = NULL`);
     sets.push(`day_start_notified_at = NULL`);
     sets.push(`ten_min_reminder_sent = false`);
+    sets.push(`overdue_10min_notified_at = NULL`);
+    sets.push(`overdue_30min_notified_at = NULL`);
 
     const query = `UPDATE communication_tasks SET ${sets.join(', ')} WHERE id = $1 RETURNING *`;
     const result = await db.query(query, params);
@@ -213,9 +238,10 @@ export async function getCommunicationTasksForReminders() {
     const result = await db.query(
         `SELECT * FROM communication_tasks 
          WHERE (creation_notified_at IS NULL)
-            OR (status = 'Scheduled' AND day_start_notified_at IS NULL AND DATE(scheduled_at) = CURRENT_DATE)
             OR (status = 'Scheduled' AND ten_min_reminder_sent = false AND scheduled_at <= NOW() + INTERVAL '12 minutes' AND scheduled_at > NOW())
-            OR (status = 'Scheduled' AND scheduled_at <= NOW())`
+            OR (status = 'Scheduled' AND scheduled_at <= NOW() + INTERVAL '1 minute')
+            OR (status = 'Notified' AND overdue_10min_notified_at IS NULL AND scheduled_at <= NOW() - INTERVAL '10 minutes')
+            OR (status = 'Notified' AND overdue_30min_notified_at IS NULL AND scheduled_at <= NOW() - INTERVAL '30 minutes')`
     );
     return result.rows as CommunicationTask[];
 }

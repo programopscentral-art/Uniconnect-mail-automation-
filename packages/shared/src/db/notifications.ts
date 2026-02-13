@@ -12,6 +12,7 @@ export interface Notification {
     link: string | null;
     is_read: boolean;
     created_at: Date;
+    source_id: string | null;
 }
 
 export async function createNotification(data: {
@@ -21,11 +22,14 @@ export async function createNotification(data: {
     message: string;
     type: NotificationType;
     link?: string | null;
+    source_id?: string | null;
 }) {
     const result = await db.query(
-        `INSERT INTO notifications (user_id, university_id, title, message, type, link)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [data.user_id, data.university_id || null, data.title, data.message, data.type, data.link || null]
+        `INSERT INTO notifications (user_id, university_id, title, message, type, link, source_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) 
+         ON CONFLICT (user_id, source_id) WHERE source_id IS NOT NULL DO NOTHING
+         RETURNING *`,
+        [data.user_id, data.university_id || null, data.title, data.message, data.type, data.link || null, data.source_id || null]
     );
     return result.rows[0] as Notification;
 }

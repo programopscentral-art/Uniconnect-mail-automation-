@@ -22,9 +22,10 @@ export const POST: RequestHandler = async ({ locals }) => {
             body: 'Your desktop notifications are working perfectly! You will receive alerts for your scheduled tasks here.',
         },
         data: {
-            type: 'DIAGNOSTIC'
+            type: 'DIAGNOSTIC',
+            sourceId: `DIAGNOSTIC_${Date.now()}` // Unique for each test click
         },
-        tokens
+        tokens: [...new Set(tokens)]
     };
 
     try {

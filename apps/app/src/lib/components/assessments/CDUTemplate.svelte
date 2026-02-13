@@ -5,6 +5,7 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
+  import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -186,7 +187,6 @@
       onSwap($state.snapshot(currentSetData));
     }
   }
-
   function openSwapSidebar(slot: any, part: string, subPart?: "q1" | "q2") {
     if (!slot) return;
     const index = currentSetData.questions.findIndex(
@@ -202,28 +202,12 @@
     const marks = Number(
       cQ?.marks || slot.marks || getSectionConfig(part)?.marks_per_q || 0,
     );
-    let alternates = (questionPool || []).filter((q: any) => q.id !== cQ?.id);
-
-    // If Part A (1-2 Marks), include MCQs and Fill-ins regardless of exact mark match if marks are close
-    if (part === "A" && marks <= 2) {
-      alternates = alternates.filter(
-        (q: any) =>
-          Number(q.marks || q.mark) <= marks &&
-          (["MCQ", "FILL_IN_BLANK", "VERY_SHORT", "SHORT"].includes(q.type) ||
-            (q.question_text || "").includes("___")),
-      );
-    } else {
-      alternates = alternates.filter(
-        (q: any) => Number(q.marks || q.mark) === marks,
-      );
-    }
-
     swapContext = {
       slotIndex: index,
       part,
       subPart,
       currentMark: marks,
-      alternates,
+      currentId: cQ?.id,
     };
     isSwapSidebarOpen = true;
   }
@@ -501,73 +485,13 @@
     </div>
   </div>
 
-  <!-- Swap Sidebar -->
-  {#if isSwapSidebarOpen && isEditable}
-    <div
-      class="fixed inset-0 bg-black/20 z-[200] no-print"
-      role="none"
-      onclick={() => (isSwapSidebarOpen = false)}
-    ></div>
-    <div
-      transition:slide={{ axis: "x" }}
-      class="fixed right-0 top-0 bottom-0 w-[500px] bg-white dark:bg-slate-900 border-l border-gray-200 shadow-2xl p-4 overflow-y-auto no-print z-[210]"
-    >
-      <div class="flex items-center justify-between mb-4 border-b pb-4">
-        <h3 class="font-black text-sm uppercase tracking-widest">
-          SWAP QUESTION ({swapContext.currentMark}M)
-        </h3>
-        <button
-          onclick={() => (isSwapSidebarOpen = false)}
-          class="p-2 hover:bg-gray-100 rounded-lg"
-          aria-label="Close Swap Sidebar"
-          ><svg
-            class="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M6 18L18 6M6 6l12 12"
-            /></svg
-          ></button
-        >
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        {#each swapContext?.alternates || [] as q}
-          <button
-            onclick={() => selectAlternate(q)}
-            class="text-left p-2 bg-gray-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-xl transition-all min-h-[100px] flex flex-col gap-2 overflow-hidden text-black"
-          >
-            <div class="text-[10px] font-bold text-gray-700 line-clamp-3">
-              {@html q.question_text}
-            </div>
-            {#if q.image_url}
-              <img
-                src={q.image_url}
-                alt="Preview"
-                class="h-12 w-full object-contain bg-white rounded border border-gray-100"
-              />
-            {/if}
-            <div class="flex items-center justify-between mt-auto">
-              <span
-                class="text-[8px] font-black uppercase text-indigo-600 bg-white px-1 rounded"
-                >{q.type}</span
-              >
-            </div>
-          </button>
-        {/each}
-        {#if !swapContext?.alternates?.length}
-          <div
-            class="col-span-2 text-center py-20 text-gray-400 text-[10px] font-black uppercase tracking-widest"
-          >
-            No Alternates Found
-          </div>
-        {/if}
-      </div>
-    </div>
-  {/if}
+  <SwapQuestionSidebar
+    bind:isOpen={isSwapSidebarOpen}
+    {questionPool}
+    currentMark={swapContext?.currentMark}
+    currentQuestionId={swapContext?.currentId}
+    onSelect={selectAlternate}
+  />
 </div>
 
 <style>

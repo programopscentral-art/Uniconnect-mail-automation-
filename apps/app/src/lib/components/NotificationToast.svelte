@@ -82,6 +82,6 @@
 
 <style>
   div {
-    z-index: 1000;
+    z-index: 10000;
   }
 </style>
