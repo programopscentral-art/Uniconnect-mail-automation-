@@ -6,6 +6,9 @@
   import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
   import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
+  import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
+  import MallareddyTemplate from "$lib/components/assessments/MallareddyTemplate.svelte";
+  import TakshashilaTemplate from "$lib/components/assessments/TakshashilaTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -41,6 +44,12 @@
     if (metaTemplate === "crescent" || uniName.includes("crescent")) {
       return "crescent";
     }
+    if (metaTemplate === "malla" || uniName.includes("malla")) {
+      return "malla";
+    }
+    if (metaTemplate === "takshashila" || uniName.includes("takshashila")) {
+      return "takshashila";
+    }
 
     return metaTemplate || "standard";
   });
@@ -52,7 +61,11 @@
         ? "Chaitanya (CDU)"
         : selectedTemplate === "crescent"
           ? "Crescent (IST)"
-          : "University Standard",
+          : selectedTemplate === "malla"
+            ? "Malla Reddy (MRTC)"
+            : selectedTemplate === "takshashila"
+              ? "Takshashila University"
+              : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -193,6 +206,23 @@
             part: "B",
           },
         ];
+      } else if (selectedTemplate === "malla") {
+        structure = [
+          {
+            title: "PART-A (5*2=10 Marks) ANSWER ALL",
+            marks_per_q: 2,
+            count: 5,
+            answered_count: 5,
+            part: "A",
+          },
+          {
+            title: "PART-B (5*3=15 Marks) ANSWER ALL",
+            marks_per_q: 3,
+            count: 5,
+            answered_count: 5,
+            part: "B",
+          },
+        ];
       } else if (is100) {
         structure = [
           {
@@ -208,6 +238,30 @@
             count: 5,
             answered_count: 5,
             section: "B",
+          },
+        ];
+      } else if (selectedTemplate === "takshashila") {
+        structure = [
+          {
+            title: "PART – A (5 X 2 = 10 Marks)",
+            marks_per_q: 2,
+            count: 5,
+            answered_count: 5,
+            part: "A",
+          },
+          {
+            title: "PART – B (5 X 4 = 20 Marks)",
+            marks_per_q: 4,
+            count: 5,
+            answered_count: 5,
+            part: "B",
+          },
+          {
+            title: "PART – C (2 X 10 = 20 Marks)",
+            marks_per_q: 10,
+            count: 2,
+            answered_count: 2,
+            part: "C",
           },
         ];
       } else {
@@ -1118,11 +1172,10 @@
               onSwap={handleSetUpdate}
             />
           {:else}
-            <AssessmentPaperRenderer
+            <VGUSemTemplate
               bind:paperMeta
               bind:currentSetData={editableSets[activeSet]}
               bind:paperStructure={paperMeta.template_config}
-              layoutSchema={data.paper.layout_schema || { style: "vgu" }}
               {activeSet}
               courseOutcomes={data.courseOutcomes}
               questionPool={data.questionPool}
@@ -1146,6 +1199,28 @@
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
             {paperStructure}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "malla"}
+          <MallareddyTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "takshashila"}
+          <TakshashilaTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
             {activeSet}
             courseOutcomes={data.courseOutcomes}
             questionPool={data.questionPool}

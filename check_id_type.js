@@ -8,12 +8,12 @@ const pool = new Pool({
 
 async function check() {
     try {
-        const { rows } = await pool.query(`
-            SELECT column_name 
+        const res = await pool.query(`
+            SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'assessment_questions';
+            WHERE table_name = 'assessment_questions' AND column_name = 'id'
         `);
-        console.log('Columns in assessment_questions:', rows.map(r => r.column_name).join(', '));
+        console.log('ID Column:', res.rows[0]);
     } catch (e) {
         console.error(e);
     } finally {

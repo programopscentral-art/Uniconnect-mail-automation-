@@ -8,12 +8,13 @@ const pool = new Pool({
 
 async function check() {
     try {
-        const { rows } = await pool.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'assessment_questions';
+        console.log('Checking triggers on assessment_questions...');
+        const res = await pool.query(`
+            SELECT trigger_name, event_manipulation, action_statement
+            FROM information_schema.triggers
+            WHERE event_object_table = 'assessment_questions';
         `);
-        console.log('Columns in assessment_questions:', rows.map(r => r.column_name).join(', '));
+        console.log('Triggers:', res.rows);
     } catch (e) {
         console.error(e);
     } finally {

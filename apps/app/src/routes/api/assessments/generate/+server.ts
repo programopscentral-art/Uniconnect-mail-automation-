@@ -151,9 +151,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 searchType = 'FILL_IN_BLANK';
             } else if (sTypeScrubbed === 'MCQ') {
                 searchType = 'MCQ';
-            } else if (sTypeScrubbed === 'SHORT') {
+            } else if (sTypeScrubbed === 'VERYSHORT' || sTypeScrubbed === 'SHORT') {
                 searchType = 'SHORT';
-            } else if (sTypeScrubbed === 'LONG') {
+            } else if (sTypeScrubbed === 'VERYLONG' || sTypeScrubbed === 'LONG' || sTypeScrubbed === 'PARAGRAPH') {
                 searchType = 'LONG';
             }
 

@@ -35,8 +35,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         `, [subjectId]);
         const allTopics = subjectTopicsRes.rows;
 
-        const subjectCosRes = await db.query('SELECT * FROM course_outcomes WHERE subject_id = $1 ORDER BY code ASC', [subjectId]);
-        const coMap = new Map(subjectCosRes.rows.map((co: any) => [co.code.toUpperCase(), co.id]));
+        let coMap = new Map();
+        try {
+            const subjectCosRes = await db.query('SELECT * FROM assessment_course_outcomes WHERE subject_id = $1 ORDER BY code ASC', [subjectId]);
+            coMap = new Map(subjectCosRes.rows.map((co: any) => [co.code.toUpperCase(), co.id]));
+        } catch (e) {
+            console.warn('Failed to fetch Course Outcomes, proceeding without them:', e);
+        }
 
         const questionsToCreate: any[] = [];
 
@@ -222,10 +227,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         topic = res.rows[0]; allTopics.push(topic);
                     }
 
-                    const bloomRaw = (findVal(row, ['Blooms Level', 'Blooms Level (K-Level)', 'Difficulty level', 'Difficulty', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
+                    const bloomRaw = (findVal(row, ['Blooms Level', 'Blooms Level (K-Level)', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
                     // Refined regex to handle "Level - 3", "Level 3", "L-3", "L3", "K3" etc.
                     const bloomMatch = bloomRaw.match(/[LK]\s*[-]?\s*([1-5])/i) || bloomRaw.match(/LEVEL\s*[-]?\s*([1-5])/i);
                     const bloomLevel = bloomMatch ? `L${bloomMatch[1]}` : (['L1', 'L2', 'L3', 'L4', 'L5'].includes(bloomRaw) ? bloomRaw : 'L1');
+
+                    const difficultyRaw = (findVal(row, ['Difficulty level', 'Difficulty', 'diff_level']) || 'MEDIUM').toString().toUpperCase().trim();
+                    let difficulty = 'MEDIUM';
+                    if (difficultyRaw.includes('EASY')) difficulty = 'EASY';
+                    else if (difficultyRaw.includes('HARD') || difficultyRaw.includes('DIFFICULT')) difficulty = 'HARD';
+                    else difficulty = 'MEDIUM';
 
                     const coCodeRaw = (findVal(row, ['CO', 'Course Outcome', 'Course Outcomes', 'co_code']) || '').toString().toUpperCase().trim();
                     // Normalize CO codes: "CO 2" -> "CO2"
@@ -237,9 +248,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         co_id: coCode ? coMap.get(coCode) : null,
                         question_text: qText.toString().trim(),
                         bloom_level: bloomLevel,
+                        difficulty: difficulty,
                         marks: marks,
                         type: finalQType,
                         answer_key: (findVal(row, ['Solution', 'Answer', 'answer_key', 'Correct Answer']) || '').toString().trim(),
+                        explanation: (findVal(row, ['Explanation', 'Rationale', 'hint']) || '').toString().trim(),
                         options: options && options.length > 0 ? options : null,
                         image_url: null // XLSX image support is limited in current library
                     });
@@ -532,6 +545,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             question_text: qText || (imageUrl ? 'Image-based Question' : `Question ${marker.value}`),
                             marks: marksFromText,
                             bloom_level: bloomLevelText,
+                            difficulty: meta.difficulty || 'MEDIUM',
                             type: finalType,
                             options: options.length > 0 ? options : null,
                             hierarchicalId: currentRoman ? `${currentRoman}-${marker.value}` : marker.value,
@@ -549,12 +563,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const chunkSize = 50;
             for (let i = 0; i < questionsToCreate.length; i += chunkSize) {
                 const chunk = questionsToCreate.slice(i, i + chunkSize);
-                const valueHolders = chunk.map((_, idx) => `($${idx * 11 + 1}, $${idx * 11 + 2}, $${idx * 11 + 3}, $${idx * 11 + 4}, $${idx * 11 + 5}, $${idx * 11 + 6}, $${idx * 11 + 7}, $${idx * 11 + 8}, $${idx * 11 + 9}, $${idx * 11 + 10}, $${idx * 11 + 11})`).join(', ');
+                const valueHolders = chunk.map((_, idx) => `($${idx * 13 + 1}, $${idx * 13 + 2}, $${idx * 13 + 3}, $${idx * 13 + 4}, $${idx * 13 + 5}, $${idx * 13 + 6}, $${idx * 13 + 7}, $${idx * 13 + 8}, $${idx * 13 + 9}, $${idx * 13 + 10}, $${idx * 13 + 11}, $${idx * 13 + 12}, $${idx * 13 + 13})`).join(', ');
                 const params = chunk.flatMap(q => [
-                    q.unit_id || null, q.topic_id || null, q.co_id || null, q.question_text, q.bloom_level || 'L1', q.marks || 2, q.type || 'SHORT',
-                    q.options ? JSON.stringify(q.options) : null, q.answer_key || '', q.image_url || null, false
+                    q.topic_id || null, q.unit_id || null, q.co_id || null, q.question_text, q.bloom_level || 'L1', q.difficulty || 'MEDIUM', q.marks || 2, q.type || 'SHORT',
+                    q.options ? JSON.stringify(q.options) : null, q.answer_key || '', q.image_url || null, q.explanation || '', false
                 ]);
-                await db.query(`INSERT INTO assessment_questions (unit_id, topic_id, co_id, question_text, bloom_level, marks, type, options, answer_key, image_url, is_important) VALUES ${valueHolders}`, params);
+                await db.query(`INSERT INTO assessment_questions (topic_id, unit_id, co_id, question_text, bloom_level, difficulty, marks, type, options, answer_key, image_url, explanation, is_important) VALUES ${valueHolders}`, params);
                 importCount += chunk.length;
             }
         }

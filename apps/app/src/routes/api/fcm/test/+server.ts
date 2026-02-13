@@ -13,7 +13,7 @@ export const POST: RequestHandler = async ({ locals }) => {
     }
 
     if (admin.apps.length === 0) {
-        throw error(500, 'Firebase Admin not initialized on server.');
+        throw error(500, 'Firebase Admin not initialized on server. (DEBUG_ID: 101)');
     }
 
     const message = {

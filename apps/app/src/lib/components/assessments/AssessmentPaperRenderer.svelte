@@ -42,7 +42,7 @@
     headerStyle: layoutSchema?.headerStyle || "centered", // 'centered' | 'split'
     showRRN: layoutSchema?.showRRN ?? true,
     courseCodeLabel: layoutSchema?.courseCodeLabel || "Course Code",
-    style: layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu'
+    style: layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'

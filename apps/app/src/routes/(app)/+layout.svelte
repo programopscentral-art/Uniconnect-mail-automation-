@@ -5,6 +5,7 @@
   import { untrack } from "svelte";
   import { clickOutside } from "$lib/utils/clickOutside";
   import { getFcmToken, onForegroundMessage } from "$lib/firebase";
+  import NotificationToast from "$lib/components/NotificationToast.svelte";
   let { children, data } = $props();
   let user = $derived(data.user);
   let currentTheme = $state<"light" | "dark">(
@@ -121,6 +122,11 @@
   let showNotifications = $state(false);
   let unreadCount = $derived(notifications.filter((n) => !n.is_read).length);
   let showPresenceMenu = $state(false);
+  let activeToasts = $state<any[]>([]);
+
+  function removeToast(id: string) {
+    activeToasts = activeToasts.filter((t) => t.id !== id);
+  }
 
   const presenceOptions = [
     { label: "Available", status: "ONLINE", color: "bg-emerald-500" },
@@ -265,20 +271,23 @@
       // Handle foreground notifications
       onForegroundMessage((payload) => {
         console.log("Foreground message received:", payload);
+
+        const newNotification = {
+          id: Math.random().toString(36).substr(2, 9),
+          title: payload.notification.title,
+          message: payload.notification.body,
+          created_at: new Date(),
+          is_read: false,
+          link: payload.data?.taskId
+            ? `/communication-tasks/${payload.data.taskId}`
+            : null,
+        };
+
         // Add to local notifications list
-        notifications = [
-          {
-            id: Math.random().toString(36).substr(2, 9),
-            title: payload.notification.title,
-            message: payload.notification.body,
-            created_at: new Date(),
-            is_read: false,
-            link: payload.data?.taskId
-              ? `/communication-tasks/${payload.data.taskId}`
-              : null,
-          },
-          ...notifications,
-        ];
+        notifications = [newNotification, ...notifications];
+
+        // Add to active toasts
+        activeToasts = [...activeToasts, newNotification];
       });
     }
 
@@ -786,4 +795,19 @@
       </div>
     </main>
   </div>
+</div>
+
+<!-- Toast Container -->
+<div
+  class="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none"
+>
+  {#each activeToasts as toast (toast.id)}
+    <NotificationToast
+      id={toast.id}
+      title={toast.title}
+      message={toast.message}
+      link={toast.link}
+      onClose={removeToast}
+    />
+  {/each}
 </div>

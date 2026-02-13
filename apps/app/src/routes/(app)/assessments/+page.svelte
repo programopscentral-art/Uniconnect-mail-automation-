@@ -42,11 +42,15 @@
 
   // Universal Sync state
   let showSyncModal = $state(false);
+  let syncSourceUniId = $state("");
   let syncSourceSubjectId = $state("");
   let syncTargetBatchName = $state("");
   let syncTargetUniIds = $state<string[]>([]);
+  let syncQuestionBank = $state(false);
   let isSyncing = $state(false);
   let syncSearchQuery = $state("");
+  let discoveredMatches = $state<any[]>([]);
+  let isPredicting = $state(false);
 
   let activeUniversity = $derived(
     data.universities?.find((u) => u.id === data.selectedUniversityId) ||
@@ -253,15 +257,31 @@
           sourceSubjectId: syncSourceSubjectId,
           targetBatchName: syncTargetBatchName,
           targetUniversityIds: syncTargetUniIds,
+          syncQuestionBank: syncQuestionBank,
         }),
         headers: { "Content-Type": "application/json" },
       });
 
       if (res.ok) {
         const data = await res.json();
-        alert(
-          `Sync Complete! Successfully synced to ${data.results.filter((r: any) => r.status === "success").length} universities.`,
+        const successes = data.results.filter(
+          (r: any) => r.status === "success",
         );
+        const failures = data.results.filter((r: any) => r.status === "failed");
+
+        if (failures.length > 0) {
+          const errorMsg = failures
+            .map((f: any) => `- Uni ID ${f.uniId}: ${f.error}`)
+            .slice(0, 5)
+            .join("\n");
+          alert(
+            `Sync partially complete.\nSuccess: ${successes.length}\nFailed: ${failures.length}\n\nTop Errors:\n${errorMsg}${failures.length > 5 ? "\n...and more" : ""}`,
+          );
+        } else {
+          alert(
+            `Sync Complete! Successfully synced to ${successes.length} universities.`,
+          );
+        }
         showSyncModal = false;
         syncTargetUniIds = [];
       } else {
@@ -272,6 +292,70 @@
       isSyncing = false;
     }
   }
+
+  async function discoverPresence(subjectId: string) {
+    if (!subjectId) {
+      discoveredMatches = [];
+      return;
+    }
+    isPredicting = true;
+    try {
+      const res = await fetch(
+        `/api/assessments/sync-power/discover?subjectId=${subjectId}&excludeUniversityId=${syncSourceUniId}`,
+      );
+      if (res.ok) {
+        const result = await res.json();
+        discoveredMatches = result.matches || [];
+        // Automatically pre-select discovered matches
+        syncTargetUniIds = discoveredMatches.map((m: any) => m.id);
+      }
+    } finally {
+      isPredicting = false;
+    }
+  }
+
+  let syncSourceSubjects = $state<any[]>([]);
+  let isLoadingSyncSourceSubjects = $state(false);
+
+  async function loadSyncSourceSubjects(uniId: string) {
+    if (!uniId) {
+      syncSourceSubjects = [];
+      return;
+    }
+    isLoadingSyncSourceSubjects = true;
+    try {
+      // We need a way to get all subjects for a university.
+      // Current api/assessments/subjects needs branchId.
+      // I'll add a broad fetch or use an existing one if possible.
+      // Let's assume we can fetch by universityId alone now by updating the API or using a new one.
+      const res = await fetch(
+        `/api/assessments/subjects/all?universityId=${uniId}`,
+      );
+      if (res.ok) {
+        syncSourceSubjects = await res.json();
+      }
+    } finally {
+      isLoadingSyncSourceSubjects = false;
+    }
+  }
+
+  $effect(() => {
+    if (showSyncModal) {
+      if (!syncSourceUniId) syncSourceUniId = activeUniversity?.id || "";
+    }
+  });
+
+  $effect(() => {
+    if (syncSourceUniId) {
+      loadSyncSourceSubjects(syncSourceUniId);
+    }
+  });
+
+  $effect(() => {
+    if (showSyncModal && syncSourceSubjectId) {
+      discoverPresence(syncSourceSubjectId);
+    }
+  });
 
   // Edit Logic
   function openEditBatch(batch: any) {
@@ -1518,19 +1602,42 @@
               Select Source Subject Authority
             </h4>
           </div>
-          <select
-            bind:value={syncSourceSubjectId}
-            class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-[1.5rem] text-xs font-bold focus:ring-8 focus:ring-indigo-500/5 focus:border-indigo-500 transition-all px-5 py-4 text-gray-900 dark:text-white"
-          >
-            <option value="" class="dark:bg-slate-800"
-              >-- Choose subject node --</option
-            >
-            {#each subjects as s}
-              <option value={s.id} class="dark:bg-slate-800"
-                >{s.name} ({s.code || "NO-REF"})</option
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <label
+                class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
+                >Source University</label
               >
-            {/each}
-          </select>
+              <select
+                bind:value={syncSourceUniId}
+                class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all px-4 py-3 text-gray-900 dark:text-white"
+              >
+                {#each data.universities as uni}
+                  <option value={uni.id}>{uni.name}</option>
+                {/each}
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label
+                class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
+                >Source Subject</label
+              >
+              <select
+                bind:value={syncSourceSubjectId}
+                class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all px-4 py-3 text-gray-900 dark:text-white"
+                disabled={isLoadingSyncSourceSubjects}
+              >
+                <option value=""
+                  >{isLoadingSyncSourceSubjects
+                    ? "Loading..."
+                    : "-- Choose subject --"}</option
+                >
+                {#each syncSourceSubjects as s}
+                  <option value={s.id}>{s.name} ({s.code || "NO-REF"})</option>
+                {/each}
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- Step 2: Target Batch -->
@@ -1570,31 +1677,149 @@
           <div
             class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800/50"
           >
-            {#each filteredSyncUnis as uni}
-              <label
-                class="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm"
+            {#if isPredicting}
+              <div
+                class="col-span-full py-10 flex flex-col items-center justify-center gap-4"
               >
-                <input
-                  type="checkbox"
-                  value={uni.id}
-                  checked={syncTargetUniIds.includes(uni.id)}
-                  onchange={(e) => {
-                    if (e.currentTarget.checked) {
-                      syncTargetUniIds = [...syncTargetUniIds, uni.id];
-                    } else {
-                      syncTargetUniIds = syncTargetUniIds.filter(
-                        (id) => id !== uni.id,
-                      );
-                    }
-                  }}
-                  class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
-                />
+                <div
+                  class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"
+                ></div>
+                <p
+                  class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
+                >
+                  Scanning institution nodes...
+                </p>
+              </div>
+            {:else if discoveredMatches.length > 0}
+              {#each discoveredMatches as uni}
+                <label
+                  class="flex items-center gap-4 p-4 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-2xl border border-indigo-200 dark:border-indigo-800/50 cursor-pointer hover:border-indigo-600 transition-all group shadow-sm relative overflow-hidden"
+                >
+                  <div
+                    class="absolute top-0 right-0 px-2 py-0.5 bg-indigo-600 text-[8px] font-black text-white rounded-bl-lg"
+                  >
+                    DETECTED: {uni.question_count}Q
+                  </div>
+                  <input
+                    type="checkbox"
+                    value={uni.id}
+                    checked={syncTargetUniIds.includes(uni.id)}
+                    onchange={(e) => {
+                      if (e.currentTarget.checked) {
+                        syncTargetUniIds = [...syncTargetUniIds, uni.id];
+                      } else {
+                        syncTargetUniIds = syncTargetUniIds.filter(
+                          (id) => id !== uni.id,
+                        );
+                      }
+                    }}
+                    class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
+                  />
+                  <span
+                    class="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                    >{uni.name}</span
+                  >
+                </label>
+              {/each}
+
+              <div class="col-span-full mt-4">
+                <p
+                  class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3"
+                >
+                  Other Institution Clusters
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {#each filteredSyncUnis.filter((u) => !discoveredMatches.some((m) => m.id === u.id)) as uni}
+                    <label
+                      class="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        value={uni.id}
+                        checked={syncTargetUniIds.includes(uni.id)}
+                        onchange={(e) => {
+                          if (e.currentTarget.checked) {
+                            syncTargetUniIds = [...syncTargetUniIds, uni.id];
+                          } else {
+                            syncTargetUniIds = syncTargetUniIds.filter(
+                              (id) => id !== uni.id,
+                            );
+                          }
+                        }}
+                        class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
+                      />
+                      <span
+                        class="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                        >{uni.name}</span
+                      >
+                    </label>
+                  {/each}
+                </div>
+              </div>
+            {:else}
+              {#each filteredSyncUnis as uni}
+                <label
+                  class="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm"
+                >
+                  <input
+                    type="checkbox"
+                    value={uni.id}
+                    checked={syncTargetUniIds.includes(uni.id)}
+                    onchange={(e) => {
+                      if (e.currentTarget.checked) {
+                        syncTargetUniIds = [...syncTargetUniIds, uni.id];
+                      } else {
+                        syncTargetUniIds = syncTargetUniIds.filter(
+                          (id) => id !== uni.id,
+                        );
+                      }
+                    }}
+                    class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
+                  />
+                  <span
+                    class="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
+                    >{uni.name}</span
+                  >
+                </label>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <!-- Step 4: Sync Options -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <span
+              class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black border border-indigo-100 dark:border-indigo-800/50"
+              >04</span
+            >
+            <h4
+              class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]"
+            >
+              Sync Assets & Content
+            </h4>
+          </div>
+          <div
+            class="bg-gray-50 dark:bg-slate-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-slate-800/50"
+          >
+            <label
+              class="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-gray-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-500 transition-all group shadow-sm"
+            >
+              <input
+                type="checkbox"
+                bind:checked={syncQuestionBank}
+                class="w-5 h-5 text-indigo-600 rounded-lg focus:ring-indigo-500 dark:bg-slate-900 border-gray-300 dark:border-gray-600"
+              />
+              <div class="flex flex-col">
                 <span
                   class="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400"
-                  >{uni.name}</span
+                  >Sync Question Bank</span
                 >
-              </label>
-            {/each}
+                <span class="text-[9px] text-gray-400 mt-1"
+                  >Includes all questions, options, and metadata</span
+                >
+              </div>
+            </label>
           </div>
         </div>
       </div>

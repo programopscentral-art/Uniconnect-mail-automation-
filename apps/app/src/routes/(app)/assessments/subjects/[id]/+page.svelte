@@ -285,6 +285,9 @@
       return;
 
     try {
+      console.log(
+        `[SubjectPage] Bulk deleting ${selectedQuestionIds.length} questions...`,
+      );
       const results = await Promise.all(
         selectedQuestionIds.map((id) =>
           fetch(`/api/assessments/questions?id=${id}`, { method: "DELETE" }),
@@ -298,21 +301,27 @@
         );
       }
     } catch (err) {
+      console.error("[SubjectPage] Bulk delete error:", err);
       alert("Failed to delete some questions.");
     }
 
     selectedQuestionIds = [];
-    invalidateAll();
+    await invalidateAll();
+    console.log("[SubjectPage] Data refreshed after bulk delete.");
   }
 
   async function deleteQuestion(qId: string) {
     if (!confirm("Are you sure you want to delete this question?")) return;
     try {
+      console.log(`[SubjectPage] Deleting question ID: ${qId}`);
       const res = await fetch(`/api/assessments/questions?id=${qId}`, {
         method: "DELETE",
       });
       if (res.ok) {
-        invalidateAll();
+        await invalidateAll();
+        console.log(
+          `[SubjectPage] Question ${qId} deleted and data refreshed.`,
+        );
       } else {
         const err = await res.json();
         alert(
@@ -320,6 +329,7 @@
         );
       }
     } catch (err) {
+      console.error("[SubjectPage] Deletion error:", err);
       alert("Failsafe: Network error during deletion.");
     }
   }

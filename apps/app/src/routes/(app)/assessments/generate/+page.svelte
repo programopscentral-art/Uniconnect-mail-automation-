@@ -6,6 +6,7 @@
   import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
   import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
+  import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -63,8 +64,31 @@
   let examDuration = $state(90);
   let maxMarks = $state(50); // Default to 50 as suggested for Mid Exams
   let courseCodeManual = $state("");
-  let examTitleHeader = $state("SEMESTER END EXAMINATIONS - NOV/DEC 2025");
+  let examTitleHeader = $state("I MID TERM EXAMINATION FEBRUARY");
   let paperInstructions = $state("ANSWER ALL QUESTIONS");
+
+  // Update exam title when exam type changes
+  $effect(() => {
+    // For VGU, use simple headers
+    if (isVGU) {
+      if (selectedExamType === "MID1") {
+        examTitleHeader = "I MID TERM EXAMINATION FEBRUARY";
+      } else if (selectedExamType === "MID2") {
+        examTitleHeader = "II MID TERM EXAMINATION APRIL";
+      } else if (selectedExamType === "SEM") {
+        examTitleHeader = "SEMESTER END EXAMINATION";
+      }
+    } else {
+      // For other universities, use detailed headers
+      if (selectedExamType === "MID1") {
+        examTitleHeader = "I MID TERM EXAMINATION FEBRUARY";
+      } else if (selectedExamType === "MID2") {
+        examTitleHeader = "II MID TERM EXAMINATION APRIL";
+      } else if (selectedExamType === "SEM") {
+        examTitleHeader = "SEMESTER END EXAMINATIONS - NOV/DEC 2025";
+      }
+    }
+  });
 
   // Dynamic Data
   let unitsWithTopics = $state<any[]>([]);
@@ -79,6 +103,96 @@
 
     const is100 = Number(maxMarks) === 100;
     const structure = [];
+
+    if (isTakshashila) {
+      // PART A: 10 MCQ (1M each)
+      const partA = {
+        title: "PART – A (10 X 1 = 10 Marks)",
+        part: "A",
+        answered_count: 10,
+        marks_per_q: 1,
+        slots: Array.from({ length: 10 }, (_, i) => ({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i + 1}`,
+          part: "A",
+          type: "SINGLE",
+          marks: 1,
+          unit: "Auto",
+          qType: "MCQ",
+          bloom: "ANY",
+        })),
+      };
+      structure.push(partA);
+
+      // PART B: 5 OR groups (4M each)
+      const partB = {
+        title: "PART – B (5 X 4 = 20 Marks)",
+        part: "B",
+        answered_count: 5,
+        marks_per_q: 4,
+        slots: Array.from({ length: 5 }, (_, i) => ({
+          id: `B-${i}-${Math.random()}`,
+          label: `${11 + i * 2}`,
+          displayLabel: `${11 + i * 2} or ${11 + i * 2 + 1}`,
+          part: "B",
+          type: "OR_GROUP",
+          marks: 4,
+          choices: [
+            {
+              label: `${11 + i * 2}`,
+              unit: "Auto",
+              qType: "SHORT",
+              marks: 4,
+              bloom: "ANY",
+            },
+            {
+              label: `${11 + i * 2 + 1}`,
+              unit: "Auto",
+              qType: "SHORT",
+              marks: 4,
+              bloom: "ANY",
+            },
+          ],
+        })),
+      };
+      structure.push(partB);
+
+      // PART C: 2 OR groups (10M each)
+      const partC = {
+        title: "PART – C (2 X 10 = 20 Marks)",
+        part: "C",
+        answered_count: 2,
+        marks_per_q: 10,
+        slots: Array.from({ length: 2 }, (_, i) => ({
+          id: `C-${i}-${Math.random()}`,
+          label: `${21 + i * 2}`,
+          displayLabel: `${21 + i * 2} or ${21 + i * 2 + 1}`,
+          part: "C",
+          type: "OR_GROUP",
+          marks: 10,
+          choices: [
+            {
+              label: `${21 + i * 2}`,
+              unit: "Auto",
+              qType: "LONG",
+              marks: 10,
+              bloom: "ANY",
+            },
+            {
+              label: `${21 + i * 2 + 1}`,
+              unit: "Auto",
+              qType: "LONG",
+              marks: 10,
+              bloom: "ANY",
+            },
+          ],
+        })),
+      };
+      structure.push(partC);
+
+      paperStructure = structure;
+      return;
+    }
 
     if (isVGU) {
       // FORCE VGU RIGID STRUCTURE (10x1 + 3/4x5)
@@ -951,6 +1065,10 @@
       (typeof window !== "undefined" &&
         window.location.search.toLowerCase().includes("c40ed15d")),
   );
+  const isTakshashila = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("takshashila") ||
+      String(selectedUniversityId).toLowerCase().includes("taksha"),
+  );
 
   $effect(() => {
     if (!selectedUniversityId) return;
@@ -965,6 +1083,11 @@
       selectedTemplate = "crescent";
       maxMarks = 50;
       examDuration = 90;
+    } else if (isTakshashila) {
+      selectedTemplate = "takshashila";
+      maxMarks = 50;
+      examDuration = 90;
+      paperStructure = []; // Clear to force re-init
     } else if (isVGU) {
       selectedTemplate = "vgu-standard-mid-term";
       paperStructure = []; // Clear current structure to force VGU rigid initialization
@@ -1000,7 +1123,7 @@
     duration_minutes: "90",
     max_marks: "50",
     course_code: "CS-XXXX",
-    exam_title: "SEMESTER END EXAMINATIONS - NOV/DEC 2025",
+    exam_title: "I MID TERM EXAMINATION FEBRUARY",
     programme: "B.Tech CSE",
     semester: "1",
     instructions: "ANSWER ALL QUESTIONS",
@@ -1919,11 +2042,19 @@
                               <option value="NORMAL" class="dark:bg-slate-800"
                                 >Normal</option
                               >
+                              <option
+                                value="VERY_SHORT"
+                                class="dark:bg-slate-800">Very Short</option
+                              >
                               <option value="SHORT" class="dark:bg-slate-800"
                                 >Short</option
                               >
                               <option value="LONG" class="dark:bg-slate-800"
                                 >Long</option
+                              >
+                              <option
+                                value="VERY_LONG"
+                                class="dark:bg-slate-800">Very Long</option
                               >
                               <option value="MCQ" class="dark:bg-slate-800"
                                 >MCQ</option
@@ -2537,17 +2668,12 @@
                     mode="preview"
                   />
                 {:else}
-                  <AssessmentPaperRenderer
+                  <VGUSemTemplate
                     paperMeta={previewPaperMeta}
                     {paperStructure}
-                    bind:currentSetData={previewSetData}
-                    layoutSchema={lastLoadedLayout}
+                    currentSetData={previewSetData}
                     {courseOutcomes}
-                    questionPool={unitsWithTopics.flatMap((u: any) =>
-                      (u.topics || []).flatMap((t: any) => t.questions || []),
-                    )}
                     mode="preview"
-                    onSwap={(updated) => (previewSetData = updated)}
                   />
                 {/if}
               {:else}

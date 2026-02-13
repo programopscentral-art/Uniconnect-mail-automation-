@@ -1,0 +1,5 @@
+ALTER TABLE assessment_questions 
+ADD COLUMN IF NOT EXISTS image_url TEXT,
+ADD COLUMN IF NOT EXISTS explanation TEXT,
+ADD COLUMN IF NOT EXISTS answer_key TEXT,
+ADD COLUMN IF NOT EXISTS is_important BOOLEAN DEFAULT false;

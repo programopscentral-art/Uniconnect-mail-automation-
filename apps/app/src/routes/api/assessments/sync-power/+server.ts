@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         throw error(403, 'Only Central Ops can perform Universal Sync');
     }
 
-    const { sourceSubjectId, targetBatchName, targetUniversityIds } = await request.json();
+    const { sourceSubjectId, targetBatchName, targetUniversityIds, syncQuestionBank } = await request.json();
 
     if (!sourceSubjectId || !targetBatchName || !targetUniversityIds?.length) {
         throw error(400, 'Missing required fields');
@@ -37,9 +37,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const { rows: practicals } = await db.query('SELECT * FROM assessment_practicals WHERE subject_id = $1', [sourceSubjectId]);
         const { rows: cos } = await db.query('SELECT * FROM assessment_course_outcomes WHERE subject_id = $1', [sourceSubjectId]);
 
-        const results = [];
+        const { rows: questions } = syncQuestionBank && unitIds.length > 0
+            ? await db.query(`
+                SELECT * FROM assessment_questions 
+                WHERE unit_id IN (SELECT id FROM assessment_units WHERE subject_id = $1)
+            `, [sourceSubjectId])
+            : { rows: [] };
 
-        // 3. Sync to each university
+        console.log(`[UniversalSync] Starting sync for ${targetUniversityIds.length} hubs. Source: ${sourceSubject.name} (${questions.length} questions)`);
+
+        // 3. Sync to each university sequentially for stability
+        const results = [];
         for (const uniId of targetUniversityIds) {
             try {
                 // a. Find or create target batch
@@ -79,11 +87,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 if (!targetSubject) {
                     const { rows: [newSub] } = await db.query(
                         'INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester, difficulty_levels) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                        [targetBranch.id, targetBatch.id, sourceSubject.name, null, sourceSubject.semester, sourceSubject.difficulty_levels]
+                        [targetBranch.id, targetBatch.id, sourceSubject.name, sourceSubject.code, sourceSubject.semester, sourceSubject.difficulty_levels]
                     );
                     targetSubject = newSub;
                 } else {
-                    // Clear existing data if subject existed
+                    // Clear existing data - CASCADE handles topics and questions
                     await db.query('DELETE FROM assessment_units WHERE subject_id = $1', [targetSubject.id]);
                     await db.query('DELETE FROM assessment_practicals WHERE subject_id = $1', [targetSubject.id]);
                     await db.query('DELETE FROM assessment_course_outcomes WHERE subject_id = $1', [targetSubject.id]);
@@ -129,21 +137,52 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     );
                 }
 
+                const coMap = new Map();
                 for (const co of cos) {
-                    await db.query(
-                        'INSERT INTO assessment_course_outcomes (subject_id, code, description) VALUES ($1, $2, $3)',
+                    const { rows: [newCo] } = await db.query(
+                        'INSERT INTO assessment_course_outcomes (subject_id, code, description) VALUES ($1, $2, $3) RETURNING id',
                         [targetSubject.id, co.code, co.description]
                     );
+                    coMap.set(co.id, newCo.id);
+                }
+
+                if (syncQuestionBank && questions.length > 0) {
+                    const values: any[] = [];
+                    const valuePlaceholders: string[] = [];
+                    let pIdx = 1;
+
+                    for (const q of questions) {
+                        const tId = q.topic_id ? topicMap.get(q.topic_id) : null;
+                        const uId = q.unit_id ? unitMap.get(q.unit_id) : null;
+                        const cId = q.co_id ? coMap.get(q.co_id) : null;
+
+                        valuePlaceholders.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
+                        values.push(
+                            tId, uId, cId, q.question_text, q.bloom_level, q.difficulty || 'MEDIUM', q.marks, q.type,
+                            typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
+                            q.answer_key, q.image_url, q.explanation, q.is_important || false
+                        );
+                    }
+
+                    const bulkQuery = `
+                        INSERT INTO assessment_questions (
+                            topic_id, unit_id, co_id, question_text, bloom_level, difficulty, marks, type, options, 
+                            answer_key, image_url, explanation, is_important
+                        ) VALUES ${valuePlaceholders.join(', ')}
+                    `;
+                    await db.query(bulkQuery, values);
                 }
 
                 results.push({ uniId, status: 'success' });
             } catch (innerErr: any) {
+                console.error(`Sync failed for uni ${uniId}:`, innerErr);
                 results.push({ uniId, status: 'failed', error: innerErr.message });
             }
         }
 
         return json({ results });
     } catch (err: any) {
+        console.error('Universal Sync Error:', err);
         throw error(500, err.message);
     }
 };

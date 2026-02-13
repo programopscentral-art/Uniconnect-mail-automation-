@@ -223,138 +223,96 @@
       class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
-      <!-- VGU HIGH FIDELITY HEADER -->
-      <div class="mb-4">
-        <div class="flex items-center justify-between pb-2">
-          <!-- Left Logo -->
-          <div class="w-16 h-16">
-            <img
-              src="/vgu-logo.png"
-              alt="VGU Logo"
-              class="w-full h-full object-contain"
-            />
+      <!-- VGU MID-TERM HEADER (EXACT LAYOUT) -->
+      <div class="mb-6">
+        <!-- University Name -->
+        <div class="text-center mb-1">
+          <div
+            class="text-[17pt] font-black uppercase leading-tight font-serif"
+          >
+            VIVEKANANDA GLOBAL
           </div>
-
-          <!-- Center Text -->
-          <div class="flex-1 text-center px-1">
-            <div
-              class="text-[17pt] font-black uppercase leading-[1] font-serif tracking-tight"
-            >
-              VIVEKANANDA GLOBAL
-            </div>
-            <div
-              class="text-[15pt] font-black uppercase leading-[1] font-serif tracking-tight mt-0.5"
-            >
-              UNIVERSITY, JAIPUR
-            </div>
-            <div
-              class="text-[7pt] font-medium leading-tight mt-1 opacity-90 italic font-serif"
-            >
-              (Established by Act 11/2012 of Rajasthan Govt. Covered u/s22 of
-              UGC Act, 1956)
-            </div>
-          </div>
-
-          <!-- Right Logo (NAAC) -->
-          <div class="w-16 h-16 text-right">
-            <img
-              src="/vgu-naac-badge.png"
-              alt="NAAC A+ accredited"
-              class="w-full h-full object-contain ml-auto"
-            />
+          <div
+            class="text-[17pt] font-black uppercase leading-tight font-serif"
+          >
+            UNIVERSITY
           </div>
         </div>
 
-        <!-- Exam Title Row (Dedicated) -->
-        <div class="text-center py-2">
-          <div class="border border-black py-1 px-8 inline-block">
+        <!-- Department -->
+        <div class="text-center mb-2">
+          <div class="text-[10pt] font-bold uppercase leading-tight font-serif">
+            COMPUTER SCIENCE
+          </div>
+        </div>
+
+        <!-- Exam Title -->
+        <div class="text-center mb-3">
+          <div class="text-[10pt] font-bold uppercase leading-tight font-serif">
             <AssessmentEditable
-              value={paperMeta.exam_title || "MID - TERM : FIRST"}
+              value={paperMeta.exam_title ||
+                "I MID TERM EXAMINATION FEBRUARY 2026"}
               onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-              class="text-[10pt] font-black uppercase tracking-wide font-serif"
+              class="inline-block"
             />
           </div>
         </div>
 
-        <div class="border-b border-black w-full my-2"></div>
-      </div>
+        <!-- Horizontal Line -->
+        <div class="border-t border-black w-full mb-3"></div>
 
-      <!-- VGU METADATA (Table Layout for Print Stability) -->
-      <table class="w-full text-[9pt] mb-3 font-serif border-none">
-        <tbody class="border-none">
-          <tr class="border-none">
-            <td class="w-[60%] border-none p-0 align-bottom">
-              <div class="flex">
-                <span class="font-bold whitespace-nowrap"
-                  >Programme & Batch:</span
-                >
-                <AssessmentEditable
-                  value={paperMeta.programme}
-                  onUpdate={(v: string) => updateText(v, "META", "programme")}
-                  class="ml-1 flex-1 uppercase font-medium"
-                />
-              </div>
-            </td>
-            <td class="w-[40%] border-none p-0 align-bottom text-right">
-              <div class="flex justify-end">
-                <span class="font-bold">Semester:</span>
-                <AssessmentEditable
-                  value={paperMeta.semester}
-                  onUpdate={(v: string) => updateText(v, "META", "semester")}
-                  class="ml-1 w-12 text-right font-medium"
-                />
-              </div>
-            </td>
-          </tr>
-          <tr class="border-none">
-            <td class="border-none p-0 pt-1 align-bottom">
-              <div class="flex">
-                <span class="font-bold whitespace-nowrap">Course Name:</span>
-                <AssessmentEditable
-                  value={paperMeta.subject_name}
-                  onUpdate={(v: string) =>
-                    updateText(v, "META", "subject_name")}
-                  class="ml-1 flex-1 uppercase font-medium"
-                />
-              </div>
-            </td>
-            <td class="border-none p-0 pt-1 align-bottom text-right">
-              <div class="flex justify-end">
-                <span class="font-bold whitespace-nowrap">Course Code:</span>
-                <AssessmentEditable
-                  value={paperMeta.course_code}
-                  onUpdate={(v: string) => updateText(v, "META", "course_code")}
-                  class="ml-1 uppercase font-medium"
-                />
-              </div>
-            </td>
-          </tr>
-          <tr class="border-none">
-            <td class="border-none p-0 pt-1 align-bottom">
-              <div class="flex">
-                <span class="font-bold whitespace-nowrap">Duration:</span>
-                <AssessmentEditable
-                  value={paperMeta.duration_minutes}
-                  onUpdate={(v: string) =>
-                    updateText(v, "META", "duration_minutes")}
-                  class="ml-1 font-medium"
-                />
-                <span class="ml-1">Minutes</span>
-              </div>
-            </td>
-            <td class="border-none p-0 pt-1 align-bottom text-right">
-              <div class="flex justify-end">
-                <span class="font-bold">M.M.:</span>
-                <AssessmentEditable
-                  value={paperMeta.max_marks}
-                  onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-                  class="ml-1 w-12 text-right font-medium"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <!-- Metadata (Simple Format, No Table Borders) -->
+        <div class="text-[9pt] font-serif space-y-0.5 mb-2">
+          <!-- Course Code -->
+          <div class="flex">
+            <span class="font-bold" style="min-width: 110px;"
+              >COURSE CODE :</span
+            >
+            <AssessmentEditable
+              value={paperMeta.course_code}
+              onUpdate={(v: string) => updateText(v, "META", "course_code")}
+              class="flex-1 uppercase"
+            />
+          </div>
+
+          <!-- Course Name -->
+          <div class="flex">
+            <span class="font-bold" style="min-width: 110px;"
+              >COURSE NAME :</span
+            >
+            <AssessmentEditable
+              value={paperMeta.subject_name}
+              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+              class="flex-1 uppercase"
+            />
+          </div>
+
+          <!-- Semester -->
+          <div class="flex">
+            <span class="font-bold" style="min-width: 110px;">SEMESTER :</span>
+            <AssessmentEditable
+              value={paperMeta.semester}
+              onUpdate={(v: string) => updateText(v, "META", "semester")}
+              class="flex-1"
+            />
+          </div>
+
+          <!-- Time and Max Marks (on same line) -->
+          <div class="flex justify-between">
+            <div class="flex">
+              <span class="font-bold">Time : 90 Minutes</span>
+            </div>
+            <div class="flex">
+              <span class="font-bold">Max. Marks : </span>
+              <AssessmentEditable
+                value={paperMeta.max_marks}
+                onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+                class="inline-block ml-1"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Sections -->
       <div class="space-y-6">

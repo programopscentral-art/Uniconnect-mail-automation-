@@ -7,7 +7,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const subjectId = url.searchParams.get('subjectId');
     if (!subjectId) throw error(400, 'Subject ID is required');
 
-    const { rows } = await db.query('SELECT * FROM course_outcomes WHERE subject_id = $1 ORDER BY code ASC', [subjectId]);
+    const { rows } = await db.query('SELECT * FROM assessment_course_outcomes WHERE subject_id = $1 ORDER BY code ASC', [subjectId]);
     return json(rows);
 };
 
@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const body = await request.json();
 
     const { rows } = await db.query(
-        `INSERT INTO course_outcomes (subject_id, code, description)
+        `INSERT INTO assessment_course_outcomes (subject_id, code, description)
         VALUES ($1, $2, $3)
         RETURNING *`,
         [body.subject_id, body.code, body.description]
@@ -30,7 +30,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     if (!body.id) throw error(400, 'ID is required');
 
     const { rows } = await db.query(
-        `UPDATE course_outcomes
+        `UPDATE assessment_course_outcomes
         SET code = $1, description = $2, updated_at = NOW()
         WHERE id = $3
         RETURNING *`,
@@ -44,6 +44,6 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     const id = url.searchParams.get('id');
     if (!id) throw error(400, 'ID is required');
 
-    await db.query('DELETE FROM course_outcomes WHERE id = $1', [id]);
+    await db.query('DELETE FROM assessment_course_outcomes WHERE id = $1', [id]);
     return json({ success: true });
 };

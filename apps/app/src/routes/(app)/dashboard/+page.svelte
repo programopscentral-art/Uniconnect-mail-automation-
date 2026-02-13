@@ -535,9 +535,7 @@
     try {
       const res = await fetch("/api/fcm/test", { method: "POST" });
       if (res.ok) {
-        alert(
-          "A test notification has been queued. You should receive it in a few seconds.",
-        );
+        // Handled by foreground message toast
       } else {
         const err = await res.json();
         alert("Failed to send test notification: " + err.message);

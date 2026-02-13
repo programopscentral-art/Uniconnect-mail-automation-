@@ -43,9 +43,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const { rows } = await db.query(
             `INSERT INTO assessment_questions (
                 topic_id, unit_id, question_text, marks, type, options, 
-                bloom_level, co_id, difficulty, image_url, explanation
+                bloom_level, co_id, difficulty, image_url, explanation, answer_key, is_important
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *`,
             [
                 body.topic_id || null,
@@ -58,11 +58,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 body.co_id || null,
                 body.difficulty || 'MEDIUM',
                 body.image_url || null,
-                body.explanation || null
+                body.explanation || null,
+                body.answer_key || null,
+                body.is_important || false
             ]
         );
         return json(rows[0]);
     } catch (err: any) {
+        console.error('[QUESTIONS_POST] Error:', err);
         throw error(500, err.message);
     }
 };
@@ -79,7 +82,7 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
         const params: any[] = [];
         let idx = 1;
 
-        const fields = ['question_text', 'marks', 'type', 'options', 'bloom_level', 'co_id', 'difficulty', 'image_url', 'explanation'];
+        const fields = ['question_text', 'marks', 'type', 'options', 'bloom_level', 'co_id', 'difficulty', 'image_url', 'explanation', 'answer_key', 'is_important'];
 
         for (const field of fields) {
             if (body[field] !== undefined) {

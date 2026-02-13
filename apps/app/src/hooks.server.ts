@@ -1,16 +1,11 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { validateSession, getRolePermissions } from '@uniconnect/shared';
-import '$lib/server/firebase-admin';
-
-// Pre-populate process.env for shared packages that depend on it
-process.env.DATABASE_URL = env.DATABASE_URL;
-process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = env.NODE_TLS_REJECT_UNAUTHORIZED || '0';
-
 console.log("-----------------------------------------");
 console.log("!!! UNICONNECT BOOTING VERSION 2.0.7 !!!");
 console.log("-----------------------------------------");
+console.log("[HOOKS] Attempting to initialize Firebase Admin...");
+import '$lib/server/firebase-admin';
 
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');
