@@ -244,7 +244,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             // 6. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness)
             if (!choice) {
-                let candidates = pool.filter(q => Number(q.marks) === Number(targetMarks));
+                let candidates = pool.filter(q => Math.round(Number(q.marks)) === Math.round(Number(targetMarks)));
+                // Shuffle fallback candidates to avoid picking the same repeats for every set
+                for (let i = candidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                }
                 for (const cand of candidates) {
                     const isUsedInCurrentSet = setQuestions.some((s: any) =>
                         (s.questions || s.choice1?.questions || s.choice2?.questions || []).some((q: any) => q.id === cand.id)
