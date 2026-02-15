@@ -7,18 +7,18 @@ export const POST: RequestHandler = async ({ params, locals }) => {
     const campaignId = params.id;
 
     try {
-        // Reset all QUEUED recipients back to PENDING
-        await db.query(
-            `UPDATE campaign_recipients 
-             SET status = 'PENDING', sent_at = NULL, error_message = NULL, updated_at = NOW() 
-             WHERE campaign_id = $1 AND status = 'QUEUED'`,
-            [campaignId]
-        );
+        // DELETE ALL RECIPIENTS: This allows a clean start to fix mismatched counts
+        await db.query(`DELETE FROM campaign_recipients WHERE campaign_id = $1`, [campaignId]);
 
-        // Reset campaign status
+        // Reset campaign status and counts
         await db.query(
             `UPDATE campaigns 
-             SET status = 'DRAFT', started_at = NULL, completed_at = NULL, sent_count = 0, failed_count = 0 
+             SET status = 'DRAFT', 
+                 started_at = NULL, 
+                 completed_at = NULL, 
+                 sent_count = 0, 
+                 failed_count = 0, 
+                 total_recipients = 0 
              WHERE id = $1`,
             [campaignId]
         );

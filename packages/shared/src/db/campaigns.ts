@@ -91,37 +91,53 @@ export async function createRecipients(campaignId: string, students: any[], reci
     try {
         await client.query('BEGIN');
 
-        // Chunking to avoid Postgres parameter limits (max 65535, we use 500 rows * 6 params = 3000)
+        // DEDUPLICATION: Ensure we don't add the same email twice in the same campaign
+        const seenEmails = new Set<string>();
+
+        // Chunking to avoid Postgres parameter limits
         const chunkSize = 500;
         for (let i = 0; i < students.length; i += chunkSize) {
             const chunk = students.slice(i, i + chunkSize);
 
-            const values: any[] = [];
-            const placeholders = chunk.map((s, idx) => {
-                const base = idx * 6;
-                const token = crypto.randomBytes(16).toString('hex');
-                let toEmail = s.email || 'invalid-email';
-                let status = 'PENDING';
-                let errorMessage: string | null = null;
+            const uniqueChunk = chunk.filter(s => {
+                let email = (s.email || '').toLowerCase().trim();
+                let hasCustomEmail = false;
 
                 if (recipientEmailKey) {
-                    const customEmail = s.metadata?.[recipientEmailKey];
-                    if (!customEmail || typeof customEmail !== 'string' || !customEmail.trim().includes('@')) {
-                        status = 'FAILED';
-                        errorMessage = `Missing or invalid email in column: ${recipientEmailKey}`;
-                        toEmail = 'invalid-email';
-                    } else {
-                        toEmail = customEmail.trim();
+                    const custom = s.metadata?.[recipientEmailKey];
+                    if (custom && typeof custom === 'string' && custom.trim().includes('@')) {
+                        email = custom.toLowerCase().trim();
+                        hasCustomEmail = true;
+                    } else if (recipientEmailKey) {
+                        // If they chose a custom key and THIS student doesn't have it,
+                        // we SKIP them entirely rather than adding as a 'Failed' recipient.
+                        // This keeps the campaign counts clean.
+                        return false;
                     }
                 }
 
-                if (status !== 'FAILED' && (!toEmail || !toEmail.includes('@'))) {
-                    status = 'FAILED';
-                    errorMessage = 'Invalid or missing primary email';
-                    toEmail = 'invalid-email';
+                if (!email || !email.includes('@')) return false;
+
+                // If we already added this email in this campaign, skip it
+                if (seenEmails.has(email)) return false;
+                seenEmails.add(email);
+                return true;
+            });
+
+            if (uniqueChunk.length === 0) continue;
+
+            const values: any[] = [];
+            const placeholders = uniqueChunk.map((s, idx) => {
+                const base = idx * 6;
+                const token = crypto.randomBytes(16).toString('hex');
+                let toEmail = s.email || '';
+
+                if (recipientEmailKey) {
+                    const custom = s.metadata?.[recipientEmailKey];
+                    if (custom && typeof custom === 'string') toEmail = custom.trim();
                 }
 
-                values.push(campaignId, s.id, toEmail.toLowerCase().trim(), token, status, errorMessage);
+                values.push(campaignId, s.id, toEmail.toLowerCase().trim(), token, 'PENDING', null);
                 return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
             }).join(', ');
 

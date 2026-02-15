@@ -101,35 +101,41 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             config: template.config
         });
 
-        // 7. Send via Gmail API
-        console.log(`[TEST_EMAIL] Sending to ${testEmail} via Gmail API...`);
-        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+        // 7. Send via Gmail API (ASYNCHRONOUSLY to avoid UI hang)
+        console.log(`[TEST_EMAIL] Queueing send to ${testEmail}...`);
 
-        const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-        const messageParts = [
-            `MIME-Version: 1.0`,
-            `To: ${testEmail}`,
-            `From: "NIAT Support" <${mailbox.email}>`,
-            `Subject: [TEST] ${utf8Subject}`,
-            `X-UniConnect-Token: ${trackingToken}`,
-            `Content-Type: text/html; charset=utf-8`,
-            `Content-Transfer-Encoding: base64`,
-            '',
-            Buffer.from(htmlBody).toString('base64')
-        ];
+        (async () => {
+            try {
+                const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+                const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+                const messageParts = [
+                    `MIME-Version: 1.0`,
+                    `To: ${testEmail}`,
+                    `From: "NIAT Support" <${mailbox.email}>`,
+                    `Subject: [TEST] ${utf8Subject}`,
+                    `X-UniConnect-Token: ${trackingToken}`,
+                    `Content-Type: text/html; charset=utf-8`,
+                    `Content-Transfer-Encoding: base64`,
+                    '',
+                    Buffer.from(htmlBody).toString('base64')
+                ];
 
-        const rawMessage = messageParts.join('\r\n');
-        const encodedMail = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                const rawMessage = messageParts.join('\r\n');
+                const encodedMail = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-        const res = await gmail.users.messages.send({
-            userId: 'me',
-            requestBody: {
-                raw: encodedMail
+                await gmail.users.messages.send({
+                    userId: 'me',
+                    requestBody: {
+                        raw: encodedMail
+                    }
+                });
+                console.log(`[TEST_EMAIL] ✅ Background send successful for ${testEmail}`);
+            } catch (err) {
+                console.error(`[TEST_EMAIL] ❌ Background send failed for ${testEmail}:`, err);
             }
-        });
+        })();
 
-        console.log(`[TEST_EMAIL] ✅ Email sent successfully! Message ID: ${res.data.id}`);
-        return json({ success: true, message: `Test email sent to ${testEmail}`, messageId: res.data.id });
+        return json({ success: true, message: `Test email enqueued for ${testEmail}. It will arrive in your inbox shortly.`, trackingToken });
     } catch (err: any) {
         console.error(`[TEST_EMAIL] ❌ Failed for campaign ${campaignId}:`, err);
 

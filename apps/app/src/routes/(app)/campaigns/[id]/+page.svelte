@@ -306,6 +306,31 @@
     }
   }
 
+  async function masterReset() {
+    if (
+      !confirm(
+        "🧹 WARNING: This will completely DELETE all recipient records and reset the campaign to DRAFT. Use this to fix incorrect recipient counts. Continue?",
+      )
+    )
+      return;
+    try {
+      const res = await fetch(`/api/campaigns/${data.campaign.id}/reset`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        alert("Campaign data reset successfully!");
+        invalidateAll();
+        recipients = [];
+        showRecipients = false;
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to reset");
+      }
+    } catch (e) {
+      alert("Error resetting");
+    }
+  }
+
   let localStatusOverride = $state<string | null>(null);
 
   $effect(() => {
@@ -424,7 +449,27 @@
           STOP CAMPAIGN
         </button>
       {/if}
-      {#if data.campaign.status === "STOPPED" || data.campaign.status === "IN_PROGRESS"}
+      {#if data.campaign.status === "STOPPED" || data.campaign.status === "COMPLETED"}
+        <button
+          onclick={masterReset}
+          class="inline-flex items-center px-4 py-1.5 border border-gray-300 text-xs font-bold rounded-full text-gray-600 bg-white hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+          title="Clear all recipient data and start over"
+        >
+          <svg
+            class="mr-1.5 h-3.5 w-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          MASTER RESET
+        </button>
         <button
           onclick={resumeCampaign}
           class="inline-flex items-center px-4 py-1.5 border border-green-300 text-xs font-bold rounded-full text-green-600 bg-white hover:bg-green-50 transition-all shadow-sm active:scale-95"
