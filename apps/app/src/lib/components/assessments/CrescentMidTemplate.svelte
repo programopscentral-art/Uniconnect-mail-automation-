@@ -769,15 +769,11 @@
       visibility: visible !important;
       width: 210mm !important;
       min-height: 297mm !important;
-      margin: 0 !important;
+      margin: 0 auto !important;
       padding: 1.5cm !important;
       box-shadow: none !important;
       border: none !important;
       background: white !important;
-    }
-    /* Hide ALL siblings and UI elements when printing the paper */
-    :global(body > *:not(#crescent-mid-paper-actual)) {
-      /* This is too aggressive if nested deep, but we'll use a better approach */
     }
     :global(.assessment-row-actions),
     :global(.assessment-set-switcher),
@@ -785,7 +781,8 @@
     :global(nav),
     :global(header),
     :global(footer),
-    :global(aside) {
+    :global(aside),
+    :global(.xl\:flex-row > div:last-child) {
       display: none !important;
       height: 0 !important;
       overflow: hidden !important;
@@ -796,6 +793,10 @@
       overflow: visible !important;
       height: auto !important;
       display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      background: white !important;
     }
   }
 </style>
