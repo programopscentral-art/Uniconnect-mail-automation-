@@ -362,7 +362,7 @@
       const processedSourceIds = new Set<string>();
       const notifChannel = new BroadcastChannel("uni-notifications-coord");
 
-      const triggerNativePopup = (
+      const triggerNativePopup = async (
         title: string,
         body: string,
         url: string | null,
@@ -377,22 +377,26 @@
           badge: "/nxtwave-logo.png",
           tag: sourceId,
           renotify: true,
-          vibrate: [200, 100, 200],
-          requireInteraction:
-            !!taskId && (body.includes("DUE") || body.includes("OVERDUE")),
           data: { url, taskId },
         };
 
-        // 1. Try Service Worker (Best for badges/vibration/Teams-style persistence)
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          navigator.serviceWorker.ready.then((reg) => {
-            reg.showNotification(title, options).catch(() => {
-              // 2. Fallback to standard Notification constructor if SW blocked in window
-              new Notification(title, options);
-            });
-          });
-        } else {
-          // 3. direct fallback
+        // Add persistent features for critical alerts
+        if (!!taskId && (body.includes("DUE") || body.includes("OVERDUE"))) {
+          options.requireInteraction = true;
+          options.vibrate = [200, 100, 200];
+        }
+
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          // Strategy 1: ServiceWorker (Modern, Teams-style)
+          await reg.showNotification(title, options);
+
+          // Strategy 2: Duplicate via window-level if document is hidden or just to be sure
+          if (document.hidden) {
+            new Notification(title, options);
+          }
+        } catch (e) {
+          // Final Fallback
           new Notification(title, options);
         }
       };
@@ -401,17 +405,13 @@
         // Log to verify message receipt
         console.log("[FCM_FOREGROUND] Received:", payload);
 
-        const sourceId =
-          payload.data?.sourceId ||
-          payload.data?.taskId ||
-          `notif-${Date.now()}`;
-        const taskId = payload.data?.taskId;
-        const action = payload.data?.action;
+        const data = payload.data || {};
+        const sourceId = data.sourceId || data.taskId || `notif-${Date.now()}`;
+        const taskId = data.taskId;
+        const action = data.action;
         const title =
-          payload.data?.title ||
-          payload.notification?.title ||
-          "UniConnect Alert";
-        const body = payload.data?.body || payload.notification?.body || "";
+          data.title || payload.notification?.title || "UniConnect Alert";
+        const body = data.body || payload.notification?.body || "";
 
         // 1. DEDUPLICATION (Local & Multi-tab)
         if (processedSourceIds.has(sourceId)) return;

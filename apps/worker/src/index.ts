@@ -186,7 +186,6 @@ async function processCommunicationTasks() {
         }
 
         const message: any = {
-          notification: { title, body },
           data: {
             title,
             body,
