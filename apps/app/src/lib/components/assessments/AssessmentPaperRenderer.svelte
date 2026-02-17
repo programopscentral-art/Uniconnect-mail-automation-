@@ -7,6 +7,9 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentVguSlot from "./shared/AssessmentVguSlot.svelte";
+  import ADYPUTemplate from "./ADYPUTemplate.svelte";
+  import SVYASATemplate from "./SVYASATemplate.svelte";
+  import CrescentMidTemplate from "./CrescentMidTemplate.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
@@ -43,7 +46,11 @@
     headerStyle: layoutSchema?.headerStyle || "centered", // 'centered' | 'split'
     showRRN: layoutSchema?.showRRN ?? true,
     courseCodeLabel: layoutSchema?.courseCodeLabel || "Course Code",
-    style: layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
+    style:
+      layoutSchema?.style === "crescent" &&
+      paperMeta?.exam_title?.toLowerCase().match(/cat|mid|test|internal/)
+        ? "crescent-mid"
+        : layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'
@@ -161,9 +168,9 @@
     if (Array.isArray(currentSetData)) return; // Only for object-based sets
 
     const arr = currentSetData.questions || [];
-    const newAnswers = [];
+    const newAnswers: any[] = [];
 
-    arr.forEach((slot) => {
+    arr.forEach((slot: any) => {
       const qs = [];
       if (slot.type === "OR_GROUP") {
         if (slot.choice1?.questions) qs.push(...slot.choice1.questions);
@@ -596,6 +603,17 @@
               />
             </div>
           </div>
+        {:else if layout.style === "crescent-mid"}
+          <CrescentMidTemplate
+            {paperMeta}
+            {currentSetData}
+            {paperStructure}
+            {activeSet}
+            {courseOutcomes}
+            {questionPool}
+            {mode}
+            {onSwap}
+          />
         {:else if layout.style === "vgu"}
           <!-- VGU HIGH FIDELITY HEADER -->
           <div class="mb-4">
@@ -771,6 +789,28 @@
               </div>
             {/if}
           </div>
+        {:else if layout.style === "adypu"}
+          <ADYPUTemplate
+            {paperMeta}
+            {currentSetData}
+            {paperStructure}
+            {activeSet}
+            {courseOutcomes}
+            {questionPool}
+            {mode}
+            {onSwap}
+          />
+        {:else if layout.style === "svyasa"}
+          <SVYASATemplate
+            {paperMeta}
+            {currentSetData}
+            {paperStructure}
+            {activeSet}
+            {courseOutcomes}
+            {questionPool}
+            {mode}
+            {onSwap}
+          />
         {/if}
 
         <!-- Paper Metadata Table (Non-VGU only) -->

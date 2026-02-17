@@ -527,7 +527,9 @@
                   />
                   {#if slot.choice1?.questions?.[0]}
                     <AssessmentEditable
-                      value={slot.choice1.questions[0].text}
+                      value={slot.choice1.questions[0].text ||
+                        slot.choice1.questions[0].question_text ||
+                        ""}
                       onUpdate={(v: string) =>
                         updateText(
                           v,
@@ -578,7 +580,9 @@
                   />
                   {#if slot.choice2?.questions?.[0]}
                     <AssessmentEditable
-                      value={slot.choice2.questions[0].text}
+                      value={slot.choice2.questions[0].text ||
+                        slot.choice2.questions[0].question_text ||
+                        ""}
                       onUpdate={(v: string) =>
                         updateText(
                           v,

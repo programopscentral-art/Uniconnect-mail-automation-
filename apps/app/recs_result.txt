@@ -1,0 +1,2 @@
+﻿Direct count in campaign_recipients: 0
+Sample recipients: []

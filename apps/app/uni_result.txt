@@ -1,0 +1,4 @@
+﻿University ID: 6bd1174c-9974-4643-bde9-9ea39ddfa741
+Total students in DB for this university: 0
+Total recipients in campaign: 0
+Duplicate students (by email) in this university: []

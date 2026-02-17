@@ -7,6 +7,7 @@
   import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
   import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
   import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
+  import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -241,6 +242,72 @@
       }
       structure.push(partB);
 
+      paperStructure = structure;
+      return;
+    }
+
+    if (isCrescent) {
+      const is100 = Number(maxMarks) === 100;
+      const countA = 10;
+      const marksA = is100 ? 2 : 1;
+      const partA = {
+        title: `PART A (10 X ${marksA} = ${10 * marksA} Marks)`,
+        part: "A",
+        answered_count: 10,
+        marks_per_q: marksA,
+        slots: [] as any[],
+      };
+      for (let i = 1; i <= 10; i++) {
+        partA.slots.push({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i}`,
+          part: "A",
+          type: "SINGLE",
+          marks: marksA,
+          unit: "Auto",
+          qType: "MCQ",
+          bloom: "ANY",
+        });
+      }
+      structure.push(partA);
+
+      const countB = 5;
+      const marksB = is100 ? 16 : 8;
+      const partB = {
+        title: `PART B (5 X ${marksB} = ${5 * marksB} Marks)`,
+        part: "B",
+        answered_count: 5,
+        marks_per_q: marksB,
+        slots: [] as any[],
+      };
+      for (let i = 0; i < 5; i++) {
+        const qNum = 11 + i * 2;
+        partB.slots.push({
+          id: `B-${i}-${Math.random()}`,
+          label: `${qNum}`,
+          displayLabel: `${qNum} or ${qNum + 1}`,
+          part: "B",
+          type: "OR_GROUP",
+          marks: marksB,
+          choices: [
+            {
+              label: "",
+              unit: "Auto",
+              qType: "NORMAL",
+              marks: marksB,
+              bloom: "ANY",
+            },
+            {
+              label: "",
+              unit: "Auto",
+              qType: "NORMAL",
+              marks: marksB,
+              bloom: "ANY",
+            },
+          ],
+        });
+      }
+      structure.push(partB);
       paperStructure = structure;
       return;
     }
@@ -1698,7 +1765,7 @@
                           {#each unit.topics || [] as topic}
                             <button
                               class="flex items-center justify-between p-3 rounded-xl border-2 transition-all
-                                     {topic.all_ids.every((tid) =>
+                                     {topic.all_ids.every((tid: string) =>
                                 selectedTopicIds.includes(tid),
                               )
                                 ? 'bg-white dark:bg-slate-800 border-indigo-400 shadow-sm'
@@ -1711,12 +1778,13 @@
                               <div class="flex items-center gap-3">
                                 <div
                                   class="w-4 h-4 rounded border flex items-center justify-center {topic.all_ids.every(
-                                    (tid) => selectedTopicIds.includes(tid),
+                                    (tid: string) =>
+                                      selectedTopicIds.includes(tid),
                                   )
                                     ? 'bg-indigo-500 border-indigo-500'
                                     : 'border-gray-300'}"
                                 >
-                                  {#if topic.all_ids.every( (tid) => selectedTopicIds.includes(tid), )}
+                                  {#if topic.all_ids.every( (tid: string) => selectedTopicIds.includes(tid), )}
                                     <svg
                                       class="w-2.5"
                                       fill="none"
@@ -1733,7 +1801,8 @@
                                 </div>
                                 <span
                                   class="text-[10px] font-bold {topic.all_ids.every(
-                                    (tid) => selectedTopicIds.includes(tid),
+                                    (tid: string) =>
+                                      selectedTopicIds.includes(tid),
                                   )
                                     ? 'text-gray-900 dark:text-white'
                                     : 'text-gray-500'}">{topic.name}</span
@@ -2644,20 +2713,23 @@
                   mode="preview"
                 />
               {:else if selectedTemplate === "crescent"}
-                <CrescentTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
-                <StandardTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
+                {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
+                  <CrescentMidTemplate
+                    paperMeta={previewPaperMeta}
+                    {paperStructure}
+                    currentSetData={previewSetData}
+                    {courseOutcomes}
+                    mode="preview"
+                  />
+                {:else}
+                  <CrescentTemplate
+                    paperMeta={previewPaperMeta}
+                    {paperStructure}
+                    currentSetData={previewSetData}
+                    {courseOutcomes}
+                    mode="preview"
+                  />
+                {/if}
               {:else if selectedTemplate === "vgu-standard-mid-term" || isVGU}
                 {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
                   <VGUMidTemplate

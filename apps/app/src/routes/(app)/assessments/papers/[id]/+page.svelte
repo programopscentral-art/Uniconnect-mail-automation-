@@ -12,6 +12,7 @@
   import ADYPUTemplate from "$lib/components/assessments/ADYPUTemplate.svelte";
   import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
   import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
+  import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -1272,16 +1273,37 @@
             onSwap={handleSetUpdate}
           />
         {:else if selectedTemplate === "crescent"}
-          <CrescentTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            {paperStructure}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
+          {#if paperMeta.exam_title && (paperMeta.exam_title
+              .toLowerCase()
+              .includes("cat") || paperMeta.exam_title
+                .toLowerCase()
+                .includes("mid") || paperMeta.exam_title
+                .toLowerCase()
+                .includes("test") || paperMeta.exam_title
+                .toLowerCase()
+                .includes("internal"))}
+            <CrescentMidTemplate
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              bind:paperStructure={paperMeta.template_config}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {:else}
+            <CrescentTemplate
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              {paperStructure}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {/if}
         {:else if selectedTemplate === "malla"}
           <MallareddyTemplate
             bind:paperMeta

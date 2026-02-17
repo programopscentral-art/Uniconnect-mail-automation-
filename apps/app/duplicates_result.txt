@@ -1,0 +1,28 @@
+﻿--- DUPLICATE STUDENT EMAILS ---
+[
+  { email: 'kallivishnuvardhanreddy526@gmail.com', count: '2' },
+  { email: 'nani200604@gmail.com', count: '2' },
+  { email: 'trivediabhishek702@gmail.com', count: '2' },
+  { email: 'swatikewat14@gmail.com', count: '2' },
+  { email: 'dakshgoel439@gmail.com', count: '2' },
+  { email: 'aruna343434@gmail.com', count: '2' },
+  { email: 'jharavishankar51@gmail.com', count: '2' },
+  { email: 'aniya958singh@gmail.com', count: '2' },
+  { email: 'sahilkumar2212007@gmail.com', count: '2' },
+  { email: 'm.rana2k6@gmail.com', count: '2' }
+]
+--- DUPLICATE STUDENT NAMES ---
+[
+  { name: 'Ravi Shankar Jha', count: '2' },
+  { name: 'Abhishek Trivedi', count: '2' },
+  { name: 'Pagidala Nikhitha Reddy', count: '2' },
+  { name: 'Mayank Singh Rana', count: '2' },
+  { name: 'Tanishq Rawat', count: '2' },
+  { name: 'Ashish Kumar', count: '2' },
+  { name: 'Kalli Vishnuvardhan Reddy', count: '2' },
+  { name: 'Survase Shivam Govind', count: '2' },
+  { name: 'Sahil Kumar', count: '2' },
+  { name: 'Daksh Goel', count: '2' }
+]
+--- CAMPAIGN RECIPIENTS FOR a1aa8752-3769-487c-9ad9-8975a6cf5f58 ---
+[]

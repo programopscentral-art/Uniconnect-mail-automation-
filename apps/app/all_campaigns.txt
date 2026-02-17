@@ -1,0 +1,342 @@
+﻿[
+  {
+    id: '0ea48f9c-a0ef-4ec8-b892-b5c05bfc380f',
+    name: 'left Mothers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: 'bc7e03b3-bb54-4146-a2e5-9d63a0c63bc6',
+    name: 'left students fees updates',
+    total_recipients: 44
+  },
+  {
+    id: '94bc7ca1-1374-4fe8-8beb-3428681c79cd',
+    name: '≡ƒôó Term 3 Fee Payment ΓÇô Update students',
+    total_recipients: 1378
+  },
+  {
+    id: 'f21629c9-19be-4bb4-9701-3bbabf77c2ee',
+    name: 'left students fees updates',
+    total_recipients: 10
+  },
+  {
+    id: 'a5fb8bb6-90d4-4009-9a31-f7806aed8cea',
+    name: 'Term 2 Fee Payment Fathers',
+    total_recipients: 179
+  },
+  {
+    id: '7be0d5bc-98bd-4268-98d8-990f1d6eff20',
+    name: 'SGU Mails Fee reminder mothers',
+    total_recipients: 321
+  },
+  {
+    id: 'ba4ef9dc-344d-4ff1-afdf-949953147a84',
+    name: '≡ƒôó Term 2 Fee Payment Students',
+    total_recipients: 1378
+  },
+  {
+    id: '732ab78b-9763-4af8-8597-b0a2f1761edc',
+    name: 'left Fathers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: 'a0231beb-9b89-46de-b9f0-5b7d7068b00a',
+    name: 'left Mothers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: '14f7314e-360c-416c-8d8a-6df6f106ce5e',
+    name: 'AMET Mails Fathers Fees reminder',
+    total_recipients: 119
+  },
+  {
+    id: '907af115-d6ee-4d01-8a3d-6d25244361f1',
+    name: 'Students AMET fee payments',
+    total_recipients: 119
+  },
+  {
+    id: 'c75ff0b0-21a7-4211-a8e0-09d83ff70d8a',
+    name: '≡ƒôó Term 3 Fee Payment ΓÇô Update fathers',
+    total_recipients: 1378
+  },
+  {
+    id: '4c988eb4-e4e5-4b1f-bb91-a2169061227d',
+    name: 'left students fees updates',
+    total_recipients: 10
+  },
+  {
+    id: 'd5115c00-acaf-43fb-8e83-3971333c89bf',
+    name: '≡ƒôó Term 3 Fee Payment ΓÇô Update Mothers',
+    total_recipients: 1378
+  },
+  {
+    id: 'c61318e5-6266-41a9-a028-858adcc68638',
+    name: 'left Fathers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: '017c38a7-12fe-43d9-9ab4-512b646a0651',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 11
+  },
+  {
+    id: 'ac1c595c-e373-4d61-9b14-4b8c161ab1c8',
+    name: 'left Mothers fees updates',
+    total_recipients: 99
+  },
+  {
+    id: '5719f8dc-10a2-4581-8125-cc3b0b3f5413',
+    name: 'left Fathers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: 'e06f40fb-c693-4464-aa24-49d6268c4915',
+    name: 'Semest 2 Fees update Mothers',
+    total_recipients: 119
+  },
+  {
+    id: 'a4103c65-10d6-4431-b0c0-8e658b3b78b3',
+    name: 'AMET Mails Mothers Fees reminder',
+    total_recipients: 119
+  },
+  {
+    id: 'e315f751-ccdc-4aef-9b49-433cad7b3e24',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 11
+  },
+  {
+    id: '8085d6e3-cea5-4d75-b4bf-cd58d4969c61',
+    name: 'Semest 2 Fees update students  ',
+    total_recipients: 119
+  },
+  {
+    id: 'c78c4c2d-08b3-4007-bbe0-f50e58e33bee',
+    name: 'left Mothers fees updates',
+    total_recipients: 10
+  },
+  {
+    id: '401231a7-68cb-420b-9dc4-1cd9fb39e581',
+    name: 'left students fees updates',
+    total_recipients: 10
+  },
+  {
+    id: '46de3967-79c2-4e91-985f-b41eca7dfdfc',
+    name: 'Term 2 Payment ΓÇô Final Reminder Mother',
+    total_recipients: 11
+  },
+  {
+    id: '2e01d606-6581-49d7-8f7f-a75ae3a2f012',
+    name: 'left Mothers fees updates',
+    total_recipients: 44
+  },
+  {
+    id: '5c0bea3c-3b5a-49a9-8248-4cb0e2610265',
+    name: 'Semest 2 Fees update Fathers',
+    total_recipients: 119
+  },
+  {
+    id: '12b75958-6011-45ca-a5ec-bfe10319836c',
+    name: 'left students fees updates',
+    total_recipients: 99
+  },
+  {
+    id: '33e7dbf9-52de-46ad-b4eb-9588d7b543fb',
+    name: 'left Fathers fees updates',
+    total_recipients: 44
+  },
+  {
+    id: '45d5e22f-ad0c-47ee-ac55-f16a004efd0a',
+    name: 'Term 2 Fee Payment Students ',
+    total_recipients: 179
+  },
+  {
+    id: '1673469a-de49-46c4-9ce0-e5a8f0eae026',
+    name: 'left Fathers fees updates',
+    total_recipients: 99
+  },
+  {
+    id: '4bacd919-131a-4c1e-864e-0374552c6e6e',
+    name: 'Term 2 Fee Payment Mothers ',
+    total_recipients: 179
+  },
+  {
+    id: 'b0965a80-a145-4cd3-93fa-393abff3bde7',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 190
+  },
+  {
+    id: '99bd3cec-77e9-483d-be9a-e648130e0109',
+    name: 'Term 2 Payment ΓÇô Final Reminder mothers',
+    total_recipients: 326
+  },
+  {
+    id: 'f4f64397-cde8-493a-a37f-d0abb8eded01',
+    name: 'Term 2 Payment ΓÇô Final Reminder mother',
+    total_recipients: 42
+  },
+  {
+    id: '5d6e1a40-9bd8-413d-a9ac-2df241a3f28c',
+    name: 'Term 2 Payment ΓÇô Final Reminder Students',
+    total_recipients: 31
+  },
+  {
+    id: 'ce1160f2-8fae-4496-af4b-2288d63a3d5f',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 131
+  },
+  {
+    id: '3f9bf2eb-2c15-473a-9da8-508415d8a9df',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 38
+  },
+  {
+    id: 'dbd8f68f-12ef-431a-9411-b5a5787913ea',
+    name: 'Term 2 Payment ΓÇô Final Reminder mothers',
+    total_recipients: 67
+  },
+  {
+    id: 'c2039195-da78-4f2a-80c0-eaf6934473a2',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 190
+  },
+  {
+    id: 'be772c29-c8ad-4410-a699-ca7987ff548c',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 326
+  },
+  {
+    id: '132858ae-5691-41d2-a9b2-74b6dd4aa501',
+    name: 'Term 2 Payment ΓÇô Final Reminder mothers',
+    total_recipients: 190
+  },
+  {
+    id: '37fb5688-64f1-4c3a-8e84-24da62dbe56f',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 33
+  },
+  {
+    id: '29ac097a-00fa-484c-9885-d42977c7062e',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 31
+  },
+  {
+    id: 'cde74dba-dd02-46c8-a494-27d538c17060',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 326
+  },
+  {
+    id: '9090860e-788d-4f43-87da-a7ee366f46c9',
+    name: 'Term 2 Payment ΓÇô Final Reminder mother',
+    total_recipients: 31
+  },
+  {
+    id: '234050a0-6864-45ff-9c6f-c5b878e0adc2',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 67
+  },
+  {
+    id: 'aa53770e-0da5-442e-928c-3d6c17321fdd',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 33
+  },
+  {
+    id: '487f014e-a668-43b4-bae8-1767ee6cc3c3',
+    name: 'Term 2 Payment ΓÇô Final Reminder mother',
+    total_recipients: 33
+  },
+  {
+    id: 'd1a696f8-4239-4dda-bafd-0e7346b078ab',
+    name: 'Term 2 Payment ΓÇô Final Reminder fathers',
+    total_recipients: 131
+  },
+  {
+    id: '02f029e7-ff86-438d-9385-c30c6321deae',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 119
+  },
+  {
+    id: '46e55dbe-0de1-4ba2-8685-5e76cb300a2f',
+    name: 'Term 2 Payment ΓÇô Final Reminder mothers',
+    total_recipients: 131
+  },
+  {
+    id: 'c7979d4e-e3b8-426f-bf77-250f50479885',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 69
+  },
+  {
+    id: '6bcb2491-abe2-4f7e-9da8-95701b8b5bb5',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 69
+  },
+  {
+    id: '11fc4a6a-c68c-41ab-a542-5b6ffddaffab',
+    name: 'Term 2 Payment ΓÇô Final Reminder fathers',
+    total_recipients: 67
+  },
+  {
+    id: 'b325d617-9843-4ec1-960f-4605a57aefc1',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 38
+  },
+  {
+    id: '8c28daa9-3136-4b7a-bbf5-bb56a0156368',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 18
+  },
+  {
+    id: 'ceaf7735-c124-421e-8ccb-faa6fc6f0af0',
+    name: 'Term 2 Payment ΓÇô Final Reminder mother',
+    total_recipients: 69
+  },
+  {
+    id: '5029b21f-f3e1-4839-acbc-e757db81a4d0',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 18
+  },
+  {
+    id: 'ee4677ea-f561-4567-a267-8a6667626812',
+    name: 'Term 2 Payment ΓÇô Final Reminder students',
+    total_recipients: 42
+  },
+  {
+    id: '2c5cc97e-b395-4f80-a604-81b3de5f825e',
+    name: 'Term 2 Payment ΓÇô Final Reminder mother',
+    total_recipients: 18
+  },
+  {
+    id: '52bdf1d1-7afb-42c7-a4ad-4fba5837179f',
+    name: 'Term 2 Payment ΓÇô Final Reminder father',
+    total_recipients: 42
+  },
+  {
+    id: '3af85060-23c4-4080-8d44-039f0d1feaeb',
+    name: 'Term 2 Payment ΓÇô Final Reminder mothers',
+    total_recipients: 119
+  },
+  {
+    id: '75ec254f-148a-420a-b411-bd2ddcdbafd0',
+    name: 'Slot Booking Open ΓÇô Final Buildathon Presentation | Hall 2 | 16 Feb 2026',
+    total_recipients: 58
+  },
+  {
+    id: '9daaaa7a-5df4-42da-8129-c22c2665c228',
+    name: 'Slot Booking Open ΓÇô Final Buildathon Presentation | Hall 1 | 16 Feb 2026',
+    total_recipients: 29
+  },
+  {
+    id: '6172eb25-0915-48d9-b549-6d3ab5d21d72',
+    name: 'Term 2 Payment ΓÇô Final Reminder fathers',
+    total_recipients: 119
+  },
+  {
+    id: 'a4aa8752-3769-487c-9ad9-8975a6cf5f58',
+    name: 'Slot Booking Open ΓÇô Final Buildathon Presentation | Hall 1 16 Feb 2026',
+    total_recipients: 89
+  },
+  {
+    id: '4b9d2228-33c1-4466-9a47-f7cced3ef1d0',
+    name: 'Slot Booking Open ΓÇô Final Buildathon Presentation | Hall 3 | 16 Feb 2026',
+    total_recipients: 88
+  }
+]
