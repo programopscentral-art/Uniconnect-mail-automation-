@@ -9,6 +9,9 @@
   import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
   import MallareddyTemplate from "$lib/components/assessments/MallareddyTemplate.svelte";
   import TakshashilaTemplate from "$lib/components/assessments/TakshashilaTemplate.svelte";
+  import ADYPUTemplate from "$lib/components/assessments/ADYPUTemplate.svelte";
+  import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
+  import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -50,6 +53,25 @@
     if (metaTemplate === "takshashila" || uniName.includes("takshashila")) {
       return "takshashila";
     }
+    if (
+      metaTemplate === "adypu" ||
+      uniName.includes("adypu") ||
+      uniName.includes("ajeenkya") ||
+      uniName.includes("patil")
+    ) {
+      return "adypu";
+    }
+    if (
+      metaTemplate === "svyasa" ||
+      uniName.includes("svyasa") ||
+      uniName.includes("vyasa") ||
+      uniName.includes("vivekananda yoga")
+    ) {
+      return "svyasa";
+    }
+    if (metaTemplate === "amet" || uniName.includes("amet")) {
+      return "amet";
+    }
 
     return metaTemplate || "standard";
   });
@@ -65,7 +87,13 @@
             ? "Malla Reddy (MRTC)"
             : selectedTemplate === "takshashila"
               ? "Takshashila University"
-              : "University Standard",
+              : selectedTemplate === "adypu"
+                ? "Ajeenkya DY Patil University"
+                : selectedTemplate === "svyasa"
+                  ? "S-VYASA University"
+                  : selectedTemplate === "amet"
+                    ? "Academy of Maritime Education and Training (AMET)"
+                    : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -264,6 +292,53 @@
             part: "C",
           },
         ];
+      } else if (selectedTemplate === "svyasa") {
+        structure = [
+          {
+            title: "Answer all the questions",
+            marks_per_q: 3,
+            count: 10,
+            answered_count: 10,
+            part: "A",
+          },
+          {
+            title: "Answer all the questions",
+            marks_per_q: 14,
+            count: 5,
+            answered_count: 5,
+            part: "B",
+          },
+        ];
+      } else if (selectedTemplate === "amet") {
+        structure = [
+          {
+            title: "Answer all the Questions",
+            instructions:
+              "(Multiple Choice Questions) (Lower / Intermediate cognitive type Questions)",
+            marks_per_q: 1,
+            count: 20,
+            answered_count: 20,
+            part: "A",
+          },
+          {
+            title: "Answer all the Questions",
+            instructions:
+              "Detailed Answer Type Question (Either or choice) (Both subdivision to have same / Intermediate / Higher order cognitive type Questions)",
+            marks_per_q: 14,
+            count: 5,
+            answered_count: 5,
+            part: "B",
+          },
+          {
+            title: "Answer the Question",
+            instructions:
+              "(Application / Analysis / Evaluation / Design / Creativity / Case Study Type Question)",
+            marks_per_q: 10,
+            count: 1,
+            answered_count: 1,
+            part: "C",
+          },
+        ];
       } else {
         structure = [
           {
@@ -415,6 +490,8 @@
       document.getElementById("vgu-mid-paper-actual") ||
       document.getElementById("crescent-paper-actual") ||
       document.getElementById("generic-paper-actual") ||
+      document.getElementById("svyasa-paper-actual") ||
+      document.getElementById("amet-paper-actual") ||
       document.getElementById("cdu-paper-actual");
 
     if (!el) {
@@ -470,7 +547,7 @@
                                 justify-content: center !important;
                                 align-items: flex-start !important;
                             }
-                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
+                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, .paper-container { 
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -492,7 +569,7 @@
                             justify-content: center;
                             padding: 20px;
                         }
-                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #cdu-paper-actual, .paper-container { 
+                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, .paper-container { 
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;
@@ -1218,6 +1295,39 @@
           />
         {:else if selectedTemplate === "takshashila"}
           <TakshashilaTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "adypu"}
+          <ADYPUTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "svyasa"}
+          <SVYASATemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "amet"}
+          <AMETTemplate
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
             bind:paperStructure={paperMeta.template_config}
