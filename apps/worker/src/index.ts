@@ -186,8 +186,9 @@ async function processCommunicationTasks() {
         }
 
         const message: any = {
-          notification: { title, body },
           data: {
+            title,
+            body,
             taskId: String(task.id),
             action: 'OPEN_TASK',
             sourceId: String(sourceId)

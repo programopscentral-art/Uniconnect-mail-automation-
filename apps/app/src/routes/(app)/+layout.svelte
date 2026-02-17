@@ -350,29 +350,38 @@
         taskId: string | undefined,
         sourceId: string,
       ) => {
-        if (
-          !browser ||
-          !navigator.serviceWorker ||
-          Notification.permission !== "granted"
-        )
-          return;
+        if (!browser || Notification.permission !== "granted") return;
 
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.showNotification(title, {
-            body,
-            icon: "/nxtwave-logo.png",
-            badge: "/nxtwave-logo.png",
-            tag: sourceId,
-            renotify: true,
-            vibrate: [200, 100, 200],
-            requireInteraction:
-              !!taskId && (body.includes("DUE") || body.includes("OVERDUE")),
-            data: { url, taskId },
-          } as any);
-        });
+        const options: any = {
+          body,
+          icon: "/nxtwave-logo.png",
+          badge: "/nxtwave-logo.png",
+          tag: sourceId,
+          renotify: true,
+          vibrate: [200, 100, 200],
+          requireInteraction:
+            !!taskId && (body.includes("DUE") || body.includes("OVERDUE")),
+          data: { url, taskId },
+        };
+
+        // 1. Try Service Worker (Best for badges/vibration/Teams-style persistence)
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then((reg) => {
+            reg.showNotification(title, options).catch(() => {
+              // 2. Fallback to standard Notification constructor if SW blocked in window
+              new Notification(title, options);
+            });
+          });
+        } else {
+          // 3. direct fallback
+          new Notification(title, options);
+        }
       };
 
       onForegroundMessage((payload) => {
+        // Log to verify message receipt
+        console.log("[FCM_FOREGROUND] Received:", payload);
+
         const sourceId =
           payload.data?.sourceId ||
           payload.data?.taskId ||
@@ -380,10 +389,10 @@
         const taskId = payload.data?.taskId;
         const action = payload.data?.action;
         const title =
-          payload.notification?.title ||
           payload.data?.title ||
+          payload.notification?.title ||
           "UniConnect Alert";
-        const body = payload.notification?.body || payload.data?.body || "";
+        const body = payload.data?.body || payload.notification?.body || "";
 
         // 1. DEDUPLICATION (Local & Multi-tab)
         if (processedSourceIds.has(sourceId)) return;
