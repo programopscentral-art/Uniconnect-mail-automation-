@@ -775,26 +775,27 @@
       border: none !important;
       background: white !important;
     }
+    /* Hide UI and non-essential elements */
     :global(.assessment-row-actions),
     :global(.assessment-set-switcher),
     :global(.assessment-sidebar),
     :global(nav),
     :global(header),
     :global(footer),
-    :global(aside),
-    :global(.xl\:flex-row > div:last-child) {
+    :global(aside) {
       display: none !important;
-      height: 0 !important;
-      overflow: hidden !important;
     }
-    .h-full,
-    .flex-1,
-    [class*="overflow-"] {
+    /* Ensure containers don't hide the content */
+    :global(.h-full),
+    :global(.flex-1),
+    :global(.overflow-auto),
+    :global(.overflow-hidden) {
       overflow: visible !important;
       height: auto !important;
       display: block !important;
       padding: 0 !important;
       margin: 0 !important;
+      width: 100% !important;
       box-shadow: none !important;
       background: white !important;
     }
