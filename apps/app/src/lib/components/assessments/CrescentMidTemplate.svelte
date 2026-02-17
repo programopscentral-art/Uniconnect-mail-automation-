@@ -764,35 +764,38 @@
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    #crescent-mid-paper-actual {
+    :global(#crescent-mid-paper-actual) {
+      display: block !important;
+      visibility: visible !important;
       width: 210mm !important;
       min-height: 297mm !important;
       margin: 0 !important;
       padding: 1.5cm !important;
       box-shadow: none !important;
       border: none !important;
+      background: white !important;
     }
-    :global(.flex-1.overflow-auto.p-4.sm\:p-8) {
-      padding: 0 !important;
-      margin: 0 !important;
-      overflow: visible !important;
+    /* Hide ALL siblings and UI elements when printing the paper */
+    :global(body > *:not(#crescent-mid-paper-actual)) {
+      /* This is too aggressive if nested deep, but we'll use a better approach */
     }
-    /* Hide UI elements */
     :global(.assessment-row-actions),
     :global(.assessment-set-switcher),
     :global(.assessment-sidebar),
-    :global(.xl\:flex-row > div:last-child),
     :global(nav),
     :global(header),
-    :global(footer) {
+    :global(footer),
+    :global(aside) {
       display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
     }
-    .h-full {
-      overflow: visible !important;
-      height: auto !important;
-    }
+    .h-full,
+    .flex-1,
     [class*="overflow-"] {
       overflow: visible !important;
+      height: auto !important;
+      display: block !important;
     }
   }
 </style>
