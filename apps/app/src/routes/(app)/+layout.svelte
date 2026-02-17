@@ -277,15 +277,34 @@
       }
     }, 120000); // 2 mins
 
-    // Explicitly register messaging service worker
+    // Explicitly register messaging service worker & Force update
     if (browser && "serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/firebase-messaging-sw.js", {
           scope: "/",
         })
+        .then((registration) => {
+          // Force immediate update if new one is waiting
+          registration.update();
+          console.log("SW Registered / Updating...");
+        })
         .catch((err) => {
           console.error("SW registration failed:", err);
         });
+
+      // Ensure the new SW takes control of all tabs immediately
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        console.log("Service Worker took control! Re-initializing FCM...");
+        // Re-get token to ensure we're linked to the fresh SW
+        getFcmToken().then((t) => {
+          if (t)
+            fetch("/api/fcm/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: t }),
+            });
+        });
+      });
     }
 
     // Handle tab visibility (Away status) - ONLY if in AUTO mode
