@@ -142,6 +142,27 @@
     } catch (e) {}
   }
 
+  import { browser } from "$app/environment";
+  let notificationPermission = $state<string>(
+    browser && "Notification" in window ? Notification.permission : "default",
+  );
+
+  async function requestPermission() {
+    if (!browser || !("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    notificationPermission = result;
+    if (result === "granted") {
+      const token = await getFcmToken();
+      if (token) {
+        await fetch("/api/fcm/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+      }
+    }
+  }
+
   async function markRead(id: string) {
     try {
       await fetch("/api/notifications", {
@@ -579,6 +600,25 @@
                     >
                   {/if}
                 </div>
+
+                {#if notificationPermission !== "granted"}
+                  <div
+                    class="p-4 bg-indigo-50/50 dark:bg-indigo-900/20 border-b border-gray-100 dark:border-gray-700"
+                  >
+                    <p
+                      class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 leading-tight mb-3"
+                    >
+                      Receive real-time task alerts even when you're in other
+                      apps.
+                    </p>
+                    <button
+                      onclick={requestPermission}
+                      class="w-full py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 animate-pulse-subtle"
+                    >
+                      Enable Desktop Alerts
+                    </button>
+                  </div>
+                {/if}
                 <div class="max-h-96 overflow-y-auto">
                   {#each notifications as n}
                     <div

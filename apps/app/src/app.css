@@ -78,6 +78,20 @@
     }
   }
 
+  @keyframes pulse-subtle {
+
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    50% {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+  }
+
   .animate-premium-fade {
     animation: premium-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
@@ -96,6 +110,10 @@
 
   .animate-premium-float {
     animation: premium-float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulse-subtle 2s ease-in-out infinite;
   }
 
   /* Staggered Delays (Snappy 50ms intervals) */

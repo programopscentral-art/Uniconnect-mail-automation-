@@ -86,7 +86,8 @@ async function processCommunicationTasks() {
 
       const allTokensSet = new Set<string>();
 
-      // 1. Get all users associated with these universities + all Global Admins
+      // 1. Get all users associated with these universities + all Global Admins/Ops
+      const isAllUniversities = task.universities.includes('ALL');
       const usersRes = await db.query(
         `SELECT DISTINCT u.id
          FROM users u
@@ -94,12 +95,13 @@ async function processCommunicationTasks() {
          LEFT JOIN universities un ON (u.university_id = un.id OR uu.university_id = un.id)
          WHERE u.is_active = true 
          AND (
-           u.role = 'ADMIN' OR
+           u.role IN ('ADMIN', 'PROGRAM_OPS') OR
+           $2 = true OR
            un.id::text = ANY($1::text[]) OR 
            un.name = ANY($1::text[]) OR 
            un.short_name = ANY($1::text[])
          )`,
-        [task.universities]
+        [task.universities, isAllUniversities]
       );
 
       const recipientIds = usersRes.rows.map(r => r.id);
@@ -128,12 +130,33 @@ async function processCommunicationTasks() {
       // 2. Prepare Notification Content
       let title = '';
       let body = '';
+      const taskTitle = task.message_title || 'New Message';
+      const univStr = isAllUniversities ? 'All Universities' : task.universities.join(', ');
+      const typeLabel = task.update_type ? `[${task.update_type}]` : '';
+      const priorityLabel = task.priority === 'High' ? '🔴 HIGH PRIORITY: ' : '';
+      const bodySnippet = task.message_body ? (task.message_body.length > 80 ? task.message_body.substring(0, 77) + '...' : task.message_body) : '';
+
       switch (notificationType) {
-        case 'CREATION': title = 'New Task Assigned'; body = `A new ${task.channel} task for ${task.universities.join(', ')} scheduled for ${scheduledAt.toLocaleString()}.`; break;
-        case 'TEN_MIN': title = 'Task Due in 10 Min'; body = `Final Reminder: Prepare to send the ${task.channel} message.`; break;
-        case 'DUE': title = 'Task Due Now'; body = `Action Required: Send ${task.channel} message for ${task.universities.join(', ')}.`; break;
-        case 'OVERDUE_10': title = 'Task Overdue (10m)'; body = `The ${task.channel} task is 10 minutes past deadline and still not marked as completed!`; break;
-        case 'OVERDUE_30': title = 'CRITICAL: Task Overdue (30m)'; body = `The ${task.channel} task is 30 minutes past deadline! Take immediate action.`; break;
+        case 'CREATION':
+          title = `${typeLabel} New Task: ${taskTitle}`;
+          body = `${priorityLabel}${univStr} - Scheduled for ${scheduledAt.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}. ${bodySnippet}`;
+          break;
+        case 'TEN_MIN':
+          title = `⏰ 10m Reminder: ${taskTitle}`;
+          body = `Final prep for ${univStr}. ${bodySnippet}`;
+          break;
+        case 'DUE':
+          title = `🚨 Action Required: ${taskTitle}`;
+          body = `DUE NOW for ${univStr}. Please send immediately. ${bodySnippet}`;
+          break;
+        case 'OVERDUE_10':
+          title = `⚠️ Overdue (10m): ${taskTitle}`;
+          body = `10m PAST DEADLINE: ${univStr}. Still not completed!`;
+          break;
+        case 'OVERDUE_30':
+          title = `🔥 CRITICAL OVERDUE: ${taskTitle}`;
+          body = `30m PAST DEADLINE: ${univStr}. Immediate action required!`;
+          break;
       }
 
       // 3. Persist In-App Notification & Collect FCM Tokens
