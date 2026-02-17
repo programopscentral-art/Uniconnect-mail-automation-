@@ -741,17 +741,57 @@
   #crescent-mid-paper-actual :global(.assessment-editable-container) {
     font-weight: inherit;
     color: black !important;
+    border: none !important;
+    background: transparent !important;
+  }
+  #crescent-mid-paper-actual :global(.assessment-editable-input) {
+    border: none !important;
+    outline: none !important;
   }
   table th,
   table td {
     border-color: black !important;
   }
   @media print {
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    :global(body) {
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    #crescent-mid-paper-actual {
+      width: 210mm !important;
+      min-height: 297mm !important;
+      margin: 0 !important;
+      padding: 1.5cm !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    :global(.flex-1.overflow-auto.p-4.sm\:p-8) {
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: visible !important;
+    }
+    /* Hide UI elements */
+    :global(.assessment-row-actions),
+    :global(.assessment-set-switcher),
+    :global(.assessment-sidebar),
+    :global(.xl\:flex-row > div:last-child),
+    :global(nav),
+    :global(header),
+    :global(footer) {
+      display: none !important;
+    }
     .h-full {
       overflow: visible !important;
       height: auto !important;
     }
-    .flex-1 {
+    [class*="overflow-"] {
       overflow: visible !important;
     }
   }
