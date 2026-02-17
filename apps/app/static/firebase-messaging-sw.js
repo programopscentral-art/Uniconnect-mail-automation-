@@ -16,8 +16,8 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Received background message ', payload);
 
-    const title = payload.notification.title;
-    const body = payload.notification.body;
+    const title = payload.notification?.title || payload.data?.title || 'UniConnect Alert';
+    const body = payload.notification?.body || payload.data?.body || '';
     const taskId = payload.data?.taskId;
     const type = payload.data?.type;
     const action = payload.data?.action;
@@ -26,8 +26,11 @@ messaging.onBackgroundMessage((payload) => {
     const notificationOptions = {
         body: body,
         icon: '/nxtwave-logo.png',
+        badge: '/nxtwave-logo.png',
         tag: sourceId,
-        renotify: !!taskId,
+        renotify: true,
+        vibrate: [200, 100, 200],
+        requireInteraction: !!taskId && (body.includes('DUE') || body.includes('OVERDUE')),
         data: {
             taskId,
             type,

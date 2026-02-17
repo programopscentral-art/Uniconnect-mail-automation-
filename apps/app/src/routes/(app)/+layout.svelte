@@ -163,6 +163,38 @@
     }
   }
 
+  async function testDesktopNotification() {
+    if (!browser || !("Notification" in window)) {
+      alert("Notifications are not supported in this browser.");
+      return;
+    }
+
+    if (Notification.permission !== "granted") {
+      const result = await Notification.requestPermission();
+      notificationPermission = result;
+      if (result !== "granted") return;
+    }
+
+    try {
+      // Ensure service worker is ready for native popups
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification("🔔 Test Desktop Alert", {
+        body: "Success! This is how your task alerts will appear, even when you are in other apps or tabs.",
+        icon: "/nxtwave-logo.png",
+        badge: "/nxtwave-logo.png",
+        tag: "test-alert",
+        renotify: true,
+      } as any);
+    } catch (e) {
+      console.error("Test notification failed:", e);
+      // Fallback to simple notification
+      new Notification("🔔 Test Desktop Alert", {
+        body: "Success! This is how your task alerts will appear.",
+        icon: "/nxtwave-logo.png",
+      });
+    }
+  }
+
   async function markRead(id: string) {
     try {
       await fetch("/api/notifications", {
@@ -245,8 +277,20 @@
       }
     }, 120000); // 2 mins
 
+    // Explicitly register messaging service worker
+    if (browser && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/firebase-messaging-sw.js", {
+          scope: "/",
+        })
+        .catch((err) => {
+          console.error("SW registration failed:", err);
+        });
+    }
+
     // Handle tab visibility (Away status) - ONLY if in AUTO mode
     const handleVisibilityChange = () => {
+      fetchNotifications();
       if (user?.presence_mode !== "AUTO") return;
       if (document.hidden) {
         updatePresence("AWAY", "AUTO");
@@ -317,8 +361,12 @@
           registration.showNotification(title, {
             body,
             icon: "/nxtwave-logo.png",
+            badge: "/nxtwave-logo.png",
             tag: sourceId,
-            renotify: !!taskId,
+            renotify: true,
+            vibrate: [200, 100, 200],
+            requireInteraction:
+              !!taskId && (body.includes("DUE") || body.includes("OVERDUE")),
             data: { url, taskId },
           } as any);
         });
@@ -331,8 +379,11 @@
           `notif-${Date.now()}`;
         const taskId = payload.data?.taskId;
         const action = payload.data?.action;
-        const title = payload.notification.title;
-        const body = payload.notification.body;
+        const title =
+          payload.notification?.title ||
+          payload.data?.title ||
+          "UniConnect Alert";
+        const body = payload.notification?.body || payload.data?.body || "";
 
         // 1. DEDUPLICATION (Local & Multi-tab)
         if (processedSourceIds.has(sourceId)) return;
@@ -603,19 +654,62 @@
 
                 {#if notificationPermission !== "granted"}
                   <div
-                    class="p-4 bg-indigo-50/50 dark:bg-indigo-900/20 border-b border-gray-100 dark:border-gray-700"
+                    class="p-5 bg-indigo-600 dark:bg-indigo-600 border-b border-indigo-500 shadow-inner"
                   >
-                    <p
-                      class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 leading-tight mb-3"
-                    >
-                      Receive real-time task alerts even when you're in other
-                      apps.
-                    </p>
+                    <div class="flex items-start gap-3 mb-4">
+                      <div class="p-2 bg-white/20 rounded-lg text-white">
+                        <svg
+                          class="w-5 h-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2.5"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                          /></svg
+                        >
+                      </div>
+                      <div class="flex-1">
+                        <h4
+                          class="text-[11px] font-black text-white uppercase tracking-wider mb-1"
+                        >
+                          System Alerts
+                        </h4>
+                        <p
+                          class="text-[10px] font-bold text-indigo-100 leading-snug"
+                        >
+                          Get Teams-style popups even when you are working in
+                          other apps.
+                        </p>
+                      </div>
+                    </div>
                     <button
                       onclick={requestPermission}
-                      class="w-full py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 animate-pulse-subtle"
+                      class="w-full py-2.5 bg-white text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-xl shadow-black/10 active:scale-95 animate-pulse-subtle"
                     >
                       Enable Desktop Alerts
+                    </button>
+                  </div>
+                {:else}
+                  <div
+                    class="p-3 bg-emerald-50/50 dark:bg-emerald-500/10 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between"
+                  >
+                    <div class="flex items-center gap-2">
+                      <div
+                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+                      ></div>
+                      <span
+                        class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest"
+                        >System Alerts Active</span
+                      >
+                    </div>
+                    <button
+                      onclick={testDesktopNotification}
+                      class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-2 py-1 rounded-md transition-all active:scale-95"
+                    >
+                      Send Test Popup
                     </button>
                   </div>
                 {/if}

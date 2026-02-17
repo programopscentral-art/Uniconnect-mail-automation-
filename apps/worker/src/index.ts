@@ -185,18 +185,33 @@ async function processCommunicationTasks() {
           continue;
         }
 
-        const message = {
+        const message: any = {
           notification: { title, body },
           data: {
             taskId: String(task.id),
             action: 'OPEN_TASK',
             sourceId: String(sourceId)
           },
+          webpush: {
+            notification: {
+              title,
+              body,
+              icon: '/nxtwave-logo.png',
+              badge: '/nxtwave-logo.png',
+              tag: sourceId,
+              renotify: true,
+              requireInteraction: notificationType === 'DUE' || notificationType.startsWith('OVERDUE'),
+              vibrate: [200, 100, 200]
+            },
+            fcm_options: {
+              link: `/communication-tasks/${task.id}`
+            }
+          },
           tokens: allTokens
         };
 
         const response = await admin.messaging().sendEachForMulticast(message);
-        console.log(`[COMM-SCHEDULER] Sent ${notificationType} push for task ${task.id}. Success: ${response.successCount}, Failure: ${response.failureCount}. Tokens used: ${allTokens.length}`);
+        console.log(`[COMM-SCHEDULER] Sent ${notificationType} rich push for task ${task.id}. Success: ${response.successCount}, Failure: ${response.failureCount}. Tokens: ${allTokens.length}`);
       } else {
         console.log(`[COMM-SCHEDULER] ⚠️ Skipping push for ${notificationType} (Task ${task.id}). Tokens: ${allTokens.length}, Firebase App: ${admin.apps.length > 0}`);
       }
