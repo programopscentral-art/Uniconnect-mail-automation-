@@ -35,9 +35,15 @@
       <div class="pr-2 {qidx > 0 ? 'mt-4 pt-4 border-t border-black/10' : ''}">
         <div class="flex gap-2">
           {#if q.sub_label}
-            <span class="font-bold min-w-[20px]">{q.sub_label}</span>
+            <span class="font-bold min-w-[20px]">{q.sub_label})</span>
           {/if}
-          <div class="flex-1">
+          <div class="flex-1 relative group">
+            <AssessmentRowActions
+              {isEditable}
+              onSwap={() => onSwap(q.id)}
+              onDelete={onRemove}
+              class="-left-8 top-0 scale-75"
+            />
             <AssessmentEditable
               value={q.text || q.question_text || ""}
               onUpdate={(v: string) => {

@@ -1,25 +1,25 @@
 <script lang="ts">
-  import { fade, slide } from "svelte/transition";
   import { dndzone } from "svelte-dnd-action";
   import { flip } from "svelte/animate";
+  import { fade, fly, slide } from "svelte/transition";
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
-  import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
-  import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
+  import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
+  import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
   let {
     paperMeta = $bindable({}),
     currentSetData = $bindable({ questions: [] }),
     paperStructure = $bindable([]),
+    activeSet = "A",
     courseOutcomes = [],
     questionPool = [],
     mode = "view",
-    activeSet = "A",
     onSwap = null,
   } = $props();
 
   function rebuildAnswerSheet() {
-    if (Array.isArray(currentSetData)) return; // Only for object-based sets
+    if (Array.isArray(currentSetData)) return;
 
     const arr = currentSetData.questions || [];
     const newAnswers: any[] = [];
@@ -54,121 +54,64 @@
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
   let swapCounter = $state(0);
-
-  let snoWidth = $derived(Number(paperMeta.colWidths?.sno || 35));
-  let isResizing = $state<string | null>(null);
-
-  $effect(() => {
-    if (!paperMeta.colWidths) paperMeta.colWidths = { sno: 35 };
-  });
-
   const isEditable = $derived(mode === "edit" || mode === "preview");
 
-  const sectionKeys = $derived.by(() => {
-    const keys = new Set<string>();
-    if (mode === "preview" || mode === "edit") {
-      (paperStructure || []).forEach((s: any) => {
-        if (s.part) keys.add(s.part);
-      });
-    }
-    const qs = (
+  function handleDndSync(part: string, items: any[]) {
+    const arr = (
       Array.isArray(currentSetData)
         ? currentSetData
         : currentSetData?.questions || []
     ).filter(Boolean);
-    qs.forEach((q: any) => {
-      if (q.part) keys.add(q.part);
-    });
+    const otherQuestions = arr.filter((q: any) => q.part !== part);
+    const result = [...otherQuestions, ...items.map((i) => ({ ...i, part }))];
+    if (Array.isArray(currentSetData)) currentSetData = result;
+    else currentSetData.questions = result;
 
-    if (keys.size === 0) return ["A", "B"];
-    return Array.from(keys).sort();
-  });
-
-  function handleDndSync(section: string, items: any[]) {
-    const otherQuestions = (currentSetData.questions || []).filter(
-      (q: any) => q.part !== section,
-    );
-    const result: any[] = [];
-    sectionKeys.forEach((s) => {
-      if (s === section) result.push(...items);
-      else result.push(...otherQuestions.filter((q: any) => q.part === s));
-    });
-    currentSetData.questions = result;
-  }
-
-  function onResizeStart(col: string, e: MouseEvent) {
-    if (!isEditable) return;
-    isResizing = col;
-    document.body.classList.add("cursor-col-resize");
-    window.addEventListener("mousemove", onResizing);
-    window.addEventListener("mouseup", onResizeEnd);
-  }
-
-  function onResizing(e: MouseEvent) {
-    if (!isResizing) return;
-    if (isResizing === "sno") {
-      paperMeta.colWidths.sno = Math.max(
-        25,
-        Math.min(80, (paperMeta.colWidths.sno || 35) + e.movementX),
-      );
+    if (onSwap) {
+      rebuildAnswerSheet();
+      onSwap($state.snapshot(currentSetData));
     }
   }
 
-  function onResizeEnd() {
-    isResizing = null;
-    document.body.classList.remove("cursor-col-resize");
-    window.removeEventListener("mousemove", onResizing);
-    window.removeEventListener("mouseup", onResizeEnd);
-  }
-
-  function getSectionConfig(partChar: string) {
-    return paperStructure.find((s: any) => s.part === partChar);
-  }
-
-  function updateSectionTitle(partChar: string, newTitle: string) {
-    const section = getSectionConfig(partChar);
-    if (section) section.title = newTitle;
-  }
-
-  function updateInstructions(partChar: string, newText: string) {
-    const section = getSectionConfig(partChar);
-    if (section) section.instructions = newText;
-  }
-
-  function getInstructionsMarks(section: string) {
-    const cfg = getSectionConfig(section);
-    if (cfg?.instructions_marks && cfg.instructions_marks !== "auto")
-      return cfg.instructions_marks;
-    const m = cfg?.marks_per_q || 2;
-    const count = cfg?.answered_count || 6;
-    return `${count} x ${m} = ${count * m}`;
-  }
-
-  function updateTextValue(
-    value: string,
+  function updateText(
+    val: string,
     type: "META" | "QUESTION",
-    field: string,
+    key: string,
     slotId?: string,
     qId?: string,
-    subPart?: "choice1" | "choice2",
   ) {
     if (!isEditable) return;
-    if (type === "META") {
-      (paperMeta as any)[field] = value;
-    } else {
-      const slot = currentSetData.questions.find((s: any) => s.id === slotId);
+    if (type === "META") (paperMeta as any)[key] = val;
+    else {
+      const arr = Array.isArray(currentSetData)
+        ? currentSetData
+        : currentSetData.questions;
+      const slot = arr.find((s: any) => s.id === slotId);
       if (!slot) return;
+
       let q: any = null;
       if (slot.type === "OR_GROUP") {
-        const choice = subPart === "choice1" ? slot.choice1 : slot.choice2;
-        q = choice.questions.find((item: any) => item.id === qId);
+        q =
+          (slot.choice1?.questions || []).find(
+            (item: any) => item.id === qId,
+          ) ||
+          (slot.choice2?.questions || []).find((item: any) => item.id === qId);
       } else {
         q = (slot.questions || [slot]).find((item: any) => item.id === qId);
       }
+
       if (q) {
-        q.text = value;
-        q.question_text = value;
-        currentSetData.questions = [...currentSetData.questions];
+        if (key === "marks" || key === "mark") {
+          q[key] = Number(val);
+        } else {
+          q[key] = val;
+          if (key === "text") q.question_text = val;
+          if (key === "question_text") q.text = val;
+        }
+
+        if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+        else currentSetData.questions = [...currentSetData.questions];
+
         if (onSwap) {
           rebuildAnswerSheet();
           onSwap($state.snapshot(currentSetData));
@@ -179,68 +122,119 @@
 
   function removeQuestion(slot: any) {
     if (!confirm("Are you sure?")) return;
-    currentSetData.questions = (currentSetData.questions || []).filter(
-      (s: any) => s.id !== slot.id,
-    );
+    if (Array.isArray(currentSetData))
+      currentSetData = currentSetData.filter((s: any) => s.id !== slot.id);
+    else
+      currentSetData.questions = currentSetData.questions.filter(
+        (s: any) => s.id !== slot.id,
+      );
+
     if (onSwap) {
       rebuildAnswerSheet();
       onSwap($state.snapshot(currentSetData));
     }
   }
-  function openSwapSidebar(slot: any, part: string, subPart?: "q1" | "q2") {
-    if (!slot) return;
-    const index = currentSetData.questions.findIndex(
-      (s: any) => s.id === slot.id,
-    );
-    if (index === -1) return;
-    let cQ =
-      slot.type === "OR_GROUP"
-        ? subPart === "q1"
-          ? slot.choice1?.questions?.[0]
-          : slot.choice2?.questions?.[0]
-        : slot.questions?.[0] || slot;
+
+  function openSwapSidebar(
+    slot: any,
+    part: string,
+    subPart?: "q1" | "q2",
+    subQuestionId?: string,
+  ) {
+    let targetQuestion = slot;
+    if (slot.type === "OR_GROUP") {
+      const choice = subPart === "q1" ? slot.choice1 : slot.choice2;
+      if (subQuestionId) {
+        targetQuestion = (choice.questions || []).find(
+          (q: any) => q.id === subQuestionId,
+        );
+      } else {
+        targetQuestion = choice.questions?.[0] || slot;
+      }
+    } else if (slot.questions?.length) {
+      targetQuestion = slot.questions[0];
+    }
+
     const marks = Number(
-      cQ?.marks || slot.marks || getSectionConfig(part)?.marks_per_q || 0,
+      targetQuestion?.marks ||
+        slot.marks ||
+        paperStructure.find((s: any) => s.part === part)?.marks_per_q ||
+        0,
     );
+    const arr = Array.isArray(currentSetData)
+      ? currentSetData
+      : currentSetData.questions;
+    const index = arr.findIndex((s: any) => s.id === slot.id);
+
     swapContext = {
       slotIndex: index,
       part,
       subPart,
+      subQuestionId,
       currentMark: marks,
-      currentId: cQ?.id,
+      currentId: targetQuestion?.id,
     };
     isSwapSidebarOpen = true;
   }
 
   function selectAlternate(question: any) {
     if (!swapContext) return;
-    const { slotIndex, subPart } = swapContext;
-    const nArr = [...currentSetData.questions];
-    let nSlot = { ...nArr[slotIndex] };
-
+    const arr = Array.isArray(currentSetData)
+      ? currentSetData
+      : currentSetData.questions;
+    let slot = arr[swapContext.slotIndex];
     const nQ = {
       id: question.id,
       text: question.question_text,
+      question_text: question.question_text,
       marks: question.marks,
-      type: question.type,
       options: question.options,
-      bloom: question.bloom_level,
       part: swapContext.part,
       image_url: question.image_url,
+      target_co: question.target_co || "CO1",
+      k_level: question.bloom_level || "KL1",
     };
 
+    const nArr = [...arr];
+    let nSlot = { ...nArr[swapContext.slotIndex] };
     if (nSlot.type === "OR_GROUP") {
       const choice =
-        subPart === "q1" ? { ...nSlot.choice1 } : { ...nSlot.choice2 };
-      choice.questions = [nQ];
-      if (subPart === "q1") nSlot.choice1 = choice;
+        swapContext.subPart === "q1"
+          ? { ...nSlot.choice1 }
+          : { ...nSlot.choice2 };
+      if (swapContext.subQuestionId) {
+        const qIdx = choice.questions.findIndex(
+          (q: any) => q.id === swapContext.subQuestionId,
+        );
+        if (qIdx !== -1) {
+          choice.questions = [...choice.questions];
+          choice.questions[qIdx] = nQ;
+        }
+      } else {
+        choice.questions = [nQ];
+      }
+      if (swapContext.subPart === "q1") nSlot.choice1 = choice;
       else nSlot.choice2 = choice;
     } else {
-      nSlot.questions = [nQ];
+      if (swapContext.subQuestionId && nSlot.questions) {
+        const qIdx = nSlot.questions.findIndex(
+          (q: any) => q.id === swapContext.subQuestionId,
+        );
+        if (qIdx !== -1) {
+          nSlot.questions = [...nSlot.questions];
+          nSlot.questions[qIdx] = {
+            ...nQ,
+            sub_label: nSlot.questions[qIdx].sub_label,
+          };
+        }
+      } else {
+        nSlot.questions = [nQ];
+      }
     }
-
-    nArr[slotIndex] = nSlot;
-    currentSetData = { ...currentSetData, questions: [...nArr] };
+    nArr[swapContext.slotIndex] = nSlot;
+    currentSetData = Array.isArray(currentSetData)
+      ? [...nArr]
+      : { ...currentSetData, questions: [...nArr] };
 
     if (onSwap) {
       rebuildAnswerSheet();
@@ -251,237 +245,351 @@
     isSwapSidebarOpen = false;
   }
 
-  function getQuestionNumber(qId: string) {
-    const qs = currentSetData.questions || [];
-    let total = 0;
-    for (const q of qs) {
-      if (q.id === qId) return total + 1;
-      total += q.type === "OR_GROUP" ? 2 : 1;
+  const getSN = (sectionQuestions: any[], slotIndex: number, sIdx: number) => {
+    let count = 1;
+    const allQs = Array.isArray(currentSetData)
+      ? currentSetData
+      : currentSetData?.questions || [];
+
+    for (let i = 0; i < sIdx; i++) {
+      const section = paperStructure[i];
+      const partQs = allQs.filter((q: any) => q.part === section.part);
+      partQs.forEach((q: any) => {
+        count += q.type === "OR_GROUP" ? 2 : 1;
+      });
     }
-    return 0;
-  }
+
+    const currentPart = paperStructure[sIdx].part;
+    const currentPartQs = allQs.filter((q: any) => q.part === currentPart);
+    for (let i = 0; i < slotIndex; i++) {
+      count += currentPartQs[i]?.type === "OR_GROUP" ? 2 : 1;
+    }
+
+    return count;
+  };
+
+  const questionsByPart = $derived((part: string) => {
+    const arr = Array.isArray(currentSetData)
+      ? currentSetData
+      : currentSetData?.questions || [];
+    return arr.filter((q: any) => q && q.part === part);
+  });
 </script>
 
 <div
-  class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-[#f8fafc] dark:bg-slate-950/50"
+  class="h-full overflow-hidden flex flex-col xl:flex-row relative bg-gray-100 dark:bg-slate-900/50"
 >
-  <div class="flex-1 overflow-auto p-4 sm:p-8 flex justify-center">
+  <div class="flex-1 overflow-auto p-4 sm:p-8">
     <div
-      id="cdu-paper-container"
-      class="bg-white min-h-[297mm] p-[5mm] shadow-2xl font-serif text-black relative"
-      style="width: 210mm;"
+      id="cdu-paper-actual"
+      class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
+      style="width: 8.27in; min-height: 11.69in;"
     >
-      <!-- Main Border Box -->
-      <div class="border-[1.5pt] border-black flex flex-col h-full bg-white">
-        <!-- Header -->
-        <div
-          class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative"
-        >
-          <div class="flex flex-col items-center mb-1">
-            <div class="font-bold text-[11pt] mb-1">Set - {activeSet}</div>
-            <div
-              class="text-[12pt] font-black text-black tracking-[0.2em] leading-none mb-1 uppercase"
-            >
-              CHAITANYA
-            </div>
-            <div
-              class="text-[10pt] font-bold text-black leading-none mb-2 uppercase"
-            >
-              (DEEMED TO BE UNIVERSITY)
-            </div>
-          </div>
+      <!-- Header (3-Column Table) -->
+      <div class="mb-6">
+        <table class="w-full border-none !border-0 mb-4">
+          <tbody class="!border-0">
+            <tr class="!border-0">
+              <!-- Left: Logo -->
+              <td class="w-[20%] !border-0 p-0 align-middle">
+                <img
+                  src="/cdu-logo.png"
+                  alt="University Logo"
+                  class="h-16 w-auto"
+                />
+              </td>
+              <!-- Center: Metadata -->
+              <td class="w-[60%] !border-0 p-0 text-center align-middle">
+                <div class="font-bold text-[11pt] mb-1 italic">
+                  Set - {activeSet}
+                </div>
+                <div
+                  class="font-bold uppercase text-[13pt] leading-tight mb-0.5"
+                >
+                  <AssessmentEditable
+                    value={paperMeta.university_name || "CHAITANYA"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "university_name")}
+                    class="w-full text-center"
+                  />
+                </div>
+                <div class="text-[10pt] mb-1">(DEEMED TO BE UNIVERSITY)</div>
+                <div class="font-bold text-[11pt] uppercase mb-1">
+                  <AssessmentEditable
+                    value={paperMeta.exam_title ||
+                      "I INTERNAL EXAMINATIONS-NOV -2024"}
+                    onUpdate={(v: string) =>
+                      updateText(v, "META", "exam_title")}
+                    class="w-full text-center"
+                  />
+                </div>
+              </td>
+              <!-- Right: Page Number/Info -->
+              <td
+                class="w-[20%] !border-0 p-0 text-right align-top text-[10pt] font-bold"
+              >
+                Page 1 of 1
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
-          <AssessmentEditable
-            value={paperMeta.exam_title || "I INTERNAL EXAMINATIONS-NOV -2024"}
-            onUpdate={(v: string) => updateTextValue(v, "META", "exam_title")}
-            class="text-[11pt] font-bold uppercase mt-1"
-          />
-
-          <div class="mt-1 flex flex-col items-center">
+        <!-- Sub-Metadata (Red Accents) -->
+        <div class="text-center space-y-0.5 mb-4">
+          <div class="font-bold text-[11pt] uppercase text-red-600">
             <AssessmentEditable
-              value={paperMeta.programme || "B.Tech(CSE) - I SEMESTER"}
-              onUpdate={(v: string) => updateTextValue(v, "META", "programme")}
-              class="text-[11pt] font-bold uppercase !text-red-600 print:!text-[#dc2626]"
+              value={paperMeta.programme_semester || "B.Tech(CSE) - I SEMESTER"}
+              onUpdate={(v: string) =>
+                updateText(v, "META", "programme_semester")}
+              class="w-full text-center"
             />
+          </div>
+          <div class="font-bold text-[11pt] uppercase text-red-600">
             <AssessmentEditable
               value={paperMeta.subject_name || "SUBJECT NAME"}
-              onUpdate={(v: string) =>
-                updateTextValue(v, "META", "subject_name")}
-              class="text-[11pt] font-bold uppercase !text-red-600 print:!text-[#dc2626]"
+              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+              class="w-full text-center"
             />
           </div>
-
-          <!-- Time & Marks Row -->
-          <div
-            class="mt-2 border-t-[1.5pt] border-black flex justify-between px-2 py-0.5 font-bold text-[10.5pt]"
-          >
-            <div class="flex items-center gap-1 group relative">
-              <span
-                class="text-[8pt] text-gray-400 opacity-0 group-hover:opacity-100 absolute -top-4 left-0 transition-opacity"
-                >V.2.3.1</span
-              >
-              <span>Time:</span>
-              <AssessmentEditable
-                value={paperMeta.duration_label || "1 ½ Hrs."}
-                onUpdate={(v: string) =>
-                  updateTextValue(v, "META", "duration_label")}
-                class="min-w-[40px] border-b border-dotted"
-              />
-              <span>]</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <span>[Max. Marks:</span>
-              <AssessmentEditable
-                value={paperMeta.max_marks || "20"}
-                onUpdate={(v: string) =>
-                  updateTextValue(v, "META", "max_marks")}
-                class="min-w-[20px] border-b border-dotted text-center"
-              />
-              <span>]</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sections -->
-        <div class="flex-1 flex flex-col">
-          {#each sectionKeys as section, sIdx}
-            {@const cfg = getSectionConfig(section)}
-            <!-- Section Header Bar -->
-            <div
-              class="bg-white border-b border-black py-0.5 text-center font-bold italic text-[10.5pt]"
-            >
-              <AssessmentEditable
-                value={cfg?.title || `Section - ${section}`}
-                onUpdate={(v: string) => updateSectionTitle(section, v)}
-                class="w-full text-center"
-              />
-            </div>
-
-            <!-- Instruction Bar -->
-            <div
-              class="flex justify-between items-center px-2 py-0.5 border-b border-black font-bold italic text-[10.5pt] bg-white"
-            >
-              <AssessmentEditable
-                value={cfg?.instructions ||
-                  (section === "B"
-                    ? "Answer the following Questions."
-                    : "Answer any six Questions.")}
-                onUpdate={(v: string) => updateInstructions(section, v)}
-                class="flex-1"
-              />
-              <AssessmentEditable
-                value={cfg?.instructions_marks || getInstructionsMarks(section)}
-                onUpdate={(v: string) => {
-                  if (cfg) {
-                    cfg.instructions_marks = v;
-                    paperStructure = [...paperStructure];
-                  }
-                }}
-                class="text-right"
-              />
-            </div>
-
-            <!-- Questions -->
-            <div
-              class="flex flex-col min-h-[50px]"
-              use:dndzone={{
-                items: (currentSetData?.questions || []).filter(
-                  (q: any) => q && q.part === section,
-                ),
-                flipDurationMs: 200,
-              }}
-              onconsider={(e) =>
-                handleDndSync(section, (e.detail as any).items)}
-              onfinalize={(e) =>
-                handleDndSync(section, (e.detail as any).items)}
-            >
-              {#key activeSet + swapCounter}
-                {#each currentSetData?.questions || [] as q (q.id + activeSet)}
-                  {#if q && q.part === section}
-                    <div class="border-b border-black">
-                      {#if q.type === "OR_GROUP"}
-                        <AssessmentSlotOrGroup
-                          slot={q}
-                          qNumber={getQuestionNumber(q.id)}
-                          {isEditable}
-                          {snoWidth}
-                          onSwap1={() => openSwapSidebar(q, section, "q1")}
-                          onSwap2={() => openSwapSidebar(q, section, "q2")}
-                          onRemove={() => removeQuestion(q)}
-                          onUpdateText1={(v: string, qid: string) =>
-                            updateTextValue(
-                              v,
-                              "QUESTION",
-                              "text",
-                              q.id,
-                              qid,
-                              "choice1",
-                            )}
-                          onUpdateText2={(v: string, qid: string) =>
-                            updateTextValue(
-                              v,
-                              "QUESTION",
-                              "text",
-                              q.id,
-                              qid,
-                              "choice2",
-                            )}
-                        />
-                      {:else}
-                        <AssessmentSlotSingle
-                          slot={q}
-                          qNumber={getQuestionNumber(q.id)}
-                          {isEditable}
-                          {snoWidth}
-                          onSwap={() => openSwapSidebar(q, section)}
-                          onRemove={() => removeQuestion(q)}
-                          onUpdateText={(v: string, qid: string) =>
-                            updateTextValue(v, "QUESTION", "text", q.id, qid)}
-                        />
-                      {/if}
-                    </div>
-                  {/if}
-                {:else}
-                  {#if mode === "preview" && cfg}
-                    {#each cfg.slots as slot}
-                      <div
-                        class="flex border-b border-black min-h-[30px] opacity-40 italic text-gray-400 font-bold bg-gray-50/20"
-                      >
-                        <div
-                          class="border-r border-black flex items-center justify-center font-bold"
-                          style="width: {snoWidth}px"
-                        >
-                          {slot.label}.
-                        </div>
-                        <div class="px-2 py-1 flex-1">
-                          [ {slot.type === "OR_GROUP"
-                            ? "OR Pair"
-                            : "Single Question"} ] - {slot.marks} Marks
-                        </div>
-                      </div>
-                    {/each}
-                  {/if}
-                {/each}
-              {/key}
-            </div>
-          {/each}
-        </div>
-
-        <div
-          class="mt-4 border-t border-black/10 pt-1 text-[8pt] text-center opacity-50 no-print"
-        >
-          V.2.3.1 - FINAL SYNC
         </div>
       </div>
 
-      {#if isEditable}
-        <div
-          class="absolute top-0 bottom-0 w-2 cursor-col-resize hover:bg-black/10 transition-colors z-[100] no-print"
-          style="left: {snoWidth + 19}px;"
-          onmousedown={(e) => onResizeStart("sno", e)}
-          role="none"
-        ></div>
-      {/if}
+      <div class="border-t border-black my-2"></div>
+
+      <!-- Time & Marks Row -->
+      <div
+        class="flex justify-between items-center font-bold text-[10.5pt] mb-6"
+      >
+        <div class="flex gap-1">
+          <span>Time:</span>
+          <AssessmentEditable
+            value={paperMeta.duration_text || "1 ½ Hrs."}
+            onUpdate={(v: string) => updateText(v, "META", "duration_text")}
+          />
+        </div>
+        <div class="flex gap-1">
+          <span>[Max. Marks:</span>
+          <AssessmentEditable
+            value={String(paperMeta.max_marks || "20")}
+            onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+          />
+          <span>]</span>
+        </div>
+      </div>
+
+      <!-- Sections -->
+      <div class="space-y-6">
+        {#each paperStructure as section, sIdx}
+          {@const sectionQs = questionsByPart(section.part)}
+          <div class="mb-4">
+            <!-- Section Label -->
+            <div class="text-center italic font-serif text-[11pt] mb-2">
+              Section - {section.part}
+            </div>
+
+            <!-- Section Question Table -->
+            <table
+              class="w-full border-collapse border border-black table-fixed"
+            >
+              <colgroup>
+                <col style="width: 45px;" />
+                <col style="width: auto;" />
+              </colgroup>
+              <thead>
+                <tr class="border-b border-black italic text-[10.5pt]">
+                  <th class="p-2 text-left font-normal" colspan="2">
+                    <div class="flex justify-between items-center w-full">
+                      <AssessmentEditable
+                        value={section.instructions ||
+                          section.title ||
+                          "Answer any six Questions."}
+                        onUpdate={(v: string) => {
+                          section.instructions = v;
+                          paperStructure = [...paperStructure];
+                        }}
+                      />
+                      <div class="font-bold not-italic">
+                        <AssessmentEditable
+                          value={section.marks_summary ||
+                            `${section.count || sectionQs.length} x ${section.marks_per_q} = ${section.total_marks || sectionQs.length * section.marks_per_q}`}
+                          onUpdate={(v: string) => {
+                            section.marks_summary = v;
+                            paperStructure = [...paperStructure];
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                use:dndzone={{
+                  items: sectionQs,
+                  flipDurationMs: 200,
+                  dragDisabled: !isEditable,
+                }}
+                onconsider={(e) => handleDndSync(section.part, e.detail.items)}
+                onfinalize={(e) => handleDndSync(section.part, e.detail.items)}
+              >
+                {#each sectionQs as slot, i (slot.id + activeSet + swapCounter)}
+                  {@const sn = getSN(sectionQs, i, sIdx)}
+
+                  {#if slot.type === "OR_GROUP"}
+                    {@const q1s = slot.choice1?.questions || []}
+                    {@const q2s = slot.choice2?.questions || []}
+
+                    <!-- Choice A -->
+                    {#each q1s as q, qIdx}
+                      <tr class="group/row">
+                        <td
+                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                        >
+                          {#if qIdx === 0}{sn}.{/if}
+                        </td>
+                        <td class="p-2 align-top relative">
+                          <AssessmentRowActions
+                            {isEditable}
+                            onSwap={() =>
+                              openSwapSidebar(slot, section.part, "q1", q.id)}
+                            onDelete={() => removeQuestion(slot)}
+                            class="!-left-10 !top-2 scale-75"
+                          />
+                          <div class="text-[10.5pt] leading-relaxed">
+                            <div class="flex gap-2">
+                              {#if q.sub_label}
+                                <span class="font-bold">{q.sub_label})</span>
+                              {/if}
+                              <div class="flex-1">
+                                <AssessmentEditable
+                                  value={q.text || q.question_text || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "text",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    {/each}
+
+                    <!-- OR Row -->
+                    <tr>
+                      <td
+                        class="border-r border-black p-1 text-center font-bold text-[10pt] uppercase"
+                        colspan="2"
+                      >
+                        OR
+                      </td>
+                    </tr>
+
+                    <!-- Choice B -->
+                    {#each q2s as q, qIdx}
+                      <tr
+                        class="group/row border-b border-black last:border-b-0"
+                      >
+                        <td
+                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                        >
+                          {#if qIdx === 0}{sn + 1}.{/if}
+                        </td>
+                        <td class="p-2 align-top relative">
+                          <AssessmentRowActions
+                            {isEditable}
+                            onSwap={() =>
+                              openSwapSidebar(slot, section.part, "q2", q.id)}
+                            onDelete={() => removeQuestion(slot)}
+                            class="!-left-10 !top-2 scale-75"
+                          />
+                          <div class="text-[10.5pt] leading-relaxed">
+                            <div class="flex gap-2">
+                              {#if q.sub_label}
+                                <span class="font-bold">{q.sub_label})</span>
+                              {/if}
+                              <div class="flex-1">
+                                <AssessmentEditable
+                                  value={q.text || q.question_text || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "text",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    {/each}
+                  {:else}
+                    <!-- Single Question Slot -->
+                    {@const qs = slot.questions || [slot]}
+                    {#each qs as q, qIdx}
+                      <tr
+                        class="group/row border-b border-black last:border-b-0"
+                      >
+                        <td
+                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                        >
+                          {#if qIdx === 0}{sn}.{/if}
+                        </td>
+                        <td class="p-2 align-top relative">
+                          <AssessmentRowActions
+                            {isEditable}
+                            onSwap={() =>
+                              openSwapSidebar(
+                                slot,
+                                section.part,
+                                undefined,
+                                q.id,
+                              )}
+                            onDelete={() => removeQuestion(slot)}
+                            class="!-left-10 !top-2 scale-75"
+                          />
+                          <div class="text-[10.5pt] leading-relaxed">
+                            <div class="flex gap-2">
+                              {#if q.sub_label}
+                                <span class="font-bold">{q.sub_label})</span>
+                              {/if}
+                              <div class="flex-1">
+                                <AssessmentEditable
+                                  value={q.text || q.question_text || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "text",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                />
+                              </div>
+                            </div>
+                            <div class="mt-2 pl-4">
+                              <AssessmentMcqOptions options={q.options} />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    {/each}
+                  {/if}
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 
@@ -500,27 +608,30 @@
     font-display: swap;
     src: local("Times New Roman");
   }
-  #cdu-paper-container {
+  #cdu-paper-actual {
     font-family: "Times New Roman", Times, serif;
-    color: black;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-
-  /* Improve visibility of question text */
-  :global(.question-text-content) {
-    font-weight: 500 !important;
-    color: #000 !important;
+  #cdu-paper-actual * {
+    color: black !important;
+    border-color: black !important;
   }
-
-  @media print {
-    .no-print {
-      display: none !important;
-    }
-    #cdu-paper-container {
-      padding: 0 !important;
-      margin: 0 !important;
-      width: 100% !important;
-      box-shadow: none !important;
-      color: black !important;
-    }
+  #cdu-paper-actual table,
+  #cdu-paper-actual tr,
+  #cdu-paper-actual td,
+  #cdu-paper-actual th {
+    border: 1px solid black !important;
+    border-collapse: collapse !important;
+  }
+  #cdu-paper-actual :global(.assessment-editable-container) {
+    font-weight: inherit;
+    color: black !important;
+    border: none !important;
+    background: transparent !important;
+  }
+  .text-red-600 {
+    color: #dc2626 !important;
   }
 </style>

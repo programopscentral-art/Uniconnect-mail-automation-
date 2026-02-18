@@ -54,6 +54,7 @@
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
   let swapCounter = $state(0);
+  let showSolutions = $state(false);
   const isEditable = $derived(mode === "edit" || mode === "preview");
 
   function handleDndSync(part: string, items: any[]) {
@@ -101,8 +102,14 @@
       }
 
       if (q) {
-        q.text = val;
-        q.question_text = val;
+        if (key === "marks" || key === "mark") {
+          q[key] = Number(val);
+        } else {
+          q[key] = val;
+          if (key === "text") q.question_text = val;
+          if (key === "question_text") q.text = val;
+        }
+
         if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
         else currentSetData.questions = [...currentSetData.questions];
 
@@ -179,10 +186,13 @@
     let slot = arr[swapContext.slotIndex];
     const nQ = {
       id: question.id,
+      question_id: question.id,
       text: question.question_text,
       question_text: question.question_text,
       marks: question.marks,
       options: question.options,
+      answer_key: question.answer_key || "",
+      explanation: question.explanation || "",
       part: swapContext.part,
       image_url: question.image_url,
       target_co: question.target_co || "CO1",
@@ -210,7 +220,20 @@
       if (swapContext.subPart === "q1") nSlot.choice1 = choice;
       else nSlot.choice2 = choice;
     } else {
-      nSlot.questions = [nQ];
+      if (swapContext.subQuestionId && nSlot.questions) {
+        const qIdx = nSlot.questions.findIndex(
+          (q: any) => q.id === swapContext.subQuestionId,
+        );
+        if (qIdx !== -1) {
+          nSlot.questions = [...nSlot.questions];
+          nSlot.questions[qIdx] = {
+            ...nQ,
+            sub_label: nSlot.questions[qIdx].sub_label,
+          };
+        }
+      } else {
+        nSlot.questions = [nQ];
+      }
     }
     nArr[swapContext.slotIndex] = nSlot;
     currentSetData = Array.isArray(currentSetData)
@@ -236,17 +259,11 @@
     for (let i = 0; i < sIdx; i++) {
       const section = paperStructure[i];
       const partQs = allQs.filter((q: any) => q.part === section.part);
-      partQs.forEach((q: any) => {
-        count += q.type === "OR_GROUP" ? 2 : 1;
-      });
+      count += partQs.length;
     }
 
     // Count numbers in current section up to slotIndex
-    const currentPart = paperStructure[sIdx].part;
-    const currentPartQs = allQs.filter((q: any) => q.part === currentPart);
-    for (let i = 0; i < slotIndex; i++) {
-      count += currentPartQs[i]?.type === "OR_GROUP" ? 2 : 1;
-    }
+    count += slotIndex;
 
     return count;
   };
@@ -271,9 +288,50 @@
   <div class="flex-1 overflow-auto p-4 sm:p-8">
     <div
       id="crescent-mid-paper-actual"
-      class="mx-auto bg-white p-[0.5in] shadow-2xl transition-all duration-500 font-serif text-black relative"
+      class="mx-auto space-y-4 p-8 bg-white text-black min-h-[1100px] relative shadow-lg transition-all duration-500 font-serif"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      <div class="no-print absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          onclick={() => (showSolutions = !showSolutions)}
+          class="flex items-center gap-2 px-4 py-2 rounded-lg border transition-all {showSolutions
+            ? 'bg-blue-600 text-white border-blue-700'
+            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}"
+        >
+          {#if showSolutions}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><path
+                d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"
+              ></path><path d="m9 12 2 2 4-4"></path></svg
+            >
+            Solutions Mode: ON
+          {:else}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              ><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"
+              ></path><path d="m9 9 6 6"></path></svg
+            >
+            Solutions Mode: OFF
+          {/if}
+        </button>
+      </div>
       <!-- Header -->
       <div class="relative mb-4">
         <div class="flex justify-center">
@@ -460,14 +518,27 @@
 
                     <!-- Choice A -->
                     {#each q1s as q, qIdx}
-                      <tr class="group/row">
+                      <tr
+                        class="group/row"
+                        style={qIdx === q1s.length - 1
+                          ? "border-bottom: none;"
+                          : ""}
+                      >
                         <td
                           class="border-r border-black p-3 w-[50px] align-top text-center text-[10pt] font-bold"
                         >
-                          {#if qIdx === 0}{sn}.{/if}
+                          {#if qIdx === 0}{sn}.a{/if}
                         </td>
+                        {#if q1s.length > 1}
+                          <td
+                            class="border-r border-black p-3 w-[40px] align-top text-center text-[10.5pt] font-bold"
+                          >
+                            ({getRomanLabel(qIdx)})
+                          </td>
+                        {/if}
                         <td
-                          colspan={section.part === "A" ? 3 : 2}
+                          colspan={(q1s.length > 1 ? 1 : 2) +
+                            (section.part === "A" ? 1 : 0)}
                           class="border-r border-black p-3 align-top relative"
                         >
                           <AssessmentRowActions
@@ -490,53 +561,123 @@
                                 )}
                               multiline={true}
                             />
+                            {#if q.options?.length > 0}
+                              <div class="mt-2 pl-4">
+                                <AssessmentMcqOptions options={q.options} />
+                              </div>
+                            {/if}
+
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase tracking-wider mb-1 text-blue-600"
+                                >
+                                  Solution / Answer Key
+                                </div>
+                                <AssessmentEditable
+                                  value={q.answer_key || q.answer || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "answer_key",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                  class="!text-[9.5pt]"
+                                />
+                              </div>
+                            {/if}
                           </div>
                         </td>
                         {#if section.part !== "A"}
                           <td
-                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold"
+                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold whitespace-nowrap"
+                            >(<AssessmentEditable
+                              value={String(
+                                q.marks || section.marks_per_q || "",
+                              )}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "marks",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              class="!inline-block min-w-[1ch] text-center"
+                            />)</td
                           >
-                            ({q.marks || section.marks_per_q})
-                          </td>
                         {/if}
                         <td
                           class="border-r border-black p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.target_co || "CO1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.target_co || "CO1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "target_co",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                         <td
                           class="p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.k_level || "KL1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.k_level || "KL1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "k_level",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                       </tr>
                     {/each}
 
                     <!-- (OR) -->
                     <tr>
-                      <td class="border-r border-black p-0 h-6"></td>
                       <td
-                        colspan={section.part === "A" ? 3 : 2}
-                        class="border-r border-black p-1 text-center font-bold text-[9pt] uppercase"
-                        >(OR)</td
+                        colspan="6"
+                        class="p-1 text-center font-bold text-[9pt] uppercase"
+                        style="border-top: none; border-bottom: none;">(OR)</td
                       >
-                      {#if section.part !== "A"}
-                        <td class="border-r border-black p-0 h-6"></td>
-                      {/if}
-                      <td class="border-r border-black p-0 h-6"></td>
-                      <td class="p-0 h-6"></td>
                     </tr>
 
                     <!-- Choice B -->
                     {#each q2s as q, qIdx}
                       <tr
                         class="group/row border-b border-black last:border-b-0"
+                        style={qIdx === 0 ? "border-top: none;" : ""}
                       >
                         <td
                           class="border-r border-black p-3 w-[50px] align-top text-center text-[10pt] font-bold"
+                          style={qIdx === 0 ? "border-top: none;" : ""}
                         >
-                          {#if qIdx === 0}{sn + 1}.{/if}
+                          {#if qIdx === 0}b{/if}
                         </td>
+                        {#if q2s.length > 1}
+                          <td
+                            class="border-r border-black p-3 w-[40px] align-top text-center text-[10.5pt] font-bold"
+                          >
+                            ({getRomanLabel(qIdx)})
+                          </td>
+                        {/if}
                         <td
-                          colspan={section.part === "A" ? 3 : 2}
+                          colspan={(q2s.length > 1 ? 1 : 2) +
+                            (section.part === "A" ? 1 : 0)}
                           class="border-r border-black p-3 align-top relative"
                         >
                           <AssessmentRowActions
@@ -559,23 +700,89 @@
                                 )}
                               multiline={true}
                             />
+                            {#if q.options?.length > 0}
+                              <div class="mt-2 pl-4">
+                                <AssessmentMcqOptions options={q.options} />
+                              </div>
+                            {/if}
+
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase tracking-wider mb-1 text-blue-600"
+                                >
+                                  Solution / Answer Key
+                                </div>
+                                <AssessmentEditable
+                                  value={q.answer_key || q.answer || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "answer_key",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                  class="!text-[9.5pt]"
+                                />
+                              </div>
+                            {/if}
                           </div>
                         </td>
                         {#if section.part !== "A"}
                           <td
-                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold"
+                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold whitespace-nowrap"
+                            >(<AssessmentEditable
+                              value={String(
+                                q.marks || section.marks_per_q || "",
+                              )}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "marks",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              class="!inline-block min-w-[1ch] text-center"
+                            />)</td
                           >
-                            ({q.marks || section.marks_per_q})
-                          </td>
                         {/if}
                         <td
                           class="border-r border-black p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.target_co || "CO1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.target_co || "CO1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "target_co",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                         <td
                           class="p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.k_level || "KL1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.k_level || "KL1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "k_level",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                       </tr>
                     {/each}
                   {:else}
@@ -590,13 +797,27 @@
                         >
                           {#if qIdx === 0}{sn}.{/if}
                         </td>
+                        {#if qs.length > 1}
+                          <td
+                            class="border-r border-black p-3 w-[40px] align-top text-center text-[10.5pt] font-bold"
+                          >
+                            ({getRomanLabel(qIdx)})
+                          </td>
+                        {/if}
                         <td
-                          colspan={section.part === "A" ? 3 : 2}
+                          colspan={(qs.length > 1 ? 1 : 2) +
+                            (section.part === "A" ? 1 : 0)}
                           class="border-r border-black p-3 align-top relative"
                         >
                           <AssessmentRowActions
                             {isEditable}
-                            onSwap={() => openSwapSidebar(slot, section.part)}
+                            onSwap={() =>
+                              openSwapSidebar(
+                                slot,
+                                section.part,
+                                undefined,
+                                q.id,
+                              )}
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
@@ -613,26 +834,89 @@
                                 )}
                               multiline={true}
                             />
-                            <div class="mt-2">
-                              <AssessmentMcqOptions options={q.options} />
-                            </div>
+                            {#if q.options?.length > 0}
+                              <div class="mt-2 pl-4">
+                                <AssessmentMcqOptions options={q.options} />
+                              </div>
+                            {/if}
+
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase tracking-wider mb-1 text-blue-600"
+                                >
+                                  Solution / Answer Key
+                                </div>
+                                <AssessmentEditable
+                                  value={q.answer_key || q.answer || ""}
+                                  onUpdate={(v: string) =>
+                                    updateText(
+                                      v,
+                                      "QUESTION",
+                                      "answer_key",
+                                      slot.id,
+                                      q.id,
+                                    )}
+                                  multiline={true}
+                                  class="!text-[9.5pt]"
+                                />
+                              </div>
+                            {/if}
                           </div>
                         </td>
                         {#if section.part !== "A"}
                           <td
-                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold"
+                            class="border-r border-black p-3 text-center align-top text-[10pt] font-bold whitespace-nowrap"
+                            >(<AssessmentEditable
+                              value={String(
+                                q.marks || section.marks_per_q || "",
+                              )}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "marks",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              class="!inline-block min-w-[1ch] text-center"
+                            />)</td
                           >
-                            ({q.marks || section.marks_per_q})
-                          </td>
                         {/if}
                         <td
                           class="border-r border-black p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.target_co || "CO1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.target_co || "CO1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "target_co",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                         <td
                           class="p-3 text-center align-top text-[9pt] font-bold"
-                          >{q.k_level || "KL1"}</td
                         >
+                          <AssessmentEditable
+                            value={q.k_level || "KL1"}
+                            onUpdate={(v: string) =>
+                              updateText(
+                                v,
+                                "QUESTION",
+                                "k_level",
+                                slot.id,
+                                q.id,
+                              )}
+                            class="inline-block min-w-[3ch] text-center"
+                          />
+                        </td>
                       </tr>
                     {/each}
                   {/if}

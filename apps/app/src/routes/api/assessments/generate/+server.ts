@@ -152,17 +152,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 searchType = 'FILL_IN_BLANK';
             } else if (sTypeScrubbed === 'MCQ') {
                 searchType = 'MCQ';
-            } else if (sTypeScrubbed === 'VERYSHORT' || sTypeScrubbed === 'SHORT') {
+            } else if (sTypeScrubbed.includes('VERYSHORT') || sTypeScrubbed === 'VS') {
+                searchType = 'VERY_SHORT';
+            } else if (sTypeScrubbed === 'SHORT') {
                 searchType = 'SHORT';
-            } else if (sTypeScrubbed === 'VERYLONG' || sTypeScrubbed === 'LONG' || sTypeScrubbed === 'PARAGRAPH') {
+            } else if (sTypeScrubbed.includes('VERYLONG') || sTypeScrubbed === 'VL') {
+                searchType = 'VERY_LONG';
+            } else if (sTypeScrubbed === 'LONG' || sTypeScrubbed === 'PARAGRAPH') {
                 searchType = 'LONG';
             }
 
             const targetBloom = bloom?.toUpperCase() === 'ANY' ? null : bloom?.toUpperCase();
 
-            const isMatch = (q: any, unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
-                // 1. Marks must ALWAYS match
-                if (Math.round(Number(q.marks)) !== Math.round(Number(targetMarks))) return false;
+            const isMatch = (q: any, unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean, strictMarks: boolean) => {
+                // 1. Marks check (Optional Tier)
+                if (strictMarks) {
+                    if (Math.round(Number(q.marks)) !== Math.round(Number(targetMarks))) return false;
+                }
 
                 // 2. Unit check
                 if (unitFilter && q.unit_id !== unitFilter) return false;
@@ -178,11 +184,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     } else if (searchType === 'FILL_IN_BLANK') {
                         const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
                         if (!isFib) return false;
+                    } else if (searchType === 'VERY_SHORT') {
+                        const isVS = qTypeScrubbed === 'VERYSHORT' || qTypeScrubbed === 'VERY_SHORT' || (Number(q.marks) <= 2);
+                        if (!isVS) return false;
                     } else if (searchType === 'SHORT') {
-                        const isShort = qTypeScrubbed === 'SHORT' || qTypeScrubbed === 'VERYSHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 4);
+                        const isShort = qTypeScrubbed === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 4);
                         if (!isShort) return false;
+                    } else if (searchType === 'VERY_LONG') {
+                        const isVL = qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || Number(q.marks) >= 10;
+                        if (!isVL) return false;
                     } else if (searchType === 'LONG') {
-                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'PARAGRAPH' || Number(q.marks) >= 5;
+                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || qTypeScrubbed === 'PARAGRAPH' || Number(q.marks) >= 5;
                         if (!isLong) return false;
                     }
                 }
@@ -202,8 +214,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return true;
             };
 
-            const findInPool = (unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean) => {
-                let candidates = pool.filter(q => isMatch(q, unitFilter, strictType, strictBloom, strictCo));
+            const findInPool = (unitFilter: string | null, strictType: boolean, strictBloom: boolean, strictCo: boolean, strictMarks: boolean) => {
+                let candidates = pool.filter(q => isMatch(q, unitFilter, strictType, strictBloom, strictCo, strictMarks));
 
                 // Shuffle candidates
                 for (let i = candidates.length - 1; i > 0; i--) {
@@ -224,28 +236,38 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // TIERED SEARCH
             const uId = preferredUnitId !== 'Auto' ? preferredUnitId : null;
 
-            // 1. All Strict (Unit + Type + Bloom + CO)
-            let choice = findInPool(uId, true, true, true);
+            // 1. All Strict (Unit + Type + Bloom + CO + MARKS)
+            let choice = findInPool(uId, true, true, true, true);
 
             // 2. Relax CO
-            if (!choice && co_id) choice = findInPool(uId, true, true, false);
+            if (!choice && co_id) choice = findInPool(uId, true, true, false, true);
 
             // 3. Relax Bloom
-            if (!choice && targetBloom) choice = findInPool(uId, true, false, false);
+            if (!choice && targetBloom) choice = findInPool(uId, true, false, false, true);
 
-            // 4. Relax Unit (Try any allowed unit)
+            // 4. RELAX MARKS (Prioritize Type over Marks)
+            if (!choice) choice = findInPool(uId, true, true, true, false) ||
+                findInPool(uId, true, false, false, false);
+
+            // 5. Relax Unit (Try any allowed unit)
             if (!choice && uId) {
-                choice = findInPool(null, true, true, true) ||
-                    findInPool(null, true, false, false);
+                choice = findInPool(null, true, true, true, true) ||
+                    findInPool(null, true, false, false, false);
             }
 
-            // 5. Relax Type
-            if (!choice) choice = findInPool(null, false, false, false);
+            // 6. Relax Type (Last resort)
+            if (!choice) choice = findInPool(null, false, false, false, false);
 
-            // 6. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness)
+            // 7. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness)
             if (!choice) {
-                let candidates = pool.filter(q => Math.round(Number(q.marks)) === Math.round(Number(targetMarks)));
-                // Shuffle fallback candidates to avoid picking the same repeats for every set
+                // Try finding any question that matches the searched type (even if marks differ)
+                let candidates = pool.filter(q => isMatch(q, null, true, false, false, false));
+
+                // If still nothing, take anything of some similarity
+                if (candidates.length === 0) {
+                    candidates = pool.filter(q => Math.round(Number(q.marks)) === Math.round(Number(targetMarks)));
+                }
+
                 for (let i = candidates.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
@@ -298,65 +320,173 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const uId = slot.unit === 'Auto' ? (unit_ids[unitIdx++ % unit_ids.length] || questionsRes.rows[0]?.unit_id) : slot.unit;
 
                     if (slot.type === 'OR_GROUP') {
-                        const q1 = globalPickOrSwap({
-                            pool: allQuestions,
-                            qType: slot.choices[0].qType,
-                            targetMarks: slot.choices[0].marks,
-                            bloom: slot.choices[0].bloom,
-                            co_id: slot.choices[0].co_id,
-                            preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
-                            allowedUnitIds: unit_ids,
-                            sectionTitle: section.title,
-                            slotId: `${slot.id}_C1`,
-                            setName,
-                            setQuestions
-                        });
-                        const q2 = globalPickOrSwap({
-                            pool: allQuestions,
-                            qType: slot.choices[1].qType,
-                            targetMarks: slot.choices[1].marks,
-                            bloom: slot.choices[1].bloom,
-                            co_id: slot.choices[1].co_id,
-                            preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
-                            allowedUnitIds: unit_ids,
-                            sectionTitle: section.title,
-                            slotId: `${slot.id}_C2`,
-                            setName,
-                            setQuestions
-                        });
+                        const questions1 = [];
+                        const questions2 = [];
+
+                        // Choice 1
+                        if (slot.choices[0].hasSubQuestions) {
+                            const qa = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[0].qType,
+                                targetMarks: slot.choices[0].marks_a,
+                                bloom: slot.choices[0].bloom,
+                                co_id: slot.choices[0].co_id,
+                                preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C1_a`,
+                                setName,
+                                setQuestions
+                            });
+                            const qb = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[0].qType,
+                                targetMarks: slot.choices[0].marks_b,
+                                bloom: slot.choices[0].bloom,
+                                co_id: slot.choices[0].co_id,
+                                preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C1_b`,
+                                setName,
+                                setQuestions
+                            });
+                            qa.sub_label = 'a';
+                            qb.sub_label = 'b';
+                            questions1.push(qa, qb);
+                        } else {
+                            const q = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[0].qType,
+                                targetMarks: slot.choices[0].marks,
+                                bloom: slot.choices[0].bloom,
+                                co_id: slot.choices[0].co_id,
+                                preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C1`,
+                                setName,
+                                setQuestions
+                            });
+                            questions1.push(q);
+                        }
+
+                        // Choice 2
+                        if (slot.choices[1].hasSubQuestions) {
+                            const qa = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[1].qType,
+                                targetMarks: slot.choices[1].marks_a,
+                                bloom: slot.choices[1].bloom,
+                                co_id: slot.choices[1].co_id,
+                                preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C2_a`,
+                                setName,
+                                setQuestions
+                            });
+                            const qb = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[1].qType,
+                                targetMarks: slot.choices[1].marks_b,
+                                bloom: slot.choices[1].bloom,
+                                co_id: slot.choices[1].co_id,
+                                preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C2_b`,
+                                setName,
+                                setQuestions
+                            });
+                            qa.sub_label = 'a';
+                            qb.sub_label = 'b';
+                            questions2.push(qa, qb);
+                        } else {
+                            const q = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.choices[1].qType,
+                                targetMarks: slot.choices[1].marks,
+                                bloom: slot.choices[1].bloom,
+                                co_id: slot.choices[1].co_id,
+                                preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_C2`,
+                                setName,
+                                setQuestions
+                            });
+                            questions2.push(q);
+                        }
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'OR_GROUP', part, marks: slot.marks,
-                            choice1: { questions: [q1] },
-                            choice2: { questions: [q2] }
+                            choice1: { questions: questions1 },
+                            choice2: { questions: questions2 }
                         });
 
-                        if (q1.options?.length > 0 || q1.answer_key) setAnswerSheet.push({ questionId: q1.id, correctOption: q1.answer_key || '', explanation: q1.explanation || '' });
-                        if (q2.options?.length > 0 || q2.answer_key) setAnswerSheet.push({ questionId: q2.id, correctOption: q2.answer_key || '', explanation: q2.explanation || '' });
+                        questions1.forEach(q => { if (q.options?.length > 0 || q.answer_key) setAnswerSheet.push({ questionId: q.id, correctOption: q.answer_key || '', explanation: q.explanation || '' }); });
+                        questions2.forEach(q => { if (q.options?.length > 0 || q.answer_key) setAnswerSheet.push({ questionId: q.id, correctOption: q.answer_key || '', explanation: q.explanation || '' }); });
 
                     } else {
-                        const q = globalPickOrSwap({
-                            pool: allQuestions,
-                            qType: slot.qType,
-                            targetMarks: slot.marks,
-                            bloom: slot.bloom,
-                            co_id: slot.co_id,
-                            preferredUnitId: uId,
-                            allowedUnitIds: unit_ids,
-                            sectionTitle: section.title,
-                            slotId: slot.id,
-                            setName,
-                            setQuestions
-                        });
+                        const questions = [];
+                        if (slot.hasSubQuestions) {
+                            const qa = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.qType,
+                                targetMarks: slot.marks_a,
+                                bloom: slot.bloom,
+                                co_id: slot.co_id,
+                                preferredUnitId: uId,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_a`,
+                                setName,
+                                setQuestions
+                            });
+                            const qb = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.qType,
+                                targetMarks: slot.marks_b,
+                                bloom: slot.bloom,
+                                co_id: slot.co_id,
+                                preferredUnitId: uId,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: `${slot.id}_b`,
+                                setName,
+                                setQuestions
+                            });
+                            qa.sub_label = 'a';
+                            qb.sub_label = 'b';
+                            questions.push(qa, qb);
+                        } else {
+                            const q = globalPickOrSwap({
+                                pool: allQuestions,
+                                qType: slot.qType,
+                                targetMarks: slot.marks,
+                                bloom: slot.bloom,
+                                co_id: slot.co_id,
+                                preferredUnitId: uId,
+                                allowedUnitIds: unit_ids,
+                                sectionTitle: section.title,
+                                slotId: slot.id,
+                                setName,
+                                setQuestions
+                            });
+                            questions.push(q);
+                        }
 
                         setQuestions.push({
                             id: slot.id, slot_id: slot.id, type: 'SINGLE', part, marks: slot.marks,
-                            questions: [q]
+                            questions
                         });
 
-                        if (q.options?.length > 0 || q.answer_key) {
-                            setAnswerSheet.push({ questionId: q.id, correctOption: q.answer_key || '', explanation: q.explanation || '' });
-                        }
+                        questions.forEach(q => {
+                            if (q.options?.length > 0 || q.answer_key) {
+                                setAnswerSheet.push({ questionId: q.id, correctOption: q.answer_key || '', explanation: q.explanation || '' });
+                            }
+                        });
                     }
                 }
             }

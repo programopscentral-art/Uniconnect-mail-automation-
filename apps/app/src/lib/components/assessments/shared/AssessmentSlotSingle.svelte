@@ -29,32 +29,77 @@
     {qNumber}.
   </div>
   <div class="flex-1 px-4 py-2 {textClass} relative group whitespace-pre-wrap">
-    <AssessmentRowActions {isEditable} {onSwap} onDelete={onRemove} />
-    <AssessmentEditable
-      value={slot.questions?.[0]?.text ||
-        slot.questions?.[0]?.question_text ||
-        slot.text ||
-        ""}
-      onUpdate={(v: string) => {
-        const target = slot.questions?.[0] || slot;
-        target.text = v;
-        target.question_text = v;
-        if (onUpdateText) onUpdateText(v, target.id);
-      }}
-      multiline={true}
-      class="question-text-content"
-    />
-    <AssessmentMcqOptions
-      options={slot.questions?.[0]?.options || slot.options}
-    />
-    {#if slot.questions?.[0]?.image_url || slot.image_url}
-      <div class="mt-2 max-w-full overflow-hidden">
-        <img
-          src={slot.questions?.[0]?.image_url || slot.image_url}
-          alt="Question"
-          class="max-h-[300px] object-contain"
-        />
+    {#if slot.questions && slot.questions.length > 0}
+      <div class="flex flex-col gap-4">
+        {#each slot.questions as q, i}
+          <div
+            class="relative group/q {i > 0
+              ? 'pt-4 border-t border-black/5'
+              : ''}"
+          >
+            <AssessmentRowActions
+              {isEditable}
+              onSwap={() => onSwap(q.id)}
+              onDelete={onRemove}
+              class="-left-8 top-0 scale-75 opacity-0 group-hover/q:opacity-100 transition-opacity"
+            />
+            <div class="flex gap-2">
+              {#if q.sub_label}
+                <span class="font-bold text-gray-500 min-w-[1.2rem]"
+                  >{q.sub_label})</span
+                >
+              {/if}
+              <div class="flex-1">
+                <AssessmentEditable
+                  value={q.text || q.question_text || ""}
+                  onUpdate={(v: string) => {
+                    q.text = v;
+                    q.question_text = v;
+                    if (onUpdateText) onUpdateText(v, q.id);
+                  }}
+                  multiline={true}
+                  class="question-text-content"
+                />
+                <AssessmentMcqOptions options={q.options} />
+                {#if q.image_url}
+                  <div class="mt-2 max-w-full overflow-hidden">
+                    <img
+                      src={q.image_url}
+                      alt="Question"
+                      class="max-h-[300px] object-contain"
+                    />
+                  </div>
+                {/if}
+              </div>
+              {#if slot.questions.length > 1}
+                <div
+                  class="text-[9pt] font-bold text-gray-400 tabular-nums ml-2"
+                >
+                  (<AssessmentEditable
+                    value={String(q.marks || "")}
+                    onUpdate={(v: string) => {
+                      q.marks = Number(v);
+                    }}
+                    class="inline-block min-w-[1ch] text-center"
+                  />)
+                </div>
+              {/if}
+            </div>
+          </div>
+        {/each}
       </div>
+    {:else}
+      <AssessmentRowActions {isEditable} {onSwap} onDelete={onRemove} />
+      <AssessmentEditable
+        value={slot.text || ""}
+        onUpdate={(v: string) => {
+          slot.text = v;
+          if (onUpdateText) onUpdateText(v, slot.id);
+        }}
+        multiline={true}
+        class="question-text-content"
+      />
+      <AssessmentMcqOptions options={slot.options} />
     {/if}
   </div>
   <div
@@ -62,10 +107,8 @@
   >
     <span>(</span>
     <AssessmentEditable
-      value={String(slot.questions?.[0]?.marks || slot.marks || "")}
+      value={String(slot.marks || "")}
       onUpdate={(v: string) => {
-        const target = slot.questions?.[0] || slot;
-        target.marks = Number(v);
         slot.marks = Number(v);
       }}
       class="inline-block min-w-[1ch] text-center"

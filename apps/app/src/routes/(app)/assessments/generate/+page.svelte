@@ -2079,7 +2079,50 @@
                               </div>
                             </div>
                           </div>
+
+                          <button
+                            onclick={() =>
+                              (slot.hasSubQuestions = !slot.hasSubQuestions)}
+                            class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all
+                                                              {slot.hasSubQuestions
+                              ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                              : 'bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-800 opacity-50'}"
+                          >
+                            Sub-Qs (a,b)
+                          </button>
                         </div>
+
+                        {#if slot.hasSubQuestions}
+                          <div
+                            class="grid grid-cols-2 gap-4 bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100/50 dark:border-amber-800/50"
+                            transition:slide
+                          >
+                            <div class="space-y-1">
+                              <span
+                                class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1"
+                                >Marks (a)</span
+                              >
+                              <input
+                                type="number"
+                                step="0.5"
+                                bind:value={slot.marks_a}
+                                class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm"
+                              />
+                            </div>
+                            <div class="space-y-1">
+                              <span
+                                class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1"
+                                >Marks (b)</span
+                              >
+                              <input
+                                type="number"
+                                step="0.5"
+                                bind:value={slot.marks_b}
+                                class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm"
+                              />
+                            </div>
+                          </div>
+                        {/if}
 
                         <div class="space-y-4 pt-2">
                           <div class="space-y-2">

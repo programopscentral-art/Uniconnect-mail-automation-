@@ -10,6 +10,7 @@
   import ADYPUTemplate from "./ADYPUTemplate.svelte";
   import SVYASATemplate from "./SVYASATemplate.svelte";
   import CrescentMidTemplate from "./CrescentMidTemplate.svelte";
+  import CDUTemplate from "./CDUTemplate.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
@@ -197,19 +198,33 @@
     };
   }
 
-  function openSwapSidebar(slot: any, part: string, subPart?: "q1" | "q2") {
-    const cQ =
-      slot.type === "OR_GROUP"
-        ? subPart === "q1"
-          ? slot.choice1?.questions?.[0]
-          : slot.choice2?.questions?.[0]
-        : slot.questions?.[0] || slot;
+  function openSwapSidebar(
+    slot: any,
+    part: string,
+    subPart?: "q1" | "q2",
+    subQuestionId?: string,
+  ) {
+    let cQ = null;
+    if (slot.type === "OR_GROUP") {
+      const choice = subPart === "q1" ? slot.choice1 : slot.choice2;
+      if (subQuestionId) {
+        cQ = (choice.questions || []).find((q: any) => q.id === subQuestionId);
+      } else {
+        cQ = choice.questions?.[0] || slot;
+      }
+    } else {
+      if (subQuestionId) {
+        cQ = (slot.questions || []).find((q: any) => q.id === subQuestionId);
+      } else {
+        cQ = slot.questions?.[0] || slot;
+      }
+    }
 
-    // CRITICAL: Use slot.marks (structural marks) NOT question marks
+    // CRITICAL: Use cQ.marks (if subquestion) or slot.marks (structural marks)
     const marks = Number(
-      slot.marks ||
+      cQ?.marks ||
+        slot.marks ||
         paperStructure.find((s: any) => s.part === part)?.marks_per_q ||
-        cQ?.marks ||
         0,
     );
 
@@ -220,24 +235,12 @@
     // Use findIndex by ID because references can change during DND/Sync
     const index = arr.findIndex((s: any) => s.id === slot.id);
 
-    const usedQuestionIds = new Set(
-      arr.flatMap((slot: any) =>
-        (
-          slot.questions ||
-          slot.choice1?.questions ||
-          slot.choice2?.questions ||
-          []
-        ).map((q: any) => q.question_id || q.id),
-      ),
-    );
-
-    const slotType = slot.qType?.toUpperCase() || "ANY";
-
     swapContext = {
       slotId: slot.id,
       slotMarks: marks,
       part,
       subPart,
+      subQuestionId,
       subLabel: cQ?.sub_label || null,
       currentMark: marks,
       currentId: cQ?.id,
@@ -295,30 +298,68 @@
       const slot = arr[index];
       // Keep SLOTS stable by maintaining the slot ID at the top level
       if (slot.type === "OR_GROUP") {
+        const choice =
+          swapContext.subPart === "q1" ? slot.choice1 : slot.choice2;
+        let newQuestions = [...(choice.questions || [])];
+
+        if (swapContext.subQuestionId) {
+          const qIdx = newQuestions.findIndex(
+            (q) => q.id === swapContext.subQuestionId,
+          );
+          if (qIdx !== -1) {
+            newQuestions[qIdx] = {
+              ...nQ,
+              sub_label: newQuestions[qIdx].sub_label,
+            };
+          } else {
+            // If subQuestionId is provided but not found, append it (shouldn't happen if UI is correct)
+            newQuestions.push(nQ);
+          }
+        } else {
+          newQuestions = [nQ];
+        }
+
         if (swapContext.subPart === "q1") {
           arr[index] = {
             ...slot,
-            choice1: { ...slot.choice1, questions: [nQ] },
-            marks: nQ.marks,
+            choice1: { ...slot.choice1, questions: newQuestions },
           };
         } else {
           arr[index] = {
             ...slot,
-            choice2: { ...slot.choice2, questions: [nQ] },
-            marks: nQ.marks,
+            choice2: { ...slot.choice2, questions: newQuestions },
           };
         }
       } else {
         // VGU / Standard structure: slot has a nested questions array
+        let newQuestions = [...(slot.questions || [])];
+        if (swapContext.subQuestionId && newQuestions.length > 0) {
+          const qIdx = newQuestions.findIndex(
+            (q) => q.id === swapContext.subQuestionId,
+          );
+          if (qIdx !== -1) {
+            newQuestions[qIdx] = {
+              ...nQ,
+              sub_label: newQuestions[qIdx].sub_label,
+            };
+          } else {
+            // If subQuestionId is provided but not found, append it (shouldn't happen if UI is correct)
+            newQuestions.push(nQ);
+          }
+        } else {
+          newQuestions = [nQ];
+        }
+
         arr[index] = {
           ...slot,
-          questions: [nQ],
-          marks: nQ.marks,
-          text: nQ.text,
-          options: nQ.options,
-          image_url: nQ.image_url,
-          bloom_level: nQ.bloom_level,
-          target_co: nQ.target_co,
+          questions: newQuestions,
+          // Fallback legacy props (optional)
+          text: newQuestions.length === 1 ? nQ.text : slot.text,
+          options: newQuestions.length === 1 ? nQ.options : slot.options,
+          image_url: newQuestions.length === 1 ? nQ.image_url : slot.image_url,
+          bloom_level:
+            newQuestions.length === 1 ? nQ.bloom_level : slot.bloom_level,
+          target_co: newQuestions.length === 1 ? nQ.target_co : slot.target_co,
         };
       }
     } else {
@@ -484,64 +525,7 @@
 
       <!-- Dynamic Header & Metadata (V16 Image-As-Template Support) -->
       {#if !layoutSchema?.debugImage && !layoutSchema?.backgroundImageUrl}
-        {#if layout.style === "cdu"}
-          <div
-            class="text-center pb-4 pt-1 border-b-[1.5pt] border-black relative"
-          >
-            <div class="flex flex-col items-center mb-1">
-              <div class="font-bold text-[11pt] mb-1 italic">
-                Set - {activeSet}
-              </div>
-              <AssessmentEditable
-                value={layout.universityName}
-                onUpdate={(v: string) => {
-                  layoutSchema.universityName = v;
-                }}
-                class="text-[12pt] font-black tracking-[0.2em] leading-none mb-1 uppercase px-2"
-              />
-              {#if layout.universitySubName || isEditable}
-                <AssessmentEditable
-                  value={layout.universitySubName}
-                  onUpdate={(v: string) => {
-                    layoutSchema.universitySubName = v;
-                  }}
-                  class="text-[10pt] font-bold leading-none mb-2 uppercase"
-                  placeholder="(SUB-HEADER)"
-                />
-              {/if}
-            </div>
-
-            <div class="text-[11pt] font-bold uppercase mt-1">
-              <AssessmentEditable
-                value={paperMeta.exam_title}
-                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-              />
-            </div>
-
-            <div class="mt-1 flex flex-col items-center">
-              <AssessmentEditable
-                value={paperMeta.programme}
-                onUpdate={(v: string) => updateText(v, "META", "programme")}
-                class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
-              />
-              <AssessmentEditable
-                value={paperMeta.subject_name}
-                onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-                class="text-[11pt] font-bold uppercase text-red-600 print:text-[#dc2626]"
-              />
-            </div>
-
-            <div
-              class="mt-2 border-t-[1.5pt] border-black flex justify-between px-2 py-0.5 font-bold text-[10.5pt]"
-            >
-              <div>
-                Time: {paperMeta.duration_label ||
-                  paperMeta.duration_minutes + " Mins"}
-              </div>
-              <div>[Max. Marks: {paperMeta.max_marks || "20"}]</div>
-            </div>
-          </div>
-        {:else if layout.style === "crescent"}
+        {#if layout.style === "crescent"}
           <div
             class="header-container flex flex-col items-center mb-1 pt-1 relative text-center"
           >
@@ -603,6 +587,17 @@
               />
             </div>
           </div>
+        {:else if layout.style === "cdu"}
+          <CDUTemplate
+            {paperMeta}
+            {currentSetData}
+            {paperStructure}
+            {activeSet}
+            {courseOutcomes}
+            {questionPool}
+            {mode}
+            {onSwap}
+          />
         {:else if layout.style === "crescent-mid"}
           <CrescentMidTemplate
             {paperMeta}
@@ -813,8 +808,7 @@
           />
         {/if}
 
-        <!-- Paper Metadata Table (Non-VGU only) -->
-        {#if layout.style !== "vgu"}
+        {#if !["cdu", "crescent-mid", "adypu", "svyasa"].includes(layout.style)}
           {#if layoutSchema?.showMetadataTable}
             {#key activeSet + swapCounter}
               <table
@@ -1027,117 +1021,231 @@
               </div>
             </div>
           {/if}
-        {/if}
-      {/if}
 
-      <!-- V22 Field Overlays -->
-      {#each regions as el}
-        <div
-          class="absolute pointer-events-none"
-          style="
+          <!-- V22 Field Overlays -->
+          {#each regions as el}
+            <div
+              class="absolute pointer-events-none"
+              style="
             left: {el.x * 100}%; 
             top: {el.y * 100}%; 
             width: {(el.width || el.w) * 100}%; 
             height: {(el.height || el.h) * 100}%;
             font-size: {Math.min(
-            22,
-            Math.max(8, (el.height || el.h) * 11.69 * 72 * 0.55),
-          )}px;
+                22,
+                Math.max(8, (el.height || el.h) * 11.69 * 72 * 0.55),
+              )}px;
             text-align: {el.is_header || el.type === 'label'
-            ? 'center'
-            : 'left'};
+                ? 'center'
+                : 'left'};
             font-weight: {el.is_header || el.type === 'label' ? '700' : '400'};
             color: #000;
             font-family: {el.is_header || el.type === 'label'
-            ? 'Inter, sans-serif'
-            : 'monospace'};
+                ? 'Inter, sans-serif'
+                : 'monospace'};
             white-space: pre-wrap;
             overflow: hidden;
           "
-        >
-          {el.value || el.defaultText || ""}
-        </div>
-      {/each}
-
-      <!-- Dynamic Sections & Question Area -->
-      <div class="space-y-[1cm] relative z-10 w-full">
-        {#if (paperStructure || []).length === 0}
-          <div
-            class="py-20 flex flex-col items-center justify-center text-center opacity-30 select-none"
-          >
-            <div
-              class="w-32 h-32 rounded-[40px] border-4 border-dashed border-slate-300 flex items-center justify-center mb-6"
             >
-              <Plus class="w-12 h-12 text-slate-300" />
+              {el.value || el.defaultText || ""}
             </div>
-            <h2
-              class="text-2xl font-black uppercase tracking-widest text-slate-400"
-            >
-              Your Canvas is Empty
-            </h2>
-            <p class="text-sm font-medium text-slate-400 mt-2">
-              Add components from the library to start designing.
-            </p>
-          </div>
-        {/if}
+          {/each}
 
-        {#if layout.style === "vgu"}
-          <!-- VGU STYLE UNIFIED TABLE -->
-          {@const activePaperStructure = paperStructure}
-          <table
-            class="w-full border-collapse border border-black table-auto font-serif"
-          >
-            <thead>
-              <tr class="bg-gray-100/30 text-center font-bold">
-                <th class="w-[60px] border border-black p-2 text-[10pt]"
-                  >Q.No</th
+          <!-- Dynamic Sections & Question Area -->
+          <div class="space-y-[1cm] relative z-10 w-full">
+            {#if (paperStructure || []).length === 0}
+              <div
+                class="py-20 flex flex-col items-center justify-center text-center opacity-30 select-none"
+              >
+                <div
+                  class="w-32 h-32 rounded-[40px] border-4 border-dashed border-slate-300 flex items-center justify-center mb-6"
                 >
-                <th class="border border-black p-2 text-[10pt] text-left"
-                  >Question</th
+                  <Plus class="w-12 h-12 text-slate-300" />
+                </div>
+                <h2
+                  class="text-2xl font-black uppercase tracking-widest text-slate-400"
                 >
-                <th class="w-[50px] border border-black p-2 text-[10pt]"
-                  >Mark</th
-                >
-                <th class="w-[70px] border border-black p-2 text-[10pt]"
-                  >K Level<br />(K1/K6)</th
-                >
-                <th class="w-[85px] border border-black p-2 text-[10pt]"
-                  >CO Indicators</th
-                >
-              </tr>
-            </thead>
-            {#each activePaperStructure || [] as section, idx}
-              {@const allQuestions = Array.isArray(currentSetData.questions)
-                ? currentSetData.questions
-                : Array.isArray(currentSetData)
-                  ? currentSetData
-                  : []}
-              {@const sectionQuestions =
-                section.slots?.length > 0
-                  ? section.slots
-                      .map((s) => allQuestions.find((q) => q.id === s.id))
-                      .filter(Boolean)
-                  : getQuestionsByPart(section.part, idx, currentSetData)}
-              {#if sectionQuestions.length > 0 || isEditable}
-                <tbody
-                  use:dndzone={{
-                    items: sectionQuestions,
-                    flipDurationMs: 200,
-                    dragDisabled: !isEditable,
-                  }}
-                  onconsider={(e) =>
-                    handleDndSync(idx, (e.detail as any).items)}
-                  onfinalize={(e) =>
-                    handleDndSync(idx, (e.detail as any).items)}
-                  class="border-black"
-                >
-                  <!-- SECTION HEADER ROW -->
-                  <tr
-                    class="bg-gray-50/50 border border-black font-bold text-[10pt]"
-                  >
-                    <td
-                      colspan="5"
-                      class="p-2 italic tracking-tight border border-black"
+                  Your Canvas is Empty
+                </h2>
+                <p class="text-sm font-medium text-slate-400 mt-2">
+                  Add components from the library to start designing.
+                </p>
+              </div>
+            {/if}
+
+            {#if layout.style === "vgu"}
+              <!-- VGU STYLE UNIFIED TABLE -->
+              {@const activePaperStructure = paperStructure}
+              <table
+                class="w-full border-collapse border border-black table-auto font-serif"
+              >
+                <thead>
+                  <tr class="bg-gray-100/30 text-center font-bold">
+                    <th class="w-[60px] border border-black p-2 text-[10pt]"
+                      >Q.No</th
+                    >
+                    <th class="border border-black p-2 text-[10pt] text-left"
+                      >Question</th
+                    >
+                    <th class="w-[50px] border border-black p-2 text-[10pt]"
+                      >Mark</th
+                    >
+                    <th class="w-[70px] border border-black p-2 text-[10pt]"
+                      >K Level<br />(K1/K6)</th
+                    >
+                    <th class="w-[85px] border border-black p-2 text-[10pt]"
+                      >CO Indicators</th
+                    >
+                  </tr>
+                </thead>
+                {#each activePaperStructure || [] as section, idx}
+                  {@const allQuestions = Array.isArray(currentSetData.questions)
+                    ? currentSetData.questions
+                    : Array.isArray(currentSetData)
+                      ? currentSetData
+                      : []}
+                  {@const sectionQuestions =
+                    section.slots?.length > 0
+                      ? section.slots
+                          .map((s: any) =>
+                            allQuestions.find((q: any) => q.id === s.id),
+                          )
+                          .filter(Boolean)
+                      : getQuestionsByPart(section.part, idx, currentSetData)}
+                  {#if sectionQuestions.length > 0 || isEditable}
+                    <tbody
+                      use:dndzone={{
+                        items: sectionQuestions,
+                        flipDurationMs: 200,
+                        dragDisabled: !isEditable,
+                      }}
+                      onconsider={(e) =>
+                        handleDndSync(idx, (e.detail as any).items)}
+                      onfinalize={(e) =>
+                        handleDndSync(idx, (e.detail as any).items)}
+                      class="border-black"
+                    >
+                      <!-- SECTION HEADER ROW -->
+                      <tr
+                        class="bg-gray-50/50 border border-black font-bold text-[10pt]"
+                      >
+                        <td
+                          colspan="5"
+                          class="p-2 italic tracking-tight border border-black"
+                        >
+                          <AssessmentEditable
+                            value={section.title}
+                            onUpdate={(v: string) => {
+                              section.title = v;
+                              paperStructure = [...paperStructure];
+                            }}
+                          />
+                        </td>
+                      </tr>
+
+                      <!-- QUESTION ROWS (Union of Structure and Questions) -->
+                      {#key activeSet + swapCounter}
+                        {#each section.slots && section.slots.length > 0 ? section.slots : sectionQuestions as structuralSlot, sidx}
+                          {@const q = section.slots?.length
+                            ? sectionQuestions.find(
+                                (sq: any) =>
+                                  sq.id === structuralSlot.id ||
+                                  sq.slot_id === structuralSlot.slot_id,
+                              )
+                            : structuralSlot}
+                          {#if q && q.id}
+                            <AssessmentVguSlot
+                              slot={q}
+                              qNumber={getSnoStart(idx) + sidx}
+                              {isEditable}
+                              onSwap={(qid: string) =>
+                                openSwapSidebar(
+                                  q,
+                                  section.part,
+                                  undefined,
+                                  qid,
+                                )}
+                              onRemove={() => removeQuestion(q)}
+                              onUpdateText={(v: string, qid: string) =>
+                                updateText(v, "QUESTION", "text", q.id, qid)}
+                            />
+                          {:else if isEditable}
+                            <!-- SKELETON SLOT -->
+                            <tr
+                              class="border-b border-black opacity-40 bg-gray-50/10 group/row"
+                            >
+                              <td
+                                class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
+                              >
+                                <AssessmentRowActions
+                                  {isEditable}
+                                  onSwap={() =>
+                                    openSwapSidebar(
+                                      structuralSlot,
+                                      section.part,
+                                    )}
+                                  onDelete={() => {}}
+                                  class="-left-2 top-2"
+                                />
+                                {section.part !== "A"
+                                  ? "Q."
+                                  : ""}{structuralSlot.label ||
+                                  getSnoStart(section.part) +
+                                    sidx}{section.part === "A" ? "." : ""}
+                              </td>
+                              <td
+                                class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
+                              >
+                                <div
+                                  class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
+                                >
+                                  Draft Slot
+                                </div>
+                                [ {structuralSlot.type === "OR_GROUP"
+                                  ? "OR Pair"
+                                  : "Single Question"} ] - {structuralSlot.marks ||
+                                  section.marks_per_q} Marks
+                              </td>
+                              <td
+                                class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
+                              >
+                                {structuralSlot.marks || section.marks_per_q}
+                              </td>
+                              <td
+                                class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
+                              >
+                                {structuralSlot.bloom || "ANY"}
+                              </td>
+                              <td
+                                class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
+                              >
+                                {structuralSlot.target_co || "CO1"}
+                              </td>
+                            </tr>
+                          {/if}
+                        {/each}
+                      {/key}
+                    </tbody>
+                  {/if}
+                {/each}
+              </table>
+            {:else}
+              {#each paperStructure || [] as section, idx}
+                {@const sectionQuestions =
+                  section.slots?.length > 0
+                    ? section.slots
+                        .map((s: any) =>
+                          (Array.isArray(currentSetData.questions)
+                            ? currentSetData.questions
+                            : []
+                          ).find((q: any) => q.id === s.id),
+                        )
+                        .filter(Boolean)
+                    : getQuestionsByPart(section.part, idx, currentSetData)}
+                {#if sectionQuestions.length > 0 || isEditable}
+                  <div>
+                    <div
+                      class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
                     >
                       <AssessmentEditable
                         value={section.title}
@@ -1145,192 +1253,99 @@
                           section.title = v;
                           paperStructure = [...paperStructure];
                         }}
+                        class="inline-block font-bold"
                       />
-                    </td>
-                  </tr>
+                      <span class="text-xs">
+                        ({section.answered_count} x {section.marks_per_q} = {section.answered_count *
+                          section.marks_per_q} Marks)
+                      </span>
+                    </div>
 
-                  <!-- QUESTION ROWS (Union of Structure and Questions) -->
-                  {#key activeSet + swapCounter}
-                    {#each section.slots && section.slots.length > 0 ? section.slots : sectionQuestions as structuralSlot, sidx}
-                      {@const q = section.slots?.length
-                        ? sectionQuestions.find(
-                            (sq) =>
-                              sq.id === structuralSlot.id ||
-                              sq.slot_id === structuralSlot.slot_id,
-                          )
-                        : structuralSlot}
-                      {#if q && q.id}
-                        <AssessmentVguSlot
-                          slot={q}
-                          qNumber={getSnoStart(idx) + sidx}
-                          {isEditable}
-                          onSwap={() => openSwapSidebar(q, section.part)}
-                          onRemove={() => removeQuestion(q)}
-                          onUpdateText={(v: string, qid: string) =>
-                            updateText(v, "QUESTION", "text", q.id, qid)}
-                        />
-                      {:else if isEditable}
-                        <!-- SKELETON SLOT -->
-                        <tr
-                          class="border-b border-black opacity-40 bg-gray-50/10 group/row"
-                        >
-                          <td
-                            class="w-[85px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
-                          >
-                            <AssessmentRowActions
-                              {isEditable}
-                              onSwap={() =>
-                                openSwapSidebar(structuralSlot, section.part)}
-                              onDelete={() => {}}
-                              class="-left-2 top-2"
-                            />
-                            {section.part !== "A"
-                              ? "Q."
-                              : ""}{structuralSlot.label ||
-                              getSnoStart(section.part) + sidx}{section.part ===
-                            "A"
-                              ? "."
-                              : ""}
-                          </td>
-                          <td
-                            class="p-2 text-[11pt] border-r border-black italic min-h-[40px] align-top"
-                          >
-                            <div
-                              class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-1 opacity-50"
-                            >
-                              Draft Slot
-                            </div>
-                            [ {structuralSlot.type === "OR_GROUP"
-                              ? "OR Pair"
-                              : "Single Question"} ] - {structuralSlot.marks ||
-                              section.marks_per_q} Marks
-                          </td>
-                          <td
-                            class="w-[60px] border-r border-black text-center align-top p-2 text-[10pt] font-bold"
-                          >
-                            {structuralSlot.marks || section.marks_per_q}
-                          </td>
-                          <td
-                            class="w-[80px] border-r border-black text-center align-top p-2 text-[10pt] font-medium"
-                          >
-                            {structuralSlot.bloom || "ANY"}
-                          </td>
-                          <td
-                            class="w-[100px] text-center align-top p-2 text-[10pt] font-medium"
-                          >
-                            {structuralSlot.target_co || "CO1"}
-                          </td>
-                        </tr>
-                      {/if}
-                    {/each}
-                  {/key}
-                </tbody>
-              {/if}
-            {/each}
-          </table>
-        {:else}
-          {#each paperStructure || [] as section, idx}
-            {@const sectionQuestions =
-              section.slots?.length > 0
-                ? section.slots
-                    .map((s) =>
-                      (Array.isArray(currentSetData.questions)
-                        ? currentSetData.questions
-                        : []
-                      ).find((q) => q.id === s.id),
-                    )
-                    .filter(Boolean)
-                : getQuestionsByPart(section.part, idx, currentSetData)}
-            {#if sectionQuestions.length > 0 || isEditable}
-              <div>
-                <div
-                  class="text-center font-bold border-b-2 border-black mb-4 py-1 uppercase italic tracking-widest bg-gray-50 flex items-center justify-center gap-2"
-                >
-                  <AssessmentEditable
-                    value={section.title}
-                    onUpdate={(v: string) => {
-                      section.title = v;
-                      paperStructure = [...paperStructure];
-                    }}
-                    class="inline-block font-bold"
-                  />
-                  <span class="text-xs">
-                    ({section.answered_count} x {section.marks_per_q} = {section.answered_count *
-                      section.marks_per_q} Marks)
-                  </span>
-                </div>
+                    <div
+                      use:dndzone={{
+                        items: sectionQuestions,
+                        flipDurationMs: 200,
+                      }}
+                      onconsider={(e) =>
+                        handleDndSync(idx, (e.detail as any).items)}
+                      onfinalize={(e) =>
+                        handleDndSync(idx, (e.detail as any).items)}
+                    >
+                      {#key activeSet + swapCounter}
+                        {#each sectionQuestions as q, i (q.id + activeSet)}
+                          {@const qNum =
+                            (Array.isArray(currentSetData.questions)
+                              ? currentSetData.questions
+                              : []
+                            )
+                              .filter((x) => x && x.part === section.part)
+                              .findIndex((x) => x.id === q.id) + 1}
 
-                <div
-                  use:dndzone={{ items: sectionQuestions, flipDurationMs: 200 }}
-                  onconsider={(e) =>
-                    handleDndSync(idx, (e.detail as any).items)}
-                  onfinalize={(e) =>
-                    handleDndSync(idx, (e.detail as any).items)}
-                >
-                  {#key activeSet + swapCounter}
-                    {#each sectionQuestions as q, i (q.id + activeSet)}
-                      {@const qNum =
-                        (Array.isArray(currentSetData.questions)
-                          ? currentSetData.questions
-                          : []
-                        )
-                          .filter((x) => x && x.part === section.part)
-                          .findIndex((x) => x.id === q.id) + 1}
-
-                      <div
-                        class={section.part === "A"
-                          ? "border-b border-black"
-                          : "border-2 border-black mb-6 shadow-sm"}
-                      >
-                        {#if q.type === "OR_GROUP"}
-                          <AssessmentSlotOrGroup
-                            slot={q}
-                            qNumber={getSnoStart(idx) + i}
-                            {isEditable}
-                            snoWidth={35}
-                            onSwap1={() =>
-                              openSwapSidebar(q, section.part, "q1")}
-                            onSwap2={() =>
-                              openSwapSidebar(q, section.part, "q2")}
-                            onRemove={() => removeQuestion(q)}
-                            onUpdateText1={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                            onUpdateText2={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                          />
-                        {:else}
-                          <AssessmentSlotSingle
-                            slot={q}
-                            qNumber={getSnoStart(idx) + i}
-                            {isEditable}
-                            snoWidth={35}
-                            onSwap={() => openSwapSidebar(q, section.part)}
-                            onRemove={() => removeQuestion(q)}
-                            onUpdateText={(v: string, qid: string) =>
-                              updateText(v, "QUESTION", "text", q.id, qid)}
-                          />
-                        {/if}
-                      </div>
-                    {/each}
-                  {/key}
-                </div>
-              </div>
+                          <div
+                            class={section.part === "A"
+                              ? "border-b border-black"
+                              : "border-2 border-black mb-6 shadow-sm"}
+                          >
+                            {#if q.type === "OR_GROUP"}
+                              <AssessmentSlotOrGroup
+                                slot={q}
+                                qNumber={getSnoStart(idx) + i}
+                                {isEditable}
+                                snoWidth={35}
+                                onSwap1={(qid: string) =>
+                                  openSwapSidebar(q, section.part, "q1", qid)}
+                                onSwap2={(qid: string) =>
+                                  openSwapSidebar(q, section.part, "q2", qid)}
+                                onRemove={() => removeQuestion(q)}
+                                onUpdateText1={(v: string, qid: string) =>
+                                  updateText(v, "QUESTION", "text", q.id, qid)}
+                                onUpdateText2={(v: string, qid: string) =>
+                                  updateText(v, "QUESTION", "text", q.id, qid)}
+                              />
+                            {:else}
+                              <AssessmentSlotSingle
+                                slot={q}
+                                qNumber={getSnoStart(idx) + i}
+                                {isEditable}
+                                snoWidth={35}
+                                onSwap={(qid: string) =>
+                                  openSwapSidebar(
+                                    q,
+                                    section.part,
+                                    undefined,
+                                    qid,
+                                  )}
+                                onRemove={() => removeQuestion(q)}
+                                onUpdateText={(v: string, qid: string) =>
+                                  updateText(v, "QUESTION", "text", q.id, qid)}
+                              />
+                            {/if}
+                          </div>
+                        {/each}
+                      {/key}
+                    </div>
+                  </div>
+                {/if}
+              {/each}
             {/if}
-          {/each}
+          </div>
         {/if}
-      </div>
+      {/if}
     </div>
   </div>
 
-  <SwapQuestionSidebar
-    bind:isOpen={isSwapSidebarOpen}
-    {questionPool}
-    currentMark={swapContext?.currentMark}
-    currentQuestionId={swapContext?.currentId}
-    onSelect={selectAlternate}
-  />
+  {#if !["cdu", "crescent-mid", "adypu", "svyasa"].includes(layout.style)}
+    <SwapQuestionSidebar
+      bind:isOpen={isSwapSidebarOpen}
+      {questionPool}
+      currentMark={swapContext?.currentMark}
+      currentQuestionId={swapContext?.currentId}
+      onSelect={selectAlternate}
+    />
+  {/if}
 </div>
 
+<!-- Nudge to force HMR refresh -->
 <style>
   @font-face {
     font-family: "Times New Roman";

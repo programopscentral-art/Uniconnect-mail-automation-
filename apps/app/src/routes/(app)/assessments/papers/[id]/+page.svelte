@@ -919,7 +919,7 @@
     if (!currentSet) return;
 
     const meta = paperMeta;
-    const questions = currentSet.questions || [];
+    const slots = currentSet.questions || []; // Renamed to slots for clarity
 
     const printWindow = window.open("", "_blank", "width=1100,height=900");
     if (!printWindow) {
@@ -928,48 +928,126 @@
     }
 
     let answersHtml = "";
-    let qNum = 1;
+    const romans = [
+      "i",
+      "ii",
+      "iii",
+      "iv",
+      "v",
+      "vi",
+      "vii",
+      "viii",
+      "ix",
+      "x",
+    ];
+    const getRoman = (idx: number) => romans[idx] || String(idx + 1);
 
-    // Helper to find question from pool or local list
-    const findQ = (id: string) =>
-      data.questionPool.find((q: any) => q.id === id);
+    // Helper to find question from pool (as a fallback for answer_key)
+    const findQInPool = (id: string) =>
+      (data.questionPool || []).find((q: any) => q.id === id);
 
-    questions.forEach((slot: any) => {
-      const qs: any[] = [];
-      if (slot.type === "OR_GROUP") {
-        if (slot.choice1?.questions?.[0]) qs.push(slot.choice1.questions[0]);
-        if (slot.choice2?.questions?.[0]) qs.push(slot.choice2.questions[0]);
-      } else {
-        const q = slot.questions?.[0] || slot;
-        if (q) qs.push(q);
-      }
-
-      qs.forEach((q) => {
-        const poolQ = findQ(q.question_id || q.id);
-        const ans = q.answer_key || q.answer || poolQ?.answer_key || "";
-
-        answersHtml += `
-            <div style="margin-bottom: 25px; page-break-inside: avoid; border-bottom: 1px solid #f0f0f0; padding-bottom: 20px;">
-               <div style="font-weight: 800; font-size: 11pt; color: #1e293b; margin-bottom: 8px;">Q.${qNum++}. ${q.question_text || q.text || "No question text"}</div>
-               <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; margin-top: 10px;">
-                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="background: #4338ca; color: white; padding: 2px 8px; border-radius: 4px; font-size: 8pt; font-weight: 900; text-transform: uppercase;">Correct Solution</span>
-                  </div>
-                  <div style="font-size: 10pt; line-height: 1.6; color: #334155; font-family: 'Segoe UI', system-ui; white-space: pre-wrap;">${ans || "No solution provided in question bank."}</div>
-                  ${
-                    q.options &&
-                    Array.isArray(q.options) &&
-                    q.options.length > 0
-                      ? `<div style="margin-top: 12px; font-size: 9pt; color: #64748b; border-top: 1px dotted #cbd5e1; pt-8px; margin-top: 8px;">
-                      <strong>Options:</strong> ${q.options.join(", ")}
-                    </div>`
-                      : ""
-                  }
-               </div>
+    const renderEntry = (q: any, label: string) => {
+      const poolQ = findQInPool(q.question_id || q.id);
+      const questionText =
+        q.question_text ||
+        q.text ||
+        poolQ?.question_text ||
+        poolQ?.text ||
+        "No question text";
+      // Priority: direct answer_key on q → pool answer_key → q.answer → pool.answer
+      const ans =
+        q.answer_key || poolQ?.answer_key || q.answer || poolQ?.answer || "";
+      const options = q.options || poolQ?.options;
+      const hasAnswer = !!ans;
+      return `
+        <div style="margin-bottom:20px;page-break-inside:avoid;border-bottom:1px solid #f0f0f0;padding-bottom:16px;">
+          <div style="font-weight:800;font-size:11pt;color:#1e293b;margin-bottom:6px;">${label} ${questionText}</div>
+          <div style="background:${hasAnswer ? "#f8fafc" : "#fff7ed"};border:1px solid ${hasAnswer ? "#e2e8f0" : "#fed7aa"};padding:12px;border-radius:8px;margin-top:6px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="background:${hasAnswer ? "#4338ca" : "#ea580c"};color:white;padding:2px 8px;border-radius:4px;font-size:8pt;font-weight:900;text-transform:uppercase;">${hasAnswer ? "Correct Solution" : "No Answer in Bank"}</span>
             </div>
-         `;
+            ${hasAnswer ? `<div style="font-size:10pt;line-height:1.6;color:#334155;font-family:'Segoe UI',system-ui;white-space:pre-wrap;">${ans}</div>` : `<div style="font-size:9pt;color:#9a3412;font-style:italic;">Answer not stored in question bank for this question.</div>`}
+            ${
+              options && Array.isArray(options) && options.length > 0
+                ? `<div style="margin-top:8px;font-size:9pt;color:#64748b;border-top:1px dotted #cbd5e1;padding-top:6px;"><strong>Options:</strong> ${options.join(" | ")}</div>`
+                : ""
+            }
+          </div>
+        </div>`;
+    };
+
+    // Separate slots by part to render Part A first, then Part B, etc.
+    const partA = slots.filter((s: any) => s.part === "A");
+    const partB = slots.filter((s: any) => s.part === "B");
+    const partC = slots.filter((s: any) => s.part === "C");
+    const otherParts = slots.filter(
+      (s: any) => !["A", "B", "C"].includes(s.part),
+    );
+
+    const renderPart = (
+      partSlots: any[],
+      partLabel: string,
+      startNum: number,
+    ) => {
+      if (partSlots.length === 0) return { html: "", nextNum: startNum };
+      let html = `<div style="margin:24px 0 12px;padding:8px 14px;background:#1e293b;color:white;font-weight:900;font-size:10pt;text-transform:uppercase;letter-spacing:0.08em;border-radius:6px;">PART ${partLabel}</div>`;
+      let qNum = startNum;
+
+      partSlots.forEach((slot: any) => {
+        if (slot.type === "OR_GROUP") {
+          const q1s = slot.choice1?.questions || [];
+          const q2s = slot.choice2?.questions || [];
+          // Choice A
+          if (q1s.length > 0) {
+            html += `<div style="font-weight:900;font-size:9pt;color:#4338ca;margin:12px 0 3px;text-transform:uppercase;letter-spacing:0.05em;">Q.${qNum} — Choice A</div>`;
+            q1s.forEach((q: any, qi: number) => {
+              const label =
+                q1s.length > 1 ? `Q.${qNum}a.(${getRoman(qi)})` : `Q.${qNum}a.`;
+              html += renderEntry(q, label);
+            });
+          }
+          // Choice B (OR)
+          if (q2s.length > 0) {
+            html += `<div style="font-weight:900;font-size:9pt;color:#7c3aed;margin:12px 0 3px;text-transform:uppercase;letter-spacing:0.05em;">Q.${qNum} — Choice B (OR)</div>`;
+            q2s.forEach((q: any, qi: number) => {
+              const label =
+                q2s.length > 1 ? `Q.${qNum}b.(${getRoman(qi)})` : `Q.${qNum}b.`;
+              html += renderEntry(q, label);
+            });
+          }
+          qNum++;
+        } else {
+          // Single slot — may have multiple sub-questions
+          const qs = slot.questions?.length ? slot.questions : [slot];
+          if (qs.length > 1) {
+            html += `<div style="font-weight:900;font-size:9pt;color:#4338ca;margin:12px 0 3px;text-transform:uppercase;letter-spacing:0.05em;">Q.${qNum}</div>`;
+            qs.forEach((q: any, qi: number) => {
+              html += renderEntry(q, `Q.${qNum}.(${getRoman(qi)})`);
+            });
+          } else if (qs[0]) {
+            html += renderEntry(qs[0], `Q.${qNum}.`);
+          }
+          qNum++;
+        }
       });
-    });
+
+      return { html, nextNum: qNum };
+    };
+
+    const resA = renderPart(partA, "A", 1);
+    answersHtml += resA.html;
+    const resB = renderPart(partB, "B", resA.nextNum);
+    answersHtml += resB.html;
+    const resC = renderPart(partC, "C", resB.nextNum);
+    answersHtml += resC.html;
+    if (otherParts.length > 0) {
+      const resOther = renderPart(otherParts, "", resC.nextNum);
+      answersHtml += resOther.html;
+    }
+
+    if (!answersHtml) {
+      answersHtml = `<p style="color:#94a3b8;font-style:italic;text-align:center;padding:40px;">No questions found in this set.</p>`;
+    }
 
     const html = `
       <html>
@@ -997,26 +1075,27 @@
              <h1>ANSWER KEY & SOLUTIONS</h1>
              <h2>FOR FACULTY USE ONLY</h2>
           </div>
+          <div class="no-print" style="background:#fff7ed; border:1px solid #fed7aa; padding:12px; margin-bottom:20px; border-radius:8px; font-size:9pt; color:#9a3412;">
+            <strong>Pro Tip:</strong> You can edit any text below directly. Click on a question or solution to change it before printing. 
+            <em>(Note: Edits here are for this print only and won't be saved back to the database).</em>
+            <button onclick="window.print()" style="margin-left:15px; background:#4338ca; color:white; border:none; padding:5px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">Print to PDF</button>
+          </div>
           <div class="meta-grid">
              <div class="meta-item">
                <span class="meta-label">Subject & Course Code</span>
-               <span class="meta-value">${meta.subject_name || "N/A"} (${meta.course_code || "N/A"})</span>
+               <span class="meta-value" contenteditable="true">${meta.subject_name || "N/A"} (${meta.course_code || "N/A"})</span>
              </div>
              <div class="meta-item">
                <span class="meta-label">Set / Date</span>
-               <span class="meta-value">SET ${activeSet} • ${meta.paper_date || new Date().toLocaleDateString()}</span>
+               <span class="meta-value" contenteditable="true">SET ${activeSet} • ${meta.paper_date || new Date().toLocaleDateString()}</span>
              </div>
           </div>
-          <div class="content">
+          <div class="content" contenteditable="true" style="outline: none;">
              ${answersHtml}
           </div>
           <script>
-            window.onload = () => {
-               setTimeout(() => { 
-                 window.focus();
-                 window.print(); 
-               }, 800);
-            }
+            // No auto-print to allow editing
+            console.log("Answer sheet ready for editing");
           </${"script"}>
         </body>
       </html>

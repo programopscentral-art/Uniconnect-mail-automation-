@@ -56,11 +56,11 @@
 
   <div
     transition:slide={{ axis: "x" }}
-    class="fixed right-0 top-0 bottom-0 w-[450px] bg-white dark:bg-slate-950 border-l border-gray-200 dark:border-slate-800 shadow-2xl overflow-hidden no-print z-[210] flex flex-col"
+    class="fixed right-0 inset-y-0 w-[450px] bg-white dark:bg-slate-950 border-l border-gray-200 dark:border-slate-800 shadow-2xl no-print z-[210] flex flex-col overflow-hidden"
   >
     <!-- Header -->
     <div
-      class="p-6 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-10"
+      class="p-6 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-950 flex-shrink-0"
     >
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -169,7 +169,10 @@
     </div>
 
     <!-- Results List -->
-    <div class="flex-1 overflow-y-auto p-6 space-y-3">
+    <div
+      class="flex-1 min-h-0 overflow-y-scroll p-6 space-y-4 custom-scrollbar overscroll-contain"
+      style="max-height: calc(100vh - 180px);"
+    >
       {#each filteredQuestions as q}
         <button
           onclick={() => onSelect(q)}
@@ -281,18 +284,23 @@
 {/if}
 
 <style>
-  /* Custom scrollbar for better aesthetics */
-  ::-webkit-scrollbar {
-    width: 6px;
+  /* High-visibility Custom Scrollbar - The 'Side Bar' */
+  :global(.custom-scrollbar::-webkit-scrollbar) {
+    width: 12px !important;
+    display: block !important;
   }
-  ::-webkit-scrollbar-track {
-    background: transparent;
+  :global(.custom-scrollbar::-webkit-scrollbar-track) {
+    background: #e2e8f0 !important;
   }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 10px;
+  :global(.dark .custom-scrollbar::-webkit-scrollbar-track) {
+    background: #0f172a !important;
   }
-  .dark ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+  :global(.custom-scrollbar::-webkit-scrollbar-thumb) {
+    background: #4f46e5 !important;
+    border-radius: 10px !important;
+    border: 3px solid #e2e8f0 !important;
+  }
+  :global(.dark .custom-scrollbar::-webkit-scrollbar-thumb) {
+    border: 3px solid #0f172a !important;
   }
 </style>
