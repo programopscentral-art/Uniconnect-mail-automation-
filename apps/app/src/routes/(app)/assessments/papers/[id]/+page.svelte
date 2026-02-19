@@ -41,6 +41,7 @@
     if (
       metaTemplate === "cdu" ||
       uniName.includes("chaitanya") ||
+      uniName.includes("cdu") ||
       uniId === "8e5403f9-505a-44d4-add4-aae3efaa9248"
     ) {
       return "cdu";

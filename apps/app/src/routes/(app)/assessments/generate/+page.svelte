@@ -797,11 +797,7 @@
           instructions: paperInstructions,
           generation_mode: generationMode,
           part_a_type: partAType,
-          selected_template: activeUniversity?.name
-            ?.toLowerCase()
-            ?.includes("chaitanya")
-            ? "cdu"
-            : selectedTemplate,
+          selected_template: isChaitanya ? "cdu" : selectedTemplate,
           template_config: paperStructure.map((section) => ({
             ...section,
             slots: section.slots.map((slot: any) => ({
@@ -1116,6 +1112,7 @@
   // Absolute Template Enforcement for Chaitanya
   const isChaitanya = $derived(
     activeUniversity?.name?.toLowerCase()?.includes("chaitanya") ||
+      activeUniversity?.name?.toLowerCase()?.includes("cdu") ||
       String(selectedUniversityId).toLowerCase() ===
         "8e5403f9-505a-44d4-add4-aae3efaa9248" ||
       (typeof window !== "undefined" &&

@@ -48,10 +48,16 @@
     showRRN: layoutSchema?.showRRN ?? true,
     courseCodeLabel: layoutSchema?.courseCodeLabel || "Course Code",
     style:
-      layoutSchema?.style === "crescent" &&
+      (layoutSchema?.style === "crescent" ||
+        paperMeta?.selected_template === "crescent") &&
       paperMeta?.exam_title?.toLowerCase().match(/cat|mid|test|internal/)
         ? "crescent-mid"
-        : layoutSchema?.style || "standard", // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
+        : layoutSchema?.style ||
+          paperMeta?.selected_template ||
+          (paperMeta?.univ_line_1?.toLowerCase().includes("chaitanya") ||
+          paperMeta?.university_name?.toLowerCase().includes("chaitanya")
+            ? "cdu"
+            : "standard"), // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'

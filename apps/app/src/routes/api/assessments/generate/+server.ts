@@ -85,6 +85,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             exam_title,
             instructions,
             template_id: raw_template_id,
+            selected_template,
             unit_ids = [],
             topic_ids = [],
             template_config
@@ -527,7 +528,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             duration_minutes, max_marks, template_id,
             JSON.stringify({
                 ...generatedSets,
-                metadata: { exam_time, course_code, exam_title, instructions, template_config }
+                metadata: { exam_time, course_code, exam_title, instructions, template_config, selected_template }
             })
         ]);
 
