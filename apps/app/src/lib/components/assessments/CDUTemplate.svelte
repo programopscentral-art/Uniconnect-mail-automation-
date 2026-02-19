@@ -351,7 +351,6 @@
         </div>
       </div>
 
-      <div class="border-t border-black my-0.5"></div>
       <div class="border-t border-black mb-2"></div>
 
       <!-- Time & Marks Row -->
