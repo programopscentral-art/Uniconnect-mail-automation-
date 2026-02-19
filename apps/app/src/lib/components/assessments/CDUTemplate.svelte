@@ -54,6 +54,7 @@
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
   let swapCounter = $state(0);
+  let showSolutions = $state(false);
   const isEditable = $derived(mode === "edit" || mode === "preview");
 
   function handleDndSync(part: string, items: any[]) {
@@ -185,10 +186,13 @@
     let slot = arr[swapContext.slotIndex];
     const nQ = {
       id: question.id,
+      question_id: question.id,
       text: question.question_text,
       question_text: question.question_text,
       marks: question.marks,
       options: question.options,
+      answer_key: question.answer_key || "",
+      explanation: question.explanation || "",
       part: swapContext.part,
       image_url: question.image_url,
       target_co: question.target_co || "CO1",
@@ -251,6 +255,7 @@
       ? currentSetData
       : currentSetData?.questions || [];
 
+    // Count numbers in previous sections
     for (let i = 0; i < sIdx; i++) {
       const section = paperStructure[i];
       const partQs = allQs.filter((q: any) => q.part === section.part);
@@ -259,6 +264,7 @@
       });
     }
 
+    // Count numbers in current section up to slotIndex
     const currentPart = paperStructure[sIdx].part;
     const currentPartQs = allQs.filter((q: any) => q.part === currentPart);
     for (let i = 0; i < slotIndex; i++) {
@@ -282,126 +288,121 @@
   <div class="flex-1 overflow-auto p-4 sm:p-8">
     <div
       id="cdu-paper-actual"
-      class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
+      class="mx-auto space-y-4 p-12 bg-white text-black min-h-[1100px] relative shadow-lg transition-all duration-500 font-serif"
       style="width: 8.27in; min-height: 11.69in;"
     >
-      <!-- Header (3-Column Table) -->
-      <div class="mb-6">
-        <table class="w-full border-none !border-0 mb-4">
-          <tbody class="!border-0">
-            <tr class="!border-0">
-              <!-- Left: Logo -->
-              <td class="w-[20%] !border-0 p-0 align-middle">
-                <img
-                  src="/cdu-logo.png"
-                  alt="University Logo"
-                  class="h-16 w-auto"
-                />
-              </td>
-              <!-- Center: Metadata -->
-              <td class="w-[60%] !border-0 p-0 text-center align-middle">
-                <div class="font-bold text-[11pt] mb-1 italic">
-                  Set - {activeSet}
-                </div>
-                <div
-                  class="font-bold uppercase text-[13pt] leading-tight mb-0.5"
-                >
-                  <AssessmentEditable
-                    value={paperMeta.university_name || "CHAITANYA"}
-                    onUpdate={(v: string) =>
-                      updateText(v, "META", "university_name")}
-                    class="w-full text-center"
-                  />
-                </div>
-                <div class="text-[10pt] mb-1">(DEEMED TO BE UNIVERSITY)</div>
-                <div class="font-bold text-[11pt] uppercase mb-1">
-                  <AssessmentEditable
-                    value={paperMeta.exam_title ||
-                      "I INTERNAL EXAMINATIONS-NOV -2024"}
-                    onUpdate={(v: string) =>
-                      updateText(v, "META", "exam_title")}
-                    class="w-full text-center"
-                  />
-                </div>
-              </td>
-              <!-- Right: Page Number/Info -->
-              <td
-                class="w-[20%] !border-0 p-0 text-right align-top text-[10pt] font-bold"
-              >
-                Page 1 of 1
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="no-print absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          onclick={() => (showSolutions = !showSolutions)}
+          class="flex items-center gap-2 px-4 py-2 rounded-lg border transition-all {showSolutions
+            ? 'bg-blue-600 text-white border-blue-700'
+            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}"
+        >
+          {#if showSolutions}
+            Solutions Mode: ON
+          {:else}
+            Solutions Mode: OFF
+          {/if}
+        </button>
+      </div>
 
-        <!-- Sub-Metadata (Red Accents) -->
-        <div class="text-center space-y-0.5 mb-4">
-          <div class="font-bold text-[11pt] uppercase text-red-600">
-            <AssessmentEditable
-              value={paperMeta.programme_semester || "B.Tech(CSE) - I SEMESTER"}
-              onUpdate={(v: string) =>
-                updateText(v, "META", "programme_semester")}
-              class="w-full text-center"
-            />
-          </div>
-          <div class="font-bold text-[11pt] uppercase text-red-600">
-            <AssessmentEditable
-              value={paperMeta.subject_name || "SUBJECT NAME"}
-              onUpdate={(v: string) => updateText(v, "META", "subject_name")}
-              class="w-full text-center"
-            />
-          </div>
+      <!-- Header (Centered per image) -->
+      <div class="mb-6">
+        <div class="text-center font-bold text-[11pt] mb-1">
+          Set - {activeSet}
+        </div>
+        <div
+          class="text-center font-bold uppercase text-[15.5pt] leading-tight mb-0.5 mt-2"
+        >
+          <AssessmentEditable
+            value={paperMeta.university_name || "CHAITANYA"}
+            onUpdate={(v: string) => updateText(v, "META", "university_name")}
+            class="w-full text-center"
+          />
+        </div>
+        <div class="text-center font-bold text-[10.5pt] uppercase mb-1">
+          (DEEMED TO BE UNIVERSITY)
+        </div>
+        <div class="text-center font-bold text-[11.5pt] uppercase mb-2">
+          <AssessmentEditable
+            value={paperMeta.exam_title || "I INTERNAL EXAMINATIONS-NOV -2024"}
+            onUpdate={(v: string) => updateText(v, "META", "exam_title")}
+            class="w-full text-center"
+          />
+        </div>
+        <div
+          class="text-center font-bold uppercase text-[11.5pt] text-red-600 mb-0.5"
+        >
+          <AssessmentEditable
+            value={paperMeta.programme_semester || "B.Tech(CSE) - I SEMESTER"}
+            onUpdate={(v: string) =>
+              updateText(v, "META", "programme_semester")}
+            class="w-full text-center"
+          />
+        </div>
+        <div
+          class="text-center font-bold uppercase text-[12pt] text-red-600 mb-6"
+        >
+          <AssessmentEditable
+            value={paperMeta.subject_name || "SUBJECT NAME"}
+            onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+            class="w-full text-center"
+          />
         </div>
       </div>
 
-      <div class="border-t border-black my-2"></div>
+      <div class="border-t border-black my-0.5"></div>
+      <div class="border-t border-black mb-2"></div>
 
       <!-- Time & Marks Row -->
       <div
-        class="flex justify-between items-center font-bold text-[10.5pt] mb-6"
+        class="flex justify-between items-center font-bold text-[11.5pt] py-0.5 px-1"
       >
-        <div class="flex gap-1">
+        <div class="flex gap-1 items-baseline">
           <span>Time:</span>
           <AssessmentEditable
-            value={paperMeta.duration_text || "1 ½ Hrs."}
+            value={paperMeta.duration_text || "1 ½ Hrs.]"}
             onUpdate={(v: string) => updateText(v, "META", "duration_text")}
           />
         </div>
-        <div class="flex gap-1">
+        <div class="flex gap-1 items-baseline">
           <span>[Max. Marks:</span>
           <AssessmentEditable
             value={String(paperMeta.max_marks || "20")}
             onUpdate={(v: string) => updateText(v, "META", "max_marks")}
           />
-          <span>]</span>
         </div>
       </div>
 
+      <div class="border-t border-black mt-2 mb-4"></div>
+
       <!-- Sections -->
-      <div class="space-y-6">
+      <div class="w-full space-y-8">
         {#each paperStructure as section, sIdx}
           {@const sectionQs = questionsByPart(section.part)}
           <div class="mb-4">
-            <!-- Section Label -->
-            <div class="text-center italic font-serif text-[11pt] mb-2">
-              Section - {section.part}
+            <!-- Section Title with border boxes like image -->
+            <div class="flex justify-center mb-3">
+              <div
+                class="border border-black px-10 py-1 italic font-bold text-[11pt]"
+              >
+                Section - {section.part}
+              </div>
             </div>
 
-            <!-- Section Question Table -->
             <table
               class="w-full border-collapse border border-black table-fixed"
             >
               <colgroup>
-                <col style="width: 45px;" />
+                <col style="width: 50px;" />
                 <col style="width: auto;" />
               </colgroup>
               <thead>
-                <tr class="border-b border-black italic text-[10.5pt]">
-                  <th class="p-2 text-left font-normal" colspan="2">
+                <tr class="border-b border-black italic text-[11pt]">
+                  <th class="p-2.5 text-left font-normal" colspan="2">
                     <div class="flex justify-between items-center w-full">
                       <AssessmentEditable
                         value={section.instructions ||
-                          section.title ||
                           "Answer any six Questions."}
                         onUpdate={(v: string) => {
                           section.instructions = v;
@@ -411,7 +412,7 @@
                       <div class="font-bold not-italic">
                         <AssessmentEditable
                           value={section.marks_summary ||
-                            `${section.count || sectionQs.length} x ${section.marks_per_q} = ${section.total_marks || sectionQs.length * section.marks_per_q}`}
+                            `${section.answered_count || 6} x ${section.marks_per_q || 2} = ${section.total_marks || 12}`}
                           onUpdate={(v: string) => {
                             section.marks_summary = v;
                             paperStructure = [...paperStructure];
@@ -442,11 +443,11 @@
                     {#each q1s as q, qIdx}
                       <tr class="group/row">
                         <td
-                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                          class="border-r border-black p-3 align-top text-center text-[11pt] font-medium"
                         >
                           {#if qIdx === 0}{sn}.{/if}
                         </td>
-                        <td class="p-2 align-top relative">
+                        <td class="p-3 align-top relative">
                           <AssessmentRowActions
                             {isEditable}
                             onSwap={() =>
@@ -454,26 +455,42 @@
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
-                          <div class="text-[10.5pt] leading-relaxed">
-                            <div class="flex gap-2">
-                              {#if q.sub_label}
-                                <span class="font-bold">{q.sub_label})</span>
-                              {/if}
-                              <div class="flex-1">
+                          <div class="text-[11pt] leading-relaxed">
+                            <AssessmentEditable
+                              value={q.text || q.question_text || ""}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "text",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              multiline={true}
+                            />
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
                                 <AssessmentEditable
-                                  value={q.text || q.question_text || ""}
+                                  value={q.answer_key || q.answer || ""}
                                   onUpdate={(v: string) =>
                                     updateText(
                                       v,
                                       "QUESTION",
-                                      "text",
+                                      "answer_key",
                                       slot.id,
                                       q.id,
                                     )}
                                   multiline={true}
                                 />
                               </div>
-                            </div>
+                            {/if}
                           </div>
                         </td>
                       </tr>
@@ -482,8 +499,10 @@
                     <!-- OR Row -->
                     <tr>
                       <td
-                        class="border-r border-black p-1 text-center font-bold text-[10pt] uppercase"
-                        colspan="2"
+                        class="border-r border-black p-2 border-b border-black"
+                      ></td>
+                      <td
+                        class="p-1 text-center font-bold text-[11pt] uppercase border-b border-black italic"
                       >
                         OR
                       </td>
@@ -491,15 +510,13 @@
 
                     <!-- Choice B -->
                     {#each q2s as q, qIdx}
-                      <tr
-                        class="group/row border-b border-black last:border-b-0"
-                      >
+                      <tr class="group/row">
                         <td
-                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                          class="border-r border-black p-3 align-top text-center text-[11pt] font-medium"
                         >
                           {#if qIdx === 0}{sn + 1}.{/if}
                         </td>
-                        <td class="p-2 align-top relative">
+                        <td class="p-3 align-top relative">
                           <AssessmentRowActions
                             {isEditable}
                             onSwap={() =>
@@ -507,26 +524,42 @@
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
-                          <div class="text-[10.5pt] leading-relaxed">
-                            <div class="flex gap-2">
-                              {#if q.sub_label}
-                                <span class="font-bold">{q.sub_label})</span>
-                              {/if}
-                              <div class="flex-1">
+                          <div class="text-[11pt] leading-relaxed">
+                            <AssessmentEditable
+                              value={q.text || q.question_text || ""}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "text",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              multiline={true}
+                            />
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
                                 <AssessmentEditable
-                                  value={q.text || q.question_text || ""}
+                                  value={q.answer_key || q.answer || ""}
                                   onUpdate={(v: string) =>
                                     updateText(
                                       v,
                                       "QUESTION",
-                                      "text",
+                                      "answer_key",
                                       slot.id,
                                       q.id,
                                     )}
                                   multiline={true}
                                 />
                               </div>
-                            </div>
+                            {/if}
                           </div>
                         </td>
                       </tr>
@@ -539,11 +572,11 @@
                         class="group/row border-b border-black last:border-b-0"
                       >
                         <td
-                          class="border-r border-black p-2 align-top text-center text-[10.5pt]"
+                          class="border-r border-black p-3 align-top text-center text-[11pt] font-medium"
                         >
                           {#if qIdx === 0}{sn}.{/if}
                         </td>
-                        <td class="p-2 align-top relative">
+                        <td class="p-3 align-top relative">
                           <AssessmentRowActions
                             {isEditable}
                             onSwap={() =>
@@ -556,29 +589,47 @@
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
-                          <div class="text-[10.5pt] leading-relaxed">
-                            <div class="flex gap-2">
-                              {#if q.sub_label}
-                                <span class="font-bold">{q.sub_label})</span>
-                              {/if}
-                              <div class="flex-1">
+                          <div class="text-[11pt] leading-relaxed">
+                            <AssessmentEditable
+                              value={q.text || q.question_text || ""}
+                              onUpdate={(v: string) =>
+                                updateText(
+                                  v,
+                                  "QUESTION",
+                                  "text",
+                                  slot.id,
+                                  q.id,
+                                )}
+                              multiline={true}
+                            />
+                            {#if q.options?.length > 0}
+                              <div class="mt-2 pl-4">
+                                <AssessmentMcqOptions options={q.options} />
+                              </div>
+                            {/if}
+                            {#if showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
                                 <AssessmentEditable
-                                  value={q.text || q.question_text || ""}
+                                  value={q.answer_key || q.answer || ""}
                                   onUpdate={(v: string) =>
                                     updateText(
                                       v,
                                       "QUESTION",
-                                      "text",
+                                      "answer_key",
                                       slot.id,
                                       q.id,
                                     )}
                                   multiline={true}
                                 />
                               </div>
-                            </div>
-                            <div class="mt-2 pl-4">
-                              <AssessmentMcqOptions options={q.options} />
-                            </div>
+                            {/if}
                           </div>
                         </td>
                       </tr>
@@ -603,33 +654,12 @@
 </div>
 
 <style>
-  @font-face {
-    font-family: "Times New Roman";
-    font-display: swap;
-    src: local("Times New Roman");
-  }
   #cdu-paper-actual {
     font-family: "Times New Roman", Times, serif;
     color: black !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
   }
   #cdu-paper-actual * {
-    color: black !important;
     border-color: black !important;
-  }
-  #cdu-paper-actual table,
-  #cdu-paper-actual tr,
-  #cdu-paper-actual td,
-  #cdu-paper-actual th {
-    border: 1px solid black !important;
-    border-collapse: collapse !important;
-  }
-  #cdu-paper-actual :global(.assessment-editable-container) {
-    font-weight: inherit;
-    color: black !important;
-    border: none !important;
-    background: transparent !important;
   }
   .text-red-600 {
     color: #dc2626 !important;
