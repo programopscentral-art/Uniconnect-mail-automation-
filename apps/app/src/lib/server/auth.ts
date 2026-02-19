@@ -1,4 +1,6 @@
 import { google } from 'googleapis';
+// Ensure SSL verification is disabled for this module
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { env } from '$env/dynamic/private';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';

@@ -7,7 +7,7 @@
         "apps/*",
         "packages/*"
     ],
-    "deploy_tag": "V41-SSL-FIX-FORCE-TRIGGER-1224",
+    "deploy_tag": "V42-EMERGENCY-SSL-FIX-0119",
     "scripts": {
         "dev": "turbo run dev",
         "build": "turbo run build",
