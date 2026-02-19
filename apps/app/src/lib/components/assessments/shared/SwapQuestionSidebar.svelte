@@ -12,10 +12,17 @@
 
   let searchQuery = $state("");
   let selectedType = $state<string | null>(null);
+  let selectedTopic = $state<string | null>(null);
   let showAllMarks = $state(false);
 
   const availableTypes = $derived(
     Array.from(new Set(questionPool.map((q) => q.type).filter(Boolean))).sort(),
+  );
+
+  const availableTopics = $derived(
+    Array.from(
+      new Set(questionPool.map((q) => q.topic_name).filter(Boolean)),
+    ).sort(),
   );
 
   const filteredQuestions = $derived.by(() => {
@@ -29,6 +36,11 @@
     // Secondary Filter: Question Type
     if (selectedType) {
       list = list.filter((q) => q.type === selectedType);
+    }
+
+    // New Filter: Topic
+    if (selectedTopic) {
+      list = list.filter((q) => q.topic_name === selectedTopic);
     }
 
     // Tertiary Filter: Search Query
@@ -126,12 +138,31 @@
         />
       </div>
 
+      <!-- Topic Filter -->
+      <div class="space-y-2 mb-4">
+        <label
+          for="topic-filter"
+          class="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1"
+          >Filter by Topic</label
+        >
+        <select
+          id="topic-filter"
+          bind:value={selectedTopic}
+          class="w-full bg-gray-50 dark:bg-slate-900 border border-transparent focus:border-indigo-500 rounded-2xl p-3 text-xs font-bold transition-all outline-none"
+        >
+          <option value={null}>All Topics</option>
+          {#each availableTopics as topic}
+            <option value={topic}>{topic}</option>
+          {/each}
+        </select>
+      </div>
+
       <!-- Type Filters -->
       <div class="space-y-3">
         <div class="flex items-center justify-between">
           <span
             class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-            >Quick Filters</span
+            >Quick Type Filters</span
           >
           <button
             onclick={() => (showAllMarks = !showAllMarks)}
@@ -149,7 +180,7 @@
             class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border {selectedType ===
             null
               ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-600'
-              : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-500 hover:border-gray-300'}"
+              : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 hover:border-gray-200'}"
           >
             All Types
           </button>
@@ -159,7 +190,7 @@
               class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border {selectedType ===
               type
                 ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 text-indigo-600'
-                : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-500 hover:border-gray-300'}"
+                : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 hover:border-gray-200'}"
             >
               {type}
             </button>
@@ -190,6 +221,14 @@
               >
                 {q.type}
               </span>
+              {#if q.topic_name}
+                <span
+                  class="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 truncate max-w-[120px]"
+                  title={q.topic_name}
+                >
+                  {q.topic_name}
+                </span>
+              {/if}
             </div>
             {#if q.bloom_level}
               <span
@@ -271,6 +310,7 @@
             onclick={() => {
               searchQuery = "";
               selectedType = null;
+              selectedTopic = null;
               showAllMarks = true;
             }}
             class="mt-6 text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline"

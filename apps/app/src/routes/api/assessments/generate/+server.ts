@@ -112,12 +112,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         };
 
         // 1. Fetch Question Pool
-        const questionsRes = await db.query(`
+        let poolQuery = `
             SELECT DISTINCT ON (q.id) q.*, u.unit_number 
             FROM assessment_questions q
             JOIN assessment_units u ON q.unit_id = u.id
             WHERE u.subject_id = $1
-        `, [subject_id]);
+        `;
+        const poolParams: any[] = [subject_id];
+
+        if (topic_ids && topic_ids.length > 0) {
+            poolQuery += ` AND q.topic_id = ANY($2)`;
+            poolParams.push(topic_ids);
+        } else if (unit_ids && unit_ids.length > 0) {
+            poolQuery += ` AND q.unit_id = ANY($2)`;
+            poolParams.push(unit_ids);
+        }
+
+        const questionsRes = await db.query(poolQuery, poolParams);
 
         let allQuestions = questionsRes.rows;
         const coRes = await db.query('SELECT id, code FROM assessment_course_outcomes WHERE subject_id = $1', [subject_id]);
