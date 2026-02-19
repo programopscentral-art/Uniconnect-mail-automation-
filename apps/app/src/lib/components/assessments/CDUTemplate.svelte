@@ -440,7 +440,7 @@
 
                     <!-- Choice A -->
                     {#each q1s as q, qIdx}
-                      <tr class="group/row">
+                      <tr class="group/row border-b border-black">
                         <td
                           class="border-r border-black p-3 align-top text-center text-[11pt] font-medium"
                         >
@@ -498,10 +498,10 @@
                     <!-- OR Row -->
                     <tr>
                       <td
-                        class="border-r border-black p-2 border-b border-black"
+                        class="border-r border-black p-2 border-b border-black bg-gray-50/50"
                       ></td>
                       <td
-                        class="p-1 text-center font-bold text-[11pt] uppercase border-b border-black italic"
+                        class="p-2 text-center font-bold text-[10pt] uppercase border-b border-black italic tracking-[0.2em] bg-gray-50/50"
                       >
                         OR
                       </td>
@@ -509,7 +509,9 @@
 
                     <!-- Choice B -->
                     {#each q2s as q, qIdx}
-                      <tr class="group/row">
+                      <tr
+                        class="group/row border-b border-black last:border-b-0"
+                      >
                         <td
                           class="border-r border-black p-3 align-top text-center text-[11pt] font-medium"
                         >
