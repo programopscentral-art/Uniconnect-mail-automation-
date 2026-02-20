@@ -135,11 +135,52 @@
     { label: "Appear offline", status: "OFFLINE", color: "bg-gray-400" },
   ];
 
+  // Multi-tab Notifications Coordination & Full-duplex Processing
+  const processedSourceIds = new Set<string>();
+  let notifChannel: BroadcastChannel | null = null;
+
   async function fetchNotifications() {
     try {
       const res = await fetch("/api/notifications");
-      if (res.ok) notifications = await res.json();
-    } catch (e) {}
+      if (res.ok) {
+        const data = await res.json();
+
+        // SELF-HEALING: If FCM missed a message, but it's in the DB, trigger it now.
+        // Logic: Check unread notifications from the last 15 minutes.
+        const now = new Date();
+        for (const n of data) {
+          const createdAt = new Date(n.created_at);
+          const isRecent = now.getTime() - createdAt.getTime() < 15 * 60 * 1000;
+
+          if (
+            !n.is_read &&
+            isRecent &&
+            n.source_id &&
+            !processedSourceIds.has(n.source_id)
+          ) {
+            console.log(
+              "[POLLING_FALLBACK] Found missed notification:",
+              n.source_id,
+            );
+            processedSourceIds.add(n.source_id);
+            if (notifChannel)
+              notifChannel.postMessage({
+                type: "STOP_DUPLICATE",
+                sourceId: n.source_id,
+              });
+
+            const taskId = n.source_id.startsWith("CT_")
+              ? n.source_id.split("_")[1]
+              : undefined;
+            triggerNativePopup(n.title, n.message, n.link, taskId, n.source_id);
+          }
+        }
+
+        notifications = data;
+      }
+    } catch (e) {
+      console.error("Failed to fetch notifications:", e);
+    }
   }
 
   import { browser } from "$app/environment";
@@ -163,6 +204,47 @@
     }
   }
 
+  const triggerNativePopup = async (
+    title: string,
+    body: string,
+    url: string | null,
+    taskId: string | undefined,
+    sourceId: string,
+  ) => {
+    if (!browser || Notification.permission !== "granted") return;
+
+    const options: any = {
+      body,
+      icon: "/nxtwave-logo.png",
+      badge: "/nxtwave-logo.png",
+      tag: sourceId,
+      renotify: true,
+      data: { url, taskId },
+    };
+
+    // Add persistent features for critical alerts
+    if (!!taskId && (body.includes("DUE") || body.includes("OVERDUE"))) {
+      options.requireInteraction = true;
+      options.vibrate = [200, 100, 200];
+    }
+
+    try {
+      // 1. ServiceWorker (Modern, Teams-style)
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, options);
+
+      // 2. Fallback/Dual-delivery for Foreground (Highly reliable)
+      // Some browsers suppress reg.showNotification if the tab is focused.
+      if (!document.hidden) {
+        new Notification(title, options);
+      }
+    } catch (e) {
+      console.error("Native popup failed:", e);
+      // Final Fallback
+      new Notification(title, options);
+    }
+  };
+
   async function testDesktopNotification() {
     if (!browser || !("Notification" in window)) {
       alert("Notifications are not supported in this browser.");
@@ -176,22 +258,15 @@
     }
 
     try {
-      // Ensure service worker is ready for native popups
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification("🔔 Test Desktop Alert", {
-        body: "Success! This is how your task alerts will appear, even when you are in other apps or tabs.",
-        icon: "/nxtwave-logo.png",
-        badge: "/nxtwave-logo.png",
-        tag: "test-alert",
-        renotify: true,
-      } as any);
+      await triggerNativePopup(
+        "🔔 Test Desktop Alert",
+        "Success! This is how your task alerts will appear, even when you are in other apps or tabs.",
+        null,
+        "test-task",
+        "test-alert-" + Date.now(),
+      );
     } catch (e) {
       console.error("Test notification failed:", e);
-      // Fallback to simple notification
-      new Notification("🔔 Test Desktop Alert", {
-        body: "Success! This is how your task alerts will appear.",
-        icon: "/nxtwave-logo.png",
-      });
     }
   }
 
@@ -259,8 +334,10 @@
 
   import { onMount } from "svelte";
   onMount(() => {
+    notifChannel = new BroadcastChannel("uni-notifications-coord");
+
     fetchNotifications();
-    const notificationInterval = setInterval(fetchNotifications, 30000); // 30s
+    const notificationInterval = setInterval(fetchNotifications, 15000); // Check every 15s
 
     // Initial online status if AUTO
     if (user?.presence_mode === "AUTO") {
@@ -358,49 +435,6 @@
         }
       });
 
-      // Multi-tab Notifications Coordination
-      const processedSourceIds = new Set<string>();
-      const notifChannel = new BroadcastChannel("uni-notifications-coord");
-
-      const triggerNativePopup = async (
-        title: string,
-        body: string,
-        url: string | null,
-        taskId: string | undefined,
-        sourceId: string,
-      ) => {
-        if (!browser || Notification.permission !== "granted") return;
-
-        const options: any = {
-          body,
-          icon: "/nxtwave-logo.png",
-          badge: "/nxtwave-logo.png",
-          tag: sourceId,
-          renotify: true,
-          data: { url, taskId },
-        };
-
-        // Add persistent features for critical alerts
-        if (!!taskId && (body.includes("DUE") || body.includes("OVERDUE"))) {
-          options.requireInteraction = true;
-          options.vibrate = [200, 100, 200];
-        }
-
-        try {
-          const reg = await navigator.serviceWorker.ready;
-          // Strategy 1: ServiceWorker (Modern, Teams-style)
-          await reg.showNotification(title, options);
-
-          // Strategy 2: Duplicate via window-level if document is hidden or just to be sure
-          if (document.hidden) {
-            new Notification(title, options);
-          }
-        } catch (e) {
-          // Final Fallback
-          new Notification(title, options);
-        }
-      };
-
       onForegroundMessage((payload) => {
         // Log to verify message receipt
         console.log("[FCM_FOREGROUND] Received:", payload);
@@ -416,23 +450,15 @@
         // 1. DEDUPLICATION (Local & Multi-tab)
         if (processedSourceIds.has(sourceId)) return;
         processedSourceIds.add(sourceId);
-        notifChannel.postMessage({ type: "STOP_DUPLICATE", sourceId });
+        if (notifChannel)
+          notifChannel.postMessage({ type: "STOP_DUPLICATE", sourceId });
 
         let url = taskId ? `/communication-tasks/${taskId}` : null;
         if (!url && action === "OPEN_REQUESTS") url = "/users";
 
         // 2. Local State Sync (Tray)
-        notifications = [
-          {
-            id: Math.random().toString(36).substr(2, 9),
-            title,
-            message: body,
-            created_at: new Date(),
-            is_read: false,
-            link: url,
-          },
-          ...notifications,
-        ];
+        // Refresh tray data to include the new notification
+        fetchNotifications();
 
         // 3. UI DISPLAY
         // Show the in-app toast only on the currently visible tab
@@ -449,16 +475,16 @@
         }
 
         // 4. NATIVE POPUP (Designated Task)
-        // We always try to show the native popup.
-        // Our 'processedSourceIds' + 'notifChannel' logic ensures only ONE tab does this.
         triggerNativePopup(title, body, url, taskId, sourceId);
       });
 
-      notifChannel.onmessage = (event) => {
-        if (event.data.type === "STOP_DUPLICATE") {
-          processedSourceIds.add(event.data.sourceId);
-        }
-      };
+      if (notifChannel) {
+        notifChannel.onmessage = (event) => {
+          if (event.data.type === "STOP_DUPLICATE") {
+            processedSourceIds.add(event.data.sourceId);
+          }
+        };
+      }
     }
 
     return () => {
@@ -467,6 +493,7 @@
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("blur", handleBlur);
+      if (notifChannel) notifChannel.close();
       updatePresence("OFFLINE");
     };
   });
