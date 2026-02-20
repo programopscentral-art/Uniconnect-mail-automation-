@@ -108,15 +108,14 @@ async function processCommunicationTasks() {
 
       if (recipientIds.length === 0) {
         console.log(`[COMM-SCHEDULER] ⚠️ No recipients for task ${task.id}. Marking as processed to avoid infinite loop.`);
-        // Update flags so we don't keep trying
-        const now = new Date();
+        const nowMark = new Date();
         await db.query(`UPDATE communication_tasks SET 
           creation_notified_at = COALESCE(creation_notified_at, $2),
           ten_min_reminder_sent = CASE WHEN $3 = 'TEN_MIN' THEN true ELSE ten_min_reminder_sent END,
           overdue_10min_notified_at = CASE WHEN $3 = 'OVERDUE_10' THEN $2 ELSE overdue_10min_notified_at END,
           overdue_30min_notified_at = CASE WHEN $3 = 'OVERDUE_30' THEN $2 ELSE overdue_30min_notified_at END,
           status = CASE WHEN $3 = 'DUE' THEN 'Notified' ELSE status END
-          WHERE id = $1`, [task.id, now, notificationType]);
+          WHERE id = $1`, [task.id, nowMark, notificationType]);
         continue;
       }
 
@@ -127,11 +126,27 @@ async function processCommunicationTasks() {
 
       const uniqueRecipientIds = [...new Set(recipientIds)];
 
-      // 2. Prepare Notification Content
+      // 2. Resolve University Names for the message
+      let displayUnivs = task.universities;
+      if (!isAllUniversities) {
+        const univRes = await db.query(
+          `SELECT COALESCE(short_name, name) as name 
+           FROM universities 
+           WHERE id::text = ANY($1::text[]) 
+              OR name = ANY($1::text[]) 
+              OR short_name = ANY($1::text[])`,
+          [task.universities]
+        );
+        if (univRes.rows.length > 0) {
+          displayUnivs = univRes.rows.map(r => r.name);
+        }
+      }
+
+      // 3. Prepare Notification Content
       let title = '';
       let body = '';
       const taskTitle = task.message_title || 'New Message';
-      const univStr = isAllUniversities ? 'All Universities' : task.universities.join(', ');
+      const univStr = isAllUniversities ? 'All Universities' : displayUnivs.join(', ');
       const typeLabel = task.update_type ? `[${task.update_type}]` : '';
       const priorityLabel = task.priority === 'High' ? '🔴 HIGH PRIORITY: ' : '';
       const bodySnippet = task.message_body ? (task.message_body.length > 80 ? task.message_body.substring(0, 77) + '...' : task.message_body) : '';
@@ -217,11 +232,13 @@ async function processCommunicationTasks() {
         console.log(`[COMM-SCHEDULER] ⚠️ Skipping push for ${notificationType} (Task ${task.id}). Tokens: ${allTokens.length}, Firebase App: ${admin.apps.length > 0}`);
       }
 
-      // Update DB state
+      // Update DB state to prevent loops
+      // We mark as notified if tokens were found, OR if push service is available, 
+      // OR if it's been more than a minute (to give some retry but not loop forever)
       const taskAgeMinutes = (now.getTime() - new Date(task.created_at).getTime()) / (60000);
-      const shouldMark = allTokens.length > 0 || taskAgeMinutes > 10;
+      const markAlways = taskAgeMinutes > 1 || notificationType !== 'CREATION';
 
-      if (notificationType === 'CREATION' && shouldMark) {
+      if (notificationType === 'CREATION' && (allTokens.length > 0 || markAlways)) {
         await db.query('UPDATE communication_tasks SET creation_notified_at = NOW() WHERE id = $1', [task.id]);
       } else if (notificationType === 'TEN_MIN') {
         await db.query('UPDATE communication_tasks SET ten_min_reminder_sent = true WHERE id = $1', [task.id]);

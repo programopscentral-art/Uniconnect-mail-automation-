@@ -229,19 +229,21 @@
     }
 
     try {
-      // 1. ServiceWorker (Modern, Teams-style)
+      // Logic: Ensure high reliability WITHOUT duplication.
       const reg = await navigator.serviceWorker.ready;
+
+      // On Windows/Chrome, reg.showNotification works perfectly in both foreground and background.
+      // Calling both reg.showNotification AND new Notification() usually results in 2 popups.
       await reg.showNotification(title, options);
 
-      // 2. Fallback/Dual-delivery for Foreground (Highly reliable)
-      // Some browsers suppress reg.showNotification if the tab is focused.
-      if (!document.hidden) {
-        new Notification(title, options);
-      }
+      // Fallback only if the above failed or if specifically restricted
     } catch (e) {
-      console.error("Native popup failed:", e);
-      // Final Fallback
-      new Notification(title, options);
+      console.error("Native popup (SW) failed, using window fallback:", e);
+      try {
+        new Notification(title, options);
+      } catch (err) {
+        console.error("Window notification failed:", err);
+      }
     }
   };
 

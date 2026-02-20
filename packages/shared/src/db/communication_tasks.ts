@@ -127,6 +127,9 @@ export async function getCommunicationTaskById(id: string) {
 }
 
 export async function deleteCommunicationTask(id: string) {
+    // 1. Delete associated notifications first to prevent stale alerts (polling fallback)
+    await db.query(`DELETE FROM notifications WHERE source_id LIKE $1`, [`CT_${id}_%`]);
+    // 2. Delete the task
     await db.query(`DELETE FROM communication_tasks WHERE id = $1`, [id]);
 }
 
