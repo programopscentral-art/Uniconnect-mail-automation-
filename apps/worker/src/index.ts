@@ -60,18 +60,31 @@ async function processCommunicationTasks() {
       let notificationType: 'CREATION' | 'TEN_MIN' | 'DUE' | 'OVERDUE_10' | 'OVERDUE_30' | null = null;
       const now = new Date();
       const scheduledAt = new Date(task.scheduled_at);
+      const diffMs = scheduledAt.getTime() - now.getTime();
 
-      // A. CREATION ALERT (Unnotified at creation)
-      if (!task.creation_notified_at) {
-        notificationType = 'CREATION';
-      }
-      // B. DUE NOW (Status: Scheduled, time passed or within 60s)
-      else if (task.status === 'Scheduled' && scheduledAt.getTime() <= now.getTime() + 60000) {
+      // 1. Determine priority: DUE > TEN_MIN > CREATION
+
+      // A. DUE NOW (Status: Scheduled, time passed or within 60s)
+      if (task.status === 'Scheduled' && diffMs <= 60000) {
         notificationType = 'DUE';
       }
-      // C. 10 MIN REMINDER (Scheduled, within 10-12 mins, not sent)
-      else if (task.status === 'Scheduled' && !task.ten_min_reminder_sent && (scheduledAt.getTime() - now.getTime()) <= 10.5 * 60 * 1000 && (scheduledAt.getTime() - now.getTime()) > 0) {
+      // B. 10 MIN REMINDER (Scheduled, within 10-12 mins, not sent)
+      // Only send if it's NOT already DUE (handled above)
+      else if (task.status === 'Scheduled' && !task.ten_min_reminder_sent && diffMs <= 10.5 * 60 * 1000 && diffMs > 0) {
         notificationType = 'TEN_MIN';
+      }
+      // C. CREATION ALERT (Unnotified at creation)
+      // Only send if it's NOT due within the next 15 minutes (avoids spam if creating short-deadline tasks)
+      else if (!task.creation_notified_at) {
+        if (diffMs > 15 * 60 * 1000 || diffMs < -5000) { // Future task (>15m) or past/immediate
+          notificationType = 'CREATION';
+        } else {
+          // Skip creation alert and wait for the DUE or TEN_MIN alert if it's very soon
+          // But mark it as notified so we don't keep checking CREATION logic
+          await db.query('UPDATE communication_tasks SET creation_notified_at = NOW() WHERE id = $1', [task.id]);
+          console.log(`[COMM-SCHEDULER] Skipping CREATION alert for task ${task.id} as it is due in ${Math.round(diffMs / 60000)} mins.`);
+          continue;
+        }
       }
       // D. OVERDUE 10 MIN (Notified, but not completed, 10+ mins past)
       else if (task.status === 'Notified' && !task.overdue_10min_notified_at && (now.getTime() - scheduledAt.getTime()) >= 10 * 60 * 1000 && (now.getTime() - scheduledAt.getTime()) < 30 * 60 * 1000) {
@@ -232,22 +245,22 @@ async function processCommunicationTasks() {
         console.log(`[COMM-SCHEDULER] ⚠️ Skipping push for ${notificationType} (Task ${task.id}). Tokens: ${allTokens.length}, Firebase App: ${admin.apps.length > 0}`);
       }
 
-      // Update DB state to prevent loops
-      // We mark as notified if tokens were found, OR if push service is available, 
-      // OR if it's been more than a minute (to give some retry but not loop forever)
+      // Update DB state to prevent loops and redundant alerts
       const taskAgeMinutes = (now.getTime() - new Date(task.created_at).getTime()) / (60000);
       const markAlways = taskAgeMinutes > 1 || notificationType !== 'CREATION';
 
       if (notificationType === 'CREATION' && (allTokens.length > 0 || markAlways)) {
         await db.query('UPDATE communication_tasks SET creation_notified_at = NOW() WHERE id = $1', [task.id]);
       } else if (notificationType === 'TEN_MIN') {
-        await db.query('UPDATE communication_tasks SET ten_min_reminder_sent = true WHERE id = $1', [task.id]);
+        // When sending 10m reminder, also mark creation as notified so they don't get the "New" alert later
+        await db.query('UPDATE communication_tasks SET ten_min_reminder_sent = true, creation_notified_at = COALESCE(creation_notified_at, NOW()) WHERE id = $1', [task.id]);
       } else if (notificationType === 'OVERDUE_10') {
         await db.query('UPDATE communication_tasks SET overdue_10min_notified_at = NOW() WHERE id = $1', [task.id]);
       } else if (notificationType === 'OVERDUE_30') {
         await db.query('UPDATE communication_tasks SET overdue_30min_notified_at = NOW() WHERE id = $1', [task.id]);
       } else if (notificationType === 'DUE') {
-        await updateCommunicationTaskStatus(task.id, 'Notified', now);
+        // When sending DUE alert, mark creation and reminder as done to avoid the "New Task" or "10m Reminder" popups firing shortly after
+        await db.query('UPDATE communication_tasks SET status = \'Notified\', notified_at = NOW(), creation_notified_at = COALESCE(creation_notified_at, NOW()), ten_min_reminder_sent = true WHERE id = $1', [task.id]);
       }
     }
 
