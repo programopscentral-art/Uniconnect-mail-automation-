@@ -335,9 +335,7 @@
     const qCount =
       slot.questions?.length ||
       (slot.choice1 ? slot.choice1.questions?.length || 1 : 1);
-    return qCount > 1 || (isPartA && !isMCQSlot(slot))
-      ? getRomanLabel(qIdx)
-      : "";
+    return qCount > 1 ? getRomanLabel(qIdx) : "";
   }
 
   function shouldShowADYPUSN(
