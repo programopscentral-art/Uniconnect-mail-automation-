@@ -202,10 +202,15 @@
     Array.isArray(currentSetData.questions) ? currentSetData.questions : [],
   );
 
-  function getQuestionsByPart(part: string) {
-    const p = part.trim().toUpperCase();
+  function getQuestionsByPart(part: string | undefined | null) {
+    if (!part) return [];
+    const p = String(part).trim().toUpperCase();
     return (currentSetData?.questions || []).filter(
-      (q: any) => q && q.part?.trim().toUpperCase() === p,
+      (q: any) =>
+        q &&
+        String(q.part || "")
+          .trim()
+          .toUpperCase() === p,
     );
   }
 
@@ -229,9 +234,15 @@
     for (let i = 0; i < sIdx; i++) {
       const pId = paperStructure[i]?.part;
       if (!pId) continue;
-      const part = pId.trim().toUpperCase();
+      const part = String(pId || "")
+        .trim()
+        .toUpperCase();
       const partQs = qs.filter(
-        (q: any) => q && q.part?.trim().toUpperCase() === part,
+        (q: any) =>
+          q &&
+          String(q.part || "")
+            .trim()
+            .toUpperCase() === part,
       );
       if (partQs.length === 0) continue;
 
@@ -299,7 +310,10 @@
       }
       return getSubLabel(mcqCount + qIdx);
     }
-    return slot.questions?.length > 1 || (isPartA && !isMCQSlot(slot))
+    const qCount =
+      slot.questions?.length ||
+      (slot.choice1 ? slot.choice1.questions?.length || 1 : 1);
+    return qCount > 1 || (isPartA && !isMCQSlot(slot))
       ? getRomanLabel(qIdx)
       : "";
   }

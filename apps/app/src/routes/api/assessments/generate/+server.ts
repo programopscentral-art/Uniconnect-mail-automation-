@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
-import crypto from 'node:crypto';
+
 
 /**
  * ARCHITECTURAL OVERHAAL: ASSESSMENT GENERATION
@@ -90,6 +90,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             topic_ids = [],
             template_config
         } = body;
+
+        const crypto = await import('node:crypto');
 
         const subject_id = sanitizeUUID(raw_subject_id);
         const university_id = sanitizeUUID(raw_university_id);
