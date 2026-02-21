@@ -105,6 +105,96 @@
     const is100 = Number(maxMarks) === 100;
     const structure = [];
 
+    if (isADYPU) {
+      // SECTION A: 1 (MCQ a-e), 2, 3
+      const partA = {
+        title: "SECTION A",
+        part: "A",
+        answered_count: 3,
+        marks_per_q: 5,
+        slots: [
+          {
+            id: `A-1-${Math.random()}`,
+            label: "1",
+            part: "A",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "MCQ",
+            hasSubQuestions: true,
+            numSubQuestions: 5,
+            bloom: "ANY",
+          },
+          {
+            id: `A-2-${Math.random()}`,
+            label: "2",
+            part: "A",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+          },
+          {
+            id: `A-3-${Math.random()}`,
+            label: "3",
+            part: "A",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+          },
+        ],
+      };
+      structure.push(partA);
+
+      // SECTION B: 4, 5, 6
+      const partB = {
+        title: "SECTION B",
+        part: "B",
+        answered_count: 3,
+        marks_per_q: 5,
+        slots: [
+          {
+            id: `B-4-${Math.random()}`,
+            label: "4",
+            part: "B",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+          },
+          {
+            id: `B-5-${Math.random()}`,
+            label: "5",
+            part: "B",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+          },
+          {
+            id: `B-6-${Math.random()}`,
+            label: "6",
+            part: "B",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+          },
+        ],
+      };
+      structure.push(partB);
+
+      paperStructure = structure;
+      refreshLabels();
+      return;
+    }
+
     if (isTakshashila) {
       // PART A: 10 MCQ (1M each)
       const partA = {
@@ -1133,6 +1223,11 @@
     activeUniversity?.name?.toLowerCase()?.includes("takshashila") ||
       String(selectedUniversityId).toLowerCase().includes("taksha"),
   );
+  const isADYPU = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("ajeenkya") ||
+      activeUniversity?.name?.toLowerCase()?.includes("adypu") ||
+      activeUniversity?.name?.toLowerCase()?.includes("patil"),
+  );
 
   $effect(() => {
     if (!selectedUniversityId) return;
@@ -1166,6 +1261,11 @@
         maxMarks = 25; // VGU Design shows 25 (10+15)
         examDuration = 60; // Design shows 1 Hr
       }
+    } else if (isADYPU) {
+      selectedTemplate = "adypu";
+      maxMarks = 20;
+      examDuration = 60;
+      paperStructure = []; // Clear to force re-init
     } else {
       selectedTemplate = "standard";
     }

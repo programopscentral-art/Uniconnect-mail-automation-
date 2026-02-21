@@ -236,8 +236,10 @@
       if (partQs.length === 0) continue;
 
       if (part === "A") {
-        // Part A is treated as a single serial number "1"
-        count += 1;
+        // Count each slot in Part A separately
+        partQs.forEach((s: any) => {
+          count += s.type === "OR_GROUP" ? 2 : 1;
+        });
       } else {
         partQs.forEach((s: any) => {
           count += s.type === "OR_GROUP" ? 2 : 1;
@@ -475,11 +477,7 @@
                         <td
                           class="w-[40px] border-r border-black px-2 py-4 text-center align-top font-bold text-[11pt] bg-slate-100/50"
                         >
-                          {#if isPartA}
-                            {i === 0 ? sn : ""}
-                          {:else}
-                            {sn}
-                          {/if}
+                          {sn}
                         </td>
                         <td
                           class="px-5 py-4 align-top relative {isPartA && i > 0
@@ -504,8 +502,8 @@
                               <div class="flex gap-3 mb-2">
                                 {#if isPartA || questions.length > 1}
                                   <span class="font-bold min-w-[20px]">
-                                    {isPartA
-                                      ? getSubLabel(i)
+                                    {isPartA && i === 0
+                                      ? getSubLabel(qIdx)
                                       : questions.length > 1
                                         ? getRomanLabel(qIdx)
                                         : ""}

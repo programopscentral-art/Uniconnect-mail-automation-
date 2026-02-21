@@ -337,35 +337,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                         // Choice 1
                         if (slot.choices[0].hasSubQuestions) {
-                            const qa = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.choices[0].qType,
-                                targetMarks: slot.choices[0].marks_a,
-                                bloom: slot.choices[0].bloom,
-                                co_id: slot.choices[0].co_id,
-                                preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_C1_a`,
-                                setName,
-                                setQuestions
-                            });
-                            const qb = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.choices[0].qType,
-                                targetMarks: slot.choices[0].marks_b,
-                                bloom: slot.choices[0].bloom,
-                                co_id: slot.choices[0].co_id,
-                                preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_C1_b`,
-                                setName,
-                                setQuestions
-                            });
-                            qa.sub_label = 'a';
-                            qb.sub_label = 'b';
-                            questions1.push(qa, qb);
+                            const subQCount = slot.choices[0].numSubQuestions || 2;
+                            const subLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+                            for (let j = 0; j < subQCount; j++) {
+                                let targetMarks = slot.choices[0].marks / subQCount;
+                                if (subQCount === 2) {
+                                    targetMarks = j === 0 ? slot.choices[0].marks_a : slot.choices[0].marks_b;
+                                }
+                                const sq = globalPickOrSwap({
+                                    pool: allQuestions,
+                                    qType: slot.choices[0].qType,
+                                    targetMarks,
+                                    bloom: slot.choices[0].bloom,
+                                    co_id: slot.choices[0].co_id,
+                                    preferredUnitId: (slot.choices[0].unit === 'Auto' || !slot.choices[0].unit) ? uId : slot.choices[0].unit,
+                                    allowedUnitIds: unit_ids,
+                                    sectionTitle: section.title,
+                                    slotId: `${slot.id}_C1_${subLabels[j]}`,
+                                    setName,
+                                    setQuestions
+                                });
+                                sq.sub_label = subLabels[j];
+                                questions1.push(sq);
+                            }
                         } else {
                             const q = globalPickOrSwap({
                                 pool: allQuestions,
@@ -385,35 +379,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                         // Choice 2
                         if (slot.choices[1].hasSubQuestions) {
-                            const qa = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.choices[1].qType,
-                                targetMarks: slot.choices[1].marks_a,
-                                bloom: slot.choices[1].bloom,
-                                co_id: slot.choices[1].co_id,
-                                preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_C2_a`,
-                                setName,
-                                setQuestions
-                            });
-                            const qb = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.choices[1].qType,
-                                targetMarks: slot.choices[1].marks_b,
-                                bloom: slot.choices[1].bloom,
-                                co_id: slot.choices[1].co_id,
-                                preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_C2_b`,
-                                setName,
-                                setQuestions
-                            });
-                            qa.sub_label = 'a';
-                            qb.sub_label = 'b';
-                            questions2.push(qa, qb);
+                            const subQCount = slot.choices[1].numSubQuestions || 2;
+                            const subLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+                            for (let j = 0; j < subQCount; j++) {
+                                let targetMarks = slot.choices[1].marks / subQCount;
+                                if (subQCount === 2) {
+                                    targetMarks = j === 0 ? slot.choices[1].marks_a : slot.choices[1].marks_b;
+                                }
+                                const sq = globalPickOrSwap({
+                                    pool: allQuestions,
+                                    qType: slot.choices[1].qType,
+                                    targetMarks,
+                                    bloom: slot.choices[1].bloom,
+                                    co_id: slot.choices[1].co_id,
+                                    preferredUnitId: (slot.choices[1].unit === 'Auto' || !slot.choices[1].unit) ? uId : slot.choices[1].unit,
+                                    allowedUnitIds: unit_ids,
+                                    sectionTitle: section.title,
+                                    slotId: `${slot.id}_C2_${subLabels[j]}`,
+                                    setName,
+                                    setQuestions
+                                });
+                                sq.sub_label = subLabels[j];
+                                questions2.push(sq);
+                            }
                         } else {
                             const q = globalPickOrSwap({
                                 pool: allQuestions,
@@ -443,35 +431,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     } else {
                         const questions = [];
                         if (slot.hasSubQuestions) {
-                            const qa = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.qType,
-                                targetMarks: slot.marks_a,
-                                bloom: slot.bloom,
-                                co_id: slot.co_id,
-                                preferredUnitId: uId,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_a`,
-                                setName,
-                                setQuestions
-                            });
-                            const qb = globalPickOrSwap({
-                                pool: allQuestions,
-                                qType: slot.qType,
-                                targetMarks: slot.marks_b,
-                                bloom: slot.bloom,
-                                co_id: slot.co_id,
-                                preferredUnitId: uId,
-                                allowedUnitIds: unit_ids,
-                                sectionTitle: section.title,
-                                slotId: `${slot.id}_b`,
-                                setName,
-                                setQuestions
-                            });
-                            qa.sub_label = 'a';
-                            qb.sub_label = 'b';
-                            questions.push(qa, qb);
+                            const subQCount = slot.numSubQuestions || 2;
+                            const subLabels = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
+                            for (let j = 0; j < subQCount; j++) {
+                                let targetMarks = slot.marks / subQCount;
+                                if (subQCount === 2) {
+                                    targetMarks = j === 0 ? slot.marks_a : slot.marks_b;
+                                }
+
+                                const sq = globalPickOrSwap({
+                                    pool: allQuestions,
+                                    qType: slot.qType,
+                                    targetMarks,
+                                    bloom: slot.bloom,
+                                    co_id: slot.co_id,
+                                    preferredUnitId: uId,
+                                    allowedUnitIds: unit_ids,
+                                    sectionTitle: section.title,
+                                    slotId: `${slot.id}_${subLabels[j]}`,
+                                    setName,
+                                    setQuestions
+                                });
+                                sq.sub_label = subLabels[j];
+                                questions.push(sq);
+                            }
                         } else {
                             const q = globalPickOrSwap({
                                 pool: allQuestions,
