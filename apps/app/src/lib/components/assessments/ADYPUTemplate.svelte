@@ -21,7 +21,7 @@
 
   // Mandatory Logic Reuse: Implementation mirrored from StandardTemplate
   function rebuildAnswerSheet() {
-    if (Array.isArray(currentSetData)) return;
+    if (!currentSetData || Array.isArray(currentSetData)) return;
 
     const arr = currentSetData.questions || [];
     const newAnswers: any[] = [];
@@ -199,7 +199,7 @@
   };
 
   const allQuestionsInSet = $derived(
-    Array.isArray(currentSetData.questions) ? currentSetData.questions : [],
+    Array.isArray(currentSetData?.questions) ? currentSetData.questions : [],
   );
 
   function getQuestionsByPart(part: string | undefined | null) {
