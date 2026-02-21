@@ -254,6 +254,69 @@
     const roman = ["i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"];
     return (roman[idx] || idx + 1) + ".";
   };
+
+  function isMCQSlot(slot: any) {
+    if (!slot) return false;
+    const qType = slot.qType || slot.type || slot.questions?.[0]?.qType;
+    return qType === "MCQ";
+  }
+
+  function getADYPUSN(
+    slot: any,
+    slotIndex: number,
+    sectionQuestions: any[],
+    sIdx: number,
+  ) {
+    const part = paperStructure[sIdx]?.part?.trim().toUpperCase();
+    if (part === "A") {
+      if (isMCQSlot(slot)) return 1;
+      // Count non-MCQ slots before this one in Part A
+      let nonMcqCount = 0;
+      for (let i = 0; i < slotIndex; i++) {
+        if (!isMCQSlot(sectionQuestions[i])) nonMcqCount++;
+      }
+      return 2 + nonMcqCount;
+    }
+    if (part === "B") {
+      return 4 + slotIndex;
+    }
+    return getSN(sectionQuestions, slotIndex, sIdx);
+  }
+
+  function getADYPULabel(
+    slot: any,
+    qIdx: number,
+    slotIndex: number,
+    sectionQuestions: any[],
+    isPartA: boolean,
+  ) {
+    if (isPartA && isMCQSlot(slot)) {
+      let mcqCount = 0;
+      for (let i = 0; i < slotIndex; i++) {
+        if (isMCQSlot(sectionQuestions[i])) {
+          mcqCount += sectionQuestions[i].questions?.length || 1;
+        }
+      }
+      return getSubLabel(mcqCount + qIdx);
+    }
+    return slot.questions?.length > 1 || (isPartA && !isMCQSlot(slot))
+      ? getRomanLabel(qIdx)
+      : "";
+  }
+
+  function shouldShowADYPUSN(
+    slot: any,
+    slotIndex: number,
+    sectionQuestions: any[],
+  ) {
+    if (isMCQSlot(slot)) {
+      // Only show SN for the very first MCQ slot in the section
+      for (let i = 0; i < slotIndex; i++) {
+        if (isMCQSlot(sectionQuestions[i])) return false;
+      }
+    }
+    return true;
+  }
 </script>
 
 <div
@@ -477,7 +540,9 @@
                         <td
                           class="w-[40px] border-r border-black px-2 py-4 text-center align-top font-bold text-[11pt] bg-slate-100/50"
                         >
-                          {sn}
+                          {shouldShowADYPUSN(slot, i, sectionQuestions)
+                            ? getADYPUSN(slot, i, sectionQuestions, sIdx)
+                            : ""}
                         </td>
                         <td
                           class="px-5 py-4 align-top relative {isPartA && i > 0
@@ -491,7 +556,7 @@
                             class="!-left-10 !top-2 scale-75"
                           />
 
-                          {#if isPartA && i === 0}
+                          {#if isPartA && isMCQSlot(slot) && shouldShowADYPUSN(slot, i, sectionQuestions)}
                             <div class="mb-3 font-bold text-[11pt]">
                               Choose the correct answer:
                             </div>
@@ -502,11 +567,13 @@
                               <div class="flex gap-3 mb-2">
                                 {#if isPartA || questions.length > 1}
                                   <span class="font-bold min-w-[20px]">
-                                    {isPartA && i === 0
-                                      ? getSubLabel(qIdx)
-                                      : questions.length > 1
-                                        ? getRomanLabel(qIdx)
-                                        : ""}
+                                    {getADYPULabel(
+                                      slot,
+                                      qIdx,
+                                      i,
+                                      sectionQuestions,
+                                      isPartA,
+                                    )}
                                   </span>
                                 {/if}
                                 <div class="flex-1 text-[11pt] leading-relaxed">
