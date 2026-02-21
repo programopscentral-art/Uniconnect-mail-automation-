@@ -269,7 +269,7 @@
   function isMCQSlot(slot: any) {
     if (!slot) return false;
     const qType = slot.qType || slot.type || slot.questions?.[0]?.qType;
-    return qType === "MCQ";
+    return String(qType).toUpperCase() === "MCQ";
   }
 
   function getADYPUSN(
@@ -284,7 +284,8 @@
       // Count non-MCQ slots before this one in Part A
       let nonMcqCount = 0;
       for (let i = 0; i < slotIndex; i++) {
-        if (!isMCQSlot(sectionQuestions[i])) nonMcqCount++;
+        if (sectionQuestions[i] && !isMCQSlot(sectionQuestions[i]))
+          nonMcqCount++;
       }
       return 2 + nonMcqCount;
     }
@@ -304,8 +305,9 @@
     if (isPartA && isMCQSlot(slot)) {
       let mcqCount = 0;
       for (let i = 0; i < slotIndex; i++) {
-        if (isMCQSlot(sectionQuestions[i])) {
-          mcqCount += sectionQuestions[i].questions?.length || 1;
+        const s = sectionQuestions[i];
+        if (s && isMCQSlot(s)) {
+          mcqCount += s.questions?.length || 1;
         }
       }
       return getSubLabel(mcqCount + qIdx);
@@ -323,10 +325,12 @@
     slotIndex: number,
     sectionQuestions: any[],
   ) {
+    if (!slot) return false;
     if (isMCQSlot(slot)) {
       // Only show SN for the very first MCQ slot in the section
       for (let i = 0; i < slotIndex; i++) {
-        if (isMCQSlot(sectionQuestions[i])) return false;
+        const s = sectionQuestions[i];
+        if (s && isMCQSlot(s)) return false;
       }
     }
     return true;
