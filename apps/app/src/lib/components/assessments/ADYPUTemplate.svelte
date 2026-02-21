@@ -568,10 +568,15 @@
                         slot.questions && slot.questions.length > 0
                           ? slot.questions
                           : [slot]}
+                      {@const isNextMCQ =
+                        isPartA &&
+                        isMCQSlot(slot) &&
+                        sectionQuestions[i + 1] &&
+                        isMCQSlot(sectionQuestions[i + 1])}
                       <tr
-                        class="{isPartA
-                          ? ''
-                          : 'border-b border-black'} last:border-b-0 group/row"
+                        class="border-b border-black last:border-b-0 group/row {isNextMCQ
+                          ? '!border-b-0'
+                          : ''}"
                       >
                         <td
                           class="w-[40px] border-r border-black px-2 py-4 text-center align-top font-bold text-[11pt] bg-slate-100/50"
@@ -581,7 +586,9 @@
                             : ""}
                         </td>
                         <td
-                          class="px-5 py-4 align-top relative {isPartA && i > 0
+                          class="px-5 py-4 align-top relative {isPartA &&
+                          isMCQSlot(slot) &&
+                          !shouldShowADYPUSN(slot, i, sectionQuestions)
                             ? 'pt-0'
                             : ''}"
                         >
