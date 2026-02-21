@@ -475,7 +475,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                         }
 
                         setQuestions.push({
-                            id: slot.id, slot_id: slot.id, type: 'SINGLE', part, marks: slot.marks,
+                            id: slot.id, slot_id: slot.id, type: 'SINGLE', qType: slot.qType, part, marks: slot.marks,
                             questions
                         });
 

@@ -268,8 +268,19 @@
 
   function isMCQSlot(slot: any) {
     if (!slot) return false;
-    const qType = slot.qType || slot.type || slot.questions?.[0]?.qType;
-    return String(qType).toUpperCase() === "MCQ";
+    // Check slot level
+    const sType = String(slot.qType || slot.type || "").toUpperCase();
+    if (sType === "MCQ") return true;
+
+    // Check first question level
+    const q = slot.questions?.[0];
+    if (q) {
+      const qType = String(q.qType || q.type || "").toUpperCase();
+      if (qType === "MCQ") return true;
+      // Also check options as a fallback
+      if (Array.isArray(q.options) && q.options.length > 0) return true;
+    }
+    return false;
   }
 
   function getADYPUSN(
@@ -290,7 +301,16 @@
       return 2 + nonMcqCount;
     }
     if (part === "B") {
-      return 4 + slotIndex;
+      // For Part B, SN should start from where Part A left off + 2
+      // But based on user image, Section B starts with Q4
+      // Let's count how many non-MCQ slots are in ALL previous sections if needed,
+      // but usually Part A has Q1 (MCQ), Q2, Q3. So Q4 is correct.
+      let partANonMcqCount = 0;
+      const partAQuestions = getQuestionsByPart("A");
+      for (const s of partAQuestions) {
+        if (!isMCQSlot(s)) partANonMcqCount++;
+      }
+      return 2 + partANonMcqCount + slotIndex;
     }
     return getSN(sectionQuestions, slotIndex, sIdx);
   }
