@@ -141,8 +141,8 @@ export class TemplateRenderer {
             if (['actionbutton', 'paylink', 'paybutton', 'payfeebutton', 'payfeeonline', 'paymentlink', 'payfee'].includes(norm)) {
                 let config = options?.config || {};
                 if (typeof config === 'string') { try { config = JSON.parse(config); } catch (e) { } }
-                const btnText = config?.payButton?.text || '💳 Pay Fee Online';
-                let btnUrl = config?.payButton?.url || '';
+                const btnText = config?.payButton?.text || config?.actionButtonText || '💳 Pay Fee Online';
+                let btnUrl = config?.payButton?.url || config?.actionButtonUrl || '';
 
                 // Resolve URL placeholders
                 btnUrl = btnUrl.replace(/\{\{(.+?)\}\}/gs, (_: string, k: string) => resolvePlaceholder(k));
