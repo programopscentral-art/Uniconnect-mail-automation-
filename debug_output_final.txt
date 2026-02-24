@@ -1,0 +1,11 @@
+--- University: Academy of Maritime Education & Training (AMET) (0b67ea9a-024b-4420-99cb-8134e35011c3) ---
+STUDENT_NAME_IN_DB: "AMET"
+STUDENT_METADATA: {
+  "Name": "Dharshana",
+  "Message": "Hello *Dharshana* 👋\n\nRemember we said early registrations = a surprise? 👀\n\nWell… here it is.\n\nThis is your official Boarding Pass to NIAT GRIT 2026–27 🎟️✨\n*https://s3-ap-south-1.amazonaws.com/cdn1.ccbp.in/misc/GRIT-EVENT-PASS/2LHCV6H8AZ.png*\n\nYou’re not just registered.\nYou’re officially in.",
+  "entity_id": "222047b1-2422-4e64-a1f5-c7d99b46d30a",
+  "Mobile Number": 918438117954,
+  "unversity name": "AMET",
+  "poster_image_url": "https://s3-ap-south-1.amazonaws.com/cdn1.ccbp.in/misc/GRIT-EVENT-PASS/2LHCV6H8AZ.png",
+  "Student Personal Mail ID": "dharshananathan02@gmail.com"
+}

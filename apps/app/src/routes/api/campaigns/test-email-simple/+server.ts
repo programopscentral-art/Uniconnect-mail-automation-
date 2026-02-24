@@ -126,8 +126,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const mockVariables = {
             STUDENT_NAME: sampleStudent?.name || sampleStudent?.full_name || '',
+            name: sampleStudent?.name || sampleStudent?.full_name || '',
+            email: sampleStudent?.email || '',
             ...sampleStudent,
-            ...(sampleStudent?.metadata || {})
+            ...(sampleStudent?.metadata || {}),
         };
 
         const renderConfig = config;

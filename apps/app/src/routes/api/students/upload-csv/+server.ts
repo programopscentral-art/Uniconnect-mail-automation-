@@ -42,22 +42,34 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const getValueByKeywords = (row: any, keywords: string[], isStudentEmail = false) => {
             const keys = Object.keys(row);
-            const excludeKeywords = ['father', 'mother', 'parent', 'guardian', 'secondary', 'witness'];
+            // Added university and college to exclusions for name parsing
+            const excludeKeywords = ['father', 'mother', 'parent', 'guardian', 'secondary', 'witness', 'university', 'college', 'school', 'institute', 'univ'];
 
+            // 1. Try EXACT matches first for prioritized keywords
+            for (const keyword of keywords) {
+                const foundKey = keys.find(k => k.toLowerCase().trim() === keyword.toLowerCase().trim());
+                if (foundKey && row[foundKey] && String(row[foundKey]).trim() !== '') {
+                    return { key: foundKey, value: String(row[foundKey]).trim() };
+                }
+            }
+
+            // 2. Try PARTIAL matches for prioritized keywords if no exact match found
             for (const keyword of keywords) {
                 const foundKey = keys.find(k => {
                     const lowKey = k.toLowerCase().trim();
                     const lowKeyword = keyword.toLowerCase().trim();
 
-                    // Basic match
-                    const matches = lowKey === lowKeyword || lowKey.includes(lowKeyword);
+                    // If searching for generic 'name', be extra careful not to match university/college
+                    const matches = lowKey.includes(lowKeyword);
 
-                    // If searching for student email, avoid keys that mention parents
-                    if (matches && isStudentEmail) {
+                    if (matches) {
                         const hasExclude = excludeKeywords.some(ex => lowKey.includes(ex));
                         if (hasExclude) return false;
-                        // Avoid generic "Email ID" if "Student Personal Mail ID" is also an option somewhere
-                        // Actually, our prioritised list already handles this by putting specific ones first.
+
+                        // Special case: if we are looking for student name, don't match if it looks like a university-level field
+                        if (!isStudentEmail && (lowKey.includes('university') || lowKey.includes('college') || lowKey.includes('admission'))) {
+                            return false;
+                        }
                     }
 
                     return matches;

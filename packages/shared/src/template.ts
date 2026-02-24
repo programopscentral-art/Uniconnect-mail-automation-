@@ -38,14 +38,27 @@ export class TemplateRenderer {
             const key = rawKey.replace(/\}$/, '').trim(); // Handle triple brace residue
             const normalizedSearchKey = normalizeKey(key);
 
-            // 1. Exact Match (Normalized)
-            const match = Object.keys(vars).find(k => normalizeKey(k) === normalizedSearchKey);
+            // 1. Exact Match Check (Case Sensitive)
+            if (vars[key] !== undefined && vars[key] !== null) {
+                const val = vars[key];
+                if (typeof val !== 'object' || Array.isArray(val)) {
+                    console.log(`[TEMPLATE_RENDER] ✅ EXACT MATCH: "${key}"`);
+                    return String(val);
+                }
+            }
 
-            if (match !== undefined && vars[match] !== undefined && vars[match] !== null) {
+            // 2. Normalized Match (Case Insensitive)
+            const matches = Object.keys(vars).filter(k => normalizeKey(k) === normalizedSearchKey);
+            if (matches.length > 0) {
+                // Prioritize keys that are "closer" to the search key if multiple matches exist
+                const match = matches.find(k => k === key) || matches[0];
                 const val = vars[match];
-                if (typeof val === 'object' && !Array.isArray(val)) return '';
-                console.log(`[TEMPLATE_RENDER] ✅ SUCCESS: "${key}" matched to "${match}"`);
-                return String(val);
+
+                if (val !== undefined && val !== null) {
+                    if (typeof val === 'object' && !Array.isArray(val)) return '';
+                    console.log(`[TEMPLATE_RENDER] ✅ MATCH: "${key}" matched to "${match}"`);
+                    return String(val);
+                }
             }
 
             // 2. Fuzzy Fallback (Ignore punctuation)
