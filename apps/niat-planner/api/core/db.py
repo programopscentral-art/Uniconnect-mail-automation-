@@ -3,16 +3,20 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
+# Try to load from root if not found in local dir
 load_dotenv()
-
-DATABASE_URL = os.getenv("DATABASE_URL")
+if not os.getenv("DATABASE_URL"):
+    load_dotenv(os.path.join(os.getcwd(), "../../.env"))
+if not os.getenv("DATABASE_URL"):
+    load_dotenv(os.path.join(os.getcwd(), "../../../.env"))
 
 def get_db_connection():
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL not found in environment")
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise Exception("DATABASE_URL not found in environment. Please check Railway variables.")
     
     # Handle potentially different URL formats if needed
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(db_url)
     return conn
 
 def execute_query(query, params=None, fetch=False):
