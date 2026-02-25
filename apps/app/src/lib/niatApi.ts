@@ -104,3 +104,42 @@ export async function exportContent(data: object): Promise<Blob> {
         throw e;
     }
 }
+
+export async function importCurriculum(
+    file: File,
+    metadata: {
+        semester_name?: string;
+        category?: string;
+        sub_category?: string;
+        source_code?: string;
+        credits?: number;
+        uploaded_by?: string;
+    }
+): Promise<{ status: string; import_id: string; summary: any }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    Object.entries(metadata).forEach(([key, value]) => {
+        if (value !== undefined) formData.append(key, value.toString());
+    });
+
+    const response = await fetch(`${API_BASE}/curriculum/import-prod-sequence`, {
+        method: "POST",
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to import curriculum");
+    }
+
+    return response.json();
+}
+
+export async function exportCurriculumExcel(importId: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE}/curriculum/export?import_id=${importId}`);
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to export curriculum");
+    }
+    return response.blob();
+}

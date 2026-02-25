@@ -4,12 +4,16 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import pandas as pd
 import io
+import uuid
+import os
 from .core.parser_calendar import parse_calendar
 from .core.parser_prod import parse_prod_sequence
+from .core.parser_curriculum import parse_full_curriculum
 from .core.calculator import calculate_derived_fields
 from .core.exporter import export_to_excel
 from .core.exporter_content import export_content_to_excel
 from .core.models import PlannerConfig
+from .core.db import execute_insert, execute_query
 
 app = FastAPI(title="NIAT Planner API")
 
@@ -160,6 +164,125 @@ async def export_content(
         )
 
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/curriculum/import-prod-sequence")
+async def import_curriculum(
+    file: UploadFile = File(...),
+    semester_name: str = Form(None),
+    category: str = Form(None),
+    sub_category: str = Form(None),
+    source_code: str = Form(None),
+    credits: int = Form(None),
+    uploaded_by: str = Form(None)
+):
+    try:
+        content = await file.read()
+        file_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        try:
+            # 1. Parse
+            curriculum_data = parse_full_curriculum(file_path)
+            
+            # 2. Save Import Record
+            import_id = execute_insert(
+                "INSERT INTO curriculum_imports (source_filename, uploaded_by) VALUES (%s, %s) RETURNING id",
+                (file.filename, uploaded_by)
+            )
+            
+            summary = {
+                "subjects": 0,
+                "sessions": 0,
+                "resources": 0,
+                "warnings": []
+            }
+
+            for subject in curriculum_data:
+                subject_name = subject["subject_name"]
+                
+                # Create Semester Course
+                course_uuid = str(uuid.uuid4())
+                course_id = execute_insert(
+                    """INSERT INTO curr_semester_courses 
+                    (import_id, semester_course_id, subject_name, title, semester_name, category, sub_category, source_code, credits) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+                    (import_id, course_uuid, subject_name, subject_name, semester_name, category, sub_category, source_code, credits)
+                )
+                summary["subjects"] += 1
+                
+                for session in subject["sessions"]:
+                    session_uuid = str(uuid.uuid4())
+                    
+                    # Create Session
+                    sess_db_id = execute_insert(
+                        """INSERT INTO curr_sessions 
+                        (import_id, semester_course_id, session_id, slot_number, session_name, session_type, duration_in_seconds, session_enum, unit_id) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+                        (import_id, course_id, session_uuid, session["slot_number"], session["session_name"], 
+                         session["session_type"], session["duration_in_seconds"], session["session_enum"], session["unit_id"])
+                    )
+                    summary["sessions"] += 1
+                    
+                    # Create Mapping Record
+                    execute_insert(
+                        """INSERT INTO curr_semester_course_sessions 
+                        (semester_course_id_ref, session_id_ref, semester_course_id_external, session_id_external, sort_order) 
+                        VALUES (%s, %s, %s, %s, %s)""",
+                        (course_id, sess_db_id, course_uuid, session_uuid, session["slot_number"])
+                    )
+                    
+                    # Create Resources
+                    for res in session["resources"]:
+                        execute_insert(
+                            """INSERT INTO curr_session_resources 
+                            (session_id_ref, session_id_external, resource_type, title, resource_url) 
+                            VALUES (%s, %s, %s, %s, %s)""",
+                            (sess_db_id, session_uuid, res["resource_type"], res["title"], res["resource_url"])
+                        )
+                        summary["resources"] += 1
+
+            return {
+                "status": "success",
+                "import_id": str(import_id),
+                "summary": summary
+            }
+            
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+    except Exception as e:
+        print(f"IMPORT_ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/curriculum/export")
+async def export_curriculum(import_id: str):
+    try:
+        # 1. Fetch Data
+        courses = execute_query("SELECT semester_course_id, title, '' as description, 0 as \"order\", semester_name, category, sub_category, source_code, credits FROM curr_semester_courses WHERE import_id = %s", (import_id,), fetch=True)
+        sessions = execute_query("SELECT session_id, session_name, session_name as session_plan_name, session_type, duration_in_seconds FROM curr_sessions WHERE import_id = %s", (import_id,), fetch=True)
+        resources = execute_query("SELECT session_id_external as session_id, resource_type, title, resource_url FROM curr_session_resources sr JOIN curr_sessions s ON sr.session_id_ref = s.id WHERE s.import_id = %s", (import_id,), fetch=True)
+        mapping = execute_query("SELECT semester_course_id_external as semester_course_id, session_id_external as session_id, sort_order as \"order\", 1 as week_count FROM curr_semester_course_sessions m JOIN curr_semester_courses c ON m.semester_course_id_ref = c.id WHERE c.import_id = %s", (import_id,), fetch=True)
+
+        # 2. Create DataFrames
+        courses_df = pd.DataFrame(courses)
+        sessions_df = pd.DataFrame(sessions)
+        resources_df = pd.DataFrame(resources)
+        mapping_df = pd.DataFrame(mapping)
+
+        # 3. Export
+        excel_out = export_content_to_excel(courses_df, sessions_df, resources_df, mapping_df)
+        
+        return StreamingResponse(
+            excel_out,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=Curriculum_Export_{import_id[:8]}.xlsx"}
+        )
+
+    except Exception as e:
+        print(f"EXPORT_ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
