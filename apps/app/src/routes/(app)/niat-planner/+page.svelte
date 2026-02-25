@@ -42,6 +42,10 @@
     "Cloud Computing": "CC",
   });
 
+  let apiBase = $state(
+    import.meta.env.VITE_NIAT_API_URL || "http://localhost:8000",
+  );
+
   async function generate() {
     validationErrors = [];
 
@@ -72,6 +76,7 @@
 
     try {
       const blob = await generateNiatPlan({
+        apiBase,
         calendarFile,
         prodSequenceFile: prodFile,
         calendarSheetName: selectedCalendarSheet || "0",
@@ -121,7 +126,7 @@
 
     isInspecting = true;
     try {
-      const data = await inspectWorkbook(file);
+      const data = await inspectWorkbook(apiBase, file);
       calendarSheets = data.sheets || [];
 
       if (calendarSheets.length > 0) {
@@ -132,7 +137,9 @@
         let found = calendarSheets.find((s) => prefNames.includes(s));
         if (!found) {
           found = calendarSheets.find((s) =>
-            prefContains.some((c) => s.toUpperCase().includes(c.toUpperCase())),
+            prefContains.some((c: string) =>
+              s.toUpperCase().includes(c.toUpperCase()),
+            ),
           );
         }
 
@@ -196,20 +203,35 @@
             class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-4"
             transition:fade
           >
-            <div class="flex items-center justify-between gap-4">
-              <span
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-                >Default Assessment Slots</span
-              >
-              <input
-                type="number"
-                bind:value={config.default_niat_assessment_slots}
-                class="w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-              />
+            <div class="space-y-4">
+              <div class="flex flex-col gap-1.5">
+                <span
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                  >API Base URL</span
+                >
+                <input
+                  type="text"
+                  bind:value={apiBase}
+                  placeholder="http://localhost:8000"
+                  class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div class="flex items-center justify-between gap-4">
+                <span
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                  >Default Assessment Slots</span
+                >
+                <input
+                  type="number"
+                  bind:value={config.default_niat_assessment_slots}
+                  class="w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
             </div>
-            <p class="text-[8px] text-gray-400 font-medium">
-              Configuration is sent as a JSON framework to the Python backend to
-              handle university variations.
+            <p class="text-[8px] text-gray-400 font-medium px-1">
+              Configuration framework handles university variations. If
+              inspection fails, verify the API URL.
             </p>
           </div>
         {/if}
@@ -246,7 +268,7 @@
                     >
                       <span
                         class="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0"
-                      />
+                      ></span>
                       {err}
                     </li>
                   {/each}
@@ -280,7 +302,7 @@
                     >
                       <span
                         class="mt-1 w-1 h-1 rounded-full bg-amber-400 flex-shrink-0"
-                      />
+                      ></span>
                       {warn}
                     </li>
                   {/each}
@@ -327,6 +349,7 @@
                     {#if calendarSheets.length > 0}
                       <div
                         class="mt-2 w-full px-6"
+                        role="presentation"
                         onclick={(e) => e.stopPropagation()}
                       >
                         <label
@@ -350,7 +373,7 @@
                       >
                         <div
                           class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"
-                        />
+                        ></div>
                         Analyzing...
                       </div>
                     {/if}
@@ -389,6 +412,7 @@
                     selectedCalendarSheet = "";
                   }}
                   class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                  aria-label="Remove calendar file"
                 >
                   <svg
                     class="w-4 h-4"
@@ -458,6 +482,7 @@
                 <button
                   onclick={() => (prodFile = null)}
                   class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                  aria-label="Remove prod sequence file"
                 >
                   <svg
                     class="w-4 h-4"
@@ -485,7 +510,7 @@
           {#if isGenerating}
             <div
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            />
+            ></div>
             Generating Planner...
           {:else}
             <svg
@@ -564,7 +589,7 @@
           class="text-sm text-indigo-700/70 dark:text-indigo-400/70 font-medium leading-relaxed"
         >
           Map Prod Workbook tab names to the subject codes used in your Calendar
-          worksheet.
+          sheet.
         </p>
 
         <div

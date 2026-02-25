@@ -1,10 +1,8 @@
-export const NIAT_API_BASE = (import.meta.env.VITE_NIAT_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
-
-export async function inspectWorkbook(file: File): Promise<{ sheets: string[] }> {
+export async function inspectWorkbook(apiBase: string, file: File): Promise<{ sheets: string[] }> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`${NIAT_API_BASE}/inspect`, {
+    const response = await fetch(`${apiBase.replace(/\/$/, "")}/inspect`, {
         method: "POST",
         body: formData,
     });
@@ -24,6 +22,7 @@ export async function inspectWorkbook(file: File): Promise<{ sheets: string[] }>
 }
 
 export async function generateNiatPlan(params: {
+    apiBase: string;
     calendarFile: File;
     prodSequenceFile: File;
     calendarSheetName: string;
@@ -35,7 +34,7 @@ export async function generateNiatPlan(params: {
     formData.append("calendar_sheet_name", params.calendarSheetName);
     formData.append("config", JSON.stringify(params.config));
 
-    const response = await fetch(`${NIAT_API_BASE}/generate`, {
+    const response = await fetch(`${params.apiBase.replace(/\/$/, "")}/generate`, {
         method: "POST",
         body: formData,
     });
