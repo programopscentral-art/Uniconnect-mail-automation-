@@ -57,51 +57,57 @@ def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFram
     col_sats = 'saturdays_off'
     col_nas = 'niat_asmt_slots'
 
-    # Smart Header Detection logic
-    actual_cols_lower = [str(c).lower().strip() for c in df.columns]
-    
-    def is_valid_header(cols):
-        found_any = False
-        needed = [col_univ, col_start, col_end]
+    def normalize(s):
+        """Strip all non-alphanumeric and lowercase."""
+        return re.sub(r'[^a-z0-9]', '', str(s).lower())
+
+    # Prep normalized aliases for fast lookup
+    required_keys = [col_univ, col_start, col_end]
+    norm_aliases = {
+        key: [normalize(a) for a in config.calendar.header_aliases.get(key, [])]
+        for key in config.calendar.header_aliases.keys()
+    }
+
+    def is_valid_header_row(row_vals):
+        row_norm = [normalize(v) for v in row_vals]
         match_count = 0
-        for key in needed:
-            aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(key, [])]
-            if any(a in cols for a in aliases):
+        for key in required_keys:
+            if any(a in row_norm for a in norm_aliases.get(key, [])):
                 match_count += 1
         return match_count >= 2
 
-    # If first row contains "Unnamed" or doesn't look like a header, search deeper
-    if not is_valid_header(actual_cols_lower) or any("unnamed" in c for c in actual_cols_lower):
-        for i in range(min(20, len(df))):
-            row_vals = [str(v).lower().strip() for v in df.iloc[i].values]
-            if is_valid_header(row_vals):
-                # Reposition: this row is the header
+    # Check current columns
+    if not is_valid_header_row(df.columns.tolist()) or any("unnamed" in str(c).lower() for c in df.columns):
+        # Scan first 50 rows for the real header
+        for i in range(min(50, len(df))):
+            row_vals = df.iloc[i].values
+            if is_valid_header_row(row_vals):
+                # found it!
                 new_cols = []
-                for val in df.iloc[i].values:
-                    new_cols.append(str(val).strip() if pd.notna(val) else f"Unnamed_{len(new_cols)}")
+                for val in row_vals:
+                    v_str = str(val).strip() if pd.notna(val) else f"Unnamed_{len(new_cols)}"
+                    new_cols.append(v_str)
                 df.columns = new_cols
                 df = df.iloc[i + 1:].reset_index(drop=True)
-                actual_cols_lower = [str(c).lower().strip() for c in df.columns]
                 break
 
-    # Re-evaluate columns for validation
+    # Re-evaluate with final columns
+    actual_cols_norm = [normalize(c) for c in df.columns]
     missing_errors = []
-    for req in [col_univ, col_start, col_end]:
-        aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(req, [req])]
-        if not any(a in actual_cols_lower for a in aliases):
-            missing_errors.append(req)
+    for req in required_keys:
+        if not any(a in actual_cols_norm for a in norm_aliases.get(req, [])):
+            # Special fallback: if "End Date" is missing, check if "End" + "Date" are together? 
+            # No, let's just report the missing one using its first alias
+            missing_errors.append(config.calendar.header_aliases.get(req, [req])[0])
             
     if missing_errors:
-        # Fallback: Check if ANY data actually exists in those columns if we fuzzily find them
-        readable_errors = [config.calendar.header_aliases.get(e, [e])[0] for e in missing_errors]
-        raise ValueError(f"Missing required columns: {', '.join(readable_errors)}")
+        raise ValueError(f"Missing required columns: {', '.join(missing_errors)}")
 
-    # Alias-aware value extraction
+    # Ultra-robust value extraction
     def get_val(row, canonical_name):
-        aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(canonical_name, [canonical_name])]
-        # Row keys might have spaces/case issues too
+        target_norms = norm_aliases.get(canonical_name, [normalize(canonical_name)])
         for k in row.keys():
-            if str(k).lower().strip() in aliases:
+            if normalize(k) in target_norms:
                 return row[k]
         return None
 
