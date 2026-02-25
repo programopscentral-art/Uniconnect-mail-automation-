@@ -12,7 +12,7 @@
 
   let calendarSheets = $state<string[]>([]);
   let prodSheets = $state<string[]>([]);
-  let selectedCalendarSheet = $state<string>("");
+  let selectedCalendarSheet = $state("");
 
   let validationErrors = $state<string[]>([]);
   let validationWarnings = $state<string[]>([]);
@@ -144,6 +144,9 @@
     }
   }
 
+  let calendarInput: HTMLInputElement;
+  let prodInput: HTMLInputElement;
+
   async function handleFileChange(event: Event, type: "calendar" | "prod") {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
@@ -178,7 +181,7 @@
         if (!found) {
           found = calendarSheets.find((s) => s.toUpperCase().includes("APD"));
         }
-        selectedCalendarSheet = found || calendarSheets[0];
+        selectedCalendarSheet = found || calendarSheets[0] || "";
       }
     } catch (e: any) {
       validationErrors.push(`Failed to inspect calendar: ${e.message}`);
@@ -198,31 +201,50 @@
       const data = await inspectWorkbook(file);
       prodSheets = data.sheets || [];
 
-      // Auto-initialize subjectToSheet if names match
-      const newSubjectToSheet: Record<string, string> = {};
-      const subjectCodes = Object.values(mapping);
-      const subjectNames = Object.keys(mapping);
+      const newSubjectToSheet: Record<string, string> = { ...subjectToSheet };
 
-      prodSheets.forEach((sheet) => {
-        // Check if sheet name exists in our mapping keys (Subject Names)
-        if (mapping[sheet]) {
-          newSubjectToSheet[mapping[sheet]] = sheet;
-        } else {
-          // Fuzzy match
-          const match = subjectNames.find((n) =>
-            sheet.toLowerCase().includes(n.toLowerCase()),
+      // Auto-match sheets to subjects based on names/codes
+      subjectCodes.forEach((item) => {
+        // 1. Exact match sheet name with subject name
+        let match = prodSheets.find((s) => s === item.name);
+        // 2. Exact match sheet name with subject code
+        if (!match) match = prodSheets.find((s) => s === item.code);
+        // 3. Fuzzy match (contains name)
+        if (!match)
+          match = prodSheets.find((s) =>
+            s.toLowerCase().includes(item.name.toLowerCase()),
           );
-          if (match) {
-            newSubjectToSheet[mapping[match]] = sheet;
-          }
+        // 4. Fuzzy match (contains code)
+        if (!match)
+          match = prodSheets.find((s) =>
+            s.toLowerCase().includes(item.code.toLowerCase()),
+          );
+
+        if (match) {
+          newSubjectToSheet[item.code] = match;
         }
       });
-      subjectToSheet = { ...subjectToSheet, ...newSubjectToSheet };
+
+      subjectToSheet = newSubjectToSheet;
     } catch (e: any) {
       validationErrors.push(`Failed to inspect prod sequence: ${e.message}`);
     } finally {
       isInspectingProd = false;
     }
+  }
+
+  function clearCalendar() {
+    calendarFile = null;
+    calendarSheets = [];
+    selectedCalendarSheet = "";
+    if (calendarInput) calendarInput.value = "";
+  }
+
+  function clearProd() {
+    prodFile = null;
+    prodSheets = [];
+    subjectToSheet = {};
+    if (prodInput) prodInput.value = "";
   }
 
   const subjectCodes = [
@@ -451,6 +473,7 @@
                 <input
                   id="calendar-upload"
                   type="file"
+                  bind:this={calendarInput}
                   class="hidden"
                   accept=".xlsx,.xls,.csv"
                   onchange={(e) => handleFileChange(e, "calendar")}
@@ -458,11 +481,7 @@
               </label>
               {#if calendarFile}
                 <button
-                  onclick={() => {
-                    calendarFile = null;
-                    calendarSheets = [];
-                    selectedCalendarSheet = "";
-                  }}
+                  onclick={clearCalendar}
                   class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
                   aria-label="Remove calendar file"
                 >
@@ -553,6 +572,7 @@
                 <input
                   id="prod-upload"
                   type="file"
+                  bind:this={prodInput}
                   class="hidden"
                   accept=".xlsx,.xls"
                   onchange={(e) => handleFileChange(e, "prod")}
@@ -560,10 +580,7 @@
               </label>
               {#if prodFile}
                 <button
-                  onclick={() => {
-                    prodFile = null;
-                    prodSheets = [];
-                  }}
+                  onclick={clearProd}
                   class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
                   aria-label="Remove prod sequence file"
                 >
