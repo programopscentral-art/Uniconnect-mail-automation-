@@ -105,22 +105,38 @@ export async function exportContent(data: object): Promise<Blob> {
     }
 }
 
+export async function inspectCurriculum(file: File): Promise<{ status: string; subjects: { name: string; session_count: number }[] }> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE}/curriculum/inspect`, {
+        method: "POST",
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.detail || "Failed to inspect curriculum");
+    }
+
+    return response.json();
+}
+
 export async function importCurriculum(
     file: File,
-    metadata: {
+    subjectMetadata: Record<string, {
         semester_name?: string;
         category?: string;
         sub_category?: string;
         source_code?: string;
         credits?: number;
-        uploaded_by?: string;
-    }
+    }>,
+    uploadedBy?: string
 ): Promise<{ status: string; import_id: string; summary: any }> {
     const formData = new FormData();
     formData.append("file", file);
-    Object.entries(metadata).forEach(([key, value]) => {
-        if (value !== undefined) formData.append(key, value.toString());
-    });
+    formData.append("subject_metadata", JSON.stringify(subjectMetadata));
+    if (uploadedBy) formData.append("uploaded_by", uploadedBy);
 
     const response = await fetch(`${API_BASE}/curriculum/import-prod-sequence`, {
         method: "POST",

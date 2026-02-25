@@ -166,22 +166,43 @@ async def export_content(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/curriculum/inspect")
+async def inspect_curriculum_api(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        file_path = f"/tmp/inspect_{uuid.uuid4()}_{file.filename}"
+        with open(file_path, "wb") as f:
+            f.write(content)
+        
+        try:
+            curriculum_data = parse_full_curriculum(file_path)
+            subjects = []
+            for sub in curriculum_data:
+                subjects.append({
+                    "name": sub["subject_name"],
+                    "session_count": len(sub["sessions"])
+                })
+            return {"status": "success", "subjects": subjects}
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+    except Exception as e:
+        print(f"INSPECT_ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/curriculum/import-prod-sequence")
 async def import_curriculum(
     file: UploadFile = File(...),
-    semester_name: str = Form(None),
-    category: str = Form(None),
-    sub_category: str = Form(None),
-    source_code: str = Form(None),
-    credits: str = Form(None),
+    subject_metadata: str = Form("{}"), # JSON string
     uploaded_by: str = Form(None)
 ):
     try:
-        # Resolve credits safely
+        # Parse subject metadata mapping
+        metadata_map = {}
         try:
-            actual_credits = int(credits) if credits else 0
+            metadata_map = json.loads(subject_metadata)
         except:
-            actual_credits = 0
+            print("Failed to parse subject_metadata JSON")
 
         content = await file.read()
         file_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
@@ -208,13 +229,27 @@ async def import_curriculum(
             for subject in curriculum_data:
                 subject_name = subject["subject_name"]
                 
+                # Get Metadata for this specific subject
+                # Default to subject name if metadata not found
+                meta = metadata_map.get(subject_name, {})
+                
+                s_name = meta.get("semester_name") or "Semester 1"
+                cat = meta.get("category") or "General"
+                sub_cat = meta.get("sub_category") or ""
+                s_code = meta.get("source_code") or ""
+                
+                try:
+                    cred = int(meta.get("credits", 0))
+                except:
+                    cred = 0
+
                 # Create Semester Course
                 course_uuid = str(uuid.uuid4())
                 course_id = execute_insert(
                     """INSERT INTO curr_semester_courses 
                     (import_id, semester_course_id, subject_name, title, semester_name, category, sub_category, source_code, credits) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
-                    (import_id, course_uuid, subject_name, subject_name, semester_name, category, sub_category, source_code, actual_credits)
+                    (import_id, course_uuid, subject_name, subject_name, s_name, cat, sub_cat, s_code, cred)
                 )
                 summary["subjects"] += 1
                 
