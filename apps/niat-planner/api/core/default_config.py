@@ -5,15 +5,15 @@ DEFAULT_CONFIG = {
             "preferred_contains": ["APD", "Calendar"]
         },
         "header_aliases": {
-            "Universities": ["Universities", "Uni", "University Name"],
-            "Start Date": ["Start Date", "StartDate", "Sem Start", "Semester Start"],
-            "End Date (Semester Last Day)": ["End Date (Semester Last Day)", "End Date (Semster Last Day)", "End Date", "Last Day", "Semester Last Day", "Sem Last Day"],
-            "Saturdays off": ["Saturdays off", "Saturdays", "Weekend Off", "Off Saturdays"],
-            "Working days per Week": ["Working days per Week", "Working Days/Week", "Working Days Per Week"],
-            "Number of slots per day": ["Number of slots per day", "Slots/Day", "Slots Per Day"],
-            "Public Holidays": ["Public Holidays", "Holidays"],
-            "University Assessments Days": ["University Assessments Days", "Assessment Days"],
-            "NIAT Assessments slots": ["NIAT Assessments slots", "NIAT Slots"]
+            "universities": ["Universities", "Uni", "University Name"],
+            "start_date": ["Start Date", "StartDate", "Sem Start", "Semester Start"],
+            "end_date": ["End Date (Semester Last Day)", "End Date (Semster Last Day)", "End Date", "Last Day", "Semester Last Day", "Sem Last Day"],
+            "saturdays_off": ["Saturdays off", "Saturdays", "Weekend Off", "Off Saturdays"],
+            "days_per_week": ["Working days per Week", "Working Days/Week", "Working Days Per Week"],
+            "slots_per_day": ["Number of slots per day", "Slots/Day", "Slots Per Day"],
+            "holidays": ["Public Holidays", "Holidays"],
+            "univ_asmt_days": ["University Assessments Days", "Assessment Days"],
+            "niat_asmt_slots": ["NIAT Assessments slots", "NIAT Slots"]
         }
     },
     "prod_sequence": {

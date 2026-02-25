@@ -62,13 +62,22 @@ def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFram
     missing_errors = []
     actual_cols = df.columns.tolist()
     
-    for req in config.validation_policy.error_on_missing:
+    # Internal keys for configuration lookups
+    # These MUST match the keys in DEFAULT_CONFIG["calendar"]["header_aliases"]
+    col_univ = 'universities'
+    col_start = 'start_date'
+    col_end = 'end_date'
+    col_sats = 'saturdays_off'
+    col_nas = 'niat_asmt_slots'
+
+    for req in [col_univ, col_start, col_end]:
         aliases = config.calendar.header_aliases.get(req, [req])
         if not any(a in actual_cols for a in aliases):
             missing_errors.append(req)
             
     if missing_errors:
-        raise ValueError(f"Missing required columns (after alias check): {', '.join(missing_errors)}")
+        readable_errors = [config.calendar.header_aliases.get(e, [e])[0] for e in missing_errors]
+        raise ValueError(f"Missing required columns: {', '.join(readable_errors)}")
 
     # Ensure necessary output columns exist or fill them
     cols_to_fill = [
@@ -84,11 +93,11 @@ def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFram
 
     # Process each row
     for idx, row in df.iterrows():
-        univ_name = get_val(row, 'Universities') or f'Row {idx+1}'
+        univ_name = get_val(row, col_univ) or f'Row {idx+1}'
         
         # 1. Dates
-        start_date = safe_parse_date(get_val(row, 'Start Date'))
-        end_date = safe_parse_date(get_val(row, 'End Date (Semester Last Day)'))
+        start_date = safe_parse_date(get_val(row, col_start))
+        end_date = safe_parse_date(get_val(row, col_end))
         
         if not start_date or not end_date:
             warnings.append({
@@ -104,12 +113,12 @@ def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFram
         df.at[idx, 'Total Days'] = total_days
 
         # 3. Saturdays
-        sat_rule = str(get_val(row, 'Saturdays off') or '0')
+        sat_rule = str(get_val(row, col_sats) or '0')
         non_working_sats = count_saturdays(start_date, end_date, sat_rule)
         df.at[idx, 'Total No.of Non-working Saturdays'] = non_working_sats
 
         # 4. Assessment Slots
-        nas_val = get_val(row, 'NIAT Assessments slots')
+        nas_val = get_val(row, col_nas)
         if pd.isna(nas_val):
             df.at[idx, 'NIAT Assessments slots'] = config.default_niat_assessment_slots
             warnings.append({

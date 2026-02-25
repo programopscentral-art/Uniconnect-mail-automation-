@@ -205,20 +205,28 @@
 
       // Auto-match sheets to subjects based on names/codes
       subjectCodes.forEach((item) => {
+        const codeLower = item.code.toLowerCase();
+        const nameLower = item.name.toLowerCase();
+
         // 1. Exact match sheet name with subject name
         let match = prodSheets.find((s) => s === item.name);
         // 2. Exact match sheet name with subject code
         if (!match) match = prodSheets.find((s) => s === item.code);
-        // 3. Fuzzy match (contains name)
-        if (!match)
-          match = prodSheets.find((s) =>
-            s.toLowerCase().includes(item.name.toLowerCase()),
-          );
-        // 4. Fuzzy match (contains code)
-        if (!match)
-          match = prodSheets.find((s) =>
-            s.toLowerCase().includes(item.code.toLowerCase()),
-          );
+
+        // 3. Smart match: contains the subject name
+        if (!match) {
+          match = prodSheets.find((s) => s.toLowerCase().includes(nameLower));
+        }
+
+        // 4. Smart match: contains the subject code as a distinct word
+        if (!match) {
+          match = prodSheets.find((s) => {
+            const sLow = s.toLowerCase();
+            // Check if code is a distinct part of the string (e.g. not "Numerical" for "IC")
+            const words = sLow.split(/[^a-z0-9]/);
+            return words.includes(codeLower);
+          });
+        }
 
         if (match) {
           newSubjectToSheet[item.code] = match;
