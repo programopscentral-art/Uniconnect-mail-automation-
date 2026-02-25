@@ -1,6 +1,9 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
-  import { inspectWorkbook, generatePlan, API_BASE } from "$lib/niatApi";
+  import { inspectWorkbook, generatePlan, getApiBase } from "$lib/niatApi";
+
+  let manualApiOverride = $state("");
+  let apiBase = $derived(manualApiOverride || getApiBase());
 
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
@@ -72,7 +75,7 @@
   async function generate() {
     validationErrors = [];
 
-    if (!API_BASE) {
+    if (!apiBase) {
       validationErrors.push("NIAT API URL not configured. Contact admin.");
       return;
     }
@@ -111,6 +114,7 @@
           ...config,
           subjectMapping: mapping,
         },
+        apiBase,
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -145,6 +149,11 @@
   }
 
   async function inspect(file: File) {
+    if (!apiBase) {
+      validationErrors.push("API URL is required for inspection.");
+      return;
+    }
+
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       calendarSheets = [];
       selectedCalendarSheet = "";
@@ -153,7 +162,7 @@
 
     isInspecting = true;
     try {
-      const data = await inspectWorkbook(file);
+      const data = await inspectWorkbook(file, apiBase);
       calendarSheets = data.sheets || [];
 
       if (calendarSheets.length > 0) {
@@ -190,7 +199,7 @@
     </p>
   </div>
 
-  {#if !API_BASE}
+  {#if !apiBase}
     <div
       transition:fade
       class="p-6 bg-red-50 dark:bg-red-900/40 border-2 border-red-200 dark:border-red-800 rounded-3xl space-y-2"
@@ -213,7 +222,8 @@
         Configuration Required
       </h3>
       <p class="text-sm font-bold text-red-500 dark:text-red-300">
-        NIAT API URL not configured. Contact admin.
+        NIAT API URL not configured. Use the "Config" section to add it manually
+        or contact admin.
       </p>
     </div>
   {/if}
@@ -256,21 +266,35 @@
             class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-4"
             transition:fade
           >
-            <div class="space-y-2">
-              <span
-                class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-                >Active Backend URL</span
-              >
-              <div
-                class="px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-710 rounded-lg text-xs font-mono text-gray-500 dark:text-gray-400 truncate"
-              >
-                {API_BASE || "NOT CONFIGURED"}
+            <div class="space-y-4">
+              <div class="flex flex-col gap-1.5">
+                <span
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                  >API URL (Override)</span
+                >
+                <input
+                  type="text"
+                  bind:value={manualApiOverride}
+                  placeholder="https://your-api.railway.app"
+                  class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div class="space-y-2">
+                <span
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                  >Active Backend URL</span
+                >
+                <div
+                  class="px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-710 rounded-lg text-xs font-mono text-gray-500 dark:text-gray-400 truncate"
+                >
+                  {apiBase || "NOT CONFIGURED"}
+                </div>
               </div>
             </div>
             <p class="text-[8px] text-gray-400 font-medium leading-relaxed">
-              Manual URL input is disabled in production. All requests use the
-              internal VITE_NIAT_API_URL environment variable for security and
-              stability.
+              If the active URL is "NOT CONFIGURED", you can paste it manually
+              above. In production, this should be set as PUBLIC_NIAT_API_URL.
             </p>
           </div>
         {/if}
@@ -307,7 +331,7 @@
                     >
                       <span
                         class="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0"
-                      />
+                      ></span>
                       {err}
                     </li>
                   {/each}
@@ -341,7 +365,7 @@
                     >
                       <span
                         class="mt-1.5 w-1 h-1 rounded-full bg-amber-400 flex-shrink-0"
-                      />
+                      ></span>
                       {warn}
                     </li>
                   {/each}
@@ -412,7 +436,7 @@
                       >
                         <div
                           class="w-3 h-3 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"
-                        />
+                        ></div>
                         Analyzing...
                       </div>
                     {/if}
@@ -543,13 +567,13 @@
 
         <button
           onclick={generate}
-          disabled={isGenerating || !calendarFile || !prodFile || !API_BASE}
+          disabled={isGenerating || !calendarFile || !prodFile || !apiBase}
           class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
           {#if isGenerating}
             <div
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            />
+            ></div>
             Generating Planner...
           {:else}
             <svg

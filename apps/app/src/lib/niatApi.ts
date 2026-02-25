@@ -1,14 +1,23 @@
-export const API_BASE = (import.meta.env.VITE_NIAT_API_URL || "").replace(/\/$/, "");
+import { env } from '$env/dynamic/public';
 
-export async function inspectWorkbook(file: File): Promise<{ sheets: string[] }> {
-    if (!API_BASE) {
+/**
+ * API_BASE is resolved from PUBLIC_NIAT_API_URL dynamically.
+ * Dynamic variables are read at runtime, which is better for Docker/Railway.
+ */
+export const getApiBase = () => {
+    return (env.PUBLIC_NIAT_API_URL || "").replace(/\/$/, "");
+};
+
+export async function inspectWorkbook(file: File, overrideBase?: string): Promise<{ sheets: string[] }> {
+    const base = overrideBase || getApiBase();
+    if (!base) {
         throw new Error("NIAT API URL not configured. Contact admin.");
     }
 
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`${API_BASE}/inspect`, {
+    const response = await fetch(`${base}/inspect`, {
         method: "POST",
         body: formData,
     });
@@ -31,9 +40,11 @@ export async function generatePlan(
     calendarFile: File,
     prodFile: File,
     calendarSheetName?: string,
-    config?: object
+    config?: object,
+    overrideBase?: string
 ): Promise<Blob> {
-    if (!API_BASE) {
+    const base = overrideBase || getApiBase();
+    if (!base) {
         throw new Error("NIAT API URL not configured. Contact admin.");
     }
 
@@ -47,7 +58,7 @@ export async function generatePlan(
         formData.append("config", JSON.stringify(config));
     }
 
-    const response = await fetch(`${API_BASE}/generate`, {
+    const response = await fetch(`${base}/generate`, {
         method: "POST",
         body: formData,
     });
