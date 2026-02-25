@@ -3,8 +3,8 @@
  * This client communicates with the Python-based NIAT Planner engine.
  */
 
-// We use the environment variable for the API URL in production.
-export const API_BASE = import.meta.env.VITE_NIAT_API_URL || "http://localhost:8000";
+// Fallback to the known production URL if environment variable is not set.
+export const API_BASE = import.meta.env.VITE_NIAT_API_URL || "https://uniconnect-mail-automation-production-16cf.up.railway.app";
 
 export async function inspectWorkbook(file: File): Promise<{ sheets: string[] }> {
     const formData = new FormData();

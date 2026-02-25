@@ -256,17 +256,26 @@
               class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Category</label
             >
-            <select
+            <input
+              type="text"
               bind:value={metadata.category}
+              placeholder="e.g. Full Stack"
               class="w-full bg-gray-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500"
-            >
-              <option>Full Stack</option>
-              <option>Data Science</option>
-              <option>UI/UX</option>
-              <option>Foundation</option>
-            </select>
+            />
           </div>
           <div class="space-y-1">
+            <label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              >Sub Category</label
+            >
+            <input
+              type="text"
+              bind:value={metadata.sub_category}
+              placeholder="e.g. Web Dev"
+              class="w-full bg-gray-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div class="col-span-2 space-y-1">
             <label
               class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Credits</label
