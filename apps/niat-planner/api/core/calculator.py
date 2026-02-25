@@ -23,16 +23,17 @@ def calculate_derived_fields(df: pd.DataFrame, subject_slots: Dict[str, int], ma
             df[apd_code] = 0
     
     for idx, row in df.iterrows():
-        univ_name = row.get('Universities', f'Row {idx+1}')
+        # Using internal keys that match parser_calendar.py and DEFAULT_CONFIG
+        univ_name = row.get('universities', f'Row {idx+1}')
         row_warnings = []
         
         try:
-            # Get values safely
-            ph = float(row.get('Public Holidays', 0) or 0)
-            uad = float(row.get('University Assessments Days', 0) or 0)
-            spd = float(row.get('Number of slots per day', 0) or 0)
-            nas = float(row.get('NIAT Assessments slots', 0) or 0)
-            wpw = float(row.get('Working days per Week', 0) or 0)
+            # Get values safely using internal canonical keys
+            ph = float(row.get('holidays', 0) or 0)
+            uad = float(row.get('univ_asmt_days', 0) or 0)
+            spd = float(row.get('slots_per_day', 0) or 0)
+            nas = float(row.get('niat_asmt_slots', 0) or 0)
+            wpw = float(row.get('days_per_week', 0) or 0)
             
             non_working_sats = row.get('Total No.of Non-working Saturdays', 0)
             total_days = row.get('Total Days', 0)
