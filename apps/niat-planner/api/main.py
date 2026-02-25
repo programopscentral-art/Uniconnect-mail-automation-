@@ -1,13 +1,14 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+import json
 import pandas as pd
 import io
-import json
 from .core.parser_calendar import parse_calendar
 from .core.parser_prod import parse_prod_sequence
 from .core.calculator import calculate_derived_fields
 from .core.exporter import export_to_excel
+from .core.exporter_content import export_content_to_excel
 from .core.models import PlannerConfig
 
 app = FastAPI(title="NIAT Planner API")
@@ -92,6 +93,70 @@ async def generate_niat_plan(
             excel_out,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={"Content-Disposition": f"attachment; filename=NIAT_Planner_Output.xlsx"}
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/export-content")
+async def export_content(
+    data: str = Form(...)
+):
+    try:
+        content_data = json.loads(data)
+        
+        # 1. SemesterCourse
+        courses = content_data.get("courses", [])
+        courses_df = pd.DataFrame(courses)
+        required_course_cols = [
+            "semester_course_id", "title", "description", "order", 
+            "semester_name", "category", "sub_category", "source_code", "credits"
+        ]
+        for col in required_course_cols:
+            if col not in courses_df.columns:
+                courses_df[col] = None
+        courses_df = courses_df[required_course_cols]
+
+        # 2. Session
+        sessions = content_data.get("sessions", [])
+        sessions_df = pd.DataFrame(sessions)
+        required_session_cols = [
+            "session_id", "session_name", "session_plan_name", "session_type", "duration_in_seconds"
+        ]
+        for col in required_session_cols:
+            if col not in sessions_df.columns:
+                sessions_df[col] = None
+        sessions_df = sessions_df[required_session_cols]
+
+        # 3. SessionResource
+        resources = content_data.get("resources", [])
+        resources_df = pd.DataFrame(resources)
+        required_resource_cols = [
+            "session_id", "resource_type", "title", "resource_url"
+        ]
+        for col in required_resource_cols:
+            if col not in resources_df.columns:
+                resources_df[col] = None
+        resources_df = resources_df[required_resource_cols]
+
+        # 4. SemesterCourseSession
+        course_sessions = content_data.get("course_sessions", [])
+        mapping_df = pd.DataFrame(course_sessions)
+        required_mapping_cols = [
+            "semester_course_id", "session_id", "order", "week_count"
+        ]
+        for col in required_mapping_cols:
+            if col not in mapping_df.columns:
+                mapping_df[col] = None
+        mapping_df = mapping_df[required_mapping_cols]
+
+        # Export
+        excel_out = export_content_to_excel(courses_df, sessions_df, resources_df, mapping_df)
+        
+        return StreamingResponse(
+            excel_out,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=Content_Export_Output.xlsx"}
         )
 
     except Exception as e:

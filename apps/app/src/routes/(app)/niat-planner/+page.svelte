@@ -18,6 +18,50 @@
   let validationWarnings = $state<string[]>([]);
   let proceedAnyway = $state(false);
 
+  // New Content Export state
+  let selectedExportUniversity = $state("");
+  let selectedExportSemester = $state("");
+  let isExporting = $state(false);
+
+  const { data } = $props();
+  import { exportContent } from "$lib/niatApi";
+
+  async function exportContentExcel() {
+    if (!selectedExportUniversity || !selectedExportSemester) return;
+    isExporting = true;
+    error = null;
+    success = false;
+
+    try {
+      // 1. Fetch data from SvelteKit API
+      const resp = await fetch(
+        `/api/niat/content-export?universityId=${selectedExportUniversity}&semester=${selectedExportSemester}`,
+      );
+      if (!resp.ok) {
+        const d = await resp.json();
+        throw new Error(d.error || "Failed to fetch content from DB");
+      }
+      const contentData = await resp.json();
+
+      // 2. Call FastAPI to generate Excel
+      const blob = await exportContent(contentData);
+
+      // 3. Download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Content_Export_${selectedExportSemester}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      success = true;
+    } catch (e: any) {
+      error = e.message;
+    } finally {
+      isExporting = false;
+    }
+  }
+
   // Production-safe Config Framework (JSON)
   let config = $state({
     calendar: {
@@ -666,6 +710,104 @@
             Generated Successfully! Plan downloaded.
           </div>
         {/if}
+      </div>
+
+      <!-- Curriculum Content Export Card -->
+      <div
+        class="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6"
+      >
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-emerald-50 dark:bg-emerald-900/40 rounded-2xl">
+            <svg
+              class="w-6 h-6 text-emerald-600 dark:text-emerald-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+              Curriculum Content Export
+            </h2>
+            <p
+              class="text-xs text-gray-400 font-medium uppercase tracking-widest mt-0.5"
+            >
+              Standard 4-Sheet Format
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-1.5">
+            <label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              >University</label
+            >
+            <select
+              bind:value={selectedExportUniversity}
+              class="w-full bg-gray-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+            >
+              <option value="">Select University</option>
+              {#if data.universities}
+                {#each data.universities as uni}
+                  <option value={uni.id}>{uni.name}</option>
+                {/each}
+              {/if}
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              >Semester</label
+            >
+            <select
+              bind:value={selectedExportSemester}
+              class="w-full bg-gray-50 dark:bg-slate-800 border-none rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 transition-all cursor-pointer"
+            >
+              <option value="">Select Semester</option>
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as sem}
+                <option value={sem.toString()}>Semester {sem}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+
+        <button
+          onclick={exportContentExcel}
+          disabled={isExporting ||
+            !selectedExportUniversity ||
+            !selectedExportSemester}
+          class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:disabled:bg-slate-800 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/10"
+        >
+          {#if isExporting}
+            <div
+              class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
+            ></div>
+            <span>Exporting Content...</span>
+          {:else}
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            <span>Export Content Excel</span>
+          {/if}
+        </button>
       </div>
     </div>
 

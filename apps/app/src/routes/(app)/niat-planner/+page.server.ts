@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { getAllUniversities } from '@uniconnect/shared';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load = async ({ locals }: { locals: any }) => {
     if (!locals.user) throw error(401);
 
     // Check for niat-planner permission
@@ -9,7 +9,10 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw error(403, 'You do not have permission to access NIAT Planner');
     }
 
+    const universities = await getAllUniversities();
+
     return {
-        user: locals.user
+        user: locals.user,
+        universities
     };
 };
