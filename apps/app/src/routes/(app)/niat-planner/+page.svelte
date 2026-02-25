@@ -124,7 +124,6 @@
         prodFile,
         selectedCalendarSheet,
         {
-          ...config,
           subjectMapping: mapping,
         },
       );

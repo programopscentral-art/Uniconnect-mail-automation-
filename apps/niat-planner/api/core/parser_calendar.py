@@ -50,34 +50,60 @@ from .models import PlannerConfig
 def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFrame, List[Dict]]:
     warnings = []
     
-    # Alias Resolution
-    def get_val(row, canonical_name):
-        aliases = config.calendar.header_aliases.get(canonical_name, [canonical_name])
-        for alias in aliases:
-            if alias in row:
-                return row[alias]
-        return row.get(canonical_name)
-
-    # Required Column Validation
-    missing_errors = []
-    actual_cols = df.columns.tolist()
-    
     # Internal keys for configuration lookups
-    # These MUST match the keys in DEFAULT_CONFIG["calendar"]["header_aliases"]
     col_univ = 'universities'
     col_start = 'start_date'
     col_end = 'end_date'
     col_sats = 'saturdays_off'
     col_nas = 'niat_asmt_slots'
 
+    # Smart Header Detection logic
+    actual_cols_lower = [str(c).lower().strip() for c in df.columns]
+    
+    def is_valid_header(cols):
+        found_any = False
+        needed = [col_univ, col_start, col_end]
+        match_count = 0
+        for key in needed:
+            aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(key, [])]
+            if any(a in cols for a in aliases):
+                match_count += 1
+        return match_count >= 2
+
+    # If first row contains "Unnamed" or doesn't look like a header, search deeper
+    if not is_valid_header(actual_cols_lower) or any("unnamed" in c for c in actual_cols_lower):
+        for i in range(min(20, len(df))):
+            row_vals = [str(v).lower().strip() for v in df.iloc[i].values]
+            if is_valid_header(row_vals):
+                # Reposition: this row is the header
+                new_cols = []
+                for val in df.iloc[i].values:
+                    new_cols.append(str(val).strip() if pd.notna(val) else f"Unnamed_{len(new_cols)}")
+                df.columns = new_cols
+                df = df.iloc[i + 1:].reset_index(drop=True)
+                actual_cols_lower = [str(c).lower().strip() for c in df.columns]
+                break
+
+    # Re-evaluate columns for validation
+    missing_errors = []
     for req in [col_univ, col_start, col_end]:
-        aliases = config.calendar.header_aliases.get(req, [req])
-        if not any(a in actual_cols for a in aliases):
+        aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(req, [req])]
+        if not any(a in actual_cols_lower for a in aliases):
             missing_errors.append(req)
             
     if missing_errors:
+        # Fallback: Check if ANY data actually exists in those columns if we fuzzily find them
         readable_errors = [config.calendar.header_aliases.get(e, [e])[0] for e in missing_errors]
         raise ValueError(f"Missing required columns: {', '.join(readable_errors)}")
+
+    # Alias-aware value extraction
+    def get_val(row, canonical_name):
+        aliases = [a.lower().strip() for a in config.calendar.header_aliases.get(canonical_name, [canonical_name])]
+        # Row keys might have spaces/case issues too
+        for k in row.keys():
+            if str(k).lower().strip() in aliases:
+                return row[k]
+        return None
 
     # Ensure necessary output columns exist or fill them
     cols_to_fill = [
