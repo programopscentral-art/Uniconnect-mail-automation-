@@ -1,9 +1,13 @@
 import { json, error } from '@sveltejs/kit';
-import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 
-export const GET: RequestHandler = async ({ url, locals }) => {
+export const GET = async ({ url, locals }: { url: URL, locals: any }) => {
     if (!locals.user) throw error(401);
+
+    // Check for niat-planner permission
+    if (!locals.user.permissions?.includes('niat-planner') && locals.user.role !== 'ADMIN') {
+        throw error(403, 'You do not have permission to access NIAT Planner');
+    }
 
     const universityId = url.searchParams.get('universityId');
     const semester = url.searchParams.get('semester');
