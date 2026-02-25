@@ -5,12 +5,15 @@
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
   let isGenerating = $state(false);
-  let isInspecting = $state(false);
+  let isInspectingCalendar = $state(false);
+  let isInspectingProd = $state(false);
   let error = $state<string | null>(null);
   let success = $state(false);
 
   let calendarSheets = $state<string[]>([]);
+  let prodSheets = $state<string[]>([]);
   let selectedCalendarSheet = $state<string>("");
+
   let validationErrors = $state<string[]>([]);
   let validationWarnings = $state<string[]>([]);
   let proceedAnyway = $state(false);
@@ -45,6 +48,7 @@
     },
   });
 
+  // mapping: Prod Sheet Name -> APD Subject Code
   let mapping = $state<Record<string, string>>({
     "Web Development-2": "WA2",
     DBMS: "DBMS",
@@ -68,8 +72,26 @@
     "Cloud Computing": "CC",
   });
 
+  // Track which sheet is selected for which subject code
+  // We'll update the mapping based on this
+  let subjectToSheet = $state<Record<string, string>>({});
+
+  // Initialize subjectToSheet once sheets are ready or mapping exists
+  function syncMapping() {
+    const newMapping: Record<string, string> = {};
+    Object.entries(subjectToSheet).forEach(([code, sheet]) => {
+      if (sheet) newMapping[sheet] = code;
+    });
+    // If subjectToSheet is empty or missing items, we might need a fallback
+    // But for now, let's assume the user picks.
+    if (Object.keys(newMapping).length > 0) {
+      mapping = newMapping;
+    }
+  }
+
   async function generate() {
     validationErrors = [];
+    syncMapping();
 
     if (!calendarFile || !prodFile) {
       validationErrors.push(
@@ -131,21 +153,22 @@
         validationErrors = [];
         validationWarnings = [];
         proceedAnyway = false;
-        await inspect(file);
+        await inspectCalendar(file);
       } else {
         prodFile = file;
+        await inspectProd(file);
       }
     }
   }
 
-  async function inspect(file: File) {
+  async function inspectCalendar(file: File) {
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       calendarSheets = [];
       selectedCalendarSheet = "";
       return;
     }
 
-    isInspecting = true;
+    isInspectingCalendar = true;
     try {
       const data = await inspectWorkbook(file);
       calendarSheets = data.sheets || [];
@@ -155,17 +178,75 @@
         if (!found) {
           found = calendarSheets.find((s) => s.toUpperCase().includes("APD"));
         }
-
         selectedCalendarSheet = found || calendarSheets[0];
-      } else {
-        validationErrors.push("The workbook contains no sheets.");
       }
     } catch (e: any) {
       validationErrors.push(`Failed to inspect calendar: ${e.message}`);
     } finally {
-      isInspecting = false;
+      isInspectingCalendar = false;
     }
   }
+
+  async function inspectProd(file: File) {
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      prodSheets = [];
+      return;
+    }
+
+    isInspectingProd = true;
+    try {
+      const data = await inspectWorkbook(file);
+      prodSheets = data.sheets || [];
+
+      // Auto-initialize subjectToSheet if names match
+      const newSubjectToSheet: Record<string, string> = {};
+      const subjectCodes = Object.values(mapping);
+      const subjectNames = Object.keys(mapping);
+
+      prodSheets.forEach((sheet) => {
+        // Check if sheet name exists in our mapping keys (Subject Names)
+        if (mapping[sheet]) {
+          newSubjectToSheet[mapping[sheet]] = sheet;
+        } else {
+          // Fuzzy match
+          const match = subjectNames.find((n) =>
+            sheet.toLowerCase().includes(n.toLowerCase()),
+          );
+          if (match) {
+            newSubjectToSheet[mapping[match]] = sheet;
+          }
+        }
+      });
+      subjectToSheet = { ...subjectToSheet, ...newSubjectToSheet };
+    } catch (e: any) {
+      validationErrors.push(`Failed to inspect prod sequence: ${e.message}`);
+    } finally {
+      isInspectingProd = false;
+    }
+  }
+
+  const subjectCodes = [
+    { name: "Web Development-2", code: "WA2" },
+    { name: "DBMS", code: "DBMS" },
+    { name: "Data Structures", code: "DS" },
+    { name: "Advanced English", code: "EA" },
+    { name: "Numerical Ability", code: "NA" },
+    { name: "Large Language Models", code: "LLM" },
+    { name: "Physics", code: "Phy" },
+    { name: "Chemistry", code: "Che" },
+    { name: "Yoga", code: "Yoga" },
+    { name: "TDP", code: "TDP" },
+    { name: "HVS", code: "HVS" },
+    { name: "Aptitude Skills", code: "AS" },
+    { name: "Basic Electronics", code: "BE" },
+    { name: "IKS", code: "IKS" },
+    { name: "Language & Culture", code: "LA&C" },
+    { name: "Environmental Studies", code: "ENV" },
+    { name: "Indian Constitution", code: "IC" },
+    { name: "Logical Ability-E", code: "LA-E" },
+    { name: "Engineering Drawing", code: "ED" },
+    { name: "Cloud Computing", code: "CC" },
+  ];
 </script>
 
 <div class="max-w-5xl mx-auto px-6 py-12 space-y-10">
@@ -338,7 +419,7 @@
                           {/each}
                         </select>
                       </div>
-                    {:else if isInspecting}
+                    {:else if isInspectingCalendar}
                       <div
                         class="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                       >
@@ -422,6 +503,34 @@
                     >
                       {prodFile.name}
                     </p>
+                    {#if prodSheets.length > 0}
+                      <div
+                        class="mt-2 flex items-center gap-2 text-[10px] font-bold text-emerald-500 uppercase tracking-widest"
+                      >
+                        <svg
+                          class="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          ><path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          /></svg
+                        >
+                        {prodSheets.length} sheets analyzed
+                      </div>
+                    {:else if isInspectingProd}
+                      <div
+                        class="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest"
+                      >
+                        <div
+                          class="w-3 h-3 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"
+                        ></div>
+                        Analyzing...
+                      </div>
+                    {/if}
                   {:else}
                     <svg
                       class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"
@@ -451,7 +560,10 @@
               </label>
               {#if prodFile}
                 <button
-                  onclick={() => (prodFile = null)}
+                  onclick={() => {
+                    prodFile = null;
+                    prodSheets = [];
+                  }}
                   class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
                   aria-label="Remove prod sequence file"
                 >
@@ -559,39 +671,50 @@
         <p
           class="text-sm text-indigo-700/70 dark:text-indigo-400/70 font-medium leading-relaxed"
         >
-          Map Prod Workbook tab names to the subject codes used in your Calendar
-          sheet.
+          Assign sheets from the Prod Workbook to your subject codes.
         </p>
 
         <div
-          class="h-[520px] overflow-y-auto bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-slate-700 p-4 space-y-2 shadow-inner"
+          class="h-[520px] overflow-y-auto bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-slate-700 p-4 space-y-4 shadow-inner"
         >
-          {#each Object.entries(mapping) as [tab, code]}
-            <div class="flex items-center gap-3 p-1">
-              <div
-                class="flex-1 bg-white dark:bg-slate-700 px-3 py-2 rounded-lg text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate border border-gray-50 dark:border-slate-600 shadow-sm"
-                title={tab}
-              >
-                {tab}
+          {#each subjectCodes as item}
+            <div class="space-y-1">
+              <div class="flex items-center justify-between px-1">
+                <span
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                  >{item.name} ({item.code})</span
+                >
               </div>
-              <svg
-                class="w-4 h-4 text-indigo-300 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
-              <input
-                type="text"
-                bind:value={mapping[tab]}
-                class="w-20 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-700 px-3 py-2 rounded-lg text-[11px] font-black text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-              />
+              <div class="flex items-center gap-3">
+                <select
+                  bind:value={subjectToSheet[item.code]}
+                  class="flex-1 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-700 px-3 py-2 rounded-lg text-[11px] font-bold text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                >
+                  <option value="">-- No sheet selected --</option>
+                  {#each prodSheets as sheet}
+                    <option value={sheet}>{sheet}</option>
+                  {/each}
+                </select>
+
+                <svg
+                  class="w-4 h-4 text-indigo-300 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  ><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M14 5l7 7m0 0l-7 7m7-7H3"
+                  /></svg
+                >
+
+                <div
+                  class="w-16 bg-indigo-50 dark:bg-slate-800 px-2 py-2 rounded-lg text-[10px] font-black text-indigo-600 text-center border border-indigo-100 dark:border-slate-700"
+                >
+                  {item.code}
+                </div>
+              </div>
             </div>
           {/each}
         </div>

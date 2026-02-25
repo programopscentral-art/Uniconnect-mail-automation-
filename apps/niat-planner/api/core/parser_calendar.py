@@ -88,7 +88,7 @@ def parse_calendar(df: pd.DataFrame, config: PlannerConfig) -> Tuple[pd.DataFram
         
         # 1. Dates
         start_date = safe_parse_date(get_val(row, 'Start Date'))
-        end_date = safe_parse_date(get_val(row, 'End Date (Semster Last Day)'))
+        end_date = safe_parse_date(get_val(row, 'End Date (Semester Last Day)'))
         
         if not start_date or not end_date:
             warnings.append({

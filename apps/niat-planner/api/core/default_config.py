@@ -6,11 +6,11 @@ DEFAULT_CONFIG = {
         },
         "header_aliases": {
             "Universities": ["Universities", "Uni", "University Name"],
-            "Start Date": ["Start Date", "StartDate", "Sem Start"],
-            "End Date (Semster Last Day)": ["End Date (Semster Last Day)", "End Date", "Last Day"],
-            "Saturdays off": ["Saturdays off", "Saturdays", "Weekend Off"],
-            "Working days per Week": ["Working days per Week", "Working Days/Week"],
-            "Number of slots per day": ["Number of slots per day", "Slots/Day"],
+            "Start Date": ["Start Date", "StartDate", "Sem Start", "Semester Start"],
+            "End Date (Semester Last Day)": ["End Date (Semester Last Day)", "End Date (Semster Last Day)", "End Date", "Last Day", "Semester Last Day", "Sem Last Day"],
+            "Saturdays off": ["Saturdays off", "Saturdays", "Weekend Off", "Off Saturdays"],
+            "Working days per Week": ["Working days per Week", "Working Days/Week", "Working Days Per Week"],
+            "Number of slots per day": ["Number of slots per day", "Slots/Day", "Slots Per Day"],
             "Public Holidays": ["Public Holidays", "Holidays"],
             "University Assessments Days": ["University Assessments Days", "Assessment Days"],
             "NIAT Assessments slots": ["NIAT Assessments slots", "NIAT Slots"]
@@ -35,7 +35,7 @@ DEFAULT_CONFIG = {
         }
     },
     "validation_policy": {
-        "error_on_missing": ["Universities", "Start Date", "End Date (Semster Last Day)"],
+        "error_on_missing": ["Universities", "Start Date", "End Date (Semester Last Day)"],
         "warn_on_missing": ["NIAT Assessments slots"],
         "strict_mode_default": False
     },
