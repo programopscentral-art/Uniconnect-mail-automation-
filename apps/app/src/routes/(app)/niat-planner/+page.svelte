@@ -1,7 +1,6 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
-  import { inspectWorkbook, generateNiatPlan } from "$lib/niat/api";
-  import { DEFAULT_NIAT_CONFIG } from "$lib/niat/default-config";
+  import { inspectWorkbook, generatePlan, API_BASE } from "$lib/niatApi";
 
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
@@ -17,7 +16,35 @@
   let proceedAnyway = $state(false);
   let showAdvanced = $state(false);
 
-  let config = $state(JSON.parse(JSON.stringify(DEFAULT_NIAT_CONFIG)));
+  // Production-safe Config Framework (JSON)
+  let config = $state({
+    calendar: {
+      sheetAutoDetect: true,
+      headerAliases: {
+        date: ["Date", "Day", "Session Date"],
+        subject: ["Subject", "Course", "Module"],
+        slot: ["Slot", "Slot No", "Slot Number"],
+        topic: ["Topic", "Session Name"],
+      },
+    },
+    prodSequence: {
+      slotColumnStrategy: "topic_column_2",
+      forwardFillSlots: true,
+      allowBlankSlots: true,
+    },
+    slotRules: {
+      practiceGrouping: "by_prod_sequence",
+      notes:
+        "MCQ Practice I/II and JS Coding Practice may or may not be in same slot; follow prod sequence slot numbering.",
+    },
+    universityVariations: {
+      assessmentSlotsMayVary: true,
+    },
+    validation: {
+      blockOnMissingCriticalColumns: true,
+      warnOnUnknownPatterns: true,
+    },
+  });
 
   let mapping = $state<Record<string, string>>({
     "Web Development-2": "WA2",
@@ -42,12 +69,13 @@
     "Cloud Computing": "CC",
   });
 
-  let apiBase = $state(
-    import.meta.env.VITE_NIAT_API_URL || "http://localhost:8000",
-  );
-
   async function generate() {
     validationErrors = [];
+
+    if (!API_BASE) {
+      validationErrors.push("NIAT API URL not configured. Contact admin.");
+      return;
+    }
 
     if (!calendarFile || !prodFile) {
       validationErrors.push(
@@ -75,16 +103,15 @@
     success = false;
 
     try {
-      const blob = await generateNiatPlan({
-        apiBase,
+      const blob = await generatePlan(
         calendarFile,
-        prodSequenceFile: prodFile,
-        calendarSheetName: selectedCalendarSheet || "0",
-        config: {
+        prodFile,
+        selectedCalendarSheet,
+        {
           ...config,
-          subject_mapping: mapping,
+          subjectMapping: mapping,
         },
-      });
+      );
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -126,24 +153,22 @@
 
     isInspecting = true;
     try {
-      const data = await inspectWorkbook(apiBase, file);
+      const data = await inspectWorkbook(file);
       calendarSheets = data.sheets || [];
 
       if (calendarSheets.length > 0) {
-        const prefNames = config.calendar.sheet_auto_detect.preferred_names;
-        const prefContains =
-          config.calendar.sheet_auto_detect.preferred_contains;
-
-        let found = calendarSheets.find((s) => prefNames.includes(s));
+        // Heuristic Auto-Selection:
+        // 1. Exact match "APD 2.0"
+        // 2. First sheet name containing "APD" (case-insensitive)
+        // 3. Else pick first sheet
+        let found = calendarSheets.find((s) => s === "APD 2.0");
         if (!found) {
-          found = calendarSheets.find((s) =>
-            prefContains.some((c: string) =>
-              s.toUpperCase().includes(c.toUpperCase()),
-            ),
-          );
+          found = calendarSheets.find((s) => s.toUpperCase().includes("APD"));
         }
 
         selectedCalendarSheet = found || calendarSheets[0];
+      } else {
+        validationErrors.push("The workbook contains no sheets.");
       }
     } catch (e: any) {
       validationErrors.push(`Failed to inspect calendar: ${e.message}`);
@@ -164,6 +189,34 @@
       Automate APD 2.0 generation from Calendar and Prod Sequence workbooks.
     </p>
   </div>
+
+  {#if !API_BASE}
+    <div
+      transition:fade
+      class="p-6 bg-red-50 dark:bg-red-900/40 border-2 border-red-200 dark:border-red-800 rounded-3xl space-y-2"
+    >
+      <h3
+        class="text-lg font-black text-red-600 dark:text-red-400 flex items-center gap-2"
+      >
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          ><path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          /></svg
+        >
+        Configuration Required
+      </h3>
+      <p class="text-sm font-bold text-red-500 dark:text-red-300">
+        NIAT API URL not configured. Contact admin.
+      </p>
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
     <!-- Main Form Section -->
@@ -203,35 +256,21 @@
             class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-4"
             transition:fade
           >
-            <div class="space-y-4">
-              <div class="flex flex-col gap-1.5">
-                <span
-                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
-                  >API Base URL</span
-                >
-                <input
-                  type="text"
-                  bind:value={apiBase}
-                  placeholder="http://localhost:8000"
-                  class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div class="flex items-center justify-between gap-4">
-                <span
-                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
-                  >Default Assessment Slots</span
-                >
-                <input
-                  type="number"
-                  bind:value={config.default_niat_assessment_slots}
-                  class="w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+            <div class="space-y-2">
+              <span
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                >Active Backend URL</span
+              >
+              <div
+                class="px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-710 rounded-lg text-xs font-mono text-gray-500 dark:text-gray-400 truncate"
+              >
+                {API_BASE || "NOT CONFIGURED"}
               </div>
             </div>
-            <p class="text-[8px] text-gray-400 font-medium px-1">
-              Configuration framework handles university variations. If
-              inspection fails, verify the API URL.
+            <p class="text-[8px] text-gray-400 font-medium leading-relaxed">
+              Manual URL input is disabled in production. All requests use the
+              internal VITE_NIAT_API_URL environment variable for security and
+              stability.
             </p>
           </div>
         {/if}
@@ -267,8 +306,8 @@
                       class="text-xs text-red-600 dark:text-red-400 font-semibold flex items-start gap-2"
                     >
                       <span
-                        class="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0"
-                      ></span>
+                        class="mt-1.5 w-1 h-1 rounded-full bg-red-400 flex-shrink-0"
+                      />
                       {err}
                     </li>
                   {/each}
@@ -301,8 +340,8 @@
                       class="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-start gap-2"
                     >
                       <span
-                        class="mt-1 w-1 h-1 rounded-full bg-amber-400 flex-shrink-0"
-                      ></span>
+                        class="mt-1.5 w-1 h-1 rounded-full bg-amber-400 flex-shrink-0"
+                      />
                       {warn}
                     </li>
                   {/each}
@@ -372,8 +411,8 @@
                         class="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                       >
                         <div
-                          class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"
-                        ></div>
+                          class="w-3 h-3 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"
+                        />
                         Analyzing...
                       </div>
                     {/if}
@@ -504,13 +543,13 @@
 
         <button
           onclick={generate}
-          disabled={isGenerating || !calendarFile || !prodFile}
+          disabled={isGenerating || !calendarFile || !prodFile || !API_BASE}
           class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
           {#if isGenerating}
             <div
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            ></div>
+            />
             Generating Planner...
           {:else}
             <svg
