@@ -2,27 +2,37 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Tuple
 
-def parse_prod_sequence(file_path: str) -> Tuple[Dict[str, int], List[Dict]]:
+from .models import PlannerConfig
+
+def parse_prod_sequence(file_path: str, config: PlannerConfig) -> Tuple[Dict[str, int], List[Dict]]:
     xls = pd.ExcelFile(file_path)
     subject_slots = {}
     breakdown = []
+    
+    ps_config = config.prod_sequence
     
     for sheet_name in xls.sheet_names:
         df = pd.read_excel(xls, sheet_name=sheet_name)
         
         # Identify the slot number column
-        # instruction: "The second “Topic” column contains slot numbers (1,2,3,...)."
-        # pandas will name them "Topic" and "Topic.1"
         slot_col = None
-        topic_cols = [c for c in df.columns if str(c).startswith('Topic')]
         
-        if len(topic_cols) >= 2:
-            slot_col = topic_cols[1]
-        elif len(topic_cols) == 1:
-            slot_col = topic_cols[0]
-            # Warning: might be the wrong one, but better than nothing
-        else:
-            # Fallback: look for a column that has numeric-looking data or is named something similar
+        # Priority 1: Check primary columns/aliases
+        for col_name in ps_config.slot_column_strategy.primary_columns:
+            if col_name in df.columns:
+                slot_col = col_name
+                break
+        
+        # Priority 2: Support second "Topic" column if config allows
+        if not slot_col and ps_config.slot_column_strategy.support_second_topic_column_as_slot:
+            topic_cols = [c for c in df.columns if str(c).startswith('Topic')]
+            if len(topic_cols) >= 2:
+                slot_col = topic_cols[1]
+            elif len(topic_cols) == 1:
+                slot_col = topic_cols[0]
+
+        # Priority 3: Fuzzy fallback
+        if not slot_col:
             candidate = [c for c in df.columns if 'slot' in str(c).lower()]
             if candidate:
                 slot_col = candidate[0]
@@ -37,12 +47,16 @@ def parse_prod_sequence(file_path: str) -> Tuple[Dict[str, int], List[Dict]]:
             continue
 
         # Forward fill slot numbers
-        df[slot_col] = df[slot_col].replace('', np.nan)
-        # Convert to string to handle Mixed types then fill then convert back to numeric if possible
-        df[slot_col] = df[slot_col].ffill()
+        if ps_config.slot_forward_fill.enabled:
+            df[slot_col] = df[slot_col].replace('', np.nan)
+            
+            if ps_config.slot_forward_fill.forward_fill_only_when_numeric_or_empty:
+                # We still ffill everything but the "numeric" part is handled in clean_slot
+                df[slot_col] = df[slot_col].ffill()
+            else:
+                df[slot_col] = df[slot_col].ffill()
         
         # Count unique slot numbers
-        # Instruction: "Ignore rows that are entirely empty."
         df = df.dropna(how='all')
         
         if df[slot_col].dropna().empty:
@@ -55,11 +69,9 @@ def parse_prod_sequence(file_path: str) -> Tuple[Dict[str, int], List[Dict]]:
             })
             continue
 
-        # Clean slot numbers (ensure numeric handles strings like "1.0" or "slot 1")
         def clean_slot(val):
             if pd.isna(val): return None
             s = str(val).strip()
-            # Extract digits
             match = pd.Series([s]).str.extract('(\d+)')[0][0]
             return int(match) if pd.notna(match) else None
 
@@ -77,3 +89,4 @@ def parse_prod_sequence(file_path: str) -> Tuple[Dict[str, int], List[Dict]]:
         })
         
     return subject_slots, breakdown
+

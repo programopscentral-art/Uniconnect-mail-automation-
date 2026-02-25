@@ -33,27 +33,27 @@ Automated NIAT slot planning and APD 2.0 generation.
    uvicorn api.main:app --reload --port 8000
    ```
 
-### Frontend
-The UI is automatically integrated into the UniConnect dashboard under the "NIAT Planner" menu item.
+## Configuration (Production)
 
-## Input Formats
+The frontend requires an environment variable to communicate with the Python backend in production.
 
-### Calendar Sheet
-Expects columns:
-- `Universities`
-- `Start Date`
-- `End Date (Semster Last Day)`
-- `Saturdays off`
-- `Working days per Week`
-- `Number of slots per day`
-- `Public Holidays` (Count)
-- `University Assessments Days` (Integer or Decimal)
+- **Variable**: `VITE_NIAT_API_URL`
+- **Example**: `https://niat-planner-api.up.railway.app`
+- **Default**: `http://localhost:8000` (used if variable is missing)
 
-### Prod Sequence Workbook
-Expects multiple tabs (one per subject).
-- Column 1: Topic
-- Column 2: Topic (This column must contain the slot numbers)
-- Forward-fill logic is applied to handle blank rows/merged cells.
+### Railway Deployment
 
-## Subject Mapping
-Configurable via the UI to map Tab names to APD subject codes (e.g. "Web Development-2" -> "WA2").
+1. **Backend**:
+   - Create a new service from `apps/niat-planner`.
+   - Set start command: `uvicorn api.main:app --host 0.0.0.0 --port $PORT`
+2. **Frontend**:
+   - Add `VITE_NIAT_API_URL` to your UniConnect App service settings.
+
+## Config Framework
+
+The system uses a config-driven parsing strategy (defined in `api/core/default_config.py`) that supports:
+- **Header Aliases**: Map varied university headers to canonical fields.
+- **Auto-Detection**: Heuristics to find the correct input sheet.
+- **Validation Policy**: Rules for blocking errors vs ignorable warnings.
+- **Slot Strategies**: Configurable logic for forward-filling and column identification.
+

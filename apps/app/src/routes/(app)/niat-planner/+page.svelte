@@ -1,5 +1,7 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
+  import { inspectWorkbook, generateNiatPlan } from "$lib/niat/api";
+  import { DEFAULT_NIAT_CONFIG } from "$lib/niat/default-config";
 
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
@@ -10,7 +12,12 @@
 
   let calendarSheets = $state<string[]>([]);
   let selectedCalendarSheet = $state<string>("");
-  let apiUrl = $state("http://localhost:8000");
+  let validationErrors = $state<string[]>([]);
+  let validationWarnings = $state<string[]>([]);
+  let proceedAnyway = $state(false);
+  let showAdvanced = $state(false);
+
+  let config = $state(JSON.parse(JSON.stringify(DEFAULT_NIAT_CONFIG)));
 
   let mapping = $state<Record<string, string>>({
     "Web Development-2": "WA2",
@@ -36,8 +43,26 @@
   });
 
   async function generate() {
+    validationErrors = [];
+
     if (!calendarFile || !prodFile) {
-      error = "Please upload both Calendar and Prod Sequence files.";
+      validationErrors.push(
+        "Please upload both Calendar and Prod Sequence files.",
+      );
+      return;
+    }
+
+    if (calendarFile.name.endsWith(".xlsx") && !selectedCalendarSheet) {
+      validationErrors.push(
+        "Please select the calendar sheet before generating.",
+      );
+      return;
+    }
+
+    if (validationWarnings.length > 0 && !proceedAnyway) {
+      validationErrors.push(
+        "Please check 'Proceed anyway' to acknowledge warnings.",
+      );
       return;
     }
 
@@ -46,35 +71,20 @@
     success = false;
 
     try {
-      const formData = new FormData();
-      formData.append("calendar_file", calendarFile);
-      formData.append("prod_sequence_file", prodFile);
-      if (selectedCalendarSheet) {
-        formData.append("calendar_sheet_name", selectedCalendarSheet);
-      }
-      formData.append(
-        "config",
-        JSON.stringify({
+      const blob = await generateNiatPlan({
+        calendarFile,
+        prodSequenceFile: prodFile,
+        calendarSheetName: selectedCalendarSheet || "0",
+        config: {
+          ...config,
           subject_mapping: mapping,
-          default_niat_assessment_slots: 75,
-        }),
-      );
-
-      const response = await fetch(`${apiUrl}/generate`, {
-        method: "POST",
-        body: formData,
+        },
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || "Failed to generate planner");
-      }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `APD_2.0_Generated_${new Date().toISOString().split("T")[0]}.xlsx`;
+      a.download = `NIAT_Planner_Output_${new Date().toISOString().split("T")[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -92,31 +102,44 @@
       const file = target.files[0];
       if (type === "calendar") {
         calendarFile = file;
-        await inspectFile(file);
+        validationErrors = [];
+        validationWarnings = [];
+        proceedAnyway = false;
+        await inspect(file);
       } else {
         prodFile = file;
       }
     }
   }
 
-  async function inspectFile(file: File) {
+  async function inspect(file: File) {
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      calendarSheets = [];
+      selectedCalendarSheet = "";
+      return;
+    }
+
     isInspecting = true;
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`${apiUrl}/inspect`, {
-        method: "POST",
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        calendarSheets = data.sheets || [];
-        if (calendarSheets.length > 0) {
-          selectedCalendarSheet = calendarSheets[0];
+      const data = await inspectWorkbook(file);
+      calendarSheets = data.sheets || [];
+
+      if (calendarSheets.length > 0) {
+        const prefNames = config.calendar.sheet_auto_detect.preferred_names;
+        const prefContains =
+          config.calendar.sheet_auto_detect.preferred_contains;
+
+        let found = calendarSheets.find((s) => prefNames.includes(s));
+        if (!found) {
+          found = calendarSheets.find((s) =>
+            prefContains.some((c) => s.toUpperCase().includes(c.toUpperCase())),
+          );
         }
+
+        selectedCalendarSheet = found || calendarSheets[0];
       }
-    } catch (e) {
-      console.error("Inspection failed", e);
+    } catch (e: any) {
+      validationErrors.push(`Failed to inspect calendar: ${e.message}`);
     } finally {
       isInspecting = false;
     }
@@ -136,7 +159,7 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-    <!-- Upload Section -->
+    <!-- Main Form Section -->
     <div class="space-y-6">
       <div
         class="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-xl shadow-gray-200/50 dark:shadow-none space-y-6"
@@ -150,70 +173,225 @@
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              ><path
+            >
+              <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-              ></path></svg
-            >
+              />
+            </svg>
             Upload Inputs
           </h2>
-          <div class="flex items-center gap-2">
-            <span
-              class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
-              >API URL</span
-            >
-            <input
-              type="text"
-              bind:value={apiUrl}
-              class="w-32 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-2 py-1 rounded text-[9px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
+          <button
+            onclick={() => (showAdvanced = !showAdvanced)}
+            class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-500 transition-colors"
+          >
+            {showAdvanced ? "Hide Config" : "Config"}
+          </button>
         </div>
 
-        <div class="space-y-4">
+        {#if showAdvanced}
+          <div
+            class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-4"
+            transition:fade
+          >
+            <div class="flex items-center justify-between gap-4">
+              <span
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
+                >Default Assessment Slots</span
+              >
+              <input
+                type="number"
+                bind:value={config.default_niat_assessment_slots}
+                class="w-20 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <p class="text-[8px] text-gray-400 font-medium">
+              Configuration is sent as a JSON framework to the Python backend to
+              handle university variations.
+            </p>
+          </div>
+        {/if}
+
+        <!-- Validation Dashboard -->
+        {#if validationErrors.length > 0 || validationWarnings.length > 0}
+          <div
+            class="p-5 rounded-2xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 space-y-4"
+            transition:fade
+          >
+            {#if validationErrors.length > 0}
+              <div class="space-y-2">
+                <p
+                  class="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1"
+                >
+                  <svg
+                    class="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M6 18L18 6M6 6l12 12"
+                    /></svg
+                  >
+                  Blocking Errors
+                </p>
+                <ul class="space-y-1">
+                  {#each validationErrors as err}
+                    <li
+                      class="text-xs text-red-600 dark:text-red-400 font-semibold flex items-start gap-2"
+                    >
+                      <span
+                        class="mt-1 w-1 h-1 rounded-full bg-red-400 flex-shrink-0"
+                      />
+                      {err}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+
+            {#if validationWarnings.length > 0}
+              <div class="space-y-2">
+                <p
+                  class="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1"
+                >
+                  <svg
+                    class="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="3"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    /></svg
+                  >
+                  Warnings
+                </p>
+                <ul class="space-y-1">
+                  {#each validationWarnings as warn}
+                    <li
+                      class="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-start gap-2"
+                    >
+                      <span
+                        class="mt-1 w-1 h-1 rounded-full bg-amber-400 flex-shrink-0"
+                      />
+                      {warn}
+                    </li>
+                  {/each}
+                </ul>
+                <label
+                  class="flex items-center gap-2 cursor-pointer group mt-2"
+                >
+                  <input
+                    type="checkbox"
+                    bind:checked={proceedAnyway}
+                    class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span
+                    class="text-xs font-bold text-gray-500 group-hover:text-indigo-600 transition-colors"
+                    >Proceed anyway</span
+                  >
+                </label>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        <div class="space-y-5">
+          <!-- Calendar Upload -->
           <div class="space-y-2">
             <label
               for="calendar-upload"
-              class="text-sm font-black text-gray-400 uppercase tracking-widest px-1"
-              >Calendar Sheet (APD Input)</label
+              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              >Calendar Workbook (APD Input)</label
             >
-            <label
-              class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all group"
-            >
-              <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                {#if calendarFile}
-                  <p
-                    class="text-sm font-bold text-indigo-600 dark:text-indigo-400"
-                  >
-                    {calendarFile.name}
-                  </p>
-                  {#if calendarSheets.length > 0}
-                    <div
-                      role="presentation"
-                      class="mt-2 w-full px-4"
-                      onmousedown={(e) => e.stopPropagation()}
+            <div class="relative group">
+              <label
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-100 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all"
+              >
+                <div
+                  class="flex flex-col items-center justify-center pt-5 pb-6"
+                >
+                  {#if calendarFile}
+                    <p
+                      class="text-sm font-bold text-indigo-600 dark:text-indigo-400"
                     >
-                      <label
-                        for="cal-sheet"
-                        class="text-[10px] font-bold text-gray-400 uppercase block mb-1"
-                        >Select Input Sheet</label
+                      {calendarFile.name}
+                    </p>
+                    {#if calendarSheets.length > 0}
+                      <div
+                        class="mt-2 w-full px-6"
+                        onclick={(e) => e.stopPropagation()}
                       >
-                      <select
-                        id="cal-sheet"
-                        bind:value={selectedCalendarSheet}
-                        class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                        <label
+                          for="cal-sheet"
+                          class="text-[9px] font-black text-gray-400 uppercase block mb-1 text-center"
+                          >Select Sheet</label
+                        >
+                        <select
+                          id="cal-sheet"
+                          bind:value={selectedCalendarSheet}
+                          class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-[11px] font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                          {#each calendarSheets as sheet}
+                            <option value={sheet}>{sheet}</option>
+                          {/each}
+                        </select>
+                      </div>
+                    {:else if isInspecting}
+                      <div
+                        class="mt-2 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest"
                       >
-                        {#each calendarSheets as sheet}
-                          <option value={sheet}>{sheet}</option>
-                        {/each}
-                      </select>
-                    </div>
+                        <div
+                          class="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin"
+                        />
+                        Analyzing...
+                      </div>
+                    {/if}
+                  {:else}
+                    <svg
+                      class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                    <p class="text-xs text-gray-500 font-medium">
+                      Drop APD Input Excel here
+                    </p>
                   {/if}
-                {:else}
+                </div>
+                <input
+                  id="calendar-upload"
+                  type="file"
+                  class="hidden"
+                  accept=".xlsx,.xls,.csv"
+                  onchange={(e) => handleFileChange(e, "calendar")}
+                />
+              </label>
+              {#if calendarFile}
+                <button
+                  onclick={() => {
+                    calendarFile = null;
+                    calendarSheets = [];
+                    selectedCalendarSheet = "";
+                  }}
+                  class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                >
                   <svg
-                    class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -221,43 +399,68 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    ></path></svg
+                      d="M6 18L18 6M6 6l12 12"
+                    /></svg
                   >
-                  <p class="text-xs text-gray-500 font-medium">
-                    Click to upload .xlsx or .csv
-                  </p>
-                {/if}
-              </div>
-              <input
-                id="calendar-upload"
-                type="file"
-                class="hidden"
-                accept=".xlsx,.xls,.csv"
-                onchange={(e) => handleFileChange(e, "calendar")}
-              />
-            </label>
+                </button>
+              {/if}
+            </div>
           </div>
 
+          <!-- Prod Upload -->
           <div class="space-y-2">
             <label
               for="prod-upload"
-              class="text-sm font-black text-gray-400 uppercase tracking-widest px-1"
+              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Prod Sequence Workbook</label
             >
-            <label
-              class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all group"
-            >
-              <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                {#if prodFile}
-                  <p
-                    class="text-sm font-bold text-indigo-600 dark:text-indigo-400"
-                  >
-                    {prodFile.name}
-                  </p>
-                {:else}
+            <div class="relative group">
+              <label
+                class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-100 dark:border-slate-800 rounded-2xl cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all"
+              >
+                <div
+                  class="flex flex-col items-center justify-center pt-5 pb-6"
+                >
+                  {#if prodFile}
+                    <p
+                      class="text-sm font-bold text-indigo-600 dark:text-indigo-400"
+                    >
+                      {prodFile.name}
+                    </p>
+                  {:else}
+                    <svg
+                      class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    <p class="text-xs text-gray-500 font-medium">
+                      Drop Prod Sequence Workbook here
+                    </p>
+                  {/if}
+                </div>
+                <input
+                  id="prod-upload"
+                  type="file"
+                  class="hidden"
+                  accept=".xlsx,.xls"
+                  onchange={(e) => handleFileChange(e, "prod")}
+                />
+              </label>
+              {#if prodFile}
+                <button
+                  onclick={() => (prodFile = null)}
+                  class="absolute top-2 right-2 p-1.5 bg-red-50 dark:bg-red-900/40 text-red-500 rounded-lg hover:bg-red-100 transition-colors"
+                >
                   <svg
-                    class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -265,48 +468,39 @@
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                    ></path></svg
+                      d="M6 18L18 6M6 6l12 12"
+                    /></svg
                   >
-                  <p class="text-xs text-gray-500 font-medium">
-                    Click to upload .xlsx
-                  </p>
-                {/if}
-              </div>
-              <input
-                id="prod-upload"
-                type="file"
-                class="hidden"
-                accept=".xlsx,.xls"
-                onchange={(e) => handleFileChange(e, "prod")}
-              />
-            </label>
+                </button>
+              {/if}
+            </div>
           </div>
         </div>
 
         <button
           onclick={generate}
           disabled={isGenerating || !calendarFile || !prodFile}
-          class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+          class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
           {#if isGenerating}
             <div
               class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"
-            ></div>
-            Generating...
+            />
+            Generating Planner...
           {:else}
             <svg
               class="w-6 h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              ><path
+            >
+              <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M13 10V3L4 14h7v7l9-11h-7z"
-              ></path></svg
-            >
+              />
+            </svg>
             Generate APD 2.0
           {/if}
         </button>
@@ -314,7 +508,7 @@
         {#if error}
           <div
             transition:fade
-            class="p-4 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 text-sm font-bold animate-shake"
+            class="p-4 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-2xl text-red-600 dark:text-red-400 text-xs font-bold animate-shake"
           >
             {error}
           </div>
@@ -323,7 +517,7 @@
         {#if success}
           <div
             transition:fade
-            class="p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-2xl text-emerald-600 dark:text-emerald-400 text-sm font-bold flex items-center gap-2"
+            class="p-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-center gap-2"
           >
             <svg
               class="w-5 h-5"
@@ -335,18 +529,18 @@
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M5 13l4 4L19 7"
-              ></path></svg
+              /></svg
             >
-            Generated Successfully! Check your downloads.
+            Generated Successfully! Plan downloaded.
           </div>
         {/if}
       </div>
     </div>
 
-    <!-- Configuration Section -->
+    <!-- Configuration / Mapping Section -->
     <div class="space-y-6">
       <div
-        class="bg-indigo-50 dark:bg-slate-900 rounded-3xl p-8 border border-indigo-100 dark:border-slate-800 shadow-sm space-y-6"
+        class="bg-indigo-50 dark:bg-slate-900/50 rounded-3xl p-8 border border-indigo-100 dark:border-slate-800 shadow-sm space-y-6"
       >
         <h2
           class="text-xl font-bold flex items-center gap-2 text-indigo-900 dark:text-indigo-400"
@@ -356,55 +550,51 @@
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            ></path><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            ></path></svg
           >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+            />
+          </svg>
           Subject Mapping
         </h2>
-
         <p
           class="text-sm text-indigo-700/70 dark:text-indigo-400/70 font-medium leading-relaxed"
         >
           Map Prod Workbook tab names to the subject codes used in your Calendar
-          sheet.
+          worksheet.
         </p>
 
         <div
-          class="h-[460px] overflow-y-auto bg-white dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-slate-700 p-4 space-y-3 shadow-inner"
+          class="h-[520px] overflow-y-auto bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-indigo-100 dark:border-slate-700 p-4 space-y-2 shadow-inner"
         >
           {#each Object.entries(mapping) as [tab, code]}
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 p-1">
               <div
-                class="flex-1 bg-gray-50 dark:bg-slate-700 px-3 py-2 rounded-lg text-xs font-bold text-gray-600 dark:text-gray-300 truncate"
+                class="flex-1 bg-white dark:bg-slate-700 px-3 py-2 rounded-lg text-[11px] font-bold text-gray-600 dark:text-gray-300 truncate border border-gray-50 dark:border-slate-600 shadow-sm"
                 title={tab}
               >
                 {tab}
               </div>
               <svg
-                class="w-4 h-4 text-gray-300"
+                class="w-4 h-4 text-indigo-300 flex-shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                ><path
+              >
+                <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
                   d="M14 5l7 7m0 0l-7 7m7-7H3"
-                ></path></svg
-              >
+                />
+              </svg>
               <input
                 type="text"
                 bind:value={mapping[tab]}
-                class="w-24 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-700 px-3 py-2 rounded-lg text-xs font-black text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                class="w-20 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-700 px-3 py-2 rounded-lg text-[11px] font-black text-indigo-600 dark:text-indigo-400 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
               />
             </div>
           {/each}

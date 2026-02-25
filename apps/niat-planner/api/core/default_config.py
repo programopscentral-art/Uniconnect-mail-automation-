@@ -1,0 +1,65 @@
+DEFAULT_CONFIG = {
+    "calendar": {
+        "sheet_auto_detect": {
+            "preferred_names": ["APD 2.0", "APD2.0", "APD_2.0"],
+            "preferred_contains": ["APD", "Calendar"]
+        },
+        "header_aliases": {
+            "Universities": ["Universities", "Uni", "University Name"],
+            "Start Date": ["Start Date", "StartDate", "Sem Start"],
+            "End Date (Semster Last Day)": ["End Date (Semster Last Day)", "End Date", "Last Day"],
+            "Saturdays off": ["Saturdays off", "Saturdays", "Weekend Off"],
+            "Working days per Week": ["Working days per Week", "Working Days/Week"],
+            "Number of slots per day": ["Number of slots per day", "Slots/Day"],
+            "Public Holidays": ["Public Holidays", "Holidays"],
+            "University Assessments Days": ["University Assessments Days", "Assessment Days"],
+            "NIAT Assessments slots": ["NIAT Assessments slots", "NIAT Slots"]
+        }
+    },
+    "prod_sequence": {
+        "slot_column_strategy": {
+            "primary_columns": ["Topic", "Slot", "Slot No"],
+            "support_second_topic_column_as_slot": True
+        },
+        "slot_forward_fill": {
+            "enabled": True,
+            "forward_fill_only_when_numeric_or_empty": True
+        },
+        "session_grouping": {
+            "by_slot_number": True
+        }
+    },
+    "slot_rules": {
+        "practice_identification": {
+            "keywords": ["Practice", "Coding", "Quiz", "MCQ"]
+        }
+    },
+    "validation_policy": {
+        "error_on_missing": ["Universities", "Start Date", "End Date (Semster Last Day)"],
+        "warn_on_missing": ["NIAT Assessments slots"],
+        "strict_mode_default": False
+    },
+    "subject_mapping": {
+        "Web Development-2": "WA2",
+        "DBMS": "DBMS",
+        "Data Structures": "DS",
+        "Advanced English": "EA",
+        "Numerical Ability": "NA",
+        "Large Language Models": "LLM",
+        "Physics": "Phy",
+        "Chemistry": "Che",
+        "Yoga": "Yoga",
+        "TDP": "TDP",
+        "HVS": "HVS",
+        "Aptitude Skills": "AS",
+        "Basic Electronics": "BE",
+        "IKS": "IKS",
+        "Language & Culture": "LA&C",
+        "Environmental Studies": "ENV",
+        "Indian Constitution": "IC",
+        "Logical Ability-E": "LA-E",
+        "Engineering Drawing": "ED",
+        "Cloud Computing": "CC"
+    },
+    "default_niat_assessment_slots": 75
+}
