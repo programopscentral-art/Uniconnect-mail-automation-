@@ -1,9 +1,6 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
-  import { inspectWorkbook, generatePlan, getApiBase } from "$lib/niatApi";
-
-  let manualApiOverride = $state("");
-  let apiBase = $derived(manualApiOverride || getApiBase());
+  import { inspectWorkbook, generatePlan } from "$lib/niatApi";
 
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
@@ -17,7 +14,6 @@
   let validationErrors = $state<string[]>([]);
   let validationWarnings = $state<string[]>([]);
   let proceedAnyway = $state(false);
-  let showAdvanced = $state(false);
 
   // Production-safe Config Framework (JSON)
   let config = $state({
@@ -75,11 +71,6 @@
   async function generate() {
     validationErrors = [];
 
-    if (!apiBase) {
-      validationErrors.push("NIAT API URL not configured. Contact admin.");
-      return;
-    }
-
     if (!calendarFile || !prodFile) {
       validationErrors.push(
         "Please upload both Calendar and Prod Sequence files.",
@@ -114,7 +105,6 @@
           ...config,
           subjectMapping: mapping,
         },
-        apiBase,
       );
 
       const url = window.URL.createObjectURL(blob);
@@ -149,11 +139,6 @@
   }
 
   async function inspect(file: File) {
-    if (!apiBase) {
-      validationErrors.push("API URL is required for inspection.");
-      return;
-    }
-
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       calendarSheets = [];
       selectedCalendarSheet = "";
@@ -162,14 +147,10 @@
 
     isInspecting = true;
     try {
-      const data = await inspectWorkbook(file, apiBase);
+      const data = await inspectWorkbook(file);
       calendarSheets = data.sheets || [];
 
       if (calendarSheets.length > 0) {
-        // Heuristic Auto-Selection:
-        // 1. Exact match "APD 2.0"
-        // 2. First sheet name containing "APD" (case-insensitive)
-        // 3. Else pick first sheet
         let found = calendarSheets.find((s) => s === "APD 2.0");
         if (!found) {
           found = calendarSheets.find((s) => s.toUpperCase().includes("APD"));
@@ -199,35 +180,6 @@
     </p>
   </div>
 
-  {#if !apiBase}
-    <div
-      transition:fade
-      class="p-6 bg-red-50 dark:bg-red-900/40 border-2 border-red-200 dark:border-red-800 rounded-3xl space-y-2"
-    >
-      <h3
-        class="text-lg font-black text-red-600 dark:text-red-400 flex items-center gap-2"
-      >
-        <svg
-          class="w-6 h-6"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          ><path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          /></svg
-        >
-        Configuration Required
-      </h3>
-      <p class="text-sm font-bold text-red-500 dark:text-red-300">
-        NIAT API URL not configured. Use the "Config" section to add it manually
-        or contact admin.
-      </p>
-    </div>
-  {/if}
-
   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
     <!-- Main Form Section -->
     <div class="space-y-6">
@@ -253,51 +205,7 @@
             </svg>
             Upload Inputs
           </h2>
-          <button
-            onclick={() => (showAdvanced = !showAdvanced)}
-            class="text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-indigo-500 transition-colors"
-          >
-            {showAdvanced ? "Hide Config" : "Config"}
-          </button>
         </div>
-
-        {#if showAdvanced}
-          <div
-            class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-gray-100 dark:border-slate-700 space-y-4"
-            transition:fade
-          >
-            <div class="space-y-4">
-              <div class="flex flex-col gap-1.5">
-                <span
-                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
-                  >API URL (Override)</span
-                >
-                <input
-                  type="text"
-                  bind:value={manualApiOverride}
-                  placeholder="https://your-api.railway.app"
-                  class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div class="space-y-2">
-                <span
-                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest"
-                  >Active Backend URL</span
-                >
-                <div
-                  class="px-3 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-710 rounded-lg text-xs font-mono text-gray-500 dark:text-gray-400 truncate"
-                >
-                  {apiBase || "NOT CONFIGURED"}
-                </div>
-              </div>
-            </div>
-            <p class="text-[8px] text-gray-400 font-medium leading-relaxed">
-              If the active URL is "NOT CONFIGURED", you can paste it manually
-              above. In production, this should be set as PUBLIC_NIAT_API_URL.
-            </p>
-          </div>
-        {/if}
 
         <!-- Validation Dashboard -->
         {#if validationErrors.length > 0 || validationWarnings.length > 0}
@@ -567,7 +475,7 @@
 
         <button
           onclick={generate}
-          disabled={isGenerating || !calendarFile || !prodFile || !apiBase}
+          disabled={isGenerating || !calendarFile || !prodFile}
           class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-lg font-black rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
         >
           {#if isGenerating}

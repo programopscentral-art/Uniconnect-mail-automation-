@@ -1,23 +1,14 @@
-import { env } from '$env/dynamic/public';
-
 /**
- * API_BASE is resolved from PUBLIC_NIAT_API_URL dynamically.
- * Dynamic variables are read at runtime, which is better for Docker/Railway.
+ * NIAT API Client
+ * Hardcoded production URL for direct integration.
  */
-export const getApiBase = () => {
-    return (env.PUBLIC_NIAT_API_URL || "").replace(/\/$/, "");
-};
+export const API_BASE = "https://uniconnect-mail-automation-production-16cf.up.railway.app";
 
-export async function inspectWorkbook(file: File, overrideBase?: string): Promise<{ sheets: string[] }> {
-    const base = overrideBase || getApiBase();
-    if (!base) {
-        throw new Error("NIAT API URL not configured. Contact admin.");
-    }
-
+export async function inspectWorkbook(file: File): Promise<{ sheets: string[] }> {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await fetch(`${base}/inspect`, {
+    const response = await fetch(`${API_BASE}/inspect`, {
         method: "POST",
         body: formData,
     });
@@ -40,14 +31,8 @@ export async function generatePlan(
     calendarFile: File,
     prodFile: File,
     calendarSheetName?: string,
-    config?: object,
-    overrideBase?: string
+    config?: object
 ): Promise<Blob> {
-    const base = overrideBase || getApiBase();
-    if (!base) {
-        throw new Error("NIAT API URL not configured. Contact admin.");
-    }
-
     const formData = new FormData();
     formData.append("calendar_file", calendarFile);
     formData.append("prod_sequence_file", prodFile);
@@ -58,7 +43,7 @@ export async function generatePlan(
         formData.append("config", JSON.stringify(config));
     }
 
-    const response = await fetch(`${base}/generate`, {
+    const response = await fetch(`${API_BASE}/generate`, {
         method: "POST",
         body: formData,
     });
