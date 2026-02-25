@@ -79,15 +79,19 @@ def parse_full_curriculum(file_path: str) -> List[Dict]:
             duration_mins = 0
             if duration_col and duration_col in first_row:
                 try:
-                    duration_mins = float(first_row[duration_col])
+                    val = first_row[duration_col]
+                    if pd.notna(val):
+                        duration_mins = float(val)
+                        if np.isnan(duration_mins):
+                            duration_mins = 0
                 except:
-                    pass
+                    duration_mins = 0
 
             session_node = {
                 "slot_number": actual_slot_num,
                 "session_name": session_name,
                 "session_type": str(first_row.get(slot_type_col, "LECTURE")).upper(),
-                "duration_in_seconds": int(duration_mins * 60),
+                "duration_in_seconds": int(duration_mins * 60) if pd.notna(duration_mins) else 0,
                 "session_enum": str(first_row.get(session_enum_col, "")) if session_enum_col else "",
                 "unit_id": str(first_row.get(unit_id_col, "")) if unit_id_col else "",
                 "resources": []

@@ -173,10 +173,16 @@ async def import_curriculum(
     category: str = Form(None),
     sub_category: str = Form(None),
     source_code: str = Form(None),
-    credits: int = Form(None),
+    credits: str = Form(None),
     uploaded_by: str = Form(None)
 ):
     try:
+        # Resolve credits safely
+        try:
+            actual_credits = int(credits) if credits else 0
+        except:
+            actual_credits = 0
+
         content = await file.read()
         file_path = f"/tmp/{uuid.uuid4()}_{file.filename}"
         with open(file_path, "wb") as f:
@@ -208,7 +214,7 @@ async def import_curriculum(
                     """INSERT INTO curr_semester_courses 
                     (import_id, semester_course_id, subject_name, title, semester_name, category, sub_category, source_code, credits) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
-                    (import_id, course_uuid, subject_name, subject_name, semester_name, category, sub_category, source_code, credits)
+                    (import_id, course_uuid, subject_name, subject_name, semester_name, category, sub_category, source_code, actual_credits)
                 )
                 summary["subjects"] += 1
                 
