@@ -4,8 +4,13 @@
   let calendarFile = $state<File | null>(null);
   let prodFile = $state<File | null>(null);
   let isGenerating = $state(false);
+  let isInspecting = $state(false);
   let error = $state<string | null>(null);
   let success = $state(false);
+
+  let calendarSheets = $state<string[]>([]);
+  let selectedCalendarSheet = $state<string>("");
+  let apiUrl = $state("http://localhost:8000");
 
   let mapping = $state<Record<string, string>>({
     "Web Development-2": "WA2",
@@ -44,6 +49,9 @@
       const formData = new FormData();
       formData.append("calendar_file", calendarFile);
       formData.append("prod_sequence_file", prodFile);
+      if (selectedCalendarSheet) {
+        formData.append("calendar_sheet_name", selectedCalendarSheet);
+      }
       formData.append(
         "config",
         JSON.stringify({
@@ -52,9 +60,7 @@
         }),
       );
 
-      // In a real production setup, this would point to the FastAPI service URL
-      // For now, we assume it's proxied through /api/niat-planner or similar
-      const response = await fetch("http://localhost:8000/generate", {
+      const response = await fetch(`${apiUrl}/generate`, {
         method: "POST",
         body: formData,
       });
@@ -80,11 +86,39 @@
     }
   }
 
-  function handleFileChange(event: Event, type: "calendar" | "prod") {
+  async function handleFileChange(event: Event, type: "calendar" | "prod") {
     const target = event.target as HTMLInputElement;
     if (target.files && target.files[0]) {
-      if (type === "calendar") calendarFile = target.files[0];
-      else prodFile = target.files[0];
+      const file = target.files[0];
+      if (type === "calendar") {
+        calendarFile = file;
+        await inspectFile(file);
+      } else {
+        prodFile = file;
+      }
+    }
+  }
+
+  async function inspectFile(file: File) {
+    isInspecting = true;
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`${apiUrl}/inspect`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        calendarSheets = data.sheets || [];
+        if (calendarSheets.length > 0) {
+          selectedCalendarSheet = calendarSheets[0];
+        }
+      }
+    } catch (e) {
+      console.error("Inspection failed", e);
+    } finally {
+      isInspecting = false;
     }
   }
 </script>
@@ -107,23 +141,36 @@
       <div
         class="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-xl shadow-gray-200/50 dark:shadow-none space-y-6"
       >
-        <h2
-          class="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200"
-        >
-          <svg
-            class="w-6 h-6 text-indigo-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-            ></path></svg
+        <div class="flex items-center justify-between">
+          <h2
+            class="text-xl font-bold flex items-center gap-2 text-gray-800 dark:text-gray-200"
           >
-          Upload Inputs
-        </h2>
+            <svg
+              class="w-6 h-6 text-indigo-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+              ></path></svg
+            >
+            Upload Inputs
+          </h2>
+          <div class="flex items-center gap-2">
+            <span
+              class="text-[9px] font-black text-gray-400 uppercase tracking-widest"
+              >API URL</span
+            >
+            <input
+              type="text"
+              bind:value={apiUrl}
+              class="w-32 bg-gray-50 dark:bg-slate-800 border border-gray-100 dark:border-slate-700 px-2 py-1 rounded text-[9px] font-bold outline-none focus:ring-1 focus:ring-indigo-500"
+            />
+          </div>
+        </div>
 
         <div class="space-y-4">
           <div class="space-y-2">
@@ -142,6 +189,28 @@
                   >
                     {calendarFile.name}
                   </p>
+                  {#if calendarSheets.length > 0}
+                    <div
+                      role="presentation"
+                      class="mt-2 w-full px-4"
+                      onmousedown={(e) => e.stopPropagation()}
+                    >
+                      <label
+                        for="cal-sheet"
+                        class="text-[10px] font-bold text-gray-400 uppercase block mb-1"
+                        >Select Input Sheet</label
+                      >
+                      <select
+                        id="cal-sheet"
+                        bind:value={selectedCalendarSheet}
+                        class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {#each calendarSheets as sheet}
+                          <option value={sheet}>{sheet}</option>
+                        {/each}
+                      </select>
+                    </div>
+                  {/if}
                 {:else}
                   <svg
                     class="w-8 h-8 text-gray-400 group-hover:text-indigo-500 transition-colors mb-2"

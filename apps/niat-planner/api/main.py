@@ -15,10 +15,23 @@ app = FastAPI(title="NIAT Planner API")
 def read_root():
     return {"message": "Welcome to NIAT Planner API"}
 
+@app.post("/inspect")
+async def inspect_workbook(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        if file.filename.endswith('.csv'):
+            return {"sheets": ["Default"]}
+        
+        xls = pd.ExcelFile(io.BytesIO(content))
+        return {"sheets": xls.sheet_names}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate")
 async def generate_niat_plan(
     calendar_file: UploadFile = File(...),
     prod_sequence_file: UploadFile = File(...),
+    calendar_sheet_name: str = Form(None),
     config: str = Form(None)
 ):
     try:
@@ -35,12 +48,12 @@ async def generate_niat_plan(
                 pass
 
         # 2. Read Files
-        # Calendar can be CSV or XLSX
         cal_content = await calendar_file.read()
         if calendar_file.filename.endswith('.csv'):
             cal_df = pd.read_csv(io.BytesIO(cal_content))
         else:
-            cal_df = pd.read_excel(io.BytesIO(cal_content))
+            # If sheet_name is provided, use it, else default to first
+            cal_df = pd.read_excel(io.BytesIO(cal_content), sheet_name=calendar_sheet_name or 0)
 
         # Prod Sequence is XLS/XLSX
         prod_content = await prod_sequence_file.read()
