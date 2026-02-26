@@ -192,23 +192,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 // 3. Type check
                 if (strictType) {
+                    const isQMcq = qTypeScrubbed === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
+
                     if (searchType === 'MCQ') {
-                        const isMcq = qTypeScrubbed === 'MCQ' || (Array.isArray(q.options) && q.options.length > 0);
-                        if (!isMcq) return false;
+                        if (!isQMcq) return false;
                     } else if (searchType === 'FILL_IN_BLANK') {
-                        const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (Number(q.marks) === 1 && (!q.options || q.options.length === 0));
+                        const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (!isQMcq && Number(q.marks) === 1 && qTypeScrubbed === 'FILL_IN_BLANK');
                         if (!isFib) return false;
                     } else if (searchType === 'VERY_SHORT') {
-                        const isVS = qTypeScrubbed === 'VERYSHORT' || qTypeScrubbed === 'VERY_SHORT' || (Number(q.marks) <= 2);
+                        const isVS = qTypeScrubbed === 'VERYSHORT' || qTypeScrubbed === 'VERY_SHORT' || (!isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) <= 2);
                         if (!isVS) return false;
                     } else if (searchType === 'SHORT') {
-                        const isShort = qTypeScrubbed === 'SHORT' || (Number(q.marks) >= 2 && Number(q.marks) <= 4);
+                        const isShort = qTypeScrubbed === 'SHORT' || (!isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) >= 2 && Number(q.marks) <= 4);
                         if (!isShort) return false;
                     } else if (searchType === 'VERY_LONG') {
-                        const isVL = qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || Number(q.marks) >= 10;
+                        const isVL = qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || (!isQMcq && Number(q.marks) >= 10);
                         if (!isVL) return false;
                     } else if (searchType === 'LONG') {
-                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || qTypeScrubbed === 'PARAGRAPH' || Number(q.marks) >= 5;
+                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || qTypeScrubbed === 'PARAGRAPH' || (!isQMcq && Number(q.marks) >= 5);
                         if (!isLong) return false;
                     }
                 }
@@ -269,16 +270,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     findInPool(null, true, false, false, false);
             }
 
-            // 6. Relax Type (Last resort)
-            if (!choice) choice = findInPool(null, false, false, false, false);
-
-            // 7. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness)
+            // 6. Emergency Fallback (ignore global uniqueness but keep per-paper uniqueness AND keep Type)
             if (!choice) {
-                // Try finding any question that matches the searched type (even if marks differ)
+                // Try finding any question that matches the searched type (even if marks/bloom/unit differ)
                 let candidates = pool.filter(q => isMatch(q, null, true, false, false, false));
 
-                // If still nothing, take anything of some similarity
+                // If still nothing, warn but try without type (last resort)
                 if (candidates.length === 0) {
+                    console.warn(`[TYPE FALLBACK] No ${searchType} questions found for ${sectionTitle}, falling back to any type.`);
                     candidates = pool.filter(q => Math.round(Number(q.marks)) === Math.round(Number(targetMarks)));
                 }
 
