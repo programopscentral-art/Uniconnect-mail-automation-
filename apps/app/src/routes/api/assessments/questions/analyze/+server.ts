@@ -1,17 +1,8 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createRequire } from 'module';
-
-type XLSXModule = {
-    read: (data: Buffer, options: { type: 'buffer' }) => any;
-    utils: {
-        sheet_to_json: <T>(sheet: any, options: { header: 1 }) => T;
-    };
-};
+import * as XLSX from 'xlsx';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
-    const require = createRequire(import.meta.url);
-    const XLSX = require('xlsx') as XLSXModule;
     if (!locals.user) throw error(401);
 
     let file: File | null = null;
@@ -22,8 +13,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (!file) throw error(400, 'No file uploaded');
 
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const workbook = XLSX.read(buffer, { type: 'buffer' });
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
 
         const sheetNames = workbook.SheetNames as string[];
         const targetSheet = sheetName || sheetNames[0];
@@ -40,7 +31,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let previewRows: any[] = [];
 
         if (jsonData.length > 0) {
-            headers = (jsonData[0] as string[]) || [];
+            headers = (jsonData[0] as any as string[]) || [];
             previewRows = jsonData.slice(1, 6);
         }
 

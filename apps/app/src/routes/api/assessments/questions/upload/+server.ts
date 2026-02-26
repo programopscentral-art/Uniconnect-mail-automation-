@@ -1,11 +1,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
-import { createRequire } from 'module';
+import * as XLSX from 'xlsx';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
-    const require = createRequire(import.meta.url);
 
     try {
         const formData = await request.formData();
@@ -20,7 +19,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         const fileName = file.name.toLowerCase();
-        const buffer = Buffer.from(await file.arrayBuffer());
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
         let rawText = '';
         let importCount = 0;
 
@@ -66,8 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // 1. PROCESS XLSX / XLS
         if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-            const XLSX = require('xlsx');
-            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
             const sheetsToProcess = sheetName ? [sheetName] : workbook.SheetNames;
 
             for (const sName of sheetsToProcess) {
