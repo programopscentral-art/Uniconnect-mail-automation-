@@ -14,9 +14,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const XLSX = require('xlsx') as XLSXModule;
     if (!locals.user) throw error(401);
 
+    let file: File | null = null;
     try {
         const formData = await request.formData();
-        const file = formData.get('file') as File;
+        file = formData.get('file') as File;
         const sheetName = formData.get('sheetName') as string;
 
         if (!file) throw error(400, 'No file uploaded');
@@ -45,7 +46,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         return json({ sheetNames, headers, previewRows });
     } catch (err: any) {
-        console.error('Excel Analysis Error:', err);
-        throw error(500, err.message || 'Failed to analyze Excel file');
+        console.error('CRITICAL_EXCEL_ANALYSIS_ERROR:', {
+            message: err.message,
+            stack: err.stack,
+            fileName: file?.name,
+            fileSize: file?.size
+        });
+
+        const isLikelyCorrupt = err.message?.toLowerCase().includes('password') ||
+            err.message?.toLowerCase().includes('corrupt') ||
+            err.message?.toLowerCase().includes('zip');
+
+        throw error(500, isLikelyCorrupt
+            ? 'The Excel file appears to be corrupted or password-protected. Please save it as a fresh .xlsx file and try again.'
+            : `Analysis Error: ${err.message || 'Unknown internal error'}`);
     }
 };
