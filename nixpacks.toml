@@ -1,3 +1,6 @@
+[variables]
+BODY_SIZE_LIMIT = "52428800"
+
 [phases.setup]
 nixPkgs = ["pnpm", "nodejs-20_x"]
 
