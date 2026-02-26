@@ -197,19 +197,24 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     if (searchType === 'MCQ') {
                         if (!isQMcq) return false;
                     } else if (searchType === 'FILL_IN_BLANK') {
-                        const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (!isQMcq && Number(q.marks) === 1 && qTypeScrubbed === 'FILL_IN_BLANK');
+                        const isExplicitlyOther = ['LONG', 'VERYLONG', 'SHORT', 'VERYSHORT', 'PARAGRAPH', 'ESSAY', 'NORMAL'].includes(qTypeScrubbed);
+                        const isFib = qTypeScrubbed.includes('FILL') || qTypeScrubbed.includes('FIB') || qTypeScrubbed.includes('BLANK') || (!isExplicitlyOther && !isQMcq && Number(q.marks) === 1);
                         if (!isFib) return false;
                     } else if (searchType === 'VERY_SHORT') {
-                        const isVS = qTypeScrubbed === 'VERYSHORT' || qTypeScrubbed === 'VERY_SHORT' || (!isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) <= 2);
+                        const isExplicitlyOther = ['LONG', 'VERYLONG', 'PARAGRAPH', 'SHORT', 'ESSAY', 'MCQ', 'FILLINBLANK'].includes(qTypeScrubbed);
+                        const isVS = qTypeScrubbed === 'VERYSHORT' || qTypeScrubbed === 'VERY_SHORT' || (!isExplicitlyOther && !isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) <= 2);
                         if (!isVS) return false;
                     } else if (searchType === 'SHORT') {
-                        const isShort = qTypeScrubbed === 'SHORT' || (!isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) >= 2 && Number(q.marks) <= 4);
+                        const isExplicitlyOther = ['LONG', 'VERYLONG', 'PARAGRAPH', 'VERYSHORT', 'ESSAY', 'MCQ', 'FILLINBLANK'].includes(qTypeScrubbed);
+                        const isShort = qTypeScrubbed === 'SHORT' || (!isExplicitlyOther && !isQMcq && !qTypeScrubbed.includes('FILL') && Number(q.marks) >= 2 && Number(q.marks) <= 4);
                         if (!isShort) return false;
                     } else if (searchType === 'VERY_LONG') {
-                        const isVL = qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || (!isQMcq && Number(q.marks) >= 10);
+                        const isExplicitlyOther = ['SHORT', 'VERYSHORT', 'MCQ', 'FILLINBLANK'].includes(qTypeScrubbed);
+                        const isVL = qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || (!isExplicitlyOther && !isQMcq && Number(q.marks) >= 10);
                         if (!isVL) return false;
                     } else if (searchType === 'LONG') {
-                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || qTypeScrubbed === 'PARAGRAPH' || (!isQMcq && Number(q.marks) >= 5);
+                        const isExplicitlyOther = ['SHORT', 'VERYSHORT', 'MCQ', 'FILLINBLANK'].includes(qTypeScrubbed);
+                        const isLong = qTypeScrubbed === 'LONG' || qTypeScrubbed === 'VERYLONG' || qTypeScrubbed === 'VERY_LONG' || qTypeScrubbed === 'PARAGRAPH' || (!isExplicitlyOther && !isQMcq && Number(q.marks) >= 5);
                         if (!isLong) return false;
                     }
                 }
@@ -275,10 +280,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 // Try finding any question that matches the searched type (even if marks/bloom/unit differ)
                 let candidates = pool.filter(q => isMatch(q, null, true, false, false, false));
 
-                // If still nothing, warn but try without type (last resort)
+                // If still nothing, throw an error so the user knows they are out of questions of this Type
                 if (candidates.length === 0) {
-                    console.warn(`[TYPE FALLBACK] No ${searchType} questions found for ${sectionTitle}, falling back to any type.`);
-                    candidates = pool.filter(q => Math.round(Number(q.marks)) === Math.round(Number(targetMarks)));
+                    throw new Error(`[POOL EXHAUSTED] Not enough ${searchType} questions found in the Question Bank for "${sectionTitle}". Please add more ${searchType} questions.`);
                 }
 
                 for (let i = candidates.length - 1; i > 0; i--) {
