@@ -150,16 +150,22 @@
   let previewType = $state<string | null>(null);
 
   function openPreview(file: any) {
-    previewUrl = file.file_url;
+    let url = file.file_url;
+    if (url.startsWith("/uploads/"))
+      url = url.replace("/uploads/", "/api/uploads/");
+    previewUrl = url;
     previewType = file.file_type || "";
   }
 
   async function deleteAttachment(id: string) {
     if (!confirm("Are you sure you want to delete this document?")) return;
     try {
-      const res = await fetch(`/api/budget-proposals/${proposal.id}/attachments/${id}`, {
-        method: "DELETE"
-      });
+      const res = await fetch(
+        `/api/budget-proposals/${proposal.id}/attachments/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         await invalidateAll();
       } else {
@@ -204,7 +210,7 @@
           </p>
         </div>
       </div>
-      {#if isProposer}
+      {#if isProposer || isGlobalAdmin}
         <a
           href="/budget-proposals/{proposal.id}/report"
           class="px-6 py-2 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase hover:bg-indigo-50 transition-all"
@@ -529,47 +535,46 @@
             Supporting Documents
           </h2>
 
-            {#if isProposer || canReview}
-              <div class="relative">
-                <input
-                  type="file"
-                  multiple
-                  class="hidden"
-                  bind:this={fileInput}
-                  onchange={uploadFile}
-                  accept=".jpg,.jpeg,.png,.webp,.pdf"
-                />
-                <button
-                  onclick={() => fileInput?.click()}
-                  aria-label="Upload supporting documents"
-                  disabled={isUploading}
-                  class="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {#if isUploading}
-                    <div
-                      class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
-                    ></div>
-                  {:else}
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 4v16m8-8H4"
-                      />
-                    </svg>
-                  {/if}
-                  Upload
-                </button>
-              </div>
-            {/if}
-          </h2>
+          {#if isProposer || canReview}
+            <div class="relative">
+              <input
+                type="file"
+                multiple
+                class="hidden"
+                bind:this={fileInput}
+                onchange={uploadFile}
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+              />
+              <button
+                onclick={() => fileInput?.click()}
+                aria-label="Upload supporting documents"
+                disabled={isUploading}
+                class="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              >
+                {#if isUploading}
+                  <div
+                    class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
+                  ></div>
+                {:else}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                {/if}
+                Upload
+              </button>
+            </div>
+          {/if}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -584,7 +589,9 @@
               >
                 {#if file.file_type?.includes("image") || ["JPG", "PNG", "WEBP", "JPEG"].includes(file.file_type?.toUpperCase())}
                   <img
-                    src={file.file_url}
+                    src={file.file_url.startsWith("/uploads/")
+                      ? file.file_url.replace("/uploads/", "/api/uploads/")
+                      : file.file_url}
                     alt={file.file_name}
                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
@@ -614,7 +621,6 @@
                       d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                     />
                   </svg>
-                  </svg>
                 {/if}
               </div>
 
@@ -623,11 +629,25 @@
                 <button
                   type="button"
                   aria-label="Delete document"
-                  onclick={(e) => { e.stopPropagation(); deleteAttachment(file.id); }}
-                  class="absolute top-6 right-6 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-lg flex items-center justify-center transition-all scale-0 group-hover:scale-100 z-10"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    deleteAttachment(file.id);
+                  }}
+                  class="absolute top-4 right-4 w-8 h-8 bg-black/40 hover:bg-red-600 text-white rounded-xl shadow-lg flex items-center justify-center transition-all z-10 hover:scale-110"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
                   </svg>
                 </button>
               {/if}
