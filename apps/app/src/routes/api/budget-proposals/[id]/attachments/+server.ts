@@ -30,7 +30,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         const filePath = path.join(uploadDir, fileName);
         fs.writeFileSync(filePath, Buffer.from(buffer));
 
-        const publicUrl = `/uploads/budget-proposals/${fileName}`;
+        const publicUrl = `/api/uploads/budget-proposals/${fileName}`;
 
         const attachment = await addBudgetProposalAttachment({
             proposal_id: params.id,

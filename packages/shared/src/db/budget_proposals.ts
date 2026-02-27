@@ -396,6 +396,14 @@ export async function addBudgetProposalAttachment(data: {
     return res.rows[0] as BudgetProposalAttachment;
 }
 
+export async function deleteBudgetProposalAttachment(id: string, proposalId: string) {
+    const res = await db.query(
+        `DELETE FROM budget_proposal_attachments WHERE id = $1 AND proposal_id = $2 RETURNING *`,
+        [id, proposalId]
+    );
+    return res.rows[0] as BudgetProposalAttachment | null;
+}
+
 // 8. Reports
 export async function submitBudgetProposalReport(proposalId: string, data: Omit<BudgetProposalReport, 'id' | 'proposal_id' | 'submitted_at'>) {
     const client = await db.pool.connect();

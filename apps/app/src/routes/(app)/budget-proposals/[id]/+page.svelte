@@ -154,6 +154,24 @@
     previewType = file.file_type || "";
   }
 
+  async function deleteAttachment(id: string) {
+    if (!confirm("Are you sure you want to delete this document?")) return;
+    try {
+      const res = await fetch(`/api/budget-proposals/${proposal.id}/attachments/${id}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        await invalidateAll();
+      } else {
+        const error = await res.json();
+        alert(error.message || "Failed to delete attachment");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error deleting attachment");
+    }
+  }
+
   const isGlobalAdmin = $derived(
     user.role === "ADMIN" || user.role === "PROGRAM_OPS",
   );
@@ -596,8 +614,23 @@
                       d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                     />
                   </svg>
+                  </svg>
                 {/if}
               </div>
+
+              <!-- Delete Button overlay -->
+              {#if isProposer || canReview}
+                <button
+                  type="button"
+                  aria-label="Delete document"
+                  onclick={(e) => { e.stopPropagation(); deleteAttachment(file.id); }}
+                  class="absolute top-6 right-6 w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-xl shadow-lg flex items-center justify-center transition-all scale-0 group-hover:scale-100 z-10"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              {/if}
 
               <div class="space-y-1">
                 <p
