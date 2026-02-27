@@ -503,16 +503,13 @@
           <h2
             class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
           >
-            <h2
-              class="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+            <div
+              class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
             >
-              <div
-                class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
-              >
-                📎
-              </div>
-              Supporting Documents
-            </h2>
+              📎
+            </div>
+            Supporting Documents
+          </h2>
 
             {#if isProposer || canReview}
               <div class="relative">
