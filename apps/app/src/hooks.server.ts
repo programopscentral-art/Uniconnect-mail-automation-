@@ -75,7 +75,8 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/mail-logs': 'mail-logs',
             '/permissions': 'permissions',
             '/day-plan': 'day-plan',
-            '/communication-tasks': 'communication-tasks'
+            '/communication-tasks': 'communication-tasks',
+            '/budget-proposals': 'budget-proposals'
         };
 
         const matchingPath = Object.keys(featureMap).find(p => path.startsWith(p));

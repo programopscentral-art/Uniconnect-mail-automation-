@@ -38,7 +38,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
     const allFeatures = [
         'dashboard', 'tasks', 'universities', 'students', 'users',
         'analytics', 'mailboxes', 'templates', 'campaigns',
-        'assessments', 'mail-logs', 'permissions'
+        'assessments', 'mail-logs', 'permissions', 'communication-tasks', 'budget-proposals'
     ];
 
     try {
