@@ -109,6 +109,30 @@
     }
   }
 
+  async function deleteProposal() {
+    if (
+      !confirm(
+        "Are you sure you want to completely delete this budget proposal? This action cannot be undone.",
+      )
+    )
+      return;
+
+    isActionLoading = true;
+    try {
+      const res = await fetch(`/api/budget-proposals/${proposal.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        window.location.href = "/budget-proposals";
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to delete proposal");
+      }
+    } finally {
+      isActionLoading = false;
+    }
+  }
+
   let fileInput = $state<HTMLInputElement>();
   let isUploading = $state(false);
   let uploadProgress = $state(0);
@@ -283,6 +307,16 @@
       </div>
 
       <!-- Action Buttons context-aware -->
+      {#if isGlobalAdmin || isProposer}
+        <button
+          onclick={deleteProposal}
+          disabled={isActionLoading}
+          class="px-4 py-2.5 bg-red-100 hover:bg-red-200 text-red-600 rounded-xl font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2 text-xs uppercase cursor-pointer"
+        >
+          {isActionLoading ? "..." : "Delete"}
+        </button>
+      {/if}
+
       {#if isProposer && (proposal.status === "DRAFT" || proposal.status === "CHANGES_REQUESTED")}
         <button
           onclick={submitForReview}

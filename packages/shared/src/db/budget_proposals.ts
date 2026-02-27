@@ -158,6 +158,11 @@ export async function createBudgetProposal(data: {
     }
 }
 
+export async function deleteBudgetProposal(id: string) {
+    const res = await db.query(`DELETE FROM budget_proposals WHERE id = $1 RETURNING *`, [id]);
+    return res.rows[0] as BudgetProposal | null;
+}
+
 // 2. Get Proposals with Filtering
 export async function getBudgetProposals(filters: {
     university_id?: string;

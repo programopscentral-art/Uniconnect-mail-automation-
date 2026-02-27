@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { getBudgetProposalById, updateBudgetProposal } from '@uniconnect/shared';
+import { getBudgetProposalById, updateBudgetProposal, deleteBudgetProposal } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -46,4 +46,27 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     await updateBudgetProposal(params.id, data, { id: locals.user.id, name: locals.user.name || locals.user.email });
 
     return json({ success: true });
+};
+
+export const DELETE: RequestHandler = async ({ params, locals }) => {
+    if (!locals.user) throw error(401);
+
+    const proposal = await getBudgetProposalById(params.id);
+    if (!proposal) throw error(404, 'Proposal not found');
+
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+    const isProposer = proposal.proposer_user_id === locals.user.id;
+
+    // Only global admins or the original proposer can delete (and maybe proposers only if it's draft, but let's allow it as requested).
+    if (!isGlobalAdmin && !isProposer) {
+        throw error(403, 'Forbidden: You do not have permission to delete this proposal');
+    }
+
+    try {
+        await deleteBudgetProposal(params.id);
+        return json({ success: true, deletedId: params.id });
+    } catch (e: any) {
+        console.error('[PROPOSAL_DELETE_ERROR]', e);
+        throw error(500, 'Failed to delete proposal');
+    }
 };
