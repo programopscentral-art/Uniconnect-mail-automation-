@@ -112,6 +112,19 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
                     <a href="${process.env.PUBLIC_BASE_URL || ''}${link}">View Proposal</a>
                 </div>`
             });
+
+            // Log the email trigger in Budget Proposal Email Logs
+            try {
+                const { logBudgetProposalEmail } = await import('@uniconnect/shared');
+                await logBudgetProposalEmail({
+                    proposal_id: proposalId,
+                    event_type: toStatus,
+                    recipient_email: recipient.email,
+                    status: 'SENT'
+                });
+            } catch (err) {
+                console.error('[BP_EMAIL_LOG_ERROR]', err);
+            }
         }
     }
 }

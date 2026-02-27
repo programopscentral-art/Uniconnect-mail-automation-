@@ -340,8 +340,8 @@ export async function transitionBudgetProposalStatus(id: string, toStatus: Budge
 
         await client.query(
             `INSERT INTO budget_proposal_audit_log (proposal_id, action, from_status, to_status, actor_user_id, actor_name, payload_json)
-             VALUES ($1, 'STATUS_CHANGE', $2, $3, $4, $5, $6)`,
-            [id, fromStatus, toStatus, actor.id, actor.name, reason ? JSON.stringify({ reason }) : null]
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [id, 'STATUS_CHANGE', fromStatus, toStatus, actor.id, actor.name, reason ? JSON.stringify({ reason }) : null]
         );
 
         if (reason) {
@@ -472,4 +472,27 @@ export async function getProposalsForReportingReminders() {
          AND id NOT IN (SELECT proposal_id FROM budget_proposal_audit_log WHERE action = 'REPORT_REMINDER_SENT' AND created_at > NOW() - INTERVAL '24 hours')`
     );
     return res.rows as BudgetProposal[];
+}
+// 11. Email Logs
+export async function logBudgetProposalEmail(data: {
+    proposal_id: string;
+    event_type: string;
+    recipient_email: string;
+    status: 'SENT' | 'FAILED';
+    provider_message_id?: string;
+    failure_reason?: string;
+}) {
+    await db.query(
+        `INSERT INTO budget_proposal_email_logs (proposal_id, event_type, recipient_email, status, provider_message_id, failure_reason)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [data.proposal_id, data.event_type, data.recipient_email, data.status, data.provider_message_id || null, data.failure_reason || null]
+    );
+}
+
+export async function getBudgetProposalEmailLogs(proposalId: string) {
+    const res = await db.query(
+        `SELECT * FROM budget_proposal_email_logs WHERE proposal_id = $1 ORDER BY created_at DESC`,
+        [proposalId]
+    );
+    return res.rows;
 }

@@ -10,7 +10,8 @@
   let user = $derived(data.user);
 
   let newComment = $state("");
-  let commentVisibility = $state<"PUBLIC" | "INTERNAL">("PUBLIC");
+  let isInternal = $state(false);
+  let commentVisibility = $derived(isInternal ? "INTERNAL" : "PUBLIC");
   let isSubmittingComment = $state(false);
 
   let showActionModal = $state<
@@ -59,7 +60,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           comment: newComment,
-          visibility: commentVisibility,
+          visibility: isInternal ? "INTERNAL" : "PUBLIC",
         }),
       });
       if (res.ok) {
@@ -108,6 +109,51 @@
     }
   }
 
+  let fileInput = $state<HTMLInputElement>();
+  let isUploading = $state(false);
+  let uploadProgress = $state(0);
+
+  async function uploadFile(e: Event) {
+    const files = (e.target as HTMLInputElement).files;
+    if (!files || files.length === 0) return;
+
+    isUploading = true;
+    uploadProgress = 0;
+
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(
+          `/api/budget-proposals/${proposal.id}/attachments`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
+
+        if (!res.ok) {
+          const err = await res.json();
+          alert(`Failed to upload ${file.name}: ${err.message}`);
+        }
+      }
+      await invalidateAll();
+    } finally {
+      isUploading = false;
+      if (fileInput) fileInput.value = "";
+    }
+  }
+
+  // Preview logic
+  let previewUrl = $state<string | null>(null);
+  let previewType = $state<string | null>(null);
+
+  function openPreview(file: any) {
+    previewUrl = file.file_url;
+    previewType = file.file_type || "";
+  }
+
   const isGlobalAdmin = $derived(
     user.role === "ADMIN" || user.role === "PROGRAM_OPS",
   );
@@ -117,6 +163,38 @@
 </script>
 
 <div class="p-6 max-w-7xl mx-auto space-y-8">
+  <!-- Banner for pending report -->
+  {#if proposal.status === "EVENT_COMPLETED"}
+    <div
+      in:fly={{ y: -20 }}
+      class="bg-indigo-600 text-white p-4 rounded-3xl flex items-center justify-between shadow-lg shadow-indigo-500/20"
+    >
+      <div class="flex items-center gap-4">
+        <div
+          class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl"
+        >
+          ⏳
+        </div>
+        <div>
+          <h4 class="font-black uppercase tracking-widest text-sm">
+            Action Required: Report Pending
+          </h4>
+          <p class="text-indigo-100 text-xs">
+            This event has concluded. Please submit the post-event report to
+            close the proposal.
+          </p>
+        </div>
+      </div>
+      {#if isProposer}
+        <a
+          href="/budget-proposals/{proposal.id}/report"
+          class="px-6 py-2 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase hover:bg-indigo-50 transition-all"
+          >Submit Now</a
+        >
+      {/if}
+    </div>
+  {/if}
+
   <!-- Top Bar / Breadcrumb / Actions -->
   <div
     class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
@@ -148,12 +226,18 @@
           >
             {proposal.title}
           </h1>
-          <div class="flex items-center gap-2 text-sm text-gray-500">
-            <span class="font-semibold text-emerald-600"
-              >{proposal.university_name}</span
-            >
-            <span>•</span>
+          <div
+            class="flex items-center gap-2 text-[11px] text-gray-500 uppercase font-black tracking-tighter"
+          >
+            <span class="text-emerald-600">{proposal.university_name}</span>
+            <span class="text-gray-300">|</span>
             <span>Ref: {proposal.id.slice(0, 8).toUpperCase()}</span>
+            <span class="text-gray-300">|</span>
+            <span
+              >Created {new Date(
+                proposal.created_at,
+              ).toLocaleDateString()}</span
+            >
           </div>
         </div>
       </div>
@@ -175,7 +259,7 @@
           disabled={isActionLoading}
           class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
         >
-          {isActionLoading ? "..." : "Submit Now"}
+          {isActionLoading ? "..." : "Submit for Review"}
         </button>
       {/if}
 
@@ -220,14 +304,6 @@
           >
         {/if}
       {/if}
-
-      {#if isProposer && proposal.status === "EVENT_COMPLETED"}
-        <a
-          href="/budget-proposals/{proposal.id}/report"
-          class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md"
-          >Submit Report</a
-        >
-      {/if}
     </div>
   </div>
 
@@ -238,16 +314,41 @@
       <section
         class="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6"
       >
-        <h2
-          class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
-        >
-          <div
-            class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600"
+        <div class="flex items-center justify-between">
+          <h2
+            class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
           >
-            📋
+            <div
+              class="w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center text-emerald-600"
+            >
+              📋
+            </div>
+            Event Particulars
+          </h2>
+          <div
+            class="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 px-4 py-2 rounded-2xl border border-gray-100 dark:border-gray-700"
+          >
+            <div
+              class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-[10px] text-white font-black"
+            >
+              {(proposal.proposer_name || proposal.proposer_email)
+                .slice(0, 2)
+                .toUpperCase()}
+            </div>
+            <div>
+              <p
+                class="text-[10px] font-black text-gray-400 uppercase leading-none"
+              >
+                Proposed By
+              </p>
+              <p
+                class="text-xs font-bold text-gray-900 dark:text-white line-clamp-1"
+              >
+                {proposal.proposer_name || proposal.proposer_email}
+              </p>
+            </div>
           </div>
-          Event Particulars
-        </h2>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
           <div class="space-y-1">
@@ -332,7 +433,7 @@
         </div>
 
         <div class="overflow-x-auto -mx-8">
-          <table class="w-full text-left">
+          <table class="w-full text-left border-collapse">
             <thead>
               <tr class="bg-gray-50 dark:bg-gray-900/50">
                 <th
@@ -392,72 +493,148 @@
       <section
         class="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6"
       >
-        <h2
-          class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
-        >
-          <div
-            class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
+        <div class="flex items-center justify-between">
+          <h2
+            class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
           >
-            📎
-          </div>
-          Supporting Documents
-        </h2>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {#each proposal.attachments as file}
-            <a
-              href={file.file_url}
-              target="_blank"
-              class="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 hover:border-emerald-500 transition-all group"
+            <div
+              class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
             >
-              <div
-                class="w-10 h-10 bg-gray-50 dark:bg-gray-900 rounded-xl flex items-center justify-center"
+              📎
+            </div>
+            Supporting Documents
+          </h2>
+
+          {#if isProposer || isGlobalAdmin}
+            <div class="relative">
+              <input
+                type="file"
+                multiple
+                class="hidden"
+                bind:this={fileInput}
+                onchange={uploadFile}
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+              />
+              <button
+                onclick={() => fileInput?.click()}
+                aria-label="Upload supporting documents"
+                disabled={isUploading}
+                class="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="w-6 h-6 text-gray-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                {#if isUploading}
+                  <div
+                    class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
+                  ></div>
+                {:else}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                {/if}
+                Upload
+              </button>
+            </div>
+          {/if}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each proposal.attachments as file}
+            <div
+              class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-emerald-500 transition-all"
+            >
+              <!-- Thumbnail / Icon -->
+              <div
+                class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer"
+                onclick={() => openPreview(file)}
+              >
+                {#if file.file_type?.includes("image") || ["JPG", "PNG", "WEBP", "JPEG"].includes(file.file_type?.toUpperCase())}
+                  <img
+                    src={file.file_url}
+                    alt={file.file_name}
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
-                </svg>
+                {:else if file.file_type?.toUpperCase() === "PDF"}
+                  <div class="flex flex-col items-center gap-2">
+                    <div
+                      class="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center text-red-600 font-black text-xs"
+                    >
+                      PDF
+                    </div>
+                    <p class="text-[10px] font-bold text-gray-400">
+                      Preview Available
+                    </p>
+                  </div>
+                {:else}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-10 h-10 text-gray-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                    />
+                  </svg>
+                {/if}
               </div>
-              <div class="flex-1 min-w-0">
-                <p class="font-bold text-gray-900 dark:text-white truncate">
+
+              <div class="space-y-1">
+                <p
+                  class="font-bold text-gray-900 dark:text-white truncate text-xs"
+                >
                   {file.file_name}
                 </p>
                 <p
-                  class="text-[10px] text-gray-400 uppercase font-black tracking-widest"
+                  class="text-[9px] text-gray-400 uppercase font-black tracking-widest"
                 >
                   {file.file_type || "Unknown"}
                 </p>
               </div>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-5 h-5 text-gray-300 group-hover:text-emerald-500 transition-colors"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+
+              <div
+                class="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-            </a>
+                <a
+                  href={file.file_url}
+                  download={file.file_name}
+                  class="p-2 bg-white/90 backdrop-blur rounded-xl shadow-lg hover:bg-white text-gray-600 transition-all"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                </a>
+              </div>
+            </div>
           {:else}
             <p
-              class="col-span-full py-6 text-center text-gray-400 border-2 border-dashed border-gray-50 dark:border-gray-700 rounded-2xl italic"
+              class="col-span-full py-12 text-center text-gray-400 border-2 border-dashed border-gray-50 dark:border-gray-700 rounded-[32px] italic text-sm"
             >
-              No attachments provided.
+              No attachments provided yet.
             </p>
           {/each}
         </div>
@@ -468,7 +645,7 @@
     <div class="space-y-8">
       <!-- Status Box -->
       <div
-        class="bg-gray-900 text-white p-8 rounded-3xl shadow-xl shadow-gray-200 dark:shadow-none space-y-4 overflow-hidden relative"
+        class="bg-gray-900 text-white p-8 rounded-[40px] shadow-2xl shadow-indigo-500/10 space-y-4 overflow-hidden relative"
       >
         <div
           class="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"
@@ -490,7 +667,9 @@
               ? 'bg-emerald-500'
               : 'bg-amber-500'}"
           ></div>
-          <p class="font-bold text-gray-300 text-sm">
+          <p
+            class="font-black text-gray-300 text-[10px] uppercase tracking-wider"
+          >
             Status: {proposal.status.replace("_", " ")}
           </p>
         </div>
@@ -498,7 +677,7 @@
 
       <!-- Comments -->
       <section
-        class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-[500px]"
+        class="bg-white dark:bg-gray-800 p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-[500px]"
       >
         <h2
           class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-3 mb-6"
@@ -516,29 +695,36 @@
         >
           {#each comments as c}
             <div
-              class="space-y-1 {c.visibility === 'INTERNAL'
+              class="group space-y-1 {c.visibility === 'INTERNAL'
                 ? 'bg-amber-50 dark:bg-amber-900/10 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/20'
                 : ''}"
             >
               <div class="flex items-center justify-between">
-                <p class="text-xs font-black text-gray-900 dark:text-white">
-                  {c.user_name}
-                </p>
-                <p class="text-[10px] text-gray-400">
-                  {new Date(c.created_at).toLocaleTimeString()}
+                <div class="flex items-center gap-2">
+                  <p
+                    class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-tighter"
+                  >
+                    {c.user_name}
+                  </p>
+                  {#if c.visibility === "INTERNAL"}
+                    <span
+                      class="text-[8px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-black uppercase"
+                      >Internal</span
+                    >
+                  {/if}
+                </div>
+                <p class="text-[9px] text-gray-400 font-medium">
+                  {new Date(c.created_at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </p>
               </div>
               <p
-                class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed uppercase tracking-tight font-medium"
-                style="text-transform: none;"
+                class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed font-medium"
               >
                 {c.comment}
               </p>
-              {#if c.visibility === "INTERNAL"}
-                <span class="text-[9px] font-bold text-amber-600 uppercase"
-                  >Internal Only</span
-                >
-              {/if}
             </div>
           {:else}
             <p class="text-center py-12 text-gray-400 italic text-sm">
@@ -552,27 +738,26 @@
         >
           <textarea
             bind:value={newComment}
-            placeholder="Type a message..."
-            class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none text-sm dark:text-white"
+            placeholder="Type your message..."
+            class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-[20px] outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none text-xs font-medium dark:text-white"
             rows="3"
           ></textarea>
 
           <div class="flex items-center justify-between">
             {#if canReview}
-              <div class="flex items-center gap-2">
+              <div
+                class="flex items-center gap-2 bg-gray-50 dark:bg-gray-900 p-2 rounded-xl border border-gray-100 dark:border-gray-700"
+              >
                 <input
                   type="checkbox"
                   id="internal"
-                  bind:checked={commentVisibility}
-                  onchange={() =>
-                    (commentVisibility =
-                      commentVisibility === "PUBLIC" ? "INTERNAL" : "PUBLIC")}
-                  class="rounded dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-emerald-600"
+                  bind:checked={isInternal}
+                  class="w-4 h-4 rounded-md dark:bg-black border-gray-200 dark:border-gray-700 text-indigo-600 focus:ring-0"
                 />
                 <label
                   for="internal"
-                  class="text-xs font-bold text-gray-500 uppercase tracking-tighter"
-                  >Internal</label
+                  class="text-[9px] font-black text-gray-400 uppercase tracking-widest cursor-pointer"
+                  >Internal Only</label
                 >
               </div>
             {:else}
@@ -582,9 +767,9 @@
             <button
               onclick={postComment}
               disabled={isSubmittingComment || !newComment.trim()}
-              class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase hover:bg-emerald-700 transition-all disabled:opacity-50"
+              class="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-md shadow-indigo-500/10"
             >
-              Send
+              Post Message
             </button>
           </div>
         </div>
@@ -592,7 +777,7 @@
 
       <!-- Audit History -->
       <section
-        class="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700"
+        class="bg-white dark:bg-gray-800 p-6 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-700"
       >
         <h2
           class="text-lg font-black text-gray-900 dark:text-white flex items-center gap-3 mb-6"
@@ -602,35 +787,52 @@
           >
             📜
           </div>
-          Timeline
+          Evolution
         </h2>
 
         <div class="space-y-6">
           {#each auditLogs as log}
-            <div class="flex gap-4">
+            <div class="flex gap-4 relative">
               <div class="flex flex-col items-center">
                 <div
-                  class="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 mt-1.5"
+                  class="w-2.5 h-2.5 rounded-full bg-indigo-500 ring-4 ring-indigo-500/10 mt-1.5 z-10"
                 ></div>
                 <div
                   class="flex-1 w-0.5 bg-gray-100 dark:bg-gray-700 my-1"
                 ></div>
               </div>
               <div class="flex-1 pb-4">
-                <p class="text-sm font-bold text-gray-900 dark:text-white">
+                <p
+                  class="text-xs font-black text-gray-900 dark:text-white uppercase tracking-tighter"
+                >
                   {log.action.replace("_", " ")}
                 </p>
                 {#if log.to_status}
-                  <p class="text-xs text-gray-500">
-                    Changed status to <span class="text-emerald-600 font-bold"
+                  <p class="text-[10px] text-gray-500">
+                    Changed to <span
+                      class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-indigo-600 font-black"
                       >{log.to_status}</span
                     >
                   </p>
                 {/if}
+                {#if log.payload_json?.reason}
+                  <div
+                    class="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700"
+                  >
+                    <p
+                      class="text-[10px] text-gray-600 dark:text-gray-400 italic"
+                    >
+                      “{log.payload_json.reason}”
+                    </p>
+                  </div>
+                {/if}
                 <p
-                  class="text-[10px] text-gray-400 mt-1 uppercase font-black uppercase"
+                  class="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-widest"
                 >
-                  {log.actor_name} • {new Date(log.created_at).toLocaleString()}
+                  {log.actor_name} • {new Date(log.created_at).toLocaleString(
+                    [],
+                    { dateStyle: "short", timeStyle: "short" },
+                  )}
                 </p>
               </div>
             </div>
@@ -640,6 +842,63 @@
     </div>
   </div>
 </div>
+
+<!-- Preview Modal -->
+{#if previewUrl}
+  <div
+    class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+    transition:fade
+  >
+    <button
+      class="absolute top-8 right-8 text-white/50 hover:text-white p-4 transition-colors"
+      onclick={() => (previewUrl = null)}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="w-8 h-8"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
+      </svg>
+    </button>
+
+    <div
+      class="max-w-4xl w-full h-[80vh] flex items-center justify-center"
+      transition:fly={{ y: 20 }}
+    >
+      {#if (previewType || "").includes("image") || ["JPG", "PNG", "WEBP", "JPEG"].includes((previewType || "").toUpperCase())}
+        <img
+          src={previewUrl || ""}
+          class="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+          alt="Preview"
+        />
+      {:else if (previewType || "").toUpperCase() === "PDF"}
+        <iframe
+          src={previewUrl || ""}
+          class="w-full h-full rounded-2xl bg-white"
+          title="PDF Preview"
+        ></iframe>
+      {:else}
+        <div class="bg-white p-12 rounded-3xl text-center">
+          <p class="text-xl font-black mb-4">No Preview Available</p>
+          <a
+            href={previewUrl}
+            download
+            class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold uppercase text-xs tracking-widest"
+            >Download File</a
+          >
+        </div>
+      {/if}
+    </div>
+  </div>
+{/if}
 
 <!-- Action Modals -->
 {#if showActionModal}
@@ -665,44 +924,52 @@
         {#if showActionModal === "approve"}
           <div class="space-y-2">
             <label
-              class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
               >Approved Budget amount (INR)</label
             >
             <input
               type="number"
               bind:value={actionBudget}
-              class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-lg font-bold dark:text-white"
+              class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-lg font-black dark:text-white"
             />
           </div>
         {/if}
 
         <div class="space-y-2">
           <label
-            class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+            class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
             >Reason / Comments</label
           >
-          <textarea
-            bind:value={actionReason}
-            placeholder="Provide a justification for this decision..."
-            class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm dark:text-white"
-            rows="4"
-          ></textarea>
+          <div class="relative">
+            <textarea
+              bind:value={actionReason}
+              placeholder="Provide a justification for this decision..."
+              class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-medium dark:text-white"
+              rows="4"
+              maxlength="1000"
+            ></textarea>
+            <div
+              class="absolute bottom-3 right-3 text-[10px] font-bold text-gray-400 bg-white/50 dark:bg-black/50 px-2 py-1 rounded-lg"
+            >
+              {actionReason.length} / 1000
+            </div>
+          </div>
         </div>
 
         <div class="flex items-center gap-3 pt-4">
           <button
             onclick={() => (showActionModal = null)}
-            class="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-200 transition-all uppercase tracking-tighter"
+            class="flex-1 py-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-200 transition-all"
           >
             Cancel
           </button>
           <button
-            onclick={() => handleAction(showActionModal)}
+            onclick={() => showActionModal && handleAction(showActionModal)}
             disabled={isActionLoading ||
               (showActionModal !== "approve" && !actionReason)}
-            class="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all uppercase tracking-tighter disabled:opacity-50"
+            class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 transition-all disabled:opacity-50"
           >
-            {isActionLoading ? "Processing..." : "Confirm"}
+            {isActionLoading ? "Processing..." : "Confirm Action"}
           </button>
         </div>
       </div>

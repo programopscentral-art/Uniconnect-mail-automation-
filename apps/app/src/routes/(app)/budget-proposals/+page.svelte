@@ -233,7 +233,31 @@
                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
-            <span class="truncate">{proposal.university_name}</span>
+            <span class="truncate font-medium">{proposal.university_name}</span>
+          </div>
+
+          <div class="space-y-1">
+            <div
+              class="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-400 font-medium"
+            >
+              <div
+                class="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-[8px] text-indigo-600 font-bold uppercase"
+              >
+                {(proposal.proposer_name || proposal.proposer_email).slice(
+                  0,
+                  2,
+                )}
+              </div>
+              <span class="truncate"
+                >Proposed by {proposal.proposer_name ||
+                  proposal.proposer_email}</span
+              >
+            </div>
+            {#if proposal.proposer_name}
+              <p class="text-[9px] text-gray-400 ml-7 -mt-1">
+                {proposal.proposer_email}
+              </p>
+            {/if}
           </div>
 
           <div
