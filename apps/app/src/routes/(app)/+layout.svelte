@@ -112,6 +112,12 @@
       icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z",
     },
     {
+      id: "budget-proposals",
+      label: "Budget Proposals",
+      href: "/budget-proposals",
+      icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.73 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.73-1M12 16v-1m-4-4h8m-8 4h8",
+    },
+    {
       id: "permissions",
       label: "Permissions",
       href: "/permissions",

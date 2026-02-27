@@ -53,4 +53,5 @@ export {
 export * from './canonical-template';
 export * from './db/permissions';
 export * from './template';
+export * from './db/budget_proposals';
 // Ensure all assessment functions including createUniversityAsset are exported
