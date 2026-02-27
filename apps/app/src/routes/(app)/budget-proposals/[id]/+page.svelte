@@ -160,11 +160,12 @@
   const isSET = $derived(user.role === "SET_REVIEWER");
   const canReview = $derived(isGlobalAdmin || isSET);
   const isProposer = $derived(proposal.proposer_user_id === user.id);
+  const eventPassed = $derived(new Date(proposal.proposed_date) < new Date());
 </script>
 
 <div class="p-6 max-w-7xl mx-auto space-y-8">
   <!-- Banner for pending report -->
-  {#if proposal.status === "EVENT_COMPLETED"}
+  {#if proposal.status === "EVENT_COMPLETED" || (proposal.status === "APPROVED" && eventPassed)}
     <div
       in:fly={{ y: -20 }}
       class="bg-indigo-600 text-white p-4 rounded-3xl flex items-center justify-between shadow-lg shadow-indigo-500/20"
@@ -237,6 +238,11 @@
               >Created {new Date(
                 proposal.created_at,
               ).toLocaleDateString()}</span
+            >
+            <span class="text-gray-300">|</span>
+            <span class="text-indigo-600"
+              >Proposed by {proposal.proposer_name ||
+                proposal.proposer_email}</span
             >
           </div>
         </div>
@@ -497,54 +503,58 @@
           <h2
             class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
           >
-            <div
-              class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
+            <h2
+              class="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
             >
-              📎
-            </div>
-            Supporting Documents
-          </h2>
-
-          {#if isProposer || isGlobalAdmin}
-            <div class="relative">
-              <input
-                type="file"
-                multiple
-                class="hidden"
-                bind:this={fileInput}
-                onchange={uploadFile}
-                accept=".jpg,.jpeg,.png,.webp,.pdf"
-              />
-              <button
-                onclick={() => fileInput?.click()}
-                aria-label="Upload supporting documents"
-                disabled={isUploading}
-                class="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              <div
+                class="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center text-amber-600"
               >
-                {#if isUploading}
-                  <div
-                    class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
-                  ></div>
-                {:else}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                {/if}
-                Upload
-              </button>
-            </div>
-          {/if}
+                📎
+              </div>
+              Supporting Documents
+            </h2>
+
+            {#if isProposer || canReview}
+              <div class="relative">
+                <input
+                  type="file"
+                  multiple
+                  class="hidden"
+                  bind:this={fileInput}
+                  onchange={uploadFile}
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                />
+                <button
+                  onclick={() => fileInput?.click()}
+                  aria-label="Upload supporting documents"
+                  disabled={isUploading}
+                  class="px-5 py-2.5 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {#if isUploading}
+                    <div
+                      class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
+                    ></div>
+                  {:else}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                  {/if}
+                  Upload
+                </button>
+              </div>
+            {/if}
+          </h2>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

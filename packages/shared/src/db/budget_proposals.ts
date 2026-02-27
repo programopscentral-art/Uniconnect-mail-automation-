@@ -348,7 +348,7 @@ export async function transitionBudgetProposalStatus(id: string, toStatus: Budge
             await client.query(
                 `INSERT INTO budget_proposal_comments (proposal_id, user_id, user_name, comment, visibility)
                  VALUES ($1, $2, $3, $4, 'PUBLIC')`,
-                [id, actor.id, actor.name, `[Status Change to ${toStatus}] ${reason}`, 'PUBLIC']
+                [id, actor.id, actor.name, `[Status Change to ${toStatus}] ${reason}`]
             );
         }
 
