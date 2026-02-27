@@ -53,18 +53,23 @@ export async function createTask(data: {
     return { ...task, assignee_ids } as Task;
 }
 
-export async function getTasks(filters: { assigned_to?: string; university_id?: string; status?: TaskStatus; creator_id?: string }) {
+export async function getTasks(filters: {
+    assigned_to?: string;
+    university_id?: string;
+    status?: TaskStatus;
+    creator_id?: string;
+    limit?: number;
+    offset?: number;
+}) {
     const conditions: string[] = [];
     const params: any[] = [];
     let i = 1;
 
     if (filters.creator_id) {
-        // Broad visibility: In university OR created by you OR assigned to you
         if (filters.university_id) {
             conditions.push(`(t.university_id = $${i++} OR t.assigned_by = $${i++} OR t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++}))`);
             params.push(filters.university_id, filters.creator_id, filters.creator_id);
         } else {
-            // No university provided? Just show what you are involved in
             conditions.push(`(t.assigned_by = $${i++} OR t.id IN (SELECT task_id FROM task_assignees WHERE user_id = $${i++}))`);
             params.push(filters.creator_id, filters.creator_id);
         }
@@ -78,9 +83,20 @@ export async function getTasks(filters: { assigned_to?: string; university_id?: 
         params.push(filters.status);
     }
 
+    let limitClause = '';
+    if (filters.limit) {
+        limitClause = ` LIMIT $${i++}`;
+        params.push(filters.limit);
+    }
+    if (filters.offset) {
+        limitClause += ` OFFSET $${i++}`;
+        params.push(filters.offset);
+    }
+
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.*, u_by.name as assigned_by_name, 
+        `SELECT t.id, t.title, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by,
+            u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
             u_by.email as assigned_by_email,
             COALESCE(
@@ -103,7 +119,7 @@ export async function getTasks(filters: { assigned_to?: string; university_id?: 
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
          GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name
-         ORDER BY t.created_at DESC`,
+         ORDER BY t.created_at DESC${limitClause}`,
         params
     );
     return result.rows.map(r => ({

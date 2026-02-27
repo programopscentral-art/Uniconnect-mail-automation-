@@ -49,7 +49,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 [subjectId]
             ),
             db.query(
-                `SELECT q.*, co.code as co_code 
+                `SELECT q.id, q.unit_id, q.topic_id, q.co_id, q.question_text, q.bloom_level, q.marks, q.type, q.image_url, q.is_important,
+                        co.code as co_code 
                  FROM assessment_questions q
                  LEFT JOIN assessment_course_outcomes co ON q.co_id = co.id
                  JOIN assessment_units u ON q.unit_id = u.id

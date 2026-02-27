@@ -31,9 +31,13 @@ export async function getUserById(id: string) {
     return result.rows[0] as User | null;
 }
 
-export async function getAllUsers(universityId?: string) {
+export async function getAllUsers(universityId?: string, options: { minimal?: boolean } = {}) {
+    const select = options.minimal
+        ? 'u.id, u.email, u.name, u.display_name, u.role, u.university_id, u.presence_status, u.last_active_at'
+        : 'u.*';
+
     let query = `
-    SELECT u.*, 
+    SELECT ${select}, 
            u_univ.name as university_name,
            COALESCE(
                json_agg(
