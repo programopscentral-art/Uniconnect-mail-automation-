@@ -24,6 +24,7 @@
   let filterStatus = $state("");
   let filterUniversity = $state("");
   let filterAssignedTo = $state("");
+  let filterDate = $state("");
 
   // Form State
   let form = $state({
@@ -75,6 +76,10 @@
         return false;
       if (filterAssignedTo && !t.assignee_ids.includes(filterAssignedTo))
         return false; // Updated for array
+      if (filterDate) {
+        const tDate = new Date(t.created_at).toISOString().split("T")[0];
+        if (tDate !== filterDate) return false;
+      }
       return true;
     }),
   );
@@ -476,11 +481,25 @@
         {/each}
       </select>
     </div>
+    <div class="flex-1 min-w-[200px]">
+      <label
+        for="filter-date"
+        class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1"
+        >Created Date</label
+      >
+      <input
+        id="filter-date"
+        type="date"
+        bind:value={filterDate}
+        class="w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm [color-scheme:dark]"
+      />
+    </div>
     <button
       onclick={() => {
         filterStatus = "";
         filterUniversity = "";
         filterAssignedTo = "";
+        filterDate = "";
       }}
       class="px-6 py-3 text-sm font-black text-gray-400 hover:text-indigo-600 transition-colors mb-0.5 uppercase tracking-widest"
     >

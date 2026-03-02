@@ -95,7 +95,7 @@ export async function getTasks(filters: {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.id, t.title, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by,
+        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by,
             u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
             u_by.email as assigned_by_email,

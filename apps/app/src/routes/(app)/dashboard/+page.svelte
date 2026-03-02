@@ -213,12 +213,14 @@
     if (viewMode === "MY_TASKS") {
       return data.tasks
         .filter((t: any) => {
-          const endD = new Date(t.due_date);
+          const endD = new Date(t.created_at);
           endD.setHours(0, 0, 0, 0);
           return targetTime === endD.getTime();
         })
         .map((t) => {
-          const dueDate = new Date(t.due_date);
+          const dueDate = t.due_date
+            ? new Date(t.due_date)
+            : new Date(t.created_at);
           dueDate.setHours(0, 0, 0, 0);
           const isOverdue =
             t.status !== "COMPLETED" && dueDate.getTime() < now.getTime();
