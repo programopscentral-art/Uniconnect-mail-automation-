@@ -98,15 +98,13 @@
       </p>
     </div>
 
-    {#if ["ADMIN", "PROGRAM_OPS", "COS", "PMA", "PM"].includes(user.role)}
-      <a
-        href="/communication-tasks/new"
-        class="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/20 transition-all active:scale-95"
-      >
-        <Plus size={16} />
-        Create New Task
-      </a>
-    {/if}
+    <a
+      href="/communication-tasks/new"
+      class="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 hover:shadow-xl hover:shadow-indigo-500/20 transition-all active:scale-95"
+    >
+      <Plus size={16} />
+      Create New Task
+    </a>
   </div>
 
   <!-- Filters & Stats -->

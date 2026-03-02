@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             hasTasks ? getTasks({
                 university_id: effectiveUniversityId,
                 creator_id: (locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS') ? undefined : locals.user.id,
-                limit: 20
+                limit: 1000
             }) : Promise.resolve([]),
             getScheduleEvents(effectiveUniversityId || locals.user.university_id || undefined),
             getDayPlans(locals.user.id, today),

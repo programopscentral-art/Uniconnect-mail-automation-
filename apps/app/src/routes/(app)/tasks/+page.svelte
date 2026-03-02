@@ -77,7 +77,9 @@
       if (filterAssignedTo && !t.assignee_ids.includes(filterAssignedTo))
         return false; // Updated for array
       if (filterDate) {
-        const tDate = new Date(t.created_at).toISOString().split("T")[0];
+        const d = new Date(t.created_at);
+        const z = (n: number) => ("0" + n).slice(-2);
+        const tDate = `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
         if (tDate !== filterDate) return false;
       }
       return true;

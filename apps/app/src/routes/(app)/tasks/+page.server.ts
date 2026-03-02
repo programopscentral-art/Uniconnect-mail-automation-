@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             university_id: universityId || undefined,
             status,
             creator_id: isGlobalAdmin ? undefined : locals.user.id,
-            limit: 100 // Reasonable limit for initial page load
+            limit: 1000 // Reasonable limit for initial page load
         }),
         getAllUsers(universityId || undefined, { minimal: true }),
         getAllUniversities(universityId || undefined)
