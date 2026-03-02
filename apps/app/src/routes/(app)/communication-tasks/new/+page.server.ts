@@ -6,7 +6,7 @@ import { triggerCommTaskCheck } from '$lib/server/queue';
 
 export const load: PageServerLoad = async ({ locals }) => {
     const { user } = locals;
-    if (!user || !['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER'].includes(user.role)) {
+    if (!user || !['ADMIN', 'PROGRAM_OPS', 'BOA', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER', 'UNIVERSITY_OPERATOR'].includes(user.role)) {
         throw redirect(302, '/communication-tasks');
     }
 

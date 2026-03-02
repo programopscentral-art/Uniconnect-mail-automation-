@@ -6,8 +6,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     const { user } = locals;
     if (!user) return { tasks: [] };
 
-    // If ADMIN, PROGRAM_OPS, COS, PMA, PM, CMA or CMA_MANAGER, fetch all tasks. Otherwise only assigned tasks.
-    const hasFullVisibility = ['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER'].includes(user.role);
+    // If ADMIN, PROGRAM_OPS, BOA, etc., fetch all tasks. Otherwise only assigned tasks.
+    const hasFullVisibility = ['ADMIN', 'PROGRAM_OPS', 'BOA', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER', 'UNIVERSITY_OPERATOR'].includes(user.role);
     const tasks = await getCommunicationTasks(hasFullVisibility ? undefined : user.id);
 
     return {
@@ -19,7 +19,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
     delete: async ({ request, locals }) => {
         const { user } = locals;
-        if (!user || !['ADMIN', 'PROGRAM_OPS', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER'].includes(user.role)) {
+        if (!user || !['ADMIN', 'PROGRAM_OPS', 'BOA', 'COS', 'PMA', 'PM', 'CMA', 'CMA_MANAGER', 'UNIVERSITY_OPERATOR'].includes(user.role)) {
             return fail(403, { error: 'Unauthorized' });
         }
 
