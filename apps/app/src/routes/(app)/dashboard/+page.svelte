@@ -213,9 +213,13 @@
     if (viewMode === "MY_TASKS") {
       return data.tasks
         .filter((t: any) => {
-          const endD = new Date(t.created_at);
-          endD.setHours(0, 0, 0, 0);
-          return targetTime === endD.getTime();
+          const d = new Date(t.created_at);
+          const tTime = new Date(
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+          ).getTime();
+          return targetTime === tTime;
         })
         .map((t) => {
           const dueDate = t.due_date
