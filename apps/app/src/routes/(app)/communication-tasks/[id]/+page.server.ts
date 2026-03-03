@@ -33,7 +33,8 @@ export const actions: Actions = {
 
             // Determine which university this user is completing for
             const userUnies = user.universities?.map(u => u.name) || [];
-            const intersection = userUnies.filter(u => task.universities.includes(u));
+            const taskUnies = task.resolved_universities || task.universities;
+            const intersection = userUnies.filter(u => taskUnies.includes(u));
             const completedFor = intersection.length > 0 ? intersection.join(', ') : (userUnies.length > 0 ? userUnies.join(', ') : 'System Admin');
 
             // Add completion log
@@ -53,7 +54,7 @@ export const actions: Actions = {
 
             // If "System Admin" did it, or all task universities are covered
             const isSystemAdmin = allCoveredUniversities.has('System Admin');
-            const allDone = task.universities.every(tu => allCoveredUniversities.has(tu));
+            const allDone = taskUnies.every((tu: string) => allCoveredUniversities.has(tu));
 
             if (isSystemAdmin || allDone) {
                 await updateCommunicationTaskStatus(params.id, 'Completed', undefined, new Date());
