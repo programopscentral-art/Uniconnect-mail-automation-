@@ -241,10 +241,25 @@
                   >
                 {/if}
                 {#each task.resolved_universities as uni}
+                  {@const isCompleted = task.completions?.some(
+                    (c: any) =>
+                      c.university.includes(uni) ||
+                      c.university === "System Admin",
+                  )}
                   <span
-                    class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter bg-indigo-50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-lg border border-indigo-100/50 dark:border-indigo-800/50"
-                    >{uni}</span
+                    title={isCompleted ? "Completed" : "Pending"}
+                    class="flex items-center gap-1 text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded-lg border {isCompleted
+                      ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-700'
+                      : 'text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100/50 dark:border-indigo-800/50'}"
                   >
+                    {#if isCompleted}
+                      <CheckCircle2
+                        size={10}
+                        class="shrink-0 text-emerald-600 dark:text-emerald-400"
+                      />
+                    {/if}
+                    {uni}
+                  </span>
                 {/each}
               </div>
             </div>
