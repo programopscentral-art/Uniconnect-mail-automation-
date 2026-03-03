@@ -676,7 +676,8 @@
                     {#if qidx === 0}
                       <td
                         rowspan={slot.choice1.questions.length}
-                        class="border-r border-black p-1 w-[35px] font-bold text-center align-top pt-2"
+                        class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
+                        style="font-family: 'Times New Roman', serif;"
                       >
                         {qNum.start}
                       </td>
@@ -760,7 +761,8 @@
                     {#if qidx === 0}
                       <td
                         rowspan={slot.choice2.questions.length}
-                        class="border-r border-black p-1 w-[35px] font-bold text-center align-top pt-2"
+                        class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
+                        style="font-family: 'Times New Roman', serif;"
                       >
                         {qNum.end}
                       </td>
@@ -769,8 +771,10 @@
                       colspan="2"
                       class="border-r border-black p-1 px-2 align-top relative"
                     >
-                      <div class="flex gap-2 min-h-[0.8in]">
-                        <span class="font-bold min-w-[20px]"
+                      <div class="flex gap-[4px] min-h-[0.8in] pt-[2px]">
+                        <span
+                          class="font-[500] text-[15.5pt] min-w-[25px]"
+                          style="font-family: 'Times New Roman', serif;"
                           >{slot.choice2.questions.length > 1
                             ? alphabet[qidx]
                             : "a"}</span
@@ -830,7 +834,8 @@
                   class="group relative border-b border-black last:border-b-0"
                 >
                   <td
-                    class="border-r border-black p-1 w-[35px] font-bold text-center align-top pt-2"
+                    class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
+                    style="font-family: 'Times New Roman', serif;"
                   >
                     {qNum.start}
                   </td>
@@ -838,7 +843,11 @@
                     colspan="2"
                     class="border-r border-black p-1 px-2 align-top relative"
                   >
-                    <div class="flex gap-2 min-h-[1in]">
+                    <div class="flex gap-[4px] min-h-[1in] pt-[2px]">
+                      <span
+                        class="font-[500] text-[15.5pt] min-w-[25px]"
+                        style="font-family: 'Times New Roman', serif;">a</span
+                      >
                       <div class="flex-1 relative">
                         <div
                           class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
