@@ -500,6 +500,7 @@
       document.getElementById("generic-paper-actual") ||
       document.getElementById("svyasa-paper-actual") ||
       document.getElementById("amet-paper-actual") ||
+      document.getElementById("annamacharya-paper-actual") ||
       document.getElementById("cdu-paper-actual");
 
     if (!el) {
@@ -555,7 +556,7 @@
                                 justify-content: center !important;
                                 align-items: flex-start !important;
                             }
-                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, .paper-container { 
+                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, .paper-container { 
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -577,7 +578,7 @@
                             justify-content: center;
                             padding: 20px;
                         }
-                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, .paper-container { 
+                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, .paper-container { 
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;
