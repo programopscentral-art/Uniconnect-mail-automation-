@@ -292,8 +292,7 @@
             value={paperMeta.programme || "B.Tech"}
             onUpdate={(v: string) => updateText(v, "META", "programme")}
             class="inline-block"
-          />
-          <AssessmentEditable
+          /><AssessmentEditable
             value={paperMeta.semester || "I"}
             onUpdate={(v: string) => updateText(v, "META", "semester")}
             class="inline-block"
