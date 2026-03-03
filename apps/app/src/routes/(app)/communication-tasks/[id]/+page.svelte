@@ -34,6 +34,22 @@
     ) || task.status === "Completed",
   );
 
+  let universityStatus = $derived(
+    task.resolved_universities.map((uni: string) => {
+      const completion = task.completions?.find(
+        (c: any) =>
+          c.university.includes(uni) || c.university === "System Admin",
+      );
+      return {
+        name: uni,
+        isCompleted: !!completion,
+        completedBy: completion?.user_name,
+        completedAt: completion?.completed_at,
+        isSystem: completion?.university === "System Admin",
+      };
+    }),
+  );
+
   let copied = $state(false);
   let showIssueForm = $state(false);
 
@@ -331,19 +347,67 @@
         class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm space-y-8"
       >
         <div class="space-y-6">
-          <div class="space-y-2">
+          <div class="space-y-4">
             <div
               class="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest"
             >
               <Globe size={14} />
-              Universities
+              Universities & Task Status
             </div>
-            <div class="flex flex-wrap gap-2">
-              {#each task.resolved_universities as uni}
-                <span
-                  class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold"
-                  >{uni}</span
+            <div class="space-y-3">
+              {#each universityStatus as uni}
+                <div
+                  class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
+                    ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-900/10'
+                    : 'border-gray-100 dark:border-slate-800'} transition-all"
                 >
+                  <div class="flex items-center gap-3">
+                    <span
+                      class="px-3 py-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 shadow-sm"
+                      >{uni.name}</span
+                    >
+                  </div>
+
+                  {#if uni.isCompleted}
+                    <div class="flex items-center gap-3">
+                      <div class="text-right flex flex-col items-end">
+                        <span
+                          class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 max-w-[150px] truncate"
+                          title={uni.completedBy}
+                        >
+                          {uni.isSystem ? "Admin" : uni.completedBy}
+                        </span>
+                        <span
+                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest"
+                        >
+                          {new Date(uni.completedAt).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <div
+                        class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0"
+                      >
+                        <CheckCircle2 size={16} />
+                      </div>
+                    </div>
+                  {:else}
+                    <div
+                      class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700"
+                    >
+                      <div
+                        class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+                      ></div>
+                      <span
+                        class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest"
+                        >Pending</span
+                      >
+                    </div>
+                  {/if}
+                </div>
               {/each}
             </div>
           </div>
@@ -434,50 +498,7 @@
         </div>
       {/if}
 
-      <!-- Completions Log Section -->
-      {#if task.completions && task.completions.length > 0}
-        <div
-          class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-[2rem] p-6 space-y-4"
-        >
-          <div
-            class="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest"
-          >
-            <CheckCircle2 size={14} />
-            Completion Log
-          </div>
-          <div
-            class="space-y-3 max-h-[400px] overflow-y-auto pr-2 rounded-xl custom-scrollbar"
-          >
-            {#each task.completions as comp}
-              <div
-                class="flex flex-col gap-1 p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-100/50 dark:border-blue-900/30 shadow-sm"
-              >
-                <div class="flex items-start justify-between gap-4">
-                  <span
-                    class="text-xs font-black text-blue-900 dark:text-blue-100 tracking-tight leading-tight"
-                    >{comp.university}</span
-                  >
-                  <span
-                    class="text-[9px] font-bold text-gray-400 shrink-0 uppercase tracking-widest"
-                    >{new Date(comp.completed_at).toLocaleString([], {
-                      month: "short",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}</span
-                  >
-                </div>
-                <div
-                  class="text-[10px] font-bold text-gray-500 dark:text-gray-400"
-                >
-                  {comp.user_name} <span class="opacity-50">•</span>
-                  {comp.user_email}
-                </div>
-              </div>
-            {/each}
-          </div>
-        </div>
-      {/if}
+      <!-- Removed old Completion Log in favor of Universities Status -->
     </div>
   </div>
 </div>
