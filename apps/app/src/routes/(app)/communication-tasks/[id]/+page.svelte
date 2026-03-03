@@ -25,6 +25,15 @@
   let task = $derived(data.task);
   let user = $derived(data.user);
 
+  let userUniversities = $derived(user.universities?.map((u) => u.name) || []);
+  let hasUserCompleted = $derived(
+    task.completions?.some(
+      (c: any) =>
+        userUniversities.some((u: string) => c.university.includes(u)) ||
+        c.university === "System Admin",
+    ) || task.status === "Completed",
+  );
+
   let copied = $state(false);
   let showIssueForm = $state(false);
 
@@ -216,7 +225,7 @@
       </div>
 
       <!-- Execution Actions -->
-      {#if task.status !== "Completed" && task.status !== "Canceled"}
+      {#if task.status !== "Completed" && task.status !== "Canceled" && !hasUserCompleted}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4" in:fly={{ y: 20 }}>
           <form method="POST" action="?/complete" use:enhance>
             <button
@@ -288,7 +297,7 @@
             </form>
           </div>
         {/if}
-      {:else if task.status === "Completed"}
+      {:else if task.status === "Completed" || hasUserCompleted}
         <div
           class="p-8 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 rounded-[2.5rem] flex items-center gap-6"
           in:fade
@@ -424,6 +433,64 @@
           </p>
         </div>
       {/if}
+
+      <!-- Completions Log Section -->
+      {#if task.completions && task.completions.length > 0}
+        <div
+          class="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/20 rounded-[2rem] p-6 space-y-4"
+        >
+          <div
+            class="flex items-center gap-2 text-[10px] font-black text-blue-600 uppercase tracking-widest"
+          >
+            <CheckCircle2 size={14} />
+            Completion Log
+          </div>
+          <div
+            class="space-y-3 max-h-[400px] overflow-y-auto pr-2 rounded-xl custom-scrollbar"
+          >
+            {#each task.completions as comp}
+              <div
+                class="flex flex-col gap-1 p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-100/50 dark:border-blue-900/30 shadow-sm"
+              >
+                <div class="flex items-start justify-between gap-4">
+                  <span
+                    class="text-xs font-black text-blue-900 dark:text-blue-100 tracking-tight leading-tight"
+                    >{comp.university}</span
+                  >
+                  <span
+                    class="text-[9px] font-bold text-gray-400 shrink-0 uppercase tracking-widest"
+                    >{new Date(comp.completed_at).toLocaleString([], {
+                      month: "short",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}</span
+                  >
+                </div>
+                <div
+                  class="text-[10px] font-bold text-gray-500 dark:text-gray-400"
+                >
+                  {comp.user_name} <span class="opacity-50">•</span>
+                  {comp.user_email}
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 </div>
+
+<style>
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(156, 163, 175, 0.3);
+    border-radius: 4px;
+  }
+</style>

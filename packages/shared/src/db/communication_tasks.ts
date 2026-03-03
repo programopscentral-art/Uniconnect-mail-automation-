@@ -14,6 +14,14 @@ export type CommunicationUpdateType = 'Announcement' | 'Reminder' | 'Event Campa
 export type CommunicationTeam = 'Student Engagement' | 'Parent Communication';
 export type CommunicationContentType = 'Markdown' | 'Plain Text';
 
+export interface CommunicationTaskCompletion {
+    user_id: string;
+    user_name: string;
+    user_email: string;
+    university: string;
+    completed_at: Date;
+}
+
 export interface CommunicationTask {
     id: string;
     universities: string[];
@@ -38,6 +46,7 @@ export interface CommunicationTask {
     ten_min_reminder_sent: boolean;
     overdue_10min_notified_at: Date | null;
     overdue_30min_notified_at: Date | null;
+    completions?: CommunicationTaskCompletion[];
 }
 
 export async function createCommunicationTask(data: {
@@ -149,6 +158,17 @@ export async function updateCommunicationTaskStatus(id: string, status: Communic
 
     const query = `UPDATE communication_tasks SET ${updates.join(', ')} WHERE id = $1 RETURNING *`;
     const result = await db.query(query, params);
+    return result.rows[0] as CommunicationTask;
+}
+
+export async function addCommunicationTaskCompletion(id: string, completion: CommunicationTaskCompletion) {
+    const query = `
+        UPDATE communication_tasks
+        SET completions = COALESCE(completions, '[]'::jsonb) || $2::jsonb
+        WHERE id = $1
+        RETURNING *
+    `;
+    const result = await db.query(query, [id, JSON.stringify([completion])]);
     return result.rows[0] as CommunicationTask;
 }
 

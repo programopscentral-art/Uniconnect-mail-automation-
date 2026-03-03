@@ -1,4 +1,4 @@
-import { getCommunicationTaskById, updateCommunicationTaskStatus } from '@uniconnect/shared';
+import { getCommunicationTaskById, updateCommunicationTaskStatus, addCommunicationTaskCompletion } from '@uniconnect/shared';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 
@@ -28,7 +28,37 @@ export const actions: Actions = {
         if (!user) return fail(401);
 
         try {
-            await updateCommunicationTaskStatus(params.id, 'Completed', undefined, new Date());
+            const task = await getCommunicationTaskById(params.id);
+            if (!task) return fail(404, { error: 'Task not found' });
+
+            // Determine which university this user is completing for
+            const userUnies = user.universities?.map(u => u.name) || [];
+            const intersection = userUnies.filter(u => task.universities.includes(u));
+            const completedFor = intersection.length > 0 ? intersection.join(', ') : (userUnies.length > 0 ? userUnies.join(', ') : 'System Admin');
+
+            // Add completion log
+            const updatedTask = await addCommunicationTaskCompletion(params.id, {
+                user_id: user.id,
+                user_name: user.name || user.email,
+                user_email: user.email,
+                university: completedFor,
+                completed_at: new Date()
+            });
+
+            // Check if all universities have been completed
+            const allCoveredUniversities = new Set<string>();
+            for (const comp of (updatedTask.completions || [])) {
+                comp.university.split(', ').forEach((u: string) => allCoveredUniversities.add(u.trim()));
+            }
+
+            // If "System Admin" did it, or all task universities are covered
+            const isSystemAdmin = allCoveredUniversities.has('System Admin');
+            const allDone = task.universities.every(tu => allCoveredUniversities.has(tu));
+
+            if (isSystemAdmin || allDone) {
+                await updateCommunicationTaskStatus(params.id, 'Completed', undefined, new Date());
+            }
+
         } catch (e) {
             console.error(e);
             return fail(500, { error: 'Failed to update task' });
