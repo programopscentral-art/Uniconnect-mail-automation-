@@ -274,43 +274,33 @@
       style="width: 8.27in; min-height: 11.69in;"
     >
       <!-- Header Section -->
-      <div class="text-center mb-6 pt-4 w-full text-black">
+      <div class="text-center mb-1 pt-3 w-full text-black">
         <!-- University Name -->
         <h1
-          class="text-[22pt] font-black uppercase tracking-tight mb-2 leading-none w-full"
-          style="font-family: 'Arial Black', 'Arial', sans-serif;"
+          class="text-[23.5pt] font-black uppercase tracking-tight mb-2 leading-none w-full"
+          style="font-family: 'Arial Black', Arial, sans-serif;"
         >
           ANNAMACHARYA UNIVERSITY
         </h1>
 
         <!-- Info Line -->
         <div
-          class="text-[12pt] flex justify-center items-center gap-1.5 font-serif whitespace-nowrap w-full overflow-hidden mt-1 px-1"
+          class="text-[12.5pt] text-center w-full tracking-[-0.2px] leading-tight mt-1 mb-1"
+          style="font-family: 'Century Gothic', Calibri, sans-serif;"
         >
-          <span class="font-bold">II</span>
-          <span>
-            <AssessmentEditable
-              value={paperMeta.programme || "B.Tech"}
-              onUpdate={(v: string) => updateText(v, "META", "programme")}
-              class="inline-block"
-            />
-          </span>
-          <AssessmentEditable
-            value={paperMeta.semester || "I"}
-            onUpdate={(v: string) => updateText(v, "META", "semester")}
+          II <AssessmentEditable
+            value={paperMeta.programme || "B.Techl"}
+            onUpdate={(v: string) => updateText(v, "META", "programme")}
             class="inline-block"
-          />
-          <span class="mr-1">Semester</span>
-          <span
-            class="font-black underline decoration-2 underline-offset-4 mx-1"
-          >
-            <AssessmentEditable
+          /> Semester<span
+            class="font-extrabold underline decoration-[1.5px] mx-0"
+            style="text-underline-offset:2px;"
+            ><AssessmentEditable
               value={paperMeta.branch || "CSE & Allied Branches"}
               onUpdate={(v: string) => updateText(v, "META", "branch")}
               class="inline-block"
-            />
-          </span>
-          <AssessmentEditable
+            /></span
+          ><AssessmentEditable
             value={paperMeta.exam_instance || "1st Mid Examination"}
             onUpdate={(v: string) => updateText(v, "META", "exam_instance")}
             class="inline-block"
@@ -319,15 +309,14 @@
 
         <!-- Subject Line -->
         <div
-          class="font-black text-[13.5pt] mt-2 flex justify-center items-center gap-1 font-serif underline-none"
+          class="font-[800] text-[13.5pt] text-center w-full mt-0 mb-3 tracking-[-0.1px]"
+          style="font-family: 'Century Gothic', Arial, sans-serif;"
         >
           <AssessmentEditable
             value={paperMeta.course_code || "24ACSE33T"}
             onUpdate={(v: string) => updateText(v, "META", "course_code")}
             class="inline-block"
-          />
-          <span class="mx-0.5">--</span>
-          <AssessmentEditable
+          />-- <AssessmentEditable
             value={paperMeta.subject_name ||
               "Digital Logic Design& Computer Organization"}
             onUpdate={(v: string) => updateText(v, "META", "subject_name")}
@@ -338,96 +327,93 @@
 
       <!-- Hall Ticket & AU24 Box Row -->
       <div
-        class="flex justify-between items-end mb-6 px-1 w-full relative font-serif"
+        class="flex justify-between items-end mb-[10px] px-1 w-full relative"
       >
         <!-- Left: HT Box -->
         <div class="flex items-center">
-          <table class="border-collapse border border-black">
-            <tr>
-              <td class="border border-black px-2 py-0.5 align-middle">
-                <span
-                  class="text-[11pt] font-black underline decoration-2 underline-offset-2 italic whitespace-nowrap"
-                  >H.T. No:-</span
-                >
-              </td>
-              {#each Array(10) as _}
-                <td class="border border-black w-8 h-9"></td>
-              {/each}
-            </tr>
+          <table class="border-collapse">
+            <tbody>
+              <tr>
+                <td class="border border-black px-2 py-0 align-middle">
+                  <span
+                    class="text-[12pt] font-extrabold tracking-tight"
+                    style="font-family: 'Century Gothic', sans-serif;"
+                    >H.T. No:-</span
+                  >
+                </td>
+                {#each Array(10) as _}
+                  <td class="border border-black w-[30px] h-[34px]"></td>
+                {/each}
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <!-- Right: AU24 Box -->
         <div
-          class="border-2 border-black px-6 py-2.5 font-black text-[16pt] tracking-tight flex items-center justify-center min-w-[120px]"
+          class="border border-black px-[10px] py-[3px] flex items-center justify-center min-w-[75px] shadow-[1px_1px_1px_rgba(0,0,0,0.4)]"
         >
-          AU24
+          <span
+            class="font-bold text-[14pt]"
+            style="font-family: 'Times New Roman', serif;">AU24</span
+          >
         </div>
       </div>
 
-      <div class="border-t border-dotted border-black w-full mb-6"></div>
+      <div
+        class="border-t-[1.5px] border-dotted border-gray-400 opacity-60 w-full mb-1 mt-2"
+      ></div>
 
       <!-- Metadata Row -->
       <div
-        class="flex justify-between text-[14pt] font-black px-1 mb-2 font-serif"
+        class="text-[13.5pt] font-bold px-0 mb-2 w-full text-left"
+        style="font-family: 'Times New Roman', serif; letter-spacing: -0.2px;"
       >
-        <div class="flex items-center">
-          <span>Date:-</span>
-          <span
-            class="border-b-2 border-black ml-0.5 min-w-[150px] text-center underline-offset-4"
-          >
-            <AssessmentEditable
-              value={paperMeta.paper_date || "28-08-2025"}
-              onUpdate={(v: string) => updateText(v, "META", "paper_date")}
-            />
-          </span>
-        </div>
-        <div class="flex items-center">
-          <span>Duration:</span>
-          <span
-            class="border-b-2 border-black ml-1 min-w-[100px] text-center underline-offset-4"
-          >
-            <AssessmentEditable
-              value={paperMeta.duration_text || "2Hrs."}
-              onUpdate={(v: string) => updateText(v, "META", "duration_text")}
-            />
-          </span>
-        </div>
-        <div class="flex items-center">
-          <span>Max.Marks:</span>
-          <span
-            class="border-b-2 border-black ml-1 min-w-[70px] text-center underline-offset-4"
-          >
-            <AssessmentEditable
-              value={paperMeta.max_marks || "30"}
-              onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-            />
-          </span>
-        </div>
+        <span class="underline decoration-[1.5px] underline-offset-4"
+          >Date:-<AssessmentEditable
+            value={paperMeta.paper_date || "28-08-2025"}
+            onUpdate={(v: string) => updateText(v, "META", "paper_date")}
+            class="inline-block ml-0"
+          /></span
+        >
+        <span class="ml-[4px] mr-1">Duration:</span>
+        <span class="underline decoration-[1.5px] underline-offset-4 mr-1"
+          ><AssessmentEditable
+            value={paperMeta.duration_text || "2Hrs."}
+            onUpdate={(v: string) => updateText(v, "META", "duration_text")}
+            class="inline-block"
+          /></span
+        ><AssessmentEditable
+          value={paperMeta.max_marks || "Max.Marks:30"}
+          onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+          class="inline-block"
+        />
       </div>
 
-      <div class="border-t border-dotted border-black w-full mb-4"></div>
-
       <!-- Notes Section -->
-      <div class="text-[11pt] mb-6 px-2 tracking-tight leading-snug font-serif">
+      <div
+        class="text-[11.5pt] mb-6 px-1 tracking-tight leading-snug"
+        style="font-family: 'Times New Roman', serif; letter-spacing: -0.1px;"
+      >
         <p>
-          <span class="font-bold">Note: 1.</span> Question Paper consists of two
-          parts (<span class="font-bold">Part-A</span> and
-          <span class="font-bold">Part-B</span>)
+          Note: 1. Question Paper consists of two parts (<span class="font-bold"
+            >Part-A</span
+          >
+          and <span class="font-bold">Part-B</span>)
         </p>
-        <p class="pl-8">
+        <p class="pl-0">
           2. In Part-A, each question carries <span class="font-bold"
             >one mark</span
           >.
         </p>
-        <p class="pl-8">
+        <p class="pl-0">
           3. <span class="font-bold">30 marks</span> in
-          <span class="font-bold">Part-B</span> will be condensed to
-          <span class="font-bold">25 marks</span>.
+          <span class="font-bold">Part-B</span>
+          will be condensed to <span class="font-bold">25 marks</span>.
         </p>
-        <p class="pl-8">
-          4. Answer <span class="font-bold">ALL</span> the questions in
-          <span class="font-bold">Part-A</span> and
+        <p class="pl-0">
+          4. Answer <span class="font-bold uppercase">all</span> the questions
+          in <span class="font-bold">Part-A</span>and
           <span class="font-bold">Part-B</span>
         </p>
       </div>
