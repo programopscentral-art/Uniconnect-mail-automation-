@@ -354,7 +354,9 @@
               <Globe size={14} />
               Universities & Task Status
             </div>
-            <div class="space-y-3">
+            <div
+              class="space-y-3 max-h-[320px] overflow-y-auto pr-2 custom-scrollbar"
+            >
               {#each universityStatus as uni}
                 <div
                   class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
