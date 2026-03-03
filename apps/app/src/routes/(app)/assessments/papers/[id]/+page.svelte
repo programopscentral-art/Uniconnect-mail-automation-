@@ -100,7 +100,7 @@
                   : selectedTemplate === "amet"
                     ? "Academy of Maritime Education and Training (AMET)"
                     : selectedTemplate === "annamacharya"
-                      ? "Annamacharya University"
+                      ? "Annamacharya University V1.0.4"
                       : "University Standard",
   );
 
