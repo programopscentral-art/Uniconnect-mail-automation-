@@ -122,17 +122,27 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         `;
         const poolParams: any[] = [subject_id];
 
-        if (topic_ids && topic_ids.length > 0) {
-            poolQuery += ` AND q.topic_id = ANY($2)`;
-            poolParams.push(topic_ids);
-        } else if (unit_ids && unit_ids.length > 0) {
+        if (unit_ids && unit_ids.length > 0) {
             poolQuery += ` AND q.unit_id = ANY($2)`;
             poolParams.push(unit_ids);
         }
 
         const questionsRes = await db.query(poolQuery, poolParams);
-
         let allQuestions = questionsRes.rows;
+
+        // Apply strict in-memory topic filtering if explicit topics were selected
+        if (topic_ids && topic_ids.length > 0) {
+            const unitsWithTopicsSelected = new Set(
+                allQuestions.filter((q: any) => topic_ids.includes(q.topic_id)).map((q: any) => q.unit_id)
+            );
+
+            allQuestions = allQuestions.filter((q: any) => {
+                if (unitsWithTopicsSelected.has(q.unit_id)) {
+                    return topic_ids.includes(q.topic_id);
+                }
+                return true;
+            });
+        }
         const coRes = await db.query('SELECT id, code FROM assessment_course_outcomes WHERE subject_id = $1', [subject_id]);
 
         // Global state for entire paper (A, B, C, D)
