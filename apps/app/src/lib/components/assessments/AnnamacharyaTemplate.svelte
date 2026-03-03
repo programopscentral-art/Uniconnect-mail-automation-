@@ -326,6 +326,7 @@
       </div>
 
       <!-- Hall Ticket & AU24 Box Row -->
+      <!-- Hall Ticket & AU24 Box Row -->
       <div
         class="flex justify-between items-end mb-[10px] px-1 w-full relative"
       >
@@ -337,7 +338,7 @@
                 <td class="border border-black px-2 py-0 align-middle">
                   <span
                     class="text-[12pt] font-extrabold tracking-tight"
-                    style="font-family: 'Century Gothic', sans-serif;"
+                    style="font-family: 'Times New Roman', serif;"
                     >H.T. No:-</span
                   >
                 </td>
@@ -354,7 +355,7 @@
           class="border border-black px-[10px] py-[3px] flex items-center justify-center min-w-[75px] shadow-[1px_1px_1px_rgba(0,0,0,0.4)]"
         >
           <span
-            class="font-bold text-[14pt]"
+            class="font-extrabold text-[14.5pt]"
             style="font-family: 'Times New Roman', serif;">AU24</span
           >
         </div>
@@ -366,18 +367,18 @@
 
       <!-- Metadata Row -->
       <div
-        class="text-[13.5pt] font-bold px-0 mb-2 w-full text-left"
+        class="flex items-end text-[13.5pt] font-bold px-0 mb-2 w-full text-left"
         style="font-family: 'Times New Roman', serif; letter-spacing: -0.2px;"
       >
-        <span class="underline decoration-[1.5px] underline-offset-4"
+        <span class=""
           >Date:-<AssessmentEditable
             value={paperMeta.paper_date || "28-08-2025"}
             onUpdate={(v: string) => updateText(v, "META", "paper_date")}
-            class="inline-block ml-0"
+            class="inline-block ml-[2px]"
           /></span
         >
-        <span class="ml-[4px] mr-1">Duration:</span>
-        <span class="underline decoration-[1.5px] underline-offset-4 mr-1"
+        <span class="ml-[10px] mr-[2px]">Duration:</span>
+        <span class="mr-[10px]"
           ><AssessmentEditable
             value={paperMeta.duration_text || "2Hrs."}
             onUpdate={(v: string) => updateText(v, "META", "duration_text")}
