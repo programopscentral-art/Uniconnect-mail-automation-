@@ -95,8 +95,13 @@
       }
 
       if (q) {
-        q.text = val;
-        q.question_text = val;
+        if (key === "text") {
+          q.text = val;
+          q.question_text = val;
+        } else {
+          q[key] = val;
+        }
+
         if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
         else currentSetData.questions = [...currentSetData.questions];
 
@@ -288,7 +293,11 @@
           class="text-[23.5pt] font-black uppercase tracking-tight mb-2 leading-none w-full"
           style="font-family: 'Arial Black', Arial, sans-serif;"
         >
-          ANNAMACHARYA UNIVERSITY
+          <AssessmentEditable
+            value={paperMeta.university_name || "ANNAMACHARYA UNIVERSITY"}
+            onUpdate={(v: string) => updateText(v, "META", "university_name")}
+            class="inline-block"
+          />
         </div>
 
         <!-- Info Line -->
@@ -296,23 +305,30 @@
           class="text-[12.5pt] text-center w-full tracking-[-0.2px] leading-tight mt-1 mb-1"
           style="font-family: 'Century Gothic', Calibri, sans-serif;"
         >
-          II <AssessmentEditable
+          <AssessmentEditable
+            value={paperMeta.year_prefix || "II"}
+            onUpdate={(v: string) => updateText(v, "META", "year_prefix")}
+            class="inline-block mr-1"
+          /><AssessmentEditable
             value={paperMeta.programme || "B.Tech"}
             onUpdate={(v: string) => updateText(v, "META", "programme")}
             class="inline-block"
-          /><AssessmentEditable
+          />
+          <AssessmentEditable
             value={paperMeta.semester || "I"}
             onUpdate={(v: string) => updateText(v, "META", "semester")}
-            class="inline-block"
-          /> Semester<span
-            class="font-extrabold underline decoration-[1.5px] mx-0"
+            class="inline-block mr-1"
+          />Semester
+          <span
+            class="font-extrabold underline decoration-[1.5px] mx-1"
             style="text-underline-offset:2px;"
             ><AssessmentEditable
               value={paperMeta.branch || "CSE & Allied Branches"}
               onUpdate={(v: string) => updateText(v, "META", "branch")}
               class="inline-block"
             /></span
-          ><AssessmentEditable
+          >
+          <AssessmentEditable
             value={paperMeta.exam_instance || "1st Mid Examination"}
             onUpdate={(v: string) => updateText(v, "META", "exam_instance")}
             class="inline-block"
@@ -367,7 +383,12 @@
         >
           <span
             class="font-extrabold text-[14pt]"
-            style="font-family: 'Times New Roman', serif;">AU24</span
+            style="font-family: 'Times New Roman', serif;"
+            ><AssessmentEditable
+              value={paperMeta.au24 || "AU24"}
+              onUpdate={(v: string) => updateText(v, "META", "au24")}
+              class="inline-block"
+            /></span
           >
         </div>
       </div>
@@ -733,7 +754,12 @@
                     </td>
                     <td
                       class="border-r border-black p-1 text-center font-bold px-2 pt-2"
-                      >{q.marks || ""}</td
+                      ><AssessmentEditable
+                        value={q.marks || ""}
+                        onUpdate={(v: string) =>
+                          updateText(v, "QUESTION", "marks", slot.id, q.id)}
+                        class="inline-block text-center w-8"
+                      /></td
                     >
                     <td
                       class="border-r border-black p-1 text-center font-bold px-2 pt-2"
@@ -820,7 +846,12 @@
                     </td>
                     <td
                       class="border-r border-black p-1 text-center font-bold px-2 pt-2"
-                      >{q.marks || ""}</td
+                      ><AssessmentEditable
+                        value={q.marks || ""}
+                        onUpdate={(v: string) =>
+                          updateText(v, "QUESTION", "marks", slot.id, q.id)}
+                        class="inline-block text-center w-8"
+                      /></td
                     >
                     <td
                       class="border-r border-black p-1 text-center font-bold px-2 pt-2"
@@ -896,7 +927,18 @@
                   </td>
                   <td
                     class="border-r border-black p-1 text-center font-bold px-2 pt-2"
-                    >{slot.marks || ""}</td
+                    ><AssessmentEditable
+                      value={slot.marks || ""}
+                      onUpdate={(v: string) =>
+                        updateText(
+                          v,
+                          "QUESTION",
+                          "marks",
+                          slot.id,
+                          slot.questions?.[0]?.id || slot.id,
+                        )}
+                      class="inline-block text-center w-8"
+                    /></td
                   >
                   <td
                     class="border-r border-black p-1 text-center font-bold px-2 pt-2"
@@ -921,7 +963,8 @@
       currentMark={swapContext?.currentMark}
       currentQuestionId={swapContext?.currentId}
       onSelect={selectAlternate}
-     currentSetData={currentSetData} />
+      {currentSetData}
+    />
   {/if}
 </div>
 
