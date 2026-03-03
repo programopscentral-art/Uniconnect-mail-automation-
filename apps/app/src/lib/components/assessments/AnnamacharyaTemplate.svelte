@@ -274,14 +274,17 @@
       style="width: 8.27in; min-height: 11.69in;"
     >
       <!-- Header Section -->
-      <div class="text-center mb-4">
+      <div class="text-center mb-6 pt-4">
         <h1
-          class="text-[17pt] font-black uppercase tracking-tight font-serif mb-1 text-black"
+          class="text-[24pt] font-black uppercase tracking-tight text-black mb-1 leading-none"
+          style="font-family: 'Arial black', sans-serif;"
         >
           ANNAMACHARYA UNIVERSITY
         </h1>
-        <div class="text-[10pt] mt-1">
-          <div class="flex items-center justify-center gap-1 leading-tight">
+        <div class="text-[12pt] mt-2 mb-1">
+          <div
+            class="flex items-center justify-center gap-1.5 leading-tight font-serif whitespace-nowrap"
+          >
             <span class="font-bold">II</span>
             <span class="font-bold">
               <AssessmentEditable
@@ -296,7 +299,9 @@
               class="inline-block"
             />
             <span>Semester</span>
-            <div class="font-bold border-b-2 border-black inline-flex">
+            <div
+              class="font-bold border-b-2 border-black inline-flex px-1 min-w-[50px]"
+            >
               <AssessmentEditable
                 value={paperMeta.branch || "CSE & Allied Branches"}
                 onUpdate={(v: string) => updateText(v, "META", "branch")}
@@ -310,7 +315,7 @@
             />
           </div>
           <div
-            class="font-bold text-[10.5pt] mt-1 flex items-center justify-center gap-1"
+            class="font-bold text-[13pt] mt-2 flex items-center justify-center gap-1"
           >
             <AssessmentEditable
               value={paperMeta.course_code || "24ACSE33T"}
@@ -329,58 +334,39 @@
       </div>
 
       <!-- Hall Ticket & AU24 Box -->
-      <div class="flex justify-between items-end mb-3 px-1 no-print">
+      <div class="flex justify-between items-center mb-6 px-1">
         <div class="flex items-center gap-1">
           <div class="border border-black flex items-center p-0.5">
-            <span class="text-[9pt] font-bold px-2 whitespace-nowrap"
+            <span class="text-[10pt] font-bold px-2 whitespace-nowrap"
               >H.T. No:-</span
             >
             <div class="flex border-l border-black">
               {#each Array(10) as _}
                 <div
-                  class="w-6 h-7 border-r border-black last:border-r-0"
+                  class="w-8 h-9 border-r border-black last:border-r-0"
                 ></div>
               {/each}
             </div>
           </div>
         </div>
         <div
-          class="border-2 border-black px-4 py-1 font-bold text-[11pt] tracking-tight"
+          class="border-2 border-black px-6 py-2 font-black text-[15pt] tracking-tight flex items-center justify-center min-w-[110px]"
         >
           AU24
         </div>
       </div>
 
-      <!-- Print version of Hall Ticket (Stable) -->
-      <div class="hidden print:flex justify-between items-end mb-4 px-1">
-        <div class="flex items-center gap-0">
-          <div class="border border-black flex items-center">
-            <span class="text-[9.5pt] font-bold px-3 py-1 whitespace-nowrap"
-              >H.T. No:-</span
-            >
-            <div class="flex border-l border-black">
-              {#each Array(10) as _}
-                <div
-                  class="w-7 h-8 border-r border-black last:border-r-0"
-                ></div>
-              {/each}
-            </div>
-          </div>
-        </div>
-        <div
-          class="border-2 border-black px-5 py-1.5 font-bold text-[12pt] tracking-tight"
-        >
-          AU24
-        </div>
-      </div>
-
-      <div class="border-t border-black w-full mb-3"></div>
+      <div class="border-t border-dotted border-black w-full mb-6"></div>
 
       <!-- Metadata Row -->
-      <div class="flex justify-between text-[10pt] font-bold px-2 mb-3">
+      <div
+        class="flex justify-between text-[13pt] font-black px-1 mb-3 font-serif"
+      >
         <div class="flex items-center">
           <span>Date:-</span>
-          <span class="border-b border-black ml-0.5 decoration-2">
+          <span
+            class="border-b-2 border-black ml-0.5 min-w-[140px] text-center"
+          >
             <AssessmentEditable
               value={paperMeta.paper_date || "28-08-2025"}
               onUpdate={(v: string) => updateText(v, "META", "paper_date")}
@@ -389,7 +375,7 @@
         </div>
         <div class="flex items-center">
           <span>Duration:</span>
-          <span class="border-b border-black ml-1 decoration-2">
+          <span class="border-b-2 border-black ml-1 min-w-[90px] text-center">
             <AssessmentEditable
               value={paperMeta.duration_text || "2Hrs."}
               onUpdate={(v: string) => updateText(v, "META", "duration_text")}
@@ -398,7 +384,7 @@
         </div>
         <div class="flex items-center">
           <span>Max.Marks:</span>
-          <span class="border-b border-black ml-1 decoration-2">
+          <span class="border-b-2 border-black ml-1 min-w-[60px] text-center">
             <AssessmentEditable
               value={paperMeta.max_marks || "30"}
               onUpdate={(v: string) => updateText(v, "META", "max_marks")}
@@ -407,10 +393,10 @@
         </div>
       </div>
 
-      <div class="border-t border-black w-full mb-3"></div>
+      <div class="border-t border-dotted border-black w-full mb-4"></div>
 
       <!-- Notes Section -->
-      <div class="text-[9pt] mb-4 px-2 tracking-tight leading-snug">
+      <div class="text-[10pt] mb-6 px-2 tracking-tight leading-snug font-serif">
         <p>
           <span class="font-bold">Note: 1.</span> Question Paper consists of two
           parts (<span class="font-bold">Part-A</span> and
