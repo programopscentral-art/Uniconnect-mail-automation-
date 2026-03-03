@@ -226,23 +226,31 @@
     allQuestionsInSet.filter((q: any) => q && q.part === "B"),
   );
 
+  const totalQuestionsA = $derived(
+    questionsA.reduce(
+      (sum: number, slot: any) =>
+        sum + (slot.questions?.length > 0 ? slot.questions.length : 1),
+      0,
+    ),
+  );
+
+  const slotStartIdxA = $derived.by(() => {
+    let current = 0;
+    return questionsA.map((slot: any) => {
+      const start = current;
+      current += slot.questions?.length > 0 ? slot.questions.length : 1;
+      return start;
+    });
+  });
+
   const displayNumbersA = $derived.by(() => {
-    let current = 1;
-    return questionsA.map((q: any) => {
-      const numInfo = { start: current, end: current };
-      if (q.type === "OR_GROUP") {
-        numInfo.end = current + 1;
-        current += 2;
-      } else {
-        current += 1;
-      }
-      return numInfo;
+    return questionsA.map(() => {
+      return { start: 1, end: 1 };
     });
   });
 
   const displayNumbersB = $derived.by(() => {
-    const lastA = displayNumbersA[displayNumbersA.length - 1];
-    let current = lastA ? lastA.end + 1 : 1;
+    let current = 2;
     return questionsB.map((q: any) => {
       const numInfo = { start: current, end: current };
       if (q.type === "OR_GROUP") {
@@ -466,26 +474,30 @@
             onfinalize={(e) => handleDndSync("A", (e.detail as any).items)}
           >
             {#each questionsA as slot, idx (slot.id + activeSet)}
-              {@const qNum = displayNumbersA[idx]}
+              {@const startIdx = slotStartIdxA[idx]}
               {#if slot.questions && slot.questions.length > 0}
                 {#each slot.questions as q, qidx}
+                  {@const globalIdx = startIdx + qidx}
                   <tr
                     class="group relative border-b border-black last:border-b-0"
                   >
-                    {#if qidx === 0}
+                    {#if globalIdx === 0}
                       <td
-                        rowspan={slot.questions.length}
-                        class="border-r border-black p-1 w-[35px] font-bold text-center align-top pt-2"
+                        rowspan={totalQuestionsA}
+                        class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
+                        style="font-family: 'Times New Roman', serif;"
                       >
-                        {qNum.start}
+                        1
                       </td>
                     {/if}
                     <td
                       class="border-r border-black p-1 px-2 align-top relative"
                     >
-                      <div class="flex gap-2 min-h-[1.2in]">
-                        <span class="font-bold min-w-[20px]"
-                          >{alphabet[qidx]})</span
+                      <div class="flex gap-[4px] min-h-[0.4in] pt-[2px]">
+                        <span
+                          class="font-[500] text-[15.5pt] min-w-[25px]"
+                          style="font-family: 'Times New Roman', serif;"
+                          >{alphabet[globalIdx]})</span
                         >
                         <div class="flex-1 relative">
                           <!-- Controls (Hidden on Print) -->
@@ -535,16 +547,26 @@
                   </tr>
                 {/each}
               {:else}
+                {@const globalIdx = startIdx}
                 <tr
                   class="group relative border-b border-black last:border-b-0"
                 >
-                  <td
-                    class="border-r border-black p-1 w-[35px] font-bold text-center align-top pt-2"
-                  >
-                    {qNum.start}
-                  </td>
+                  {#if globalIdx === 0}
+                    <td
+                      rowspan={totalQuestionsA}
+                      class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
+                      style="font-family: 'Times New Roman', serif;"
+                    >
+                      1
+                    </td>
+                  {/if}
                   <td class="border-r border-black p-1 px-2 align-top relative">
-                    <div class="flex gap-2 min-h-[0.5in]">
+                    <div class="flex gap-[4px] min-h-[0.4in] pt-[2px]">
+                      <span
+                        class="font-[500] text-[15.5pt] min-w-[25px]"
+                        style="font-family: 'Times New Roman', serif;"
+                        >{alphabet[globalIdx]})</span
+                      >
                       <div class="flex-1 relative">
                         <div
                           class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
