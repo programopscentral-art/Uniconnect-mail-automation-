@@ -13,6 +13,7 @@
   import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
   import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
   import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
+  import AnnamacharyaTemplate from "$lib/components/assessments/AnnamacharyaTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -74,6 +75,9 @@
     if (metaTemplate === "amet" || uniName.includes("amet")) {
       return "amet";
     }
+    if (metaTemplate === "annamacharya" || uniName.includes("annamacharya")) {
+      return "annamacharya";
+    }
 
     return metaTemplate || "standard";
   });
@@ -95,7 +99,9 @@
                   ? "S-VYASA University"
                   : selectedTemplate === "amet"
                     ? "Academy of Maritime Education and Training (AMET)"
-                    : "University Standard",
+                    : selectedTemplate === "annamacharya"
+                      ? "Annamacharya University"
+                      : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -1430,6 +1436,17 @@
           />
         {:else if selectedTemplate === "amet"}
           <AMETTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "annamacharya"}
+          <AnnamacharyaTemplate
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
             bind:paperStructure={paperMeta.template_config}
