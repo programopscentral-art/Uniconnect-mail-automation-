@@ -686,12 +686,14 @@
                       colspan="2"
                       class="border-r border-black p-1 px-2 align-top relative"
                     >
-                      <div class="flex gap-2 min-h-[0.8in]">
-                        <span class="font-bold min-w-[20px]"
-                          >{slot.choice1.questions.length > 1
-                            ? alphabet[qidx]
-                            : "a"}</span
-                        >
+                      <div class="flex gap-[4px] min-h-[0.8in] pt-[2px]">
+                        {#if slot.choice1.questions.length > 1}
+                          <span
+                            class="font-[500] text-[15.5pt] min-w-[25px]"
+                            style="font-family: 'Times New Roman', serif;"
+                            >{alphabet[qidx]}</span
+                          >
+                        {/if}
                         <div class="flex-1 relative">
                           <div
                             class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
@@ -772,13 +774,13 @@
                       class="border-r border-black p-1 px-2 align-top relative"
                     >
                       <div class="flex gap-[4px] min-h-[0.8in] pt-[2px]">
-                        <span
-                          class="font-[500] text-[15.5pt] min-w-[25px]"
-                          style="font-family: 'Times New Roman', serif;"
-                          >{slot.choice2.questions.length > 1
-                            ? alphabet[qidx]
-                            : "a"}</span
-                        >
+                        {#if slot.choice2.questions.length > 1}
+                          <span
+                            class="font-[500] text-[15.5pt] min-w-[25px]"
+                            style="font-family: 'Times New Roman', serif;"
+                            >{alphabet[qidx]}</span
+                          >
+                        {/if}
                         <div class="flex-1 relative">
                           <div
                             class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
@@ -844,10 +846,12 @@
                     class="border-r border-black p-1 px-2 align-top relative"
                   >
                     <div class="flex gap-[4px] min-h-[1in] pt-[2px]">
-                      <span
-                        class="font-[500] text-[15.5pt] min-w-[25px]"
-                        style="font-family: 'Times New Roman', serif;">a</span
-                      >
+                      {#if slot.questions && slot.questions.length > 1}
+                        <span
+                          class="font-[500] text-[15.5pt] min-w-[25px]"
+                          style="font-family: 'Times New Roman', serif;">a</span
+                        >
+                      {/if}
                       <div class="flex-1 relative">
                         <div
                           class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
