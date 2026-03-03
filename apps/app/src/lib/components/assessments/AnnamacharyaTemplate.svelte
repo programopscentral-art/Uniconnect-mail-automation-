@@ -276,46 +276,55 @@
       <!-- Header Section -->
       <div class="text-center mb-4">
         <h1
-          class="text-[17pt] font-black uppercase tracking-tight font-serif mb-1"
+          class="text-[17pt] font-black uppercase tracking-tight font-serif mb-1 text-black"
         >
           ANNAMACHARYA UNIVERSITY
         </h1>
-        <div class="text-[10pt] mt-1 space-y-0.5">
-          <p class="leading-tight">
+        <div class="text-[10pt] mt-1">
+          <div class="flex items-center justify-center gap-1 leading-tight">
             <span class="font-bold">II</span>
             <span class="font-bold">
               <AssessmentEditable
                 value={paperMeta.programme || "B.Tech"}
                 onUpdate={(v: string) => updateText(v, "META", "programme")}
+                class="inline-block"
               />
             </span>
             <AssessmentEditable
               value={paperMeta.semester || "I"}
               onUpdate={(v: string) => updateText(v, "META", "semester")}
+              class="inline-block"
             />
-            Semester
-            <span class="font-bold border-b border-black inline-block">
+            <span>Semester</span>
+            <div class="font-bold border-b-2 border-black inline-flex">
               <AssessmentEditable
                 value={paperMeta.branch || "CSE & Allied Branches"}
                 onUpdate={(v: string) => updateText(v, "META", "branch")}
+                class="inline-block"
               />
-            </span>
+            </div>
             <AssessmentEditable
               value={paperMeta.exam_instance || "1st Mid Examination"}
               onUpdate={(v: string) => updateText(v, "META", "exam_instance")}
+              class="inline-block"
             />
-          </p>
-          <p class="font-bold text-[10.5pt] mt-1">
+          </div>
+          <div
+            class="font-bold text-[10.5pt] mt-1 flex items-center justify-center gap-1"
+          >
             <AssessmentEditable
               value={paperMeta.course_code || "24ACSE33T"}
               onUpdate={(v: string) => updateText(v, "META", "course_code")}
-            />--
+              class="inline-block"
+            />
+            <span>--</span>
             <AssessmentEditable
               value={paperMeta.subject_name ||
                 "Digital Logic Design& Computer Organization"}
               onUpdate={(v: string) => updateText(v, "META", "subject_name")}
+              class="inline-block"
             />
-          </p>
+          </div>
         </div>
       </div>
 
