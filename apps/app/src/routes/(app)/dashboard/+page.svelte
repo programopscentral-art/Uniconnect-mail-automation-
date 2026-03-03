@@ -634,30 +634,6 @@
           </div>
         {/if}
       </div>
-    {:else}
-      <div
-        class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] p-4 flex items-center justify-between gap-4 shadow-sm"
-      >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-8 h-8 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 rounded-xl flex items-center justify-center text-xs"
-          >
-            ✅
-          </div>
-          <div
-            class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest"
-          >
-            Notifications are active
-          </div>
-        </div>
-        <button
-          onclick={testNotification}
-          disabled={isTestingNotification}
-          class="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-400 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
-        >
-          {isTestingNotification ? "Sending..." : "Send Test Ping"}
-        </button>
-      </div>
     {/if}
 
     <!-- Task Stats -->

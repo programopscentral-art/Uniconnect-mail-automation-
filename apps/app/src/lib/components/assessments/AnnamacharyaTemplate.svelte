@@ -921,7 +921,7 @@
       currentMark={swapContext?.currentMark}
       currentQuestionId={swapContext?.currentId}
       onSelect={selectAlternate}
-    />
+     currentSetData={currentSetData} />
   {/if}
 </div>
 

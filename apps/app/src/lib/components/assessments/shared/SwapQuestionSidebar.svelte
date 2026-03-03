@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { slide, fade } from "svelte/transition";
+  import { slide, fade, fly } from "svelte/transition";
 
   let {
     isOpen = $bindable(false),
@@ -8,6 +8,7 @@
     questionPool = [],
     currentMark = 0,
     currentQuestionId = null,
+    currentSetData = null,
   } = $props();
 
   let searchQuery = $state("");
@@ -25,8 +26,37 @@
     ).sort(),
   );
 
+  const usedQuestionIds = $derived.by(() => {
+    if (!currentSetData) return [];
+    const ids = new Set<string>();
+    const extract = (obj: any) => {
+      if (!obj) return;
+      if (Array.isArray(obj)) {
+        obj.forEach(extract);
+      } else if (typeof obj === "object") {
+        if (obj.question_id) ids.add(obj.question_id);
+        if (
+          obj.id &&
+          (obj.type === "MCQ" ||
+            obj.type === "LONG" ||
+            obj.type === "SHORT" ||
+            obj.type === "NORMAL" ||
+            obj.topic_id ||
+            obj.question_text)
+        ) {
+          ids.add(obj.id);
+        }
+        Object.values(obj).forEach((val) => extract(val));
+      }
+    };
+    extract(currentSetData);
+    return Array.from(ids);
+  });
+
   const filteredQuestions = $derived.by(() => {
-    let list = (questionPool || []).filter((q) => q.id !== currentQuestionId);
+    let list = (questionPool || []).filter(
+      (q) => q.id !== currentQuestionId && !usedQuestionIds.includes(q.id),
+    );
 
     // Initial Filter: Match Marks (unless showAllMarks is true)
     if (!showAllMarks) {
@@ -67,8 +97,8 @@
   ></div>
 
   <div
-    transition:slide={{ axis: "x" }}
-    class="fixed right-0 inset-y-0 w-[450px] bg-white dark:bg-slate-950 border-l border-gray-200 dark:border-slate-800 shadow-2xl no-print z-[210] flex flex-col overflow-hidden"
+    transition:fly={{ x: 360, duration: 250 }}
+    class="fixed right-0 inset-y-0 w-[360px] bg-white dark:bg-slate-950 border-l border-gray-200 dark:border-slate-800 shadow-2xl no-print z-[210] flex flex-col overflow-hidden"
   >
     <!-- Header -->
     <div
