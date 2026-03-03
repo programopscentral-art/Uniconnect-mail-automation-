@@ -276,12 +276,12 @@
       <!-- Header Section -->
       <div class="text-center mb-1 pt-3 w-full text-black">
         <!-- University Name -->
-        <h1
+        <div
           class="text-[23.5pt] font-black uppercase tracking-tight mb-2 leading-none w-full"
           style="font-family: 'Arial Black', Arial, sans-serif;"
         >
           ANNAMACHARYA UNIVERSITY
-        </h1>
+        </div>
 
         <!-- Info Line -->
         <div
@@ -289,8 +289,13 @@
           style="font-family: 'Century Gothic', Calibri, sans-serif;"
         >
           II <AssessmentEditable
-            value={paperMeta.programme || "B.Techl"}
+            value={paperMeta.programme || "B.Tech"}
             onUpdate={(v: string) => updateText(v, "META", "programme")}
+            class="inline-block"
+          />
+          <AssessmentEditable
+            value={paperMeta.semester || "I"}
+            onUpdate={(v: string) => updateText(v, "META", "semester")}
             class="inline-block"
           /> Semester<span
             class="font-extrabold underline decoration-[1.5px] mx-0"
@@ -326,7 +331,6 @@
       </div>
 
       <!-- Hall Ticket & AU24 Box Row -->
-      <!-- Hall Ticket & AU24 Box Row -->
       <div
         class="flex justify-between items-end mb-[10px] px-1 w-full relative"
       >
@@ -335,10 +339,10 @@
           <table class="border-collapse">
             <tbody>
               <tr>
-                <td class="border border-black px-2 py-0 align-middle">
+                <td class="border border-black px-[6px] py-[1px] align-middle">
                   <span
                     class="text-[12pt] font-extrabold tracking-tight"
-                    style="font-family: 'Times New Roman', serif;"
+                    style="font-family: 'Century Gothic', sans-serif;"
                     >H.T. No:-</span
                   >
                 </td>
@@ -355,7 +359,7 @@
           class="border border-black px-[10px] py-[3px] flex items-center justify-center min-w-[75px] shadow-[1px_1px_1px_rgba(0,0,0,0.4)]"
         >
           <span
-            class="font-extrabold text-[14.5pt]"
+            class="font-extrabold text-[14pt]"
             style="font-family: 'Times New Roman', serif;">AU24</span
           >
         </div>
@@ -378,16 +382,16 @@
           /></span
         >
         <span class="ml-[10px] mr-[2px]">Duration:</span>
-        <span class="mr-[10px]"
+        <span class=""
           ><AssessmentEditable
             value={paperMeta.duration_text || "2Hrs."}
             onUpdate={(v: string) => updateText(v, "META", "duration_text")}
             class="inline-block"
           /></span
-        ><AssessmentEditable
-          value={paperMeta.max_marks || "Max.Marks:30"}
+        ><span class="ml-[10px]">Max.Marks:</span><AssessmentEditable
+          value={paperMeta.max_marks || "30"}
           onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-          class="inline-block"
+          class="inline-block ml-[2px]"
         />
       </div>
 
@@ -407,12 +411,12 @@
             >one mark</span
           >.
         </p>
-        <p class="pl-0">
+        <p class="pl-[12px]">
           3. <span class="font-bold">30 marks</span> in
           <span class="font-bold">Part-B</span>
           will be condensed to <span class="font-bold">25 marks</span>.
         </p>
-        <p class="pl-0">
+        <p class="pl-[12px]">
           4. Answer <span class="font-bold uppercase">all</span> the questions
           in <span class="font-bold">Part-A</span>and
           <span class="font-bold">Part-B</span>
