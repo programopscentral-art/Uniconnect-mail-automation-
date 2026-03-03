@@ -274,14 +274,14 @@
       style="width: 8.27in; min-height: 11.69in;"
     >
       <!-- Header Section -->
-      <div class="text-center mb-6 pt-4">
-        <h1
-          class="text-[24pt] font-black uppercase tracking-tight text-black mb-1 leading-none"
-          style="font-family: 'Arial black', sans-serif;"
+      <div class="text-center mb-6 pt-4 w-full">
+        <div
+          class="text-[26pt] font-extrabold uppercase tracking-tight text-black mb-1 leading-none w-full"
+          style="font-family: serif;"
         >
           ANNAMACHARYA UNIVERSITY
-        </h1>
-        <div class="text-[12pt] mt-2 mb-1">
+        </div>
+        <div class="text-[11.5pt] mt-3 mb-1 w-full">
           <div
             class="flex items-center justify-center gap-1.5 leading-tight font-serif whitespace-nowrap"
           >
@@ -300,7 +300,7 @@
             />
             <span>Semester</span>
             <div
-              class="font-bold border-b-2 border-black inline-flex px-1 min-w-[50px]"
+              class="font-bold border-b-2 border-black inline-flex px-1 min-w-[50px] decoration-2"
             >
               <AssessmentEditable
                 value={paperMeta.branch || "CSE & Allied Branches"}
@@ -315,7 +315,7 @@
             />
           </div>
           <div
-            class="font-bold text-[13pt] mt-2 flex items-center justify-center gap-1"
+            class="font-extrabold text-[12.5pt] mt-2 flex items-center justify-center gap-1 w-full"
           >
             <AssessmentEditable
               value={paperMeta.course_code || "24ACSE33T"}
