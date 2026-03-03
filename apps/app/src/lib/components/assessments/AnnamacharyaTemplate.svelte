@@ -275,33 +275,44 @@
     >
       <!-- Header Section -->
       <div class="text-center mb-4">
-        <h1 class="text-[14pt] font-black uppercase tracking-tight">
+        <h1
+          class="text-[17pt] font-black uppercase tracking-tight font-serif mb-1"
+        >
           ANNAMACHARYA UNIVERSITY
         </h1>
-        <div class="text-[9.5pt] mt-1 space-y-0.5 font-medium">
-          <p>
-            II <AssessmentEditable
-              value={paperMeta.programme || "B.Tech"}
-              onUpdate={(v: string) => updateText(v, "META", "programme")}
-            />
-            Semester <AssessmentEditable
+        <div class="text-[10pt] mt-1 space-y-0.5">
+          <p class="leading-tight">
+            <span class="font-bold">II</span>
+            <span class="font-bold">
+              <AssessmentEditable
+                value={paperMeta.programme || "B.Tech"}
+                onUpdate={(v: string) => updateText(v, "META", "programme")}
+              />
+            </span>
+            <AssessmentEditable
               value={paperMeta.semester || "I"}
               onUpdate={(v: string) => updateText(v, "META", "semester")}
             />
+            Semester
+            <span class="font-bold border-b border-black inline-block">
+              <AssessmentEditable
+                value={paperMeta.branch || "CSE & Allied Branches"}
+                onUpdate={(v: string) => updateText(v, "META", "branch")}
+              />
+            </span>
             <AssessmentEditable
-              value={paperMeta.branch || "CSE & Allied Branches"}
-              onUpdate={(v: string) => updateText(v, "META", "branch")}
+              value={paperMeta.exam_instance || "1st Mid Examination"}
+              onUpdate={(v: string) => updateText(v, "META", "exam_instance")}
             />
-            1<sup>st</sup> Mid Examination
           </p>
-          <p class="font-bold">
+          <p class="font-bold text-[10.5pt] mt-1">
             <AssessmentEditable
-              value={paperMeta.course_code || "24AC5E33T"}
+              value={paperMeta.course_code || "24ACSE33T"}
               onUpdate={(v: string) => updateText(v, "META", "course_code")}
-            /> --
+            />--
             <AssessmentEditable
               value={paperMeta.subject_name ||
-                "Digital Logic Design & Computer Organization"}
+                "Digital Logic Design& Computer Organization"}
               onUpdate={(v: string) => updateText(v, "META", "subject_name")}
             />
           </p>
@@ -309,67 +320,107 @@
       </div>
 
       <!-- Hall Ticket & AU24 Box -->
-      <div class="flex justify-between items-end mb-3 px-1">
-        <div class="flex items-center gap-1 border border-black p-0.5">
-          <span class="text-[8pt] font-bold px-1 whitespace-nowrap"
-            >H.T. No:-</span
-          >
-          <div class="flex border-l border-black">
-            {#each Array(10) as _}
-              <div class="w-5 h-5 border-r border-black last:border-r-0"></div>
-            {/each}
+      <div class="flex justify-between items-end mb-3 px-1 no-print">
+        <div class="flex items-center gap-1">
+          <div class="border border-black flex items-center p-0.5">
+            <span class="text-[9pt] font-bold px-2 whitespace-nowrap"
+              >H.T. No:-</span
+            >
+            <div class="flex border-l border-black">
+              {#each Array(10) as _}
+                <div
+                  class="w-6 h-7 border-r border-black last:border-r-0"
+                ></div>
+              {/each}
+            </div>
           </div>
         </div>
-        <div class="border border-black px-3 py-1 font-bold text-[10pt]">
+        <div
+          class="border-2 border-black px-4 py-1 font-bold text-[11pt] tracking-tight"
+        >
           AU24
         </div>
       </div>
 
-      <div class="border-t border-black w-full mb-2"></div>
+      <!-- Print version of Hall Ticket (Stable) -->
+      <div class="hidden print:flex justify-between items-end mb-4 px-1">
+        <div class="flex items-center gap-0">
+          <div class="border border-black flex items-center">
+            <span class="text-[9.5pt] font-bold px-3 py-1 whitespace-nowrap"
+              >H.T. No:-</span
+            >
+            <div class="flex border-l border-black">
+              {#each Array(10) as _}
+                <div
+                  class="w-7 h-8 border-r border-black last:border-r-0"
+                ></div>
+              {/each}
+            </div>
+          </div>
+        </div>
+        <div
+          class="border-2 border-black px-5 py-1.5 font-bold text-[12pt] tracking-tight"
+        >
+          AU24
+        </div>
+      </div>
+
+      <div class="border-t border-black w-full mb-3"></div>
 
       <!-- Metadata Row -->
-      <div class="flex justify-between text-[9pt] font-bold px-4 mb-2">
-        <div class="flex">
+      <div class="flex justify-between text-[10pt] font-bold px-2 mb-3">
+        <div class="flex items-center">
           <span>Date:-</span>
-          <AssessmentEditable
-            value={paperMeta.paper_date || "28-08-2025"}
-            onUpdate={(v: string) => updateText(v, "META", "paper_date")}
-            class="ml-1"
-          />
+          <span class="border-b border-black ml-0.5 decoration-2">
+            <AssessmentEditable
+              value={paperMeta.paper_date || "28-08-2025"}
+              onUpdate={(v: string) => updateText(v, "META", "paper_date")}
+            />
+          </span>
         </div>
-        <div class="flex">
+        <div class="flex items-center">
           <span>Duration:</span>
-          <AssessmentEditable
-            value={paperMeta.duration_text || "2Hrs"}
-            onUpdate={(v: string) => updateText(v, "META", "duration_text")}
-            class="ml-1"
-          />
+          <span class="border-b border-black ml-1 decoration-2">
+            <AssessmentEditable
+              value={paperMeta.duration_text || "2Hrs."}
+              onUpdate={(v: string) => updateText(v, "META", "duration_text")}
+            />
+          </span>
         </div>
-        <div class="flex">
+        <div class="flex items-center">
           <span>Max.Marks:</span>
-          <AssessmentEditable
-            value={paperMeta.max_marks || "30"}
-            onUpdate={(v: string) => updateText(v, "META", "max_marks")}
-            class="ml-1"
-          />
+          <span class="border-b border-black ml-1 decoration-2">
+            <AssessmentEditable
+              value={paperMeta.max_marks || "30"}
+              onUpdate={(v: string) => updateText(v, "META", "max_marks")}
+            />
+          </span>
         </div>
       </div>
 
       <div class="border-t border-black w-full mb-3"></div>
 
       <!-- Notes Section -->
-      <div class="text-[8.5pt] mb-3 px-2 leading-tight">
+      <div class="text-[9pt] mb-4 px-2 tracking-tight leading-snug">
         <p>
-          Note: 1. Question Paper consists of two parts (<b>Part-A</b> and
-          <b>Part-B</b>)
-        </p>
-        <p class="pl-8">2. In Part-A, each question carries <b>one mark</b>.</p>
-        <p class="pl-8">
-          3. <b>30 marks</b> in <b>Part-B</b> will be condensed to
-          <b>25 marks</b>.
+          <span class="font-bold">Note: 1.</span> Question Paper consists of two
+          parts (<span class="font-bold">Part-A</span> and
+          <span class="font-bold">Part-B</span>)
         </p>
         <p class="pl-8">
-          4. Answer <b>ALL</b> the questions in <b>Part-A</b> and <b>Part-B</b>
+          2. In Part-A, each question carries <span class="font-bold"
+            >one mark</span
+          >.
+        </p>
+        <p class="pl-8">
+          3. <span class="font-bold">30 marks</span> in
+          <span class="font-bold">Part-B</span> will be condensed to
+          <span class="font-bold">25 marks</span>.
+        </p>
+        <p class="pl-8">
+          4. Answer <span class="font-bold">ALL</span> the questions in
+          <span class="font-bold">Part-A</span> and
+          <span class="font-bold">Part-B</span>
         </p>
       </div>
 
