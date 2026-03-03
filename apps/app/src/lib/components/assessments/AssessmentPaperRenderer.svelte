@@ -11,6 +11,7 @@
   import SVYASATemplate from "./SVYASATemplate.svelte";
   import CrescentMidTemplate from "./CrescentMidTemplate.svelte";
   import CDUTemplate from "./CDUTemplate.svelte";
+  import AnnamacharyaTemplate from "./AnnamacharyaTemplate.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
 
@@ -812,9 +813,20 @@
             {mode}
             {onSwap}
           />
+        {:else if layout.style === "annamacharya"}
+          <AnnamacharyaTemplate
+            bind:paperMeta
+            bind:currentSetData
+            bind:paperStructure
+            {activeSet}
+            {courseOutcomes}
+            {questionPool}
+            {mode}
+            {onSwap}
+          />
         {/if}
 
-        {#if !["cdu", "crescent-mid", "adypu", "svyasa"].includes(layout.style)}
+        {#if !["cdu", "crescent-mid", "adypu", "svyasa", "annamacharya"].includes(layout.style)}
           {#if layoutSchema?.showMetadataTable}
             {#key activeSet + swapCounter}
               <table
