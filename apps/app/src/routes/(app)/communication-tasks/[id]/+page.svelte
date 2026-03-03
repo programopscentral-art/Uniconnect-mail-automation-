@@ -216,10 +216,10 @@
         {/if}
 
         <div
-          class="p-8 bg-gray-50 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800/50 relative group"
+          class="p-8 bg-gray-50 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800/50 relative group overflow-hidden"
         >
           <p
-            class="text-gray-800 dark:text-gray-200 font-medium leading-relaxed whitespace-pre-wrap selection:bg-indigo-100 dark:selection:bg-indigo-900/40"
+            class="text-gray-800 dark:text-gray-200 font-medium leading-relaxed whitespace-pre-wrap break-words [word-break:break-word] selection:bg-indigo-100 dark:selection:bg-indigo-900/40"
           >
             {task.message_body}
           </p>
@@ -357,28 +357,32 @@
             <div class="space-y-3">
               {#each universityStatus as uni}
                 <div
-                  class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
+                  class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
                     ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-900/10'
-                    : 'border-gray-100 dark:border-slate-800'} transition-all"
+                    : 'border-gray-100 dark:border-slate-800'} transition-all overflow-hidden"
                 >
-                  <div class="flex items-center gap-3">
+                  <div class="flex items-center gap-3 min-w-0">
                     <span
-                      class="px-3 py-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 shadow-sm"
-                      >{uni.name}</span
+                      class="px-3 py-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 shadow-sm truncate max-w-full"
+                      title={uni.name}>{uni.name}</span
                     >
                   </div>
 
                   {#if uni.isCompleted}
-                    <div class="flex items-center gap-3">
-                      <div class="text-right flex flex-col items-end">
+                    <div
+                      class="flex items-center gap-3 min-w-0 lg:shrink-0 justify-between lg:justify-end"
+                    >
+                      <div
+                        class="text-left lg:text-right flex flex-col items-start lg:items-end min-w-0 flex-1"
+                      >
                         <span
-                          class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 max-w-[150px] truncate"
+                          class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 w-full truncate"
                           title={uni.completedBy}
                         >
                           {uni.isSystem ? "Admin" : uni.completedBy}
                         </span>
                         <span
-                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest"
+                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest shrink-0"
                         >
                           {new Date(uni.completedAt).toLocaleString([], {
                             month: "short",
