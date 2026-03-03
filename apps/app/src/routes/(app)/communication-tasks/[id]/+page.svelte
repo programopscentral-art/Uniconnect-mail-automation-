@@ -168,9 +168,9 @@
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
     <!-- Main Message Content -->
-    <div class="lg:col-span-2 space-y-6">
+    <div class="lg:col-span-7 space-y-6">
       <div
         class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-8 md:p-10 shadow-sm space-y-8 relative overflow-hidden"
       >
@@ -342,7 +342,7 @@
     </div>
 
     <!-- Sidebar Details -->
-    <div class="space-y-6">
+    <div class="lg:col-span-5 space-y-6">
       <div
         class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm space-y-8"
       >
@@ -359,32 +359,62 @@
             >
               {#each universityStatus as uni}
                 <div
-                  class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
+                  class="flex flex-col gap-3 p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border {uni.isCompleted
                     ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/50 dark:bg-emerald-900/10'
                     : 'border-gray-100 dark:border-slate-800'} transition-all overflow-hidden"
                 >
-                  <div class="flex items-center gap-3 min-w-0">
+                  <div class="flex items-start justify-between gap-3 min-w-0">
                     <span
-                      class="px-3 py-1 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 shadow-sm truncate max-w-full"
+                      class="px-3 py-1.5 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold border border-gray-100 dark:border-slate-700 shadow-sm shrink break-words line-clamp-2"
                       title={uni.name}>{uni.name}</span
                     >
+
+                    {#if uni.isCompleted}
+                      <div
+                        class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-sm"
+                      >
+                        <CheckCircle2 size={16} />
+                      </div>
+                    {:else}
+                      <div
+                        class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shrink-0"
+                      >
+                        <div
+                          class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"
+                        ></div>
+                        <span
+                          class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest"
+                          >Pending</span
+                        >
+                      </div>
+                    {/if}
                   </div>
 
                   {#if uni.isCompleted}
                     <div
-                      class="flex items-center gap-3 min-w-0 lg:shrink-0 justify-between lg:justify-end"
+                      class="flex items-center justify-between pt-3 mt-1 border-t border-emerald-100/50 dark:border-emerald-900/40"
                     >
-                      <div
-                        class="text-left lg:text-right flex flex-col items-start lg:items-end min-w-0 flex-1"
-                      >
+                      <div class="flex flex-col min-w-0 pr-3">
                         <span
-                          class="text-[10px] font-black text-emerald-600 dark:text-emerald-400 w-full truncate"
+                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5"
+                          >Completed By</span
+                        >
+                        <span
+                          class="text-xs font-black text-emerald-700 dark:text-emerald-400 break-words line-clamp-1"
                           title={uni.completedBy}
                         >
-                          {uni.isSystem ? "Admin" : uni.completedBy}
+                          {uni.isSystem ? "System Admin" : uni.completedBy}
                         </span>
+                      </div>
+                      <div
+                        class="text-right flex flex-col shrink-0 pl-3 border-l border-emerald-100/50 dark:border-emerald-900/40"
+                      >
                         <span
-                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest shrink-0"
+                          class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5"
+                          >Time</span
+                        >
+                        <span
+                          class="text-[10px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest"
                         >
                           {new Date(uni.completedAt).toLocaleString([], {
                             month: "short",
@@ -394,23 +424,6 @@
                           })}
                         </span>
                       </div>
-                      <div
-                        class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0"
-                      >
-                        <CheckCircle2 size={16} />
-                      </div>
-                    </div>
-                  {:else}
-                    <div
-                      class="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700"
-                    >
-                      <div
-                        class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"
-                      ></div>
-                      <span
-                        class="text-[9px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest"
-                        >Pending</span
-                      >
                     </div>
                   {/if}
                 </div>
