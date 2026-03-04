@@ -126,8 +126,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         const mockVariables = {
             STUDENT_NAME: sampleStudent?.name || sampleStudent?.full_name || '',
-            name: sampleStudent?.name || sampleStudent?.full_name || '',
-            email: sampleStudent?.email || '',
             ...sampleStudent,
             ...(sampleStudent?.metadata || {}),
         };
@@ -144,6 +142,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // Create raw email message (Standard RFC 2822)
         const utf8Subject = `=?utf-8?B?${Buffer.from(finalSubject).toString('base64')}?=`;
+
+        // Chunk base64 string to 76 chars per line to comply with RFC 2822 and prevent 'Precondition check failed'
+        const htmlBase64 = Buffer.from(finalHtml).toString('base64');
+        const chunkedHtml = htmlBase64.match(/.{1,76}/g)?.join('\r\n') || '';
+
         const rawMessage = [
             `MIME-Version: 1.0`,
             `To: ${testEmail}`,
@@ -152,7 +155,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             `Content-Type: text/html; charset=utf-8`,
             `Content-Transfer-Encoding: base64`,
             '',
-            Buffer.from(finalHtml).toString('base64')
+            chunkedHtml
         ].join('\r\n');
 
         const encodedMail = Buffer.from(rawMessage).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -170,6 +173,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         logMailboxDebug('CAUGHT ERROR', err);
 
         let message = err.message || 'Unknown error';
+        let details = '';
+        if (err.response && err.response.data) {
+            details = ' | Details: ' + JSON.stringify(err.response.data);
+        } else if (err.errors) {
+            details = ' | Details: ' + JSON.stringify(err.errors);
+        }
+
         if (
             message.includes('535') ||
             message.includes('Username and Password not accepted') ||
@@ -179,6 +189,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         ) {
             message = `Google Login Expired/Refused. Cause: ${message}. ACTION REQUIRED: Please DELETE this mailbox and ADD it again to refresh permissions.`;
         }
-        return json({ success: false, message }, { status: 500 });
+        return json({ success: false, message: message + details }, { status: 500 });
     }
 };
