@@ -509,7 +509,7 @@
 </script>
 
 <div
-  class="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
+  class="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
 >
   <!-- Mobile Header -->
   <header
@@ -554,7 +554,7 @@
     </div>
   </header>
 
-  <div class="flex flex-1 relative">
+  <div class="flex flex-1 min-h-0 relative">
     <!-- Sidebar -->
     <aside
       class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
