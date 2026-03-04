@@ -32,7 +32,10 @@
           />
         </div>
       </div>
-      <h1 class="text-4xl font-black text-black tracking-tight mb-3">
+      <h1
+        class="text-4xl font-black tracking-tight mb-3"
+        style="color: #000000 !important;"
+      >
         UniConnect
       </h1>
       <p class="text-gray-500 font-medium text-sm">
