@@ -46,10 +46,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     try {
         const { rows } = await db.query(
-            `INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester, credits)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING *`,
-            [body.branch_id, body.batch_id, body.name, body.code, body.semester, body.credits]
+            [body.branch_id, body.batch_id, body.name, body.code, body.semester]
         );
         return json(rows[0]);
     } catch (err: any) {
@@ -68,10 +68,10 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     try {
         const { rows } = await db.query(
             `UPDATE assessment_subjects
-            SET name = $1, code = $2, semester = $3, credits = $4, updated_at = NOW()
-            WHERE id = $5
+            SET name = $1, code = $2, semester = $3, updated_at = NOW()
+            WHERE id = $4
             RETURNING *`,
-            [body.name, body.code, body.semester, body.credits, body.id]
+            [body.name, body.code, body.semester, body.id]
         );
         return json(rows[0]);
     } catch (err: any) {

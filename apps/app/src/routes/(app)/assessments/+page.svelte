@@ -1076,7 +1076,7 @@
                 transition:slide
               >
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                  <div class="space-y-2">
+                  <div class="flex flex-col gap-2 justify-end">
                     <label
                       for="subjectName"
                       class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2"
@@ -1090,7 +1090,7 @@
                       class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"
                     />
                   </div>
-                  <div class="space-y-2">
+                  <div class="flex flex-col gap-2 justify-end">
                     <label
                       for="subjectCode"
                       class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2"
@@ -1104,7 +1104,7 @@
                       class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all px-4 py-3 text-gray-900 dark:text-white"
                     />
                   </div>
-                  <div class="space-y-2">
+                  <div class="flex flex-col gap-2 justify-end">
                     <label
                       for="subjectSemester"
                       class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2"
