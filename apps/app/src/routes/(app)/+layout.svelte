@@ -513,7 +513,7 @@
 >
   <!-- Mobile Header -->
   <header
-    class="lg:hidden h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50"
+    class="lg:hidden w-full h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50 shrink-0"
   >
     <div class="flex items-center space-x-2">
       <div
@@ -655,7 +655,7 @@
     {/if}
     <!-- Main Content -->
     <main
-      class="flex-1 w-0 min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500"
+      class="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500"
     >
       <div
         class="sticky top-0 z-40 bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center"
