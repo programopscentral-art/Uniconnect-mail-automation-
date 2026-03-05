@@ -648,8 +648,11 @@
                       <!-- Timing Bubble -->
                       {#if assignee.status === "COMPLETED" && assignee.started_at && assignee.completed_at}
                         <div
-                          class="absolute -top-2 -right-2 px-1.5 py-0.5 bg-emerald-600 text-[8px] font-black text-white rounded-md shadow-md z-20 whitespace-nowrap ring-1 ring-white dark:ring-slate-800"
+                          class="absolute -top-3 -right-3 px-2 py-0.5 bg-emerald-600 text-[9px] font-black text-white rounded-lg shadow-xl z-30 whitespace-nowrap ring-2 ring-white dark:ring-slate-800 flex items-center gap-1"
                         >
+                          <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
                           {formatDuration(
                             assignee.started_at,
                             assignee.completed_at,
@@ -657,8 +660,12 @@
                         </div>
                       {:else if assignee.status === "IN_PROGRESS" && assignee.started_at}
                         <div
-                          class="absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded-md shadow-md z-20 animate-pulse whitespace-nowrap ring-1 ring-white dark:ring-slate-800"
+                          class="absolute -top-3 -right-3 px-2 py-0.5 bg-indigo-500 text-[9px] font-black text-white rounded-lg shadow-xl z-30 animate-pulse whitespace-nowrap ring-2 ring-white dark:ring-slate-800 flex items-center gap-1"
                         >
+                          <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                          </span>
                           ACTIVE
                         </div>
                       {/if}
@@ -712,17 +719,31 @@
                 <button
                   onclick={() => updateStatus(task, "IN_PROGRESS")}
                   disabled={updatingTaskId === task.id}
-                  class="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-indigo-100/50 dark:border-indigo-800/50 disabled:opacity-50"
+                  class="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-indigo-100/50 dark:border-indigo-800/50 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {updatingTaskId === task.id ? "..." : "🚀 Start Work"}
+                  {#if updatingTaskId === task.id}
+                    <svg class="animate-spin h-3 w-3 text-indigo-600" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  {:else}
+                    🚀 Start Work
+                  {/if}
                 </button>
               {:else if myStatus === "IN_PROGRESS"}
                 <button
                   onclick={() => updateStatus(task, "COMPLETED")}
                   disabled={updatingTaskId === task.id}
-                  class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-emerald-100/50 dark:border-emerald-800/50 disabled:opacity-50"
+                  class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-emerald-100/50 dark:border-emerald-800/50 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {updatingTaskId === task.id ? "..." : "✅ Finish Task"}
+                  {#if updatingTaskId === task.id}
+                    <svg class="animate-spin h-3 w-3 text-emerald-600" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  {:else}
+                    ✅ Finish Task
+                  {/if}
                 </button>
               {/if}
             </div>

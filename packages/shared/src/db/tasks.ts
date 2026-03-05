@@ -98,7 +98,7 @@ export async function getTasks(filters: {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by,
+        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by, t.estimated_time,
             u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
             u_by.email as assigned_by_email,
@@ -136,7 +136,7 @@ export async function getTasks(filters: {
 
 export async function getTaskById(id: string) {
     const result = await db.query(
-        `SELECT t.*, 
+        `SELECT t.*, u_by.name as assigned_by_name, u_by.email as assigned_by_email, univ.name as university_name,
             COALESCE(
                 json_agg(
                     json_build_object(
