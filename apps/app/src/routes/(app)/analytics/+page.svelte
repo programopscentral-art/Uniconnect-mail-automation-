@@ -4,13 +4,15 @@
   let { data } = $props();
 
   let selectedDate = $state<string>("");
+  let selectedUniversity = $state<string>("ALL");
 
   $effect.pre(() => {
     selectedDate = data.selectedDate;
+    selectedUniversity = data.selectedUniversity;
   });
 
-  function onDateChange() {
-    goto(`?date=${selectedDate}`);
+  function onChange() {
+    goto(`?date=${selectedDate}&universityId=${selectedUniversity}`);
   }
 
   const last7Days = $derived.by(() => {
@@ -59,17 +61,34 @@
     </div>
 
     <div
-      class="flex items-center space-x-3 bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800"
+      class="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800"
     >
-      <span class="text-sm font-bold text-gray-700 dark:text-slate-400 ml-2"
-        >Select Date:</span
-      >
-      <input
-        type="date"
-        bind:value={selectedDate}
-        onchange={onDateChange}
-        class="block pl-3 pr-4 py-2 text-sm border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 dark:bg-slate-800 font-bold text-gray-900 dark:text-white"
-      />
+      <div class="flex items-center space-x-2 px-2">
+        <span class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Date</span>
+        <input
+          type="date"
+          bind:value={selectedDate}
+          onchange={onChange}
+          class="block pl-3 pr-4 py-2 text-sm border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 dark:bg-slate-800 font-bold text-gray-900 dark:text-white"
+        />
+      </div>
+
+      {#if data.universities?.length > 0}
+        <div class="h-8 w-px bg-gray-100 dark:bg-slate-800 mx-2"></div>
+        <div class="flex items-center space-x-2 px-2">
+          <span class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Scope</span>
+          <select
+            bind:value={selectedUniversity}
+            onchange={onChange}
+            class="block pl-3 pr-8 py-2 text-sm border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 dark:bg-slate-800 font-bold text-gray-900 dark:text-white appearance-none cursor-pointer"
+          >
+            <option value="ALL">ALL UNIVERSITIES & TEAMS</option>
+            {#each data.universities as univ}
+              <option value={univ.id}>{univ.name}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -196,6 +215,10 @@
             class="px-8 py-4 text-left text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest"
             >Tasks</th
           >
+          <th
+            class="px-8 py-4 text-left text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest"
+            >Rating</th
+          >
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-50 dark:divide-slate-800/50">
@@ -250,10 +273,21 @@
                 {item.completed_tasks} / {item.total_tasks}
               </span>
             </td>
+            <td class="px-8 py-5">
+              <div
+                class="w-10 h-10 rounded-full flex items-center justify-center font-black text-white shadow-lg shadow-indigo-500/10 transition-transform hover:scale-110
+                {item.rating === 'S' ? 'bg-gradient-to-br from-amber-400 to-amber-600 ring-2 ring-amber-200 ring-offset-2 dark:ring-amber-900/40' : 
+                 item.rating === 'A' ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 ring-2 ring-emerald-200 ring-offset-2 dark:ring-emerald-900/40' : 
+                 item.rating === 'B' ? 'bg-gradient-to-br from-blue-400 to-blue-600 ring-2 ring-blue-200 ring-offset-2 dark:ring-blue-900/40' : 
+                 'bg-gradient-to-br from-gray-400 to-gray-600 ring-2 ring-gray-200 ring-offset-2 dark:ring-gray-900/40'}"
+              >
+                {item.rating}
+              </div>
+            </td>
           </tr>
         {:else}
           <tr>
-            <td colspan="4" class="px-8 py-24 text-center">
+            <td colspan="5" class="px-8 py-24 text-center">
               <div class="max-w-xs mx-auto opacity-50">
                 <div
                   class="w-20 h-20 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-400 dark:text-slate-500"

@@ -1,4 +1,4 @@
-import { getDayPlanReport, getWeeklyReport } from '@uniconnect/shared';
+import { getDayPlanReport, getWeeklyReport, getUniversities } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -12,12 +12,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const report = await getDayPlanReport(date, universityId === 'ALL' ? undefined : universityId);
 
     const isGlobalOps = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user.role as string);
-    const weeklyReport = await getWeeklyReport(isGlobalOps ? undefined : locals.user.id);
+    const universities = isGlobalOps ? await getUniversities() : [];
+    const targetUnivId = universityId === 'ALL' ? undefined : universityId;
+    const weeklyReport = await getWeeklyReport(isGlobalOps ? undefined : locals.user.id, targetUnivId);
+    // If universityId is set and we are global ops, we might want to filter weekly report too, 
+    // but getWeeklyReport currently only takes userId. 
+    // Let's improve getWeeklyReport to take universityId as well.
 
     return {
         report,
         weeklyReport,
+        universities: universities.status !== 'error' ? (universities as any) : [],
         selectedDate: date,
+        selectedUniversity: universityId || 'ALL',
         role: locals.user.role
     };
 };

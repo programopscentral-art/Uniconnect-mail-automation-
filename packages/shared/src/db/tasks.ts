@@ -336,11 +336,22 @@ export async function getDayPlanReport(date: string, universityId?: string) {
 
     return {
         date,
-        user_reports: taskStats.rows.map(r => ({
-            user_name: r.user_name,
-            total_tasks: parseInt(r.total_tasks),
-            completed_tasks: parseInt(r.completed_tasks)
-        })),
+        user_reports: taskStats.rows.map(r => {
+            const total = parseInt(r.total_tasks);
+            const completed = parseInt(r.completed_tasks);
+            const rate = total > 0 ? (completed / total) * 100 : 0;
+            let rating = 'C';
+            if (rate >= 90) rating = 'S';
+            else if (rate >= 75) rating = 'A';
+            else if (rate >= 50) rating = 'B';
+
+            return {
+                user_name: r.user_name,
+                total_tasks: total,
+                completed_tasks: completed,
+                rating
+            };
+        }),
         campaign_summary: {
             total_sent: parseInt(campaignStats.rows[0].total_sent) || 0,
             total_failed: parseInt(campaignStats.rows[0].total_failed) || 0,
@@ -369,7 +380,7 @@ export async function markReminderSent(id: string) {
     await db.query(`UPDATE tasks SET reminder_sent = true WHERE id = $1`, [id]);
 }
 
-export async function getWeeklyReport(userId?: string) {
+export async function getWeeklyReport(userId?: string, universityId?: string) {
     const conditions: string[] = [];
     const params: any[] = [];
     let i = 1;
@@ -377,6 +388,10 @@ export async function getWeeklyReport(userId?: string) {
     if (userId) {
         conditions.push(`u.id = $${i++}`);
         params.push(userId);
+    }
+    if (universityId) {
+        conditions.push(`u.university_id = $${i++}`);
+        params.push(universityId);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
