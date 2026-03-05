@@ -27,13 +27,8 @@
   let filterDate = $state("");
 
   // Form State
-  let form = $state({
-    title: "",
-    description: "",
-    priority: "MEDIUM" as const,
-    assignee_ids: [] as string[], // Updated to array
-    university_id: "",
     due_date: "",
+    estimated_time: "",
   });
 
   const priorityColors: Record<string, string> = {
@@ -138,6 +133,7 @@
       university_id:
         isGlobalAdmin || isCentralBOA ? "" : data.user.university_id || "",
       due_date: "",
+      estimated_time: "",
     };
     showModal = true;
   }
@@ -153,6 +149,7 @@
       due_date: task.due_date
         ? new Date(task.due_date).toISOString().slice(0, 16)
         : "",
+      estimated_time: task.estimated_time || "",
     };
     showModal = true;
   }
@@ -274,6 +271,19 @@
           .toUpperCase()
           .substring(0, 2)
       : "??";
+  }
+
+  function formatDuration(start: string, end: string) {
+    if (!start || !end) return null;
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const diff = Math.floor((e - s) / 1000); // seconds
+
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
   }
 </script>
 
@@ -604,20 +614,40 @@
                           'OFFLINE'}) - Status: {assignee.status || 'PENDING'}"
                       >
                         {#if assignee.status === "COMPLETED"}
-                          <svg
-                            class="w-3 h-3 text-green-600"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                            ><path
-                              fill-rule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clip-rule="evenodd"
-                            /></svg
-                          >
+                          <div class="flex flex-col items-center">
+                            <svg
+                              class="w-3 h-3 text-green-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                              ><path
+                                fill-rule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clip-rule="evenodd"
+                              /></svg
+                            >
+                          </div>
                         {:else}
                           {getInitials(assignee.name || assignee.email)}
                         {/if}
                       </div>
+
+                      <!-- Timing Bubble -->
+                      {#if assignee.status === "COMPLETED" && assignee.started_at && assignee.completed_at}
+                        <div
+                          class="absolute -top-1 -left-1 px-1.5 py-0.5 bg-green-500 text-[6px] font-black text-white rounded-full shadow-sm z-20 whitespace-nowrap"
+                        >
+                          {formatDuration(
+                            assignee.started_at,
+                            assignee.completed_at,
+                          )}
+                        </div>
+                      {:else if assignee.status === "IN_PROGRESS" && assignee.started_at}
+                        <div
+                          class="absolute -top-1 -left-1 px-1.5 py-0.5 bg-indigo-500 text-[6px] font-black text-white rounded-full shadow-sm z-20 animate-pulse whitespace-nowrap"
+                        >
+                          ACTIVE
+                        </div>
+                      {/if}
                       <span
                         class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white dark:border-slate-800 {presenceColors[
                           assignee.presence_status
@@ -680,6 +710,23 @@
                   ? new Date(task.due_date).toLocaleDateString()
                   : "Set Date"}
               </div>
+              {#if task.estimated_time || (task.assignees?.length === 1 && task.assignees[0].estimated_time)}
+                <div class="flex items-center text-xs font-bold text-amber-600">
+                  <svg
+                    class="h-4 w-4 mr-1 opacity-70"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    /></svg
+                  >
+                  Est: {task.estimated_time || task.assignees[0].estimated_time}
+                </div>
+              {/if}
             </div>
             <div
               class="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -882,6 +929,21 @@
                 class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all [color-scheme:dark]"
               />
             </div>
+          </div>
+
+          <div>
+            <label
+              for="f-est"
+              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
+              >Estimated Time (e.g. 2h, 1.5d)</label
+            >
+            <input
+              id="f-est"
+              type="text"
+              bind:value={form.estimated_time}
+              placeholder="How long will this take?"
+              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all shadow-sm"
+            />
           </div>
 
           <div class="grid grid-cols-2 gap-4">

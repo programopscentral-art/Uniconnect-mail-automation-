@@ -13,6 +13,7 @@ export interface Task {
     university_id: string | null;
     status: TaskStatus;
     due_date: Date | null;
+    estimated_time: string | null;
     created_at: Date;
     updated_at: Date;
 }
@@ -25,19 +26,21 @@ export async function createTask(data: {
     assigned_by: string;
     university_id?: string;
     due_date?: string;
+    estimated_time?: string;
 }) {
     const { assignee_ids = [], ...taskData } = data;
 
     const result = await db.query(
-        `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date, estimated_time)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
         [
             taskData.title,
             (taskData.description && taskData.description.trim() !== '') ? taskData.description : null,
             taskData.priority || 'MEDIUM',
             taskData.assigned_by,
             (taskData.university_id && taskData.university_id !== '') ? taskData.university_id : null,
-            (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null
+            (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null,
+            taskData.estimated_time || null
         ]
     );
     const task = result.rows[0];
@@ -106,6 +109,9 @@ export async function getTasks(filters: {
                         'name', u_to.name, 
                         'email', u_to.email,
                         'status', ta.status,
+                        'started_at', ta.started_at,
+                        'completed_at', ta.completed_at,
+                        'estimated_time', ta.estimated_time,
                         'presence_status', u_to.presence_status,
                         'last_active_at', u_to.last_active_at
                     )
@@ -135,7 +141,10 @@ export async function getTaskById(id: string) {
                 json_agg(
                     json_build_object(
                         'id', u_to.id,
-                        'status', ta.status
+                        'status', ta.status,
+                        'started_at', ta.started_at,
+                        'completed_at', ta.completed_at,
+                        'estimated_time', ta.estimated_time
                     )
                 ) FILTER (WHERE u_to.id IS NOT NULL),
                 '[]'::json
@@ -155,13 +164,24 @@ export async function getTaskById(id: string) {
     } as Task & { assignees: Array<{ id: string, status: string }> };
 }
 
-export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; assignee_ids?: string[]; assignee_id?: string; assignee_status?: TaskStatus }) {
+export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; estimated_time?: string; assignee_ids?: string[]; assignee_id?: string; assignee_status?: TaskStatus }) {
     const { assignee_ids, assignee_id, assignee_status, ...updateData } = data;
 
     // 1. Update individual assignee status
     if (assignee_id && assignee_status) {
+        // 1a. Logic for started_at / completed_at
+        let timeUpdate = "";
+        let timeParams: any[] = [];
+        let pIdx = 4;
+
+        if (assignee_status === 'IN_PROGRESS') {
+            timeUpdate = `, started_at = COALESCE(started_at, NOW())`;
+        } else if (assignee_status === 'COMPLETED') {
+            timeUpdate = `, completed_at = COALESCE(completed_at, NOW())`;
+        }
+
         await db.query(
-            `UPDATE task_assignees SET status = $1 WHERE task_id = $2 AND user_id = $3`,
+            `UPDATE task_assignees SET status = $1 ${timeUpdate} WHERE task_id = $2 AND user_id = $3`,
             [assignee_status, id, assignee_id]
         );
 
@@ -345,4 +365,38 @@ export async function getTasksDueSoon(hours: number = 1) {
 
 export async function markReminderSent(id: string) {
     await db.query(`UPDATE tasks SET reminder_sent = true WHERE id = $1`, [id]);
+}
+
+export async function getWeeklyReport(userId?: string) {
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let i = 1;
+
+    if (userId) {
+        conditions.push(`u.id = $${i++}`);
+        params.push(userId);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const query = `
+        SELECT 
+            u.id as user_id,
+            u.name as user_name,
+            u.email as user_email,
+            DATE_TRUNC('day', ta.completed_at) as day,
+            COUNT(*) as completed_count,
+            AVG(EXTRACT(EPOCH FROM (ta.completed_at - ta.started_at))/3600) as avg_hours_taken
+        FROM users u
+        JOIN task_assignees ta ON u.id = ta.user_id
+        ${whereClause} 
+        ${whereClause ? 'AND' : 'WHERE'} ta.status = 'COMPLETED' 
+        AND ta.completed_at >= NOW() - INTERVAL '7 days'
+        AND ta.started_at IS NOT NULL
+        GROUP BY u.id, u.name, u.email, day
+        ORDER BY day ASC
+    `;
+
+    const res = await db.query(query, params);
+    return res.rows;
 }

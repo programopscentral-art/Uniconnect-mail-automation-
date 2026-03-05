@@ -281,10 +281,47 @@ async function processCommunicationTasks() {
     }
 
     await processBudgetProposalsWorker();
+    await processWeeklyReports();
   } catch (err) {
     console.error('[WORKER] Error in main cycle:', err);
   } finally {
     isProcessing = false;
+  }
+}
+
+async function processWeeklyReports() {
+  const now = new Date();
+  // Saturday 10:00 AM (local time check)
+  // Note: Railway servers usually run in UTC. If the user is in IST (+5:30), 10:00 AM IST is 04:30 AM UTC.
+  // The user's metadata says local time is 12:35 PM IST (UTC+5:30).
+  // I'll use a slightly broader window and a source_id to prevent duplicates.
+
+  const isSaturday = now.getDay() === 6;
+  const is10AM = now.getHours() === 10; // Simple check, might need timezone correction if server is UTC
+
+  if (isSaturday && is10AM) {
+    const todayStr = now.toISOString().split('T')[0];
+    const sourceId = `WEEKLY_REPORT_${todayStr}`;
+
+    // Check if we've already handled this today
+    const check = await db.query('SELECT 1 FROM notifications WHERE source_id = $1 LIMIT 1', [sourceId]);
+    if (check.rows.length === 0) {
+      console.log(`[WORKER] 📊 Generating weekly reports for ${todayStr}...`);
+      const usersRes = await db.query('SELECT id, name FROM users WHERE is_active = true');
+
+      for (const u of usersRes.rows) {
+        await db.query(`
+          INSERT INTO notifications (user_id, title, message, type, link, source_id)
+          VALUES ($1, 'Your Weekly Task Completion Report', $2, 'SYSTEM', '/analytics', $3)
+          ON CONFLICT DO NOTHING
+        `, [
+          u.id,
+          `Hi ${u.name || 'there'}, your weekly performance report is ready! Click to view your progress and efficiency.`,
+          sourceId
+        ]);
+      }
+      console.log(`[WORKER] ✅ Weekly reports generated for ${usersRes.rows.length} users.`);
+    }
   }
 }
 

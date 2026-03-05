@@ -12,6 +12,35 @@
   function onDateChange() {
     goto(`?date=${selectedDate}`);
   }
+
+  const last7Days = $derived.by(() => {
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const label = d.toLocaleDateString(undefined, { weekday: "short" });
+      const dateStr = d.toISOString().split("T")[0];
+
+      const dayData = data.weeklyReport.filter((r: any) => {
+        const rDate = new Date(r.day).toISOString().split("T")[0];
+        return rDate === dateStr;
+      });
+
+      days.push({
+        label,
+        count: dayData.reduce(
+          (acc: number, cur: any) => acc + parseInt(cur.completed_count),
+          0,
+        ),
+      });
+    }
+    return days;
+  });
+
+  function getMaxScale(count: number) {
+    const max = Math.max(...last7Days.map((d) => d.count), 1);
+    return Math.max((count / max) * 100, 5); // Minimum 5% height for visibility
+  }
 </script>
 
 <div class="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -41,6 +70,91 @@
         onchange={onDateChange}
         class="block pl-3 pr-4 py-2 text-sm border-gray-200 dark:border-slate-700 focus:outline-none focus:ring-blue-500 rounded-lg bg-gray-50 dark:bg-slate-800 font-bold text-gray-900 dark:text-white"
       />
+    </div>
+  </div>
+
+  <!-- Weekly Performance Report -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <div
+      class="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm"
+    >
+      <div class="flex items-center justify-between mb-8">
+        <h2 class="text-xl font-black text-gray-900 dark:text-white">
+          Weekly Activity
+        </h2>
+        <span class="text-[10px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">Last 7 Days</span>
+      </div>
+      <div class="flex items-end justify-between h-48 gap-3 px-2">
+        {#each last7Days as day}
+          <div class="flex-1 flex flex-col items-center gap-3 group">
+            <div
+              class="w-full bg-indigo-100 dark:bg-indigo-900/30 rounded-t-2xl relative overflow-hidden flex flex-col justify-end transition-all duration-500 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40"
+              style="height: {getMaxScale(day.count)}%"
+            >
+              <div
+                class="absolute inset-0 bg-gradient-to-t from-indigo-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
+              ></div>
+              <div
+                class="text-[11px] font-black text-indigo-600 dark:text-indigo-400 text-center mb-2 z-10 group-hover:text-white transition-colors"
+              >
+                {day.count}
+              </div>
+            </div>
+            <div
+              class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest"
+            >
+              {day.label}
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+
+    <div
+      class="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm"
+    >
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-xl font-black text-gray-900 dark:text-white">
+          Average Efficiency
+        </h2>
+        <span class="text-[10px] font-black text-amber-500 uppercase px-2 py-1 bg-amber-50 dark:bg-amber-900/30 rounded-md">Time Taken</span>
+      </div>
+      <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-8 opacity-60">
+        Average hours taken per completion (7d)
+      </p>
+      <div class="space-y-6">
+        {#each data.weeklyReport.slice(-5) as item}
+          <div class="flex items-center gap-4 group">
+            <div
+              class="w-16 text-[10px] font-black text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-widest"
+            >
+              {new Date(item.day).toLocaleDateString(undefined, {
+                weekday: "short",
+              })}
+            </div>
+            <div
+              class="flex-1 h-3 bg-gray-50 dark:bg-slate-800/50 rounded-full overflow-hidden shadow-inner p-0.5"
+            >
+              <div
+                class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                style="width: {Math.min(item.avg_hours_taken * 8, 100)}%"
+              ></div>
+            </div>
+            <div
+              class="w-14 text-sm font-black text-amber-600 dark:text-amber-400 text-right tabular-nums"
+            >
+              {item.avg_hours_taken.toFixed(1)}h
+            </div>
+          </div>
+        {:else}
+           <div class="flex flex-col items-center justify-center py-10 opacity-30">
+              <svg class="w-10 h-10 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span class="text-[10px] font-black uppercase">No Data Tracked</span>
+           </div>
+        {/each}
+      </div>
     </div>
   </div>
 

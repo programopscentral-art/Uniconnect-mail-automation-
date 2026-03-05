@@ -1,4 +1,4 @@
-import { getDayPlanReport } from '@uniconnect/shared';
+import { getDayPlanReport, getWeeklyReport } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -11,8 +11,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // Reuse the logic from reports/day-plan since user says "it should show entire report"
     const report = await getDayPlanReport(date, universityId === 'ALL' ? undefined : universityId);
 
+    const isGlobalOps = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user.role as string);
+    const weeklyReport = await getWeeklyReport(isGlobalOps ? undefined : locals.user.id);
+
     return {
         report,
+        weeklyReport,
         selectedDate: date,
         role: locals.user.role
     };
