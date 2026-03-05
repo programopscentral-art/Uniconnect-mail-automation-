@@ -15,6 +15,27 @@
     goto(`?date=${selectedDate}&universityId=${selectedUniversity}`);
   }
 
+  const aggregatedWeeklyReport = $derived.by(() => {
+    const map = new Map();
+    data.weeklyReport.forEach((r: any) => {
+      const dateKey = new Date(r.day).toISOString().split("T")[0];
+      if (!map.has(dateKey)) {
+        map.set(dateKey, {
+          day: r.day,
+          completed_count: 0,
+          total_hours: 0,
+          user_count: 0,
+        });
+      }
+      const existing = map.get(dateKey);
+      existing.completed_count += parseInt(r.completed_count);
+      existing.total_hours += parseFloat(r.avg_hours_taken || 0) * parseInt(r.completed_count);
+      existing.user_count += 1;
+    });
+
+    return Array.from(map.values()).sort((a, b) => new Date(a.day).getTime() - new Date(b.day).getTime());
+  });
+
   const last7Days = $derived.by(() => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -23,17 +44,14 @@
       const label = d.toLocaleDateString(undefined, { weekday: "short" });
       const dateStr = d.toISOString().split("T")[0];
 
-      const dayData = data.weeklyReport.filter((r: any) => {
+      const dayData = aggregatedWeeklyReport.find((r: any) => {
         const rDate = new Date(r.day).toISOString().split("T")[0];
         return rDate === dateStr;
       });
 
       days.push({
         label,
-        count: dayData.reduce(
-          (acc: number, cur: any) => acc + parseInt(cur.completed_count),
-          0,
-        ),
+        count: dayData ? dayData.completed_count : 0,
       });
     }
     return days;
@@ -41,7 +59,7 @@
 
   function getMaxScale(count: number) {
     const max = Math.max(...last7Days.map((d) => d.count), 1);
-    return Math.max((count / max) * 100, 5); // Minimum 5% height for visibility
+    return Math.max((count / max) * 100, 4);
   }
 </script>
 
@@ -95,48 +113,58 @@
   <!-- Weekly Performance Report -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <div
-      class="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm"
+      class="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-sm relative overflow-hidden"
     >
-      <div class="flex items-center justify-between mb-8">
-        <h2 class="text-xl font-black text-gray-900 dark:text-white">
-          Weekly Activity
-        </h2>
-        <span class="text-[10px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">Last 7 Days</span>
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <h2 class="text-xl font-black text-gray-900 dark:text-white">
+            {selectedUniversity === 'ALL' ? 'Overall Activity' : 'University Activity'}
+          </h2>
+          <div class="flex items-center gap-3 mt-2">
+            <span class="text-3xl font-black text-indigo-600 dark:text-indigo-400">
+              {last7Days.reduce((acc, d) => acc + d.count, 0)}
+            </span>
+            <span class="text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest leading-tight">
+              Tasks Done<br/>This Week
+            </span>
+          </div>
+        </div>
+        <span class="text-[10px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-md whitespace-nowrap">Trends</span>
       </div>
-      <div class="relative h-64 mt-4">
+
+      <div class="relative h-56 mt-12 mb-4">
         <!-- Background Grid Lines -->
-        <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
-          {#each [1, 2, 3, 4] as _}
-            <div class="w-full border-t border-gray-100 dark:border-slate-800/60 h-0"></div>
+        <div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-6">
+          {#each [1, 2, 3] as _}
+            <div class="w-full border-t border-gray-100 dark:border-slate-800/40 h-0"></div>
           {/each}
           <div class="w-full border-t-2 border-gray-200 dark:border-slate-700 h-0"></div>
         </div>
 
         <!-- Bars Container -->
-        <div class="absolute inset-0 flex items-end justify-between gap-4 px-2">
-          {#each last7Days as day, i}
-            <div class="flex-1 flex flex-col items-center gap-3 group h-full justify-end">
-              <!-- Value Tooltip on Hover -->
-              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded mb-1 shadow-lg pointer-events-none whitespace-nowrap">
-                {day.count} Tasks
-              </div>
+        <div class="absolute inset-0 flex items-end justify-between gap-2 px-1 pb-6">
+          {#each last7Days as day}
+            <div class="flex-1 flex flex-col items-center group h-full justify-end">
+              <!-- Value Label (Visible on hover or always if > 0) -->
+              <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {day.count}
+              </span>
               
               <div
-                class="w-full max-w-[40px] bg-indigo-50 dark:bg-indigo-900/20 rounded-t-xl relative overflow-hidden flex flex-col justify-end transition-all duration-700 ease-out group-hover:shadow-[0_0_20px_rgba(79,70,229,0.2)]"
-                style="height: {getMaxScale(day.count)}%"
+                class="w-full max-w-[32px] bg-indigo-50/50 dark:bg-indigo-900/10 rounded-t-xl relative overflow-hidden flex flex-col justify-end transition-all duration-700 ease-out group-hover:ring-2 group-hover:ring-indigo-500/30"
+                style="height: {Math.max((day.count / Math.max(...last7Days.map(d => d.count), 1)) * 100, 4)}%"
               >
-                <!-- Animated Fill Gradient -->
+                <!-- Fill Gradient -->
                 <div
-                  class="absolute inset-0 bg-gradient-to-t from-indigo-600 via-indigo-500 to-blue-400 group-hover:from-indigo-500 group-hover:to-blue-300 transition-all duration-300"
+                  class="absolute inset-0 bg-gradient-to-t from-indigo-600 via-indigo-500 to-blue-400 transition-all duration-300"
                 ></div>
                 
-                <!-- Inner Glow Effect -->
-                <div class="absolute inset-x-0 top-0 h-1 bg-white/20"></div>
+                <!-- Gloss effect -->
+                <div class="absolute inset-x-0 top-0 h-[2px] bg-white/30"></div>
               </div>
               
-              <div
-                class="text-[10px] font-black {day.count > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-600'} uppercase tracking-widest mt-1"
-              >
+              <!-- Labels placed below the graph box -->
+              <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">
                 {day.label}
               </div>
             </div>
@@ -158,7 +186,8 @@
         Average hours taken per completion (7d)
       </p>
       <div class="space-y-6">
-        {#each data.weeklyReport.slice(-5) as item}
+        {#each aggregatedWeeklyReport.slice(-5).reverse() as item}
+          {@const avgHours = item.completed_count > 0 ? (item.total_hours / item.completed_count) : 0}
           <div class="flex items-center gap-4 group">
             <div
               class="w-16 text-[10px] font-black text-gray-400 group-hover:text-amber-500 transition-colors uppercase tracking-widest"
@@ -172,13 +201,13 @@
             >
               <div
                 class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(245,158,11,0.3)]"
-                style="width: {Math.min(item.avg_hours_taken * 8, 100)}%"
+                style="width: {Math.min(avgHours * 10, 100)}%"
               ></div>
             </div>
             <div
               class="w-14 text-sm font-black text-amber-600 dark:text-amber-400 text-right tabular-nums"
             >
-              {Number(item.avg_hours_taken || 0).toFixed(1)}h
+              {avgHours.toFixed(1)}h
             </div>
           </div>
         {:else}
