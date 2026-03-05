@@ -27,6 +27,12 @@
   let filterDate = $state("");
 
   // Form State
+  let form = $state({
+    title: "",
+    description: "",
+    priority: "MEDIUM" as const,
+    assignee_ids: [] as string[],
+    university_id: "",
     due_date: "",
     estimated_time: "",
   });
@@ -687,6 +693,29 @@
             >
               {task.description}
             </p>
+          {/if}
+
+          {#if task.assignee_ids.includes(data.user.id)}
+            {@const myStatus =
+              task.assignees?.find((a) => a.id === data.user.id)?.status ||
+              "PENDING"}
+            <div class="flex gap-2 pt-2">
+              {#if myStatus === "PENDING"}
+                <button
+                  onclick={() => updateStatus(task, "IN_PROGRESS")}
+                  class="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-indigo-100/50 dark:border-indigo-800/50"
+                >
+                  🚀 Start Work
+                </button>
+              {:else if myStatus === "IN_PROGRESS"}
+                <button
+                  onclick={() => updateStatus(task, "COMPLETED")}
+                  class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-emerald-100/50 dark:border-emerald-800/50"
+                >
+                  ✅ Finish Task
+                </button>
+              {/if}
+            </div>
           {/if}
 
           <div

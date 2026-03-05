@@ -177,7 +177,7 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
         if (assignee_status === 'IN_PROGRESS') {
             timeUpdate = `, started_at = COALESCE(started_at, NOW())`;
         } else if (assignee_status === 'COMPLETED') {
-            timeUpdate = `, completed_at = COALESCE(completed_at, NOW())`;
+            timeUpdate = `, completed_at = COALESCE(completed_at, NOW()), started_at = COALESCE(started_at, (SELECT created_at FROM tasks WHERE id = $2), NOW())`;
         }
 
         await db.query(
