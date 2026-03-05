@@ -103,29 +103,45 @@
         </h2>
         <span class="text-[10px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">Last 7 Days</span>
       </div>
-      <div class="flex items-end justify-between h-48 gap-3 px-2">
-        {#each last7Days as day}
-          <div class="flex-1 flex flex-col items-center gap-3 group">
-            <div
-              class="w-full bg-indigo-100 dark:bg-indigo-900/30 rounded-t-2xl relative overflow-hidden flex flex-col justify-end transition-all duration-500 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800/40"
-              style="height: {getMaxScale(day.count)}%"
-            >
+      <div class="relative h-64 mt-4">
+        <!-- Background Grid Lines -->
+        <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          {#each [1, 2, 3, 4] as _}
+            <div class="w-full border-t border-gray-100 dark:border-slate-800/60 h-0"></div>
+          {/each}
+          <div class="w-full border-t-2 border-gray-200 dark:border-slate-700 h-0"></div>
+        </div>
+
+        <!-- Bars Container -->
+        <div class="absolute inset-0 flex items-end justify-between gap-4 px-2">
+          {#each last7Days as day, i}
+            <div class="flex-1 flex flex-col items-center gap-3 group h-full justify-end">
+              <!-- Value Tooltip on Hover -->
+              <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600 text-white text-[10px] font-black px-2 py-1 rounded mb-1 shadow-lg pointer-events-none whitespace-nowrap">
+                {day.count} Tasks
+              </div>
+              
               <div
-                class="absolute inset-0 bg-gradient-to-t from-indigo-500 to-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"
-              ></div>
-              <div
-                class="text-[11px] font-black text-indigo-600 dark:text-indigo-400 text-center mb-2 z-10 group-hover:text-white transition-colors"
+                class="w-full max-w-[40px] bg-indigo-50 dark:bg-indigo-900/20 rounded-t-xl relative overflow-hidden flex flex-col justify-end transition-all duration-700 ease-out group-hover:shadow-[0_0_20px_rgba(79,70,229,0.2)]"
+                style="height: {getMaxScale(day.count)}%"
               >
-                {day.count}
+                <!-- Animated Fill Gradient -->
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-indigo-600 via-indigo-500 to-blue-400 group-hover:from-indigo-500 group-hover:to-blue-300 transition-all duration-300"
+                ></div>
+                
+                <!-- Inner Glow Effect -->
+                <div class="absolute inset-x-0 top-0 h-1 bg-white/20"></div>
+              </div>
+              
+              <div
+                class="text-[10px] font-black {day.count > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 dark:text-slate-600'} uppercase tracking-widest mt-1"
+              >
+                {day.label}
               </div>
             </div>
-            <div
-              class="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest"
-            >
-              {day.label}
-            </div>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
     </div>
 
