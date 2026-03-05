@@ -32,10 +32,21 @@ export const actions: Actions = {
             if (!task) return fail(404, { error: 'Task not found' });
 
             // Determine which university this user is completing for
-            const userUnies = user.universities?.map(u => u.name) || [];
+            const userUnies = user.universities?.map((u: any) => u.name) || [];
             const taskUnies = task.resolved_universities || task.universities;
-            const intersection = userUnies.filter(u => taskUnies.includes(u));
-            const completedFor = intersection.length > 0 ? intersection.join(', ') : (userUnies.length > 0 ? userUnies.join(', ') : 'System Admin');
+            const intersection = userUnies.filter((u: any) => taskUnies.includes(u));
+            const hasOverlap = intersection.length > 0;
+
+            if (!hasOverlap) {
+                const isProgramOpsCentral = user.email === 'programopscentral@nxtwave.in' || user.email === 'programopscentral@nxtwave.tech';
+                const isCreator = user.email === task.created_by || user.name === task.created_by || user.id === task.created_by;
+
+                if (!isProgramOpsCentral && !isCreator) {
+                    return fail(403, { error: 'You are not assigned to any universities for this task, and do not have override privileges.' });
+                }
+            }
+
+            const completedFor = hasOverlap ? intersection.join(', ') : 'Global Override';
 
             // Add completion log
             const updatedTask = await addCommunicationTaskCompletion(params.id, {
@@ -52,8 +63,8 @@ export const actions: Actions = {
                 comp.university.split(', ').forEach((u: string) => allCoveredUniversities.add(u.trim()));
             }
 
-            // If "System Admin" did it, or all task universities are covered
-            const isSystemAdmin = allCoveredUniversities.has('System Admin');
+            // If "Global Override" or "System Admin" did it, or all task universities are covered
+            const isSystemAdmin = allCoveredUniversities.has('System Admin') || allCoveredUniversities.has('Global Override');
             const allDone = taskUnies.every((tu: string) => allCoveredUniversities.has(tu));
 
             if (isSystemAdmin || allDone) {

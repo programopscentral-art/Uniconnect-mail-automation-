@@ -11,15 +11,25 @@ const log = (msg: string) => {
 };
 
 if (admin.apps.length === 0) {
-    const serviceAccountB64 = env.FIREBASE_SERVICE_ACCOUNT;
-    log('[FIREBASE_ADMIN] 🔍 Checking FIREBASE_SERVICE_ACCOUNT env...');
+    const serviceAccountRaw = env.GOOGLE_CREDENTIALS_JSON || env.FIREBASE_SERVICE_ACCOUNT;
+    log('[FIREBASE_ADMIN] 🔍 Checking credentials env...');
 
-    if (serviceAccountB64) {
+    if (serviceAccountRaw) {
         try {
-            log(`[FIREBASE_ADMIN] ⚙️ Found env variable, length: ${serviceAccountB64.length}`);
-            const serviceAccount = JSON.parse(
-                Buffer.from(serviceAccountB64, 'base64').toString('utf-8')
-            );
+            log(`[FIREBASE_ADMIN] ⚙️ Found env variable, length: ${serviceAccountRaw.length}`);
+            
+            let serviceAccount;
+            if (serviceAccountRaw.trim().startsWith('{')) {
+                // Raw JSON format
+                log('[FIREBASE_ADMIN] 📄 Parsing raw JSON credentials');
+                serviceAccount = JSON.parse(serviceAccountRaw);
+            } else {
+                // Base64 format
+                log('[FIREBASE_ADMIN] 📦 Decoding Base64 credentials');
+                serviceAccount = JSON.parse(
+                    Buffer.from(serviceAccountRaw, 'base64').toString('utf-8')
+                );
+            }
 
             log(`[FIREBASE_ADMIN] 🔑 Project ID from JSON: ${serviceAccount.project_id}`);
 

@@ -26,11 +26,28 @@
   let user = $derived(data.user);
 
   let userUniversities = $derived(user.universities?.map((u) => u.name) || []);
+  let hasOverlap = $derived(
+    userUniversities.some((u: string) =>
+      task.resolved_universities.includes(u),
+    ) || task.resolved_universities.length === 0,
+  );
+  let isAdminOverride = $derived(!hasOverlap);
+
+  let allowedToOverride = $derived(
+    user.email === "programopscentral@nxtwave.in" ||
+      user.email === "programopscentral@nxtwave.tech" ||
+      user.email === task.created_by ||
+      user.name === task.created_by ||
+      user.id === task.created_by,
+  );
+
   let hasUserCompleted = $derived(
     task.completions?.some(
       (c: any) =>
         userUniversities.some((u: string) => c.university.includes(u)) ||
-        c.university === "System Admin",
+        c.university === "System Admin" ||
+        c.university === "Global Override" ||
+        (isAdminOverride && c.university === userUniversities.join(", ")),
     ) || task.status === "Completed",
   );
 
@@ -38,14 +55,20 @@
     task.resolved_universities.map((uni: string) => {
       const completion = task.completions?.find(
         (c: any) =>
-          c.university.includes(uni) || c.university === "System Admin",
+          c.university.includes(uni) ||
+          c.university === "System Admin" ||
+          c.university === "Global Override" ||
+          (!hasOverlap && c.university === userUniversities.join(", ")),
       );
       return {
         name: uni,
         isCompleted: !!completion,
         completedBy: completion?.user_name,
         completedAt: completion?.completed_at,
-        isSystem: completion?.university === "System Admin",
+        isSystem:
+          completion?.university === "System Admin" ||
+          completion?.university === "Global Override" ||
+          (!hasOverlap && c.university === userUniversities.join(", ")),
       };
     }),
   );
@@ -242,76 +265,106 @@
 
       <!-- Execution Actions -->
       {#if task.status !== "Completed" && task.status !== "Canceled" && !hasUserCompleted}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4" in:fly={{ y: 20 }}>
-          <form method="POST" action="?/complete" use:enhance>
+        {#if !isAdminOverride || allowedToOverride}
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4" in:fly={{ y: 20 }}>
+            <form
+              method="POST"
+              action="?/complete"
+              use:enhance
+              onsubmit={(e) => {
+                if (isAdminOverride) {
+                  if (
+                    !confirm(
+                      "Are you sure you want to FORCE-COMPLETE this task for ALL universities? This will mark it as resolved globally.",
+                    )
+                  ) {
+                    e.preventDefault();
+                  }
+                }
+              }}
+            >
+              <button
+                class="w-full h-24 {isAdminOverride
+                  ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-500/20'
+                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/20'} text-white rounded-[2rem] shadow-xl transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
+              >
+                <div class="flex items-center gap-3">
+                  <CheckCircle2
+                    size={24}
+                    class="group-hover:scale-110 transition-transform"
+                  />
+                  <span class="text-sm font-black uppercase tracking-widest"
+                    >{isAdminOverride
+                      ? "Force Complete All"
+                      : "Mark as Sent"}</span
+                  >
+                </div>
+                <span
+                  class="text-[9px] font-bold {isAdminOverride
+                    ? 'text-amber-100'
+                    : 'text-emerald-100'} uppercase tracking-widest opacity-60"
+                  >{isAdminOverride
+                    ? "Admin Override"
+                    : "Completed Execution"}</span
+                >
+              </button>
+            </form>
+
             <button
-              class="w-full h-24 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[2rem] shadow-xl shadow-emerald-500/20 transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
+              onclick={() => (showIssueForm = !showIssueForm)}
+              class="w-full h-24 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 rounded-[2rem] transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
             >
               <div class="flex items-center gap-3">
-                <CheckCircle2
-                  size={24}
-                  class="group-hover:scale-110 transition-transform"
-                />
+                <AlertTriangle size={24} />
                 <span class="text-sm font-black uppercase tracking-widest"
-                  >Mark as Sent</span
+                  >Report Issue</span
                 >
               </div>
               <span
-                class="text-[9px] font-bold text-emerald-100 uppercase tracking-widest opacity-60"
-                >Completed Execution</span
+                class="text-[9px] font-bold text-red-400 uppercase tracking-widest opacity-60"
+                >Execution Blocked</span
               >
             </button>
-          </form>
-
-          <button
-            onclick={() => (showIssueForm = !showIssueForm)}
-            class="w-full h-24 bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 rounded-[2rem] transition-all active:scale-95 flex flex-col items-center justify-center gap-1 group"
-          >
-            <div class="flex items-center gap-3">
-              <AlertTriangle size={24} />
-              <span class="text-sm font-black uppercase tracking-widest"
-                >Report Issue</span
-              >
-            </div>
-            <span
-              class="text-[9px] font-bold text-red-400 uppercase tracking-widest opacity-60"
-              >Execution Blocked</span
-            >
-          </button>
-        </div>
-
-        {#if showIssueForm}
-          <div
-            class="bg-white dark:bg-slate-900 border border-red-100 dark:border-red-900/30 rounded-[2rem] p-8 shadow-2xl space-y-4"
-            transition:slide
-          >
-            <h4
-              class="text-xs font-black text-red-600 uppercase tracking-widest"
-            >
-              What's the issue?
-            </h4>
-            <form method="POST" action="?/report" use:enhance class="space-y-4">
-              <textarea
-                name="issue"
-                rows="3"
-                placeholder="Explain why this task cannot be completed..."
-                class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-red-500/11 transition-all outline-none"
-              ></textarea>
-              <div class="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onclick={() => (showIssueForm = false)}
-                  class="px-6 py-3 text-xs font-black text-gray-400 uppercase tracking-widest"
-                  >Cancel</button
-                >
-                <button
-                  type="submit"
-                  class="px-8 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all"
-                  >Submit Issue</button
-                >
-              </div>
-            </form>
           </div>
+
+          {#if showIssueForm}
+            <div
+              class="bg-white dark:bg-slate-900 border border-red-100 dark:border-red-900/30 rounded-[2rem] p-8 shadow-2xl space-y-4"
+              transition:slide
+            >
+              <h4
+                class="text-xs font-black text-red-600 uppercase tracking-widest"
+              >
+                What's the issue?
+              </h4>
+              <form
+                method="POST"
+                action="?/report"
+                use:enhance
+                class="space-y-4"
+              >
+                <textarea
+                  name="issue"
+                  rows="3"
+                  placeholder="Explain why this task cannot be completed..."
+                  class="w-full p-4 bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-red-500/11 transition-all outline-none"
+                ></textarea>
+                <div class="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onclick={() => (showIssueForm = false)}
+                    class="px-6 py-3 text-xs font-black text-gray-400 uppercase tracking-widest"
+                    >Cancel</button
+                  >
+                  <button
+                    type="submit"
+                    class="px-8 py-3 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-all"
+                    >Submit Issue</button
+                  >
+                </div>
+              </form>
+            </div>
+          {/if}
         {/if}
       {:else if task.status === "Completed" || hasUserCompleted}
         <div
@@ -400,10 +453,9 @@
                           >Completed By</span
                         >
                         <span
-                          class="text-xs font-black text-emerald-700 dark:text-emerald-400 break-words line-clamp-1"
-                          title={uni.completedBy}
+                          class="text-xs font-black text-emerald-700 dark:text-emerald-400 break-words"
                         >
-                          {uni.isSystem ? "System Admin" : uni.completedBy}
+                          {uni.completedBy}
                         </span>
                       </div>
                       <div

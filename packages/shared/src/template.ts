@@ -181,7 +181,7 @@ export class TemplateRenderer {
         // STEP 4: Wrap in Layout
         if (options.noLayout) return rendered;
 
-        const baseUrl = options.baseUrl || 'https://uniconnect-app.up.railway.app';
+        const baseUrl = options.baseUrl || (typeof process !== 'undefined' ? process.env.PUBLIC_BASE_URL : '') || 'https://uniconnect-app.up.railway.app';
         const ackLink = options.trackingToken ? `${baseUrl}/ack/${options.trackingToken}` : '#';
 
         const bodyContent = rendered.split('\n').map(line => {
