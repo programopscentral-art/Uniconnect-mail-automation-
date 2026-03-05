@@ -12,9 +12,9 @@
     return () => clearInterval(interval);
   });
 
-  let showModal = $state(false);
   let editingTask = $state<any>(null);
   let isSubmitting = $state(false);
+  let updatingTaskId = $state<string | null>(null);
 
   // Bulk selection
   let selectedTasks = $state<Set<string>>(new Set());
@@ -161,7 +161,9 @@
   }
 
   async function saveTask() {
-    if (!form.title) return;
+    if (!form.title) return alert("Title is required");
+    if (!form.estimated_time) return alert("Estimation Time is required (e.g. 2h, 1d)");
+
     isSubmitting = true;
     try {
       const url = "/api/tasks";
@@ -184,12 +186,18 @@
   }
 
   async function updateStatus(task: any, newStatus: string) {
-    const res = await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: task.id, status: newStatus }),
-    });
-    if (res.ok) invalidateAll();
+    if (updatingTaskId) return;
+    updatingTaskId = task.id;
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: task.id, status: newStatus }),
+      });
+      if (res.ok) await invalidateAll();
+    } finally {
+      updatingTaskId = null;
+    }
   }
 
   async function deleteTask(id: string) {
@@ -640,7 +648,7 @@
                       <!-- Timing Bubble -->
                       {#if assignee.status === "COMPLETED" && assignee.started_at && assignee.completed_at}
                         <div
-                          class="absolute -top-1 -left-1 px-1.5 py-0.5 bg-green-500 text-[6px] font-black text-white rounded-full shadow-sm z-20 whitespace-nowrap"
+                          class="absolute -top-2 -right-2 px-1.5 py-0.5 bg-emerald-600 text-[8px] font-black text-white rounded-md shadow-md z-20 whitespace-nowrap ring-1 ring-white dark:ring-slate-800"
                         >
                           {formatDuration(
                             assignee.started_at,
@@ -649,7 +657,7 @@
                         </div>
                       {:else if assignee.status === "IN_PROGRESS" && assignee.started_at}
                         <div
-                          class="absolute -top-1 -left-1 px-1.5 py-0.5 bg-indigo-500 text-[6px] font-black text-white rounded-full shadow-sm z-20 animate-pulse whitespace-nowrap"
+                          class="absolute -top-2 -right-2 px-1.5 py-0.5 bg-indigo-500 text-[8px] font-black text-white rounded-md shadow-md z-20 animate-pulse whitespace-nowrap ring-1 ring-white dark:ring-slate-800"
                         >
                           ACTIVE
                         </div>
@@ -703,16 +711,18 @@
               {#if myStatus === "PENDING"}
                 <button
                   onclick={() => updateStatus(task, "IN_PROGRESS")}
-                  class="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-indigo-100/50 dark:border-indigo-800/50"
+                  disabled={updatingTaskId === task.id}
+                  class="flex-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-indigo-100/50 dark:border-indigo-800/50 disabled:opacity-50"
                 >
-                  🚀 Start Work
+                  {updatingTaskId === task.id ? "..." : "🚀 Start Work"}
                 </button>
               {:else if myStatus === "IN_PROGRESS"}
                 <button
                   onclick={() => updateStatus(task, "COMPLETED")}
-                  class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-emerald-100/50 dark:border-emerald-800/50"
+                  disabled={updatingTaskId === task.id}
+                  class="flex-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300 dark:hover:bg-emerald-900/60 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm border border-emerald-100/50 dark:border-emerald-800/50 disabled:opacity-50"
                 >
-                  ✅ Finish Task
+                  {updatingTaskId === task.id ? "..." : "✅ Finish Task"}
                 </button>
               {/if}
             </div>
@@ -969,8 +979,9 @@
             <input
               id="f-est"
               type="text"
+              required
               bind:value={form.estimated_time}
-              placeholder="How long will this take?"
+              placeholder="e.g. 2h, 1.5d, 30m"
               class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all shadow-sm"
             />
           </div>
