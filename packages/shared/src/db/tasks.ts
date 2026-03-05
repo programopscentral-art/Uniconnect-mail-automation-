@@ -152,8 +152,10 @@ export async function getTaskById(id: string) {
          FROM tasks t
          LEFT JOIN task_assignees ta ON t.id = ta.task_id
          LEFT JOIN users u_to ON ta.user_id = u_to.id
+         LEFT JOIN users u_by ON t.assigned_by = u_by.id
+         LEFT JOIN universities univ ON t.university_id = univ.id
          WHERE t.id = $1
-         GROUP BY t.id`,
+         GROUP BY t.id, u_by.name, u_by.email, univ.name`,
         [id]
     );
     if (!result.rows[0]) return null;
