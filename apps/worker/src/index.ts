@@ -291,16 +291,16 @@ async function processCommunicationTasks() {
 
 async function processWeeklyReports() {
   const now = new Date();
-  // Saturday 10:00 AM (local time check)
-  // Note: Railway servers usually run in UTC. If the user is in IST (+5:30), 10:00 AM IST is 04:30 AM UTC.
-  // The user's metadata says local time is 12:35 PM IST (UTC+5:30).
-  // I'll use a slightly broader window and a source_id to prevent duplicates.
 
-  const isSaturday = now.getDay() === 6;
-  const is10AM = now.getHours() === 10; // Simple check, might need timezone correction if server is UTC
+  // Convert UTC to IST (UTC+5:30)
+  const istOffset = 5.5 * 60; // minutes
+  const nowIST = new Date(now.getTime() + (istOffset + (now.getTimezoneOffset() || 0)) * 60000);
+
+  const isSaturday = nowIST.getDay() === 6;
+  const is10AM = nowIST.getHours() === 10;
 
   if (isSaturday && is10AM) {
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = nowIST.toISOString().split('T')[0];
     const sourceId = `WEEKLY_REPORT_${todayStr}`;
 
     // Check if we've already handled this today
