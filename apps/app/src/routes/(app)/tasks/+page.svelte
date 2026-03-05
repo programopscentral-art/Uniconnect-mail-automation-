@@ -12,6 +12,7 @@
     return () => clearInterval(interval);
   });
 
+  let showModal = $state(false);
   let editingTask = $state<any>(null);
   let isSubmitting = $state(false);
   let updatingTaskId = $state<string | null>(null);
