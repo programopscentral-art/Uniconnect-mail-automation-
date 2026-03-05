@@ -202,9 +202,15 @@
   }
 
   async function deleteTask(id: string) {
+    if (updatingTaskId) return;
     if (!confirm("Are you sure you want to delete this task?")) return;
-    const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
-    if (res.ok) invalidateAll();
+    updatingTaskId = id;
+    try {
+      const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
+      if (res.ok) await invalidateAll();
+    } finally {
+      updatingTaskId = null;
+    }
   }
 
   function canDelete(task: any) {
@@ -813,21 +819,29 @@
                 </button>
                 <button
                   onclick={() => deleteTask(task.id)}
-                  class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  disabled={updatingTaskId === task.id}
+                  class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                   title="Delete Task"
                 >
-                  <svg
-                    class="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    /></svg
-                  >
+                  {#if updatingTaskId === task.id}
+                    <svg class="animate-spin w-4 h-4 text-red-500" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  {:else}
+                    <svg
+                      class="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      /></svg
+                    >
+                  {/if}
                 </button>
               {:else if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || task.assigned_by === data.user.id || task.assignee_ids.includes(data.user.id)}
                 <!-- This branch allows EDIT but not DELETE for roles like PROGRAM_OPS if they aren't the assigner/assignee -->
