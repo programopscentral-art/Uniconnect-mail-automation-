@@ -143,7 +143,7 @@
             <div
               class="w-14 text-sm font-black text-amber-600 dark:text-amber-400 text-right tabular-nums"
             >
-              {item.avg_hours_taken.toFixed(1)}h
+              {Number(item.avg_hours_taken || 0).toFixed(1)}h
             </div>
           </div>
         {:else}

@@ -188,6 +188,15 @@
 
   async function updateStatus(task: any, newStatus: string) {
     if (updatingTaskId) return;
+    
+    // Optimistic Update: temporarily change the local task status for immediate feedback
+    const originalStatus = task.status;
+    const assignee = task.assignees?.find((a: any) => a.id === data.user.id);
+    const originalAssigneeStatus = assignee?.status;
+    
+    if (assignee) assignee.status = newStatus;
+    task.status = newStatus;
+
     updatingTaskId = task.id;
     try {
       const res = await fetch("/api/tasks", {
@@ -195,7 +204,18 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id, status: newStatus }),
       });
-      if (res.ok) await invalidateAll();
+      
+      if (!res.ok) {
+        // Rollback on failure
+        if (assignee) assignee.status = originalAssigneeStatus;
+        task.status = originalStatus;
+        alert("Failed to update status");
+      } else {
+        await invalidateAll();
+      }
+    } catch (err) {
+      if (assignee) assignee.status = originalAssigneeStatus;
+      task.status = originalStatus;
     } finally {
       updatingTaskId = null;
     }
@@ -300,10 +320,13 @@
     const e = new Date(end).getTime();
     const diff = Math.floor((e - s) / 1000); // seconds
 
+    if (diff <= 0) return "1m"; // Ensure at least 1m is shown if completed
+
     const h = Math.floor(diff / 3600);
     const m = Math.floor((diff % 3600) / 60);
 
     if (h > 0) return `${h}h ${m}m`;
+    if (m === 0) return "1m"; // Round up to 1m for short tasks
     return `${m}m`;
   }
 </script>
