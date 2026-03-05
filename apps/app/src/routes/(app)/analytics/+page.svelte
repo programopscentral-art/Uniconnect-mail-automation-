@@ -177,6 +177,26 @@
     </div>
   </div>
 
+  <!-- Rating Legend -->
+  <div class="flex flex-wrap items-center gap-6 px-4">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">S</div>
+      <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">90-100% Efficiency</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">A</div>
+      <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">75-89% Efficiency</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">B</div>
+      <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">50-74% Efficiency</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center text-[10px] font-black text-white shadow-lg">C</div>
+      <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">&lt;50% Efficiency</span>
+    </div>
+  </div>
+
   <!-- Team Reports Table -->
   <div
     class="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden"

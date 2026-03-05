@@ -800,7 +800,7 @@
                   ? new Date(task.due_date).toLocaleDateString()
                   : "Set Date"}
               </div>
-              {#if task.estimated_time || (task.assignees?.length === 1 && task.assignees[0].estimated_time)}
+              {#if task.estimated_time}
                 <div class="flex items-center text-xs font-bold text-amber-600">
                   <svg
                     class="h-4 w-4 mr-1 opacity-70"
@@ -814,7 +814,23 @@
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                     /></svg
                   >
-                  Est: {task.estimated_time || task.assignees[0].estimated_time}
+                  Est: {task.estimated_time}
+                </div>
+              {:else if task.assignees?.[0]?.estimated_time}
+                <div class="flex items-center text-xs font-bold text-amber-600">
+                   <svg
+                    class="h-4 w-4 mr-1 opacity-70"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    ><path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    /></svg
+                  >
+                  Est: {task.assignees[0].estimated_time}
                 </div>
               {/if}
             </div>

@@ -30,6 +30,10 @@ export async function createTask(data: {
 }) {
     const { assignee_ids = [], ...taskData } = data;
 
+    if (!data.estimated_time) {
+        throw new Error("Estimation Time is compulsory for all tasks");
+    }
+
     const result = await db.query(
         `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date, estimated_time)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -124,7 +128,7 @@ export async function getTasks(filters: {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
-         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
          ORDER BY t.created_at DESC${limitClause}`,
         params
     );
@@ -155,7 +159,7 @@ export async function getTaskById(id: string) {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          WHERE t.id = $1
-         GROUP BY t.id, u_by.name, u_by.email, univ.name`,
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, t.estimated_time, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by`,
         [id]
     );
     if (!result.rows[0]) return null;
