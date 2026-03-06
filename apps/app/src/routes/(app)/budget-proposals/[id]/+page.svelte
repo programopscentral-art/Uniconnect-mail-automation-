@@ -227,7 +227,7 @@
 
 <div class="p-6 max-w-7xl mx-auto space-y-8">
   <!-- Banner for pending report -->
-  {#if proposal.status === "EVENT_COMPLETED" || (proposal.status === "APPROVED" && eventPassed)}
+  {#if proposal.status === "EVENT_COMPLETED" || proposal.status === "APPROVED"}
     <div
       in:fly={{ y: -20 }}
       class="bg-indigo-600 text-white p-4 rounded-3xl flex items-center justify-between shadow-lg shadow-indigo-500/20"
@@ -408,7 +408,7 @@
             >Query Report</button
           >
         {/if}
-        {#if (proposal.status === "APPROVED" && eventPassed) || proposal.status === "EVENT_COMPLETED"}
+        {#if proposal.status === "APPROVED" || proposal.status === "EVENT_COMPLETED"}
            {#if isProposer || isGlobalAdmin}
             <a
               href="/budget-proposals/{proposal.id}/report"
