@@ -106,15 +106,15 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
         }
 
         // 3. Email Notification (for critical status changes)
-        if (['APPROVED', 'REJECTED', 'CHANGES_REQUESTED'].includes(toStatus)) {
+        if (['SUBMITTED', 'APPROVED_L1', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED', 'REPORT_SUBMITTED'].includes(toStatus)) {
             await addNotificationJob({
                 to: recipient.email,
                 subject: titleText,
-                text: `Hi ${proposer_name || 'there'},\n\n${bodyText}\n\nView details here: ${process.env.PUBLIC_BASE_URL || ''}${link}`,
+                text: `Hello,\n\n${bodyText}\n\nView details here: ${process.env.PUBLIC_BASE_URL || ''}${link}`,
                 html: `<div>
-                    <h2>${titleText}</h2>
+                    <h2>Budget Proposal Update</h2>
                     <p>${bodyText}</p>
-                    <a href="${process.env.PUBLIC_BASE_URL || ''}${link}">View Proposal</a>
+                    <a href="${process.env.PUBLIC_BASE_URL || ''}${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:bold;">View Proposal Details</a>
                 </div>`
             });
 
