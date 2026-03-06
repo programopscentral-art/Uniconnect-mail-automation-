@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const [templates, mailboxes, students] = await Promise.all([
         getTemplates(universityId),
         getMailboxes(universityId),
-        getStudents(universityId, 100) // Get top 100 to extract keys
+        getStudents({ universityId: universityId || undefined, userId: locals.user.id, limit: 100 }) // Get top 100 of current user's students to extract keys
     ]);
 
     const keys = new Set<string>();

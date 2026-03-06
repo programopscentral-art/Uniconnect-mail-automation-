@@ -172,15 +172,20 @@
             const result = await res.json();
             importResult = result;
             
-            // Auto-close modal after 3 seconds if successful
+            // Success Feedback
+            console.log('Import successful:', result);
+            
+            // Refresh data immediately
+            await invalidateAll();
+            
+            // Auto-close modal after 2.5 seconds if successful
             setTimeout(() => {
                 if (importResult) {
                     showUploadModal = false;
                     resetPreview();
                     importResult = null;
-                    invalidateAll();
                 }
-            }, 3000);
+            }, 2500);
 
         } catch (e) {
             console.error('Upload Error:', e);

@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         throw error(400, 'University ID required');
     }
 
-    const students = await getStudents(universityId);
+    const students = await getStudents({ universityId, userId: locals.user.id });
     return json(students);
 };
 

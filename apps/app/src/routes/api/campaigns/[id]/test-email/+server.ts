@@ -31,8 +31,8 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
             return json({ success: false, message: 'Template not found' }, { status: 400 });
         }
 
-        // 2. Get sample student for variables
-        const students = await getStudents(campaign.university_id, 1);
+        // 2. Get sample student for variables (Use students from CURRENT user for consistency)
+        const students = await getStudents({ universityId: campaign.university_id, userId: locals.user.id, limit: 1 });
         if (students.length === 0) {
             return json({ success: false, message: 'No students found in university to use as sample data' }, { status: 400 });
         }

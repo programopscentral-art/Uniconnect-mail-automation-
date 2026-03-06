@@ -509,11 +509,11 @@
 </script>
 
 <div
-  class="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
+  class="flex flex-col h-screen h-[100dvh] bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
 >
   <!-- Mobile Header -->
   <header
-    class="lg:hidden w-full h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50 shrink-0"
+    class="lg:hidden w-full h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300 shadow-sm"
   >
     <div class="flex items-center space-x-2">
       <div
@@ -557,9 +557,9 @@
   <div class="flex flex-1 min-h-0 relative">
     <!-- Sidebar -->
     <aside
-      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
-        ? 'translate-x-0 bubble-glow'
-        : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
+      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[110] transition-all duration-300 {isSidebarOpen
+        ? 'translate-x-0 opacity-100 visible bubble-glow'
+        : '-translate-x-full opacity-0 invisible lg:translate-x-0 lg:opacity-100 lg:visible'} flex flex-col shadow-2xl lg:shadow-none pointer-events-auto"
     >
       <div
         class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
@@ -647,7 +647,7 @@
     {#if isSidebarOpen}
       <div
         role="presentation"
-        class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm lg:hidden z-[55]"
+        class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm lg:hidden z-[90] pointer-events-auto"
         onclick={() => (isSidebarOpen = false)}
         onkeydown={(e) => e.key === "Escape" && (isSidebarOpen = false)}
         transition:fade={{ duration: 200 }}
@@ -655,10 +655,10 @@
     {/if}
     <!-- Main Content -->
     <main
-      class="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500"
+      class="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500 overscroll-none touch-auto relative z-0"
     >
       <div
-        class="sticky top-0 z-40 bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center"
+        class="sticky top-0 z-[40] bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center pointer-events-auto"
       >
         <div
           class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-2 md:py-3 flex justify-end items-center gap-2 sm:gap-4"
@@ -753,7 +753,7 @@
                       onclick={requestPermission}
                       class="w-full py-2.5 bg-white text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-xl shadow-black/10 active:scale-95 animate-pulse-subtle"
                     >
-                      Enable Desktop Alerts
+                      Enable Push Notifications
                     </button>
                   </div>
                 {:else}

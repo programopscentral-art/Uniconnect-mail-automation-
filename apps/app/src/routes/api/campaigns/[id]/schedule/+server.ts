@@ -55,10 +55,10 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
         const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-        // 4. Get all students
-        const students = await getStudents(campaign.university_id, 10000);
+        // 4. Get all students for THIS user in THIS university
+        const students = await getStudents({ universityId: campaign.university_id, userId: locals.user.id, limit: 10000 });
         if (students.length === 0) {
-            return json({ success: false, message: 'No students found in university' }, { status: 400 });
+            return json({ success: false, message: 'No recipients found in your personal load list. Please upload students first.' }, { status: 400 });
         }
 
         console.log(`[CAMPAIGN_START] Found ${students.length} students`);
