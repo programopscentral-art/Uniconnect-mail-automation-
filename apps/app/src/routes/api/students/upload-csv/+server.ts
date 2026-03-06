@@ -82,9 +82,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             return null;
         };
 
-        const nameAliases = ['student full name', 'student name', 'full name', 'candidate name', 'name', 'fname'];
-        const emailAliases = ['student personal mail id', 'personal mail id', 'student email', 'candidate email', 'email address', 'email id', 'email'];
-        const idAliases = ['niat id', 'admnno', 'roll no', 'student id', 'external id', 'id', 'uid'];
+        const nameAliases = [
+            'student full name', 'student name', 'full name', 'candidate name', 'name', 'fname',
+            'name of the student', 'name of candidate', 'student_name', 'full_name'
+        ];
+        const emailAliases = [
+            'student personal mail id', 'personal mail id', 'student email', 'candidate email',
+            'email address', 'email id', 'email', 'personal email', 'mail id', 'mail',
+            'student_email', 'college email', 'university email'
+        ];
+        const idAliases = [
+            'niat id', 'admnno', 'roll no', 'student id', 'external id', 'id', 'uid',
+            'admission no', 'registration no', 'reg no', 'roll number', 'student_id'
+        ];
 
         const students: any[] = [];
         const skippedRows: any[] = [];

@@ -40,13 +40,27 @@ export async function createStudent(data: { university_id: string; name: string;
 export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; metadata?: any; sort_order?: number }>) {
     if (students.length === 0) return;
 
-    // Deduplicate by (university_id, external_id) to support siblings with shared emails
-    const uniqueStudentsMap = new Map();
+    // Deduplicate by BOTH email and external_id in memory
+    // This prevents "duplicate key" errors within the same INSERT statement
+    const byEmail = new Map();
+    const byExternalId = new Map();
+
     students.forEach(s => {
-        const key = `${s.university_id}:${String(s.external_id || s.email).trim().toLowerCase()}`;
-        uniqueStudentsMap.set(key, s); // Overwrites with latest occurrence
+        const emailKey = `${s.university_id}:${s.email.trim().toLowerCase()}`;
+        const extKey = s.external_id ? `${s.university_id}:${String(s.external_id).trim().toLowerCase()}` : null;
+
+        // If we've seen this email OR this external ID, we'll overwrite it
+        // This effectively takes the "last" record in the file as the source of truth
+        const existingByEmail = byEmail.get(emailKey);
+        const existingByExt = extKey ? byExternalId.get(extKey) : null;
+
+        const studentToUse = s;
+        byEmail.set(emailKey, studentToUse);
+        if (extKey) byExternalId.set(extKey, studentToUse);
     });
-    const uniqueStudents = Array.from(uniqueStudentsMap.values());
+
+    // The final set of students to insert must be unique across both fields
+    const uniqueStudents = Array.from(new Set(byEmail.values()));
 
     // Build multi-row insert query
     // This is significantly faster for large imports
