@@ -239,7 +239,7 @@
     <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto animate-premium-slide" style="animation-delay: 100ms;">
         <!-- Daily Mail Quota Indicator -->
         <div class="flex flex-col gap-1 items-end mr-4">
-            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Workspace Daily Quota</span>
+            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Daily Quota (University)</span>
             <div class="flex items-center gap-3">
                 <div class="w-32 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div 

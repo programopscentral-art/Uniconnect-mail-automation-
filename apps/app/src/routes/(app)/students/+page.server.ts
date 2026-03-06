@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         getStudents({ universityId: universityId || undefined, userId: locals.user.id, limit, offset }),
         getStudentsCount(universityId || undefined, locals.user.id),
         isGlobal ? getAllUniversities() : Promise.resolve([]),
-        getDailySentCount()
+        getDailySentCount(universityId || undefined)
     ]);
 
     return {
