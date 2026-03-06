@@ -24,6 +24,42 @@
     (proposal.approved_total_budget || 0) - form.actual_budget_used,
   );
 
+  let isUploadingPhotos = $state(false);
+  let photoInput = $state<HTMLInputElement>();
+
+  async function uploadPhotos(e: Event) {
+    const files = (e.target as HTMLInputElement).files;
+    if (!files || files.length === 0) return;
+
+    isUploadingPhotos = true;
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const res = await fetch(`/api/budget-proposals/${proposal.id}/attachments`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (res.ok) {
+          const attachment = await res.json();
+          form.photos_urls = [...form.photos_urls, attachment.file_url];
+        } else {
+          const err = await res.json();
+          alert(`Failed to upload ${file.name}: ${err.message}`);
+        }
+      }
+    } finally {
+      isUploadingPhotos = false;
+      if (photoInput) photoInput.value = "";
+    }
+  }
+
+  function removePhoto(url: string) {
+    form.photos_urls = form.photos_urls.filter((u) => u !== url);
+  }
+
   async function handleSubmit() {
     isSubmitting = true;
     try {
@@ -172,6 +208,56 @@
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium dark:text-white"
           rows="2"
         ></textarea>
+      </div>
+      
+      <div class="col-span-full space-y-4 pt-4 border-t border-gray-50 dark:border-gray-700">
+        <div class="flex items-center justify-between">
+          <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Event Gallery (Photos)</label>
+          <div class="relative">
+            <input type="file" multiple accept="image/*" class="hidden" bind:this={photoInput} onchange={uploadPhotos} />
+            <button 
+              type="button" 
+              onclick={() => photoInput?.click()} 
+              disabled={isUploadingPhotos}
+              class="text-xs font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 rounded-xl hover:bg-indigo-100 transition-all flex items-center gap-2"
+            >
+              {#if isUploadingPhotos}
+                <div class="w-3 h-3 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin"></div>
+              {:else}
+                📸
+              {/if}
+              Upload Photos
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+          {#each form.photos_urls as photo}
+            <div class="aspect-square bg-gray-50 dark:bg-gray-900 rounded-3xl overflow-hidden relative group border border-gray-100 dark:border-gray-700">
+              <img src={photo.startsWith('/uploads/') ? photo.replace('/uploads/', '/api/uploads/') : photo} alt="Event" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <button 
+                type="button" 
+                onclick={() => removePhoto(photo)}
+                class="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-xl shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          {/each}
+          
+          {#if form.photos_urls.length === 0 && !isUploadingPhotos}
+             <button 
+               type="button"
+               onclick={() => photoInput?.click()}
+               class="aspect-square rounded-3xl border-2 border-dashed border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center gap-2 text-gray-300 hover:text-indigo-400 hover:border-indigo-400/30 hover:bg-indigo-500/5 transition-all"
+             >
+               <span class="text-2xl">➕</span>
+               <span class="text-[9px] font-black uppercase tracking-widest">Add Photos</span>
+             </button>
+          {/if}
+        </div>
       </div>
     </div>
 

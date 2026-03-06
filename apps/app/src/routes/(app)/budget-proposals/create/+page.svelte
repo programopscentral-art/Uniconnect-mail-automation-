@@ -40,6 +40,11 @@
     "SPEAKER",
     "TRAVEL",
     "MARKETING",
+    "AWARDS",
+    "RECOGNITION",
+    "HOSPITALITY",
+    "CERTIFICATES",
+    "GIFTS",
     "MISC",
   ];
 

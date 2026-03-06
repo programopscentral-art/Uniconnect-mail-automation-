@@ -34,17 +34,23 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             toStatus = 'UNDER_REVIEW';
             break;
         case 'approve':
-            if (proposal.status !== 'UNDER_REVIEW') throw error(400, 'Can only approve if status is UNDER_REVIEW');
-            if (approvedBudget === undefined) throw error(400, 'Approved budget is required for approval');
-            toStatus = 'APPROVED';
+            if (proposal.status === 'UNDER_REVIEW') {
+                if (approvedBudget === undefined) throw error(400, 'Approved budget is required for L1 approval');
+                toStatus = 'APPROVED_L1';
+            } else if (proposal.status === 'APPROVED_L1') {
+                if (!isGlobalAdmin) throw error(403, 'Only admins/ops can perform final approval');
+                toStatus = 'APPROVED';
+            } else {
+                throw error(400, 'Invalid status for approval');
+            }
             break;
         case 'reject':
-            if (proposal.status !== 'UNDER_REVIEW') throw error(400, 'Can only reject if status is UNDER_REVIEW');
+            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'APPROVED_L1') throw error(400, 'Invalid status for rejection');
             if (!reason) throw error(400, 'Reason is required for rejection');
             toStatus = 'REJECTED';
             break;
         case 'request-changes':
-            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'REPORT_SUBMITTED') {
+            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'APPROVED_L1' && proposal.status !== 'REPORT_SUBMITTED') {
                 throw error(400, 'Invalid transition for requesting changes');
             }
             if (!reason) throw error(400, 'Reason is required for requesting changes');

@@ -16,6 +16,11 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
             bodyText = `${actorName} submitted a new budget proposal: ${title}`;
             isToSET = true;
             break;
+        case 'APPROVED_L1':
+            titleText = 'Budget Proposal Approved (L1)';
+            bodyText = `${actorName} performed L1 approval for: ${title}. Final approval pending.`;
+            isToSET = true; // Still "ToSET" but actually for Higher-ups if we use the same pool, or filter it.
+            break;
         case 'REPORT_SUBMITTED':
             titleText = 'Post-Event Report Submitted';
             bodyText = `${actorName} submitted the post-event report for: ${title}`;

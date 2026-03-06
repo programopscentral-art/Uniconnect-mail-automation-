@@ -5,6 +5,8 @@ export type BudgetProposalStatus =
     | 'SUBMITTED'
     | 'UNDER_REVIEW'
     | 'CHANGES_REQUESTED'
+    | 'APPROVED_L1'
+    | 'APPROVED_L2'
     | 'APPROVED'
     | 'REJECTED'
     | 'EVENT_COMPLETED'
@@ -17,6 +19,11 @@ export type BudgetItemCategory =
     | 'SPEAKER'
     | 'TRAVEL'
     | 'MARKETING'
+    | 'AWARDS'
+    | 'RECOGNITION'
+    | 'HOSPITALITY'
+    | 'CERTIFICATES'
+    | 'GIFTS'
     | 'MISC';
 
 export interface BudgetProposal {

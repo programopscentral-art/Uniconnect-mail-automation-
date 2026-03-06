@@ -36,6 +36,10 @@
         return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
       case "CHANGES_REQUESTED":
         return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      case "APPROVED_L1":
+        return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
+      case "APPROVED_L2":
+        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
       case "APPROVED":
         return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
       case "REJECTED":
@@ -341,8 +345,8 @@
               showActionModal = "approve";
               actionBudget = proposal.estimated_total_budget;
             }}
-            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md"
-            >Approve</button
+            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md"
+            >Approve (L1)</button
           >
           <button
             onclick={() => (showActionModal = "request-changes")}
@@ -353,6 +357,21 @@
             onclick={() => (showActionModal = "reject")}
             class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md"
             >Reject</button
+          >
+        {/if}
+        {#if proposal.status === "APPROVED_L1" && isGlobalAdmin}
+          <button
+            onclick={() => {
+              showActionModal = "approve";
+              actionBudget = proposal.approved_total_budget || proposal.estimated_total_budget;
+            }}
+            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md"
+            >Final Approve</button
+          >
+          <button
+            onclick={() => (showActionModal = "request-changes")}
+            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md"
+            >Request Changes</button
           >
         {/if}
         {#if proposal.status === "REPORT_SUBMITTED"}
@@ -733,6 +752,115 @@
           {/each}
         </div>
       </section>
+
+      <!-- Post-Event Report -->
+      {#if proposal.report}
+        <section
+          class="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-8 animate-premium-fade"
+        >
+          <div class="flex items-center justify-between">
+            <h2
+              class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
+            >
+              <div
+                class="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-indigo-600"
+              >
+                📊
+              </div>
+              Post-Event Impact Report
+            </h2>
+            <div
+              class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+            >
+              Reported on {new Date(
+                proposal.report.submitted_at,
+              ).toLocaleDateString()}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700"
+            >
+              <p class="text-[9px] font-black text-gray-400 uppercase">
+                Actual Attendance
+              </p>
+              <p class="text-xl font-black text-gray-900 dark:text-white">
+                {proposal.report.actual_attendance || "N/A"}
+              </p>
+            </div>
+            <div
+              class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700"
+            >
+              <p class="text-[9px] font-black text-gray-400 uppercase">
+                Actual Budget Used
+              </p>
+              <p class="text-xl font-black text-gray-900 dark:text-white">
+                {formatter.format(proposal.report.actual_budget_used || 0)}
+              </p>
+            </div>
+            <div
+              class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-gray-100 dark:border-gray-700"
+            >
+              <p class="text-[9px] font-black text-gray-400 uppercase">
+                Funds Remaining
+              </p>
+              <p
+                class="text-xl font-black {proposal.report.remaining_budget &&
+                proposal.report.remaining_budget < 0
+                  ? 'text-red-500'
+                  : 'text-emerald-600'}"
+              >
+                {formatter.format(proposal.report.remaining_budget || 0)}
+              </p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <p
+                class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+              >
+                Outcomes & Success Points
+              </p>
+              <div
+                class="p-4 bg-emerald-50/30 dark:bg-emerald-900/5 rounded-2xl border border-emerald-100/50 dark:border-emerald-900/20 text-sm italic text-gray-700 dark:text-gray-300"
+              >
+                {proposal.report.outcomes || "No outcomes reported."}
+              </div>
+            </div>
+
+            {#if proposal.report.feedback_summary}
+              <div class="space-y-1">
+                <p
+                  class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
+                >
+                  Feedback Highlights
+                </p>
+                <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-2xl text-sm italic text-gray-700 dark:text-gray-300">
+                  {proposal.report.feedback_summary}
+                </div>
+              </div>
+            {/if}
+
+            {#if proposal.report.photos_urls && proposal.report.photos_urls.length > 0}
+              <div class="space-y-3 pt-2">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Event Gallery</p>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {#each proposal.report.photos_urls as photo}
+                    <div 
+                      class="aspect-square rounded-2xl overflow-hidden cursor-pointer hover:ring-4 ring-indigo-500/20 transition-all group"
+                      onclick={() => openPreview({ file_url: photo, file_type: 'image/jpeg' })}
+                    >
+                      <img src={photo.startsWith('/uploads/') ? photo.replace('/uploads/', '/api/uploads/') : photo} alt="Event" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+        </section>
+      {/if}
     </div>
 
     <!-- Right: Comments & Timeline -->
