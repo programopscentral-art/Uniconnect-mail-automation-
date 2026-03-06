@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import path from 'path';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
+import nodemailer from 'nodemailer';
 
 // Explicitly load root .env
 const envPath = path.resolve(process.cwd(), '.env');
@@ -342,8 +343,49 @@ const worker = new Worker('comm-task-notifications', async (job) => {
   }
 }, { connection });
 
+// SMTP Transporter Setup
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: process.env.SMTP_SECURE !== 'false', // Default to true (465)
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+});
+
+const systemNotificationWorker = new Worker('system-notifications', async (job) => {
+  if (job.name === 'send-notification') {
+    const { to, subject, text, html } = job.data;
+    console.log(`[SYSTEM-NOTIF] 📧 Sending email to ${to}: ${subject}`);
+
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn('⚠️ SMTP_USER or SMTP_PASS not set. Email not sent.');
+      return;
+    }
+
+    try {
+      await transporter.sendMail({
+        from: `"UniConnect System" <${process.env.SMTP_USER}>`,
+        to,
+        subject,
+        text,
+        html
+      });
+      console.log(`[SYSTEM-NOTIF] ✅ Successfully sent email to ${to}`);
+    } catch (err) {
+      console.error(`[SYSTEM-NOTIF] ❌ Failed to send email to ${to}:`, err);
+      throw err; // Re-throw to trigger BullMQ retry
+    }
+  }
+}, { connection });
+
 worker.on('failed', (job, err) => {
   console.error(`[WORKER] ❌ Job ${job?.id} failed:`, err);
+});
+
+systemNotificationWorker.on('failed', (job, err) => {
+  console.error(`[SYSTEM-NOTIF] ❌ Job ${job?.id} failed:`, err);
 });
 
 console.log('✅ Worker with robust notifications and BullMQ sync started.');

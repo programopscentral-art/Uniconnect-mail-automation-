@@ -311,7 +311,7 @@
       </div>
 
       <!-- Action Buttons context-aware -->
-      {#if isGlobalAdmin || isProposer}
+      {#if isGlobalAdmin}
         <button
           onclick={deleteProposal}
           disabled={isActionLoading}
@@ -320,14 +320,26 @@
           {isActionLoading ? "..." : "Delete"}
         </button>
       {/if}
-
       {#if isProposer && (proposal.status === "DRAFT" || proposal.status === "CHANGES_REQUESTED")}
+        <a
+          href="/budget-proposals/{proposal.id}/edit"
+          class="px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 text-gray-600 dark:text-gray-300 rounded-xl font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2"
+        >
+          Edit Proposal
+        </a>
         <button
           onclick={submitForReview}
           disabled={isActionLoading}
           class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all shadow-md shadow-emerald-500/20 active:scale-95 flex items-center gap-2"
         >
           {isActionLoading ? "..." : "Submit for Review"}
+        </button>
+        <button
+          onclick={deleteProposal}
+          disabled={isActionLoading}
+          class="px-5 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl font-bold transition-all active:scale-95"
+        >
+          {isActionLoading ? "..." : "Delete"}
         </button>
       {/if}
 
