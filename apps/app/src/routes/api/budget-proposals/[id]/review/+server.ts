@@ -75,7 +75,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     // Notify
     const updatedProposal = await getBudgetProposalById(params.id);
     if (updatedProposal && toStatus !== 'UNDER_REVIEW') { // Don't notify for "Under Review" start
-        await notifyBudgetProposalUpdate(updatedProposal, toStatus, locals.user.name || locals.user.email);
+        await notifyBudgetProposalUpdate(updatedProposal, toStatus, locals.user.name || locals.user.email, reason);
     }
 
     return json({ success: true });

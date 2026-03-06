@@ -2,7 +2,7 @@ import { db, createNotification, getUserFcmTokens, type BudgetProposal, type Bud
 import admin from './firebase-admin';
 import { addNotificationJob } from './queue';
 
-export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toStatus: BudgetProposalStatus, actorName: string) {
+export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toStatus: BudgetProposalStatus, actorName: string, reason?: string) {
     const { university_id, id: proposalId, title, proposer_user_id, proposer_email, proposer_name } = proposal;
 
     let titleText = '';
@@ -28,7 +28,7 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
             break;
         case 'CHANGES_REQUESTED':
             titleText = 'Changes Requested on Budget Proposal';
-            bodyText = `SET has requested changes for: ${title}`;
+            bodyText = `SET has requested changes for: ${title}${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'APPROVED':
@@ -38,7 +38,7 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
             break;
         case 'REJECTED':
             titleText = 'Budget Proposal Rejected ❌';
-            bodyText = `Your budget proposal for ${title} was not approved.`;
+            bodyText = `Your budget proposal for ${title} was not approved.${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'CLOSED':
