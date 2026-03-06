@@ -68,7 +68,7 @@
         isSystem:
           completion?.university === "System Admin" ||
           completion?.university === "Global Override" ||
-          (!hasOverlap && c.university === userUniversities.join(", ")),
+          (!hasOverlap && completion?.university === userUniversities.join(", ")),
       };
     }),
   );
