@@ -8,36 +8,70 @@ export interface Student {
     email: string;
     external_id: string;
     metadata: any;
+    created_by?: string;
     created_at: Date;
 }
 
-export async function getStudents(universityId?: string, limit = 100, offset = 0) {
-    const query = universityId
-        ? [`SELECT * FROM students WHERE university_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`, [universityId, limit, offset]]
-        : [`SELECT * FROM students ORDER BY created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]];
+export async function getStudents(options: { universityId?: string; userId?: string; limit?: number; offset?: number }) {
+    const { universityId, userId, limit = 100, offset = 0 } = options;
 
-    const result = await db.query(query[0] as string, query[1] as any[]);
+    let query = `SELECT * FROM students`;
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (universityId) {
+        conditions.push(`university_id = $${params.length + 1}`);
+        params.push(universityId);
+    }
+
+    if (userId) {
+        conditions.push(`created_by = $${params.length + 1}`);
+        params.push(userId);
+    }
+
+    if (conditions.length > 0) {
+        query += ` WHERE ` + conditions.join(' AND ');
+    }
+
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    params.push(limit, offset);
+
+    const result = await db.query(query, params);
     return result.rows as Student[];
 }
 
-export async function getStudentsCount(universityId?: string) {
-    const query = universityId
-        ? [`SELECT COUNT(*) as count FROM students WHERE university_id = $1`, [universityId]]
-        : [`SELECT COUNT(*) as count FROM students`, []];
+export async function getStudentsCount(universityId?: string, userId?: string) {
+    let query = `SELECT COUNT(*) as count FROM students`;
+    const conditions: string[] = [];
+    const params: any[] = [];
 
-    const result = await db.query(query[0] as string, query[1] as any[]);
+    if (universityId) {
+        conditions.push(`university_id = $${params.length + 1}`);
+        params.push(universityId);
+    }
+
+    if (userId) {
+        conditions.push(`created_by = $${params.length + 1}`);
+        params.push(userId);
+    }
+
+    if (conditions.length > 0) {
+        query += ` WHERE ` + conditions.join(' AND ');
+    }
+
+    const result = await db.query(query, params);
     return parseInt(result.rows[0].count);
 }
 
-export async function createStudent(data: { university_id: string; name: string; email: string; external_id: string; metadata?: any; sort_order?: number }) {
+export async function createStudent(data: { university_id: string; name: string; email: string; external_id: string; created_by?: string; metadata?: any; sort_order?: number }) {
     const result = await db.query(
-        `INSERT INTO students (university_id, name, email, external_id, metadata, sort_order) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [data.university_id, data.name, data.email, data.external_id, data.metadata || {}, data.sort_order || 0]
+        `INSERT INTO students (university_id, name, email, external_id, created_by, metadata, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [data.university_id, data.name, data.email, data.external_id, data.created_by || null, data.metadata || {}, data.sort_order || 0]
     );
     return result.rows[0] as Student;
 }
 
-export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; metadata?: any; sort_order?: number }>) {
+export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; created_by?: string; metadata?: any; sort_order?: number }>) {
     if (students.length === 0) return;
 
     // Deduplicate by BOTH email and external_id in memory
@@ -68,24 +102,26 @@ export async function createStudentsBulk(students: Array<{ university_id: string
     const placeholders: string[] = [];
 
     uniqueStudents.forEach((s, i) => {
-        const offset = i * 6;
-        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6})`);
+        const offset = i * 7;
+        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7})`);
         values.push(
             s.university_id,
             s.name.trim(),
             s.email.trim().toLowerCase(),
             String(s.external_id || s.email).trim(),
+            s.created_by || null,
             s.metadata || {},
             s.sort_order || 0
         );
     });
 
     const query = `
-        INSERT INTO students (university_id, name, email, external_id, metadata, sort_order) 
+        INSERT INTO students (university_id, name, email, external_id, created_by, metadata, sort_order) 
         VALUES ${placeholders.join(', ')} 
         ON CONFLICT (university_id, external_id) DO UPDATE SET 
             name = EXCLUDED.name, 
             email = EXCLUDED.email,
+            created_by = EXCLUDED.created_by,
             metadata = EXCLUDED.metadata,
             sort_order = EXCLUDED.sort_order,
             updated_at = NOW()
@@ -98,8 +134,14 @@ export async function deleteStudent(id: string, universityId: string) {
     await db.query(`DELETE FROM students WHERE id = $1 AND university_id = $2`, [id, universityId]);
 }
 
-export async function deleteAllStudents(universityId: string) {
-    await db.query(`DELETE FROM students WHERE university_id = $1`, [universityId]);
+export async function deleteAllStudents(universityId: string, userId?: string) {
+    let query = `DELETE FROM students WHERE university_id = $1`;
+    const params = [universityId];
+    if (userId) {
+        query += ` AND created_by = $2`;
+        params.push(userId);
+    }
+    await db.query(query, params);
 }
 
 export async function getMetadataKeys(universityId: string): Promise<string[]> {
@@ -109,5 +151,5 @@ export async function getMetadataKeys(universityId: string): Promise<string[]> {
          FROM (SELECT metadata FROM students WHERE university_id = $1 ORDER BY created_at DESC LIMIT 100) s`,
         [universityId]
     );
-    return result.rows.map(r => r.key);
+    return result.rows.map((r: any) => r.key);
 }

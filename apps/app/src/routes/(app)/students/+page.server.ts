@@ -1,4 +1,4 @@
-import { getStudents, getAllUniversities, getStudentsCount } from '@uniconnect/shared';
+import { getStudents, getAllUniversities, getStudentsCount, getDailySentCount } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -19,10 +19,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
-    const [students, totalCount, universities] = await Promise.all([
-        getStudents(universityId || undefined, limit, offset),
-        getStudentsCount(universityId || undefined),
-        isGlobal ? getAllUniversities() : Promise.resolve([])
+    const [students, totalCount, universities, dailySentCount] = await Promise.all([
+        getStudents({ universityId: universityId || undefined, userId: locals.user.id, limit, offset }),
+        getStudentsCount(universityId || undefined, locals.user.id),
+        isGlobal ? getAllUniversities() : Promise.resolve([]),
+        getDailySentCount()
     ]);
 
     return {
@@ -31,6 +32,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         currentPage: page,
         limit,
         universities,
+        dailySentCount,
         selectedUniversityId: universityId,
         userRole: locals.user.role,
         userUniversityId: locals.user.university_id

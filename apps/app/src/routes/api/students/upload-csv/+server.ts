@@ -130,6 +130,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 name: name.trim(),
                 email: email.trim().toLowerCase(),
                 external_id: String(externalId).trim(),
+                created_by: locals.user.id,
                 metadata,
                 sort_order: index // Preserve original file order
             });

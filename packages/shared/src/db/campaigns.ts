@@ -281,3 +281,15 @@ export async function getDashboardStats(universityId?: string) {
         }))
     };
 }
+
+export async function getDailySentCount() {
+    // Counts SENT, OPENED, ACKNOWLEDGED today (IST)
+    // Using simple date comparison for "today"
+    const result = await db.query(`
+        SELECT COUNT(*) as count 
+        FROM campaign_recipients 
+        WHERE status IN ('SENT', 'OPENED', 'ACKNOWLEDGED') 
+        AND sent_at >= CURRENT_DATE
+    `);
+    return parseInt(result.rows[0].count) || 0;
+}

@@ -237,12 +237,28 @@
       <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">Secure management of student records and contact details.</p>
     </div>
     <div class="flex flex-wrap items-center gap-4 w-full lg:w-auto animate-premium-slide" style="animation-delay: 100ms;">
+        <!-- Daily Mail Quota Indicator -->
+        <div class="flex flex-col gap-1 items-end mr-4">
+            <span class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">Workspace Daily Quota</span>
+            <div class="flex items-center gap-3">
+                <div class="w-32 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div 
+                        class="h-full bg-indigo-600 transition-all duration-1000" 
+                        style="width: {Math.min((data.dailySentCount / 1500) * 100, 100)}%"
+                    ></div>
+                </div>
+                <span class="text-xs font-black {data.dailySentCount > 1400 ? 'text-red-600' : 'text-indigo-600'} dark:text-indigo-400">
+                    {1500 - data.dailySentCount} <span class="text-[8px] text-gray-400 font-normal uppercase">Left</span>
+                </span>
+            </div>
+        </div>
+
         {#if data.students.length > 0}
             <button 
                 onclick={deleteAllStudents}
                 class="flex-1 lg:flex-none px-6 py-3 border border-red-200 dark:border-red-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl text-red-600 dark:text-red-400 bg-white/50 dark:bg-red-950/20 hover:bg-red-600 hover:text-white transition-all active:scale-95"
             >
-                Clear All
+                Clear Data
             </button>
         {/if}
         <button 
@@ -250,7 +266,7 @@
             class="flex-1 lg:flex-none inline-flex items-center justify-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 relative overflow-visible"
         >
             <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-            Import Students
+            Import Recipients
             <span class="absolute -top-2 -right-1 bg-green-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-sm animate-pulse tracking-tighter">ULTRA</span>
         </button>
     </div>
