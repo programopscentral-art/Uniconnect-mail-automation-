@@ -8,7 +8,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const proposal = await getBudgetProposalById(params.id);
     if (!proposal) throw error(404, 'Proposal not found');
 
-    if (proposal.status !== 'EVENT_COMPLETED' && proposal.status !== 'REPORT_SUBMITTED') {
+    if (proposal.status !== 'APPROVED' && proposal.status !== 'EVENT_COMPLETED' && proposal.status !== 'REPORT_SUBMITTED') {
         throw error(403, 'Forbidden: Report cannot be submitted in this status');
     }
 

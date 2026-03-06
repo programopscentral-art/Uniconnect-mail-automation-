@@ -16,9 +16,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     const proposal = await getBudgetProposalById(params.id);
     if (!proposal) throw error(404, 'Proposal not found');
 
-    // ONLY EVENT_COMPLETED or REPORT_SUBMITTED (for updates)
-    if (proposal.status !== 'EVENT_COMPLETED' && proposal.status !== 'REPORT_SUBMITTED') {
-        throw error(400, 'Invalid status: Report can only be submitted for completed events');
+    // ALLOW APPROVED, EVENT_COMPLETED, or REPORT_SUBMITTED
+    if (proposal.status !== 'APPROVED' && proposal.status !== 'EVENT_COMPLETED' && proposal.status !== 'REPORT_SUBMITTED') {
+        throw error(400, 'Invalid status: Report can only be submitted for approved or completed events');
     }
 
     // Only proposer or admin
