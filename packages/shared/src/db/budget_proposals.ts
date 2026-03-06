@@ -66,6 +66,8 @@ export interface BudgetProposalAttachment {
     file_url: string;
     file_name: string;
     file_type: string | null;
+    category: 'SUPPORTING' | 'BILL' | 'REPORT_PHOTO' | string;
+    file_content?: string | null; // Base64 fallback for cross-server visibility
     uploaded_by: string | null;
     uploaded_at: Date;
 }
@@ -398,12 +400,14 @@ export async function addBudgetProposalAttachment(data: {
     file_url: string;
     file_name: string;
     file_type?: string;
+    category?: string;
+    file_content?: string;
     uploaded_by: string;
 }) {
     const res = await db.query(
-        `INSERT INTO budget_proposal_attachments (proposal_id, file_url, file_name, file_type, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [data.proposal_id, data.file_url, data.file_name, data.file_type || null, data.uploaded_by]
+        `INSERT INTO budget_proposal_attachments (proposal_id, file_url, file_name, file_type, category, file_content, uploaded_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [data.proposal_id, data.file_url, data.file_name, data.file_type || null, data.category || 'SUPPORTING', data.file_content || null, data.uploaded_by]
     );
     return res.rows[0] as BudgetProposalAttachment;
 }

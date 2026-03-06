@@ -36,6 +36,7 @@
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("category", "REPORT_PHOTO");
 
         const res = await fetch(`/api/budget-proposals/${proposal.id}/attachments`, {
           method: "POST",

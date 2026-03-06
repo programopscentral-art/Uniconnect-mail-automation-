@@ -18,7 +18,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         const maxSize = 10 * 1024 * 1024; // 10MB
         if (file.size > maxSize) throw error(400, 'File size exceeds 10MB limit');
 
+        const category = formData.get('category') as string || 'SUPPORTING';
         const buffer = await file.arrayBuffer();
+        const base64Content = Buffer.from(buffer).toString('base64');
         const ext = path.extname(file.name);
         const fileName = `${params.id}_${crypto.randomUUID()}${ext}`;
         const uploadDir = path.resolve('static/uploads/budget-proposals');
@@ -37,6 +39,8 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             file_url: publicUrl,
             file_name: file.name,
             file_type: file.type || ext.slice(1).toUpperCase(),
+            category,
+            file_content: base64Content, // Store Base64 for cross-server visibility
             uploaded_by: locals.user.id
         });
 

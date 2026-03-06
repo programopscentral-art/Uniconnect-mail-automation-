@@ -141,7 +141,7 @@
   let isUploading = $state(false);
   let uploadProgress = $state(0);
 
-  async function uploadFile(e: Event) {
+  async function uploadFile(e: Event, category: 'SUPPORTING' | 'BILL' = 'SUPPORTING') {
     const files = (e.target as HTMLInputElement).files;
     if (!files || files.length === 0) return;
 
@@ -152,6 +152,7 @@
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("category", category);
 
         const res = await fetch(
           `/api/budget-proposals/${proposal.id}/attachments`,
@@ -170,6 +171,7 @@
     } finally {
       isUploading = false;
       if (fileInput) fileInput.value = "";
+      if (billInput) billInput.value = "";
     }
   }
 
@@ -179,8 +181,12 @@
 
   function openPreview(file: any) {
     let url = file.file_url;
-    if (url.startsWith("/uploads/"))
-      url = url.replace("/uploads/", "/api/uploads/");
+    // Fallback to Base64 if available for cross-laptop visibility
+    if (file.file_content && file.file_type?.startsWith('image')) {
+        url = `data:${file.file_type};base64,${file.file_content}`;
+    } else if (url.startsWith("/uploads/")) {
+        url = url.replace("/uploads/", "/api/uploads/");
+    }
     previewUrl = url;
     previewType = file.file_type || "";
   }
@@ -205,6 +211,10 @@
       alert("Error deleting attachment");
     }
   }
+
+  let billInput = $state<HTMLInputElement>();
+  const supportingDocs = $derived(proposal.attachments.filter(a => a.category !== 'BILL'));
+  const bills = $derived(proposal.attachments.filter(a => a.category === 'BILL'));
 
   const isGlobalAdmin = $derived(
     user.role === "ADMIN" || user.role === "PROGRAM_OPS",
@@ -397,6 +407,16 @@
             class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md"
             >Query Report</button
           >
+        {/if}
+        {#if (proposal.status === "APPROVED" && eventPassed) || proposal.status === "EVENT_COMPLETED"}
+           {#if isProposer || isGlobalAdmin}
+            <a
+              href="/budget-proposals/{proposal.id}/report"
+              class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
+            >
+              📊 Submit Final Report
+            </a>
+          {/if}
         {/if}
       {/if}
     </div>
@@ -607,7 +627,7 @@
                 multiple
                 class="hidden"
                 bind:this={fileInput}
-                onchange={uploadFile}
+                onchange={(e) => uploadFile(e, 'SUPPORTING')}
                 accept=".jpg,.jpeg,.png,.webp,.pdf"
               />
               <button
@@ -643,23 +663,24 @@
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {#each proposal.attachments as file}
+          {#each supportingDocs as file}
             <div
-              class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-emerald-500 transition-all"
+              class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-emerald-500 transition-all shadow-sm"
             >
               <!-- Thumbnail / Icon -->
               <div
-                class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer"
+                class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer relative"
                 onclick={() => openPreview(file)}
               >
                 {#if file.file_type?.includes("image") || ["JPG", "PNG", "WEBP", "JPEG"].includes(file.file_type?.toUpperCase())}
                   <img
-                    src={file.file_url.startsWith("/uploads/")
-                      ? file.file_url.replace("/uploads/", "/api/uploads/")
-                      : file.file_url}
+                    src={file.file_content ? `data:${file.file_type};base64,${file.file_content}` : (file.file_url.startsWith("/uploads/") ? file.file_url.replace("/uploads/", "/api/uploads/") : file.file_url)}
                     alt={file.file_name}
                     class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
+                  {#if file.file_content}
+                    <div class="absolute bottom-2 right-2 px-1.5 py-0.5 bg-emerald-500/80 backdrop-blur rounded text-[8px] text-white font-bold">☁️ PERMANENT</div>
+                  {/if}
                 {:else if file.file_type?.toUpperCase() === "PDF"}
                   <div class="flex flex-col items-center gap-2">
                     <div
@@ -760,6 +781,107 @@
               class="col-span-full py-12 text-center text-gray-400 border-2 border-dashed border-gray-50 dark:border-gray-700 rounded-[32px] italic text-sm"
             >
               No attachments provided yet.
+            </p>
+          {/each}
+        </div>
+      </section>
+
+      <!-- Bills Section -->
+      <section
+        class="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-6"
+      >
+        <div class="flex items-center justify-between">
+          <h2
+            class="text-xl font-black text-gray-900 dark:text-white flex items-center gap-3"
+          >
+            <div
+              class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600"
+            >
+              🧾
+            </div>
+            Event Bills & Receipts
+          </h2>
+
+          {#if isProposer || canReview}
+            <div class="relative">
+              <input
+                type="file"
+                multiple
+                class="hidden"
+                bind:this={billInput}
+                onchange={(e) => uploadFile(e, 'BILL')}
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+              />
+              <button
+                onclick={() => billInput?.click()}
+                aria-label="Upload event bills"
+                disabled={isUploading}
+                class="px-5 py-2.5 bg-blue-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-2"
+              >
+                {#if isUploading}
+                  <div
+                    class="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"
+                  ></div>
+                {:else}
+                   🏷️
+                {/if}
+                Upload Bills
+              </button>
+            </div>
+          {/if}
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each bills as file}
+            <div
+              class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-blue-500 transition-all shadow-sm"
+            >
+              <div
+                class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer relative"
+                onclick={() => openPreview(file)}
+              >
+                {#if file.file_type?.includes("image") || ["JPG", "PNG", "WEBP", "JPEG"].includes(file.file_type?.toUpperCase())}
+                   <img
+                    src={file.file_content ? `data:${file.file_type};base64,${file.file_content}` : (file.file_url.startsWith("/uploads/") ? file.file_url.replace("/uploads/", "/api/uploads/") : file.file_url)}
+                    alt={file.file_name}
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                   {#if file.file_content}
+                    <div class="absolute bottom-2 right-2 px-1.5 py-0.5 bg-blue-500/80 backdrop-blur rounded text-[8px] text-white font-bold">☁️ PERMANENT</div>
+                  {/if}
+                {:else if file.file_type?.toUpperCase() === "PDF"}
+                  <div class="flex flex-col items-center gap-2">
+                    <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center text-blue-600 font-black text-xs">PDF</div>
+                  </div>
+                {:else}
+                  📁
+                {/if}
+              </div>
+
+               <div class="space-y-1">
+                <p class="font-bold text-gray-900 dark:text-white truncate text-xs">{file.file_name}</p>
+                <p class="text-[9px] text-gray-400 uppercase font-black tracking-widest">{file.file_type || "Unknown"}</p>
+              </div>
+
+               <!-- Delete Button -->
+               {#if isProposer || canReview}
+                <button
+                  type="button"
+                  aria-label="Delete bill"
+                  onclick={(e) => { e.stopPropagation(); deleteAttachment(file.id); }}
+                  class="absolute top-4 right-4 w-8 h-8 bg-black/40 hover:bg-red-600 text-white rounded-xl shadow-lg flex items-center justify-center transition-all z-10 hover:scale-110"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              {/if}
+            </div>
+          {:else}
+            <p
+              class="col-span-full py-12 text-center text-gray-400 border-2 border-dashed border-gray-50 dark:border-gray-700 rounded-[32px] italic text-sm"
+            >
+              No bills uploaded yet.
             </p>
           {/each}
         </div>
