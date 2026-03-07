@@ -566,7 +566,7 @@
     <aside
       class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
         ? 'translate-x-0 bubble-glow'
-        : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
+        : '-translate-x-full lg:translate-x-0'} flex flex-col h-full lg:h-auto overflow-hidden shadow-2xl lg:shadow-none"
     >
       <div
         class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
