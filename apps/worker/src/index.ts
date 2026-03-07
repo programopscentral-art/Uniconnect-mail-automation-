@@ -1,16 +1,31 @@
+// 1. SSL/TLS Fail-safe for Supabase/Pooler connections
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 import { db, getCommunicationTasksForReminders, getUserFcmTokens, updateCommunicationTaskStatus, type CommunicationTask } from '@uniconnect/shared';
 import * as admin from 'firebase-admin';
 import { processBudgetProposalsWorker } from './budget_proposals';
 import * as dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import nodemailer from 'nodemailer';
 
-// Explicitly load root .env
+// 2. Explicitly load .env only if it exists (prioritize injected variables)
 const envPath = path.resolve(process.cwd(), '.env');
-console.log(`[WORKER_INIT] 📁 Loading root env from: ${envPath}`);
-dotenv.config({ path: envPath });
+if (fs.existsSync(envPath)) {
+  console.log(`[WORKER_INIT] 📁 Loading env from file: ${envPath}`);
+  dotenv.config({ path: envPath });
+} else {
+  console.log('[WORKER_INIT] ☁️ No .env file found. Using environment-injected variables.');
+}
+
+console.log('[WORKER_INIT] 🔍 Identity Check:', {
+  hasDB: !!process.env.DATABASE_URL,
+  hasRedis: !!process.env.REDIS_URL,
+  hasSMTP: !!process.env.SMTP_USER,
+  hasFirebase: !!process.env.FIREBASE_SERVICE_ACCOUNT
+});
 
 // Firebase initialization wrapper
 let firebaseInitialized = false;
