@@ -1,3 +1,4 @@
+
 <script lang="ts">
   import { page } from "$app/stores";
   import { fade, fly } from "svelte/transition";
@@ -61,6 +62,12 @@
       label: "Students & Recipients",
       href: "/students",
       icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+    },
+    {
+      id: "academic-operations",
+      label: "Academic Operations",
+      href: "/academic-operations",
+      icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z",
     },
     {
       id: "users",
@@ -509,11 +516,11 @@
 </script>
 
 <div
-  class="flex flex-col h-screen h-[100dvh] bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
+  class="flex flex-col h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden transition-colors duration-500"
 >
   <!-- Mobile Header -->
   <header
-    class="lg:hidden w-full h-16 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-[100] transition-all duration-300 shadow-sm"
+    class="lg:hidden w-full h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-100 dark:border-slate-800 px-4 flex items-center justify-between sticky top-0 z-50 shrink-0"
   >
     <div class="flex items-center space-x-2">
       <div
@@ -557,12 +564,12 @@
   <div class="flex flex-1 min-h-0 relative">
     <!-- Sidebar -->
     <aside
-      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[110] transition-all duration-300 {isSidebarOpen
-        ? 'translate-x-0 opacity-100 visible bubble-glow'
-        : '-translate-x-full opacity-0 invisible lg:translate-x-0 lg:opacity-100 lg:visible'} flex flex-col shadow-2xl lg:shadow-none pointer-events-auto"
+      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
+        ? 'translate-x-0 bubble-glow'
+        : '-translate-x-full lg:translate-x-0'} flex flex-col shadow-2xl lg:shadow-none"
     >
       <div
-        class="h-20 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
+        class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
       >
         <div class="flex items-center space-x-4">
           <div
@@ -588,7 +595,7 @@
         </div>
       </div>
 
-      <nav class="flex-1 px-6 py-4 space-y-1.5 overflow-y-auto thin-scrollbar">
+      <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto">
         {#each menuItems as item}
           {#if (user?.permissions || []).includes(item.id)}
             <a
@@ -623,7 +630,7 @@
       </nav>
 
       <div
-        class="px-8 py-6 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10"
+        class="px-8 py-10 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10"
       >
         <div class="px-2 mb-4 flex justify-between items-center">
           <p
@@ -647,7 +654,7 @@
     {#if isSidebarOpen}
       <div
         role="presentation"
-        class="fixed inset-0 bg-gray-950/60 backdrop-blur-sm lg:hidden z-[90] pointer-events-auto"
+        class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm lg:hidden z-[55]"
         onclick={() => (isSidebarOpen = false)}
         onkeydown={(e) => e.key === "Escape" && (isSidebarOpen = false)}
         transition:fade={{ duration: 200 }}
@@ -655,10 +662,10 @@
     {/if}
     <!-- Main Content -->
     <main
-      class="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500 overscroll-none touch-auto relative z-0"
+      class="flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden bg-gray-50 dark:bg-slate-950 focus:outline-none flex flex-col transition-colors duration-500"
     >
       <div
-        class="sticky top-0 z-[40] bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center pointer-events-auto"
+        class="sticky top-0 z-40 bg-gray-50/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-100/50 dark:border-slate-800/50 w-full flex justify-center"
       >
         <div
           class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-2 md:py-3 flex justify-end items-center gap-2 sm:gap-4"
@@ -753,7 +760,7 @@
                       onclick={requestPermission}
                       class="w-full py-2.5 bg-white text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all shadow-xl shadow-black/10 active:scale-95 animate-pulse-subtle"
                     >
-                      Enable Push Notifications
+                      Enable Desktop Alerts
                     </button>
                   </div>
                 {:else}
@@ -1079,3 +1086,5 @@
     />
   {/each}
 </div>
+
+

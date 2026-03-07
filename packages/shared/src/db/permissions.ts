@@ -24,8 +24,8 @@ export async function getAllRolePermissions(): Promise<RolePermission[]> {
 }
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals"],
-    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals"],
+    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations"],
+    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations"],
     'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals"],
     'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals"],
     'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals"],
@@ -34,7 +34,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals"],
     'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals"],
     'SET_REVIEWER': ["dashboard", "budget-proposals", "universities", "students"],
-    'PROPOSER': ["dashboard", "budget-proposals"]
+    'PROPOSER': ["dashboard", "budget-proposals"],
+    'FACULTY': ["dashboard", "academic-operations", "tasks"],
+    'STUDENT': ["dashboard", "academic-operations"],
+    'STAKEHOLDER': ["dashboard", "academic-operations", "analytics"],
+    'SUPPORT': ["dashboard", "academic-operations", "tasks"]
 };
 
 export async function seedDefaultPermissions(): Promise<void> {

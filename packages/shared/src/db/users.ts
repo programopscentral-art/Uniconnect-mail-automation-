@@ -1,6 +1,6 @@
 import { db } from './client';
 
-export type UserRole = 'ADMIN' | 'PROGRAM_OPS' | 'UNIVERSITY_OPERATOR' | 'COS' | 'PM' | 'PMA' | 'BOA' | 'CMA' | 'CMA_MANAGER' | 'SET_REVIEWER' | 'PROPOSER';
+export type UserRole = 'ADMIN' | 'PROGRAM_OPS' | 'UNIVERSITY_OPERATOR' | 'COS' | 'PM' | 'PMA' | 'BOA' | 'CMA' | 'CMA_MANAGER' | 'SET_REVIEWER' | 'PROPOSER' | 'FACULTY' | 'STUDENT' | 'STAKEHOLDER' | 'SUPPORT';
 
 export interface User {
     id: string;
@@ -101,8 +101,8 @@ export async function createUser(data: {
 
         await db.query(
             `INSERT INTO user_universities (user_id, university_id) 
-             VALUES ${values} 
-             ON CONFLICT (user_id, university_id) DO NOTHING`,
+              VALUES ${values} 
+              ON CONFLICT (user_id, university_id) DO NOTHING`,
             [user.id, ...data.university_ids]
         );
     }
@@ -159,8 +159,8 @@ export async function updateUser(id: string, data: {
 
             await db.query(
                 `INSERT INTO user_universities (user_id, university_id) 
-                 VALUES ${values} 
-                 ON CONFLICT (user_id, university_id) DO NOTHING`,
+                  VALUES ${values} 
+                  ON CONFLICT (user_id, university_id) DO NOTHING`,
                 [id, ...university_ids]
             );
         }
@@ -182,17 +182,17 @@ export async function getUserStats(userId: string) {
         `SELECT 
             COUNT(*) as total,
             COUNT(*) FILTER (WHERE ta.status = 'COMPLETED') as completed
-         FROM tasks t
-         JOIN task_assignees ta ON t.id = ta.task_id
-         WHERE ta.user_id = $1`,
+          FROM tasks t
+          JOIN task_assignees ta ON t.id = ta.task_id
+          WHERE ta.user_id = $1`,
         [userId]
     );
 
     const mails = await db.query(
         `SELECT COUNT(*) as total
-         FROM campaign_recipients r
-         JOIN campaigns c ON r.campaign_id = c.id
-         WHERE c.created_by_user_id = $1 AND r.status != 'PENDING'`,
+          FROM campaign_recipients r
+          JOIN campaigns c ON r.campaign_id = c.id
+          WHERE c.created_by_user_id = $1 AND r.status != 'PENDING'`,
         [userId]
     );
 
@@ -218,9 +218,9 @@ export async function getUserStats(userId: string) {
 export async function getUserAuditLogs(userId: string, limit = 5) {
     const result = await db.query(
         `SELECT * FROM audit_logs 
-         WHERE user_id = $1 
-         ORDER BY created_at DESC 
-         LIMIT $2`,
+          WHERE user_id = $1 
+          ORDER BY created_at DESC 
+          LIMIT $2`,
         [userId, limit]
     );
     return result.rows;
@@ -251,7 +251,7 @@ export async function batchClearPresence() {
     // Also reset to AUTO mode so they don't stay stuck in a manual state next time they log in
     await db.query(
         `UPDATE users SET presence_status = 'OFFLINE', presence_mode = 'AUTO' 
-         WHERE presence_status != 'OFFLINE' AND last_active_at < NOW() - INTERVAL '5 minutes'`
+          WHERE presence_status != 'OFFLINE' AND last_active_at < NOW() - INTERVAL '5 minutes'`
     );
 }
 
@@ -262,4 +262,3 @@ export async function getUserPresence(userId: string) {
     );
     return result.rows[0] as { presence_status: User['presence_status']; last_active_at: Date } | null;
 }
-

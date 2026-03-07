@@ -1,0 +1,11 @@
+﻿Unique Constraints: [ 'students_university_external_id_unique' ]
+Unique Indices: [
+  {
+    indexname: 'students_university_external_id_unique',
+    indexdef: 'CREATE UNIQUE INDEX students_university_external_id_unique ON public.students USING btree (university_id, external_id)'
+  },
+  {
+    indexname: 'students_pkey',
+    indexdef: 'CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)'
+  }
+]
