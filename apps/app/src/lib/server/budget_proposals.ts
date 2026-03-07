@@ -49,14 +49,32 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
     }
 
     if (isToSET) {
-        // "Main Mails" - Only Admins and Program Ops as per user request (removing SET/University Operators)
+        // "Main Mails" - Explicitly requested by user + Admins/Ops
         const setRes = await db.query(
             `SELECT DISTINCT id, email 
              FROM users 
-             WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email = 'karthikeya.a054@gmail.com' OR email = 'programopscentral@nxtwave.in')
+             WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email IN ('programopscentral@nxtwave.in', 'karthikeya.a054@gmail.com', 'pavan.dharma@nxtwave.tech', 'pravalika.s@nxtwave.co.in'))
              AND is_active = true`
         );
         recipients = setRes.rows;
+
+        // Ensure specifically requested stakeholders are ALWAYS included if they are not in the query result
+        const stakeholderEmails = ['pavan.dharma@nxtwave.tech', 'pravalika.s@nxtwave.co.in'];
+        for (const email of stakeholderEmails) {
+            if (!recipients.some(r => r.email === email)) {
+                // If not found as active users, add them manually for Email only (dummy ID for notify/push)
+                recipients.push({ id: 'STAKEHOLDER_' + Math.random().toString(36).substr(2, 9), email });
+            }
+        }
+
+        // For SUBMITTED and REPORT_SUBMITTED, also notify the proposer themselves as confirmation
+        if ((toStatus === 'SUBMITTED' || toStatus === 'REPORT_SUBMITTED') && !recipients.some(r => r.id === proposer_user_id)) {
+            recipients.push({ id: proposer_user_id, email: proposer_email });
+        }
+
+        if (recipients.length === 0) {
+            console.warn(`[BP_NOTIFY] ⚠️ No recipients found for status ${toStatus}`);
+        }
     }
 
     const sourceId = `BP_${proposalId}_${toStatus}`;
