@@ -125,6 +125,43 @@
           <span class="text-[10px] font-black text-violet-900 dark:text-violet-100 group-hover:text-white uppercase tracking-widest mt-3">Plan Exams</span>
         </button>
       </div>
+  </div>
+
+  <!-- Sub-Module Explorer -->
+  <div class="space-y-6 pt-10 border-t border-gray-100 dark:border-slate-800">
+    <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Academic <span class="text-violet-600">Modules</span></h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <a href="/academic-operations/scheduling" class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+         <div class="p-4 bg-blue-50 dark:bg-blue-500/10 text-blue-600 rounded-3xl w-fit mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+         </div>
+         <h4 class="font-black text-gray-900 dark:text-white">Scheduling</h4>
+         <p class="text-xs text-gray-500 mt-2">Manage timetables, faculty leaves, and room allocations.</p>
+      </a>
+
+      <a href="/academic-operations/student-ops" class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+         <div class="p-4 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 rounded-3xl w-fit mb-6 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+         </div>
+         <h4 class="font-black text-gray-900 dark:text-white">Student Monitoring</h4>
+         <p class="text-xs text-gray-500 mt-2">Track real-time attendance trends and student health.</p>
+      </a>
+
+      <a href="/academic-operations/reports-compliance" class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+         <div class="p-4 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-3xl w-fit mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+         </div>
+         <h4 class="font-black text-gray-900 dark:text-white">Compliance Logs</h4>
+         <p class="text-xs text-gray-500 mt-2">Generate audited session logs for university regulatory filing.</p>
+      </a>
+
+      <a href="/academic-operations/support-escalations" class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
+         <div class="p-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-3xl w-fit mb-6 group-hover:bg-rose-600 group-hover:text-white transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+         </div>
+         <h4 class="font-black text-gray-900 dark:text-white">Escalation Center</h4>
+         <p class="text-xs text-gray-500 mt-2">Manage tickets and SLA compliance for academic support.</p>
+      </a>
     </div>
   </div>
 </div>

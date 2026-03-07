@@ -595,9 +595,9 @@
         </div>
       </div>
 
-      <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto">
+      <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto thin-scrollbar">
         {#each menuItems as item}
-          {#if (user?.permissions || []).includes(item.id)}
+          {#if user?.role === 'ADMIN' || user?.role === 'PROGRAM_OPS' || (user?.permissions || []).includes(item.id)}
             <a
               href={item.href}
               onclick={() => (isSidebarOpen = false)}

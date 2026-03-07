@@ -76,13 +76,15 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/permissions': 'permissions',
             '/day-plan': 'day-plan',
             '/communication-tasks': 'communication-tasks',
-            '/budget-proposals': 'budget-proposals'
+            '/budget-proposals': 'budget-proposals',
+            '/academic-operations': 'academic-operations'
         };
 
         const matchingPath = Object.keys(featureMap).find(p => path.startsWith(p));
         if (matchingPath) {
             const requiredFeature = featureMap[matchingPath];
-            if (!user.permissions?.includes(requiredFeature)) {
+            const isPrivileged = user.role === 'ADMIN' || user.role === 'PROGRAM_OPS';
+            if (!isPrivileged && !user.permissions?.includes(requiredFeature)) {
                 return new Response('Forbidden: Feature not enabled for your role', { status: 403 });
             }
         }
