@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
-import { getBudgetProposals, createBudgetProposal } from '@uniconnect/shared';
+import { getBudgetProposals, createBudgetProposal, transitionBudgetProposalStatus } from '@uniconnect/shared';
+import { notifyBudgetProposalUpdate } from '$lib/server/budget_proposals';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
@@ -64,6 +65,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         proposer_name: locals.user.name || undefined,
         proposer_email: locals.user.email
     });
+
+    if (proposal) {
+        // Transition to SUBMITTED immediately upon creation for tracking
+        await transitionBudgetProposalStatus(
+            proposal.id,
+            'SUBMITTED',
+            { id: locals.user.id, name: locals.user.name || locals.user.email },
+            'Initial Submission'
+        );
+
+        // Notify Admins/Ops (the "Main Mails")
+        await notifyBudgetProposalUpdate(
+            { ...proposal, status: 'SUBMITTED' },
+            'SUBMITTED',
+            locals.user.name || locals.user.email
+        );
+    }
 
     return json(proposal);
 };

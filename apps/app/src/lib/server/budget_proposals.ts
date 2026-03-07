@@ -12,57 +12,49 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
 
     switch (toStatus) {
         case 'SUBMITTED':
-            titleText = 'New Budget Proposal Submitted';
-            bodyText = `${actorName} submitted a new budget proposal: ${title}`;
+            titleText = 'New Budget Proposal Submitted 📥';
+            bodyText = `${actorName} submitted a new budget proposal for "${title}". Review is required.`;
             isToSET = true;
             break;
-        case 'APPROVED_L1':
-            titleText = 'Budget Proposal Approved (L1)';
-            bodyText = `${actorName} performed L1 approval for: ${title}. Final approval pending.`;
-            isToSET = true; // Still "ToSET" but actually for Higher-ups if we use the same pool, or filter it.
-            break;
         case 'REPORT_SUBMITTED':
-            titleText = 'Post-Event Report Submitted';
-            bodyText = `${actorName} submitted the post-event report for: ${title}`;
+            titleText = 'Post-Event Report Submitted 📋';
+            bodyText = `${actorName} submitted the post-event report for "${title}". Please review the outcomes and bills.`;
             isToSET = true;
             break;
         case 'CHANGES_REQUESTED':
-            titleText = 'Changes Requested on Budget Proposal';
-            bodyText = `SET has requested changes for: ${title}${reason ? `\n\nReason: ${reason}` : ''}`;
+            titleText = 'Changes Requested - Budget Proposal 🔄';
+            bodyText = `Reviewers have requested changes for your proposal: ${title}.${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'APPROVED':
             titleText = 'Budget Proposal APPROVED ✅';
-            bodyText = `Your budget proposal for ${title} has been approved.`;
+            bodyText = `Congratulations! Your budget proposal for "${title}" has been approved. You can proceed with the event.`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'REJECTED':
             titleText = 'Budget Proposal Rejected ❌';
-            bodyText = `Your budget proposal for ${title} was not approved.${reason ? `\n\nReason: ${reason}` : ''}`;
+            bodyText = `Your budget proposal for "${title}" was not approved.${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'CLOSED':
-            titleText = 'Budget Proposal Closed';
-            bodyText = `Your budget proposal for ${title} has been finalized and closed.`;
+            titleText = 'Budget Proposal Finalized';
+            bodyText = `The report for "${title}" has been reviewed. The proposal is now officially closed.`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
         case 'EVENT_COMPLETED':
-            titleText = 'Event Completed - Action Required';
-            bodyText = `Your event ${title} has passed. Please submit the post-event report.`;
+            titleText = 'Event Over - Report Due';
+            bodyText = `Your event "${title}" has concluded according to the schedule. Please upload your report and bills now.`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
     }
 
     if (isToSET) {
-        // Find SET Reviewers for this university
+        // "Main Mails" - Only Admins and Program Ops as per user request (removing SET/University Operators)
         const setRes = await db.query(
-            `SELECT DISTINCT u.id, u.email 
-             FROM users u
-             LEFT JOIN user_universities uu ON u.id = uu.user_id
-             WHERE (u.role IN ('SET_REVIEWER', 'ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR'))
-             AND (u.university_id = $1 OR uu.university_id = $1 OR u.role IN ('ADMIN', 'PROGRAM_OPS'))
-             AND u.is_active = true`,
-            [university_id]
+            `SELECT DISTINCT id, email 
+             FROM users 
+             WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email = 'karthikeya.a054@gmail.com' OR email = 'programopscentral@nxtwave.in')
+             AND is_active = true`
         );
         recipients = setRes.rows;
     }

@@ -36,10 +36,6 @@
         return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
       case "CHANGES_REQUESTED":
         return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
-      case "APPROVED_L1":
-        return "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400";
-      case "APPROVED_L2":
-        return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
       case "APPROVED":
         return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
       case "REJECTED":
@@ -354,69 +350,51 @@
       {/if}
 
       {#if canReview}
-        {#if proposal.status === "SUBMITTED"}
-          <button
-            onclick={() => handleAction("start")}
-            class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-md active:scale-95"
-            >Start Review</button
-          >
-        {/if}
-        {#if proposal.status === "UNDER_REVIEW"}
-          <button
-            onclick={() => {
-              showActionModal = "approve";
-              actionBudget = proposal.estimated_total_budget;
-            }}
-            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md"
-            >Approve (L1)</button
-          >
+        {#if proposal.status === "SUBMITTED" || proposal.status === "UNDER_REVIEW"}
+          {#if isGlobalAdmin}
+            <button
+              onclick={() => {
+                showActionModal = "approve";
+                actionBudget = proposal.estimated_total_budget;
+              }}
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md active:scale-95"
+              >Approve</button
+            >
+          {/if}
           <button
             onclick={() => (showActionModal = "request-changes")}
-            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md"
+            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md active:scale-95"
             >Request Changes</button
           >
           <button
             onclick={() => (showActionModal = "reject")}
-            class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md"
+            class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md active:scale-95"
             >Reject</button
           >
         {/if}
-        {#if proposal.status === "APPROVED_L1" && isGlobalAdmin}
-          <button
-            onclick={() => {
-              showActionModal = "approve";
-              actionBudget = proposal.approved_total_budget || proposal.estimated_total_budget;
-            }}
-            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md"
-            >Final Approve</button
-          >
-          <button
-            onclick={() => (showActionModal = "request-changes")}
-            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md"
-            >Request Changes</button
-          >
-        {/if}
+
         {#if proposal.status === "REPORT_SUBMITTED"}
-          <button
-            onclick={() => handleAction("close")}
-            class="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold shadow-md"
-            >Close Proposal</button
-          >
+          {#if isGlobalAdmin}
+            <button
+              onclick={() => handleAction("close")}
+              class="px-5 py-2.5 bg-gray-900 text-white rounded-xl font-bold shadow-md active:scale-95"
+              >Close Proposal</button
+            >
+          {/if}
           <button
             onclick={() => (showActionModal = "request-changes")}
-            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md"
+            class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold shadow-md active:scale-95"
             >Query Report</button
           >
         {/if}
-        {#if proposal.status === "APPROVED" || proposal.status === "EVENT_COMPLETED"}
-           {#if isProposer || isGlobalAdmin}
-            <a
-              href="/budget-proposals/{proposal.id}/report"
-              class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
-            >
-              📊 Submit Final Report
-            </a>
-          {/if}
+
+        {#if (proposal.status === "APPROVED" || proposal.status === "EVENT_COMPLETED") && (isProposer || isGlobalAdmin)}
+          <a
+            href="/budget-proposals/{proposal.id}/report"
+            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
+          >
+            📊 Submit Final Report
+          </a>
         {/if}
       {/if}
     </div>
