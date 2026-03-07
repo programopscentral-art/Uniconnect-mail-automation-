@@ -49,7 +49,7 @@
                             {ticket.status.replace('_', ' ')}
                         </span>
                         <div class="mt-4 flex justify-end gap-2">
-                            <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl text-gray-400 hover:text-indigo-600 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg></button>
+                            <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl text-gray-400 hover:text-indigo-600 transition-colors" aria-label="More options"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg></button>
                         </div>
                     </div>
                 </div>

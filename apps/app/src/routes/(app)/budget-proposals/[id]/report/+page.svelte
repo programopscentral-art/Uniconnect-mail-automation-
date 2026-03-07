@@ -2,12 +2,13 @@
   import { fade, fly } from "svelte/transition";
   import { goto } from "$app/navigation";
   import type { PageData } from "./$types";
+  import { untrack } from "svelte";
 
   let { data } = $props<{ data: PageData }>();
   let proposal = $derived(data.proposal);
 
   let isSubmitting = $state(false);
-  let form = $state({
+  let form = $state(untrack(() => ({
     actual_date: data.proposal.report?.actual_date || "",
     actual_attendance: data.proposal.report?.actual_attendance || 0,
     actual_budget_used:
@@ -18,7 +19,7 @@
     feedback_summary: data.proposal.report?.feedback_summary || "",
     issues_faced: data.proposal.report?.issues_faced || "",
     photos_urls: data.proposal.report?.photos_urls || [],
-  });
+  })));
 
   let remainingBudget = $derived(
     (proposal.approved_total_budget || 0) - form.actual_budget_used,

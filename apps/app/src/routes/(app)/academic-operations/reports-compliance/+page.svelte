@@ -41,7 +41,7 @@
 
             <div class="flex items-center gap-2 mt-auto">
                  <button class="flex-1 py-3.5 bg-gray-50 dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all text-gray-600 dark:text-gray-300">View Online</button>
-                 <button class="p-3.5 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 hover:opacity-90 active:scale-95 transition-all">
+                 <button class="p-3.5 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20 hover:opacity-90 active:scale-95 transition-all" aria-label="Download Report">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                  </button>
             </div>

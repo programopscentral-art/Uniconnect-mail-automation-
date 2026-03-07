@@ -56,7 +56,7 @@
                               <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Attendance</p>
                               <p class="text-lg font-black {parseInt(student.attendance) < 60 ? 'text-rose-500' : parseInt(student.attendance) < 75 ? 'text-amber-500' : 'text-emerald-500'} mt-0.5">{student.attendance}</p>
                           </div>
-                          <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                          <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" aria-label="View Student Details">
                               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
                           </button>
                       </div>

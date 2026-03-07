@@ -2,6 +2,7 @@
   import { fade, fly, slide } from "svelte/transition";
   import { goto } from "$app/navigation";
   import type { PageData } from "./$types";
+  import { untrack } from "svelte";
 
   let { data } = $props<{ data: PageData }>();
   let proposal = $derived(data.proposal);
@@ -11,7 +12,7 @@
   let currentStep = $state(1);
   let isSubmitting = $state(false);
 
-  let form = $state({
+  let form = $state(untrack(() => ({
     university_id: data.proposal.university_id,
     title: data.proposal.title,
     event_type: data.proposal.event_type,
@@ -23,7 +24,7 @@
     items: data.proposal.items.length > 0 ? JSON.parse(JSON.stringify(data.proposal.items)) : [
       { category: "VENUE", description: "", qty: 1, unit_cost: 0, amount: 0 },
     ],
-  });
+  })));
 
   const eventTypes = [
     "Workshop",

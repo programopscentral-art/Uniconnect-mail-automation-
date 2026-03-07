@@ -79,7 +79,7 @@
                 <span class="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest">
                   Scheduled
                 </span>
-                <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                <button class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" aria-label="Session options">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
                 </button>
               </div>

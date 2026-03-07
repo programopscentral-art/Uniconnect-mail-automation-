@@ -34,9 +34,9 @@
       <div class="flex items-center justify-between mb-8">
         <h2 class="text-xl font-black text-gray-900 dark:text-white tracking-tight">Schedule <span class="text-indigo-600">Timeline</span></h2>
         <div class="flex gap-2">
-          <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+          <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all" aria-label="Previous Day"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
           <button class="px-4 py-2 bg-gray-50 dark:bg-slate-800 text-xs font-black rounded-xl">Today, 08 March</button>
-          <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+          <button class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all" aria-label="Next Day"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
         </div>
       </div>
 
