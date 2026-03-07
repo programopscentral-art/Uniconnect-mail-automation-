@@ -61,6 +61,7 @@ export async function addNotificationJob(data: {
     text: string;
     html: string;
 }) {
+    console.log(`[QUEUE] 🔔 Adding system notification job for ${data.to}: ${data.subject}`);
     await systemNotificationQueue.add('send-notification', data, {
         attempts: 3,
         removeOnComplete: true

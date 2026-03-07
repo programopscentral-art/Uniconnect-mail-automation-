@@ -4,6 +4,7 @@ import { addNotificationJob } from './queue';
 
 export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toStatus: BudgetProposalStatus, actorName: string, reason?: string) {
     const { university_id, id: proposalId, title, proposer_user_id, proposer_email, proposer_name } = proposal;
+    console.log(`[BP_NOTIFY] 📢 Notifying status ${toStatus} for proposal ${proposalId}. Proposer: ${proposer_email}`);
 
     let titleText = '';
     let bodyText = '';
@@ -74,6 +75,8 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
 
         if (recipients.length === 0) {
             console.warn(`[BP_NOTIFY] ⚠️ No recipients found for status ${toStatus}`);
+        } else {
+            console.log(`[BP_NOTIFY] 👥 Found ${recipients.length} recipients: ${recipients.map(r => r.email).join(', ')}`);
         }
     }
 
@@ -117,14 +120,16 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
 
         // 3. Email Notification (for critical status changes)
         if (['SUBMITTED', 'APPROVED_L1', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED', 'REPORT_SUBMITTED'].includes(toStatus)) {
+            const baseUrl = process.env.PUBLIC_BASE_URL || '';
+            console.log(`[BP_NOTIFY] 📬 Queueing email for ${recipient.email}. Base URL: ${baseUrl}`);
             await addNotificationJob({
                 to: recipient.email,
                 subject: titleText,
-                text: `Hello,\n\n${bodyText}\n\nView details here: ${process.env.PUBLIC_BASE_URL || ''}${link}`,
+                text: `Hello,\n\n${bodyText}\n\nView details here: ${baseUrl}${link}`,
                 html: `<div>
                     <h2>Budget Proposal Update</h2>
                     <p>${bodyText}</p>
-                    <a href="${process.env.PUBLIC_BASE_URL || ''}${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:bold;">View Proposal Details</a>
+                    <a href="${baseUrl}${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:bold;">View Proposal Details</a>
                 </div>`
             });
 

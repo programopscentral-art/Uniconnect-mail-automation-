@@ -336,6 +336,9 @@ const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379'
   maxRetriesPerRequest: null
 });
 
+connection.on('connect', () => console.log('[WORKER] ✅ Redis connection established.'));
+connection.on('error', (err) => console.error('[WORKER] ❌ Redis connection error:', err));
+
 const worker = new Worker('comm-task-notifications', async (job) => {
   if (job.name === 'check-tasks') {
     console.log('[WORKER] 🚀 Received instant trigger for communication tasks.');
@@ -360,9 +363,12 @@ const systemNotificationWorker = new Worker('system-notifications', async (job) 
     console.log(`[SYSTEM-NOTIF] 📧 Sending email to ${to}: ${subject}`);
 
     if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn('⚠️ SMTP_USER or SMTP_PASS not set. Email not sent.');
+      console.warn('⚠️ SMTP_USER or SMTP_PASS not set in Worker environment. Email skipped.');
       return;
     }
+
+    const maskedUser = process.env.SMTP_USER.replace(/(.{3}).*@/, '$1***@');
+    console.log(`[SYSTEM-NOTIF] 📤 Delivery attempt via ${maskedUser}...`);
 
     try {
       await transporter.sendMail({
