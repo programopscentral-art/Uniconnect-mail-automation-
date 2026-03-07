@@ -147,6 +147,31 @@
     scrollbar-width: none;
   }
 
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 dark:bg-slate-800 rounded-full transition-colors;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-300 dark:bg-slate-700;
+  }
+
+  .thin-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.200') transparent;
+  }
+
+  .dark .thin-scrollbar {
+    scrollbar-color: theme('colors.slate.800') transparent;
+  }
+
   .glass {
     @apply bg-white/80 dark:bg-slate-900/40 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 shadow-glass dark:shadow-2xl;
   }

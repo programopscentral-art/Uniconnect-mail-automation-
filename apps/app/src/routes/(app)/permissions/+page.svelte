@@ -55,6 +55,11 @@
       desc: "Scheduled manual communication (WhatsApp/Email)",
     },
     {
+      id: "budget-proposals",
+      label: "Budget Proposals",
+      desc: "Event budget planning and approval workflow",
+    },
+    {
       id: "mail-logs",
       label: "Mail Audit Log",
       desc: "System-wide mail tracking",

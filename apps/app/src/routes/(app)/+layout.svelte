@@ -562,7 +562,7 @@
         : '-translate-x-full opacity-0 invisible lg:translate-x-0 lg:opacity-100 lg:visible'} flex flex-col shadow-2xl lg:shadow-none pointer-events-auto"
     >
       <div
-        class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
+        class="h-20 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
       >
         <div class="flex items-center space-x-4">
           <div
@@ -588,7 +588,7 @@
         </div>
       </div>
 
-      <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto">
+      <nav class="flex-1 px-6 py-4 space-y-1.5 overflow-y-auto thin-scrollbar">
         {#each menuItems as item}
           {#if (user?.permissions || []).includes(item.id)}
             <a
@@ -623,7 +623,7 @@
       </nav>
 
       <div
-        class="px-8 py-10 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10"
+        class="px-8 py-6 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10"
       >
         <div class="px-2 mb-4 flex justify-between items-center">
           <p
