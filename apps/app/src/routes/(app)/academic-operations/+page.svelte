@@ -126,6 +126,7 @@
         </button>
       </div>
   </div>
+</div>
 
   <!-- Sub-Module Explorer -->
   <div class="space-y-6 pt-10 border-t border-gray-100 dark:border-slate-800">
