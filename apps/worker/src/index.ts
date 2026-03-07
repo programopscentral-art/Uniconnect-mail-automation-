@@ -362,13 +362,23 @@ const worker = new Worker('comm-task-notifications', async (job) => {
 }, { connection });
 
 // SMTP Transporter Setup
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+// Port 465 uses implicit SSL (secure: true), Port 587 uses STARTTLS (secure: false)
+const smtpSecure = process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : smtpPort === 465;
+
+console.log(`[SYSTEM-NOTIF] 📧 Initializing transporter: ${smtpHost}:${smtpPort} (Secure: ${smtpSecure})`);
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_SECURE !== 'false', // Default to true (465)
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
