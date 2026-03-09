@@ -509,9 +509,9 @@
   <div class="flex flex-1 min-h-0 relative">
     <!-- Sidebar -->
     <aside
-      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
+      class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:sticky lg:top-0 lg:h-screen z-[60] transition-all duration-300 {isSidebarOpen
         ? 'translate-x-0'
-        : '-translate-x-full lg:translate-x-0'} flex flex-col h-screen overflow-hidden shadow-2xl lg:shadow-none"
+        : '-translate-x-full lg:translate-x-0'} flex flex-col overflow-hidden shadow-2xl lg:shadow-none"
     >
       <!-- Fixed Sidebar Header -->
       <div
@@ -519,7 +519,7 @@
       >
         <div class="flex items-center space-x-3">
           <div
-            class="p-2.5 bg-indigo-600 rounded-[1.25rem] shadow-lg shadow-indigo-500/20 transition-transform hover:rotate-12"
+            class="p-2.5 bg-indigo-600 rounded-[1.25rem] shadow-lg shadow-indigo-500/20 transition-transform hover:rotate-12 hover:scale-105"
           >
             <img
               src="/nxtwave-logo.png"
@@ -534,17 +534,17 @@
             >
             <span
               class="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 mt-1.5 tracking-widest uppercase opacity-70"
-              >University OS</span
+              >Program Operations</span
             >
           </div>
         </div>
       </div>
 
       <!-- Scrollable Sidebar Content -->
-      <nav class="flex-1 overflow-y-auto thin-scrollbar px-4 py-8 space-y-8">
+      <nav class="flex-1 overflow-y-auto thin-scrollbar px-4 py-8 space-y-10">
         {#each navigation as section}
-          <div class="space-y-2">
-            <h3 class="px-4 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+          <div class="space-y-4">
+            <h3 class="px-4 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-60">
               {section.group}
             </h3>
             <div class="space-y-1">
@@ -553,13 +553,13 @@
                   <a
                     href={item.href}
                     onclick={() => (isSidebarOpen = false)}
-                    class="group flex items-center px-4 py-3 text-[13px] font-bold rounded-2xl transition-all duration-300
+                    class="group flex items-center px-4 py-3 text-[13px] font-bold rounded-2xl transition-all duration-200
                     {$page.url.pathname.startsWith(item.href)
                         ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02] z-10'
                         : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100'}"
                   >
                     <div
-                      class="mr-3 h-5 w-5 flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                      class="mr-3 h-5 w-5 flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
                     >
                       <svg
                         class="h-5 w-5"
@@ -575,9 +575,9 @@
                         />
                       </svg>
                     </div>
-                    {item.label}
+                    <span>{item.label}</span>
                     {#if $page.url.pathname.startsWith(item.href)}
-                      <div class="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                      <div class="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white] animate-pulse"></div>
                     {/if}
                   </a>
                 {/if}
@@ -591,23 +591,23 @@
       <div
         class="shrink-0 px-8 py-6 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50"
       >
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-5">
           <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-            <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">Live</span>
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse"></div>
+            <span class="text-[9px] font-black text-emerald-600/70 dark:text-emerald-400/70 uppercase tracking-widest">System Active</span>
           </div>
-          <button class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline">
+          <button class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline opacity-60 hover:opacity-100 transition-opacity">
             Help
           </button>
         </div>
         
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase shadow-inner">
+        <div class="flex items-center gap-3 p-2 rounded-2xl bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/5 shadow-sm">
+          <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-black text-white uppercase shadow-md">
             {user?.name?.[0] || 'U'}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-xs font-black text-gray-900 dark:text-white truncate uppercase tracking-tighter">{user?.name || 'User'}</p>
-            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role || 'Member'}</p>
+            <p class="text-[11px] font-black text-gray-900 dark:text-white truncate uppercase tracking-tight">{user?.name || 'User'}</p>
+            <p class="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">{user?.role || 'Member'}</p>
           </div>
         </div>
       </div>
