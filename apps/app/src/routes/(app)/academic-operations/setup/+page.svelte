@@ -21,6 +21,9 @@
   let processing = $state(false);
   let showForm = $state<string | null>(null);
 
+  // Selection state for terms tab
+  let termTargetProgramId = $state("");
+
   async function refreshData() {
     if (!selectedUniversityId) return;
     loading = true;
@@ -31,6 +34,23 @@
       ]);
       campuses = await cRes.json();
       programs = await pRes.json();
+      
+      if (programs.length > 0 && !termTargetProgramId) {
+        termTargetProgramId = programs[0].id;
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function fetchTerms() {
+    if (!termTargetProgramId) return;
+    loading = true;
+    try {
+      const res = await fetch(`/api/academic/terms?programId=${termTargetProgramId}`);
+      terms = await res.json();
     } catch (e) {
       console.error(e);
     } finally {
@@ -40,6 +60,7 @@
 
   onMount(refreshData);
   $effect(() => { if (selectedUniversityId) refreshData(); });
+  $effect(() => { if (termTargetProgramId) fetchTerms(); });
 
   async function handleAction(endpoint: string, method: string, body: any) {
     processing = true;
@@ -48,12 +69,16 @@
         method,
         body: body ? JSON.stringify(body) : undefined
       });
-      const data = await res.json();
+      const resData = await res.json();
       if (!res.ok) {
-        alert(`Error: ${data.message || 'Operation failed'}`);
+        alert(`Error: ${resData.message || 'Operation failed'}`);
         return;
       }
-      await refreshData();
+      if (activeTab === 'terms') {
+        await fetchTerms();
+      } else {
+        await refreshData();
+      }
       showForm = null;
     } catch (e) {
       alert("Network error occurred.");
@@ -70,6 +95,15 @@
   function createProgram() {
     handleAction("/api/academic/programs", "POST", { ...newProgram, university_id: selectedUniversityId });
     newProgram = { name: "", code: "", degree_type: "B.Tech", semester_count: 8 };
+  }
+
+  function createTerm() {
+    handleAction("/api/academic/terms", "POST", { 
+      ...newTerm, 
+      university_id: selectedUniversityId, 
+      program_id: termTargetProgramId 
+    });
+    newTerm = { name: "", program_id: "", start_date: "", end_date: "" };
   }
 </script>
 
@@ -142,12 +176,6 @@
                </button>
             </div>
           {/each}
-          {#if campuses.length === 0 && !loading}
-            <div class="flex flex-col items-center justify-center py-12 text-center opacity-40 grayscale">
-               <div class="w-16 h-16 bg-gray-100 rounded-full mb-4 flex items-center justify-center">🏫</div>
-               <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">No campuses configured yet</p>
-            </div>
-          {/if}
         </div>
       </div>
 
@@ -197,21 +225,80 @@
                </button>
             </div>
           {/each}
-          {#if programs.length === 0 && !loading}
-            <div class="flex flex-col items-center justify-center py-12 text-center opacity-40 grayscale">
-               <div class="w-16 h-16 bg-gray-100 rounded-full mb-4 flex items-center justify-center">🎓</div>
-               <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">No programs added</p>
-            </div>
-          {/if}
         </div>
       </div>
     </div>
   {:else if activeTab === 'terms'}
-    <div class="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-[3rem]" in:fly={{ y: 20 }}>
-       <div class="text-4xl mb-4">📅</div>
-       <h3 class="text-lg font-black text-gray-900 dark:text-white">Academic Calendar</h3>
-       <p class="text-sm text-gray-500 max-w-sm text-center mt-2 font-medium">Coming next: Define semesters, trimesters, and academic years for your programs.</p>
-       <button class="mt-8 px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-xs font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all opacity-50 cursor-not-allowed">Enable Calendar Module</button>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8" in:fly={{ y: 20 }}>
+       <!-- Program Selection for Terms -->
+       <div class="md:col-span-1 space-y-4">
+          <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">Select Program</p>
+          <div class="space-y-2 max-h-[600px] overflow-y-auto pr-2">
+             {#each programs as p}
+               <button 
+                onclick={() => termTargetProgramId = p.id}
+                class="w-full text-left p-4 rounded-2xl border transition-all {termTargetProgramId === p.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-600/20' : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-700 dark:text-white hover:border-indigo-500/50'}"
+               >
+                 <p class="text-xs font-black uppercase tracking-tight leading-tight">{p.name}</p>
+                 <p class="text-[10px] font-bold opacity-60 mt-1">{p.code}</p>
+               </button>
+             {/each}
+          </div>
+       </div>
+
+       <!-- Terms List -->
+       <div class="md:col-span-2 p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3rem] shadow-sm flex flex-col">
+          <div class="flex items-center justify-between mb-8">
+            <div>
+              <h3 class="text-xl font-black text-gray-900 dark:text-white">Academic Terms</h3>
+              <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Define Semesters & Trimesters</p>
+            </div>
+            <button onclick={() => showForm = showForm === 'term' ? null : 'term'} class="p-3 bg-violet-600 text-white rounded-2xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20 active:scale-95">
+               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+            </button>
+          </div>
+
+          {#if showForm === 'term'}
+            <div class="mb-8 p-6 bg-violet-50/50 dark:bg-violet-500/5 rounded-3xl border border-violet-100 dark:border-violet-500/10" transition:slide>
+              <div class="grid grid-cols-2 gap-4">
+                 <input bind:value={newTerm.name} placeholder="Term Name (e.g. Semester 1, Fall 2024)" class="col-span-2 px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                 <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black text-violet-600 uppercase ml-2">Start Date</label>
+                    <input type="date" bind:value={newTerm.start_date} class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                 </div>
+                 <div class="flex flex-col gap-1">
+                    <label class="text-[9px] font-black text-violet-600 uppercase ml-2">End Date</label>
+                    <input type="date" bind:value={newTerm.end_date} class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                 </div>
+                 <button onclick={createTerm} disabled={processing || !termTargetProgramId} class="col-span-2 py-3 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20">
+                   {processing ? 'Creating...' : 'Define Term'}
+                 </button>
+              </div>
+            </div>
+          {/if}
+
+          <div class="space-y-4 flex-1">
+             {#each terms as term}
+               <div class="flex items-center justify-between p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-violet-500/20 transition-all">
+                  <div>
+                    <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{term.name}</h4>
+                    <div class="flex items-center gap-3 mt-1.5 font-bold text-[10px] text-gray-500 uppercase tracking-widest">
+                       <span>{new Date(term.start_date).toLocaleDateString()}</span>
+                       <span class="text-violet-500">→</span>
+                       <span>{new Date(term.end_date).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                  <span class="px-3 py-1 bg-violet-100 dark:bg-violet-900/50 text-violet-600 text-[9px] font-black rounded-lg uppercase tracking-tighter">{term.status}</span>
+               </div>
+             {/each}
+             {#if terms.length === 0 && !loading}
+                <div class="flex flex-col items-center justify-center py-20 text-center opacity-40 grayscale">
+                   <div class="w-16 h-16 bg-gray-100 rounded-full mb-4 flex items-center justify-center">⏳</div>
+                   <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">No terms defined for this program</p>
+                </div>
+             {/if}
+          </div>
+       </div>
     </div>
   {:else if activeTab === 'batches'}
     <div class="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-[3rem]" in:fly={{ y: 20 }}>
@@ -229,7 +316,7 @@
         <div class="flex flex-wrap gap-4 mt-4">
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {campuses.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Campuses</span>
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {programs.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Programs</span>
-           <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full bg-gray-400 opacity-50"></div> Terms</span>
+           <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {terms.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Terms</span>
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full bg-gray-400 opacity-50"></div> Faculty List</span>
         </div>
      </div>
@@ -249,5 +336,9 @@
   }
   select {
     background-image: none;
+  }
+  ::-webkit-calendar-picker-indicator {
+    filter: invert(0.5);
+    cursor: pointer;
   }
 </style>
