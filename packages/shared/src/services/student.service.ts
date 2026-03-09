@@ -61,6 +61,71 @@ export class StudentService {
         );
     }
 
+    static async importStudents(universityId: string, programId: string, termId: string, sectionId: string, students: any[]) {
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: [] as string[]
+        };
+
+        for (const studentData of students) {
+            try {
+                let userId: string | null = null;
+
+                if (studentData.email) {
+                    const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [studentData.email]);
+                    if (existingUser.rows.length > 0) {
+                        userId = existingUser.rows[0].id;
+                    } else {
+                        const userRes = await db.query(
+                            `INSERT INTO users (email, full_name, role, university_id, status)
+                             VALUES ($1, $2, 'STUDENT', $3, 'ACTIVE')
+                             RETURNING id`,
+                            [studentData.email, studentData.name, universityId]
+                        );
+                        userId = userRes.rows[0].id;
+                    }
+                }
+
+                await db.query(
+                    `INSERT INTO student_profiles (user_id, university_id, program_id, term_id, section_id, enrollment_number, admission_date, student_status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'ENROLLED')
+                     ON CONFLICT (university_id, enrollment_number) DO UPDATE SET
+                        program_id = EXCLUDED.program_id,
+                        term_id = EXCLUDED.term_id,
+                        section_id = EXCLUDED.section_id,
+                        user_id = COALESCE(student_profiles.user_id, EXCLUDED.user_id),
+                        updated_at = NOW()`,
+                    [
+                        userId,
+                        universityId,
+                        programId,
+                        termId,
+                        sectionId,
+                        studentData.enrollment_number,
+                        studentData.admission_date || new Date().toISOString().split('T')[0]
+                    ]
+                );
+
+                if (userId) {
+                    await db.query(
+                        `INSERT INTO user_role_assignments (user_id, role_id, university_id, program_id, section_id, is_primary)
+                         SELECT $1, id, $2, $3, $4, TRUE FROM roles WHERE code = 'student'
+                         ON CONFLICT DO NOTHING`,
+                        [userId, universityId, programId, sectionId]
+                    );
+                }
+
+                results.success++;
+            } catch (e: any) {
+                results.failed++;
+                results.errors.push(`Failed to import student ${studentData.enrollment_number}: ${e.message}`);
+            }
+        }
+
+        return results;
+    }
+
     // --- Academic Performance (Placeholder for Exam Domain integration) ---
 
     static async getExamMarks(studentProfileId: string) {

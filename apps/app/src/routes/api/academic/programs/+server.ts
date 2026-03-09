@@ -27,6 +27,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     return json(program);
 };
 
+export const PATCH: RequestHandler = async ({ request, locals }) => {
+    if (locals.user?.role !== 'ADMIN' && locals.user?.role !== 'PROGRAM_OPS') {
+        throw error(403, 'Forbidden');
+    }
+
+    const { id, ...updates } = await request.json();
+    if (!id) throw error(400, 'id is required');
+
+    await AcademicService.updateProgram(id, updates);
+    return json({ success: true });
+};
+
 export const DELETE: RequestHandler = async ({ url, locals }) => {
     if (locals.user?.role !== 'ADMIN' && locals.user?.role !== 'PROGRAM_OPS') {
         throw error(403, 'Forbidden');

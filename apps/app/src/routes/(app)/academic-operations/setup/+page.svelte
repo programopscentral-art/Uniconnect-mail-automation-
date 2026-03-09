@@ -11,7 +11,11 @@
   let campuses = $state<any[]>([]);
   let programs = $state<any[]>([]);
   let terms = $state<any[]>([]);
+  let sections = $state<any[]>([]);
   let loading = $state(false);
+
+  let sectionTargetTermId = $state("");
+  let newSection = $state({ name: "", batch_code: "", strength: 60 });
 
   // Form states
   let newCampus = $state({ name: "", code: "", address: "" });
@@ -20,6 +24,7 @@
   
   let processing = $state(false);
   let showForm = $state<string | null>(null);
+  let editingItem = $state<any>(null);
 
   // Selection state for terms tab
   let termTargetProgramId = $state("");
@@ -35,8 +40,13 @@
       campuses = await cRes.json();
       programs = await pRes.json();
       
-      if (programs.length > 0 && !termTargetProgramId) {
+      // Reset term selection when university changes
+      if (programs.length > 0) {
         termTargetProgramId = programs[0].id;
+        await fetchTerms();
+      } else {
+        termTargetProgramId = "";
+        terms = [];
       }
     } catch (e) {
       console.error(e);
@@ -58,9 +68,23 @@
     }
   }
 
+  async function fetchSections() {
+    if (!sectionTargetTermId) return;
+    loading = true;
+    try {
+      const res = await fetch(`/api/academic/sections?termId=${sectionTargetTermId}`);
+      sections = await res.json();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
+    }
+  }
+
   onMount(refreshData);
   $effect(() => { if (selectedUniversityId) refreshData(); });
   $effect(() => { if (termTargetProgramId) fetchTerms(); });
+  $effect(() => { if (sectionTargetTermId) fetchSections(); });
 
   async function handleAction(endpoint: string, method: string, body: any) {
     processing = true;
@@ -98,12 +122,83 @@
   }
 
   function createTerm() {
-    handleAction("/api/academic/terms", "POST", { 
-      ...newTerm, 
-      university_id: selectedUniversityId, 
-      program_id: termTargetProgramId 
-    });
+    if (editingItem) {
+      handleAction("/api/academic/terms", "PATCH", { 
+        id: editingItem.id,
+        ...newTerm
+      });
+    } else {
+      handleAction("/api/academic/terms", "POST", { 
+        ...newTerm, 
+        university_id: selectedUniversityId, 
+        program_id: termTargetProgramId 
+      });
+    }
     newTerm = { name: "", program_id: "", start_date: "", end_date: "" };
+    editingItem = null;
+  }
+
+  function createSection() {
+    handleAction("/api/academic/sections", "POST", { 
+      ...newSection, 
+      university_id: selectedUniversityId, 
+      program_id: termTargetProgramId,
+      term_id: sectionTargetTermId
+    });
+    newSection = { name: "", batch_code: "", strength: 60 };
+  }
+
+  async function importStudents(sectionId: string) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.json';
+    input.onchange = async (e: any) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event: any) => {
+            try {
+                let students = [];
+                if (file.name.endsWith('.json')) {
+                    students = JSON.parse(event.target.result);
+                } else {
+                    // Simple CSV Parse (Email, Name, Enrollment)
+                    const lines = event.target.result.split('\n');
+                    students = lines.slice(1).map((line: string) => {
+                        const [email, name, enrollment_number] = line.split(',');
+                        return { email: email.trim(), name: name.trim(), enrollment_number: enrollment_number.trim() };
+                    }).filter((s: any) => s.email && s.enrollment_number);
+                }
+                
+                if (students.length === 0) {
+                    alert("No valid students found in file.");
+                    return;
+                }
+
+                processing = true;
+                const res = await fetch('/api/academic/students/import', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        university_id: selectedUniversityId,
+                        program_id: termTargetProgramId,
+                        term_id: sectionTargetTermId,
+                        section_id: sectionId,
+                        students
+                    })
+                });
+                const result = await res.json();
+                alert(`Import complete! Success: ${result.success}, Failed: ${result.failed}`);
+                if (result.errors.length > 0) console.log(result.errors);
+            } catch (err) {
+                alert("Failed to parse file.");
+            } finally {
+                processing = false;
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
   }
 </script>
 
@@ -278,18 +373,26 @@
           {/if}
 
           <div class="space-y-4 flex-1">
-             {#each terms as term}
-               <div class="flex items-center justify-between p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-violet-500/20 transition-all">
-                  <div>
-                    <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{term.name}</h4>
-                    <div class="flex items-center gap-3 mt-1.5 font-bold text-[10px] text-gray-500 uppercase tracking-widest">
-                       <span>{new Date(term.start_date).toLocaleDateString()}</span>
-                       <span class="text-violet-500">→</span>
-                       <span>{new Date(term.end_date).toLocaleDateString()}</span>
-                    </div>
+              {#each terms as term}
+                <div class="flex items-center justify-between p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-violet-500/20 group transition-all">
+                   <div>
+                     <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{term.name}</h4>
+                     <div class="flex items-center gap-3 mt-1.5 font-bold text-[10px] text-gray-500 uppercase tracking-widest">
+                        <span>{new Date(term.start_date).toLocaleDateString()}</span>
+                        <span class="text-violet-500">→</span>
+                        <span>{new Date(term.end_date).toLocaleDateString()}</span>
+                        <span class="ml-2 px-2 py-0.5 bg-violet-100 dark:bg-violet-900/50 text-violet-600 rounded-lg">{term.status}</span>
+                     </div>
+                   </div>
+                  <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <button onclick={() => startEditTerm(term)} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    </button>
+                    <button onclick={() => handleAction(`/api/academic/terms?id=${term.id}`, 'DELETE', null)} class="p-2 text-gray-400 hover:text-rose-500 transition-colors">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
                   </div>
-                  <span class="px-3 py-1 bg-violet-100 dark:bg-violet-900/50 text-violet-600 text-[9px] font-black rounded-lg uppercase tracking-tighter">{term.status}</span>
-               </div>
+                </div>
              {/each}
              {#if terms.length === 0 && !loading}
                 <div class="flex flex-col items-center justify-center py-20 text-center opacity-40 grayscale">
@@ -301,10 +404,105 @@
        </div>
     </div>
   {:else if activeTab === 'batches'}
-    <div class="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-800 rounded-[3rem]" in:fly={{ y: 20 }}>
-       <div class="text-4xl mb-4">👥</div>
-       <h3 class="text-lg font-black text-gray-900 dark:text-white">Batches & Sections</h3>
-       <p class="text-sm text-gray-500 max-w-sm text-center mt-2 font-medium">Map students into groups like "Batch 2024" or "CS-A". This module will be live shortly.</p>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-8" in:fly={{ y: 20 }}>
+       <!-- Program & Term Selection -->
+       <div class="md:col-span-1 space-y-6">
+          <div class="space-y-4">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">1. Select Program</p>
+            <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+               {#each programs as p}
+                 <button 
+                  onclick={() => { termTargetProgramId = p.id; sectionTargetTermId = ""; }}
+                  class="w-full text-left p-4 rounded-2xl border transition-all {termTargetProgramId === p.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-700 dark:text-white hover:border-indigo-500/50'}"
+                 >
+                   <p class="text-[10px] font-black uppercase tracking-tight leading-tight">{p.name}</p>
+                 </button>
+               {/each}
+            </div>
+          </div>
+
+          {#if termTargetProgramId}
+            <div class="space-y-4" transition:slide>
+              <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">2. Select Term</p>
+              <div class="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                 {#each terms as t}
+                   <button 
+                    onclick={() => sectionTargetTermId = t.id}
+                    class="w-full text-left p-4 rounded-2xl border transition-all {sectionTargetTermId === t.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-700 dark:text-white hover:border-indigo-500/50'}"
+                   >
+                     <p class="text-[10px] font-black uppercase tracking-tight leading-tight">{t.name}</p>
+                   </button>
+                 {/each}
+              </div>
+            </div>
+          {/if}
+       </div>
+
+       <!-- Sections Management -->
+       <div class="md:col-span-3 p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3rem] shadow-sm flex flex-col min-h-[600px]">
+          {#if !sectionTargetTermId}
+            <div class="flex-1 flex flex-col items-center justify-center text-center opacity-40 grayscale">
+               <div class="w-20 h-20 bg-gray-100 rounded-full mb-6 flex items-center justify-center text-3xl">🧩</div>
+               <p class="text-xs font-black uppercase tracking-widest text-gray-500">Select a Program & Term to manage sections</p>
+            </div>
+          {:else}
+            <div class="flex items-center justify-between mb-8">
+              <div>
+                <h3 class="text-xl font-black text-gray-900 dark:text-white">Sections & Batches</h3>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Group student mappings</p>
+              </div>
+              <button onclick={() => showForm = showForm === 'section' ? null : 'section'} class="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
+                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+              </button>
+            </div>
+
+            {#if showForm === 'section'}
+              <div class="mb-8 p-6 bg-indigo-50/50 dark:bg-indigo-500/5 rounded-3xl border border-indigo-100 dark:border-indigo-500/10" transition:slide>
+                <div class="grid grid-cols-2 gap-4">
+                   <input bind:value={newSection.name} placeholder="Section Name (e.g. Section A)" class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <input bind:value={newSection.batch_code} placeholder="Batch Code (e.g. B2024-A)" class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <input type="number" bind:value={newSection.strength} placeholder="Strength" class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <button onclick={createSection} disabled={processing} class="py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all">
+                     {processing ? 'Creating...' : 'Create Section'}
+                   </button>
+                </div>
+              </div>
+            {/if}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+               {#each sections as section}
+                 <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-indigo-500/20 transition-all group">
+                    <div class="flex justify-between items-start mb-4">
+                      <div>
+                        <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{section.name}</h4>
+                        <code class="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{section.batch_code}</code>
+                      </div>
+                      <span class="px-3 py-1 bg-white dark:bg-slate-700 text-gray-500 text-[9px] font-bold rounded-lg border border-gray-100 dark:border-slate-600">Max: {section.strength}</span>
+                    </div>
+                    
+                    <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                      <button 
+                        onclick={() => importStudents(section.id)}
+                        disabled={processing}
+                        class="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                      >
+                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                         {processing ? 'Wait...' : 'Bulk Import'}
+                      </button>
+                      <button class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                      </button>
+                    </div>
+                 </div>
+               {/each}
+               {#if sections.length === 0 && !loading}
+                 <div class="md:col-span-2 py-20 text-center opacity-30">
+                    <p class="text-[10px] font-black uppercase tracking-widest">No sections defined yet</p>
+                 </div>
+               {/if}
+            </div>
+          {/if}
+       </div>
     </div>
   {/if}
 

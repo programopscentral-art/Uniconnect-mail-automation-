@@ -81,6 +81,25 @@ export class AcademicService {
         await db.query('UPDATE campuses SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
     }
 
+    static async updateCampus(id: string, data: Partial<Campus>) {
+        const fields = [];
+        const values = [];
+        let i = 1;
+
+        if (data.name) { fields.push(`name = $${i++}`); values.push(data.name); }
+        if (data.code) { fields.push(`code = $${i++}`); values.push(data.code); }
+        if (data.address) { fields.push(`address = $${i++}`); values.push(data.address); }
+        if (data.status) { fields.push(`status = $${i++}`); values.push(data.status); }
+
+        if (fields.length === 0) return;
+
+        values.push(id);
+        await db.query(
+            `UPDATE campuses SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`,
+            values
+        );
+    }
+
     // --- Program Management ---
 
     static async createProgram(data: Omit<Program, 'id'>) {
@@ -111,6 +130,26 @@ export class AcademicService {
         await db.query('UPDATE programs SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
     }
 
+    static async updateProgram(id: string, data: Partial<Program>) {
+        const fields = [];
+        const values = [];
+        let i = 1;
+
+        if (data.name) { fields.push(`name = $${i++}`); values.push(data.name); }
+        if (data.code) { fields.push(`code = $${i++}`); values.push(data.code); }
+        if (data.degree_type) { fields.push(`degree_type = $${i++}`); values.push(data.degree_type); }
+        if (data.semester_count) { fields.push(`semester_count = $${i++}`); values.push(data.semester_count); }
+        if (data.status) { fields.push(`status = $${i++}`); values.push(data.status); }
+
+        if (fields.length === 0) return;
+
+        values.push(id);
+        await db.query(
+            `UPDATE programs SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`,
+            values
+        );
+    }
+
     // --- Term / Semester Management ---
 
     static async createTerm(universityId: string, programId: string, data: { name: string; start_date: Date; end_date: Date }) {
@@ -129,6 +168,29 @@ export class AcademicService {
             [programId]
         );
         return result.rows;
+    }
+
+    static async deleteTerm(id: string) {
+        await db.query('UPDATE terms SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
+    }
+
+    static async updateTerm(id: string, data: { name?: string; start_date?: Date; end_date?: Date; status?: string }) {
+        const fields = [];
+        const values = [];
+        let i = 1;
+
+        if (data.name) { fields.push(`name = $${i++}`); values.push(data.name); }
+        if (data.start_date) { fields.push(`start_date = $${i++}`); values.push(data.start_date); }
+        if (data.end_date) { fields.push(`end_date = $${i++}`); values.push(data.end_date); }
+        if (data.status) { fields.push(`status = $${i++}`); values.push(data.status); }
+
+        if (fields.length === 0) return;
+
+        values.push(id);
+        await db.query(
+            `UPDATE terms SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${i}`,
+            values
+        );
     }
 
     // --- Section / Batch Management ---
