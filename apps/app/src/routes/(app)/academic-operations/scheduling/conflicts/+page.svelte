@@ -1,142 +1,91 @@
 <script lang="ts">
-  import { fade, fly } from "svelte/transition";
+  import { onMount } from 'svelte';
+  import { fade, fly, slide } from 'svelte/transition';
 
-  const conflicts = [
-    { 
-        id: "C-101", 
-        type: "Faculty Clash", 
-        severity: "CRITICAL",
-        message: "Dr. Sathish K. is scheduled for two sessions at 10:00 AM.",
-        details: {
-            session1: "Operating Systems (Block A-102)",
-            session2: "Embedded Systems (Block B-304)"
-        }
-    },
-    { 
-        id: "C-102", 
-        type: "Room Clash", 
-        severity: "HIGH",
-        message: "Room 405 (Block C) is double-booked for Section B and Section D.",
-        details: {
-            time: "02:00 PM - 03:30 PM",
-            sessions: ["DBMS Lab", "Software Engineering"]
-        }
-    },
-    { 
-        id: "C-103", 
-        type: "Capacity Alert", 
-        severity: "MEDIUM",
-        message: "Room 201 capacity (40) is less than Section G student count (52).",
-        details: {
-            required: 52,
-            actual: 40
-        }
-    }
-  ];
+  let conflicts = $state([]);
+  let loading = $state(true);
+  let universityId = $state(""); // Should be from session
 
-  function getSeverityColor(sev: string) {
-    switch (sev) {
-        case 'CRITICAL': return 'bg-rose-500 text-white shadow-rose-500/30';
-        case 'HIGH': return 'bg-orange-500 text-white shadow-orange-500/30';
-        case 'MEDIUM': return 'bg-amber-500 text-white shadow-amber-500/30';
-        default: return 'bg-gray-500 text-white';
+  async function fetchConflicts() {
+    loading = true;
+    try {
+      const res = await fetch('/api/academic/scheduling/conflicts'); // We'll need this API
+      conflicts = await res.json();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
     }
   }
+
+  onMount(fetchConflicts);
+
+  async function resolveConflict(conflictId: string) {
+    try {
+      const res = await fetch(`/api/academic/scheduling/conflicts/${conflictId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolution: 'MANUAL_OVERRIDE', actor_id: 'mock-admin-id' })
+      });
+      if (res.ok) {
+        conflicts = conflicts.filter(c => c.id !== conflictId);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  const getSeverityClass = (severity) => {
+    if (severity === 'CRITICAL') return 'bg-red-500/10 text-red-600 border-red-200';
+    if (severity === 'ERROR') return 'bg-orange-500/10 text-orange-600 border-orange-200';
+    return 'bg-blue-500/10 text-blue-600 border-blue-200';
+  };
 </script>
 
 <div class="space-y-8" in:fade>
-  <div class="flex items-center justify-between">
-    <div>
-        <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Conflict <span class="text-rose-600">Center</span></h2>
-        <p class="text-sm text-gray-500 font-medium mt-1">Review and resolve schedule overlaps, room capacity issues, and faculty clashing.</p>
-    </div>
-    <div class="flex gap-3">
-        <button class="px-6 py-2.5 bg-gray-50 dark:bg-slate-800 text-gray-500 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-gray-100 transition-all">
-            Refresh Analysis
-        </button>
-        <button class="px-6 py-2.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
-            Resolve All (AI)
-        </button>
-    </div>
-  </div>
-
-  <div class="grid grid-cols-1 gap-6">
-    {#each conflicts as conflict, i}
-      <div 
-        class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 group"
-        in:fly={{ y: 20, delay: i * 100 }}
-      >
-        <div class="flex flex-col md:flex-row gap-8">
-            <div class="md:w-64 shrink-0">
-                <span class="inline-block px-4 py-1.5 rounded-full {getSeverityColor(conflict.severity)} text-[10px] font-black uppercase tracking-widest shadow-lg">
-                    {conflict.severity}
-                </span>
-                <h3 class="text-xl font-black text-gray-900 dark:text-white mt-4 tracking-tight">{conflict.type}</h3>
-                <p class="text-[10px] font-black text-gray-400 uppercase mt-1 tracking-widest">ID: {conflict.id}</p>
-            </div>
-
-            <div class="flex-1">
-                <p class="text-lg font-bold text-gray-800 dark:text-gray-200 leading-relaxed group-hover:text-indigo-600 transition-colors">
-                    {conflict.message}
-                </p>
-                
-                <div class="mt-6 p-6 bg-gray-50 dark:bg-slate-800/50 rounded-3xl border border-transparent group-hover:border-indigo-500/20 transition-all">
-                    {#if conflict.type === 'Faculty Clash'}
-                        <div class="flex items-center justify-between text-sm">
-                            <div class="space-y-2">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                                    <span class="font-bold text-gray-600 dark:text-gray-400">{conflict.details.session1}</span>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                                    <span class="font-bold text-gray-600 dark:text-gray-400">{conflict.details.session2}</span>
-                                </div>
-                            </div>
-                            <button class="px-4 py-2 bg-indigo-600/10 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
-                                Swap Faculty
-                            </button>
-                        </div>
-                    {:else if conflict.type === 'Room Clash'}
-                         <div class="flex items-end justify-between">
-                            <div>
-                                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Time Slot</p>
-                                <p class="text-3xl font-black text-indigo-600">{conflict.details.time}</p>
-                            </div>
-                            <button class="px-4 py-2 bg-indigo-600/10 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
-                                Reassign Room
-                            </button>
-                         </div>
-                    {:else}
-                         <div class="flex items-center justify-between">
-                             <div class="flex gap-8">
-                                <div>
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Required</p>
-                                    <p class="text-2xl font-black text-gray-900 dark:text-white">{conflict.details.required}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Current Capacity</p>
-                                    <p class="text-2xl font-black text-rose-500">{conflict.details.actual}</p>
-                                </div>
-                             </div>
-                             <button class="px-4 py-2 bg-indigo-600/10 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
-                                Find Larger Room
-                            </button>
-                         </div>
-                    {/if}
-                </div>
-            </div>
-
-            <div class="flex flex-col gap-2 md:w-48">
-                <button class="w-full py-3 bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:opacity-90 transition-all active:scale-95">
-                    Resolve Manually
-                </button>
-                <button class="w-full py-3 border-2 border-gray-100 dark:border-slate-700 text-gray-400 dark:text-gray-500 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:border-indigo-500 hover:text-indigo-600 transition-all active:scale-95">
-                    Ignore Alert
-                </button>
-            </div>
-        </div>
+  <div class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h2 class="text-2xl font-black text-gray-900 dark:text-white">Conflict <span class="text-red-600">Center</span></h2>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Operational War Room for Scheduling</p>
       </div>
-    {/each}
+      <button onclick={fetchConflicts} class="px-6 py-2.5 bg-gray-100 dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 transition-all">Refresh Engine</button>
+    </div>
+
+    {#if loading}
+      <div class="flex flex-col items-center justify-center py-20 grayscale opacity-40">
+        <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Checking for System Conflicts...</p>
+      </div>
+    {:else if conflicts.length === 0}
+      <div class="flex flex-col items-center justify-center py-20 grayscale opacity-40 text-center">
+        <div class="w-20 h-20 bg-green-100 rounded-full mb-6 flex items-center justify-center text-3xl">✅</div>
+        <p class="text-sm font-black text-gray-900 dark:text-white">Zero Conflicts Detected</p>
+        <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-2">Systems are cleared for implementation</p>
+      </div>
+    {:else}
+      <div class="space-y-4">
+        {#each conflicts as conflict}
+          <div class="p-6 border rounded-[1.5rem] flex items-center justify-between transition-all hover:shadow-md {getSeverityClass(conflict.severity)}" transition:fly={{ x: 20 }}>
+            <div class="flex items-center gap-6">
+              <div class="w-12 h-12 rounded-2xl flex items-center justify-center bg-white/50 backdrop-blur-sm shadow-sm border border-transparent font-black text-xs">
+                {conflict.conflict_type === 'FACULTY_CLASH' ? '👩‍🏫' : conflict.conflict_type === 'ROOM_CLASH' ? '🏫' : '🧩'}
+              </div>
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/60">{conflict.conflict_type}</span>
+                  <span class="text-[10px] font-black uppercase tracking-widest">{conflict.severity}</span>
+                </div>
+                <h4 class="font-black text-gray-900 dark:text-white leading-tight">{conflict.description}</h4>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+               <button class="px-5 py-2.5 bg-white dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase border border-inherit hover:shadow-sm transition-all focus:ring-2 focus:ring-indigo-500">View Slot</button>
+               <button onclick={() => resolveConflict(conflict.id)} class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all">Resolve Fix</button>
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </div>
 </div>

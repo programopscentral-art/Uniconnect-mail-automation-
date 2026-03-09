@@ -33,5 +33,6 @@ export const db = {
     get pool() {
         return getPool();
     },
+    connect: () => getPool().connect(),
 };
 

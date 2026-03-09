@@ -58,5 +58,9 @@ export * from './services/academic.service';
 export * from './services/faculty.service';
 export * from './services/student.service';
 export * from './services/scheduling.service';
+export * from './services/activity.service';
+export * from './services/import.service';
+export * from './services/notification.service';
+export * from './services/rbac.service';
 export * from './services/exam.service';
 // Ensure all assessment functions including createUniversityAsset are exported

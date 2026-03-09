@@ -232,4 +232,49 @@ export class AcademicService {
         );
         return result.rows;
     }
+
+    // --- Cloning & Bulk Ops ---
+
+    /**
+     * Clones an entire academic term's structure (Subjects & Sections) to a new term.
+     * Used to reduce manual setup between semesters.
+     */
+    static async cloneTerm(sourceTermId: string, targetTermId: string, universityId: string, programId: string) {
+        const client = await db.connect();
+        try {
+            await client.query('BEGIN');
+
+            // 1. Fetch source data
+            const [subjectsRes, sectionsRes] = await Promise.all([
+                client.query('SELECT * FROM subjects WHERE term_id = $1 AND is_active = true', [sourceTermId]),
+                client.query('SELECT * FROM sections WHERE term_id = $1 AND is_active = true', [sourceTermId])
+            ]);
+
+            // 2. Clone Subjects
+            for (const sub of subjectsRes.rows) {
+                await client.query(
+                    `INSERT INTO subjects (university_id, program_id, term_id, name, code, credit_value, total_sessions_required, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    [universityId, programId, targetTermId, sub.name, sub.code, sub.credit_value, sub.total_sessions_required, 'ACTIVE']
+                );
+            }
+
+            // 3. Clone Sections
+            for (const sec of sectionsRes.rows) {
+                await client.query(
+                    `INSERT INTO sections (university_id, program_id, term_id, name, batch_code, strength, status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [universityId, programId, targetTermId, sec.name, sec.batch_code, sec.strength, 'ACTIVE']
+                );
+            }
+
+            await client.query('COMMIT');
+            return { subjects: subjectsRes.rows.length, sections: sectionsRes.rows.length };
+        } catch (e) {
+            await client.query('ROLLBACK');
+            throw e;
+        } finally {
+            client.release();
+        }
+    }
 }
