@@ -241,9 +241,9 @@
           </div>
 
           <div class="space-y-2">
-            <label
-              class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
-              >Priority Level</label
+            <span
+              class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1 block"
+              >Priority Level</span
             >
             <div
               class="flex items-center gap-2 p-1 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-700"

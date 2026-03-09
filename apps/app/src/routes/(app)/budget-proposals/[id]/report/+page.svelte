@@ -122,10 +122,12 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       <div class="space-y-2">
         <label
+          for="actual_date"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Actual Event Date</label
         >
         <input
+          id="actual_date"
           bind:value={form.actual_date}
           type="datetime-local"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold dark:text-white"
@@ -134,10 +136,12 @@
 
       <div class="space-y-2">
         <label
+          for="actual_attendance"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Actual Attendance</label
         >
         <input
+          id="actual_attendance"
           bind:value={form.actual_attendance}
           type="number"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold dark:text-white"
@@ -146,10 +150,12 @@
 
       <div class="space-y-2">
         <label
+          for="actual_budget"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Actual Budget Utilized (INR)</label
         >
         <input
+          id="actual_budget"
           bind:value={form.actual_budget_used}
           type="number"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold dark:text-white"
@@ -175,10 +181,12 @@
 
       <div class="col-span-full space-y-2 pt-4">
         <label
+          for="outcomes"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Summary of Outcomes</label
         >
         <textarea
+          id="outcomes"
           bind:value={form.outcomes}
           placeholder="How did the event go? Were goals met?"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium dark:text-white"
@@ -188,10 +196,12 @@
 
       <div class="col-span-full space-y-2">
         <label
+          for="feedback"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Feedback Summary</label
         >
         <textarea
+          id="feedback"
           bind:value={form.feedback_summary}
           placeholder="Student/Speaker feedback highlights"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium dark:text-white"
@@ -201,10 +211,12 @@
 
       <div class="col-span-full space-y-2">
         <label
+          for="issues"
           class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
           >Issues Faced (Optional)</label
         >
         <textarea
+          id="issues"
           bind:value={form.issues_faced}
           placeholder="Logistical or financial hurdles"
           class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm font-medium dark:text-white"
@@ -214,7 +226,7 @@
       
       <div class="col-span-full space-y-4 pt-4 border-t border-gray-50 dark:border-gray-700">
         <div class="flex items-center justify-between">
-          <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Event Gallery (Photos)</label>
+          <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Event Gallery (Photos)</span>
           <div class="relative">
             <input type="file" multiple accept="image/*" class="hidden" bind:this={photoInput} onchange={uploadPhotos} />
             <button 
@@ -239,6 +251,7 @@
               <img src={photo.startsWith('/uploads/') ? photo.replace('/uploads/', '/api/uploads/') : photo} alt="Event" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
               <button 
                 type="button" 
+                aria-label="Remove photo"
                 onclick={() => removePhoto(photo)}
                 class="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-xl shadow-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110"
               >
