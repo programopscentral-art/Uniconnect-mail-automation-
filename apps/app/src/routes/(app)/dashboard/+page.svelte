@@ -47,6 +47,7 @@
     university_id: "",
     due_date: new Date().toISOString().slice(0, 16),
     status: "PENDING",
+    estimated_time: "1h",
   });
 
   const statusLabels: Record<string, string> = {
@@ -99,6 +100,7 @@
     if (!canAssignToOthers) {
       taskForm.assignee_ids = [data.userId];
     }
+    taskForm.estimated_time = "1h";
 
     showTaskModal = true;
   }
@@ -353,6 +355,7 @@
             data.selectedUniversityId || data.defaultUniversityId || "",
           due_date: new Date().toISOString().slice(0, 16),
           status: "PENDING",
+          estimated_time: "1h",
         };
         await invalidateAll();
       } else {
@@ -490,6 +493,7 @@
           assignee_ids: [data.userId],
           university_id:
             data.selectedUniversityId || data.defaultUniversityId || undefined,
+          estimated_time: "1h",
         }),
         headers: { "Content-Type": "application/json" },
       });
@@ -1699,6 +1703,20 @@
                 type="datetime-local"
                 bind:value={taskForm.due_date}
                 class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
+              />
+            </div>
+            <div>
+              <label
+                for="task-est"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
+                >Est. Time (e.g. 2h)</label
+              >
+              <input
+                id="task-est"
+                type="text"
+                bind:value={taskForm.estimated_time}
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
+                placeholder="1h"
               />
             </div>
           </div>

@@ -12,6 +12,7 @@
     let repeat = $state('Do not repeat');
     let endDate = $state('');
     let linkToEvent = $state('No event');
+    let estimatedTime = $state('1h');
     let isSubmitting = $state(false);
 
     async function toggleStatus(task: any) {
@@ -35,6 +36,7 @@
                     title,
                     description,
                     due_date: dueDate,
+                    estimated_time: estimatedTime,
                     type: linkToEvent !== 'No event' ? 'EVENT' : 'TASK'
                 })
             });
@@ -231,15 +233,21 @@
                     </div>
                 </div>
 
-                <!-- Link to Event -->
-                <div>
-                    <label for="qa-event" class="block text-xs font-bold text-gray-500 uppercase mb-2">Link to event (optional)</label>
-                    <select id="qa-event" bind:value={linkToEvent} class="w-full px-4 py-2 border border-gray-100 rounded-xl outline-none bg-gray-50 text-sm font-medium">
-                        <option>No event</option>
-                        <option>Holiday</option>
-                        <option>Exam</option>
-                        <option>Meeting</option>
-                    </select>
+                <!-- Link to Event & Est Time -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="qa-event" class="block text-xs font-bold text-gray-500 uppercase mb-2">Link to event (optional)</label>
+                        <select id="qa-event" bind:value={linkToEvent} class="w-full px-4 py-2 border border-gray-100 rounded-xl outline-none bg-gray-50 text-sm font-medium">
+                            <option>No event</option>
+                            <option>Holiday</option>
+                            <option>Exam</option>
+                            <option>Meeting</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="qa-est" class="block text-xs font-bold text-gray-500 uppercase mb-2">Est. Time (e.g. 1h)</label>
+                        <input id="qa-est" type="text" bind:value={estimatedTime} class="w-full px-4 py-2 border border-gray-100 rounded-xl outline-none bg-gray-50 text-sm font-medium" placeholder="1h">
+                    </div>
                 </div>
 
                 <!-- Add Button -->

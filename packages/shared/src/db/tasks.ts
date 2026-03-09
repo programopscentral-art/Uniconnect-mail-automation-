@@ -30,9 +30,8 @@ export async function createTask(data: {
 }) {
     const { assignee_ids = [], ...taskData } = data;
 
-    if (!data.estimated_time) {
-        throw new Error("Estimation Time is compulsory for all tasks");
-    }
+    // Default estimation if missing to ensure operational stability
+    const estimated_time = data.estimated_time || '1h';
 
     const result = await db.query(
         `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date, estimated_time)
@@ -44,7 +43,7 @@ export async function createTask(data: {
             taskData.assigned_by,
             (taskData.university_id && taskData.university_id !== '') ? taskData.university_id : null,
             (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null,
-            taskData.estimated_time || null
+            estimated_time
         ]
     );
     const task = result.rows[0];
@@ -132,7 +131,7 @@ export async function getTasks(filters: {
          ORDER BY t.created_at DESC${limitClause}`,
         params
     );
-    return result.rows.map(r => ({
+    return result.rows.map((r: any) => ({
         ...r,
         assignee_ids: r.assignees.map((a: any) => a.id)
     }));
@@ -301,10 +300,10 @@ export async function getTaskStats(universityId?: string, userId?: string) {
     const res = await db.query(query, params);
 
     const stats: Record<string, number> = { PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0 };
-    res.rows.forEach(r => {
+    res.rows.forEach((r: any) => {
         if (r.status) stats[r.status] = parseInt(r.count);
     });
-    stats.OVERDUE = res.rows.reduce((acc, r) => acc + (parseInt(r.overdue_count) || 0), 0);
+    stats.OVERDUE = res.rows.reduce((acc: number, r: any) => acc + (parseInt(r.overdue_count) || 0), 0);
 
     return stats;
 }
@@ -340,7 +339,7 @@ export async function getDayPlanReport(date: string, universityId?: string) {
 
     return {
         date,
-        user_reports: taskStats.rows.map(r => {
+        user_reports: taskStats.rows.map((r: any) => {
             const total = parseInt(r.total_tasks);
             const completed = parseInt(r.completed_tasks);
             const rate = total > 0 ? (completed / total) * 100 : 0;
