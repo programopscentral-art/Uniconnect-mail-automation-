@@ -105,24 +105,24 @@
           {/each}
         </div>
 
-        <button class="w-full mt-8 py-4 bg-gray-950 dark:bg-white text-white dark:text-gray-950 text-xs font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/10">
+        <a href="/academic-operations/scheduling/conflicts" class="w-full mt-8 py-4 bg-gray-950 dark:bg-white text-white dark:text-gray-950 text-[10px] font-black uppercase tracking-[0.2em] rounded-[1.5rem] hover:opacity-90 transition-all active:scale-95 shadow-xl shadow-black/10 flex items-center justify-center">
           Open Conflict Center
-        </button>
+        </a>
       </div>
 
       <!-- Quick Actions -->
       <div class="grid grid-cols-2 gap-4">
-        <button class="flex flex-col items-center justify-center p-6 bg-indigo-50 dark:bg-indigo-500/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-500/20 group hover:bg-indigo-600 transition-all duration-300">
+        <a href="/academic-operations/scheduling/upload" class="flex flex-col items-center justify-center p-6 bg-indigo-50 dark:bg-indigo-500/10 rounded-[2rem] border border-indigo-100 dark:border-indigo-500/20 group hover:bg-indigo-600 transition-all duration-300">
           <div class="p-3 rounded-2xl bg-white dark:bg-slate-800 text-indigo-600 group-hover:text-white group-hover:bg-indigo-500 shadow-sm transition-all">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
           </div>
-          <span class="text-[10px] font-black text-indigo-900 dark:text-indigo-100 group-hover:text-white uppercase tracking-widest mt-3">Upload Timetable</span>
-        </button>
-        <button class="flex flex-col items-center justify-center p-6 bg-violet-50 dark:bg-violet-500/10 rounded-[2rem] border border-violet-100 dark:border-violet-500/20 group hover:bg-violet-600 transition-all duration-300">
-          <div class="p-3 rounded-2xl bg-white dark:bg-slate-800 text-violet-600 group-hover:text-white group-hover:bg-violet-500 shadow-sm transition-all">
+          <span class="text-[10px] font-black text-indigo-900 dark:text-indigo-100 group-hover:text-white uppercase tracking-widest mt-3 text-center">Upload Timetable</span>
+        </a>
+        <button disabled class="flex flex-col items-center justify-center p-6 bg-violet-50 dark:bg-violet-500/10 rounded-[2rem] border border-violet-100 dark:border-violet-500/20 opacity-50 cursor-not-allowed">
+          <div class="p-3 rounded-2xl bg-white dark:bg-slate-800 text-violet-600 shadow-sm transition-all">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
           </div>
-          <span class="text-[10px] font-black text-violet-900 dark:text-violet-100 group-hover:text-white uppercase tracking-widest mt-3">Plan Exams</span>
+          <span class="text-[10px] font-black text-violet-900 dark:text-violet-100 uppercase tracking-widest mt-3">Plan Exams</span>
         </button>
       </div>
   </div>
