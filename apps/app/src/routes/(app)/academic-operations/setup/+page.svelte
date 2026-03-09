@@ -170,7 +170,7 @@
     newTerm = { name: "", program_id: "", start_date: "", end_date: "" };
     editingItem = null;
   }
-
+  function createSection() {
     handleAction("/api/academic/sections", "POST", { 
       ...newSection, 
       university_id: selectedUniversityId, 
@@ -407,7 +407,7 @@
                   </div>
                   <code class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{program.code}</code>
                </div>
-               <button onclick={() => handleAction(`/api/academic/programs?id=${program.id}`, 'DELETE', null)} class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+               <button aria-label="Delete program" onclick={() => handleAction(`/api/academic/programs?id=${program.id}`, 'DELETE', null)} class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                </button>
             </div>
@@ -440,7 +440,7 @@
               <h3 class="text-xl font-black text-gray-900 dark:text-white">Academic Terms</h3>
               <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Define Semesters & Trimesters</p>
             </div>
-            <button onclick={() => showForm = showForm === 'term' ? null : 'term'} class="p-3 bg-violet-600 text-white rounded-2xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20 active:scale-95">
+            <button aria-label="Toggle term form" onclick={() => showForm = showForm === 'term' ? null : 'term'} class="p-3 bg-violet-600 text-white rounded-2xl hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20 active:scale-95">
                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
             </button>
           </div>

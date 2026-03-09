@@ -1587,10 +1587,12 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div class="space-y-2">
               <label
+                for="syncSourceUni"
                 class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
                 >Source University</label
               >
               <select
+                id="syncSourceUni"
                 bind:value={syncSourceUniId}
                 class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all px-4 py-3 text-gray-900 dark:text-white"
               >
@@ -1601,10 +1603,12 @@
             </div>
             <div class="space-y-2">
               <label
+                for="syncSourceSub"
                 class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
                 >Source Subject</label
               >
               <select
+                id="syncSourceSub"
                 bind:value={syncSourceSubjectId}
                 class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all px-4 py-3 text-gray-900 dark:text-white"
                 disabled={isLoadingSyncSourceSubjects}

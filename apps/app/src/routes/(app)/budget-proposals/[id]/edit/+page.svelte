@@ -178,10 +178,12 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div class="space-y-2">
             <label
+              for="university"
               class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
               >Target University</label
             >
             <select
+              id="university"
               bind:value={form.university_id}
               class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white font-bold appearance-none"
             >
@@ -194,10 +196,12 @@
 
           <div class="space-y-2">
             <label
+              for="event_type"
               class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
               >Event Type</label
             >
             <select
+              id="event_type"
               bind:value={form.event_type}
               class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 dark:text-white font-bold appearance-none"
             >
@@ -209,10 +213,12 @@
 
           <div class="col-span-full space-y-2">
             <label
+              for="title"
               class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
               >Proposal Title</label
             >
             <input
+              id="title"
               bind:value={form.title}
               type="text"
               placeholder="e.g. Annual Tech Symposium 2024"
@@ -222,10 +228,12 @@
 
           <div class="space-y-2">
             <label
+              for="planned_date"
               class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest px-1"
               >Planned Date</label
             >
             <input
+              id="planned_date"
               bind:value={form.proposed_date}
               type="datetime-local"
               class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold dark:text-white"
@@ -286,10 +294,11 @@
               transition:slide
             >
               <div class="md:w-32 shrink-0 space-y-1">
-                <label class="text-[9px] font-bold text-gray-400 uppercase ml-1"
+                <label for="item-cat-{idx}" class="text-[9px] font-bold text-gray-400 uppercase ml-1"
                   >Category</label
                 >
                 <select
+                  id="item-cat-{idx}"
                   bind:value={item.category}
                   class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-xs font-bold dark:text-white appearance-none"
                 >
@@ -300,10 +309,11 @@
               </div>
 
               <div class="flex-1 space-y-1">
-                <label class="text-[9px] font-bold text-gray-400 uppercase ml-1"
+                <label for="item-desc-{idx}" class="text-[9px] font-bold text-gray-400 uppercase ml-1"
                   >Description</label
                 >
                 <input
+                  id="item-desc-{idx}"
                   bind:value={item.description}
                   type="text"
                   placeholder="Explain what this is..."
@@ -313,10 +323,12 @@
 
               <div class="md:w-20 shrink-0 space-y-1">
                 <label
+                  for="item-qty-{idx}"
                   class="text-[9px] font-bold text-gray-400 uppercase ml-1 text-center block"
                   >Qty</label
                 >
                 <input
+                  id="item-qty-{idx}"
                   bind:value={item.qty}
                   type="number"
                   min="1"
@@ -326,10 +338,12 @@
 
               <div class="md:w-32 shrink-0 space-y-1">
                 <label
+                  for="item-cost-{idx}"
                   class="text-[9px] font-bold text-gray-400 uppercase ml-1 text-right block"
                   >Unit Cost</label
                 >
                 <input
+                  id="item-cost-{idx}"
                   bind:value={item.unit_cost}
                   type="number"
                   class="w-full p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl outline-none text-sm font-bold dark:text-white text-right"
@@ -339,6 +353,7 @@
               {#if form.items.length > 1}
                 <button
                   onclick={() => removeItem(idx)}
+                  aria-label="Remove item"
                   class="absolute -top-2 -right-2 w-8 h-8 bg-white dark:bg-gray-800 shadow-lg shadow-black/5 rounded-full flex items-center justify-center text-red-500 hover:scale-110 transition-all border border-gray-100 dark:border-gray-700 opacity-0 group-hover:opacity-100"
                 >
                   <svg
@@ -396,10 +411,12 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div class="space-y-2 col-span-full">
             <label
+              for="venue"
               class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Venue Description</label
             >
             <input
+              id="venue"
               bind:value={form.venue}
               type="text"
               placeholder="e.g. Campus Amphitheater or Hall 1"
@@ -409,10 +426,12 @@
 
           <div class="space-y-2">
             <label
+              for="attendance"
               class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Expected Attendance</label
             >
             <input
+              id="attendance"
               bind:value={form.expected_attendance}
               type="number"
               class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold dark:text-white"
@@ -421,10 +440,12 @@
 
           <div class="col-span-full space-y-2">
             <label
+              for="description"
               class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1"
               >Detailed Description / Purpose</label
             >
             <textarea
+              id="description"
               bind:value={form.description}
               placeholder="What is the goal of this event? Why is this budget necessary?"
               class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 text-sm dark:text-white font-medium shadow-inner"
