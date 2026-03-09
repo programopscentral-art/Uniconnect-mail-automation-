@@ -34,6 +34,7 @@
 
   async function refreshData() {
     if (!selectedUniversityId) return;
+    sectionTargetTermId = "";
     loading = true;
     try {
       const [cRes, pRes] = await Promise.all([
@@ -116,6 +117,9 @@
     if (sectionTargetTermId) {
       fetchSections(); 
       fetchSubjects();
+    } else {
+      sections = [];
+      subjects = [];
     }
   });
 
@@ -133,6 +137,10 @@
       }
       if (activeTab === 'terms') {
         await fetchTerms();
+      } else if (activeTab === 'batches') {
+        await Promise.all([fetchSections(), fetchSubjects()]);
+      } else if (activeTab === 'faculty') {
+        await fetchFaculty();
       } else {
         await refreshData();
       }
@@ -231,6 +239,7 @@
                 });
                 const result = await res.json();
                 alert(`Import complete! Success: ${result.success}, Failed: ${result.failed}`);
+                await fetchSections();
                 if (result.errors.length > 0) console.log(result.errors);
             } catch (err) {
                 alert("Failed to parse file.");
