@@ -54,4 +54,9 @@ export * from './canonical-template';
 export * from './db/permissions';
 export * from './template';
 export * from './db/budget_proposals';
+export * from './services/academic.service';
+export * from './services/faculty.service';
+export * from './services/student.service';
+export * from './services/scheduling.service';
+export * from './services/exam.service';
 // Ensure all assessment functions including createUniversityAsset are exported
