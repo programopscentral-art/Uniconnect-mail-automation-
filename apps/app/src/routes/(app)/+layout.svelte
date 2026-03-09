@@ -38,44 +38,68 @@
 
   let isSidebarOpen = $state(false);
 
-  const navigation = [
+  // Full navigation — ADMIN / PROGRAM_OPS and permission-gated roles
+  const adminNavigation = [
     {
-      group: "Core Navigation",
+      group: "Core",
       items: [
-        { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
-        { id: "tasks", label: "Task Center", href: "/tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
-        { id: "users", label: "Team Directory", href: "/users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
+        { id: "dashboard",  label: "Dashboard",      href: "/dashboard", icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
+        { id: "tasks",      label: "Task Center",    href: "/tasks",     icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+        { id: "users",      label: "Team Directory", href: "/users",     icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
       ]
     },
     {
-      group: "Academic Operations",
+      group: "Academic Ops",
       items: [
-        { id: "academic-operations", label: "Operations Hub", href: "/academic-operations", icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" },
-        { id: "faculty-portal", label: "Faculty Portal", href: "/faculty-portal/dashboard", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-        { id: "universities", label: "Campus Registry", href: "/universities", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
-        { id: "students", label: "Student Master", href: "/students", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
-        { id: "assessments", label: "Examinations", href: "/assessments", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+        { id: "academic-operations", label: "Operations Hub",  href: "/academic-operations",      icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" },
+        { id: "faculty-portal",      label: "Faculty Portal",  href: "/faculty-portal/dashboard", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+        { id: "universities",        label: "Campus Registry", href: "/universities",             icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
+        { id: "students",            label: "Student Master",  href: "/students",                 icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
+        { id: "assessments",         label: "Examinations",    href: "/assessments",              icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
       ]
     },
     {
-      group: "Communication & Tools",
+      group: "Communication",
       items: [
-        { id: "campaigns", label: "Campaigns", href: "/campaigns", icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.001 0 01-1.564-.317z" },
-        { id: "mailboxes", label: "Central Mailbox", href: "/mailboxes", icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
-        { id: "templates", label: "Doc Templates", href: "/templates", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
-        { id: "communication-tasks", label: "Auto Comm Tasks", href: "/communication-tasks", icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" },
-        { id: "mail-logs", label: "Mail Audit Log", href: "/mail-logs", icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+        { id: "campaigns",           label: "Campaigns",       href: "/campaigns",           icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.001 0 01-1.564-.317z" },
+        { id: "mailboxes",           label: "Central Mailbox", href: "/mailboxes",           icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+        { id: "templates",           label: "Doc Templates",   href: "/templates",           icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+        { id: "communication-tasks", label: "Scheduled Comms", href: "/communication-tasks", icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" },
+        { id: "mail-logs",           label: "Mail Audit Log",  href: "/mail-logs",           icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
       ]
     },
     {
       group: "Administration",
       items: [
-        { id: "analytics", label: "System Analytics", href: "/analytics", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-        { id: "budget-proposals", label: "Budgeting", href: "/budget-proposals", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.73 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.73-1M12 16v-1m-4-4h8m-8 4h8" },
-        { id: "permissions", label: "Access Rights", href: "/permissions", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
+        { id: "analytics",        label: "System Analytics", href: "/analytics",        icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
+        { id: "budget-proposals", label: "Budgeting",        href: "/budget-proposals", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.73 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.73-1M12 16v-1m-4-4h8m-8 4h8" },
+        { id: "permissions",      label: "Access Rights",    href: "/permissions",      icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
       ]
     }
   ];
+
+  // Focused navigation — FACULTY role sees only their workspace
+  const facultyNavigation = [
+    {
+      group: "My Workspace",
+      items: [
+        { id: "faculty-portal", label: "My Dashboard", href: "/faculty-portal/dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6", alwaysShow: true },
+        { id: "tasks",          label: "My Tasks",     href: "/tasks",                    icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+      ]
+    },
+    {
+      group: "Academic",
+      items: [
+        { id: "assessments", label: "Examinations", href: "/assessments", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+        { id: "students",    label: "My Students",  href: "/students",    icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
+      ]
+    }
+  ];
+
+  // Reactive: pick nav based on current user's role
+  const navigation = $derived(
+    user?.role === 'FACULTY' ? facultyNavigation : adminNavigation
+  );
 
   let notifications = $state<any[]>([]);
   let showNotifications = $state(false);
@@ -541,49 +565,41 @@
       </div>
 
       <!-- Scrollable Sidebar Content -->
-      <nav class="flex-1 overflow-y-auto thin-scrollbar px-4 py-8 space-y-10">
+      <nav class="flex-1 overflow-y-auto thin-scrollbar px-4 py-8 space-y-8">
         {#each navigation as section}
-          <div class="space-y-4">
-            <h3 class="px-4 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-60">
+          {@const visibleItems = section.items.filter((item: any) =>
+            item.alwaysShow ||
+            user?.role === 'ADMIN' ||
+            user?.role === 'PROGRAM_OPS' ||
+            (user?.permissions || []).includes(item.id)
+          )}
+          {#if visibleItems.length > 0}
+          <div class="space-y-1">
+            <h3 class="px-4 pb-2 text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em]">
               {section.group}
             </h3>
-            <div class="space-y-1">
-              {#each section.items as item}
-                {#if user?.role === 'ADMIN' || user?.role === 'PROGRAM_OPS' || (user?.permissions || []).includes(item.id)}
-                  <a
-                    href={item.href}
-                    onclick={() => (isSidebarOpen = false)}
-                    class="group flex items-center px-4 py-3 text-[13px] font-bold rounded-2xl transition-all duration-200
-                    {$page.url.pathname.startsWith(item.href)
-                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02] z-10'
-                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100'}"
-                  >
-                    <div
-                      class="mr-3 h-5 w-5 flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
-                    >
-                      <svg
-                        class="h-5 w-5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          stroke-width="2.2"
-                          d={item.icon}
-                        />
-                      </svg>
-                    </div>
-                    <span>{item.label}</span>
-                    {#if $page.url.pathname.startsWith(item.href)}
-                      <div class="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white] animate-pulse"></div>
-                    {/if}
-                  </a>
+            {#each visibleItems as item}
+              <a
+                href={item.href}
+                onclick={() => (isSidebarOpen = false)}
+                class="group flex items-center px-4 py-3 text-[13px] font-bold rounded-2xl transition-all duration-200
+                {$page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/dashboard')
+                    ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02]'
+                    : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100'}"
+              >
+                <div class="mr-3 h-5 w-5 flex items-center justify-center transition-transform duration-200 group-hover:scale-110">
+                  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d={item.icon} />
+                  </svg>
+                </div>
+                <span class="truncate">{item.label}</span>
+                {#if $page.url.pathname === item.href || ($page.url.pathname.startsWith(item.href) && item.href !== '/dashboard')}
+                  <div class="ml-auto shrink-0 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white] animate-pulse"></div>
                 {/if}
-              {/each}
-            </div>
+              </a>
+            {/each}
           </div>
+          {/if}
         {/each}
       </nav>
 

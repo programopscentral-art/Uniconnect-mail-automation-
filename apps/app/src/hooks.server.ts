@@ -77,8 +77,17 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/day-plan': 'day-plan',
             '/communication-tasks': 'communication-tasks',
             '/budget-proposals': 'budget-proposals',
-            '/academic-operations': 'academic-operations'
+            '/academic-operations': 'academic-operations',
+            // Faculty portal: accessible to FACULTY role and ADMIN/PROGRAM_OPS (handled by isPrivileged)
+            // FACULTY role bypass is handled below
         };
+
+        // FACULTY role gets access to their portal and basic academic routes without needing explicit permissions
+        const isFaculty = user.role === 'FACULTY';
+        const facultyAllowedPaths = ['/faculty-portal', '/assessments', '/tasks', '/students'];
+        if (isFaculty && facultyAllowedPaths.some(p => path.startsWith(p))) {
+            return await resolve(event);
+        }
 
         const matchingPath = Object.keys(featureMap).find(p => path.startsWith(p));
         if (matchingPath) {

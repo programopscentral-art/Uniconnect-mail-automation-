@@ -1,41 +1,69 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import { db } from '@uniconnect/shared';
+import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-    // 1. Get user context (assuming locals.user has the authenticated user's ID)
-    // For demo/dev purposes, we'll use a mocked ID if not available
-    const userId = locals.user?.id || 'm-mock-faculty-id';
+    if (!locals.user) throw error(401);
+
+    const dateParam = url.searchParams.get('date');
+    const targetDate = dateParam ?? new Date().toISOString().split('T')[0];
 
     try {
-        // Fetch the faculty profile associated with this user
+        // Resolve faculty profile for this user
         const profileRes = await db.query(
-            'SELECT id FROM faculty_profiles WHERE user_id = $1',
-            [userId]
+            `SELECT id FROM faculty_profiles WHERE user_id = $1`,
+            [locals.user.id]
         );
 
         if (profileRes.rows.length === 0) {
-            // Return empty or error for non-faculty users
             return json([]);
         }
 
         const facultyProfileId = profileRes.rows[0].id;
 
-        // Fetch upcoming active sessions
+        // Fetch today's sessions from academic_sessions (has university_id, start_time/end_time)
         const sessionsRes = await db.query(
-            `SELECT ts.*, s.name as subject_name, sec.name as section_name, c.name as room_code
-             FROM timetable_sessions ts
-             INNER JOIN subjects s ON ts.subject_id = s.id
-             INNER JOIN sections sec ON ts.section_id = sec.id
-             INNER JOIN classrooms c ON ts.classroom_id = c.id
-             WHERE ts.faculty_profile_id = $1 AND ts.status = 'ACTIVE'
-             ORDER BY ts.session_date ASC, ts.slot_start ASC
-             LIMIT 20`,
-            [facultyProfileId]
+            `SELECT
+                s.id,
+                s.start_time,
+                s.end_time,
+                s.status,
+                s.session_type,
+                sub.name  AS subject_name,
+                sub.code  AS subject_code,
+                sec.name  AS section_name,
+                cr.name   AS room_name,
+                cr.building
+             FROM academic_sessions s
+             LEFT JOIN subjects   sub ON s.subject_id   = sub.id
+             LEFT JOIN sections   sec ON s.section_id   = sec.id
+             LEFT JOIN classrooms cr  ON s.classroom_id = cr.id
+             WHERE s.faculty_id = $1
+               AND DATE(s.start_time) = $2
+             ORDER BY s.start_time ASC`,
+            [facultyProfileId, targetDate]
         );
 
-        return json(sessionsRes.rows);
-    } catch (err: any) {
-        console.error('Faculty schedule fetch error:', err);
-        return json({ error: err.message }, { status: 500 });
+        const sessions = sessionsRes.rows.map((s: any) => ({
+            id: s.id,
+            subject_name: s.subject_name ?? 'Unknown Subject',
+            subject_code: s.subject_code ?? '',
+            section_name: s.section_name ?? '—',
+            room_code: [s.room_name, s.building].filter(Boolean).join(', ') || 'TBD',
+            start_time: new Date(s.start_time).toLocaleTimeString('en-IN', {
+                hour: '2-digit', minute: '2-digit', hour12: true
+            }),
+            end_time: new Date(s.end_time).toLocaleTimeString('en-IN', {
+                hour: '2-digit', minute: '2-digit', hour12: true
+            }),
+            status: s.status ?? 'SCHEDULED',
+            session_type: s.session_type ?? 'LECTURE'
+        }));
+
+        return json(sessions);
+
+    } catch (e: any) {
+        console.error('[API:faculty/schedule]', e.message);
+        return json([]);
     }
-}
+};
