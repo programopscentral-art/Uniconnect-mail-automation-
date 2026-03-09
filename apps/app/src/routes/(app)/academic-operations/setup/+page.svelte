@@ -12,10 +12,13 @@
   let programs = $state<any[]>([]);
   let terms = $state<any[]>([]);
   let sections = $state<any[]>([]);
+  let subjects = $state<any[]>([]);
+  let faculty = $state<any[]>([]);
   let loading = $state(false);
 
   let sectionTargetTermId = $state("");
   let newSection = $state({ name: "", batch_code: "", strength: 60 });
+  let newSubject = $state({ name: "", code: "", credit_value: 4, total_sessions: 30 });
 
   // Form states
   let newCampus = $state({ name: "", code: "", address: "" });
@@ -67,7 +70,6 @@
       loading = false;
     }
   }
-
   async function fetchSections() {
     if (!sectionTargetTermId) return;
     loading = true;
@@ -81,10 +83,41 @@
     }
   }
 
+  async function fetchSubjects() {
+    if (!sectionTargetTermId) return;
+    loading = true;
+    try {
+      const res = await fetch(`/api/academic/subjects?termId=${sectionTargetTermId}`);
+      subjects = await res.json();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function fetchFaculty() {
+    if (!selectedUniversityId) return;
+    loading = true;
+    try {
+      const res = await fetch(`/api/academic/faculty?universityId=${selectedUniversityId}`);
+      faculty = await res.json();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      loading = false;
+    }
+  }
+
   onMount(refreshData);
-  $effect(() => { if (selectedUniversityId) refreshData(); });
+  $effect(() => { if (selectedUniversityId) { refreshData(); fetchFaculty(); } });
   $effect(() => { if (termTargetProgramId) fetchTerms(); });
-  $effect(() => { if (sectionTargetTermId) fetchSections(); });
+  $effect(() => { 
+    if (sectionTargetTermId) {
+      fetchSections(); 
+      fetchSubjects();
+    }
+  });
 
   async function handleAction(endpoint: string, method: string, body: any) {
     processing = true;
@@ -138,7 +171,6 @@
     editingItem = null;
   }
 
-  function createSection() {
     handleAction("/api/academic/sections", "POST", { 
       ...newSection, 
       university_id: selectedUniversityId, 
@@ -146,6 +178,16 @@
       term_id: sectionTargetTermId
     });
     newSection = { name: "", batch_code: "", strength: 60 };
+  }
+
+  function createSubject() {
+    handleAction("/api/academic/subjects", "POST", { 
+      ...newSubject, 
+      university_id: selectedUniversityId, 
+      program_id: termTargetProgramId,
+      term_id: sectionTargetTermId
+    });
+    newSubject = { name: "", code: "", credit_value: 4, total_sessions: 30 };
   }
 
   async function importStudents(sectionId: string) {
@@ -200,6 +242,55 @@
     };
     input.click();
   }
+
+  async function importFaculty() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv,.json';
+    input.onchange = async (e: any) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = async (event: any) => {
+            try {
+                let faculty_list = [];
+                if (file.name.endsWith('.json')) {
+                    faculty_list = JSON.parse(event.target.result);
+                } else {
+                    const lines = event.target.result.split('\n');
+                    faculty_list = lines.slice(1).map((line: string) => {
+                        const [email, name, employee_code, department] = line.split(',');
+                        return { email: email.trim(), name: name.trim(), employee_code: employee_code.trim(), department: department?.trim() };
+                    }).filter((f: any) => f.employee_code && f.name);
+                }
+                
+                if (faculty_list.length === 0) {
+                    alert("No valid faculty found in file.");
+                    return;
+                }
+
+                processing = true;
+                const res = await fetch('/api/academic/faculty/import', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        university_id: selectedUniversityId,
+                        faculty_list
+                    })
+                });
+                const result = await res.json();
+                alert(`Import complete! Success: ${result.success}, Failed: ${result.failed}`);
+                await fetchFaculty();
+            } catch (err) {
+                alert("Failed to parse file.");
+            } finally {
+                processing = false;
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+  }
 </script>
 
 <div class="space-y-8 pb-20" in:fade>
@@ -230,7 +321,8 @@
   <div class="flex gap-4 p-1.5 bg-gray-100/50 dark:bg-slate-800/50 rounded-2xl w-fit">
     <button onclick={() => activeTab = 'structure'} class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all {activeTab === 'structure' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">1. Structure</button>
     <button onclick={() => activeTab = 'terms'} class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all {activeTab === 'terms' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">2. Academic Terms</button>
-    <button onclick={() => activeTab = 'batches'} class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all {activeTab === 'batches' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">3. Batches & Sections</button>
+    <button onclick={() => activeTab = 'batches'} class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all {activeTab === 'batches' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">3. Batches & Subjects</button>
+    <button onclick={() => activeTab = 'faculty'} class="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all {activeTab === 'faculty' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}">4. Faculty Ops</button>
   </div>
 
   {#if activeTab === 'structure'}
@@ -445,15 +537,22 @@
                <div class="w-20 h-20 bg-gray-100 rounded-full mb-6 flex items-center justify-center text-3xl">🧩</div>
                <p class="text-xs font-black uppercase tracking-widest text-gray-500">Select a Program & Term to manage sections</p>
             </div>
-          {:else}
+  {:else}
             <div class="flex items-center justify-between mb-8">
               <div>
-                <h3 class="text-xl font-black text-gray-900 dark:text-white">Sections & Batches</h3>
-                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Group student mappings</p>
+                <h3 class="text-xl font-black text-gray-900 dark:text-white">Curriculum & Groups</h3>
+                <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Manage Sections & Subjects</p>
               </div>
-              <button onclick={() => showForm = showForm === 'section' ? null : 'section'} class="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all shadow-lg active:scale-95">
-                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
-              </button>
+              <div class="flex gap-2">
+                <button onclick={() => showForm = showForm === 'section' ? null : 'section'} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition-all flex items-center gap-2">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                   Add Section
+                </button>
+                <button onclick={() => showForm = showForm === 'subject' ? null : 'subject'} class="px-4 py-2 bg-violet-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-violet-700 transition-all flex items-center gap-2">
+                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+                   Add Subject
+                </button>
+              </div>
             </div>
 
             {#if showForm === 'section'}
@@ -467,60 +566,147 @@
                    </button>
                 </div>
               </div>
+            {:else if showForm === 'subject'}
+              <div class="mb-8 p-6 bg-violet-50/50 dark:bg-violet-500/5 rounded-3xl border border-violet-100 dark:border-violet-500/10" transition:slide>
+                <div class="grid grid-cols-2 gap-4">
+                   <input bind:value={newSubject.name} placeholder="Subject Name (e.g. Data Structures)" class="col-span-2 px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <input bind:value={newSubject.code} placeholder="Subject Code (e.g. CS101)" class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <div class="grid grid-cols-2 gap-2">
+                      <input type="number" bind:value={newSubject.credit_value} placeholder="Credits" class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                      <input type="number" bind:value={newSubject.total_sessions} placeholder="Sessions" class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   </div>
+                   <button onclick={createSubject} disabled={processing} class="py-3 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-violet-700 transition-all">
+                     {processing ? 'Creating...' : 'Add Subject'}
+                   </button>
+                </div>
+              </div>
             {/if}
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
-               {#each sections as section}
-                 <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-indigo-500/20 transition-all group">
-                    <div class="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{section.name}</h4>
-                        <code class="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{section.batch_code}</code>
-                      </div>
-                      <span class="px-3 py-1 bg-white dark:bg-slate-700 text-gray-500 text-[9px] font-bold rounded-lg border border-gray-100 dark:border-slate-600">Max: {section.strength}</span>
+            <div class="space-y-8 flex-1">
+              <!-- Sections List -->
+              <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Sections ({sections.length})</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {#each sections as section}
+                    <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-indigo-500/20 transition-all group">
+                        <div class="flex justify-between items-start mb-4">
+                          <div>
+                            <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{section.name}</h4>
+                            <code class="text-[9px] text-indigo-500 font-black uppercase tracking-widest">{section.batch_code}</code>
+                          </div>
+                        </div>
+                        
+                        <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
+                          <button 
+                            onclick={() => importStudents(section.id)}
+                            disabled={processing}
+                            class="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all hover:bg-indigo-600 hover:text-white"
+                          >
+                            Bulk Student Import
+                          </button>
+                        </div>
                     </div>
-                    
-                    <div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-700">
-                      <button 
-                        onclick={() => importStudents(section.id)}
-                        disabled={processing}
-                        class="flex-1 flex items-center justify-center gap-2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-                      >
-                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                         {processing ? 'Wait...' : 'Bulk Import'}
-                      </button>
-                      <button class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                      </button>
+                  {/each}
+                </div>
+              </div>
+
+              <!-- Subjects List -->
+              <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Subjects ({subjects.length})</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {#each subjects as subject}
+                    <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2rem] border border-transparent hover:border-violet-500/20 transition-all group">
+                        <div class="flex justify-between items-start">
+                          <div>
+                            <h4 class="font-black text-gray-900 dark:text-white text-md tracking-tight">{subject.name}</h4>
+                            <div class="flex items-center gap-2 mt-1">
+                                <code class="text-[9px] text-violet-500 font-black uppercase tracking-widest">{subject.code}</code>
+                                <span class="text-[8px] font-bold text-gray-400">• {subject.credit_value} Credits</span>
+                                <span class="text-[8px] font-bold text-gray-400">• {subject.total_sessions_required} Sessions</span>
+                            </div>
+                          </div>
+                        </div>
                     </div>
-                 </div>
-               {/each}
-               {#if sections.length === 0 && !loading}
-                 <div class="md:col-span-2 py-20 text-center opacity-30">
-                    <p class="text-[10px] font-black uppercase tracking-widest">No sections defined yet</p>
-                 </div>
-               {/if}
+                  {/each}
+                </div>
+              </div>
+
+              {#if sections.length === 0 && subjects.length === 0 && !loading}
+                <div class="py-20 text-center opacity-30">
+                    <p class="text-[10px] font-black uppercase tracking-widest">No configurations for this term</p>
+                </div>
+              {/if}
             </div>
           {/if}
        </div>
     </div>
+  {:else if activeTab === 'faculty'}
+    <div in:fly={{ y: 20 }}>
+      <div class="p-10 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3.5rem] shadow-sm">
+        <div class="flex items-center justify-between mb-12">
+          <div>
+            <h3 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Faculty Personnel</h3>
+            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">Manage teaching staff & onboarding</p>
+          </div>
+          <button 
+            onclick={importFaculty}
+            disabled={processing}
+            class="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl active:scale-95"
+          >
+             {processing ? 'Processing...' : 'Bulk Import Faculty'}
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {#each faculty as f}
+            <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-[2.5rem] border border-transparent hover:border-black/10 dark:hover:border-white/10 transition-all group">
+               <div class="flex items-center gap-4">
+                  <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center text-indigo-600 font-black text-xs uppercase">
+                    {f.name?.substring(0, 2) || 'FP'}
+                  </div>
+                  <div>
+                    <h4 class="font-black text-gray-900 dark:text-white text-sm tracking-tight">{f.name || 'Faculty Member'}</h4>
+                    <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{f.employee_code}</p>
+                  </div>
+               </div>
+               <div class="mt-6 pt-6 border-t border-gray-100 dark:border-slate-700 grid grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Department</p>
+                    <p class="text-[10px] font-bold text-gray-700 dark:text-white mt-1">{f.department || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Designation</p>
+                    <p class="text-[10px] font-bold text-gray-700 dark:text-white mt-1">{f.designation || 'Lecturer'}</p>
+                  </div>
+               </div>
+            </div>
+          {/each}
+          
+          {#if faculty.length === 0 && !loading}
+            <div class="col-span-full py-32 text-center opacity-30">
+               <div class="text-4xl mb-6">👔</div>
+               <p class="text-[10px] font-black uppercase tracking-widest">No faculty onboarded yet</p>
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
   {/if}
 
   <!-- Footer Help -->
-  <div class="p-8 bg-indigo-600 rounded-[2.5rem] text-white flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
-     <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all duration-700"></div>
+  <div class="p-8 bg-black dark:bg-white text-white dark:text-black rounded-[2.5rem] mt-12 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6 overflow-hidden relative group">
      <div class="z-10">
-        <h4 class="text-xl font-black tracking-tight">Setup Checklist</h4>
+        <h4 class="text-xl font-black tracking-tight">Setup Foundation</h4>
         <div class="flex flex-wrap gap-4 mt-4">
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {campuses.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Campuses</span>
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {programs.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Programs</span>
            <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {terms.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Terms</span>
-           <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full bg-gray-400 opacity-50"></div> Faculty List</span>
+           <span class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"><div class="w-2 h-2 rounded-full {subjects.length > 0 ? 'bg-emerald-400' : 'bg-gray-400'}"></div> Subjects</span>
         </div>
      </div>
      <div class="flex flex-col items-end z-10 shrink-0">
-        <p class="text-indigo-100 text-xs font-bold mb-2 uppercase tracking-widest opacity-80">Next Step</p>
-        <button class="px-8 py-3 bg-white text-indigo-600 text-xs font-black uppercase tracking-widest rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300">Proceed to Faculty Mapping</button>
+        <p class="text-zinc-500 text-xs font-bold mb-2 uppercase tracking-widest opacity-80">Final Step</p>
+        <button class="px-8 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:shadow-xl hover:scale-105 transition-all duration-300">Onboard Faculty Personnel →</button>
      </div>
   </div>
 </div>

@@ -212,4 +212,24 @@ export class AcademicService {
         );
         return result.rows;
     }
+
+    // --- Subject Management ---
+
+    static async createSubject(universityId: string, programId: string, termId: string, data: { name: string; code: string; credit_value?: number; total_sessions?: number }) {
+        const result = await db.query(
+            `INSERT INTO subjects (university_id, program_id, term_id, name, code, credit_value, total_sessions_required, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+             RETURNING *`,
+            [universityId, programId, termId, data.name, data.code, data.credit_value || 0, data.total_sessions || 30]
+        );
+        return result.rows[0];
+    }
+
+    static async getSubjects(termId: string) {
+        const result = await db.query(
+            'SELECT * FROM subjects WHERE term_id = $1 AND is_active = true ORDER BY name ASC',
+            [termId]
+        );
+        return result.rows;
+    }
 }

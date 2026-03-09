@@ -109,4 +109,67 @@ export class FacultyService {
 
         return result.rows[0];
     }
+
+    static async importFaculty(universityId: string, facultyList: any[]) {
+        const results = {
+            success: 0,
+            failed: 0,
+            errors: [] as string[]
+        };
+
+        for (const facultyData of facultyList) {
+            try {
+                let userId: string | null = null;
+                const email = facultyData.email || `${facultyData.employee_code}@uniconnect.edu`;
+
+                const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+                if (existingUser.rows.length > 0) {
+                    userId = existingUser.rows[0].id;
+                } else {
+                    const userRes = await db.query(
+                        `INSERT INTO users (email, full_name, role, university_id, status)
+                         VALUES ($1, $2, 'FACULTY', $3, 'ACTIVE')
+                         RETURNING id`,
+                        [email, facultyData.name, universityId]
+                    );
+                    userId = userRes.rows[0].id;
+                }
+
+                // Create or Update Faculty Profile
+                await db.query(
+                    `INSERT INTO faculty_profiles (user_id, university_id, employee_code, department, specialization, designation, joining_date, employment_status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+                     ON CONFLICT (university_id, employee_code) DO UPDATE SET
+                        department = EXCLUDED.department,
+                        specialization = EXCLUDED.specialization,
+                        designation = EXCLUDED.designation,
+                        updated_at = NOW()`,
+                    [
+                        userId,
+                        universityId,
+                        facultyData.employee_code,
+                        facultyData.department || 'General',
+                        facultyData.specialization || 'Teaching',
+                        facultyData.designation || 'Assistant Professor',
+                        facultyData.joining_date || new Date().toISOString().split('T')[0]
+                    ]
+                );
+
+                // Assign Roles
+                await db.query(
+                    `INSERT INTO user_role_assignments (user_id, role_id, university_id, is_primary)
+                     SELECT $1, id, $2, TRUE FROM roles WHERE code = 'faculty'
+                     ON CONFLICT DO NOTHING`,
+                    [userId, universityId]
+                );
+
+                results.success++;
+            } catch (e: any) {
+                results.failed++;
+                results.errors.push(`Failed to import faculty ${facultyData.employee_code || facultyData.name}: ${e.message}`);
+            }
+        }
+
+        return results;
+    }
 }
