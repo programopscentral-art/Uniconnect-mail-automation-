@@ -26,3 +26,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const program = await AcademicService.createProgram({ university_id, campus_id, name, code, degree_type, semester_count, status: status || 'ACTIVE' });
     return json(program);
 };
+
+export const DELETE: RequestHandler = async ({ url, locals }) => {
+    if (locals.user?.role !== 'ADMIN' && locals.user?.role !== 'PROGRAM_OPS') {
+        throw error(403, 'Forbidden');
+    }
+
+    const id = url.searchParams.get('id');
+    if (!id) throw error(400, 'id is required');
+
+    await AcademicService.deleteProgram(id);
+    return json({ success: true });
+};

@@ -25,3 +25,15 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const campus = await AcademicService.createCampus({ university_id, name, code, address, status: status || 'ACTIVE' });
     return json(campus);
 };
+
+export const DELETE: RequestHandler = async ({ url, locals }) => {
+    if (locals.user?.role !== 'ADMIN' && locals.user?.role !== 'PROGRAM_OPS') {
+        throw error(403, 'Forbidden');
+    }
+
+    const id = url.searchParams.get('id');
+    if (!id) throw error(400, 'id is required');
+
+    await AcademicService.deleteCampus(id);
+    return json({ success: true });
+};

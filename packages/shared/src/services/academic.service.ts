@@ -77,6 +77,10 @@ export class AcademicService {
         return result.rows as Campus[];
     }
 
+    static async deleteCampus(id: string) {
+        await db.query('UPDATE campuses SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
+    }
+
     // --- Program Management ---
 
     static async createProgram(data: Omit<Program, 'id'>) {
@@ -101,6 +105,10 @@ export class AcademicService {
         query += ' ORDER BY name ASC';
         const result = await db.query(query, params);
         return result.rows as Program[];
+    }
+
+    static async deleteProgram(id: string) {
+        await db.query('UPDATE programs SET is_active = false, updated_at = NOW() WHERE id = $1', [id]);
     }
 
     // --- Term / Semester Management ---
