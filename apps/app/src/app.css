@@ -148,7 +148,7 @@
   }
 
   .thin-scrollbar::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
 
   .thin-scrollbar::-webkit-scrollbar-track {
@@ -156,11 +156,11 @@
   }
 
   .thin-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-gray-200 dark:bg-slate-800 rounded-full border-2 border-transparent bg-clip-content hover:bg-indigo-500/50 transition-all;
+    @apply bg-indigo-500/20 dark:bg-indigo-500/20 rounded-full border-2 border-transparent bg-clip-content hover:bg-indigo-500/50 transition-all;
   }
 
   .thin-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-indigo-500/50;
+    @apply bg-indigo-500/80;
   }
 
   .thin-scrollbar {
