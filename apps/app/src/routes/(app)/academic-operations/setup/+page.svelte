@@ -11,6 +11,14 @@
   let loadingCampuses = $state(false);
   let loadingPrograms = $state(false);
 
+  // Form states
+  let newCampus = $state({ name: "", code: "", address: "" });
+  let creatingCampus = $state(false);
+  
+  let newProgram = $state({ name: "", code: "", degree_type: "B.Tech", semester_count: 8 });
+  let creatingProgram = $state(false);
+  let showProgramForm = $state(false);
+
   async function fetchCampuses(univId: string) {
     if (!univId) return;
     loadingCampuses = true;
@@ -51,9 +59,6 @@
     }
   });
 
-  let newCampus = $state({ name: "", code: "", address: "" });
-  let creatingCampus = $state(false);
-
   async function handleCreateCampus() {
     if (!newCampus.name || !newCampus.code) return;
     creatingCampus = true;
@@ -80,6 +85,30 @@
       if (res.ok) fetchCampuses(selectedUniversityId);
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function handleCreateProgram() {
+    if (!newProgram.name || !newProgram.code) return;
+    creatingProgram = true;
+    try {
+      const res = await fetch("/api/academic/programs", {
+        method: "POST",
+        body: JSON.stringify({ 
+          ...newProgram, 
+          university_id: selectedUniversityId,
+          status: 'ACTIVE'
+        })
+      });
+      if (res.ok) {
+        fetchPrograms(selectedUniversityId);
+        newProgram = { name: "", code: "", degree_type: "B.Tech", semester_count: 8 };
+        showProgramForm = false;
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      creatingProgram = false;
     }
   }
 
@@ -151,13 +180,13 @@
 
         <div class="mt-8 pt-8 border-t border-gray-100 dark:border-slate-800">
            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Add New Campus</p>
-           <form onsubmit={handleCreateCampus} class="grid grid-cols-2 gap-3">
-              <input type="text" bind:value={newCampus.name} placeholder="Campus Name" class="col-span-2 px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500" required />
-              <input type="text" bind:value={newCampus.code} placeholder="Code (e.g. MAIN)" class="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500" required />
-              <button type="submit" disabled={creatingCampus} class="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all active:scale-95">
+           <div class="grid grid-cols-2 gap-3">
+              <input type="text" bind:value={newCampus.name} placeholder="Campus Name" class="col-span-2 px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500" />
+              <input type="text" bind:value={newCampus.code} placeholder="Code (e.g. MAIN)" class="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500" />
+              <button onclick={handleCreateCampus} disabled={creatingCampus} class="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all active:scale-95">
                 {creatingCampus ? 'Adding...' : 'Add Campus'}
               </button>
-           </form>
+           </div>
         </div>
       </div>
     </div>
@@ -167,10 +196,41 @@
       <div class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
         <div class="flex items-center justify-between mb-8">
           <h3 class="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">Academic Programs</h3>
-          <button class="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          <button 
+            onclick={() => showProgramForm = !showProgramForm}
+            class="p-2 {showProgramForm ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'} dark:bg-emerald-500/10 rounded-xl hover:opacity-80 transition-all"
+          >
+            {#if showProgramForm}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            {:else}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            {/if}
           </button>
         </div>
+
+        {#if showProgramForm}
+          <div class="mb-8 p-6 bg-emerald-50/30 dark:bg-emerald-500/5 rounded-3xl border border-emerald-100 dark:border-emerald-500/20" in:fly={{ y: -10 }}>
+            <p class="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-4">Create New Program</p>
+            <div class="grid grid-cols-2 gap-4">
+              <input type="text" bind:value={newProgram.name} placeholder="Program Name (e.g. B.Tech CS)" class="col-span-2 px-4 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold shadow-sm" />
+              <input type="text" bind:value={newProgram.code} placeholder="Program Code" class="px-4 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold shadow-sm" />
+              <select bind:value={newProgram.degree_type} class="px-4 py-2.5 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold shadow-sm">
+                <option value="B.Tech">B.Tech</option>
+                <option value="M.Tech">M.Tech</option>
+                <option value="B.Sc">B.Sc</option>
+                <option value="MBA">MBA</option>
+                <option value="PHD">PHD</option>
+              </select>
+              <button 
+                onclick={handleCreateProgram}
+                disabled={creatingProgram}
+                class="col-span-2 py-3 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+              >
+                {creatingProgram ? 'Creating...' : 'Confirm & Create Program'}
+              </button>
+            </div>
+          </div>
+        {/if}
 
         {#if loadingPrograms}
           <div class="flex justify-center p-12">
