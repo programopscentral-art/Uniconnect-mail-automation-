@@ -38,104 +38,43 @@
 
   let isSidebarOpen = $state(false);
 
-  const menuItems = [
+  const navigation = [
     {
-      id: "dashboard",
-      label: "Dashboard",
-      href: "/dashboard",
-      icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
+      group: "Core Navigation",
+      items: [
+        { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
+        { id: "tasks", label: "Task Center", href: "/tasks", icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" },
+        { id: "users", label: "Team Directory", href: "/users", icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
+      ]
     },
     {
-      id: "tasks",
-      label: "All Tasks",
-      href: "/tasks",
-      icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+      group: "Academic Operations",
+      items: [
+        { id: "academic-operations", label: "Operations Hub", href: "/academic-operations", icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" },
+        { id: "faculty-portal", label: "Faculty Portal", href: "/faculty-portal/dashboard", icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
+        { id: "universities", label: "Campus Registry", href: "/universities", icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
+        { id: "students", label: "Student Master", href: "/students", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
+        { id: "assessments", label: "Examinations", href: "/assessments", icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
+      ]
     },
     {
-      id: "universities",
-      label: "Universities",
-      href: "/universities",
-      icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+      group: "Communication & Tools",
+      items: [
+        { id: "campaigns", label: "Campaigns", href: "/campaigns", icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.001 0 01-1.564-.317z" },
+        { id: "mailboxes", label: "Central Mailbox", href: "/mailboxes", icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" },
+        { id: "templates", label: "Doc Templates", href: "/templates", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+        { id: "communication-tasks", label: "Auto Comm Tasks", href: "/communication-tasks", icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" },
+        { id: "mail-logs", label: "Mail Audit Log", href: "/mail-logs", icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+      ]
     },
     {
-      id: "students",
-      label: "Students & Recipients",
-      href: "/students",
-      icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-    },
-    {
-      id: "academic-operations",
-      label: "Academic Operations",
-      href: "/academic-operations",
-      icon: "M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z",
-    },
-    {
-      id: "users",
-      label: "Team Members",
-      href: "/users",
-      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
-    },
-    {
-      id: "analytics",
-      label: "Analytics",
-      href: "/analytics",
-      icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
-    },
-    {
-      id: "mailboxes",
-      label: "Mailboxes",
-      href: "/mailboxes",
-      icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
-    },
-    {
-      id: "templates",
-      label: "Templates",
-      href: "/templates",
-      icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-    },
-    {
-      id: "campaigns",
-      label: "Campaigns",
-      href: "/campaigns",
-      icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.001 0 01-1.564-.317z",
-    },
-    {
-      id: "assessments",
-      label: "Assessments",
-      href: "/assessments",
-      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
-    },
-
-    {
-      id: "mail-logs",
-      label: "Mail Audit Log",
-      href: "/mail-logs",
-      icon: "M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
-    },
-    {
-      id: "communication-tasks",
-      label: "Communication Tasks",
-      href: "/communication-tasks",
-      icon: "M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z",
-    },
-    {
-      id: "budget-proposals",
-      label: "Budget Proposals",
-      href: "/budget-proposals",
-      icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.73 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.73-1M12 16v-1m-4-4h8m-8 4h8",
-    },
-    {
-      id: "permissions",
-      label: "Permissions",
-      href: "/permissions",
-      icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
-    },
-    {
-      id: "faculty-portal",
-      label: "Faculty Dashboard",
-      href: "/faculty-portal/dashboard",
-      icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-    },
+      group: "Administration",
+      items: [
+        { id: "analytics", label: "System Analytics", href: "/analytics", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
+        { id: "budget-proposals", label: "Budgeting", href: "/budget-proposals", icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.73 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.407-2.73-1M12 16v-1m-4-4h8m-8 4h8" },
+        { id: "permissions", label: "Access Rights", href: "/permissions", icon: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" },
+      ]
+    }
   ];
 
   let notifications = $state<any[]>([]);
@@ -571,88 +510,105 @@
     <!-- Sidebar -->
     <aside
       class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 border-r border-gray-100 dark:border-slate-800 lg:static lg:block z-[60] transition-all duration-300 {isSidebarOpen
-        ? 'translate-x-0 bubble-glow'
-        : '-translate-x-full lg:translate-x-0'} flex flex-col h-full lg:h-auto overflow-hidden shadow-2xl lg:shadow-none"
+        ? 'translate-x-0'
+        : '-translate-x-full lg:translate-x-0'} flex flex-col h-screen overflow-hidden shadow-2xl lg:shadow-none"
     >
+      <!-- Fixed Sidebar Header -->
       <div
-        class="h-24 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50"
+        class="h-24 shrink-0 flex items-center justify-between px-8 border-b border-gray-50 dark:border-slate-800/50 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md"
       >
-        <div class="flex items-center space-x-4">
+        <div class="flex items-center space-x-3">
           <div
-            class="p-2.5 bg-white dark:bg-gray-800 rounded-[1.25rem] border border-gray-50 dark:border-gray-700 shadow-sm transition-transform hover:scale-110 active:scale-95"
+            class="p-2.5 bg-indigo-600 rounded-[1.25rem] shadow-lg shadow-indigo-500/20 transition-transform hover:rotate-12"
           >
             <img
               src="/nxtwave-logo.png"
               alt="NxtWave Institutional"
-              class="h-11 w-auto object-contain dark:invert"
-              style="height: 44px; width: auto;"
+              class="h-7 w-auto object-contain invert"
             />
           </div>
           <div class="flex flex-col">
             <span
-              class="text-xl font-black text-gray-900 dark:text-white leading-none"
+              class="text-lg font-black text-gray-900 dark:text-white leading-none tracking-tight"
               >UniConnect</span
             >
             <span
-              class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mt-1.5 tracking-widest uppercase opacity-70"
-              >Program Operations</span
+              class="text-[9px] font-bold text-indigo-500 dark:text-indigo-400 mt-1.5 tracking-widest uppercase opacity-70"
+              >University OS</span
             >
           </div>
         </div>
       </div>
 
-      <nav class="flex-1 p-6 space-y-1.5 overflow-y-auto thin-scrollbar">
-        {#each menuItems as item}
-          {#if user?.role === 'ADMIN' || user?.role === 'PROGRAM_OPS' || (user?.permissions || []).includes(item.id)}
-            <a
-              href={item.href}
-              onclick={() => (isSidebarOpen = false)}
-              class="flex items-center px-4 py-3 text-sm font-bold rounded-2xl transition-all duration-300
-            {$page.url.pathname.startsWith(item.href)
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 scale-[1.02]'
-                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'}"
-            >
-              <div
-                class="mr-4 h-6 w-6 flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
-              >
-                <svg
-                  class="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2.5"
-                    d={item.icon}
-                  />
-                </svg>
-              </div>
-              {item.label}
-            </a>
-          {/if}
+      <!-- Scrollable Sidebar Content -->
+      <nav class="flex-1 overflow-y-auto thin-scrollbar px-4 py-8 space-y-8">
+        {#each navigation as section}
+          <div class="space-y-2">
+            <h3 class="px-4 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+              {section.group}
+            </h3>
+            <div class="space-y-1">
+              {#each section.items as item}
+                {#if user?.role === 'ADMIN' || user?.role === 'PROGRAM_OPS' || (user?.permissions || []).includes(item.id)}
+                  <a
+                    href={item.href}
+                    onclick={() => (isSidebarOpen = false)}
+                    class="group flex items-center px-4 py-3 text-[13px] font-bold rounded-2xl transition-all duration-300
+                    {$page.url.pathname.startsWith(item.href)
+                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30 scale-[1.02] z-10'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/80 hover:text-gray-900 dark:hover:text-gray-100'}"
+                  >
+                    <div
+                      class="mr-3 h-5 w-5 flex items-center justify-center transition-transform duration-300 group-hover:scale-110"
+                    >
+                      <svg
+                        class="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2.2"
+                          d={item.icon}
+                        />
+                      </svg>
+                    </div>
+                    {item.label}
+                    {#if $page.url.pathname.startsWith(item.href)}
+                      <div class="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                    {/if}
+                  </a>
+                {/if}
+              {/each}
+            </div>
+          </div>
         {/each}
       </nav>
 
+      <!-- Fixed Sidebar Footer / Status -->
       <div
-        class="px-8 py-10 border-t border-gray-100 dark:border-slate-800 bg-gray-50/10 dark:bg-slate-900/10"
+        class="shrink-0 px-8 py-6 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/50"
       >
-        <div class="px-2 mb-4 flex justify-between items-center">
-          <p
-            class="text-[9px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] opacity-40"
-          >
-            System Status
-          </p>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+            <span class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">Live</span>
+          </div>
+          <button class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:underline">
+            Help
+          </button>
         </div>
-        <div class="px-2 flex items-center gap-3">
-          <div
-            class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.5)]"
-          ></div>
-          <span
-            class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter"
-            >System Online</span
-          >
+        
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase shadow-inner">
+            {user?.name?.[0] || 'U'}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-black text-gray-900 dark:text-white truncate uppercase tracking-tighter">{user?.name || 'User'}</p>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user?.role || 'Member'}</p>
+          </div>
         </div>
       </div>
     </aside>
