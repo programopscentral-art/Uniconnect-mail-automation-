@@ -570,10 +570,21 @@
               <div class="mb-8 p-6 bg-violet-50/50 dark:bg-violet-500/5 rounded-3xl border border-violet-100 dark:border-violet-500/10" transition:slide>
                 <div class="grid grid-cols-2 gap-4">
                    <input bind:value={newSubject.name} placeholder="Subject Name (e.g. Data Structures)" class="col-span-2 px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
-                   <input bind:value={newSubject.code} placeholder="Subject Code (e.g. CS101)" class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
-                   <div class="grid grid-cols-2 gap-2">
-                      <input type="number" bind:value={newSubject.credit_value} placeholder="Credits" class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
-                      <input type="number" bind:value={newSubject.total_sessions} placeholder="Sessions" class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
+                   <div class="col-span-2 grid grid-cols-2 gap-4">
+                      <div class="space-y-1">
+                        <label for="subject_code" class="text-[8px] font-black text-violet-400 dark:text-violet-500 uppercase tracking-widest px-2">Subject Code</label>
+                        <input id="subject_code" bind:value={newSubject.code} placeholder="e.g. CS101" class="w-full px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-violet-500/20 transition-all" />
+                      </div>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                          <label for="subject_credits" class="text-[8px] font-black text-violet-400 dark:text-violet-500 uppercase tracking-widest px-2">Credits</label>
+                          <input id="subject_credits" type="number" bind:value={newSubject.credit_value} placeholder="e.g. 4" class="w-full px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-violet-500/20 transition-all" />
+                        </div>
+                        <div class="space-y-1">
+                          <label for="subject_sessions" class="text-[8px] font-black text-violet-400 dark:text-violet-500 uppercase tracking-widest px-2">Sessions</label>
+                          <input id="subject_sessions" type="number" bind:value={newSubject.total_sessions} placeholder="e.g. 30" class="w-full px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-violet-500/20 transition-all" />
+                        </div>
+                      </div>
                    </div>
                    <button onclick={createSubject} disabled={processing} class="py-3 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-violet-700 transition-all">
                      {processing ? 'Creating...' : 'Add Subject'}
