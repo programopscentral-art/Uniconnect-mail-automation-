@@ -110,90 +110,161 @@ export class FacultyService {
         return result.rows[0];
     }
 
+    static async ensureFacultyProfilesSchema() {
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS university_id UUID REFERENCES universities(id) ON DELETE CASCADE`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS employee_code TEXT`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS employment_status TEXT DEFAULT 'ACTIVE'`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS joining_date DATE`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
+        await db.query(`ALTER TABLE faculty_profiles ALTER COLUMN user_id DROP NOT NULL`);
+        await db.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'faculty_profiles_university_id_employee_code_key'
+                ) THEN
+                    ALTER TABLE faculty_profiles ADD CONSTRAINT faculty_profiles_university_id_employee_code_key UNIQUE (university_id, employee_code);
+                END IF;
+            END $$`);
+    }
+
     static async importFaculty(universityId: string, facultyList: any[]) {
-        const results = {
-            success: 0,
-            failed: 0,
-            errors: [] as string[]
-        };
+        const results = { success: 0, failed: 0, errors: [] as string[] };
+        if (!facultyList.length) return results;
 
-        for (const facultyData of facultyList) {
-            try {
-                let userId: string | null = null;
-                const email = facultyData.email || `${facultyData.employee_code}@uniconnect.edu`;
+        // Auto-migrate schema before importing
+        await FacultyService.ensureFacultyProfilesSchema();
 
-                const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
-                if (existingUser.rows.length > 0) {
-                    userId = existingUser.rows[0].id;
-                    if (facultyData.phone) {
-                        await db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [String(facultyData.phone).trim(), userId]);
-                    }
-                } else {
-                    const userRes = await db.query(
-                        `INSERT INTO users (email, name, role, university_id, phone)
-                         VALUES ($1, $2, 'FACULTY', $3, $4)
-                         RETURNING id`,
-                        [email, facultyData.name, universityId, facultyData.phone ? String(facultyData.phone).trim() : null]
-                    );
-                    userId = userRes.rows[0].id;
-                }
+        const today = new Date().toISOString().split('T')[0];
 
-                // Create or Update Faculty Profile
-                const profileRes = await db.query(
-                    `INSERT INTO faculty_profiles (user_id, university_id, employee_code, department, specialization, designation, joining_date, employment_status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
-                     ON CONFLICT (university_id, employee_code) DO UPDATE SET
-                        department = EXCLUDED.department,
-                        specialization = EXCLUDED.specialization,
-                        designation = EXCLUDED.designation,
-                        updated_at = NOW()
-                     RETURNING id`,
-                    [
-                        userId,
-                        universityId,
-                        facultyData.employee_code,
-                        facultyData.department || 'General',
-                        facultyData.specialization || 'Teaching',
-                        facultyData.designation || 'Assistant Professor',
-                        facultyData.joining_date || new Date().toISOString().split('T')[0]
-                    ]
-                );
-                const facultyProfileId = profileRes.rows[0].id;
+        // Step 1: resolve/create users in batch
+        const emails = facultyList.map(f => (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase());
+        const existRes = await db.query(`SELECT id, email FROM users WHERE email = ANY($1)`, [emails]);
+        const emailToUserId = new Map<string, string>(existRes.rows.map((r: any) => [r.email.toLowerCase(), r.id]));
 
-                // Assign Roles
-                await db.query(
-                    `INSERT INTO user_role_assignments (user_id, role_id, university_id, is_primary)
-                     SELECT $1, id, $2, TRUE FROM roles WHERE code = 'faculty'
-                     ON CONFLICT DO NOTHING`,
-                    [userId, universityId]
-                );
-
-                // Map subjects by code if provided
-                const subjectCodes: string[] = (facultyData.subject_codes || [])
-                    .map((c: string) => c.trim().toUpperCase())
-                    .filter(Boolean);
-                if (subjectCodes.length > 0) {
-                    const subRes = await db.query(
-                        `SELECT id FROM subjects WHERE university_id = $1 AND UPPER(code) = ANY($2) AND is_active = true`,
-                        [universityId, subjectCodes]
-                    );
-                    for (const sub of subRes.rows) {
-                        await db.query(
-                            `INSERT INTO faculty_subject_mappings (faculty_profile_id, subject_id, priority_level, can_substitute)
-                             VALUES ($1, $2, 1, true)
-                             ON CONFLICT DO NOTHING`,
-                            [facultyProfileId, sub.id]
-                        );
-                    }
-                }
-
-                results.success++;
-            } catch (e: any) {
-                results.failed++;
-                results.errors.push(`Failed to import faculty ${facultyData.employee_code || facultyData.name}: ${e.message}`);
+        const newOnes = facultyList.filter(f => {
+            const em = (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase();
+            return !emailToUserId.has(em);
+        });
+        if (newOnes.length > 0) {
+            const vals = newOnes.map((_, i) => `($${i*4+1}, $${i*4+2}, 'FACULTY', $${i*4+3}, $${i*4+4})`).join(', ');
+            const params = newOnes.flatMap(f => [
+                (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase(),
+                f.name,
+                universityId,
+                f.phone ? String(f.phone).trim() : null
+            ]);
+            const inserted = await db.query(
+                `INSERT INTO users (email, name, role, university_id, phone) VALUES ${vals}
+                 ON CONFLICT (email) DO UPDATE SET phone = COALESCE(EXCLUDED.phone, users.phone)
+                 RETURNING id, email`,
+                params
+            );
+            for (const r of inserted.rows) emailToUserId.set(r.email.toLowerCase(), r.id);
+            // pick up any that conflicted
+            const stillMissing = newOnes
+                .map(f => (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase())
+                .filter(em => !emailToUserId.has(em));
+            if (stillMissing.length > 0) {
+                const recheck = await db.query(`SELECT id, email FROM users WHERE email = ANY($1)`, [stillMissing]);
+                for (const r of recheck.rows) emailToUserId.set(r.email.toLowerCase(), r.id);
             }
         }
 
+        // Step 2: update phone for existing users
+        const withPhone = facultyList.filter(f => {
+            const em = (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase();
+            return f.phone && existRes.rows.some((r: any) => r.email.toLowerCase() === em);
+        });
+        await Promise.all(withPhone.map(f => {
+            const em = (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase();
+            const uid = emailToUserId.get(em);
+            return uid ? db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [String(f.phone).trim(), uid]) : Promise.resolve();
+        }));
+
+        // Step 3: batch upsert faculty_profiles
+        const valid = facultyList.filter(f => f.employee_code?.trim());
+        if (valid.length > 0) {
+            const pVals = valid.map((_, i) =>
+                `($${i*7+1}, $${i*7+2}, $${i*7+3}, $${i*7+4}, $${i*7+5}, $${i*7+6}, $${i*7+7}, 'ACTIVE', true)`
+            ).join(', ');
+            const pParams = valid.flatMap(f => {
+                const em = (f.email || `${f.employee_code}@uniconnect.edu`).trim().toLowerCase();
+                return [
+                    emailToUserId.get(em) ?? null,
+                    universityId,
+                    f.employee_code.trim(),
+                    f.department || 'General',
+                    f.specialization || 'Teaching',
+                    f.designation || 'Assistant Professor',
+                    today
+                ];
+            });
+            await db.query(
+                `INSERT INTO faculty_profiles (user_id, university_id, employee_code, department, specialization, designation, joining_date, employment_status, is_active)
+                 VALUES ${pVals}
+                 ON CONFLICT (university_id, employee_code) DO UPDATE SET
+                     user_id = COALESCE(EXCLUDED.user_id, faculty_profiles.user_id),
+                     department = EXCLUDED.department,
+                     updated_at = NOW()`,
+                pParams
+            );
+        }
+
+        // Step 4: role assignments in batch
+        const userIds = [...emailToUserId.values()];
+        if (userIds.length > 0) {
+            const roleRes = await db.query(`SELECT id FROM roles WHERE code = 'faculty' LIMIT 1`);
+            const roleId = roleRes.rows[0]?.id;
+            if (roleId) {
+                const rVals = userIds.map((_, i) => `($${i+1}, '${roleId}', '${universityId}', TRUE)`).join(', ');
+                await db.query(
+                    `INSERT INTO user_role_assignments (user_id, role_id, university_id, is_primary)
+                     VALUES ${rVals} ON CONFLICT DO NOTHING`,
+                    userIds
+                );
+            }
+        }
+
+        // Step 5: subject mappings (batch lookup then batch insert)
+        const allSubjectCodes = [...new Set(
+            facultyList.flatMap(f => (f.subject_codes || []).map((c: string) => c.trim().toUpperCase()).filter(Boolean))
+        )];
+        const codeToSubjectId = new Map<string, string>();
+        if (allSubjectCodes.length > 0) {
+            const subRes = await db.query(
+                `SELECT id, UPPER(code) as code FROM subjects WHERE university_id = $1 AND UPPER(code) = ANY($2) AND is_active = true`,
+                [universityId, allSubjectCodes]
+            );
+            for (const r of subRes.rows) codeToSubjectId.set(r.code, r.id);
+        }
+
+        // Get faculty profile ids
+        const empCodes = valid.map(f => f.employee_code.trim());
+        const profileRes = await db.query(
+            `SELECT id, employee_code FROM faculty_profiles WHERE university_id = $1 AND employee_code = ANY($2)`,
+            [universityId, empCodes]
+        );
+        const codeToProfileId = new Map<string, string>(profileRes.rows.map((r: any) => [r.employee_code, r.id]));
+
+        const mappingRows: string[] = [];
+        for (const f of facultyList) {
+            const profileId = codeToProfileId.get(f.employee_code?.trim());
+            if (!profileId) continue;
+            for (const code of (f.subject_codes || [])) {
+                const subjectId = codeToSubjectId.get(code.trim().toUpperCase());
+                if (subjectId) mappingRows.push(`('${profileId}', '${subjectId}', 1, true)`);
+            }
+        }
+        if (mappingRows.length > 0) {
+            await db.query(
+                `INSERT INTO faculty_subject_mappings (faculty_profile_id, subject_id, priority_level, can_substitute)
+                 VALUES ${mappingRows.join(', ')} ON CONFLICT DO NOTHING`
+            );
+        }
+
+        results.success = valid.length;
+        results.failed = facultyList.length - valid.length;
+        for (let i = 0; i < results.failed; i++) results.errors.push('Row skipped — missing employee code');
         return results;
     }
 }
