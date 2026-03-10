@@ -115,8 +115,24 @@ export class FacultyService {
         await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS employee_code TEXT`);
         await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS employment_status TEXT DEFAULT 'ACTIVE'`);
         await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS joining_date DATE`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS department TEXT`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS specialization TEXT`);
+        await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS designation TEXT`);
         await db.query(`ALTER TABLE faculty_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
         await db.query(`ALTER TABLE faculty_profiles ALTER COLUMN user_id DROP NOT NULL`);
+        // Convert specialization from text[] to text if needed
+        await db.query(`
+            DO $$ BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM pg_attribute a
+                    JOIN pg_class c ON c.oid = a.attrelid
+                    JOIN pg_type t ON t.oid = a.atttypid
+                    WHERE c.relname = 'faculty_profiles' AND a.attname = 'specialization'
+                    AND t.typname = '_text'
+                ) THEN
+                    ALTER TABLE faculty_profiles ALTER COLUMN specialization TYPE TEXT USING array_to_string(specialization, ', ');
+                END IF;
+            END $$`);
         await db.query(`
             DO $$ BEGIN
                 IF NOT EXISTS (
