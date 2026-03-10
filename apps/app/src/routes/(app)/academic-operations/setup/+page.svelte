@@ -29,6 +29,91 @@
   let showForm = $state<string | null>(null);
   let editingItem = $state<any>(null);
 
+  // --- Bulk Import State ---
+  let showImportPanel = $state(false);
+  let importTab = $state<'upload' | 'guidelines'>('upload');
+  let importProcessing = $state(false);
+  let importResult = $state<any>(null);
+  let importError = $state('');
+
+  const TEMPLATE: object = {
+    university_id: "PASTE_YOUR_UNIVERSITY_ID_HERE",
+    campuses: [
+      { name: "Main Campus", code: "MC", address: "Hyderabad, Telangana" }
+    ],
+    programs: [
+      { name: "B.Tech Computer Science & Engineering", code: "BTCS", degree_type: "B.Tech", semester_count: 8, campus_code: "MC" }
+    ],
+    terms: [
+      { program_code: "BTCS", name: "Semester 1 - 2025-26", start_date: "2025-08-01", end_date: "2026-01-31" },
+      { program_code: "BTCS", name: "Semester 2 - 2025-26", start_date: "2026-02-01", end_date: "2026-06-30" }
+    ],
+    sections: [
+      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Section A", batch_code: "BTCS-2025-A", strength: 60 },
+      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Section B", batch_code: "BTCS-2025-B", strength: 60 }
+    ],
+    subjects: [
+      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Data Structures & Algorithms", code: "CS201", credit_value: 4, total_sessions: 45 },
+      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Engineering Mathematics I", code: "MA101", credit_value: 4, total_sessions: 45 },
+      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Physics for Engineers", code: "PH101", credit_value: 3, total_sessions: 30 }
+    ]
+  };
+
+  function downloadTemplate() {
+    const blob = new Blob([JSON.stringify({ ...TEMPLATE, university_id: selectedUniversityId || "YOUR_UNIVERSITY_ID" }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'uniconnect-academic-setup-template.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function runBulkImport(jsonText: string) {
+    importError = '';
+    importResult = null;
+    let payload: any;
+    try {
+      payload = JSON.parse(jsonText);
+    } catch {
+      importError = 'Invalid JSON — check your file format.';
+      return;
+    }
+    if (!payload.university_id) {
+      payload.university_id = selectedUniversityId;
+    }
+    importProcessing = true;
+    try {
+      const res = await fetch('/api/academic/setup/bulk-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      importResult = await res.json();
+      if (res.ok) {
+        await refreshData();
+        await fetchFaculty();
+      } else {
+        importError = importResult?.message || 'Import failed.';
+        importResult = null;
+      }
+    } catch {
+      importError = 'Network error. Please try again.';
+    } finally {
+      importProcessing = false;
+    }
+  }
+
+  function handleImportFile(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => runBulkImport(ev.target?.result as string);
+    reader.readAsText(file);
+    input.value = '';
+  }
+
   // Selection state for terms tab
   let termTargetProgramId = $state("");
 
@@ -160,6 +245,12 @@
   function createProgram() {
     handleAction("/api/academic/programs", "POST", { ...newProgram, university_id: selectedUniversityId });
     newProgram = { name: "", code: "", degree_type: "B.Tech", semester_count: 8 };
+  }
+
+  function startEditTerm(term: any) {
+    editingItem = term;
+    newTerm = { name: term.name, program_id: term.program_id, start_date: term.start_date?.split('T')[0] || '', end_date: term.end_date?.split('T')[0] || '' };
+    showForm = 'term';
   }
 
   function createTerm() {
@@ -309,9 +400,9 @@
       <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Academic <span class="text-indigo-600">Setup</span></h2>
       <p class="text-sm text-gray-500 font-medium mt-1">Configure the core organizational structure for your institution.</p>
     </div>
-    <div class="w-full md:w-80">
-      <div class="relative">
-        <select 
+    <div class="flex items-center gap-3">
+      <div class="w-full md:w-64 relative">
+        <select
           bind:value={selectedUniversityId}
           class="w-full pl-6 pr-12 py-4 bg-gray-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-black text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 appearance-none transition-all cursor-pointer shadow-inner"
         >
@@ -323,8 +414,223 @@
            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"/></svg>
         </div>
       </div>
+      <button
+        onclick={() => { showImportPanel = true; importResult = null; importError = ''; }}
+        class="flex items-center gap-2.5 px-6 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-600/20 shrink-0"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+        </svg>
+        Bulk Import
+      </button>
     </div>
   </div>
+
+  <!-- Bulk Import Panel Overlay -->
+  {#if showImportPanel}
+    <div class="fixed inset-0 z-50 flex" transition:fade>
+      <!-- Backdrop -->
+      <button class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => showImportPanel = false} aria-label="Close"></button>
+
+      <!-- Panel -->
+      <div class="relative ml-auto w-full max-w-2xl h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden" transition:fly={{ x: 500, duration: 300 }}>
+        <!-- Header -->
+        <div class="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 class="text-xl font-black text-gray-900 dark:text-white">Bulk Academic Setup Import</h2>
+            <p class="text-xs text-gray-400 font-medium mt-0.5">Upload a JSON file to set up your entire academic structure at once</p>
+          </div>
+          <button onclick={() => showImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 mx-8 mt-6 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl w-fit shrink-0">
+          <button onclick={() => importTab = 'upload'} class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {importTab === 'upload' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500'}">Upload File</button>
+          <button onclick={() => importTab = 'guidelines'} class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all {importTab === 'guidelines' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-gray-500'}">Format Guide</button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto px-8 py-6">
+          {#if importTab === 'upload'}
+            <div class="space-y-6">
+              <!-- Download Template -->
+              <div class="p-5 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-black text-indigo-900 dark:text-indigo-100">Start with the template</p>
+                  <p class="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">Download a pre-filled JSON template, edit it, then upload</p>
+                </div>
+                <button onclick={downloadTemplate} class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shrink-0">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  Download Template
+                </button>
+              </div>
+
+              <!-- File Upload Drop Zone -->
+              <label class="block cursor-pointer group">
+                <div class="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-3xl p-12 text-center group-hover:border-indigo-400 group-hover:bg-indigo-50/30 dark:group-hover:bg-indigo-500/5 transition-all">
+                  <div class="w-14 h-14 mx-auto mb-4 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/30 transition-all">
+                    <svg class="w-7 h-7 text-gray-400 group-hover:text-indigo-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </div>
+                  <p class="text-sm font-black text-gray-700 dark:text-gray-300">Drop your JSON file here</p>
+                  <p class="text-xs text-gray-400 font-medium mt-1">or click to browse — .json files only</p>
+                  {#if importProcessing}
+                    <div class="mt-4 flex items-center justify-center gap-2 text-indigo-600">
+                      <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      <span class="text-xs font-black uppercase tracking-widest">Importing...</span>
+                    </div>
+                  {/if}
+                </div>
+                <input type="file" accept=".json" class="sr-only" onchange={handleImportFile} disabled={importProcessing} />
+              </label>
+
+              <!-- Error -->
+              {#if importError}
+                <div class="p-5 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl">
+                  <p class="text-sm font-black text-rose-700 dark:text-rose-400">Import Failed</p>
+                  <p class="text-xs text-rose-600 dark:text-rose-300 font-medium mt-1">{importError}</p>
+                </div>
+              {/if}
+
+              <!-- Results -->
+              {#if importResult}
+                <div class="p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl space-y-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center">
+                      <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <p class="font-black text-emerald-800 dark:text-emerald-300">{importResult.summary}</p>
+                  </div>
+
+                  <div class="grid grid-cols-3 gap-3">
+                    {#each Object.entries(importResult.created) as [entity, count]}
+                      <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                        <p class="text-lg font-black text-emerald-600">{count}</p>
+                        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">{entity}</p>
+                      </div>
+                    {/each}
+                  </div>
+
+                  {#if importResult.errors?.length > 0}
+                    <div class="mt-4 space-y-2">
+                      <p class="text-[10px] font-black text-rose-600 uppercase tracking-widest">{importResult.errors.length} Error{importResult.errors.length !== 1 ? 's' : ''}</p>
+                      {#each importResult.errors as err}
+                        <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-xl">
+                          <p class="text-xs font-bold text-rose-700 dark:text-rose-400"><span class="uppercase">{err.entity}</span> · {err.item}</p>
+                          <p class="text-[10px] text-rose-500 mt-0.5">{err.reason}</p>
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+          {:else}
+            <!-- Format Guidelines Tab -->
+            <div class="space-y-6 text-sm">
+              <div class="p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl">
+                <p class="font-black text-amber-800 dark:text-amber-300 text-xs uppercase tracking-widest mb-2">How it works</p>
+                <p class="text-xs text-amber-700 dark:text-amber-400 font-medium leading-relaxed">The JSON file sets up your entire academic hierarchy in one shot. Items are created in order: <strong>Campuses → Programs → Terms → Sections → Subjects</strong>. Duplicates (matched by code) are automatically skipped — safe to re-run.</p>
+              </div>
+
+              <!-- Field guide sections -->
+              {#each [
+                {
+                  label: 'campuses', color: 'blue',
+                  fields: [
+                    { name: 'name', req: true, example: '"Main Campus"', desc: 'Full campus name' },
+                    { name: 'code', req: true, example: '"MC"', desc: 'Short unique code — used to link programs' },
+                    { name: 'address', req: false, example: '"Hyderabad, TS"', desc: 'Physical address (optional)' }
+                  ]
+                },
+                {
+                  label: 'programs', color: 'emerald',
+                  fields: [
+                    { name: 'name', req: true, example: '"B.Tech CSE"', desc: 'Full program name' },
+                    { name: 'code', req: true, example: '"BTCS"', desc: 'Unique code — used by terms, sections, subjects' },
+                    { name: 'degree_type', req: false, example: '"B.Tech"', desc: 'B.Tech / M.Tech / MBA / B.Sc / PhD' },
+                    { name: 'semester_count', req: false, example: '8', desc: 'Number of semesters' },
+                    { name: 'campus_code', req: false, example: '"MC"', desc: 'Links to a campus by code' }
+                  ]
+                },
+                {
+                  label: 'terms', color: 'violet',
+                  fields: [
+                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
+                    { name: 'name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Unique name within the program — used by sections/subjects' },
+                    { name: 'start_date', req: true, example: '"2025-08-01"', desc: 'Format: YYYY-MM-DD' },
+                    { name: 'end_date', req: true, example: '"2026-01-31"', desc: 'Format: YYYY-MM-DD' }
+                  ]
+                },
+                {
+                  label: 'sections', color: 'indigo',
+                  fields: [
+                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
+                    { name: 'term_name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Must exactly match the term name' },
+                    { name: 'name', req: true, example: '"Section A"', desc: 'Display name of the section' },
+                    { name: 'batch_code', req: true, example: '"BTCS-2025-A"', desc: 'Unique batch identifier' },
+                    { name: 'strength', req: false, example: '60', desc: 'Student capacity (default: 60)' }
+                  ]
+                },
+                {
+                  label: 'subjects', color: 'rose',
+                  fields: [
+                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
+                    { name: 'term_name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Must exactly match the term name' },
+                    { name: 'name', req: true, example: '"Data Structures"', desc: 'Full subject name' },
+                    { name: 'code', req: true, example: '"CS201"', desc: 'Unique subject code within the term' },
+                    { name: 'credit_value', req: false, example: '4', desc: 'Number of credits (default: 4)' },
+                    { name: 'total_sessions', req: false, example: '45', desc: 'Total sessions planned (default: 30)' }
+                  ]
+                }
+              ] as section}
+                <div class="rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden">
+                  <div class="px-5 py-3 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">"{section.label}" array</p>
+                    <span class="text-[9px] font-bold text-gray-400">JSON key: <code class="text-indigo-500">{section.label}</code></span>
+                  </div>
+                  <div class="divide-y divide-gray-50 dark:divide-slate-800">
+                    {#each section.fields as field}
+                      <div class="px-5 py-3 flex items-start gap-4">
+                        <div class="w-36 shrink-0">
+                          <code class="text-xs font-black text-gray-800 dark:text-gray-200">{field.name}</code>
+                          {#if field.req}
+                            <span class="ml-1.5 text-[8px] font-black text-rose-500 uppercase">required</span>
+                          {:else}
+                            <span class="ml-1.5 text-[8px] font-bold text-gray-400 uppercase">optional</span>
+                          {/if}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-xs text-gray-500 font-medium">{field.desc}</p>
+                          <code class="text-[10px] text-indigo-400 font-bold mt-0.5 block">e.g. {field.example}</code>
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                </div>
+              {/each}
+
+              <div class="p-5 bg-gray-50 dark:bg-slate-800 rounded-2xl space-y-2">
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Good to know</p>
+                <ul class="text-xs text-gray-500 font-medium space-y-1 list-disc list-inside leading-relaxed">
+                  <li>The <code class="text-indigo-500">university_id</code> at the top is auto-filled from your selected university.</li>
+                  <li>Campuses and programs are matched by <code class="text-indigo-500">code</code> — existing ones are skipped, not duplicated.</li>
+                  <li>Terms are matched by <code class="text-indigo-500">name</code> within a program.</li>
+                  <li>Sections matched by <code class="text-indigo-500">batch_code</code>, subjects by <code class="text-indigo-500">code</code>.</li>
+                  <li>You can safely re-run the same file — it will skip already-created items.</li>
+                  <li>Faculty import has its own separate CSV/JSON flow (Tab 4).</li>
+                </ul>
+              </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Internal Tabs -->
   <div class="flex gap-4 p-1.5 bg-gray-100/50 dark:bg-slate-800/50 rounded-2xl w-fit">
