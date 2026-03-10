@@ -84,7 +84,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 
         // FACULTY role gets access to their portal and basic academic routes without needing explicit permissions
         const isFaculty = user.role === 'FACULTY';
-        const facultyAllowedPaths = ['/faculty-portal', '/assessments', '/tasks', '/students'];
+        const facultyAllowedPaths = [
+            '/faculty-portal', '/assessments', '/tasks', '/students',
+            '/api/faculty/',
+            '/api/academic/faculty/leave-requests',
+            '/api/academic/scheduling/sessions',
+        ];
         if (isFaculty && facultyAllowedPaths.some(p => path.startsWith(p))) {
             return await resolve(event);
         }
