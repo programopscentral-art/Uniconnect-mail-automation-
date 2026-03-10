@@ -89,10 +89,10 @@ export class StudentService {
             // Insert only new users (those not found above) in one batch
             const newOnes = withEmail.filter(s => !emailToUserId.has(s.email.trim().toLowerCase()));
             if (newOnes.length > 0) {
-                const vals = newOnes.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, 'STUDENT', $${i * 3 + 3}, 'ACTIVE')`).join(', ');
+                const vals = newOnes.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, 'STUDENT', $${i * 3 + 3})`).join(', ');
                 const params = newOnes.flatMap(s => [s.email.trim().toLowerCase(), s.name.trim(), universityId]);
                 const inserted = await db.query(
-                    `INSERT INTO users (email, name, role, university_id, status)
+                    `INSERT INTO users (email, name, role, university_id)
                      VALUES ${vals}
                      ON CONFLICT (email) DO NOTHING
                      RETURNING id, email`,

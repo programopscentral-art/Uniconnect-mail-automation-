@@ -125,19 +125,12 @@ export class FacultyService {
                 const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
                 if (existingUser.rows.length > 0) {
                     userId = existingUser.rows[0].id;
-                    // Update phone if provided
-                    if (facultyData.phone) {
-                        await db.query(
-                            `UPDATE users SET phone = $1, updated_at = NOW() WHERE id = $2`,
-                            [String(facultyData.phone).trim(), userId]
-                        );
-                    }
                 } else {
                     const userRes = await db.query(
-                        `INSERT INTO users (email, name, role, university_id, phone, status)
-                         VALUES ($1, $2, 'FACULTY', $3, $4, 'ACTIVE')
+                        `INSERT INTO users (email, name, role, university_id)
+                         VALUES ($1, $2, 'FACULTY', $3)
                          RETURNING id`,
-                        [email, facultyData.name, universityId, facultyData.phone ? String(facultyData.phone).trim() : null]
+                        [email, facultyData.name, universityId]
                     );
                     userId = userRes.rows[0].id;
                 }
