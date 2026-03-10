@@ -36,58 +36,63 @@
   let importResult = $state<any>(null);
   let importError = $state('');
 
-  const TEMPLATE: object = {
-    university_id: "PASTE_YOUR_UNIVERSITY_ID_HERE",
-    campuses: [
-      { name: "Main Campus", code: "MC", address: "Hyderabad, Telangana" }
-    ],
-    programs: [
-      { name: "B.Tech Computer Science & Engineering", code: "BTCS", degree_type: "B.Tech", semester_count: 8, campus_code: "MC" }
-    ],
-    terms: [
-      { program_code: "BTCS", name: "Semester 1 - 2025-26", start_date: "2025-08-01", end_date: "2026-01-31" },
-      { program_code: "BTCS", name: "Semester 2 - 2025-26", start_date: "2026-02-01", end_date: "2026-06-30" }
-    ],
-    sections: [
-      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Section A", batch_code: "BTCS-2025-A", strength: 60 },
-      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Section B", batch_code: "BTCS-2025-B", strength: 60 }
-    ],
-    subjects: [
-      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Data Structures & Algorithms", code: "CS201", credit_value: 4, total_sessions: 45 },
-      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Engineering Mathematics I", code: "MA101", credit_value: 4, total_sessions: 45 },
-      { program_code: "BTCS", term_name: "Semester 1 - 2025-26", name: "Physics for Engineers", code: "PH101", credit_value: 3, total_sessions: 30 }
-    ]
-  };
+  async function downloadExcelTemplate() {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
 
-  function downloadTemplate() {
-    const blob = new Blob([JSON.stringify({ ...TEMPLATE, university_id: selectedUniversityId || "YOUR_UNIVERSITY_ID" }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'uniconnect-academic-setup-template.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    function ws(data: any[][], widths: number[]) {
+      const sheet = XLSX.utils.aoa_to_sheet(data);
+      sheet['!cols'] = widths.map(w => ({ wch: w }));
+      return sheet;
+    }
+
+    XLSX.utils.book_append_sheet(wb, ws([
+      ['Name', 'Code', 'Address (optional)'],
+      ['Main Campus', 'MC', 'Hyderabad, Telangana'],
+      ['North Campus', 'NC', 'Secundarabad, Telangana']
+    ], [32, 12, 36]), 'Campuses');
+
+    XLSX.utils.book_append_sheet(wb, ws([
+      ['Name', 'Code', 'Degree Type', 'Semester Count', 'Campus Code (optional)'],
+      ['B.Tech Computer Science & Engineering', 'BTCS', 'B.Tech', 8, 'MC'],
+      ['B.Tech Electronics & Communication', 'BTEC', 'B.Tech', 8, 'MC']
+    ], [42, 12, 14, 15, 22]), 'Programs');
+
+    XLSX.utils.book_append_sheet(wb, ws([
+      ['Program Code', 'Term Name', 'Start Date (YYYY-MM-DD)', 'End Date (YYYY-MM-DD)'],
+      ['BTCS', 'Semester 1 - 2025-26', '2025-08-01', '2026-01-31'],
+      ['BTCS', 'Semester 2 - 2025-26', '2026-02-01', '2026-06-30'],
+      ['BTEC', 'Semester 1 - 2025-26', '2025-08-01', '2026-01-31']
+    ], [14, 28, 22, 22]), 'Terms');
+
+    XLSX.utils.book_append_sheet(wb, ws([
+      ['Program Code', 'Term Name', 'Section Name', 'Batch Code', 'Strength (optional)'],
+      ['BTCS', 'Semester 1 - 2025-26', 'Section A', 'BTCS-2025-A', 60],
+      ['BTCS', 'Semester 1 - 2025-26', 'Section B', 'BTCS-2025-B', 60],
+      ['BTCS', 'Semester 2 - 2025-26', 'Section A', 'BTCS-2025B-A', 60]
+    ], [14, 28, 14, 18, 18]), 'Sections');
+
+    XLSX.utils.book_append_sheet(wb, ws([
+      ['Program Code', 'Term Name', 'Subject Name', 'Code', 'Credit Value (optional)', 'Total Sessions (optional)'],
+      ['BTCS', 'Semester 1 - 2025-26', 'Data Structures & Algorithms', 'CS201', 4, 45],
+      ['BTCS', 'Semester 1 - 2025-26', 'Engineering Mathematics I', 'MA101', 4, 45],
+      ['BTCS', 'Semester 1 - 2025-26', 'Physics for Engineers', 'PH101', 3, 30]
+    ], [14, 28, 36, 10, 22, 24]), 'Subjects');
+
+    XLSX.writeFile(wb, 'uniconnect-academic-setup.xlsx');
   }
 
-  async function runBulkImport(jsonText: string) {
+  async function runExcelImport(file: File) {
     importError = '';
     importResult = null;
-    let payload: any;
-    try {
-      payload = JSON.parse(jsonText);
-    } catch {
-      importError = 'Invalid JSON — check your file format.';
-      return;
-    }
-    if (!payload.university_id) {
-      payload.university_id = selectedUniversityId;
-    }
     importProcessing = true;
     try {
-      const res = await fetch('/api/academic/setup/bulk-import', {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('university_id', selectedUniversityId);
+      const res = await fetch('/api/academic/setup/import-excel', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: formData
       });
       importResult = await res.json();
       if (res.ok) {
@@ -108,9 +113,7 @@
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => runBulkImport(ev.target?.result as string);
-    reader.readAsText(file);
+    runExcelImport(file);
     input.value = '';
   }
 
@@ -438,7 +441,7 @@
         <div class="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
           <div>
             <h2 class="text-xl font-black text-gray-900 dark:text-white">Bulk Academic Setup Import</h2>
-            <p class="text-xs text-gray-400 font-medium mt-0.5">Upload a JSON file to set up your entire academic structure at once</p>
+            <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel spreadsheet to set up your entire academic structure at once</p>
           </div>
           <button onclick={() => showImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -458,10 +461,10 @@
               <!-- Download Template -->
               <div class="p-5 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20 flex items-center justify-between">
                 <div>
-                  <p class="text-sm font-black text-indigo-900 dark:text-indigo-100">Start with the template</p>
-                  <p class="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">Download a pre-filled JSON template, edit it, then upload</p>
+                  <p class="text-sm font-black text-indigo-900 dark:text-indigo-100">Download the Excel template</p>
+                  <p class="text-xs text-indigo-600 dark:text-indigo-400 font-medium mt-0.5">5 pre-filled tabs — fill in your data, then upload</p>
                 </div>
-                <button onclick={downloadTemplate} class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shrink-0">
+                <button onclick={downloadExcelTemplate} class="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shrink-0">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                   Download Template
                 </button>
@@ -475,8 +478,8 @@
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                   </div>
-                  <p class="text-sm font-black text-gray-700 dark:text-gray-300">Drop your JSON file here</p>
-                  <p class="text-xs text-gray-400 font-medium mt-1">or click to browse — .json files only</p>
+                  <p class="text-sm font-black text-gray-700 dark:text-gray-300">Drop your Excel file here</p>
+                  <p class="text-xs text-gray-400 font-medium mt-1">or click to browse — .xlsx / .xls files</p>
                   {#if importProcessing}
                     <div class="mt-4 flex items-center justify-center gap-2 text-indigo-600">
                       <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -484,7 +487,7 @@
                     </div>
                   {/if}
                 </div>
-                <input type="file" accept=".json" class="sr-only" onchange={handleImportFile} disabled={importProcessing} />
+                <input type="file" accept=".xlsx,.xls" class="sr-only" onchange={handleImportFile} disabled={importProcessing} />
               </label>
 
               <!-- Error -->
@@ -531,82 +534,76 @@
 
           {:else}
             <!-- Format Guidelines Tab -->
-            <div class="space-y-6 text-sm">
+            <div class="space-y-5 text-sm">
               <div class="p-5 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-2xl">
                 <p class="font-black text-amber-800 dark:text-amber-300 text-xs uppercase tracking-widest mb-2">How it works</p>
-                <p class="text-xs text-amber-700 dark:text-amber-400 font-medium leading-relaxed">The JSON file sets up your entire academic hierarchy in one shot. Items are created in order: <strong>Campuses → Programs → Terms → Sections → Subjects</strong>. Duplicates (matched by code) are automatically skipped — safe to re-run.</p>
+                <p class="text-xs text-amber-700 dark:text-amber-400 font-medium leading-relaxed">The Excel file has <strong>5 tabs</strong> — one for each entity type. Fill each tab row by row, then upload. Items are created in order: <strong>Campuses → Programs → Terms → Sections → Subjects</strong>. Already-existing items are automatically skipped — safe to re-run.</p>
               </div>
 
-              <!-- Field guide sections -->
               {#each [
                 {
-                  label: 'campuses', color: 'blue',
-                  fields: [
-                    { name: 'name', req: true, example: '"Main Campus"', desc: 'Full campus name' },
-                    { name: 'code', req: true, example: '"MC"', desc: 'Short unique code — used to link programs' },
-                    { name: 'address', req: false, example: '"Hyderabad, TS"', desc: 'Physical address (optional)' }
+                  tab: 'Campuses', cols: [
+                    { name: 'Name', req: true, eg: 'Main Campus', desc: 'Full campus name' },
+                    { name: 'Code', req: true, eg: 'MC', desc: 'Short unique code — used to link programs' },
+                    { name: 'Address', req: false, eg: 'Hyderabad, TS', desc: 'Physical address' }
                   ]
                 },
                 {
-                  label: 'programs', color: 'emerald',
-                  fields: [
-                    { name: 'name', req: true, example: '"B.Tech CSE"', desc: 'Full program name' },
-                    { name: 'code', req: true, example: '"BTCS"', desc: 'Unique code — used by terms, sections, subjects' },
-                    { name: 'degree_type', req: false, example: '"B.Tech"', desc: 'B.Tech / M.Tech / MBA / B.Sc / PhD' },
-                    { name: 'semester_count', req: false, example: '8', desc: 'Number of semesters' },
-                    { name: 'campus_code', req: false, example: '"MC"', desc: 'Links to a campus by code' }
+                  tab: 'Programs', cols: [
+                    { name: 'Name', req: true, eg: 'B.Tech CSE', desc: 'Full program name' },
+                    { name: 'Code', req: true, eg: 'BTCS', desc: 'Unique code — referenced by all other sheets' },
+                    { name: 'Degree Type', req: false, eg: 'B.Tech', desc: 'B.Tech / M.Tech / MBA / B.Sc / PhD' },
+                    { name: 'Semester Count', req: false, eg: '8', desc: 'Defaults to 8' },
+                    { name: 'Campus Code', req: false, eg: 'MC', desc: 'Links to a campus by its Code column' }
                   ]
                 },
                 {
-                  label: 'terms', color: 'violet',
-                  fields: [
-                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
-                    { name: 'name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Unique name within the program — used by sections/subjects' },
-                    { name: 'start_date', req: true, example: '"2025-08-01"', desc: 'Format: YYYY-MM-DD' },
-                    { name: 'end_date', req: true, example: '"2026-01-31"', desc: 'Format: YYYY-MM-DD' }
+                  tab: 'Terms', cols: [
+                    { name: 'Program Code', req: true, eg: 'BTCS', desc: 'Must match a Code in the Programs tab' },
+                    { name: 'Term Name', req: true, eg: 'Semester 1 - 2025-26', desc: 'Unique within the program — referenced by Sections & Subjects' },
+                    { name: 'Start Date', req: true, eg: '2025-08-01', desc: 'Format: YYYY-MM-DD' },
+                    { name: 'End Date', req: true, eg: '2026-01-31', desc: 'Format: YYYY-MM-DD' }
                   ]
                 },
                 {
-                  label: 'sections', color: 'indigo',
-                  fields: [
-                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
-                    { name: 'term_name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Must exactly match the term name' },
-                    { name: 'name', req: true, example: '"Section A"', desc: 'Display name of the section' },
-                    { name: 'batch_code', req: true, example: '"BTCS-2025-A"', desc: 'Unique batch identifier' },
-                    { name: 'strength', req: false, example: '60', desc: 'Student capacity (default: 60)' }
+                  tab: 'Sections', cols: [
+                    { name: 'Program Code', req: true, eg: 'BTCS', desc: 'Must match Programs tab' },
+                    { name: 'Term Name', req: true, eg: 'Semester 1 - 2025-26', desc: 'Must exactly match Terms tab' },
+                    { name: 'Section Name', req: true, eg: 'Section A', desc: 'Display name' },
+                    { name: 'Batch Code', req: true, eg: 'BTCS-2025-A', desc: 'Unique batch identifier' },
+                    { name: 'Strength', req: false, eg: '60', desc: 'Student capacity (default: 60)' }
                   ]
                 },
                 {
-                  label: 'subjects', color: 'rose',
-                  fields: [
-                    { name: 'program_code', req: true, example: '"BTCS"', desc: 'Must match a program code' },
-                    { name: 'term_name', req: true, example: '"Semester 1 - 2025-26"', desc: 'Must exactly match the term name' },
-                    { name: 'name', req: true, example: '"Data Structures"', desc: 'Full subject name' },
-                    { name: 'code', req: true, example: '"CS201"', desc: 'Unique subject code within the term' },
-                    { name: 'credit_value', req: false, example: '4', desc: 'Number of credits (default: 4)' },
-                    { name: 'total_sessions', req: false, example: '45', desc: 'Total sessions planned (default: 30)' }
+                  tab: 'Subjects', cols: [
+                    { name: 'Program Code', req: true, eg: 'BTCS', desc: 'Must match Programs tab' },
+                    { name: 'Term Name', req: true, eg: 'Semester 1 - 2025-26', desc: 'Must exactly match Terms tab' },
+                    { name: 'Subject Name', req: true, eg: 'Data Structures', desc: 'Full subject name' },
+                    { name: 'Code', req: true, eg: 'CS201', desc: 'Unique subject code within the term' },
+                    { name: 'Credit Value', req: false, eg: '4', desc: 'Number of credits (default: 4)' },
+                    { name: 'Total Sessions', req: false, eg: '45', desc: 'Sessions planned (default: 30)' }
                   ]
                 }
-              ] as section}
+              ] as sheet}
                 <div class="rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden">
-                  <div class="px-5 py-3 bg-gray-50 dark:bg-slate-800 flex items-center justify-between">
-                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">"{section.label}" array</p>
-                    <span class="text-[9px] font-bold text-gray-400">JSON key: <code class="text-indigo-500">{section.label}</code></span>
+                  <div class="px-5 py-3 bg-gray-50 dark:bg-slate-800">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300">Tab: {sheet.tab}</p>
                   </div>
-                  <div class="divide-y divide-gray-50 dark:divide-slate-800">
-                    {#each section.fields as field}
+                  <div class="divide-y divide-gray-50 dark:divide-slate-800/60">
+                    {#each sheet.cols as col, i}
                       <div class="px-5 py-3 flex items-start gap-4">
+                        <div class="w-8 shrink-0 text-[10px] font-black text-gray-300 dark:text-slate-600 pt-0.5">Col {i + 1}</div>
                         <div class="w-36 shrink-0">
-                          <code class="text-xs font-black text-gray-800 dark:text-gray-200">{field.name}</code>
-                          {#if field.req}
+                          <span class="text-xs font-black text-gray-800 dark:text-gray-200">{col.name}</span>
+                          {#if col.req}
                             <span class="ml-1.5 text-[8px] font-black text-rose-500 uppercase">required</span>
                           {:else}
                             <span class="ml-1.5 text-[8px] font-bold text-gray-400 uppercase">optional</span>
                           {/if}
                         </div>
                         <div class="flex-1 min-w-0">
-                          <p class="text-xs text-gray-500 font-medium">{field.desc}</p>
-                          <code class="text-[10px] text-indigo-400 font-bold mt-0.5 block">e.g. {field.example}</code>
+                          <p class="text-xs text-gray-500 font-medium">{col.desc}</p>
+                          <code class="text-[10px] text-indigo-400 font-bold mt-0.5 block">e.g. {col.eg}</code>
                         </div>
                       </div>
                     {/each}
@@ -615,14 +612,14 @@
               {/each}
 
               <div class="p-5 bg-gray-50 dark:bg-slate-800 rounded-2xl space-y-2">
-                <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Good to know</p>
-                <ul class="text-xs text-gray-500 font-medium space-y-1 list-disc list-inside leading-relaxed">
-                  <li>The <code class="text-indigo-500">university_id</code> at the top is auto-filled from your selected university.</li>
-                  <li>Campuses and programs are matched by <code class="text-indigo-500">code</code> — existing ones are skipped, not duplicated.</li>
-                  <li>Terms are matched by <code class="text-indigo-500">name</code> within a program.</li>
-                  <li>Sections matched by <code class="text-indigo-500">batch_code</code>, subjects by <code class="text-indigo-500">code</code>.</li>
-                  <li>You can safely re-run the same file — it will skip already-created items.</li>
-                  <li>Faculty import has its own separate CSV/JSON flow (Tab 4).</li>
+                <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Tips</p>
+                <ul class="text-xs text-gray-500 font-medium space-y-1.5 list-disc list-inside leading-relaxed">
+                  <li>Row 1 is the header — don't delete it. Your data starts from Row 2.</li>
+                  <li>Campuses and programs matched by <strong>Code</strong> — existing ones are skipped.</li>
+                  <li>Terms matched by <strong>Term Name</strong> within a program.</li>
+                  <li>Sections matched by <strong>Batch Code</strong>, subjects by <strong>Code</strong>.</li>
+                  <li>You can safely upload the same file again — duplicates are skipped.</li>
+                  <li>Dates must be in <strong>YYYY-MM-DD</strong> format (e.g. 2025-08-01).</li>
                 </ul>
               </div>
             </div>
