@@ -230,6 +230,10 @@ export class AcademicService {
         const result = await db.query(
             `INSERT INTO subjects (university_id, program_id, term_id, name, code, credit_value, total_sessions_required, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
+             ON CONFLICT (term_id, code) DO UPDATE SET
+                 name = EXCLUDED.name,
+                 is_active = true,
+                 updated_at = NOW()
              RETURNING *`,
             [universityId, programId, termId, data.name, data.code, data.credit_value || 0, data.total_sessions || 30]
         );
