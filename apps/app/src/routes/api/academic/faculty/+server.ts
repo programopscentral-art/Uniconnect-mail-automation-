@@ -8,16 +8,24 @@ export const GET: RequestHandler = async ({ url, locals }: { url: URL, locals: A
     const universityId = url.searchParams.get('universityId');
     if (!universityId) throw error(400, 'universityId is required');
 
-    const result = await db.query(
-        `SELECT fp.*, u.full_name as name, u.email
-         FROM faculty_profiles fp
-         JOIN users u ON fp.user_id = u.id
-         WHERE fp.university_id = $1 AND fp.is_active = true
-         ORDER BY u.full_name ASC`,
-        [universityId]
-    );
-
-    return json(result.rows);
+    try {
+        const result = await db.query(
+            `SELECT fp.id, fp.employee_code, fp.department, fp.specialization, fp.designation,
+                    fp.joining_date, fp.employment_status, fp.is_active, fp.created_at, fp.university_id,
+                    COALESCE(u.full_name, fp.employee_code) as name,
+                    COALESCE(u.email, '') as email,
+                    COALESCE(u.phone, '') as phone
+             FROM faculty_profiles fp
+             LEFT JOIN users u ON fp.user_id = u.id
+             WHERE fp.university_id = $1 AND fp.is_active = true
+             ORDER BY name ASC`,
+            [universityId]
+        );
+        return json(result.rows);
+    } catch (e: any) {
+        console.error('[GET /api/academic/faculty]', e.message);
+        return json([]);
+    }
 };
 
 export const POST: RequestHandler = async ({ request, locals }: { request: Request, locals: App.Locals }) => {
