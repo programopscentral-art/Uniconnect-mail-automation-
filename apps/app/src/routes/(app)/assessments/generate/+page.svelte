@@ -1228,6 +1228,10 @@
       activeUniversity?.name?.toLowerCase()?.includes("adypu") ||
       activeUniversity?.name?.toLowerCase()?.includes("patil"),
   );
+  const isNRI = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("nri") ||
+      activeUniversity?.slug?.includes("nri"),
+  );
 
   $effect(() => {
     if (!selectedUniversityId) return;
@@ -1266,6 +1270,11 @@
       maxMarks = 20;
       examDuration = 60;
       paperStructure = []; // Clear to force re-init
+    } else if (isNRI) {
+      selectedTemplate = "nri";
+      maxMarks = 50;
+      examDuration = 90;
+      paperStructure = []; // Clear to force re-init
     } else {
       selectedTemplate = "standard";
     }
@@ -1279,7 +1288,9 @@
         ? "Crescent"
         : isVGU
           ? "VGU University"
-          : "University Standard",
+          : isNRI
+            ? "NRI Institute of Technology"
+            : "University Standard",
   );
 
   let previewPaperMeta = $state<any>({

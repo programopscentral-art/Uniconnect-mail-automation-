@@ -12,6 +12,7 @@
   import ADYPUTemplate from "$lib/components/assessments/ADYPUTemplate.svelte";
   import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
   import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
+  import NRITemplate from "$lib/components/assessments/NRITemplate.svelte";
   import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AnnamacharyaTemplate from "$lib/components/assessments/AnnamacharyaTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
@@ -78,6 +79,18 @@
     if (metaTemplate === "annamacharya" || uniName.includes("annamacharya")) {
       return "annamacharya";
     }
+    if (
+      metaTemplate === "nri" ||
+      uniName.includes("nri") ||
+      String(data?.paper?.sets_data?.metadata?.univ_line_1 || "")
+        .toLowerCase()
+        .includes("nri") ||
+      String(data?.paper?.sets_data?.metadata?.university_name || "")
+        .toLowerCase()
+        .includes("nri")
+    ) {
+      return "nri";
+    }
 
     return metaTemplate || "standard";
   });
@@ -99,9 +112,11 @@
                   ? "S-VYASA University"
                   : selectedTemplate === "amet"
                     ? "Academy of Maritime Education and Training (AMET)"
-                    : selectedTemplate === "annamacharya"
-                      ? "Annamacharya University V1.1.2"
-                      : "University Standard",
+                      : selectedTemplate === "annamacharya"
+                        ? "Annamacharya University V1.1.2"
+                        : selectedTemplate === "nri"
+                          ? "NRI Institute of Technology"
+                          : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -1448,6 +1463,17 @@
           />
         {:else if selectedTemplate === "annamacharya"}
           <AnnamacharyaTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "nri"}
+          <NRITemplate
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
             bind:paperStructure={paperMeta.template_config}

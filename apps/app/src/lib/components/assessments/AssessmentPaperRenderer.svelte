@@ -54,14 +54,17 @@ import NRITemplate from "./NRITemplate.svelte";
         paperMeta?.selected_template === "crescent") &&
       paperMeta?.exam_title?.toLowerCase().match(/cat|mid|test|internal/)
         ? "crescent-mid"
-        : layoutSchema?.style ||
-          paperMeta?.selected_template ||
-          (paperMeta?.univ_line_1?.toLowerCase().includes("chaitanya") ||
-          paperMeta?.university_name?.toLowerCase().includes("chaitanya")
-            ? "cdu"
-            : paperMeta?.univ_line_1?.toLowerCase().includes("nri") ||
-                paperMeta?.university_name?.toLowerCase().includes("nri")
-              ? "nri"
+        : layoutSchema?.style === "nri" ||
+          paperMeta?.selected_template === "nri" ||
+          paperMeta?.univ_line_1?.toLowerCase().includes("nri") ||
+          paperMeta?.university_name?.toLowerCase().includes("nri") ||
+          paperMeta?.univ_line_1_2?.toLowerCase().includes("nri")
+          ? "nri"
+          : layoutSchema?.style ||
+            paperMeta?.selected_template ||
+            (paperMeta?.univ_line_1?.toLowerCase().includes("chaitanya") ||
+            paperMeta?.university_name?.toLowerCase().includes("chaitanya")
+              ? "cdu"
               : "standard"), // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla' | 'nri'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
@@ -1367,7 +1370,7 @@ import NRITemplate from "./NRITemplate.svelte";
     </div>
   </div>
 
-  {#if !["cdu", "crescent-mid", "adypu", "svyasa", "nri"].includes(layout.style)}
+  {#if !["cdu", "crescent-mid", "adypu", "svyasa", "annamacharya", "nri"].includes(layout.style)}
     <SwapQuestionSidebar
       bind:isOpen={isSwapSidebarOpen}
       {questionPool}
