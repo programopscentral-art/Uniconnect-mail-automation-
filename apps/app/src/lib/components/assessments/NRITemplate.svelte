@@ -312,8 +312,11 @@
 
       <!-- NOTE SECTION -->
       <div class="text-[9pt] mb-6 leading-tight italic text-justify px-1">
-        <p class="font-bold mb-1 not-italic">Note: This question paper contains two parts A and B.</p>
-        <p>Part A consists of 3 Questions. Each question carries 2 marks. Answer All Questions. Part B consists of 3 Units. Answer any one full question from each unit. Each question carries 8 marks.</p>
+        <p class="font-bold mb-1 not-italic flex gap-1 items-center">
+          <span>Note:</span>
+          <AssessmentEditable value={paperMeta.note_header || "This question paper contains two parts A and B."} onUpdate={(v) => updateText(v, "META", "note_header")} class="flex-1" />
+        </p>
+        <AssessmentEditable value={paperMeta.instructions || "Part A consists of 3 Questions. Each question carries 2 marks. Answer All Questions. Part B consists of 3 Units. Answer any one full question from each unit. Each question carries 8 marks."} onUpdate={(v) => updateText(v, "META", "instructions")} multiline={true} />
       </div>
 
       <!-- SECTIONS ITERATION -->
@@ -328,9 +331,12 @@
                 <AssessmentEditable value={section.title || `PART ${section.part}`} onUpdate={(v) => { section.title = v; paperStructure = [...paperStructure]; }} />
               </span>
               <span class="font-bold flex items-center gap-0">
-                ({sectionQuestions.length}X
+                (<AssessmentEditable value={String(section.answered_count || sectionQuestions.length)} onUpdate={(v) => { section.answered_count = Number(v); paperStructure = [...paperStructure]; }} />
+                X
                 <AssessmentEditable value={String(section.marks_per_q)} onUpdate={(v) => { section.marks_per_q = Number(v); paperStructure = [...paperStructure]; }} />
-                M={totalPartMarks}M)
+                M =
+                <AssessmentEditable value={String(section.total_marks || totalPartMarks)} onUpdate={(v) => { section.total_marks = Number(v); paperStructure = [...paperStructure]; }} />
+                M)
               </span>
             </div>
 
