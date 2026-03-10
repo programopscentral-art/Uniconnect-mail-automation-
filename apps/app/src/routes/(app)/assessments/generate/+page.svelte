@@ -402,6 +402,63 @@
       return;
     }
 
+    if (isNRI) {
+      // PART A: 3 Questions X 2M = 6M
+      const partA = {
+        title: "PART A (3X2M=6M)",
+        part: "A",
+        answered_count: 3,
+        marks_per_q: 2,
+        slots: Array.from({ length: 3 }, (_, i) => ({
+          id: `A-${i}-${Math.random()}`,
+          label: `${i + 1}`,
+          part: "A",
+          type: "SINGLE",
+          marks: 2,
+          unit: "Auto",
+          qType: "NORMAL",
+          bloom: "ANY",
+        })),
+      };
+      structure.push(partA);
+
+      // PART B: 3 OR groups X 8M = 24M
+      const partB = {
+        title: "PART B (3X8M=24M)",
+        part: "B",
+        answered_count: 3,
+        marks_per_q: 8,
+        slots: Array.from({ length: 3 }, (_, i) => ({
+          id: `B-${i}-${Math.random()}`,
+          label: `${4 + i * 2}`,
+          displayLabel: `${4 + i * 2} or ${4 + i * 2 + 1}`,
+          part: "B",
+          type: "OR_GROUP",
+          marks: 8,
+          choices: [
+            {
+              label: `${4 + i * 2}`,
+              unit: "Auto",
+              qType: "NORMAL",
+              marks: 8,
+              bloom: "ANY",
+            },
+            {
+              label: `${4 + i * 2 + 1}`,
+              unit: "Auto",
+              qType: "NORMAL",
+              marks: 8,
+              bloom: "ANY",
+            },
+          ],
+        })),
+      };
+      structure.push(partB);
+
+      paperStructure = structure;
+      return;
+    }
+
     // Part A
     const isMCQ = partAType === "MCQ";
     const countA = is100 ? (isMCQ ? 20 : 10) : isMCQ ? 10 : 5;
@@ -1272,7 +1329,7 @@
       paperStructure = []; // Clear to force re-init
     } else if (isNRI) {
       selectedTemplate = "nri";
-      maxMarks = 50;
+      maxMarks = 30;
       examDuration = 90;
       paperStructure = []; // Clear to force re-init
     } else {
