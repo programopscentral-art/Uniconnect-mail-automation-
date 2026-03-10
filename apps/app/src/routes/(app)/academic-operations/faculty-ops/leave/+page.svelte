@@ -1,6 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, getContext } from 'svelte';
   import { fade, fly } from 'svelte/transition';
+  import { page } from '$app/stores';
+
+  const univCtx = getContext<{ get: () => string }>('facultyOpsUniversityId');
+  const universityId = $derived(univCtx?.get() || $page.data?.user?.university_id || '');
 
   let requests = $state<any[]>([]);
   let loading  = $state(true);
@@ -18,8 +22,10 @@
   async function fetchRequests() {
     loading = true;
     try {
-      const params = filter !== 'ALL' ? `?status=${filter}` : '';
-      const res = await fetch(`/api/academic/faculty/leave-requests${params}`);
+      const p = new URLSearchParams();
+      if (filter !== 'ALL') p.set('status', filter);
+      if (universityId) p.set('universityId', universityId);
+      const res = await fetch(`/api/academic/faculty/leave-requests${p.toString() ? '?' + p : ''}`);
       if (res.ok) requests = await res.json();
     } catch { } finally { loading = false; }
   }
@@ -61,7 +67,7 @@
     } catch { } finally { acting = null; }
   }
 
-  $effect(() => { filter; fetchRequests(); });
+  $effect(() => { filter; universityId; fetchRequests(); });
   onMount(fetchRequests);
 
   function leaveTypeColor(type: string) {

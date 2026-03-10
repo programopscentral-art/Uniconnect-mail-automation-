@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
+  import { getContext } from "svelte";
   import { page } from "$app/stores";
 
   let programs = $state<any[]>([]);
@@ -9,7 +10,8 @@
   let selectedProgram = $state('');
   let selectedTerm = $state('');
 
-  const universityId = $derived($page.data?.user?.university_id || '');
+  const univCtx = getContext<{ get: () => string }>('facultyOpsUniversityId');
+  const universityId = $derived(univCtx?.get() || $page.data?.user?.university_id || '');
 
   $effect(() => { if (universityId) loadPrograms(); });
   $effect(() => {
