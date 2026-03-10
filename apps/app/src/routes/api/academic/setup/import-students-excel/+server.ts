@@ -41,9 +41,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         )
     ]);
 
-    const programCodeToId = new Map<string, string>(
-        allPrograms.map((p: any) => [p.code.toUpperCase(), p.id])
-    );
+    // Build lookup: exact code AND normalized (no special chars) → program id
+    // Excel forbids / \ * ? [ ] : in sheet names, so "BTAI/DS" becomes "BTAIDS"
+    const normalize = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const rawCodeToId = new Map<string, string>();
+    for (const p of allPrograms) {
+        rawCodeToId.set(p.code.toUpperCase(), p.id);           // exact
+        rawCodeToId.set(normalize(p.code), p.id);              // normalized
+    }
     // programId → term matching termName
     const programToTermId = new Map<string, string>();
     for (const t of allTermsRes.rows) {
@@ -68,20 +73,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const jobs: { sheetName: string; programId: string; termId: string; sectionId: string; students: any[] }[] = [];
 
     for (const sheetName of wb.SheetNames) {
-        const programCode = sheetName.trim().toUpperCase();
-        const programId = programCodeToId.get(programCode);
+        const rawCode = sheetName.trim().toUpperCase();
+        const programId = rawCodeToId.get(rawCode) ?? rawCodeToId.get(normalize(rawCode));
         if (!programId) {
-            result.errors.push({ sheet: sheetName, reason: `Program code "${programCode}" not found` });
+            result.errors.push({ sheet: sheetName, reason: `Program code "${rawCode}" not found — sheet name must match a program code` });
             continue;
         }
         const termId = programToTermId.get(programId);
         if (!termId) {
-            result.errors.push({ sheet: sheetName, reason: `Term "${termName}" not found under program "${programCode}"` });
+            result.errors.push({ sheet: sheetName, reason: `Term "${termName}" not found under program "${rawCode}"` });
             continue;
         }
         const sectionId = termToSectionId.get(termId);
         if (!sectionId) {
-            result.errors.push({ sheet: sheetName, reason: `No section under "${termName}" for "${programCode}" — create one first` });
+            result.errors.push({ sheet: sheetName, reason: `No section under "${termName}" for "${rawCode}" — create one first` });
             continue;
         }
 
