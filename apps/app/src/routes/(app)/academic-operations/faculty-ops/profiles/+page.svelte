@@ -26,21 +26,13 @@
   $effect(() => { if (universityId) loadFaculty(); });
 
   async function init() {
-    const [progRes] = await Promise.all([
-      fetch(`/api/academic/programs?universityId=${universityId}`)
+    // Load all semesters university-wide — no program selection needed first
+    const [progRes, termsRes] = await Promise.all([
+      fetch(`/api/academic/programs?universityId=${universityId}`),
+      fetch(`/api/academic/terms?universityId=${universityId}`)
     ]);
     if (progRes.ok) programs = await progRes.json();
-  }
-
-  $effect(() => {
-    if (selectedProgram) loadTerms();
-    else { terms = []; selectedTerm = ''; }
-  });
-
-  async function loadTerms() {
-    selectedTerm = '';
-    const res = await fetch(`/api/academic/terms?programId=${selectedProgram}`);
-    if (res.ok) terms = await res.json();
+    if (termsRes.ok) terms = await termsRes.json();
   }
 
   async function loadFaculty() {
@@ -131,18 +123,18 @@
 </script>
 
 <div class="space-y-6" in:fade>
-  <!-- Filters -->
+  <!-- Filters — semester first, program optional -->
   <div class="flex flex-wrap items-center gap-3">
-    <select bind:value={selectedProgram} class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
-      <option value="">All Programs</option>
-      {#each programs as p}<option value={p.id}>{p.name}</option>{/each}
+    <!-- Semester (primary filter) -->
+    <select bind:value={selectedTerm} onchange={() => loadFaculty()} class="px-4 py-2.5 bg-indigo-600 text-white border-none rounded-xl text-xs font-bold focus:ring-2 ring-indigo-400 appearance-none cursor-pointer">
+      <option value="">All Semesters</option>
+      {#each terms as t}<option value={t.id}>{t.name}</option>{/each}
     </select>
-    {#if terms.length > 0}
-      <select bind:value={selectedTerm} class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
-        <option value="">All Semesters</option>
-        {#each terms as t}<option value={t.id}>{t.name}</option>{/each}
-      </select>
-    {/if}
+    <!-- Program (secondary filter) -->
+    <select bind:value={selectedProgram} onchange={() => loadFaculty()} class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 appearance-none cursor-pointer">
+      <option value="">All Programs</option>
+      {#each programs as p}<option value={p.id}>{p.code} — {p.name}</option>{/each}
+    </select>
     <input type="text" placeholder="Search by name, dept, code..." bind:value={searchQuery}
       class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium w-64 focus:ring-2 ring-indigo-500" />
     <span class="ml-auto text-xs font-bold text-gray-500">{filtered.length} faculty</span>
