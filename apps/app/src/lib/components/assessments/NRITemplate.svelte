@@ -327,7 +327,11 @@
               <span class="font-bold">
                 <AssessmentEditable value={section.title || `PART ${section.part}`} onUpdate={(v) => { section.title = v; paperStructure = [...paperStructure]; }} />
               </span>
-              <span class="font-bold">({sectionQuestions.length}X{section.marks_per_q}M={totalPartMarks}M)</span>
+              <span class="font-bold flex items-center gap-0">
+                ({sectionQuestions.length}X
+                <AssessmentEditable value={String(section.marks_per_q)} onUpdate={(v) => { section.marks_per_q = Number(v); paperStructure = [...paperStructure]; }} />
+                M={totalPartMarks}M)
+              </span>
             </div>
 
             <table class="w-full border-collapse border-[1.5pt] border-black text-[10pt] question-table">
