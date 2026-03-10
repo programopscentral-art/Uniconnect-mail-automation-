@@ -92,7 +92,7 @@ export class StudentService {
                 const vals = newOnes.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, 'STUDENT', $${i * 3 + 3}, 'ACTIVE')`).join(', ');
                 const params = newOnes.flatMap(s => [s.email.trim().toLowerCase(), s.name.trim(), universityId]);
                 const inserted = await db.query(
-                    `INSERT INTO users (email, full_name, role, university_id, status)
+                    `INSERT INTO users (email, name, role, university_id, status)
                      VALUES ${vals}
                      ON CONFLICT (email) DO NOTHING
                      RETURNING id, email`,

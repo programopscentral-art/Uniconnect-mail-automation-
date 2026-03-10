@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url, locals }: { url: URL, locals: A
         const result = await db.query(
             `SELECT fp.id, fp.employee_code, fp.department, fp.specialization, fp.designation,
                     fp.joining_date, fp.employment_status, fp.is_active, fp.created_at, fp.university_id,
-                    COALESCE(u.full_name, fp.employee_code) as name,
+                    COALESCE(u.name, fp.employee_code) as name,
                     COALESCE(u.email, '') as email,
                     COALESCE(u.phone, '') as phone
              FROM faculty_profiles fp

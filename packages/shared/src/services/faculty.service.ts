@@ -134,7 +134,7 @@ export class FacultyService {
                     }
                 } else {
                     const userRes = await db.query(
-                        `INSERT INTO users (email, full_name, role, university_id, phone, status)
+                        `INSERT INTO users (email, name, role, university_id, phone, status)
                          VALUES ($1, $2, 'FACULTY', $3, $4, 'ACTIVE')
                          RETURNING id`,
                         [email, facultyData.name, universityId, facultyData.phone ? String(facultyData.phone).trim() : null]
