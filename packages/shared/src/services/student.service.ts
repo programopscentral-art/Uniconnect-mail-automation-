@@ -61,9 +61,31 @@ export class StudentService {
         );
     }
 
+    static async ensureStudentProfilesSchema() {
+        // Auto-apply missing columns (idempotent — safe to run every time)
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS university_id UUID REFERENCES universities(id) ON DELETE CASCADE`);
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS enrollment_number TEXT`);
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS term_id UUID REFERENCES terms(id) ON DELETE SET NULL`);
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS student_status TEXT DEFAULT 'ENROLLED'`);
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS admission_date DATE`);
+        await db.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
+        await db.query(`ALTER TABLE student_profiles ALTER COLUMN user_id DROP NOT NULL`);
+        await db.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'student_profiles_university_id_enrollment_number_key'
+                ) THEN
+                    ALTER TABLE student_profiles ADD CONSTRAINT student_profiles_university_id_enrollment_number_key UNIQUE (university_id, enrollment_number);
+                END IF;
+            END $$`);
+    }
+
     static async importStudents(universityId: string, programId: string, termId: string, sectionId: string, students: any[]) {
         const results = { success: 0, failed: 0, errors: [] as string[] };
         if (!students.length) return results;
+
+        // Ensure schema is up-to-date before importing
+        await StudentService.ensureStudentProfilesSchema();
 
         const today = new Date().toISOString().split('T')[0];
         const valid = students.filter(s => s.name?.trim() && s.enrollment_number?.trim());
