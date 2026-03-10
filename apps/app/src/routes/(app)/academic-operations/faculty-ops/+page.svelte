@@ -141,25 +141,27 @@
       {:else}
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           {#each filtered.slice(0, 6) as f, i}
-            <div class="p-6 bg-gray-50/50 dark:bg-slate-800/30 rounded-3xl border border-transparent hover:border-indigo-500/20 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 group" in:fly={{ y: 10, delay: i * 50 }}>
-              <div class="flex items-start justify-between">
-                <div class="flex gap-3">
-                  <div class="w-11 h-11 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 font-black text-sm flex-shrink-0">{getInitials(f.name)}</div>
-                  <div class="min-w-0">
-                    <h4 class="font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors text-sm tracking-tight truncate">{f.name}</h4>
-                    <p class="text-[10px] font-bold text-gray-500 mt-0.5">{f.department || '—'}</p>
-                  </div>
+            <div class="p-5 bg-gray-50/50 dark:bg-slate-800/30 rounded-3xl border border-transparent hover:border-indigo-500/20 hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 group overflow-hidden" in:fly={{ y: 10, delay: i * 50 }}>
+              <!-- Avatar + name row -->
+              <div class="flex items-start gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 font-black text-sm shrink-0">{getInitials(f.name)}</div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors text-sm tracking-tight truncate leading-tight">{f.name}</h4>
+                  <p class="text-[10px] font-bold text-gray-500 mt-0.5 truncate">{f.department || '—'}</p>
                 </div>
-                {#if f.designation}
-                  <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-xl flex-shrink-0 ml-2 {getDesignationColor(f.designation)}">{f.designation.split(' ')[0]}</span>
-                {/if}
               </div>
-              <div class="mt-4 flex items-center justify-between">
-                <div>
+              <!-- Designation + emp code row -->
+              <div class="mt-3 flex items-center justify-between gap-2 min-w-0">
+                <div class="min-w-0">
                   <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Emp. Code</p>
-                  <p class="text-xs font-black text-gray-700 dark:text-gray-200 mt-0.5 font-mono">{f.employee_code || '—'}</p>
+                  <p class="text-xs font-black text-gray-700 dark:text-gray-200 mt-0.5 font-mono truncate">{f.employee_code || '—'}</p>
                 </div>
-                <a href="/academic-operations/faculty-ops/profiles" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Details →</a>
+                <div class="flex items-center gap-2 shrink-0">
+                  {#if f.designation}
+                    <span class="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg whitespace-nowrap {getDesignationColor(f.designation)}">{f.designation.split(' ')[0]}</span>
+                  {/if}
+                  <a href="/academic-operations/faculty-ops/profiles" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline whitespace-nowrap">Details →</a>
+                </div>
               </div>
             </div>
           {/each}
