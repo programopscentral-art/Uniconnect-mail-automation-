@@ -1,4 +1,9 @@
-import { AcademicService } from '@uniconnect/shared';
+import {
+    AcademicService,
+    getAssessmentBatches, createAssessmentBatch,
+    getAssessmentBranches, createAssessmentBranch,
+    getAssessmentSubjects, createAssessmentSubject
+} from '@uniconnect/shared';
 
 export interface ImportPayload {
     university_id: string;
@@ -173,6 +178,76 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
             result.created.subjects++;
         } catch (e: any) {
             result.errors.push({ entity: 'subject', item: sub.name, reason: e?.message || 'create failed' });
+        }
+    }
+
+    // 6. Sync subjects to Assessment module
+    // Mapping: Term → Assessment Batch, Program → Assessment Branch, Subject → Assessment Subject
+    if ((payload.subjects ?? []).length > 0) {
+        try {
+            const existingBatches = await getAssessmentBatches(payload.university_id);
+            const batchNameToId = new Map<string, string>(
+                existingBatches.map((b: any) => [b.name.toLowerCase(), b.id])
+            );
+
+            const existingBranches = await getAssessmentBranches(payload.university_id);
+            // key: "batch_id|branch_name_lower"
+            const branchKeyToId = new Map<string, string>(
+                existingBranches.map((b: any) => [`${b.batch_id ?? ''}|${b.name.toLowerCase()}`, b.id])
+            );
+
+            for (const sub of payload.subjects ?? []) {
+                if (!sub.program_code || !sub.term_name || !sub.name || !sub.code) continue;
+
+                try {
+                    // Find/create assessment batch (= term)
+                    let batchId = batchNameToId.get(sub.term_name.toLowerCase());
+                    if (!batchId) {
+                        const batch = await createAssessmentBatch({
+                            university_id: payload.university_id,
+                            name: sub.term_name
+                        });
+                        batchId = batch.id;
+                        batchNameToId.set(sub.term_name.toLowerCase(), batchId);
+                    }
+
+                    // Find/create assessment branch (= program)
+                    const progName = existingPrograms.find(
+                        (p: any) => p.code.toUpperCase() === sub.program_code.toUpperCase()
+                    )?.name ?? sub.program_code;
+                    const branchKey = `${batchId}|${progName.toLowerCase()}`;
+                    let branchId = branchKeyToId.get(branchKey);
+                    if (!branchId) {
+                        const branch = await createAssessmentBranch({
+                            university_id: payload.university_id,
+                            batch_id: batchId,
+                            name: progName,
+                            code: sub.program_code.toUpperCase()
+                        });
+                        branchId = branch.id;
+                        branchKeyToId.set(branchKey, branchId);
+                    }
+
+                    // Find/create assessment subject
+                    const existingSubjects = await getAssessmentSubjects(branchId, undefined, batchId);
+                    const alreadyExists = existingSubjects.some(
+                        (s: any) => s.code?.toLowerCase() === sub.code.toLowerCase()
+                    );
+                    if (!alreadyExists) {
+                        await createAssessmentSubject({
+                            branch_id: branchId,
+                            batch_id: batchId,
+                            name: sub.name,
+                            code: sub.code.toUpperCase()
+                        });
+                    }
+                } catch (e: any) {
+                    // Assessment sync errors are non-fatal — log but don't block the import
+                    result.errors.push({ entity: 'assessment_sync', item: sub.code, reason: e?.message || 'sync failed' });
+                }
+            }
+        } catch (e: any) {
+            result.errors.push({ entity: 'assessment_sync', item: 'init', reason: e?.message || 'failed to load assessment data' });
         }
     }
 
