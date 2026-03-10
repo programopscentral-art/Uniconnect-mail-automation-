@@ -38,7 +38,7 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
     const existingPrograms = await AcademicService.getPrograms(payload.university_id).catch(() => []);
     for (const p of existingPrograms) programCodeToId.set(p.code.toUpperCase(), p.id);
 
-    // 1. Campuses
+    // 1. Campuses (upsert — createCampus uses ON CONFLICT DO UPDATE, so always returns the row)
     for (const camp of payload.campuses ?? []) {
         if (!camp.name || !camp.code) {
             result.errors.push({ entity: 'campus', item: camp.name || '?', reason: 'name and code are required' });
@@ -61,7 +61,7 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
         }
     }
 
-    // 2. Programs
+    // 2. Programs (upsert — createProgram uses ON CONFLICT DO UPDATE, so always returns the row)
     for (const prog of payload.programs ?? []) {
         if (!prog.name || !prog.code) {
             result.errors.push({ entity: 'program', item: prog.name || '?', reason: 'name and code are required' });
@@ -234,11 +234,15 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
                         (s: any) => s.code?.toLowerCase() === sub.code.toLowerCase()
                     );
                     if (!alreadyExists) {
+                        // Derive semester number from term name (e.g. "Semester 2 - 2026" → 2), default 1
+                        const semMatch = sub.term_name.match(/\b(\d+)\b/);
+                        const semester = semMatch ? parseInt(semMatch[1], 10) : 1;
                         await createAssessmentSubject({
                             branch_id: branchId,
                             batch_id: batchId,
                             name: sub.name,
-                            code: sub.code.toUpperCase()
+                            code: sub.code.toUpperCase(),
+                            semester
                         });
                     }
                 } catch (e: any) {

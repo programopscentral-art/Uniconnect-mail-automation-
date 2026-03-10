@@ -63,6 +63,11 @@ export class AcademicService {
         const result = await db.query(
             `INSERT INTO campuses (university_id, name, code, address, status)
              VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (university_id, code) DO UPDATE SET
+                 name = EXCLUDED.name,
+                 address = COALESCE(EXCLUDED.address, campuses.address),
+                 is_active = true,
+                 updated_at = NOW()
              RETURNING *`,
             [data.university_id, data.name, data.code, data.address, data.status]
         );
@@ -106,6 +111,12 @@ export class AcademicService {
         const result = await db.query(
             `INSERT INTO programs (university_id, campus_id, name, code, degree_type, semester_count, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
+             ON CONFLICT (university_id, code) DO UPDATE SET
+                 name = EXCLUDED.name,
+                 degree_type = COALESCE(EXCLUDED.degree_type, programs.degree_type),
+                 semester_count = COALESCE(EXCLUDED.semester_count, programs.semester_count),
+                 is_active = true,
+                 updated_at = NOW()
              RETURNING *`,
             [data.university_id, data.campus_id, data.name, data.code, data.degree_type, data.semester_count, data.status]
         );
