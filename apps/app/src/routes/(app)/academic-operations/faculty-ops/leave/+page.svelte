@@ -118,7 +118,13 @@
             <div class="text-center">
               <p class="text-xs font-black text-gray-900 dark:text-white">
                 {new Date(req.leave_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {#if req.leave_end_date && req.leave_end_date !== req.leave_date}
+                  <span class="text-gray-400 font-medium"> – {new Date(req.leave_end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                {/if}
               </p>
+              {#if req.total_days > 1}
+                <p class="text-[9px] font-black text-amber-600 mt-0.5">{req.total_days} days</p>
+              {/if}
             </div>
             {#if req.reason}
               <p class="text-xs text-gray-500 font-medium max-w-[200px] truncate" title={req.reason}>{req.reason}</p>

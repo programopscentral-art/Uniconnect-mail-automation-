@@ -12,7 +12,7 @@
   let showLeavePanel = $state(false);
   let leaveHistory = $state<any[]>([]);
   let leaveHistoryLoading = $state(false);
-  let leaveForm = $state({ leave_type: 'CASUAL', leave_date: '', reason: '' });
+  let leaveForm = $state({ leave_type: 'CASUAL', leave_date: '', leave_end_date: '', reason: '' });
   let leaveSubmitting = $state(false);
   let leaveError = $state('');
   let leaveSuccess = $state('');
@@ -74,9 +74,19 @@
     } catch { } finally { markingId = null; }
   }
 
+  const leaveTotalDays = $derived(() => {
+    if (!leaveForm.leave_date) return 0;
+    const end = leaveForm.leave_end_date || leaveForm.leave_date;
+    const diff = Math.round((new Date(end).getTime() - new Date(leaveForm.leave_date).getTime()) / (1000 * 60 * 60 * 24));
+    return diff + 1;
+  });
+
   async function submitLeaveRequest() {
     leaveError = ''; leaveSuccess = '';
-    if (!leaveForm.leave_date) { leaveError = 'Please select a date.'; return; }
+    if (!leaveForm.leave_date) { leaveError = 'Please select a start date.'; return; }
+    if (leaveForm.leave_end_date && leaveForm.leave_end_date < leaveForm.leave_date) {
+      leaveError = 'End date cannot be before start date.'; return;
+    }
     leaveSubmitting = true;
     try {
       const res = await fetch('/api/academic/faculty/leave-requests', {
@@ -87,7 +97,7 @@
       const data = await res.json();
       if (res.ok) {
         leaveSuccess = 'Request submitted — pending approval.';
-        leaveForm = { leave_type: 'CASUAL', leave_date: '', reason: '' };
+        leaveForm = { leave_type: 'CASUAL', leave_date: '', leave_end_date: '', reason: '' };
         leaveHistory = [data, ...leaveHistory];
       } else {
         leaveError = data?.message || 'Submission failed.';
@@ -303,11 +313,28 @@
             </div>
           </div>
 
-          <!-- Date -->
+          <!-- Date Range -->
           <div class="mb-5">
-            <label class="text-xs font-black text-gray-500 uppercase tracking-widest block mb-2">Date</label>
-            <input type="date" bind:value={leaveForm.leave_date} min={todayStr}
-              class="w-full px-5 py-3.5 bg-gray-50 dark:bg-slate-800 border-none rounded-2xl text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all" />
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-black text-gray-500 uppercase tracking-widest">Date Range</label>
+              {#if leaveTotalDays() > 0}
+                <span class="text-[10px] font-black px-2.5 py-1 rounded-lg {leaveTotalDays() === 1 ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'}">
+                  {leaveTotalDays()} day{leaveTotalDays() > 1 ? 's' : ''}
+                </span>
+              {/if}
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">From</p>
+                <input type="date" bind:value={leaveForm.leave_date} min={todayStr}
+                  class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all" />
+              </div>
+              <div>
+                <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">To <span class="normal-case font-medium">(optional)</span></p>
+                <input type="date" bind:value={leaveForm.leave_end_date} min={leaveForm.leave_date || todayStr}
+                  class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border-none rounded-2xl text-xs font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition-all" />
+              </div>
+            </div>
           </div>
 
           <!-- Reason -->
@@ -349,8 +376,18 @@
               {#each leaveHistory as req, i}
                 <div class="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-between gap-3" in:fly={{ y: 10, delay: i * 40 }}>
                   <div class="min-w-0">
-                    <p class="text-xs font-black text-gray-900 dark:text-white">{leaveLabel(req.leave_type)} Leave</p>
-                    <p class="text-[10px] text-gray-400 font-medium mt-0.5">{new Date(req.leave_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    <div class="flex items-center gap-2">
+                      <p class="text-xs font-black text-gray-900 dark:text-white">{leaveLabel(req.leave_type)} Leave</p>
+                      {#if req.total_days > 1}
+                        <span class="text-[9px] font-black px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded-md">{req.total_days}d</span>
+                      {/if}
+                    </div>
+                    <p class="text-[10px] text-gray-400 font-medium mt-0.5">
+                      {new Date(req.leave_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {#if req.leave_end_date && req.leave_end_date !== req.leave_date}
+                        → {new Date(req.leave_end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {/if}
+                    </p>
                   </div>
                   <span class="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest shrink-0 {statusStyle(req.approval_status)}">{req.approval_status}</span>
                 </div>
