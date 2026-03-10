@@ -5,6 +5,7 @@
 
   let { data } = $props();
 
+  let universityId = $state(data.filters.universityId);
   let search = $state(data.filters.search);
   let programId = $state(data.filters.programId);
   let termId = $state(data.filters.termId);
@@ -12,6 +13,7 @@
 
   function applyFilters() {
     const params = new URLSearchParams();
+    if (universityId) params.set('universityId', universityId);
     if (programId) params.set('programId', programId);
     if (termId) params.set('termId', termId);
     if (search) params.set('search', search);
@@ -25,6 +27,12 @@
 
   function onFilterChange() {
     if (programId !== data.filters.programId) termId = '';
+    applyFilters();
+  }
+
+  function onUniversityChange() {
+    programId = '';
+    termId = '';
     applyFilters();
   }
 
@@ -51,6 +59,24 @@
 
   <!-- Filters -->
   <div class="flex flex-wrap gap-3">
+    <!-- University selector (admin only) -->
+    {#if data.universities?.length > 0}
+    <div class="relative">
+      <select
+        bind:value={universityId}
+        onchange={onUniversityChange}
+        class="pl-4 pr-10 py-3 bg-indigo-600 text-white border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-indigo-400 outline-none appearance-none cursor-pointer"
+      >
+        {#each data.universities as u}
+          <option value={u.id}>{u.name}</option>
+        {/each}
+      </select>
+      <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/70">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+    {/if}
+
     <!-- Search -->
     <div class="relative flex-1 min-w-[200px]">
       <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

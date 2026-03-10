@@ -1,43 +1,40 @@
-import { db } from '@uniconnect/shared';
+import { db, getAllUniversities } from '@uniconnect/shared';
 import { error } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load = async ({ locals, url }: { locals: App.Locals, url: URL }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
 
-    const universityId = locals.user.university_id;
-    if (!universityId) return { students: [], programs: [], total: 0 };
+    const isGlobal = locals.user.permissions?.includes('universities');
+    const universities = isGlobal ? await getAllUniversities() : [];
+
+    // University: from query param (admin) or from user's own university
+    const universityId = url.searchParams.get('universityId')
+        || locals.user.university_id
+        || '';
+
+    if (!universityId) return { students: [], programs: [], terms: [], total: 0, universities, filters: { universityId: '', programId: '', termId: '', search: '' } };
 
     const programId = url.searchParams.get('programId') || '';
     const termId    = url.searchParams.get('termId') || '';
     const search    = url.searchParams.get('search') || '';
 
-    // Load programs + terms for filters
     const [programsRes, termsRes] = await Promise.all([
         db.query(`SELECT id, name, code FROM programs WHERE university_id = $1 AND is_active = true ORDER BY name ASC`, [universityId]),
-        termId
+        programId
             ? db.query(`SELECT id, name FROM terms WHERE program_id = $1 AND is_active = true ORDER BY name ASC`, [programId])
-            : programId
-                ? db.query(`SELECT id, name FROM terms WHERE program_id = $1 AND is_active = true ORDER BY name ASC`, [programId])
-                : db.query(
-                    `SELECT DISTINCT t.id, t.name FROM terms t
-                     JOIN programs p ON p.id = t.program_id
-                     WHERE p.university_id = $1 AND t.is_active = true ORDER BY t.name ASC`,
-                    [universityId]
-                )
+            : db.query(
+                `SELECT DISTINCT t.id, t.name FROM terms t
+                 JOIN programs p ON p.id = t.program_id
+                 WHERE p.university_id = $1 AND t.is_active = true ORDER BY t.name ASC`,
+                [universityId]
+              )
     ]);
 
     const conditions: string[] = [`sp.university_id = $1`];
     const params: any[] = [universityId];
 
-    if (programId) {
-        conditions.push(`sp.program_id = $${params.length + 1}`);
-        params.push(programId);
-    }
-    if (termId) {
-        conditions.push(`sp.term_id = $${params.length + 1}`);
-        params.push(termId);
-    }
+    if (programId) { conditions.push(`sp.program_id = $${params.length + 1}`); params.push(programId); }
+    if (termId)    { conditions.push(`sp.term_id = $${params.length + 1}`);    params.push(termId); }
     if (search) {
         conditions.push(`(u.name ILIKE $${params.length + 1} OR sp.enrollment_number ILIKE $${params.length + 1} OR u.email ILIKE $${params.length + 1})`);
         params.push(`%${search}%`);
@@ -64,7 +61,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
              LIMIT 500`,
             params
         ),
-        db.query(`SELECT COUNT(*) as count FROM student_profiles sp WHERE ${where}`, params)
+        db.query(`SELECT COUNT(*) as count FROM student_profiles sp LEFT JOIN users u ON sp.user_id = u.id WHERE ${where}`, params)
     ]);
 
     return {
@@ -72,6 +69,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         programs: programsRes.rows,
         terms: termsRes.rows,
         total: parseInt(countRes.rows[0]?.count ?? '0'),
-        filters: { programId, termId, search }
+        universities,
+        filters: { universityId, programId, termId, search }
     };
 };
