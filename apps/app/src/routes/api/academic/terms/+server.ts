@@ -5,6 +5,21 @@ import { json, error } from '@sveltejs/kit';
 export const GET: RequestHandler = async ({ url, locals }: { url: URL, locals: App.Locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
 
+    const universityId = url.searchParams.get('universityId');
+    if (universityId) {
+        // Return all unique term names for a university (for import dropdown)
+        const { db } = await import('@uniconnect/shared');
+        const res = await db.query(
+            `SELECT DISTINCT t.name
+             FROM terms t
+             JOIN programs p ON p.id = t.program_id
+             WHERE p.university_id = $1 AND t.is_active = true
+             ORDER BY t.name ASC`,
+            [universityId]
+        );
+        return json(res.rows.map((r: any) => r.name));
+    }
+
     const programId = url.searchParams.get('programId');
     if (!programId) throw error(400, 'programId is required');
 

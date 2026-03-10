@@ -349,9 +349,21 @@
   // --- Students Excel Import ---
   let showStudentsImportPanel = $state(false);
   let studentsImportTermName = $state('');
+  let studentsImportTermNames = $state<string[]>([]);
   let studentsImportProcessing = $state(false);
   let studentsImportResult = $state<any>(null);
   let studentsImportError = $state('');
+
+  async function openStudentsImportPanel() {
+    showStudentsImportPanel = true;
+    studentsImportResult = null;
+    studentsImportError = '';
+    studentsImportTermName = '';
+    if (selectedUniversityId) {
+      const res = await fetch(`/api/academic/terms?universityId=${selectedUniversityId}`);
+      if (res.ok) studentsImportTermNames = await res.json();
+    }
+  }
 
   async function downloadStudentsTemplate() {
     const XLSX = await import('xlsx');
@@ -373,8 +385,8 @@
   async function runStudentsExcelImport(file: File) {
     studentsImportError = '';
     studentsImportResult = null;
-    if (!studentsImportTermName.trim()) {
-      studentsImportError = 'Please enter the Term Name before uploading.';
+    if (!studentsImportTermName) {
+      studentsImportError = 'Please select a Term before uploading.';
       return;
     }
     studentsImportProcessing = true;
@@ -511,7 +523,7 @@
         </div>
       </div>
       <button
-        onclick={() => { showStudentsImportPanel = true; studentsImportResult = null; studentsImportError = ''; }}
+        onclick={openStudentsImportPanel}
         class="flex items-center gap-2 px-5 py-4 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 shrink-0"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
@@ -773,16 +785,27 @@
             </ul>
           </div>
 
-          <!-- Term Name input -->
+          <!-- Term Name dropdown -->
           <div>
-            <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Term Name <span class="text-rose-500">*</span></label>
-            <input
-              type="text"
-              bind:value={studentsImportTermName}
-              placeholder="e.g. Semester 2 - 2026"
-              class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-            />
-            <p class="text-[10px] text-gray-400 font-medium mt-1.5">Must exactly match the Term Name set in your academic structure</p>
+            <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Select Term <span class="text-rose-500">*</span></label>
+            {#if studentsImportTermNames.length > 0}
+              <div class="relative">
+                <select
+                  bind:value={studentsImportTermName}
+                  class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
+                >
+                  <option value="">— Choose a term —</option>
+                  {#each studentsImportTermNames as tname}
+                    <option value={tname}>{tname}</option>
+                  {/each}
+                </select>
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+              </div>
+            {:else}
+              <p class="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl px-4 py-3">No terms found. Please create Academic Terms first in the structure setup.</p>
+            {/if}
           </div>
 
           <!-- File Upload -->
