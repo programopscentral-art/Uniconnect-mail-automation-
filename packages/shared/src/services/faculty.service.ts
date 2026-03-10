@@ -125,25 +125,33 @@ export class FacultyService {
                 const existingUser = await db.query('SELECT id FROM users WHERE email = $1', [email]);
                 if (existingUser.rows.length > 0) {
                     userId = existingUser.rows[0].id;
+                    // Update phone if provided
+                    if (facultyData.phone) {
+                        await db.query(
+                            `UPDATE users SET phone = $1, updated_at = NOW() WHERE id = $2`,
+                            [String(facultyData.phone).trim(), userId]
+                        );
+                    }
                 } else {
                     const userRes = await db.query(
-                        `INSERT INTO users (email, full_name, role, university_id, status)
-                         VALUES ($1, $2, 'FACULTY', $3, 'ACTIVE')
+                        `INSERT INTO users (email, full_name, role, university_id, phone, status)
+                         VALUES ($1, $2, 'FACULTY', $3, $4, 'ACTIVE')
                          RETURNING id`,
-                        [email, facultyData.name, universityId]
+                        [email, facultyData.name, universityId, facultyData.phone ? String(facultyData.phone).trim() : null]
                     );
                     userId = userRes.rows[0].id;
                 }
 
                 // Create or Update Faculty Profile
-                await db.query(
+                const profileRes = await db.query(
                     `INSERT INTO faculty_profiles (user_id, university_id, employee_code, department, specialization, designation, joining_date, employment_status)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
                      ON CONFLICT (university_id, employee_code) DO UPDATE SET
                         department = EXCLUDED.department,
                         specialization = EXCLUDED.specialization,
                         designation = EXCLUDED.designation,
-                        updated_at = NOW()`,
+                        updated_at = NOW()
+                     RETURNING id`,
                     [
                         userId,
                         universityId,
@@ -154,6 +162,7 @@ export class FacultyService {
                         facultyData.joining_date || new Date().toISOString().split('T')[0]
                     ]
                 );
+                const facultyProfileId = profileRes.rows[0].id;
 
                 // Assign Roles
                 await db.query(
@@ -162,6 +171,25 @@ export class FacultyService {
                      ON CONFLICT DO NOTHING`,
                     [userId, universityId]
                 );
+
+                // Map subjects by code if provided
+                const subjectCodes: string[] = (facultyData.subject_codes || [])
+                    .map((c: string) => c.trim().toUpperCase())
+                    .filter(Boolean);
+                if (subjectCodes.length > 0) {
+                    const subRes = await db.query(
+                        `SELECT id FROM subjects WHERE university_id = $1 AND UPPER(code) = ANY($2) AND is_active = true`,
+                        [universityId, subjectCodes]
+                    );
+                    for (const sub of subRes.rows) {
+                        await db.query(
+                            `INSERT INTO faculty_subject_mappings (faculty_profile_id, subject_id, priority_level, can_substitute)
+                             VALUES ($1, $2, 1, true)
+                             ON CONFLICT DO NOTHING`,
+                            [facultyProfileId, sub.id]
+                        );
+                    }
+                }
 
                 results.success++;
             } catch (e: any) {

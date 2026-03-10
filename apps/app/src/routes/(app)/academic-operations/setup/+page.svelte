@@ -346,6 +346,99 @@
     input.click();
   }
 
+  // --- Students Excel Import ---
+  let showStudentsImportPanel = $state(false);
+  let studentsImportTermName = $state('');
+  let studentsImportProcessing = $state(false);
+  let studentsImportResult = $state<any>(null);
+  let studentsImportError = $state('');
+
+  async function downloadStudentsTemplate() {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    // One sheet per program (use loaded programs, or a sample if none loaded)
+    const progs = programs.length > 0 ? programs : [{ code: 'BTCS', name: 'B.Tech CSE' }, { code: 'BTAI', name: 'B.Tech AI' }];
+    for (const p of progs) {
+      const sheet = XLSX.utils.aoa_to_sheet([
+        ['Student Name', 'NIAT ID', 'Student Personal Mail ID'],
+        ['John Doe', `${p.code}2025001`, 'john.doe@gmail.com'],
+        ['Jane Smith', `${p.code}2025002`, 'jane.smith@gmail.com'],
+      ]);
+      sheet['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 32 }];
+      XLSX.utils.book_append_sheet(wb, sheet, p.code);
+    }
+    XLSX.writeFile(wb, 'uniconnect-students-import.xlsx');
+  }
+
+  async function runStudentsExcelImport(file: File) {
+    studentsImportError = '';
+    studentsImportResult = null;
+    if (!studentsImportTermName.trim()) {
+      studentsImportError = 'Please enter the Term Name before uploading.';
+      return;
+    }
+    studentsImportProcessing = true;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('university_id', selectedUniversityId);
+      fd.append('term_name', studentsImportTermName.trim());
+      const res = await fetch('/api/academic/setup/import-students-excel', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        studentsImportResult = data;
+      } else {
+        studentsImportError = data?.message || 'Import failed.';
+      }
+    } catch {
+      studentsImportError = 'Network error. Please try again.';
+    } finally {
+      studentsImportProcessing = false;
+    }
+  }
+
+  // --- Faculty Excel Import ---
+  let showFacultyImportPanel = $state(false);
+  let facultyImportProcessing = $state(false);
+  let facultyImportResult = $state<any>(null);
+  let facultyImportError = $state('');
+
+  async function downloadFacultyTemplate() {
+    const XLSX = await import('xlsx');
+    const wb = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([
+      ['Faculty List', 'ID', 'faculty Mail id', 'faculty number', 'Subject List'],
+      ['Dr. Ramesh Kumar', 'FAC001', 'ramesh.kumar@college.edu', '9876543210', 'DS, DBMS, WAD'],
+      ['Prof. Anita Sharma', 'FAC002', 'anita.sharma@college.edu', '9123456780', 'MA101, PH101'],
+    ]);
+    sheet['!cols'] = [{ wch: 28 }, { wch: 10 }, { wch: 30 }, { wch: 16 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, sheet, 'Faculty');
+    XLSX.writeFile(wb, 'uniconnect-faculty-import.xlsx');
+  }
+
+  async function runFacultyExcelImport(file: File) {
+    facultyImportError = '';
+    facultyImportResult = null;
+    facultyImportProcessing = true;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('university_id', selectedUniversityId);
+      const res = await fetch('/api/academic/setup/import-faculty-excel', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        facultyImportResult = data;
+        await fetchFaculty();
+      } else {
+        facultyImportError = data?.message || 'Import failed.';
+      }
+    } catch {
+      facultyImportError = 'Network error. Please try again.';
+    } finally {
+      facultyImportProcessing = false;
+    }
+  }
+
   async function importFaculty() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -418,13 +511,27 @@
         </div>
       </div>
       <button
+        onclick={() => { showStudentsImportPanel = true; studentsImportResult = null; studentsImportError = ''; }}
+        class="flex items-center gap-2 px-5 py-4 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-emerald-700 transition-all active:scale-95 shadow-lg shadow-emerald-600/20 shrink-0"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+        Import Students
+      </button>
+      <button
+        onclick={() => { showFacultyImportPanel = true; facultyImportResult = null; facultyImportError = ''; }}
+        class="flex items-center gap-2 px-5 py-4 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-violet-700 transition-all active:scale-95 shadow-lg shadow-violet-600/20 shrink-0"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Import Faculty
+      </button>
+      <button
         onclick={() => { showImportPanel = true; importResult = null; importError = ''; }}
         class="flex items-center gap-2.5 px-6 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 shadow-lg shadow-indigo-600/20 shrink-0"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
         </svg>
-        Bulk Import
+        Academic Setup
       </button>
     </div>
   </div>
@@ -622,6 +729,228 @@
                   <li>Dates must be in <strong>YYYY-MM-DD</strong> format (e.g. 2025-08-01).</li>
                 </ul>
               </div>
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Students Excel Import Panel -->
+  {#if showStudentsImportPanel}
+    <div class="fixed inset-0 z-50 flex" transition:fade>
+      <button class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => showStudentsImportPanel = false} aria-label="Close"></button>
+      <div class="relative ml-auto w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden" transition:fly={{ x: 500, duration: 300 }}>
+        <div class="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 class="text-xl font-black text-gray-900 dark:text-white">Import Students</h2>
+            <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel file — one sheet per branch (sheet name = program code)</p>
+          </div>
+          <button onclick={() => showStudentsImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          <!-- Template Download -->
+          <div class="p-5 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-black text-emerald-900 dark:text-emerald-100">Download Student Template</p>
+              <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">One sheet per program (named by program code)</p>
+            </div>
+            <button onclick={downloadStudentsTemplate} class="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Download Template
+            </button>
+          </div>
+
+          <!-- Format info -->
+          <div class="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl space-y-2">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Excel Format</p>
+            <ul class="text-xs text-gray-500 font-medium space-y-1.5 list-disc list-inside leading-relaxed">
+              <li>Each sheet = one branch. <strong>Sheet name must be the Program Code</strong> (e.g. BTAI, BTCS)</li>
+              <li>Column A: <strong>Student Name</strong> | Column B: <strong>NIAT ID</strong> | Column C: <strong>Student Personal Mail ID</strong></li>
+              <li>Students are assigned to the <strong>first available section</strong> of the selected term</li>
+            </ul>
+          </div>
+
+          <!-- Term Name input -->
+          <div>
+            <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Term Name <span class="text-rose-500">*</span></label>
+            <input
+              type="text"
+              bind:value={studentsImportTermName}
+              placeholder="e.g. Semester 2 - 2026"
+              class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl text-sm font-medium text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+            />
+            <p class="text-[10px] text-gray-400 font-medium mt-1.5">Must exactly match the Term Name set in your academic structure</p>
+          </div>
+
+          <!-- File Upload -->
+          <label class="block cursor-pointer group">
+            <div class="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-3xl p-10 text-center group-hover:border-emerald-400 group-hover:bg-emerald-50/30 dark:group-hover:bg-emerald-500/5 transition-all">
+              <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/30 transition-all">
+                <svg class="w-6 h-6 text-gray-400 group-hover:text-emerald-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/></svg>
+              </div>
+              <p class="text-sm font-black text-gray-700 dark:text-gray-300">Drop your Students Excel file here</p>
+              <p class="text-xs text-gray-400 font-medium mt-1">or click to browse — .xlsx / .xls files</p>
+              {#if studentsImportProcessing}
+                <div class="mt-3 flex items-center justify-center gap-2 text-emerald-600">
+                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <span class="text-xs font-black uppercase tracking-widest">Importing...</span>
+                </div>
+              {/if}
+            </div>
+            <input type="file" accept=".xlsx,.xls" class="sr-only" disabled={studentsImportProcessing} onchange={(e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { runStudentsExcelImport(f); (e.target as HTMLInputElement).value = ''; } }} />
+          </label>
+
+          {#if studentsImportError}
+            <div class="p-5 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl">
+              <p class="text-sm font-black text-rose-700 dark:text-rose-400">Import Failed</p>
+              <p class="text-xs text-rose-600 dark:text-rose-300 font-medium mt-1">{studentsImportError}</p>
+            </div>
+          {/if}
+
+          {#if studentsImportResult}
+            <div class="p-6 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-2xl space-y-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-emerald-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <p class="font-black text-emerald-800 dark:text-emerald-300">{studentsImportResult.summary}</p>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                  <p class="text-lg font-black text-emerald-600">{studentsImportResult.created}</p>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Imported</p>
+                </div>
+                <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                  <p class="text-lg font-black text-gray-500">{studentsImportResult.sheets_processed}</p>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Programs</p>
+                </div>
+                <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                  <p class="text-lg font-black text-rose-500">{studentsImportResult.failed}</p>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Failed</p>
+                </div>
+              </div>
+              {#if studentsImportResult.errors?.length > 0}
+                <div class="space-y-2">
+                  <p class="text-[10px] font-black text-rose-600 uppercase tracking-widest">{studentsImportResult.errors.length} Issue{studentsImportResult.errors.length !== 1 ? 's' : ''}</p>
+                  {#each studentsImportResult.errors as err}
+                    <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-xl">
+                      <p class="text-xs font-bold text-rose-700 dark:text-rose-400">{err.sheet}</p>
+                      <p class="text-[10px] text-rose-500 mt-0.5">{err.reason}</p>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Faculty Excel Import Panel -->
+  {#if showFacultyImportPanel}
+    <div class="fixed inset-0 z-50 flex" transition:fade>
+      <button class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => showFacultyImportPanel = false} aria-label="Close"></button>
+      <div class="relative ml-auto w-full max-w-xl h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col overflow-hidden" transition:fly={{ x: 500, duration: 300 }}>
+        <div class="flex items-center justify-between px-8 py-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+          <div>
+            <h2 class="text-xl font-black text-gray-900 dark:text-white">Import Faculty</h2>
+            <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel file with faculty details and subject assignments</p>
+          </div>
+          <button onclick={() => showFacultyImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          <!-- Template Download -->
+          <div class="p-5 bg-violet-50 dark:bg-violet-500/10 rounded-2xl border border-violet-100 dark:border-violet-500/20 flex items-center justify-between">
+            <div>
+              <p class="text-sm font-black text-violet-900 dark:text-violet-100">Download Faculty Template</p>
+              <p class="text-xs text-violet-600 dark:text-violet-400 font-medium mt-0.5">Single sheet with all required columns</p>
+            </div>
+            <button onclick={downloadFacultyTemplate} class="flex items-center gap-2 px-5 py-2.5 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-violet-700 transition-all shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Download Template
+            </button>
+          </div>
+
+          <!-- Format info -->
+          <div class="p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl space-y-3">
+            <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Required Columns (Row 1 = Headers)</p>
+            {#each [
+              { col: 'Faculty List', note: 'Full name of the faculty member', req: true },
+              { col: 'ID', note: 'Employee ID / Faculty code (e.g. FAC001)', req: true },
+              { col: 'faculty Mail id', note: 'Official email address', req: true },
+              { col: 'faculty number', note: 'Mobile / phone number', req: false },
+              { col: 'Subject List', note: 'Comma-separated subject codes they teach (e.g. DS, DBMS, WAD)', req: false },
+            ] as row}
+              <div class="flex items-start gap-3">
+                <code class="text-[10px] font-black text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-2 py-0.5 rounded-lg shrink-0">{row.col}</code>
+                <div class="flex-1">
+                  <p class="text-xs text-gray-500 font-medium">{row.note}</p>
+                </div>
+                {#if !row.req}<span class="text-[8px] font-black text-gray-300 uppercase shrink-0">optional</span>{/if}
+              </div>
+            {/each}
+            <p class="text-[10px] text-amber-600 dark:text-amber-400 font-bold pt-1">Subject codes must match the codes in your Subjects list. Unrecognized codes are silently skipped.</p>
+          </div>
+
+          <!-- File Upload -->
+          <label class="block cursor-pointer group">
+            <div class="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-3xl p-10 text-center group-hover:border-violet-400 group-hover:bg-violet-50/30 dark:group-hover:bg-violet-500/5 transition-all">
+              <div class="w-12 h-12 mx-auto mb-3 bg-gray-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center group-hover:bg-violet-100 dark:group-hover:bg-violet-900/30 transition-all">
+                <svg class="w-6 h-6 text-gray-400 group-hover:text-violet-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </div>
+              <p class="text-sm font-black text-gray-700 dark:text-gray-300">Drop your Faculty Excel file here</p>
+              <p class="text-xs text-gray-400 font-medium mt-1">or click to browse — .xlsx / .xls files</p>
+              {#if facultyImportProcessing}
+                <div class="mt-3 flex items-center justify-center gap-2 text-violet-600">
+                  <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  <span class="text-xs font-black uppercase tracking-widest">Importing...</span>
+                </div>
+              {/if}
+            </div>
+            <input type="file" accept=".xlsx,.xls" class="sr-only" disabled={facultyImportProcessing} onchange={(e) => { const f = (e.target as HTMLInputElement).files?.[0]; if (f) { runFacultyExcelImport(f); (e.target as HTMLInputElement).value = ''; } }} />
+          </label>
+
+          {#if facultyImportError}
+            <div class="p-5 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl">
+              <p class="text-sm font-black text-rose-700 dark:text-rose-400">Import Failed</p>
+              <p class="text-xs text-rose-600 dark:text-rose-300 font-medium mt-1">{facultyImportError}</p>
+            </div>
+          {/if}
+
+          {#if facultyImportResult}
+            <div class="p-6 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/20 rounded-2xl space-y-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-violet-500 rounded-xl flex items-center justify-center">
+                  <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <p class="font-black text-violet-800 dark:text-violet-300">{facultyImportResult.summary}</p>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                  <p class="text-lg font-black text-violet-600">{facultyImportResult.created}</p>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Imported</p>
+                </div>
+                <div class="p-3 bg-white dark:bg-slate-800 rounded-xl text-center">
+                  <p class="text-lg font-black text-rose-500">{facultyImportResult.failed}</p>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Failed</p>
+                </div>
+              </div>
+              {#if facultyImportResult.errors?.length > 0}
+                <div class="space-y-2">
+                  <p class="text-[10px] font-black text-rose-600 uppercase tracking-widest">{facultyImportResult.errors.length} Error{facultyImportResult.errors.length !== 1 ? 's' : ''}</p>
+                  {#each facultyImportResult.errors as err}
+                    <div class="p-3 bg-rose-50 dark:bg-rose-500/10 rounded-xl">
+                      <p class="text-[10px] text-rose-500">{err}</p>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
