@@ -59,7 +59,10 @@ import NRITemplate from "./NRITemplate.svelte";
           (paperMeta?.univ_line_1?.toLowerCase().includes("chaitanya") ||
           paperMeta?.university_name?.toLowerCase().includes("chaitanya")
             ? "cdu"
-            : "standard"), // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla'
+            : paperMeta?.univ_line_1?.toLowerCase().includes("nri") ||
+                paperMeta?.university_name?.toLowerCase().includes("nri")
+              ? "nri"
+              : "standard"), // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla' | 'nri'
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'

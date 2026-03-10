@@ -216,26 +216,28 @@
       
       <!-- NRI HEADER TABLE -->
       <table class="w-full mb-2">
-        <tr>
-          <td class="w-[20%] align-top">
-            <img src="https://scontent.fhyd1-2.fna.fbcdn.net/v/t39.30808-6/294579151_444430584362976_5584277717608290735_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=D8xw9_T7KeIQ7kNvwFArnz4&_nc_oc=Adm1ucHqKtMN3-4w4uv7rpCfQHspvdzPo0BOVM40oQMtiiPzgdMGiifJ1CfCYqbn_wE&_nc_zt=23&_nc_ht=scontent.fhyd1-2.fna&_nc_gid=vK8MQa6t4WUz7gXY44nYEg&_nc_ss=8&oh=00_AfzajnHC_Qs5kbYlBlIGRHknPWeSf4rZM2GitOlpfHgySg&oe=69B58A53" alt="NRI Logo" class="h-20 w-auto object-contain" />
-          </td>
-          <td class="w-[60%] text-center">
-            <h1 class="text-[#E31E24] text-[18pt] font-black leading-none mb-1">NRI INSTITUTE OF TECHNOLOGY</h1>
-            <p class="text-[10pt] font-bold mb-1">(AUTONOMOUS)</p>
-            <p class="text-[7pt] leading-tight">Approved by AICTE, New Delhi: Permanently Affiliated to JNTUK, Kakinada</p>
-            <p class="text-[7pt] leading-tight">Accredited by NAAC with "A" GRADE, Accredited by NBA (CSE, ECE&EEE)</p>
-            <p class="text-[7pt] leading-tight">An ISO 9001:2015 Certified Institution</p>
-            <p class="text-[7pt] leading-tight font-medium">Pothavarappadu (V), Agiripalli (M), Eluru District, A.P., India, Pin: 521 212</p>
-            <p class="text-[7pt] leading-tight font-bold">URL: www.nriit.edu.in, email: principal@nriit.edu.in, Mobile: + 91 8333882444</p>
-          </td>
-          <td class="w-[20%] text-right align-top">
-             <div class="flex flex-col items-end gap-1">
-                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTu4mLjm6VyLAjwI3gB6xo_CMGQnsMZl9IzRw&s" alt="NAAC A+" class="h-10 w-auto object-contain" />
-                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgytWBPQsAV8x95nCwxVXkuw7yG5oSGD1UiqWT-yFtjgd-9aETkBJCszqCFSZZjBG53lPGvsi7p81XB-_et86IocKvyvq9CtHPi68FlQp9PepDghbJZFiHjoXjfZerAgG2-ndZGLvhM4PiR/w1200-h630-p-k-no-nu/1200px-National_Board_of_Accreditation.svg.png" alt="NBA" class="h-10 w-auto object-contain" />
-             </div>
-          </td>
-        </tr>
+        <tbody>
+          <tr>
+            <td class="w-[20%] align-top">
+              <img src="https://scontent.fhyd1-2.fna.fbcdn.net/v/t39.30808-6/294579151_444430584362976_5584277717608290735_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=D8xw9_T7KeIQ7kNvwFArnz4&_nc_oc=Adm1ucHqKtMN3-4w4uv7rpCfQHspvdzPo0BOVM40oQMtiiPzgdMGiifJ1CfCYqbn_wE&_nc_zt=23&_nc_ht=scontent.fhyd1-2.fna&_nc_gid=vK8MQa6t4WUz7gXY44nYEg&_nc_ss=8&oh=00_AfzajnHC_Qs5kbYlBlIGRHknPWeSf4rZM2GitOlpfHgySg&oe=69B58A53" alt="NRI Logo" class="h-20 w-auto object-contain" />
+            </td>
+            <td class="w-[60%] text-center">
+              <h1 class="text-[#E31E24] text-[18pt] font-black leading-none mb-1">NRI INSTITUTE OF TECHNOLOGY</h1>
+              <p class="text-[10pt] font-bold mb-1">(AUTONOMOUS)</p>
+              <p class="text-[7pt] leading-tight">Approved by AICTE, New Delhi: Permanently Affiliated to JNTUK, Kakinada</p>
+              <p class="text-[7pt] leading-tight">Accredited by NAAC with "A" GRADE, Accredited by NBA (CSE, ECE&EEE)</p>
+              <p class="text-[7pt] leading-tight">An ISO 9001:2015 Certified Institution</p>
+              <p class="text-[7pt] leading-tight font-medium">Pothavarappadu (V), Agiripalli (M), Eluru District, A.P., India, Pin: 521 212</p>
+              <p class="text-[7pt] leading-tight font-bold">URL: www.nriit.edu.in, email: principal@nriit.edu.in, Mobile: + 91 8333882444</p>
+            </td>
+            <td class="w-[20%] text-right align-top">
+               <div class="flex flex-col items-end gap-1">
+                  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTu4mLjm6VyLAjwI3gB6xo_CMGQnsMZl9IzRw&s" alt="NAAC A+" class="h-10 w-auto object-contain" />
+                  <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgytWBPQsAV8x95nCwxVXkuw7yG5oSGD1UiqWT-yFtjgd-9aETkBJCszqCFSZZjBG53lPGvsi7p81XB-_et86IocKvyvq9CtHPi68FlQp9PepDghbJZFiHjoXjfZerAgG2-ndZGLvhM4PiR/w1200-h630-p-k-no-nu/1200px-National_Board_of_Accreditation.svg.png" alt="NBA" class="h-10 w-auto object-contain" />
+               </div>
+            </td>
+          </tr>
+        </tbody>
       </table>
 
       <div class="border-b-2 border-black w-full mb-4"></div>
@@ -244,54 +246,55 @@
       <div class="flex justify-between items-center mb-4">
         <div class="font-black text-[12pt]">SET {activeSet}</div>
         <div class="flex-1 text-center">
-          <h2 class="font-bold text-[11pt] uppercase">
+          <h2 class="font-bold text-[13pt] uppercase">
              <AssessmentEditable value={paperMeta.exam_title || "II MID- TERM EXAMINATIONS"} onUpdate={(v) => updateText(v, "META", "exam_title")} />
           </h2>
         </div>
-        <div class="text-[9pt] font-black flex gap-1">
-           <span>ACADEMIC YEAR:</span>
+        <div class="text-[9pt] font-black flex gap-1 items-center">
+           <span class="whitespace-nowrap">ACADEMIC YEAR:</span>
            <AssessmentEditable value={paperMeta.academic_year || "2025-26"} onUpdate={(v) => updateText(v, "META", "academic_year")} />
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-y-1 text-[10pt] mb-4">
-        <div class="flex gap-1">
-          <span class="font-black">CLASS:</span>
-          <AssessmentEditable value={paperMeta.programme || "I B.Tech. I Semester (NRIA25)"} onUpdate={(v) => updateText(v, "META", "programme")} class="flex-1" />
+      <div class="grid grid-cols-2 gap-y-2 text-[10pt] mb-4">
+        <div class="flex gap-1 overflow-hidden">
+          <span class="font-black whitespace-nowrap">CLASS:</span>
+          <AssessmentEditable value={paperMeta.class_name || paperMeta.programme || "I B.Tech. I Semester (NRIA25)"} onUpdate={(v) => updateText(v, "META", "class_name")} class="flex-1 overflow-hidden" />
         </div>
         <div class="flex gap-1 justify-end">
           <span class="font-black">DATE:</span>
           <AssessmentEditable value={paperMeta.paper_date || "19-12-2025"} onUpdate={(v) => updateText(v, "META", "paper_date")} />
         </div>
         
-        <div class="col-span-2 text-center font-black underline mb-1">
+        <div class="col-span-2 text-center font-black underline mb-1 uppercase text-[11pt]">
            <AssessmentEditable value={paperMeta.exam_type || "SUBJECTIVE -II"} onUpdate={(v) => updateText(v, "META", "exam_type")} />
         </div>
 
-        <div class="flex gap-1">
-          <span class="font-black">BRANCH:</span>
-          <AssessmentEditable value={paperMeta.branch || "CSE,AIML,IT,CSD"} onUpdate={(v) => updateText(v, "META", "branch")} class="flex-1" />
+        <div class="flex gap-1 overflow-hidden">
+          <span class="font-black whitespace-nowrap">BRANCH:</span>
+          <AssessmentEditable value={paperMeta.branch || "CSE,AIML,IT,CSD"} onUpdate={(v) => updateText(v, "META", "branch")} class="flex-1 overflow-hidden" />
         </div>
         <div class="flex gap-1 justify-end">
-          <span class="font-black">Max. Time:</span>
+          <span class="font-black whitespace-nowrap">Max. Time:</span>
           <AssessmentEditable value={paperMeta.duration_label || "1 ½ Hour"} onUpdate={(v) => updateText(v, "META", "duration_label")} />
         </div>
 
-        <div class="flex gap-1">
-          <span class="font-black">SUBJECT:</span>
-          <AssessmentEditable value={paperMeta.subject_name || "Communicative English Foundation (25A1100101)"} onUpdate={(v) => updateText(v, "META", "subject_name")} class="flex-1" />
+        <div class="flex gap-1 overflow-hidden">
+          <span class="font-black whitespace-nowrap">SUBJECT:</span>
+          <AssessmentEditable value={paperMeta.subject_name || "Communicative English Foundation (25A1100101)"} onUpdate={(v) => updateText(v, "META", "subject_name")} class="flex-1 overflow-hidden" />
         </div>
         <div class="flex gap-1 justify-end">
-          <span class="font-black">Max. Marks:</span>
+          <span class="font-black whitespace-nowrap">Max. Marks:</span>
           <AssessmentEditable value={paperMeta.max_marks || "30 Marks"} onUpdate={(v) => updateText(v, "META", "max_marks")} />
         </div>
       </div>
 
-      <div class="border-b-2 border-black w-full mb-2"></div>
+      <div class="border-b-[1.5pt] border-black w-full mb-1"></div>
+      <div class="border-b-[0.5pt] border-black w-full mb-3"></div>
 
       <!-- NOTE SECTION -->
-      <div class="text-[8pt] mb-4 leading-normal">
-        <p class="font-black">Note: This question paper contains two parts A and B.</p>
+      <div class="text-[8.5pt] mb-6 leading-tight font-serif italic text-justify px-1">
+        <p class="font-black mb-1 not-italic underline">Note: This question paper contains two parts A and B.</p>
         <p>Part A consists of 3 Questions. Each question carries 2 marks. Answer All Questions. Part B consists of 3 Units. Answer any one full question from each unit. Each question carries 8 marks.</p>
       </div>
 
@@ -301,20 +304,20 @@
         {@const totalPartMarks = calcTotal(section.part)}
         
         {#if sectionQuestions.length > 0 || mode === "preview"}
-          <div class="mb-4">
-            <div class="text-center font-black text-[10pt] uppercase flex justify-center items-center gap-4 mb-2">
+          <div class="mb-8">
+            <div class="text-center font-black text-[11pt] uppercase flex justify-center items-center gap-10 mb-3 underline">
               <AssessmentEditable value={section.title || `PART ${section.part}`} onUpdate={(v) => { section.title = v; paperStructure = [...paperStructure]; }} />
               <span>({sectionQuestions.length}X{section.marks_per_q}M={totalPartMarks}M)</span>
             </div>
 
-            <table class="w-full border-collapse border border-black text-[9pt]">
+            <table class="w-full border-collapse border-[1.5pt] border-black text-[10pt]">
               <thead>
-                <tr class="font-black">
-                  <td class="border border-black p-1 text-center w-[50px]">Q.NO</td>
-                  <td class="border border-black p-1 text-center">Question</td>
-                  <td class="border border-black p-1 text-center w-[50px]">Marks</td>
-                  <td class="border border-black p-1 text-center w-[40px]">BTL</td>
-                  <td class="border border-black p-1 text-center w-[40px]">CO</td>
+                <tr class="font-black text-center h-10">
+                  <td class="border border-black p-1 w-[60px]">Q.NO</td>
+                  <td class="border border-black p-1 px-4">Question</td>
+                  <td class="border border-black p-1 w-[60px]">Marks</td>
+                  <td class="border border-black p-1 w-[50px]">BTL</td>
+                  <td class="border border-black p-1 w-[50px]">CO</td>
                 </tr>
               </thead>
               <tbody 
@@ -330,62 +333,62 @@
                   
                   {#if slot.type === "OR_GROUP"}
                     <!-- CHOICE 1 -->
-                    <tr class="group/row">
-                      <td class="border border-black p-2 text-center align-top font-bold">{qNumber}</td>
-                      <td class="border border-black p-2 align-top relative">
+                    <tr class="group/row min-h-[40px]">
+                      <td class="border border-black p-2 text-center align-top font-black text-[11pt]">{qNumber}</td>
+                      <td class="border border-black p-3 align-top relative text-justify leading-relaxed">
                         <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                         {#if slot.choice1?.questions?.[0]}
                            <AssessmentEditable value={slot.choice1.questions[0].text || slot.choice1.questions[0].question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, slot.choice1.questions[0].id)} multiline={true} />
                         {/if}
                       </td>
-                      <td class="border border-black p-2 text-center align-top font-bold">
+                      <td class="border border-black p-2 text-center align-top font-black tabular-nums">
                         <AssessmentEditable value={String(slot.choice1?.questions?.[0]?.marks || section.marks_per_q)} onUpdate={(v) => { if (slot.choice1?.questions?.[0]) slot.choice1.questions[0].marks = Number(v); }} />
                       </td>
-                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                        <AssessmentEditable value={slot.choice1?.questions?.[0]?.rbtl || "K2"} onUpdate={(v) => { if (slot.choice1?.questions?.[0]) slot.choice1.questions[0].rbtl = v; }} />
+                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                        <AssessmentEditable value={slot.choice1?.questions?.[0]?.rbtl || "2"} onUpdate={(v) => { if (slot.choice1?.questions?.[0]) slot.choice1.questions[0].rbtl = v; }} />
                       </td>
-                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                        <AssessmentEditable value={slot.choice1?.questions?.[0]?.co || "CO1"} onUpdate={(v) => { if (slot.choice1?.questions?.[0]) slot.choice1.questions[0].co = v; }} />
+                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                        <AssessmentEditable value={slot.choice1?.questions?.[0]?.co || "2"} onUpdate={(v) => { if (slot.choice1?.questions?.[0]) slot.choice1.questions[0].co = v; }} />
                       </td>
                     </tr>
                     
                     <!-- OR ROW -->
                     <tr>
-                      <td class="border border-black p-1 text-center font-bold text-[8pt]" colspan="5">OR</td>
+                      <td class="border border-black p-1 text-center font-black text-[10pt] uppercase tracking-widest italic bg-gray-50/10" colspan="5">OR</td>
                     </tr>
 
                     <!-- CHOICE 2 -->
-                    <tr class="group/row">
-                      <td class="border border-black p-2 text-center align-top font-bold">{qNumber + 1}</td>
-                      <td class="border border-black p-2 align-top relative">
+                    <tr class="group/row min-h-[40px]">
+                      <td class="border border-black p-2 text-center align-top font-black text-[11pt]">{qNumber + 1}</td>
+                      <td class="border border-black p-3 align-top relative text-justify leading-relaxed">
                         <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q2")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                         {#if slot.choice2?.questions?.[0]}
                            <AssessmentEditable value={slot.choice2.questions[0].text || slot.choice2.questions[0].question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, slot.choice2.questions[0].id)} multiline={true} />
                         {/if}
                       </td>
-                      <td class="border border-black p-2 text-center align-top font-bold">
+                      <td class="border border-black p-2 text-center align-top font-black tabular-nums">
                         <AssessmentEditable value={String(slot.choice2?.questions?.[0]?.marks || section.marks_per_q)} onUpdate={(v) => { if (slot.choice2?.questions?.[0]) slot.choice2.questions[0].marks = Number(v); }} />
                       </td>
-                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                        <AssessmentEditable value={slot.choice2?.questions?.[0]?.rbtl || "K3"} onUpdate={(v) => { if (slot.choice2?.questions?.[0]) slot.choice2.questions[0].rbtl = v; }} />
+                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                        <AssessmentEditable value={slot.choice2?.questions?.[0]?.rbtl || "3"} onUpdate={(v) => { if (slot.choice2?.questions?.[0]) slot.choice2.questions[0].rbtl = v; }} />
                       </td>
-                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                        <AssessmentEditable value={slot.choice2?.questions?.[0]?.co || "CO2"} onUpdate={(v) => { if (slot.choice2?.questions?.[0]) slot.choice2.questions[0].co = v; }} />
+                      <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                        <AssessmentEditable value={slot.choice2?.questions?.[0]?.co || "2"} onUpdate={(v) => { if (slot.choice2?.questions?.[0]) slot.choice2.questions[0].co = v; }} />
                       </td>
                     </tr>
                   {:else}
                     {@const questions = slot.questions || [slot]}
                     {#each questions as q, qIdx}
-                      <tr class="group/row">
-                        <td class="border border-black p-2 text-center align-top font-bold">
+                      <tr class="group/row min-h-[60px]">
+                        <td class="border border-black p-2 text-center align-top font-black text-[11pt]">
                           {qNumber}{questions.length > 1 ? ` ${alphabet[qIdx]})` : ""}
                         </td>
-                        <td class="border border-black p-2 align-top relative">
+                        <td class="border border-black p-3 align-top relative text-justify leading-relaxed">
                           <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                           <AssessmentEditable value={q.text || q.question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
                           
                           {#if q.options?.length > 0}
-                            <div class="mt-2 pl-4">
+                            <div class="mt-3 pl-4 space-y-1">
                                {#each q.options as opt, oIdx}
                                  <div>({alphabet[oIdx]}) {opt}</div>
                                {/each}
@@ -393,19 +396,19 @@
                           {/if}
 
                           {#if q.image_url}
-                            <div class="mt-2">
-                               <img src={q.image_url} alt="Question" class="max-h-[200px] object-contain" />
+                            <div class="mt-4">
+                               <img src={q.image_url} alt="Question" class="max-h-[300px] object-contain border border-black/5 rounded shadow-sm" />
                             </div>
                           {/if}
                         </td>
-                        <td class="border border-black p-2 text-center align-top font-bold tabular-nums">
+                        <td class="border border-black p-2 text-center align-top font-black tabular-nums">
                           <AssessmentEditable value={String(q.marks || section.marks_per_q)} onUpdate={(v) => { q.marks = Number(v); currentSetData = { ...currentSetData }; }} />
                         </td>
-                        <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                          <AssessmentEditable value={q.rbtl || "K1"} onUpdate={(v) => { q.rbtl = v; currentSetData = { ...currentSetData }; }} />
+                        <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                          <AssessmentEditable value={q.rbtl || "2"} onUpdate={(v) => { q.rbtl = v; currentSetData = { ...currentSetData }; }} />
                         </td>
-                        <td class="border border-black p-2 text-center align-top tabular-nums uppercase">
-                          <AssessmentEditable value={q.co || "CO1"} onUpdate={(v) => { q.co = v; currentSetData = { ...currentSetData }; }} />
+                        <td class="border border-black p-2 text-center align-top tabular-nums uppercase font-black">
+                          <AssessmentEditable value={q.co || "2"} onUpdate={(v) => { q.co = v; currentSetData = { ...currentSetData }; }} />
                         </td>
                       </tr>
                     {/each}
@@ -418,7 +421,7 @@
       {/each}
 
       <!-- FOOTER SIGNATURES -->
-      <div class="mt-16 grid grid-cols-3 text-center text-[10pt] font-black">
+      <div class="mt-24 grid grid-cols-3 text-center text-[10pt] font-black pb-10">
          <div>Signature of the Faculty</div>
          <div>Exam Cell Co-ordinator</div>
          <div>Signature of HOD</div>
@@ -443,7 +446,7 @@
   }
   #nri-paper-actual {
     font-family: "Times New Roman", Times, serif;
-    line-height: 1.2;
+    line-height: normal;
   }
   #nri-paper-actual * {
     color: black !important;
@@ -457,9 +460,10 @@
   :global(.assessment-editable-container) {
     display: inline-block;
     min-width: 10px;
+    font-weight: inherit;
   }
   @media print {
     .bg-gray-100 { background: white !important; }
-    #nri-paper-actual { box-shadow: none !important; }
+    #nri-paper-actual { box-shadow: none !important; padding: 0.5in !important; }
   }
 </style>
