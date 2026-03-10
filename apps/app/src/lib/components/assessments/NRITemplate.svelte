@@ -249,14 +249,14 @@
 
         <!-- SECOND ROW: EXAM TITLE & ACADEMIC YEAR -->
         <div class="flex justify-between items-end mb-1">
-          <div class="w-[180px]"></div> 
+          <div class="w-[220px]"></div> 
           <div class="flex-1 text-center">
             <h2 class="font-bold text-[13pt] uppercase leading-none">
                <AssessmentEditable value={paperMeta.exam_title || "II MID- TERM EXAMINATIONS"} onUpdate={(v) => updateText(v, "META", "exam_title")} />
             </h2>
           </div>
-          <div class="w-[180px] text-[10pt] font-bold text-right whitespace-nowrap">
-             ACADEMIC YEAR:
+          <div class="w-[220px] text-[10pt] font-bold flex justify-end items-center gap-1 whitespace-nowrap">
+             <span>ACADEMIC YEAR:</span>
              <AssessmentEditable value={paperMeta.academic_year || "2025-26"} onUpdate={(v) => updateText(v, "META", "academic_year")} />
           </div>
         </div>
@@ -267,19 +267,19 @@
             <span class="whitespace-nowrap">CLASS:</span>
             <AssessmentEditable value={paperMeta.class_name || paperMeta.programme || "I B.Tech. I Semester (NRIA25)"} onUpdate={(v) => updateText(v, "META", "class_name")} class="flex-1" />
           </div>
-          <div class="w-[180px] text-right whitespace-nowrap">
-            DATE:
+          <div class="w-[220px] text-[10pt] font-bold flex justify-end items-center gap-1 whitespace-nowrap">
+            <span>DATE:</span>
             <AssessmentEditable value={paperMeta.paper_date || "19-12-2025"} onUpdate={(v) => updateText(v, "META", "paper_date")} />
           </div>
         </div>
 
         <!-- FOURTH ROW: SUBJECTIVE -II -->
         <div class="flex justify-between items-end mb-3">
-          <div class="w-[180px]"></div>
+          <div class="w-[220px]"></div>
           <div class="flex-1 text-center font-bold underline uppercase text-[12pt]">
              <AssessmentEditable value={paperMeta.exam_type || "SUBJECTIVE -II"} onUpdate={(v) => updateText(v, "META", "exam_type")} />
           </div>
-          <div class="w-[180px]"></div>
+          <div class="w-[220px]"></div>
         </div>
 
         <!-- FIFTH ROW: BRANCH & TIME -->
@@ -288,8 +288,8 @@
             <span class="whitespace-nowrap">BRANCH:</span>
             <AssessmentEditable value={paperMeta.branch || "CSE,AIML,IT,CSD"} onUpdate={(v) => updateText(v, "META", "branch")} class="flex-1" />
           </div>
-          <div class="w-[180px] text-right whitespace-nowrap">
-            Max. Time:
+          <div class="w-[220px] text-[10pt] font-bold flex justify-end items-center gap-1 whitespace-nowrap">
+            <span>Max. Time:</span>
             <AssessmentEditable value={paperMeta.duration_label || "1 ½ Hour"} onUpdate={(v) => updateText(v, "META", "duration_label")} />
           </div>
         </div>
@@ -300,8 +300,8 @@
             <span class="whitespace-nowrap">SUBJECT:</span>
             <AssessmentEditable value={paperMeta.subject_name || "Communicative English Foundation (25A1100101)"} onUpdate={(v) => updateText(v, "META", "subject_name")} class="flex-1" />
           </div>
-          <div class="w-[180px] text-right whitespace-nowrap">
-            Max. Marks:
+          <div class="w-[220px] text-[10pt] font-bold flex justify-end items-center gap-1 whitespace-nowrap">
+            <span>Max. Marks:</span>
             <AssessmentEditable value={paperMeta.max_marks || "30 Marks"} onUpdate={(v) => updateText(v, "META", "max_marks")} />
           </div>
         </div>
