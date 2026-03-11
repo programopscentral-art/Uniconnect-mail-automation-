@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx';
-
 export interface ParsedSession {
     sheetName: string;
     sessionDate: string;       // YYYY-MM-DD
@@ -35,7 +33,8 @@ export interface TimetableParseResult {
  * - Within each sheet: date headers (e.g. "Jan 5"), then section rows with time-slot columns
  * - Each cell: subject code + optional (P), topics, faculty name
  */
-export function parseTimetableExcel(buffer: Buffer, year?: number): TimetableParseResult {
+export async function parseTimetableExcel(buffer: Buffer, year?: number): Promise<TimetableParseResult> {
+    const XLSX = await import('xlsx');
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const result: TimetableParseResult = {
         sheets: [],

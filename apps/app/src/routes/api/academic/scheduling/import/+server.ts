@@ -20,7 +20,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     try {
         const buffer = Buffer.from(await file.arrayBuffer());
-        const parseResult = parseTimetableExcel(buffer, year ? parseInt(year) : undefined);
+        const parseResult = await parseTimetableExcel(buffer, year ? parseInt(year) : undefined);
 
         if (parseResult.sessions.length === 0) {
             return json({
