@@ -2,6 +2,20 @@ import { db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+async function ensureTable() {
+    await db.query(`
+        CREATE TABLE IF NOT EXISTS faculty_known_subjects (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            faculty_profile_id UUID NOT NULL REFERENCES faculty_profiles(id) ON DELETE CASCADE,
+            subject_name TEXT NOT NULL,
+            proficiency_level TEXT DEFAULT 'PROFICIENT' CHECK (proficiency_level IN ('BASIC', 'PROFICIENT', 'EXPERT')),
+            notes TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(faculty_profile_id, subject_name)
+        )
+    `);
+}
+
 // GET /api/academic/faculty/known-subjects?facultyProfileId=X
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
@@ -10,6 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (!facultyProfileId) throw error(400, 'facultyProfileId is required');
 
     try {
+        await ensureTable();
         const result = await db.query(
             `SELECT id, subject_name, proficiency_level, notes, created_at
              FROM faculty_known_subjects
@@ -34,6 +49,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     try {
+        await ensureTable();
         const res = await db.query(
             `INSERT INTO faculty_known_subjects (faculty_profile_id, subject_name, proficiency_level, notes)
              VALUES ($1, $2, $3, $4)

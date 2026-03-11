@@ -104,6 +104,7 @@
   async function addKnownSubject() {
     if (!newKnownSubject.trim() || !selectedFaculty) return;
     addingKnown = true;
+    savingMsg = '';
     try {
       const res = await fetch('/api/academic/faculty/known-subjects', {
         method: 'POST',
@@ -115,11 +116,22 @@
         })
       });
       if (res.ok) {
-        newKnownSubject = '';
-        newKnownLevel = 'PROFICIENT';
-        loadKnownSubjects(selectedFaculty.id);
+        const data = await res.json();
+        if (data.success === false) {
+          savingMsg = data.message || 'Failed to add';
+        } else {
+          newKnownSubject = '';
+          newKnownLevel = 'PROFICIENT';
+          savingMsg = 'Added!';
+          loadKnownSubjects(selectedFaculty.id);
+        }
+      } else {
+        const err = await res.json().catch(() => ({}));
+        savingMsg = err.message || 'Failed to add known subject';
       }
-    } finally { addingKnown = false; }
+      setTimeout(() => savingMsg = '', 3000);
+    } catch { savingMsg = 'Network error'; setTimeout(() => savingMsg = '', 3000); }
+    finally { addingKnown = false; }
   }
 
   async function removeKnownSubject(id: string) {
@@ -377,15 +389,26 @@
             </div>
           </div>
 
-          <!-- Subject tags -->
+          <!-- Subject tags — grouped by name -->
+          {@const uniqueSubs = (() => {
+            const map = new Map();
+            for (const sub of (f.subjects || [])) {
+              const key = sub.subject_name?.toLowerCase() || sub.subject_id;
+              if (!map.has(key)) map.set(key, { code: sub.subject_code, name: sub.subject_name, branches: [] });
+              if (sub.program_name) map.get(key).branches.push(sub.program_name);
+            }
+            return Array.from(map.values());
+          })()}
           <div class="flex flex-wrap gap-1 mb-3 min-h-[24px]">
-            {#each (f.subjects || []).slice(0, 3) as sub}
-              <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded">{sub.subject_code || sub.subject_name?.slice(0, 8)}</span>
+            {#each uniqueSubs.slice(0, 3) as sub}
+              <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded">
+                {sub.code || sub.name?.slice(0, 8)}{#if sub.branches.length > 1} <span class="text-indigo-400">({sub.branches.length})</span>{/if}
+              </span>
             {/each}
-            {#if (f.subjects || []).length > 3}
-              <span class="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-500 rounded">+{(f.subjects || []).length - 3}</span>
+            {#if uniqueSubs.length > 3}
+              <span class="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-500 rounded">+{uniqueSubs.length - 3}</span>
             {/if}
-            {#if (f.subjects || []).length === 0}
+            {#if uniqueSubs.length === 0}
               <span class="text-[9px] font-bold text-gray-400 italic">No subjects</span>
             {/if}
           </div>
@@ -398,7 +421,7 @@
             </div>
             <div class="text-right shrink-0">
               <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Subjects</p>
-              <p class="text-sm font-black text-indigo-600 mt-0.5">{(f.subjects || []).length}</p>
+              <p class="text-sm font-black text-indigo-600 mt-0.5">{uniqueSubs.length}</p>
             </div>
           </div>
         </button>
