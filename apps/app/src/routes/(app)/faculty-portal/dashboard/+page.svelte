@@ -8,6 +8,11 @@
   let activeView = $state<'today' | 'pending'>('today');
   let markingId = $state<string | null>(null);
 
+  // Faculty profile + subjects
+  let profile = $state<any>(null);
+  let mySubjects = $state<any[]>([]);
+  let profileLoading = $state(true);
+
   // Leave request
   let showLeavePanel = $state(false);
   let leaveHistory = $state<any[]>([]);
@@ -41,6 +46,20 @@
     return 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400';
   }
 
+  // Group subjects by name, showing which branches/sections each subject is assigned to
+  const subjectGroups = $derived(() => {
+    const map = new Map<string, { name: string; code: string; branches: { program_name: string; section_name: string; term_name: string }[] }>();
+    for (const s of mySubjects) {
+      const key = s.subject_name?.toLowerCase() || s.subject_id;
+      if (!map.has(key)) map.set(key, { name: s.subject_name, code: s.subject_code, branches: [] });
+      const existing = map.get(key)!;
+      if (!existing.branches.some(b => b.program_name === s.program_name && b.section_name === s.section_name)) {
+        existing.branches.push({ program_name: s.program_name || '', section_name: s.section_name || '', term_name: s.term_name || '' });
+      }
+    }
+    return Array.from(map.values());
+  });
+
   const conducted = $derived(schedules.filter(s => s.status === 'COMPLETED').length);
   const remaining = $derived(schedules.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED').length);
   const todayStr  = new Date().toISOString().split('T')[0];
@@ -56,6 +75,18 @@
       fetchError = e.message ?? 'Could not load schedule';
       schedules = [];
     } finally { loading = false; }
+  }
+
+  async function fetchProfile() {
+    profileLoading = true;
+    try {
+      const res = await fetch('/api/academic/faculty/me');
+      if (res.ok) {
+        const data = await res.json();
+        profile = data.profile;
+        mySubjects = data.subjects || [];
+      }
+    } catch { } finally { profileLoading = false; }
   }
 
   async function fetchLeaveHistory() {
@@ -111,7 +142,10 @@
     fetchLeaveHistory();
   }
 
-  onMount(fetchMySchedule);
+  onMount(() => {
+    fetchMySchedule();
+    fetchProfile();
+  });
 </script>
 
 <div class="space-y-8" in:fade>
@@ -210,8 +244,17 @@
             </div>
             <a href="/faculty-portal/marks" class="px-4 py-2 bg-orange-50 dark:bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all">Enter Marks</a>
           </div>
-          <div class="p-12 bg-white dark:bg-slate-900 border border-dashed border-gray-200 dark:border-slate-700 rounded-[2.5rem] flex flex-col items-center text-center opacity-50">
-            <p class="text-xs font-black text-gray-500 uppercase tracking-widest">More action items will appear here</p>
+          <div class="p-6 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-500/20 rounded-[2.5rem] shadow-sm flex items-center justify-between hover:shadow-md transition-all">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
+                <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse"></span>
+              </div>
+              <div>
+                <p class="text-sm font-black text-gray-900 dark:text-white">Daily Teaching Report</p>
+                <p class="text-[10px] text-gray-400 font-medium mt-0.5">Submit today's teaching report and track syllabus coverage</p>
+              </div>
+            </div>
+            <a href="/faculty-portal/teaching-report" class="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 hover:text-white transition-all">Submit Report</a>
           </div>
         </div>
       {/if}
@@ -239,6 +282,36 @@
         </div>
       </div>
 
+      <!-- My Subjects & Branches -->
+      <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">My Subjects & Branches</p>
+        {#if profileLoading}
+          <div class="flex justify-center py-6">
+            <div class="w-6 h-6 border-3 border-indigo-600 border-t-transparent animate-spin rounded-full"></div>
+          </div>
+        {:else if subjectGroups().length === 0}
+          <p class="text-xs text-gray-400 text-center py-4">No subjects assigned yet</p>
+        {:else}
+          <div class="space-y-3">
+            {#each subjectGroups() as group}
+              <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-2xl">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-[8px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-lg">{group.code}</span>
+                  <span class="text-xs font-black text-gray-900 dark:text-white truncate">{group.name}</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  {#each group.branches as branch}
+                    <span class="px-2 py-0.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-[9px] font-bold text-gray-600 dark:text-gray-300">
+                      {branch.program_name}{#if branch.section_name} · {branch.section_name}{/if}
+                    </span>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+
       <!-- Leave Request CTA -->
       <button onclick={openLeavePanel} class="w-full p-6 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm flex items-center gap-4 group hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-600/5 transition-all text-left">
         <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center group-hover:bg-indigo-600 transition-all shrink-0">
@@ -255,25 +328,25 @@
       <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
         <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Quick Access</p>
         <div class="space-y-1">
-          {#each [
-            { href: '/faculty-portal/marks', label: 'Enter Marks',  color: 'violet', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
-            { href: '/academic-operations/faculty-ops/workload', label: 'My Workload',   color: 'emerald', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-            { href: '/faculty-portal/teaching-report', label: 'Daily Report', color: 'amber', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-          ] as link}
-            <a href={link.href} class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
-              <div class="w-8 h-8 bg-{link.color}-50 dark:bg-{link.color}-500/10 rounded-xl flex items-center justify-center">
-                <svg class="w-4 h-4 text-{link.color}-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={link.icon}/></svg>
-              </div>
-              <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-{link.color}-600 transition-colors">{link.label}</span>
-            </a>
-          {/each}
+          <a href="/faculty-portal/marks" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+            <div class="w-8 h-8 bg-violet-50 dark:bg-violet-500/10 rounded-xl flex items-center justify-center">
+              <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-violet-600 transition-colors">Enter Marks</span>
+          </a>
+          <a href="/faculty-portal/teaching-report" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
+            <div class="w-8 h-8 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center">
+              <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            </div>
+            <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-amber-600 transition-colors">Daily Report</span>
+          </a>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════ Leave Request Slide-in Panel ═══════ -->
+<!-- Leave Request Slide-in Panel -->
 {#if showLeavePanel}
   <div class="fixed inset-0 z-50 flex" transition:fade={{ duration: 150 }}>
     <button class="absolute inset-0 bg-black/40 backdrop-blur-sm" onclick={() => showLeavePanel = false} aria-label="Close"></button>

@@ -11,13 +11,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     try {
         const result = await db.query(
-            `SELECT sp.id, sp.roll_number, sp.current_semester,
-                    COALESCE(u.name, sp.roll_number) as name,
+            `SELECT sp.id,
+                    COALESCE(sp.roll_number, sp.enrollment_number) as roll_number,
+                    sp.current_semester,
+                    COALESCE(u.name, sp.roll_number, sp.enrollment_number) as name,
                     COALESCE(u.email, '') as email
              FROM student_profiles sp
              LEFT JOIN users u ON sp.user_id = u.id
              WHERE sp.section_id = $1
-             ORDER BY sp.roll_number ASC`,
+             ORDER BY COALESCE(sp.roll_number, sp.enrollment_number) ASC`,
             [sectionId]
         );
         return json(result.rows);

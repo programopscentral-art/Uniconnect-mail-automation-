@@ -29,11 +29,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 continue;
             }
 
-            // Find student by roll_number (NIAT ID)
+            // Find student by roll_number OR enrollment_number (NIAT ID)
             const studentRes = await db.query(
                 `SELECT sp.id FROM student_profiles sp
                  WHERE sp.section_id = $1
-                 AND UPPER(sp.roll_number) = UPPER($2)`,
+                 AND (UPPER(COALESCE(sp.roll_number, '')) = UPPER($2)
+                   OR UPPER(COALESCE(sp.enrollment_number, '')) = UPPER($2))`,
                 [section_id, niatId]
             );
 

@@ -13,8 +13,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (!subjectId || !sectionId) throw error(400, 'subjectId and sectionId required');
 
     try {
-        let query = `SELECT sp.roll_number as "NIAT_ID",
-                            COALESCE(u.name, sp.roll_number) as "Student_Name",
+        let query = `SELECT COALESCE(sp.roll_number, sp.enrollment_number) as "NIAT_ID",
+                            COALESCE(u.name, sp.roll_number, sp.enrollment_number) as "Student_Name",
                             sm.marks as "Marks_Obtained",
                             sm.total_marks as "Total_Marks",
                             sm.exam_type as "Exam_Type"
@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                         AND sm.subject_id = $1
                         ${examType ? 'AND sm.exam_type = $3' : ''}
                      WHERE sp.section_id = $2
-                     ORDER BY sp.roll_number ASC`;
+                     ORDER BY COALESCE(sp.roll_number, sp.enrollment_number) ASC`;
 
         const params: any[] = [subjectId, sectionId];
         if (examType) params.push(examType);

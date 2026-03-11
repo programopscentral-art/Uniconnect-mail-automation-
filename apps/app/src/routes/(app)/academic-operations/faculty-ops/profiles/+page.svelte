@@ -21,6 +21,7 @@
   let subjectSearchQuery = $state('');
   let savingMsg = $state('');
   let saving = $state(false);
+  let expandedSubjectName = $state<string | null>(null);
 
   // Known subjects (expertise)
   let knownSubjects = $state<any[]>([]);
@@ -256,12 +257,20 @@
     }
   }
 
-  const availableToAssign = $derived(
-    allSubjects.filter(s =>
-      !(selectedFaculty?.subjects || []).some((assigned: any) => assigned.subject_id === s.id) &&
-      (!subjectSearchQuery || s.name?.toLowerCase().includes(subjectSearchQuery.toLowerCase()) || s.code?.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
-    )
-  );
+  // Group subjects by name for assignment UX — click subject, see branches
+  const groupedSubjectsForAssign = $derived(() => {
+    const filtered = allSubjects.filter(s =>
+      !subjectSearchQuery || s.name?.toLowerCase().includes(subjectSearchQuery.toLowerCase()) || s.code?.toLowerCase().includes(subjectSearchQuery.toLowerCase())
+    );
+    const groups = new Map<string, { name: string; entries: any[] }>();
+    for (const s of filtered) {
+      const key = s.name?.toLowerCase() || s.id;
+      if (!groups.has(key)) groups.set(key, { name: s.name, entries: [] });
+      const isAssigned = (selectedFaculty?.subjects || []).some((a: any) => a.subject_id === s.id);
+      groups.get(key)!.entries.push({ ...s, isAssigned });
+    }
+    return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
+  });
 
   function getInitials(name: string) {
     return (name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
@@ -482,7 +491,7 @@
         </div>
       {/if}
 
-      <!-- Assigned subjects -->
+      <!-- Assigned subjects — grouped by subject name showing branches -->
       <div>
         <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest mb-3">
           Assigned Subjects
@@ -491,19 +500,33 @@
         {#if (selectedFaculty.subjects || []).length === 0}
           <p class="text-xs text-gray-400 font-medium italic py-4 text-center bg-gray-50 dark:bg-slate-800 rounded-xl">No subjects assigned yet</p>
         {:else}
+          {@const groupedAssigned = (() => {
+            const map = new Map();
+            for (const sub of (selectedFaculty.subjects || [])) {
+              const key = sub.subject_name?.toLowerCase() || sub.subject_id;
+              if (!map.has(key)) map.set(key, { name: sub.subject_name, code: sub.subject_code, entries: [] });
+              map.get(key).entries.push(sub);
+            }
+            return Array.from(map.values());
+          })()}
           <div class="space-y-2">
-            {#each selectedFaculty.subjects as sub}
-              <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-800 rounded-xl group">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded shrink-0">{sub.subject_code}</span>
-                  <div class="min-w-0">
-                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{sub.subject_name}</p>
-                    <p class="text-[9px] font-medium text-gray-400 truncate">{sub.term_name} · {sub.program_name}</p>
-                  </div>
+            {#each groupedAssigned as group}
+              <div class="p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
+                <div class="flex items-center gap-2 mb-1.5">
+                  <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded shrink-0">{group.code}</span>
+                  <p class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate flex-1">{group.name}</p>
                 </div>
-                <button onclick={() => removeSubject(sub.mapping_id)} class="w-6 h-6 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
-                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
+                <div class="flex flex-wrap gap-1">
+                  {#each group.entries as sub}
+                    <div class="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 rounded-lg group">
+                      <span class="text-[9px] font-bold text-indigo-500">{sub.program_name}</span>
+                      <span class="text-[8px] text-gray-400">({sub.term_name})</span>
+                      <button onclick={() => removeSubject(sub.mapping_id)} class="w-4 h-4 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                  {/each}
+                </div>
               </div>
             {/each}
           </div>
@@ -558,7 +581,7 @@
         {/if}
       </div>
 
-      <!-- Assign new subject -->
+      <!-- Assign new subject — grouped by subject name, branches expandable -->
       {#if allSubjects.length > 0}
         <div>
           <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest mb-3">
@@ -566,25 +589,46 @@
           </h4>
           <input type="text" placeholder="Search subjects by name or code..." bind:value={subjectSearchQuery}
             class="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium mb-3 focus:ring-2 ring-indigo-500 outline-none" />
-          {#if availableToAssign.length === 0}
-            <p class="text-xs text-gray-400 text-center py-3">All subjects are already assigned</p>
+          {#if groupedSubjectsForAssign().length === 0}
+            <p class="text-xs text-gray-400 text-center py-3">No subjects found</p>
           {:else}
-            <div class="space-y-1.5 max-h-56 overflow-y-auto">
-              {#each availableToAssign as sub}
-                <button
-                  onclick={() => assignSubject(sub.id)}
-                  disabled={assigningSubject}
-                  class="w-full flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors text-left group"
-                >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-[8px] font-black uppercase px-1.5 py-0.5 bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded shrink-0">{sub.code}</span>
-                    <div class="min-w-0">
-                      <span class="text-xs font-bold text-gray-700 dark:text-gray-300 truncate block">{sub.name}</span>
-                      <span class="text-[9px] text-gray-400 truncate block">{sub.term_name} · {sub.program_code || sub.program_name}</span>
+            <div class="space-y-1 max-h-64 overflow-y-auto">
+              {#each groupedSubjectsForAssign() as group}
+                {@const allAssigned = group.entries.every(e => e.isAssigned)}
+                <div class="rounded-xl overflow-hidden">
+                  <button
+                    onclick={() => expandedSubjectName = expandedSubjectName === group.name ? null : group.name}
+                    class="w-full flex items-center justify-between px-3 py-2.5 text-left transition-colors
+                      {expandedSubjectName === group.name ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'bg-gray-50 dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700'}"
+                  >
+                    <div class="flex items-center gap-2 min-w-0">
+                      <svg class="w-3 h-3 text-gray-400 shrink-0 transition-transform {expandedSubjectName === group.name ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+                      <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{group.name}</span>
+                      <span class="text-[9px] font-bold text-gray-400 shrink-0">{group.entries.length} branch{group.entries.length > 1 ? 'es' : ''}</span>
                     </div>
-                  </div>
-                  <span class="text-[9px] font-black text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">+ Assign</span>
-                </button>
+                    {#if allAssigned}
+                      <span class="text-[8px] font-black text-emerald-600 uppercase tracking-widest shrink-0">All Assigned</span>
+                    {/if}
+                  </button>
+                  {#if expandedSubjectName === group.name}
+                    <div class="border-t border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 space-y-1">
+                      {#each group.entries as entry}
+                        <div class="flex items-center justify-between py-1.5 px-2 rounded-lg {entry.isAssigned ? 'bg-emerald-50 dark:bg-emerald-900/10' : 'hover:bg-indigo-50 dark:hover:bg-indigo-900/10'} transition-colors">
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-[8px] font-black uppercase px-1.5 py-0.5 bg-gray-200 dark:bg-slate-700 text-gray-500 rounded shrink-0">{entry.program_code || entry.program_name?.slice(0, 6)}</span>
+                            <span class="text-[10px] text-gray-500 truncate">{entry.term_name}</span>
+                          </div>
+                          {#if entry.isAssigned}
+                            <span class="text-[9px] font-black text-emerald-600 shrink-0">Assigned</span>
+                          {:else}
+                            <button onclick={() => assignSubject(entry.id)} disabled={assigningSubject}
+                              class="text-[9px] font-black text-indigo-600 hover:text-indigo-800 shrink-0 disabled:opacity-50">+ Assign</button>
+                          {/if}
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
               {/each}
             </div>
           {/if}
