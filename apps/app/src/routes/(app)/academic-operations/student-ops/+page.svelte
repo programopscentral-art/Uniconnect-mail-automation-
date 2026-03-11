@@ -2,14 +2,29 @@
   import { fade, fly } from "svelte/transition";
   import { goto } from "$app/navigation";
   import { page } from "$app/stores";
+  import { getContext } from "svelte";
 
   let { data } = $props();
+
+  // Sync with parent ops university selector
+  const parentUniCtx = getContext<{ get: () => string }>('opsUniversityId');
 
   let universityId = $state(data.filters.universityId);
   let search = $state(data.filters.search);
   let programId = $state(data.filters.programId);
   let termId = $state(data.filters.termId);
   let searchTimeout: ReturnType<typeof setTimeout>;
+
+  // When parent university selector changes, apply the filter
+  $effect(() => {
+    const parentId = parentUniCtx?.get();
+    if (parentId && parentId !== universityId) {
+      universityId = parentId;
+      programId = '';
+      termId = '';
+      applyFilters();
+    }
+  });
 
   function applyFilters() {
     const params = new URLSearchParams();

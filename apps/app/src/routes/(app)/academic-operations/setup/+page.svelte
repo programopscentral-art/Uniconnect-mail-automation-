@@ -1,11 +1,22 @@
 <script lang="ts">
   import { fade, fly, slide } from "svelte/transition";
-  import { onMount } from "svelte";
+  import { onMount, getContext } from "svelte";
 
   let { data } = $props();
   const { universities } = data;
 
+  // Sync with parent ops university selector
+  const parentUniCtx = getContext<{ get: () => string }>('opsUniversityId');
+
   let selectedUniversityId = $state(universities[0]?.id || "");
+
+  // When parent university selector changes, sync this page's selector
+  $effect(() => {
+    const parentId = parentUniCtx?.get();
+    if (parentId && parentId !== selectedUniversityId) {
+      selectedUniversityId = parentId;
+    }
+  });
   let activeTab = $state("structure"); // structure, terms, batches
 
   let campuses = $state<any[]>([]);

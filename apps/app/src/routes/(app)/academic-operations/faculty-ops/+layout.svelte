@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/stores";
   import { fade } from "svelte/transition";
-  import { setContext } from "svelte";
+  import { setContext, getContext } from "svelte";
 
   let { children, data } = $props();
 
@@ -15,6 +15,9 @@
 
   const user = $derived($page.data?.user);
   const isPrivileged = $derived(user?.role === 'ADMIN' || user?.role === 'PROGRAM_OPS');
+
+  // Read parent ops university context
+  const parentUniCtx = getContext<{ get: () => string }>('opsUniversityId');
 
   // Use server-loaded universities (getAllUniversities) — reliable for ADMIN/PROGRAM_OPS
   // who may have NO entries in user_universities but still have global access
@@ -30,6 +33,14 @@
 
   // Default to the cookie-active university_id
   let selectedUniversityId = $state(user?.university_id || '');
+
+  // Sync with parent ops university selector when it changes
+  $effect(() => {
+    const parentId = parentUniCtx?.get();
+    if (parentId && parentId !== selectedUniversityId) {
+      selectedUniversityId = parentId;
+    }
+  });
 
   // Sync when global header dropdown changes
   $effect(() => {
