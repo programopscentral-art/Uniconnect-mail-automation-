@@ -9,7 +9,6 @@
     { href: "/academic-operations/faculty-ops", label: "Overview" },
     { href: "/academic-operations/faculty-ops/profiles", label: "Profiles" },
     { href: "/academic-operations/faculty-ops/leave", label: "Leave Mgmt" },
-    { href: "/academic-operations/faculty-ops/workload", label: "Workload" },
     { href: "/academic-operations/faculty-ops/teaching-reports", label: "Teaching Reports" },
     { href: "/academic-operations/faculty-ops/documents", label: "Documents" },
   ];
