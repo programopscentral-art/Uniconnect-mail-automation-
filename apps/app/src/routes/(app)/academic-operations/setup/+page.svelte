@@ -25,7 +25,10 @@
   let sections = $state<any[]>([]);
   let subjects = $state<any[]>([]);
   let faculty = $state<any[]>([]);
+  let academicBatches = $state<any[]>([]);
   let loading = $state(false);
+  let newBatch = $state({ start_year: new Date().getFullYear(), end_year: new Date().getFullYear() + 4 });
+  let importBatchId = $state('');
 
   let sectionTargetTermId = $state("");
   let newSection = $state({ name: "", batch_code: "", strength: 60 });
@@ -209,8 +212,43 @@
     }
   }
 
+  async function fetchBatches() {
+    if (!selectedUniversityId) return;
+    try {
+      const res = await fetch(`/api/academic/batches?universityId=${selectedUniversityId}`);
+      academicBatches = await res.json();
+    } catch (e) { console.error(e); }
+  }
+
+  async function createBatch() {
+    processing = true;
+    try {
+      const res = await fetch('/api/academic/batches', {
+        method: 'POST',
+        body: JSON.stringify({
+          university_id: selectedUniversityId,
+          name: `${newBatch.start_year}-${newBatch.end_year}`,
+          start_year: newBatch.start_year,
+          end_year: newBatch.end_year,
+        })
+      });
+      if (res.ok) {
+        await fetchBatches();
+        newBatch = { start_year: new Date().getFullYear(), end_year: new Date().getFullYear() + 4 };
+        showForm = null;
+      }
+    } catch (e) { console.error(e); }
+    finally { processing = false; }
+  }
+
+  async function deleteBatch(id: string) {
+    if (!confirm('Delete this batch?')) return;
+    await fetch(`/api/academic/batches?id=${id}`, { method: 'DELETE' });
+    await fetchBatches();
+  }
+
   onMount(refreshData);
-  $effect(() => { if (selectedUniversityId) { refreshData(); fetchFaculty(); } });
+  $effect(() => { if (selectedUniversityId) { refreshData(); fetchFaculty(); fetchBatches(); } });
   $effect(() => { if (termTargetProgramId) fetchTerms(); });
   $effect(() => { 
     if (sectionTargetTermId) {
@@ -339,6 +377,7 @@
                         program_id: termTargetProgramId,
                         term_id: sectionTargetTermId,
                         section_id: sectionId,
+                        batch_id: importBatchId || undefined,
                         students
                     })
                 });
@@ -406,6 +445,7 @@
       fd.append('file', file);
       fd.append('university_id', selectedUniversityId);
       fd.append('term_name', studentsImportTermName.trim());
+      if (importBatchId) fd.append('batch_id', importBatchId);
       const res = await fetch('/api/academic/setup/import-students-excel', { method: 'POST', body: fd });
       const data = await res.json();
       if (res.ok) {
@@ -819,6 +859,27 @@
             {/if}
           </div>
 
+          <!-- Batch selector -->
+          {#if academicBatches.length > 0}
+          <div>
+            <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Assign to Batch</label>
+            <div class="relative">
+              <select
+                bind:value={importBatchId}
+                class="w-full px-4 py-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700 rounded-2xl text-sm font-medium text-amber-700 dark:text-amber-400 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer"
+              >
+                <option value="">— No batch —</option>
+                {#each academicBatches as b}
+                  <option value={b.id}>{b.name}</option>
+                {/each}
+              </select>
+              <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-amber-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+              </div>
+            </div>
+          </div>
+          {/if}
+
           <!-- File Upload -->
           <label class="block cursor-pointer group">
             <div class="border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-3xl p-10 text-center group-hover:border-emerald-400 group-hover:bg-emerald-50/30 dark:group-hover:bg-emerald-500/5 transition-all">
@@ -1171,6 +1232,51 @@
        </div>
     </div>
   {:else if activeTab === 'batches'}
+    <!-- Academic Batches (admission cohorts) -->
+    <div class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3rem] shadow-sm" in:fly={{ y: 20 }}>
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h3 class="text-xl font-black text-gray-900 dark:text-white">Academic Batches</h3>
+          <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Admission year cohorts (e.g. 2025-2029)</p>
+        </div>
+        <button onclick={() => showForm = showForm === 'batch' ? null : 'batch'} class="p-3 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 active:scale-95">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
+        </button>
+      </div>
+
+      {#if showForm === 'batch'}
+        <div class="mb-6 p-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl flex flex-wrap items-end gap-4" transition:slide>
+          <div>
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Start Year</label>
+            <input type="number" bind:value={newBatch.start_year} class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold w-28" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">End Year</label>
+            <input type="number" bind:value={newBatch.end_year} class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold w-28" />
+          </div>
+          <div class="text-sm font-black text-amber-600">{newBatch.start_year}-{newBatch.end_year}</div>
+          <button onclick={createBatch} disabled={processing} class="px-6 py-3 bg-amber-500 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 disabled:opacity-50">
+            {processing ? 'Creating...' : 'Create Batch'}
+          </button>
+        </div>
+      {/if}
+
+      <div class="flex flex-wrap gap-3">
+        {#each academicBatches as batch}
+          <div class="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl">
+            <span class="text-sm font-black text-amber-700 dark:text-amber-400">{batch.name}</span>
+            <span class="text-[9px] text-gray-400 uppercase tracking-widest">{batch.start_year} → {batch.end_year}</span>
+            <button onclick={() => deleteBatch(batch.id)} class="ml-1 text-gray-400 hover:text-rose-500 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        {:else}
+          <p class="text-xs text-gray-400 font-medium">No batches yet — create one to assign students to admission cohorts.</p>
+        {/each}
+      </div>
+    </div>
+
+    <!-- Sections & Subjects per Term -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-8" in:fly={{ y: 20 }}>
        <!-- Program & Term Selection -->
        <div class="md:col-span-1 space-y-6">
@@ -1269,6 +1375,19 @@
             {/if}
 
             <div class="space-y-8 flex-1">
+              <!-- Batch selector for student imports -->
+              {#if academicBatches.length > 0}
+                <div class="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl">
+                  <span class="text-[9px] font-black text-amber-600 uppercase tracking-widest">Assign to Batch:</span>
+                  <select bind:value={importBatchId} class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <option value="">No batch</option>
+                    {#each academicBatches as b}
+                      <option value={b.id}>{b.name}</option>
+                    {/each}
+                  </select>
+                </div>
+              {/if}
+
               <!-- Sections List -->
               <div>
                 <p class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Sections ({sections.length})</p>

@@ -10,7 +10,7 @@ export const GET = async ({ params, locals }: { params: Record<string, string>; 
     const result = await db.query(
         `SELECT DISTINCT
             fp2.id,
-            u2.full_name as name,
+            u2.name as name,
             fp2.employee_code,
             fp2.department,
             fp2.designation,
@@ -25,8 +25,8 @@ export const GET = async ({ params, locals }: { params: Record<string, string>; 
          JOIN users u2 ON u2.id = fp2.user_id
          JOIN subjects s ON s.id = fsm.subject_id
          WHERE flr.id = $1 AND fp2.university_id = fp.university_id AND fp2.is_active = true
-         GROUP BY fp2.id, u2.full_name, fp2.employee_code, fp2.department, fp2.designation
-         ORDER BY u2.full_name`,
+         GROUP BY fp2.id, u2.name, fp2.employee_code, fp2.department, fp2.designation
+         ORDER BY u2.name`,
         [params.id]
     );
 

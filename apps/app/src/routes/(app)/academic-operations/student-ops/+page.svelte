@@ -13,6 +13,7 @@
   let search = $state(data.filters.search);
   let programId = $state(data.filters.programId);
   let termId = $state(data.filters.termId);
+  let batchId = $state(data.filters.batchId);
   let searchTimeout: ReturnType<typeof setTimeout>;
 
   // When parent university selector changes, apply the filter
@@ -22,6 +23,7 @@
       universityId = parentId;
       programId = '';
       termId = '';
+      batchId = '';
       applyFilters();
     }
   });
@@ -31,6 +33,7 @@
     if (universityId) params.set('universityId', universityId);
     if (programId) params.set('programId', programId);
     if (termId) params.set('termId', termId);
+    if (batchId) params.set('batchId', batchId);
     if (search) params.set('search', search);
     goto(`?${params.toString()}`, { keepFocus: true });
   }
@@ -48,6 +51,7 @@
   function onUniversityChange() {
     programId = '';
     termId = '';
+    batchId = '';
     applyFilters();
   }
 
@@ -84,6 +88,25 @@
       >
         {#each data.universities as u}
           <option value={u.id}>{u.name}</option>
+        {/each}
+      </select>
+      <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/70">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+      </div>
+    </div>
+    {/if}
+
+    <!-- Batch filter -->
+    {#if data.batches?.length > 0}
+    <div class="relative">
+      <select
+        bind:value={batchId}
+        onchange={applyFilters}
+        class="pl-4 pr-10 py-3 bg-amber-500 text-white border-none rounded-2xl text-sm font-black focus:ring-2 focus:ring-amber-400 outline-none appearance-none cursor-pointer"
+      >
+        <option value="">All Batches</option>
+        {#each data.batches as b}
+          <option value={b.id}>{b.name}</option>
         {/each}
       </select>
       <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/70">
@@ -162,6 +185,7 @@
             <tr class="border-b border-gray-100 dark:border-slate-800">
               <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Student</th>
               <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">NIAT ID</th>
+              <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Batch</th>
               <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Program</th>
               <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Term</th>
               <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Section</th>
@@ -186,6 +210,13 @@
                 </td>
                 <td class="px-6 py-4">
                   <span class="text-sm font-mono font-bold text-gray-700 dark:text-gray-300">{student.enrollment_number || '—'}</span>
+                </td>
+                <td class="px-6 py-4">
+                  {#if student.batch_name}
+                    <span class="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2.5 py-1 rounded-lg">{student.batch_name}</span>
+                  {:else}
+                    <span class="text-xs text-gray-400">—</span>
+                  {/if}
                 </td>
                 <td class="px-6 py-4">
                   <span class="text-xs font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded-lg">{student.program_code || '—'}</span>

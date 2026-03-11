@@ -1,9 +1,12 @@
-import { json, type RequestHandler } from '@sveltejs/kit';
-import { db, SchedulingService } from '@uniconnect/shared';
+import { json, error, type RequestHandler } from '@sveltejs/kit';
+import { SchedulingService } from '@uniconnect/shared';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-    // 1. Get university context
-    const universityId = url.searchParams.get('universityId') || 'fb508d81-9b16-43b6-963d-4c311c1e5d31'; // Default or from session
+    if (!locals.user) throw error(401, 'Unauthorized');
+
+    const universityId = url.searchParams.get('universityId') || locals.user.university_id;
+    if (!universityId) throw error(400, 'universityId required');
+
     const versionId = url.searchParams.get('versionId');
 
     try {
@@ -11,6 +14,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
         return json(conflicts);
     } catch (err: any) {
         console.error('Fetch conflicts error:', err);
-        return json({ error: err.message }, { status: 500 });
+        return json([], { status: 500 });
     }
 }

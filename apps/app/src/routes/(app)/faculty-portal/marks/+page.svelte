@@ -5,12 +5,15 @@
   let profile = $state<any>(null);
   let mySubjects = $state<any[]>([]);
   let students = $state<any[]>([]);
+  let batches = $state<any[]>([]);
   let loading = $state(true);
   let studentsLoading = $state(false);
 
+  let selectedBatch = $state('');
+  let selectedTerm = $state('');
   let selectedSubject = $state('');
   let selectedSection = $state('');
-  let examType = $state('MID_TERM');
+  let examType = $state('MID1');
   let totalMarks = $state('');
 
   let saving = $state(false);
@@ -23,38 +26,78 @@
   let fileInput: HTMLInputElement;
 
   const examTypes = [
-    { key: 'MID_TERM', label: 'Mid Term' },
-    { key: 'END_TERM', label: 'End Term' },
-    { key: 'INTERNAL_1', label: 'Internal 1' },
-    { key: 'INTERNAL_2', label: 'Internal 2' },
-    { key: 'ASSIGNMENT', label: 'Assignment' },
+    { key: 'MID1', label: 'Mid 1' },
+    { key: 'MID2', label: 'Mid 2' },
+    { key: 'SEM', label: 'Semester Exam' },
+    { key: 'INTERNAL_LAB', label: 'Internal Lab' },
+    { key: 'EXTERNAL_LAB', label: 'External Lab' },
   ];
 
-  // Group subjects by subject_id to get unique subjects, with sections nested
-  const uniqueSubjects = $derived(() => {
-    const map = new Map<string, any>();
+  // Unique semesters — deduplicate by term_name (not term_id, since each program has its own term with same name)
+  const uniqueTerms = $derived(() => {
+    const map = new Map<string, { term_name: string; term_ids: string[] }>();
     for (const s of mySubjects) {
-      if (!map.has(s.subject_id)) {
-        map.set(s.subject_id, { ...s, sections: [] });
-      }
-      if (s.section_id) {
-        const existing = map.get(s.subject_id);
-        if (!existing.sections.find((sec: any) => sec.section_id === s.section_id)) {
-          existing.sections.push({ section_id: s.section_id, section_name: s.section_name, batch_code: s.batch_code });
-        }
+      if (!s.term_name) continue;
+      // If batch is selected, only show semesters for subjects that match a section with that batch_code
+      if (selectedBatch && s.batch_code && s.batch_code !== selectedBatch) continue;
+      if (map.has(s.term_name)) {
+        const entry = map.get(s.term_name)!;
+        if (!entry.term_ids.includes(s.term_id)) entry.term_ids.push(s.term_id);
+      } else {
+        map.set(s.term_name, { term_name: s.term_name, term_ids: [s.term_id] });
       }
     }
     return Array.from(map.values());
   });
 
-  const availableSections = $derived(() => {
-    if (!selectedSubject) return [];
-    const subj = uniqueSubjects().find((s: any) => s.subject_id === selectedSubject);
-    return subj?.sections || [];
+  // Subjects for selected semester (deduplicated by subject_id)
+  const termSubjects = $derived(() => {
+    if (!selectedTerm) return [];
+    const selectedTermEntry = uniqueTerms().find(t => t.term_name === selectedTerm);
+    if (!selectedTermEntry) return [];
+    const termIds = new Set(selectedTermEntry.term_ids);
+    const map = new Map<string, any>();
+    for (const s of mySubjects) {
+      if (termIds.has(s.term_id) && !map.has(s.subject_id)) {
+        map.set(s.subject_id, s);
+      }
+    }
+    return Array.from(map.values());
   });
 
+  // Sections/branches for selected subject
+  const subjectSections = $derived(() => {
+    if (!selectedSubject || !selectedTerm) return [];
+    const subj = mySubjects.find(s => s.subject_id === selectedSubject);
+    if (!subj) return [];
+    const selectedTermEntry = uniqueTerms().find(t => t.term_name === selectedTerm);
+    if (!selectedTermEntry) return [];
+    const termIds = new Set(selectedTermEntry.term_ids);
+    const seen = new Set<string>();
+    const sections: any[] = [];
+    for (const s of mySubjects) {
+      if (termIds.has(s.term_id) && s.program_id === subj.program_id && s.section_id && !seen.has(s.section_id)) {
+        // If batch is selected, filter by batch_code
+        if (selectedBatch && s.batch_code && s.batch_code !== selectedBatch) continue;
+        seen.add(s.section_id);
+        sections.push({ section_id: s.section_id, section_name: s.section_name, batch_code: s.batch_code });
+      }
+    }
+    return sections;
+  });
+
+  // Unique batches from subjects data
+  const uniqueBatches = $derived(() => {
+    const set = new Set<string>();
+    for (const s of mySubjects) {
+      if (s.batch_code) set.add(s.batch_code);
+    }
+    return Array.from(set).sort();
+  });
+
+  // Load students when all filters are set
   $effect(() => {
-    if (selectedSubject && selectedSection) loadStudents();
+    if (selectedSubject && selectedSection && examType) loadStudents();
     else { students = []; marksData = {}; }
   });
 
@@ -197,28 +240,59 @@
       <p class="text-gray-500 font-bold text-sm">No faculty profile found for your account</p>
     </div>
   {:else}
-    <!-- Filters -->
-    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+    <!-- Step-by-step Filters -->
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+      <!-- 1. Batch -->
+      <div class="flex flex-col gap-1">
+        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Batch</label>
+        <select bind:value={selectedBatch} onchange={() => { selectedTerm = ''; selectedSubject = ''; selectedSection = ''; }}
+          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
+          <option value="">All Batches</option>
+          {#each uniqueBatches() as b}
+            <option value={b}>{b}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- 2. Semester -->
+      <div class="flex flex-col gap-1">
+        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Semester</label>
+        <select bind:value={selectedTerm} onchange={() => { selectedSubject = ''; selectedSection = ''; }}
+          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
+          <option value="">Select Semester</option>
+          {#each uniqueTerms() as t}
+            <option value={t.term_name}>{t.term_name}</option>
+          {/each}
+        </select>
+      </div>
+
+      <!-- 3. Subject -->
       <div class="flex flex-col gap-1">
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Subject</label>
         <select bind:value={selectedSubject} onchange={() => { selectedSection = ''; }}
-          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
+          disabled={!selectedTerm}
+          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 disabled:opacity-40">
           <option value="">Select Subject</option>
-          {#each uniqueSubjects() as s}
-            <option value={s.subject_id}>{s.subject_code} — {s.subject_name} ({s.term_name})</option>
+          {#each termSubjects() as s}
+            <option value={s.subject_id}>{s.subject_code} — {s.subject_name}{s.program_name ? ` · ${s.program_name}` : ''}</option>
           {/each}
         </select>
       </div>
+
+      <!-- 4. Section / Branch -->
       <div class="flex flex-col gap-1">
-        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Section</label>
+        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Section / Branch</label>
         <select bind:value={selectedSection}
-          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
+          disabled={!selectedSubject}
+          class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 disabled:opacity-40">
           <option value="">Select Section</option>
-          {#each availableSections() as sec}
-            <option value={sec.section_id}>{sec.section_name} ({sec.batch_code})</option>
+          {#each subjectSections() as sec}
+            <option value={sec.section_id}>{sec.section_name}{sec.batch_code ? ` (${sec.batch_code})` : ''}</option>
           {/each}
         </select>
       </div>
+
+      <!-- 5. Exam Type -->
       <div class="flex flex-col gap-1">
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Exam Type</label>
         <select bind:value={examType}
@@ -226,6 +300,8 @@
           {#each examTypes as t}<option value={t.key}>{t.label}</option>{/each}
         </select>
       </div>
+
+      <!-- 6. Total Marks -->
       <div class="flex flex-col gap-1">
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Marks</label>
         <input type="number" min="0" step="1" bind:value={totalMarks} placeholder="e.g. 100"
@@ -233,9 +309,14 @@
       </div>
     </div>
 
-    {#if !selectedSubject || !selectedSection}
+    {#if !selectedTerm}
       <div class="text-center py-16 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl">
-        <p class="text-gray-500 font-bold text-sm">Select a subject and section to enter marks</p>
+        <p class="text-gray-500 font-bold text-sm">Select a semester to begin</p>
+        <p class="text-gray-400 text-xs mt-1">Choose batch (optional), then semester, subject, section, and exam type</p>
+      </div>
+    {:else if !selectedSubject || !selectedSection}
+      <div class="text-center py-16 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-3xl">
+        <p class="text-gray-500 font-bold text-sm">Select subject and section to enter marks</p>
       </div>
     {:else if studentsLoading}
       <div class="p-16 flex flex-col items-center">
@@ -263,7 +344,7 @@
       <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden" in:fly={{ y: 10 }}>
         <div class="px-6 py-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
           <h3 class="font-black text-gray-900 dark:text-white text-sm">
-            {uniqueSubjects().find((s: any) => s.subject_id === selectedSubject)?.subject_name} — {examTypes.find(t => t.key === examType)?.label}
+            {termSubjects().find((s: any) => s.subject_id === selectedSubject)?.subject_name} — {examTypes.find(t => t.key === examType)?.label}
           </h3>
           <div class="flex items-center gap-3">
             {#if saveMsg}<span class="text-xs font-bold {saveMsgType === 'success' ? 'text-emerald-600' : 'text-rose-600'}" transition:fade>{saveMsg}</span>{/if}

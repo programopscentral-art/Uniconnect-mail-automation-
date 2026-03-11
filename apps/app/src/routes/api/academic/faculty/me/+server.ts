@@ -8,8 +8,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 
     try {
         const fpRes = await db.query(
-            `SELECT fp.id, fp.employee_code, fp.department, fp.designation, fp.specialization, fp.university_id
+            `SELECT fp.id, fp.employee_code, fp.department, fp.designation, fp.specialization, fp.university_id,
+                    COALESCE(u.name, fp.employee_code) as name, COALESCE(u.email, '') as email
              FROM faculty_profiles fp
+             LEFT JOIN users u ON fp.user_id = u.id
              WHERE fp.user_id = $1 AND fp.is_active = true
              LIMIT 1`,
             [locals.user.id]
@@ -31,7 +33,7 @@ export const GET: RequestHandler = async ({ locals }) => {
              JOIN subjects s ON fsm.subject_id = s.id
              LEFT JOIN terms t ON s.term_id = t.id
              LEFT JOIN programs p ON s.program_id = p.id
-             LEFT JOIN sections sec ON sec.term_id = t.id
+             LEFT JOIN sections sec ON sec.term_id = t.id AND sec.program_id = p.id
              WHERE fsm.faculty_profile_id = $1
              ORDER BY t.name, s.name, sec.name`,
             [profile.id]

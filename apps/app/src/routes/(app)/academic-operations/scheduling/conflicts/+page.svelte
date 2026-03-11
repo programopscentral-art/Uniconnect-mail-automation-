@@ -1,24 +1,30 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { page } from "$app/stores";
+  import { getContext } from 'svelte';
   import { fade, fly, slide } from 'svelte/transition';
 
-  let conflicts = $state([]);
+  let opsUniversityId: { get: () => string } | undefined;
+  try { opsUniversityId = getContext('opsUniversityId'); } catch {}
+  const universityId = $derived(opsUniversityId?.get() || $page.data?.user?.university_id || '');
+
+  let conflicts = $state<any[]>([]);
   let loading = $state(true);
-  let universityId = $state(""); // Should be from session
+
+  $effect(() => {
+    if (universityId) fetchConflicts();
+  });
 
   async function fetchConflicts() {
     loading = true;
     try {
-      const res = await fetch('/api/academic/scheduling/conflicts'); // We'll need this API
-      conflicts = await res.json();
+      const res = await fetch(`/api/academic/scheduling/conflicts?universityId=${universityId}`);
+      if (res.ok) conflicts = await res.json();
     } catch (e) {
       console.error(e);
     } finally {
       loading = false;
     }
   }
-
-  onMount(fetchConflicts);
 
   async function resolveConflict(conflictId: string) {
     try {

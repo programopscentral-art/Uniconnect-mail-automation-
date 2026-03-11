@@ -58,6 +58,8 @@ export * from './services/academic.service';
 export * from './services/faculty.service';
 export * from './services/student.service';
 export * from './services/scheduling.service';
+export * from './services/timetable-parser.service';
+export * from './services/timetable-import.service';
 export * from './services/activity.service';
 export * from './services/import.service';
 export * from './services/notification.service';

@@ -5,7 +5,6 @@
   let schedules = $state<any[]>([]);
   let loading = $state(true);
   let fetchError = $state<string | null>(null);
-  let activeView = $state<'today' | 'pending'>('today');
   let markingId = $state<string | null>(null);
 
   // Faculty profile + subjects
@@ -46,18 +45,33 @@
     return 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400';
   }
 
-  // Group subjects by name, showing which branches/sections each subject is assigned to
-  const subjectGroups = $derived(() => {
-    const map = new Map<string, { name: string; code: string; branches: { program_name: string; section_name: string; term_name: string }[] }>();
+  // Group subjects by semester (deduplicated by term_name, not term_id)
+  const subjectsBySemester = $derived(() => {
+    const semMap = new Map<string, { term_name: string; subjects: Map<string, any> }>();
     for (const s of mySubjects) {
-      const key = s.subject_name?.toLowerCase() || s.subject_id;
-      if (!map.has(key)) map.set(key, { name: s.subject_name, code: s.subject_code, branches: [] });
-      const existing = map.get(key)!;
-      if (!existing.branches.some(b => b.program_name === s.program_name && b.section_name === s.section_name)) {
-        existing.branches.push({ program_name: s.program_name || '', section_name: s.section_name || '', term_name: s.term_name || '' });
+      const termKey = s.term_name || 'Unassigned';
+      if (!semMap.has(termKey)) {
+        semMap.set(termKey, { term_name: termKey, subjects: new Map() });
+      }
+      const sem = semMap.get(termKey)!;
+      if (!sem.subjects.has(s.subject_id)) {
+        sem.subjects.set(s.subject_id, { ...s, sections: [] });
+      }
+      const subj = sem.subjects.get(s.subject_id)!;
+      if (s.section_id && !subj.sections.some((sec: any) => sec.section_id === s.section_id)) {
+        subj.sections.push({ section_id: s.section_id, section_name: s.section_name, batch_code: s.batch_code, program_name: s.program_name });
       }
     }
-    return Array.from(map.values());
+    return Array.from(semMap.values()).map(sem => ({
+      ...sem,
+      subjects: Array.from(sem.subjects.values())
+    }));
+  });
+
+  const uniqueSubjectCount = $derived(() => {
+    const ids = new Set<string>();
+    for (const s of mySubjects) ids.add(s.subject_id);
+    return ids.size;
   });
 
   const conducted = $derived(schedules.filter(s => s.status === 'COMPLETED').length);
@@ -137,6 +151,20 @@
     finally { leaveSubmitting = false; }
   }
 
+  async function cancelLeave(id: string) {
+    try {
+      const res = await fetch(`/api/academic/faculty/leave-requests?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        leaveHistory = leaveHistory.filter(r => r.id !== id);
+        leaveSuccess = 'Leave request cancelled.';
+        setTimeout(() => leaveSuccess = '', 3000);
+      } else {
+        const data = await res.json();
+        leaveError = data?.message || 'Failed to cancel.';
+      }
+    } catch { leaveError = 'Network error.'; }
+  }
+
   function openLeavePanel() {
     showLeavePanel = true; leaveError = ''; leaveSuccess = '';
     fetchLeaveHistory();
@@ -155,12 +183,20 @@
     <div class="absolute -right-20 -top-20 w-60 h-60 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
     <div class="relative z-10">
       <p class="text-[10px] font-black uppercase tracking-widest text-indigo-100 mb-1">Faculty Portal</p>
-      <h2 class="text-2xl sm:text-3xl font-black tracking-tight">Academic <span class="bg-white text-indigo-600 px-3 py-1 rounded-2xl ml-1">Workspace</span></h2>
+      <h2 class="text-2xl sm:text-3xl font-black tracking-tight">
+        {#if profile?.name}Welcome, <span class="bg-white text-indigo-600 px-3 py-1 rounded-2xl ml-1">{profile.name.split(' ')[0]}</span>
+        {:else}Academic <span class="bg-white text-indigo-600 px-3 py-1 rounded-2xl ml-1">Workspace</span>{/if}
+      </h2>
       <p class="text-indigo-200 text-xs font-medium mt-2">{today}</p>
     </div>
-    <div class="flex gap-3 relative z-10 shrink-0">
-      <button onclick={() => activeView = 'today'}   class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all {activeView === 'today'   ? 'bg-white text-indigo-600 shadow-lg' : 'text-indigo-100 hover:bg-white/10'}">My Sessions</button>
-      <button onclick={() => activeView = 'pending'} class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all {activeView === 'pending' ? 'bg-white text-indigo-600 shadow-lg' : 'text-indigo-100 hover:bg-white/10'}">Pending Tasks</button>
+    <div class="flex items-center gap-3 relative z-10 shrink-0">
+      <div class="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-xl">
+        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-100">Sessions</span>
+        <span class="text-sm font-black">{loading ? '—' : conducted}/{loading ? '—' : schedules.length}</span>
+      </div>
+      <button onclick={openLeavePanel} class="px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+        Apply Leave
+      </button>
     </div>
   </div>
 
@@ -168,94 +204,61 @@
 
     <!-- Session Timeline -->
     <div class="lg:col-span-2 space-y-6">
-      <h3 class="text-xl font-black text-gray-900 dark:text-white px-1">
-        {#if activeView === 'today'}Today's <span class="text-indigo-600">Sessions</span>
-        {:else}Pending <span class="text-amber-500">Action Items</span>{/if}
-      </h3>
+      <h3 class="text-xl font-black text-gray-900 dark:text-white px-1">Today's <span class="text-indigo-600">Sessions</span></h3>
 
-      {#if activeView === 'today'}
-        {#if loading}
-          <div class="p-20 flex flex-col items-center justify-center">
-            <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent animate-spin rounded-full mb-4"></div>
-            <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Loading schedule...</p>
+      {#if loading}
+        <div class="p-20 flex flex-col items-center justify-center">
+          <div class="w-10 h-10 border-4 border-indigo-600 border-t-transparent animate-spin rounded-full mb-4"></div>
+          <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Loading schedule...</p>
+        </div>
+      {:else if fetchError}
+        <div class="p-12 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-500/20 rounded-[3rem] flex flex-col items-center text-center">
+          <p class="text-sm font-black text-gray-900 dark:text-white">Could not load schedule</p>
+          <p class="text-xs text-gray-400 mt-1">{fetchError}</p>
+          <button onclick={fetchMySchedule} class="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all">Retry</button>
+        </div>
+      {:else if schedules.length === 0}
+        <div class="p-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-gray-100 dark:border-slate-800 flex flex-col items-center justify-center text-center">
+          <div class="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-full mb-6 flex items-center justify-center">
+            <svg class="w-9 h-9 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           </div>
-        {:else if fetchError}
-          <div class="p-12 bg-white dark:bg-slate-900 border border-rose-100 dark:border-rose-500/20 rounded-[3rem] flex flex-col items-center text-center">
-            <p class="text-sm font-black text-gray-900 dark:text-white">Could not load schedule</p>
-            <p class="text-xs text-gray-400 mt-1">{fetchError}</p>
-            <button onclick={fetchMySchedule} class="mt-4 px-5 py-2 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all">Retry</button>
-          </div>
-        {:else if schedules.length === 0}
-          <div class="p-20 bg-white dark:bg-slate-900 rounded-[3rem] border border-gray-100 dark:border-slate-800 flex flex-col items-center justify-center text-center">
-            <div class="w-20 h-20 bg-indigo-50 dark:bg-indigo-500/10 rounded-full mb-6 flex items-center justify-center">
-              <svg class="w-9 h-9 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <p class="text-sm font-black text-gray-900 dark:text-white">No Sessions Today</p>
-            <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-2">Your schedule is clear for today</p>
-          </div>
-        {:else}
-          <div class="space-y-4">
-            {#each schedules as session, i}
-              <div class="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-xl hover:shadow-indigo-600/5 transition-all" in:fly={{ y: 20, delay: i * 60 }}>
-                <div class="flex items-center gap-6 flex-1 min-w-0">
-                  <div class="flex flex-col items-center justify-center p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-3xl min-w-[90px] shrink-0">
-                    <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{session.start_time}</p>
-                    <div class="w-4 h-0.5 bg-indigo-200 dark:bg-indigo-500/30 rounded-full my-1"></div>
-                    <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">{session.end_time}</p>
-                  </div>
-                  <div class="min-w-0">
-                    <h4 class="text-base font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-all uppercase tracking-tight truncate">{session.subject_name}</h4>
-                    <div class="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <span class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{session.section_name}</span>
-                      <span class="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
-                      <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{session.room_code}</span>
-                      {#if session.session_type && session.session_type !== 'LECTURE'}
-                        <span class="text-[9px] font-black text-violet-500 uppercase tracking-widest px-2 py-0.5 bg-violet-50 dark:bg-violet-500/10 rounded-full">{session.session_type}</span>
-                      {/if}
-                    </div>
-                  </div>
-                </div>
-                <div class="flex items-center gap-3 shrink-0">
-                  <span class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest {sessionBadge(session.status)}">
-                    {session.status === 'COMPLETED' ? 'Conducted' : session.status === 'IN_PROGRESS' ? 'Ongoing' : 'Upcoming'}
-                  </span>
-                  {#if session.status !== 'COMPLETED' && session.status !== 'CANCELLED'}
-                    <button onclick={() => markConducted(session.id)} disabled={markingId === session.id} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-wait">
-                      {markingId === session.id ? '...' : 'Mark Conducted'}
-                    </button>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-
+          <p class="text-sm font-black text-gray-900 dark:text-white">No Sessions Today</p>
+          <p class="text-[10px] uppercase tracking-widest text-gray-400 mt-2">Your schedule is clear for today</p>
+        </div>
       {:else}
         <div class="space-y-4">
-          <div class="p-6 bg-white dark:bg-slate-900 border border-orange-100 dark:border-orange-500/20 rounded-[2.5rem] shadow-sm flex items-center justify-between hover:shadow-md transition-all">
-            <div class="flex items-center gap-4">
-              <div class="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center">
-                <span class="w-2.5 h-2.5 bg-orange-500 rounded-full animate-pulse"></span>
+          {#each schedules as session, i}
+            <div class="p-6 sm:p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group hover:shadow-xl hover:shadow-indigo-600/5 transition-all" in:fly={{ y: 20, delay: i * 60 }}>
+              <div class="flex items-center gap-6 flex-1 min-w-0">
+                <div class="flex flex-col items-center justify-center p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-3xl min-w-[90px] shrink-0">
+                  <p class="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{session.start_time}</p>
+                  <div class="w-4 h-0.5 bg-indigo-200 dark:bg-indigo-500/30 rounded-full my-1"></div>
+                  <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">{session.end_time}</p>
+                </div>
+                <div class="min-w-0">
+                  <h4 class="text-base font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-all uppercase tracking-tight truncate">{session.subject_name}</h4>
+                  <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{session.section_name}</span>
+                    <span class="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
+                    <span class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">{session.room_code}</span>
+                    {#if session.session_type && session.session_type !== 'LECTURE'}
+                      <span class="text-[9px] font-black text-violet-500 uppercase tracking-widest px-2 py-0.5 bg-violet-50 dark:bg-violet-500/10 rounded-full">{session.session_type}</span>
+                    {/if}
+                  </div>
+                </div>
               </div>
-              <div>
-                <p class="text-sm font-black text-gray-900 dark:text-white">Upload Marks</p>
-                <p class="text-[10px] text-gray-400 font-medium mt-0.5">Pending marks submission for your courses</p>
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest {sessionBadge(session.status)}">
+                  {session.status === 'COMPLETED' ? 'Conducted' : session.status === 'IN_PROGRESS' ? 'Ongoing' : 'Upcoming'}
+                </span>
+                {#if session.status !== 'COMPLETED' && session.status !== 'CANCELLED'}
+                  <button onclick={() => markConducted(session.id)} disabled={markingId === session.id} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-wait">
+                    {markingId === session.id ? '...' : 'Mark Conducted'}
+                  </button>
+                {/if}
               </div>
             </div>
-            <a href="/faculty-portal/marks" class="px-4 py-2 bg-orange-50 dark:bg-orange-500/10 text-orange-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-orange-500 hover:text-white transition-all">Enter Marks</a>
-          </div>
-          <div class="p-6 bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-500/20 rounded-[2.5rem] shadow-sm flex items-center justify-between hover:shadow-md transition-all">
-            <div class="flex items-center gap-4">
-              <div class="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">
-                <span class="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-pulse"></span>
-              </div>
-              <div>
-                <p class="text-sm font-black text-gray-900 dark:text-white">Daily Teaching Report</p>
-                <p class="text-[10px] text-gray-400 font-medium mt-0.5">Submit today's teaching report and track syllabus coverage</p>
-              </div>
-            </div>
-            <a href="/faculty-portal/teaching-report" class="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-600 hover:text-white transition-all">Submit Report</a>
-          </div>
+          {/each}
         </div>
       {/if}
     </div>
@@ -263,47 +266,69 @@
     <!-- Right Sidebar -->
     <div class="space-y-5">
 
-      <!-- Today's Summary -->
-      <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-5">Today's Summary</p>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between py-3 border-b border-gray-50 dark:border-slate-800">
-            <span class="text-xs font-bold text-gray-500">Total Sessions</span>
-            <span class="text-sm font-black text-gray-900 dark:text-white">{loading ? '—' : schedules.length}</span>
+      <!-- Profile Summary -->
+      {#if profile}
+        <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
+          <div class="flex items-center gap-4 mb-5">
+            <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-sm font-black">
+              {(profile.name || 'F').slice(0, 2).toUpperCase()}
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-black text-gray-900 dark:text-white truncate">{profile.name || profile.employee_code}</p>
+              <p class="text-[10px] text-gray-400 font-medium">{profile.designation || 'Faculty'} · {profile.department || '—'}</p>
+            </div>
           </div>
-          <div class="flex items-center justify-between py-3 border-b border-gray-50 dark:border-slate-800">
-            <span class="text-xs font-bold text-gray-500">Conducted</span>
-            <span class="text-sm font-black text-emerald-600">{loading ? '—' : conducted}</span>
-          </div>
-          <div class="flex items-center justify-between py-3">
-            <span class="text-xs font-bold text-gray-500">Remaining</span>
-            <span class="text-sm font-black text-amber-600">{loading ? '—' : remaining}</span>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="p-3 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl text-center">
+              <p class="text-lg font-black text-indigo-600 dark:text-indigo-400">{uniqueSubjectCount()}</p>
+              <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Subjects</p>
+            </div>
+            <div class="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl text-center">
+              <p class="text-lg font-black text-emerald-600 dark:text-emerald-400">{loading ? '—' : conducted}</p>
+              <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Done</p>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-500/10 rounded-2xl text-center">
+              <p class="text-lg font-black text-amber-600 dark:text-amber-400">{loading ? '—' : remaining}</p>
+              <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Left</p>
+            </div>
           </div>
         </div>
-      </div>
+      {/if}
 
-      <!-- My Subjects & Branches -->
+      <!-- My Subjects by Semester -->
       <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">My Subjects & Branches</p>
+        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">My Subjects by Semester</p>
         {#if profileLoading}
           <div class="flex justify-center py-6">
             <div class="w-6 h-6 border-3 border-indigo-600 border-t-transparent animate-spin rounded-full"></div>
           </div>
-        {:else if subjectGroups().length === 0}
+        {:else if subjectsBySemester().length === 0}
           <p class="text-xs text-gray-400 text-center py-4">No subjects assigned yet</p>
         {:else}
-          <div class="space-y-3">
-            {#each subjectGroups() as group}
-              <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-2xl">
+          <div class="space-y-4">
+            {#each subjectsBySemester() as sem}
+              <div>
                 <div class="flex items-center gap-2 mb-2">
-                  <span class="text-[8px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-lg">{group.code}</span>
-                  <span class="text-xs font-black text-gray-900 dark:text-white truncate">{group.name}</span>
+                  <div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                  <span class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{sem.term_name}</span>
                 </div>
-                <div class="flex flex-wrap gap-1.5">
-                  {#each group.branches as branch}
-                    <span class="px-2 py-0.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-[9px] font-bold text-gray-600 dark:text-gray-300">
-                      {branch.program_name}{#if branch.section_name} · {branch.section_name}{/if}
-                    </span>
+                <div class="space-y-2 pl-3.5 border-l-2 border-indigo-100 dark:border-indigo-500/20">
+                  {#each sem.subjects as subj}
+                    <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-2xl">
+                      <div class="flex items-center gap-2 mb-1.5">
+                        <span class="text-[8px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 px-2 py-0.5 rounded-lg">{subj.subject_code}</span>
+                        <span class="text-xs font-black text-gray-900 dark:text-white truncate">{subj.subject_name}</span>
+                      </div>
+                      {#if subj.sections.length > 0}
+                        <div class="flex flex-wrap gap-1.5">
+                          {#each subj.sections as sec}
+                            <span class="px-2 py-0.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-[9px] font-bold text-gray-600 dark:text-gray-300">
+                              {sec.program_name}{#if sec.section_name} · {sec.section_name}{/if}{#if sec.batch_code} ({sec.batch_code}){/if}
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
+                    </div>
                   {/each}
                 </div>
               </div>
@@ -312,41 +337,29 @@
         {/if}
       </div>
 
-      <!-- Leave Request CTA -->
-      <button onclick={openLeavePanel} class="w-full p-6 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm flex items-center gap-4 group hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-600/5 transition-all text-left">
-        <div class="w-11 h-11 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl flex items-center justify-center group-hover:bg-indigo-600 transition-all shrink-0">
-          <svg class="w-5 h-5 text-indigo-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">Leave Requests</p>
-          <p class="text-[10px] text-gray-400 font-medium mt-0.5">Apply & track your leave history</p>
-        </div>
-        <svg class="w-4 h-4 text-gray-300 dark:text-slate-600 shrink-0 group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-      </button>
+      <!-- Quick Actions -->
+      <div class="space-y-3">
+        <a href="/faculty-portal/marks" class="w-full p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] shadow-sm flex items-center gap-4 group hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-600/5 transition-all">
+          <div class="w-10 h-10 bg-violet-50 dark:bg-violet-500/10 rounded-xl flex items-center justify-center group-hover:bg-violet-600 transition-all shrink-0">
+            <svg class="w-5 h-5 text-violet-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black text-gray-900 dark:text-white group-hover:text-violet-600 transition-colors">Enter Marks</p>
+            <p class="text-[10px] text-gray-400 font-medium mt-0.5">Mid 1, Mid 2, Sem, Lab exams</p>
+          </div>
+          <svg class="w-4 h-4 text-gray-300 dark:text-slate-600 shrink-0 group-hover:text-violet-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </a>
 
-      <!-- Quick Links -->
-      <div class="p-7 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm">
-        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Quick Access</p>
-        <div class="space-y-1">
-          <a href="/faculty-portal/marks" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
-            <div class="w-8 h-8 bg-violet-50 dark:bg-violet-500/10 rounded-xl flex items-center justify-center">
-              <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
-            </div>
-            <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-violet-600 transition-colors">Enter Marks</span>
-          </a>
-          <a href="/faculty-portal/teaching-report" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
-            <div class="w-8 h-8 bg-amber-50 dark:bg-amber-500/10 rounded-xl flex items-center justify-center">
-              <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            </div>
-            <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-amber-600 transition-colors">Daily Report</span>
-          </a>
-          <a href="/faculty-portal/my-expertise" class="flex items-center gap-3 p-3 rounded-2xl hover:bg-gray-50 dark:hover:bg-slate-800 transition-all group">
-            <div class="w-8 h-8 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl flex items-center justify-center">
-              <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-            </div>
-            <span class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest group-hover:text-emerald-600 transition-colors">My Expertise</span>
-          </a>
-        </div>
+        <button onclick={openLeavePanel} class="w-full p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2rem] shadow-sm flex items-center gap-4 group hover:border-indigo-300 dark:hover:border-indigo-500/40 hover:shadow-lg hover:shadow-indigo-600/5 transition-all text-left">
+          <div class="w-10 h-10 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl flex items-center justify-center group-hover:bg-indigo-600 transition-all shrink-0">
+            <svg class="w-5 h-5 text-indigo-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">Leave Requests</p>
+            <p class="text-[10px] text-gray-400 font-medium mt-0.5">Apply & track your leave history</p>
+          </div>
+          <svg class="w-4 h-4 text-gray-300 dark:text-slate-600 shrink-0 group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </button>
       </div>
     </div>
   </div>
@@ -468,7 +481,14 @@
                       {/if}
                     </p>
                   </div>
-                  <span class="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest shrink-0 {statusStyle(req.approval_status)}">{req.approval_status}</span>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <span class="px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest {statusStyle(req.approval_status)}">{req.approval_status}</span>
+                    {#if req.approval_status === 'PENDING'}
+                      <button onclick={() => cancelLeave(req.id)} class="px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-50 dark:bg-rose-500/10 text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-500/20 transition-colors" title="Cancel this request">
+                        Cancel
+                      </button>
+                    {/if}
+                  </div>
                 </div>
               {/each}
             </div>

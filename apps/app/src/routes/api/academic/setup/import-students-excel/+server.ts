@@ -14,6 +14,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const file = formData.get('file') as File | null;
     const universityId = formData.get('university_id') as string | null;
     const termName = (formData.get('term_name') as string | null)?.trim() || '';
+    const batchId = (formData.get('batch_id') as string | null)?.trim() || undefined;
 
     if (!file) throw error(400, 'No file uploaded');
     if (!universityId) throw error(400, 'university_id is required');
@@ -120,7 +121,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const jobResults = await Promise.all(
         jobs.map(async job => {
             const r = await StudentService.importStudents(
-                universityId, job.programId, job.termId, job.sectionId, job.students
+                universityId, job.programId, job.termId, job.sectionId, job.students, batchId
             );
             return { sheetName: job.sheetName, ...r };
         })

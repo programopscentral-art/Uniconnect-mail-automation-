@@ -80,7 +80,7 @@ export class StudentService {
             END $$`);
     }
 
-    static async importStudents(universityId: string, programId: string, termId: string, sectionId: string, students: any[]) {
+    static async importStudents(universityId: string, programId: string, termId: string, sectionId: string, students: any[], batchId?: string) {
         const results = { success: 0, failed: 0, errors: [] as string[] };
         if (!students.length) return results;
 
@@ -134,23 +134,26 @@ export class StudentService {
         }
 
         // --- Step 2: Batch upsert student_profiles in one query ---
+        const colCount = 8;
         const pVals = valid.map((_, i) =>
-            `($${i * 7 + 1}, $${i * 7 + 2}, $${i * 7 + 3}, $${i * 7 + 4}, $${i * 7 + 5}, $${i * 7 + 6}, $${i * 7 + 7}, 'ENROLLED')`
+            `($${i * colCount + 1}, $${i * colCount + 2}, $${i * colCount + 3}, $${i * colCount + 4}, $${i * colCount + 5}, $${i * colCount + 6}, $${i * colCount + 7}, $${i * colCount + 8}, 'ENROLLED')`
         ).join(', ');
         const pParams = valid.flatMap(s => [
             emailToUserId.get(s.email?.trim().toLowerCase()) ?? null,
             universityId, programId, termId, sectionId,
             s.enrollment_number.trim(),
-            today
+            today,
+            batchId || null
         ]);
         await db.query(
             `INSERT INTO student_profiles
-                 (user_id, university_id, program_id, term_id, section_id, enrollment_number, admission_date, student_status)
+                 (user_id, university_id, program_id, term_id, section_id, enrollment_number, admission_date, batch_id, student_status)
              VALUES ${pVals}
              ON CONFLICT (university_id, enrollment_number) DO UPDATE SET
                  program_id = EXCLUDED.program_id,
                  term_id    = EXCLUDED.term_id,
                  section_id = EXCLUDED.section_id,
+                 batch_id   = COALESCE(EXCLUDED.batch_id, student_profiles.batch_id),
                  user_id    = COALESCE(student_profiles.user_id, EXCLUDED.user_id),
                  updated_at = NOW()`,
             pParams

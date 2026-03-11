@@ -15,6 +15,23 @@ export interface Notification {
     source_id: string | null;
 }
 
+// Ensure the source_id column and unique index exist
+let _schemaMigrated = false;
+async function ensureSchema() {
+    if (_schemaMigrated) return;
+    try {
+        await db.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS source_id TEXT`);
+        await db.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_user_source
+            ON notifications (user_id, source_id)
+            WHERE source_id IS NOT NULL
+        `);
+        _schemaMigrated = true;
+    } catch {
+        _schemaMigrated = true;
+    }
+}
+
 export async function createNotification(data: {
     user_id: string;
     university_id?: string | null;
@@ -24,9 +41,10 @@ export async function createNotification(data: {
     link?: string | null;
     source_id?: string | null;
 }) {
+    await ensureSchema();
     const result = await db.query(
         `INSERT INTO notifications (user_id, university_id, title, message, type, link, source_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (user_id, source_id) WHERE source_id IS NOT NULL DO NOTHING
          RETURNING *`,
         [data.user_id, data.university_id || null, data.title, data.message, data.type, data.link || null, data.source_id || null]

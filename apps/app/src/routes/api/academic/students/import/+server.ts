@@ -7,12 +7,12 @@ export const POST: RequestHandler = async ({ request, locals }: { request: Reque
         throw error(403, 'Forbidden');
     }
 
-    const { university_id, program_id, term_id, section_id, students } = await request.json();
+    const { university_id, program_id, term_id, section_id, batch_id, students } = await request.json();
 
     if (!university_id || !program_id || !term_id || !section_id || !students || !Array.isArray(students)) {
         throw error(400, 'Missing required fields or invalid students array');
     }
 
-    const results = await StudentService.importStudents(university_id, program_id, term_id, section_id, students);
+    const results = await StudentService.importStudents(university_id, program_id, term_id, section_id, students, batch_id);
     return json(results);
 };
