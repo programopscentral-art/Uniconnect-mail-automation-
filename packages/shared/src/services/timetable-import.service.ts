@@ -119,10 +119,27 @@ export async function matchParsedSessions(
             sectionNumberMap.set(Number(num), id);
         }
     } else {
-        // Auto-map: section 1 -> first section, 2 -> second, etc.
-        dbSections.forEach((s, i) => {
-            sectionNumberMap.set(i + 1, s.id);
-        });
+        // Auto-map: section number N -> batch_code S0N / S{N} pattern
+        for (const s of dbSections) {
+            const code = (s.batch_code || '').toUpperCase().trim();
+            // Match patterns like "S01", "S02", "S1", "S2", etc.
+            const match = code.match(/^S0?(\d+)$/);
+            if (match) {
+                sectionNumberMap.set(parseInt(match[1]), s.id);
+            }
+        }
+        // Fallback: if no batch_code matches, try by name containing the number
+        if (sectionNumberMap.size === 0) {
+            for (const s of dbSections) {
+                const nameMatch = s.name.match(/(\d+)/);
+                if (nameMatch) {
+                    const num = parseInt(nameMatch[1]);
+                    if (!sectionNumberMap.has(num)) {
+                        sectionNumberMap.set(num, s.id);
+                    }
+                }
+            }
+        }
     }
 
     // Apply manual subject/faculty overrides
