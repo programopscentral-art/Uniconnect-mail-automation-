@@ -242,16 +242,23 @@ export class FacultyService {
         }
 
         // Step 5: subject mappings (batch lookup then batch insert)
-        const allSubjectCodes = [...new Set(
-            facultyList.flatMap(f => (f.subject_codes || []).map((c: string) => c.trim().toUpperCase()).filter(Boolean))
+        // Match by code OR name (case-insensitive) across the university
+        const allSubjectTokens = [...new Set(
+            facultyList.flatMap(f => (f.subject_codes || []).map((c: string) => c.trim()).filter(Boolean))
         )];
-        const codeToSubjectId = new Map<string, string>();
-        if (allSubjectCodes.length > 0) {
+        const tokenToSubjectId = new Map<string, string>();
+        if (allSubjectTokens.length > 0) {
+            const upperTokens = allSubjectTokens.map(t => t.toUpperCase());
             const subRes = await db.query(
-                `SELECT id, UPPER(code) as code FROM subjects WHERE university_id = $1 AND UPPER(code) = ANY($2) AND is_active = true`,
-                [universityId, allSubjectCodes]
+                `SELECT id, UPPER(code) as ucode, UPPER(name) as uname
+                 FROM subjects WHERE university_id = $1 AND is_active = true
+                 AND (UPPER(code) = ANY($2) OR UPPER(name) = ANY($2))`,
+                [universityId, upperTokens]
             );
-            for (const r of subRes.rows) codeToSubjectId.set(r.code, r.id);
+            for (const r of subRes.rows) {
+                tokenToSubjectId.set(r.ucode, r.id);
+                tokenToSubjectId.set(r.uname, r.id);
+            }
         }
 
         // Get faculty profile ids
@@ -267,7 +274,7 @@ export class FacultyService {
             const profileId = codeToProfileId.get(f.employee_code?.trim());
             if (!profileId) continue;
             for (const code of (f.subject_codes || [])) {
-                const subjectId = codeToSubjectId.get(code.trim().toUpperCase());
+                const subjectId = tokenToSubjectId.get(code.trim().toUpperCase());
                 if (subjectId) mappingRows.push(`('${profileId}', '${subjectId}', 1, true)`);
             }
         }

@@ -7,17 +7,17 @@ export const GET: RequestHandler = async ({ url, locals }: { url: URL, locals: A
 
     const universityId = url.searchParams.get('universityId');
     if (universityId) {
-        // Return all unique term names for a university (for import dropdown)
+        // Return all terms for a university with id + name (deduplicated by name)
         const { db } = await import('@uniconnect/shared');
         const res = await db.query(
-            `SELECT DISTINCT t.name
+            `SELECT DISTINCT ON (t.name) t.id, t.name, t.program_id, p.code as program_code
              FROM terms t
              JOIN programs p ON p.id = t.program_id
              WHERE p.university_id = $1 AND t.is_active = true
-             ORDER BY t.name ASC`,
+             ORDER BY t.name ASC, t.created_at ASC`,
             [universityId]
         );
-        return json(res.rows.map((r: any) => r.name));
+        return json(res.rows);
     }
 
     const programId = url.searchParams.get('programId');
