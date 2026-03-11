@@ -54,11 +54,10 @@
       if (selectedProgram) params.set('programId', selectedProgram);
       const [facultyRes, subjectsRes] = await Promise.all([
         fetch(`/api/academic/faculty/subjects?${params}`),
-        selectedTerm ? fetch(`/api/academic/subjects?termId=${selectedTerm}`) : Promise.resolve(null)
+        fetch(`/api/academic/subjects/by-university?universityId=${universityId}`)
       ]);
       if (facultyRes.ok) faculty = await facultyRes.json();
-      if (subjectsRes?.ok) allSubjects = await subjectsRes.json();
-      else if (!selectedTerm) allSubjects = [];
+      if (subjectsRes.ok) allSubjects = await subjectsRes.json();
     } finally {
       loading = false;
     }
@@ -107,13 +106,23 @@
         body: JSON.stringify({ id: selectedFaculty.id, ...editForm })
       });
       if (res.ok) {
-        savingMsg = 'Saved!';
-        panelMode = 'view';
-        await loadFaculty();
-        selectedFaculty = faculty.find(f => f.id === selectedFaculty.id) || selectedFaculty;
-        setTimeout(() => savingMsg = '', 2000);
+        const data = await res.json();
+        if (data.success === false) {
+          savingMsg = data.message || 'Failed to save';
+          setTimeout(() => savingMsg = '', 4000);
+        } else {
+          savingMsg = 'Saved!';
+          panelMode = 'view';
+          await loadFaculty();
+          selectedFaculty = faculty.find(f => f.id === selectedFaculty.id) || selectedFaculty;
+          setTimeout(() => savingMsg = '', 2000);
+        }
       } else {
-        savingMsg = 'Failed to save';
+        try {
+          const err = await res.json();
+          savingMsg = err.message || 'Failed to save';
+        } catch { savingMsg = 'Failed to save'; }
+        setTimeout(() => savingMsg = '', 4000);
       }
     } finally {
       saving = false;
@@ -147,10 +156,14 @@
         body: JSON.stringify({ faculty_profile_id: selectedFaculty.id, subject_id: subjectId })
       });
       if (res.ok) {
-        savingMsg = 'Assigned!';
+        const data = await res.json();
+        savingMsg = data.already_exists ? 'Already assigned' : 'Assigned!';
         await loadFaculty();
         selectedFaculty = faculty.find(f => f.id === selectedFaculty.id) || selectedFaculty;
         setTimeout(() => savingMsg = '', 2000);
+      } else {
+        savingMsg = 'Failed to assign';
+        setTimeout(() => savingMsg = '', 3000);
       }
     } finally {
       assigningSubject = false;
@@ -454,17 +467,17 @@
       </div>
 
       <!-- Assign new subject -->
-      {#if selectedTerm && allSubjects.length > 0}
+      {#if allSubjects.length > 0}
         <div>
           <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest mb-3">
-            Assign from {terms.find(t => t.id === selectedTerm)?.name || 'Current Term'}
+            Assign Subject
           </h4>
-          <input type="text" placeholder="Search subjects..." bind:value={subjectSearchQuery}
+          <input type="text" placeholder="Search subjects by name or code..." bind:value={subjectSearchQuery}
             class="w-full px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium mb-3 focus:ring-2 ring-indigo-500 outline-none" />
           {#if availableToAssign.length === 0}
-            <p class="text-xs text-gray-400 text-center py-3">All subjects in this term are already assigned</p>
+            <p class="text-xs text-gray-400 text-center py-3">All subjects are already assigned</p>
           {:else}
-            <div class="space-y-1.5 max-h-48 overflow-y-auto">
+            <div class="space-y-1.5 max-h-56 overflow-y-auto">
               {#each availableToAssign as sub}
                 <button
                   onclick={() => assignSubject(sub.id)}
@@ -473,17 +486,16 @@
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <span class="text-[8px] font-black uppercase px-1.5 py-0.5 bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 rounded shrink-0">{sub.code}</span>
-                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300 truncate">{sub.name}</span>
+                    <div class="min-w-0">
+                      <span class="text-xs font-bold text-gray-700 dark:text-gray-300 truncate block">{sub.name}</span>
+                      <span class="text-[9px] text-gray-400 truncate block">{sub.term_name} · {sub.program_code || sub.program_name}</span>
+                    </div>
                   </div>
                   <span class="text-[9px] font-black text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">+ Assign</span>
                 </button>
               {/each}
             </div>
           {/if}
-        </div>
-      {:else if !selectedTerm}
-        <div class="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-xl border border-amber-200 dark:border-amber-800/30">
-          <p class="text-[10px] font-bold text-amber-700 dark:text-amber-400">Select a semester filter above to assign subjects to this faculty member.</p>
         </div>
       {/if}
     </div>

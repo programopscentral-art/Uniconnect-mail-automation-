@@ -81,36 +81,42 @@ export const PATCH: RequestHandler = async ({ request, locals }: { request: Requ
     const { id, name, email, phone, department, specialization, designation, employee_code } = await request.json();
     if (!id) throw error(400, 'id is required');
 
-    // Update faculty profile fields
-    await db.query(
-        `UPDATE faculty_profiles SET
-            department = COALESCE($2, department),
-            specialization = COALESCE($3, specialization),
-            designation = COALESCE($4, designation),
-            employee_code = COALESCE($5, employee_code),
-            updated_at = NOW()
-         WHERE id = $1`,
-        [id, department, specialization, designation, employee_code]
-    );
+    try {
+        // Update faculty profile fields (use dynamic SET to avoid issues with missing columns)
+        const fpSets: string[] = [];
+        const fpParams: any[] = [id];
+        let fpIdx = 2;
+        if (department !== undefined)      { fpSets.push(`department = $${fpIdx++}`);      fpParams.push(department || null); }
+        if (specialization !== undefined)  { fpSets.push(`specialization = $${fpIdx++}`);  fpParams.push(specialization || null); }
+        if (designation !== undefined)     { fpSets.push(`designation = $${fpIdx++}`);     fpParams.push(designation || null); }
+        if (employee_code !== undefined)   { fpSets.push(`employee_code = $${fpIdx++}`);   fpParams.push(employee_code || null); }
+        if (fpSets.length > 0) {
+            fpSets.push('updated_at = NOW()');
+            await db.query(`UPDATE faculty_profiles SET ${fpSets.join(', ')} WHERE id = $1`, fpParams);
+        }
 
-    // If name/email/phone provided, update the linked user record
-    if (name || email || phone) {
-        const fp = await db.query('SELECT user_id FROM faculty_profiles WHERE id = $1', [id]);
-        const userId = fp.rows[0]?.user_id;
-        if (userId) {
-            const sets: string[] = [];
-            const params: any[] = [userId];
-            let idx = 2;
-            if (name)  { sets.push(`name = $${idx++}`);  params.push(name); }
-            if (email) { sets.push(`email = $${idx++}`);  params.push(email); }
-            if (phone) { sets.push(`phone = $${idx++}`);  params.push(phone); }
-            if (sets.length > 0) {
-                await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1`, params);
+        // If name/email/phone provided, update the linked user record
+        if (name || email || phone) {
+            const fp = await db.query('SELECT user_id FROM faculty_profiles WHERE id = $1', [id]);
+            const userId = fp.rows[0]?.user_id;
+            if (userId) {
+                const sets: string[] = [];
+                const params: any[] = [userId];
+                let idx = 2;
+                if (name)  { sets.push(`name = $${idx++}`);  params.push(name); }
+                if (email) { sets.push(`email = $${idx++}`);  params.push(email.trim().toLowerCase()); }
+                if (phone) { sets.push(`phone = $${idx++}`);  params.push(phone); }
+                if (sets.length > 0) {
+                    await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $1`, params);
+                }
             }
         }
-    }
 
-    return json({ success: true });
+        return json({ success: true });
+    } catch (e: any) {
+        console.error('[PATCH /api/academic/faculty]', e.message);
+        return json({ success: false, message: e.message || 'Failed to update' }, { status: 500 });
+    }
 };
 
 // DELETE — deactivate a faculty profile

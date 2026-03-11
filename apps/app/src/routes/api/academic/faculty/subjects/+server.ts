@@ -11,12 +11,13 @@ export const GET = async ({ url, locals }: { url: URL; locals: App.Locals }) => 
     const termId    = url.searchParams.get('termId');
     const programId = url.searchParams.get('programId');
 
-    let subjectFilter = 's.university_id = $1';
+    // Build optional WHERE filter for subjects (applied in subquery, not in JOIN)
+    let subjectWhere = '';
     const params: any[] = [universityId];
     let idx = 2;
 
-    if (termId)    { subjectFilter += ` AND s.term_id = $${idx++}`;    params.push(termId); }
-    if (programId) { subjectFilter += ` AND s.program_id = $${idx++}`; params.push(programId); }
+    if (termId)    { subjectWhere += ` AND s.term_id = $${idx++}`;    params.push(termId); }
+    if (programId) { subjectWhere += ` AND s.program_id = $${idx++}`; params.push(programId); }
 
     const result = await db.query(
         `SELECT
@@ -42,11 +43,11 @@ export const GET = async ({ url, locals }: { url: URL; locals: App.Locals }) => 
                     'credit_value', s.credit_value,
                     'can_substitute', fsm.can_substitute
                 ) ORDER BY t.name, s.name
-            ) FILTER (WHERE fsm.id IS NOT NULL), '[]') as subjects
+            ) FILTER (WHERE fsm.id IS NOT NULL AND s.id IS NOT NULL), '[]') as subjects
          FROM faculty_profiles fp
          LEFT JOIN users u ON fp.user_id = u.id
          LEFT JOIN faculty_subject_mappings fsm ON fsm.faculty_profile_id = fp.id
-         LEFT JOIN subjects s ON fsm.subject_id = s.id AND (${subjectFilter})
+         LEFT JOIN subjects s ON fsm.subject_id = s.id${subjectWhere}
          LEFT JOIN terms t ON s.term_id = t.id
          LEFT JOIN programs p ON s.program_id = p.id
          WHERE fp.university_id = $1 AND fp.is_active = true

@@ -243,6 +243,7 @@ export class FacultyService {
 
         // Step 5: subject mappings (batch lookup then batch insert)
         // Match by code OR name (case-insensitive) across the university
+        // Join through programs→terms to reliably resolve university (subjects.university_id may be NULL on older schemas)
         const allSubjectTokens = [...new Set(
             facultyList.flatMap(f => (f.subject_codes || []).map((c: string) => c.trim()).filter(Boolean))
         )];
@@ -250,9 +251,12 @@ export class FacultyService {
         if (allSubjectTokens.length > 0) {
             const upperTokens = allSubjectTokens.map(t => t.toUpperCase());
             const subRes = await db.query(
-                `SELECT id, UPPER(code) as ucode, UPPER(name) as uname
-                 FROM subjects WHERE university_id = $1 AND is_active = true
-                 AND (UPPER(code) = ANY($2) OR UPPER(name) = ANY($2))`,
+                `SELECT s.id, UPPER(s.code) as ucode, UPPER(s.name) as uname
+                 FROM subjects s
+                 JOIN terms t ON t.id = s.term_id
+                 JOIN programs p ON p.id = t.program_id
+                 WHERE p.university_id = $1
+                 AND (UPPER(s.code) = ANY($2) OR UPPER(s.name) = ANY($2))`,
                 [universityId, upperTokens]
             );
             for (const r of subRes.rows) {
