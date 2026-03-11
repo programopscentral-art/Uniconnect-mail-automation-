@@ -288,6 +288,16 @@
     return (name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
   }
 
+  function getUniqueSubs(subjects: any[]) {
+    const map = new Map<string, { code: string; name: string; branches: string[] }>();
+    for (const sub of subjects) {
+      const key = sub.subject_name?.toLowerCase() || sub.subject_id;
+      if (!map.has(key)) map.set(key, { code: sub.subject_code, name: sub.subject_name, branches: [] });
+      if (sub.program_name) map.get(key)!.branches.push(sub.program_name);
+    }
+    return Array.from(map.values());
+  }
+
   function getDesignationColor(d: string) {
     if (!d) return 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
     const dl = d.toLowerCase();
@@ -390,25 +400,16 @@
           </div>
 
           <!-- Subject tags — grouped by name -->
-          {@const uniqueSubs = (() => {
-            const map = new Map();
-            for (const sub of (f.subjects || [])) {
-              const key = sub.subject_name?.toLowerCase() || sub.subject_id;
-              if (!map.has(key)) map.set(key, { code: sub.subject_code, name: sub.subject_name, branches: [] });
-              if (sub.program_name) map.get(key).branches.push(sub.program_name);
-            }
-            return Array.from(map.values());
-          })()}
           <div class="flex flex-wrap gap-1 mb-3 min-h-[24px]">
-            {#each uniqueSubs.slice(0, 3) as sub}
+            {#each getUniqueSubs(f.subjects || []).slice(0, 3) as sub}
               <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded">
                 {sub.code || sub.name?.slice(0, 8)}{#if sub.branches.length > 1} <span class="text-indigo-400">({sub.branches.length})</span>{/if}
               </span>
             {/each}
-            {#if uniqueSubs.length > 3}
-              <span class="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-500 rounded">+{uniqueSubs.length - 3}</span>
+            {#if getUniqueSubs(f.subjects || []).length > 3}
+              <span class="text-[8px] font-bold px-1.5 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-500 rounded">+{getUniqueSubs(f.subjects || []).length - 3}</span>
             {/if}
-            {#if uniqueSubs.length === 0}
+            {#if (f.subjects || []).length === 0}
               <span class="text-[9px] font-bold text-gray-400 italic">No subjects</span>
             {/if}
           </div>
@@ -421,7 +422,7 @@
             </div>
             <div class="text-right shrink-0">
               <p class="text-[8px] font-black text-gray-400 uppercase tracking-widest">Subjects</p>
-              <p class="text-sm font-black text-indigo-600 mt-0.5">{uniqueSubs.length}</p>
+              <p class="text-sm font-black text-indigo-600 mt-0.5">{getUniqueSubs(f.subjects || []).length}</p>
             </div>
           </div>
         </button>

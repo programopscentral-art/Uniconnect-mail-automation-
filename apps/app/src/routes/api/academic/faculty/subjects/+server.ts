@@ -19,44 +19,59 @@ export const GET = async ({ url, locals }: { url: URL; locals: App.Locals }) => 
     if (termId)    { subjectWhere += ` AND s.term_id = $${idx++}`;    params.push(termId); }
     if (programId) { subjectWhere += ` AND s.program_id = $${idx++}`; params.push(programId); }
 
-    const result = await db.query(
-        `SELECT
-            fp.id,
-            fp.employee_code,
-            fp.department,
-            fp.designation,
-            fp.specialization,
-            COALESCE(u.name, fp.employee_code) as name,
-            COALESCE(u.email, '') as email,
-            COALESCE(u.phone, '') as phone,
-            COALESCE(json_agg(
-                json_build_object(
-                    'mapping_id', fsm.id,
-                    'subject_id', s.id,
-                    'subject_name', s.name,
-                    'subject_code', s.code,
-                    'term_id', s.term_id,
-                    'term_name', t.name,
-                    'program_id', s.program_id,
-                    'program_name', p.name,
-                    'total_sessions', s.total_sessions_required,
-                    'credit_value', s.credit_value,
-                    'can_substitute', fsm.can_substitute
-                ) ORDER BY t.name, s.name
-            ) FILTER (WHERE fsm.id IS NOT NULL AND s.id IS NOT NULL), '[]') as subjects
-         FROM faculty_profiles fp
-         LEFT JOIN users u ON fp.user_id = u.id
-         LEFT JOIN faculty_subject_mappings fsm ON fsm.faculty_profile_id = fp.id
-         LEFT JOIN subjects s ON fsm.subject_id = s.id${subjectWhere}
-         LEFT JOIN terms t ON s.term_id = t.id
-         LEFT JOIN programs p ON s.program_id = p.id
-         WHERE fp.university_id = $1 AND fp.is_active = true
-         GROUP BY fp.id, fp.employee_code, fp.department, fp.designation, fp.specialization, u.name, u.email, u.phone
-         ORDER BY name ASC`,
-        params
-    );
+    try {
+        // Ensure faculty_subject_mappings table exists
+        await db.query(`CREATE TABLE IF NOT EXISTS faculty_subject_mappings (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            faculty_profile_id UUID NOT NULL REFERENCES faculty_profiles(id) ON DELETE CASCADE,
+            subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+            can_substitute BOOLEAN DEFAULT false,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(faculty_profile_id, subject_id)
+        )`);
 
-    return json(result.rows);
+        const result = await db.query(
+            `SELECT
+                fp.id,
+                fp.employee_code,
+                fp.department,
+                fp.designation,
+                fp.specialization,
+                COALESCE(u.name, fp.employee_code) as name,
+                COALESCE(u.email, '') as email,
+                COALESCE(u.phone, '') as phone,
+                COALESCE(json_agg(
+                    json_build_object(
+                        'mapping_id', fsm.id,
+                        'subject_id', s.id,
+                        'subject_name', s.name,
+                        'subject_code', s.code,
+                        'term_id', s.term_id,
+                        'term_name', t.name,
+                        'program_id', s.program_id,
+                        'program_name', p.name,
+                        'total_sessions', s.total_sessions_required,
+                        'credit_value', s.credit_value,
+                        'can_substitute', fsm.can_substitute
+                    ) ORDER BY t.name, s.name
+                ) FILTER (WHERE fsm.id IS NOT NULL AND s.id IS NOT NULL), '[]') as subjects
+             FROM faculty_profiles fp
+             LEFT JOIN users u ON fp.user_id = u.id
+             LEFT JOIN faculty_subject_mappings fsm ON fsm.faculty_profile_id = fp.id
+             LEFT JOIN subjects s ON fsm.subject_id = s.id${subjectWhere}
+             LEFT JOIN terms t ON s.term_id = t.id
+             LEFT JOIN programs p ON s.program_id = p.id
+             WHERE fp.university_id = $1 AND fp.is_active = true
+             GROUP BY fp.id, fp.employee_code, fp.department, fp.designation, fp.specialization, u.name, u.email, u.phone
+             ORDER BY name ASC`,
+            params
+        );
+
+        return json(result.rows);
+    } catch (e: any) {
+        console.error('[GET /api/academic/faculty/subjects]', e.message);
+        return json([], { status: 200 });
+    }
 };
 
 // POST — assign a subject to faculty
