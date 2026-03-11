@@ -226,7 +226,9 @@ export class AcademicService {
 
     // --- Subject Management ---
 
-    static async createSubject(universityId: string, programId: string, termId: string, data: { name: string; code: string; credit_value?: number; total_sessions?: number }) {
+    static async createSubject(universityId: string, programId: string, termId: string, data: { name: string; code?: string; credit_value?: number; total_sessions?: number }) {
+        // Auto-generate code from name if not provided (e.g. "Data Structures" → "DATA-STRUCTURES")
+        const code = (data.code?.trim() || data.name.replace(/[^a-zA-Z0-9]+/g, '-').toUpperCase()).slice(0, 20);
         const result = await db.query(
             `INSERT INTO subjects (university_id, program_id, term_id, name, code, credit_value, total_sessions_required, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE')
@@ -235,7 +237,7 @@ export class AcademicService {
                  is_active = true,
                  updated_at = NOW()
              RETURNING *`,
-            [universityId, programId, termId, data.name, data.code, data.credit_value || 0, data.total_sessions || 30]
+            [universityId, programId, termId, data.name, code, data.credit_value || 0, data.total_sessions || 30]
         );
         return result.rows[0];
     }

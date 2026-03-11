@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 credit_value: num(r[4], 4),
                 total_sessions: num(r[5], 30)
             }))
-            .filter(s => s.program_code && s.term_name && s.name && s.code)
+            .filter(s => s.program_code && s.term_name && s.name)
     };
 
     const result = await processBulkImport(payload);

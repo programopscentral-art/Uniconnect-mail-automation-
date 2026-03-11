@@ -19,13 +19,13 @@ export const POST: RequestHandler = async ({ request, locals }: { request: Reque
 
     const { university_id, program_id, term_id, name, code, credit_value, total_sessions } = await request.json();
 
-    if (!university_id || !program_id || !term_id || !name || !code) {
-        throw error(400, 'Missing required fields');
+    if (!university_id || !program_id || !term_id || !name) {
+        throw error(400, 'Missing required fields (university_id, program_id, term_id, name)');
     }
 
     const subject = await AcademicService.createSubject(university_id, program_id, term_id, {
         name,
-        code,
+        code: code || undefined,
         credit_value: Number(credit_value) || 0,
         total_sessions: Number(total_sessions) || 30
     });

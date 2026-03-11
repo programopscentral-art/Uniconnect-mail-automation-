@@ -11,7 +11,7 @@ export interface ImportPayload {
     programs?: { name: string; code: string; degree_type?: string; semester_count?: number; campus_code?: string }[];
     terms?: { program_code: string; name: string; start_date: string; end_date: string }[];
     sections?: { program_code: string; term_name: string; name: string; batch_code: string; strength?: number }[];
-    subjects?: { program_code: string; term_name: string; name: string; code: string; credit_value?: number; total_sessions?: number }[];
+    subjects?: { program_code: string; term_name: string; name: string; code?: string; credit_value?: number; total_sessions?: number }[];
 }
 
 export interface ImportResult {
@@ -149,10 +149,10 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
         }
     }
 
-    // 5. Subjects
+    // 5. Subjects (code is optional — auto-generated from name if missing)
     for (const sub of payload.subjects ?? []) {
-        if (!sub.program_code || !sub.term_name || !sub.name || !sub.code) {
-            result.errors.push({ entity: 'subject', item: sub.name || '?', reason: 'program_code, term_name, name, code are required' });
+        if (!sub.program_code || !sub.term_name || !sub.name) {
+            result.errors.push({ entity: 'subject', item: sub.name || '?', reason: 'program_code, term_name, and name are required' });
             continue;
         }
         const programId = programCodeToId.get(sub.program_code.toUpperCase());
@@ -166,12 +166,16 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
             continue;
         }
         try {
+            const subCode = (sub.code || sub.name.replace(/[^a-zA-Z0-9]+/g, '-')).toUpperCase().slice(0, 20);
             const existing = await AcademicService.getSubjects(termId);
-            const duplicate = existing.find((s: any) => s.code?.toLowerCase() === sub.code.toLowerCase());
+            const duplicate = existing.find((s: any) =>
+                (s.code?.toLowerCase() === subCode.toLowerCase()) ||
+                (s.name?.toLowerCase() === sub.name.toLowerCase())
+            );
             if (duplicate) { result.skipped.subjects++; continue; }
             await AcademicService.createSubject(payload.university_id, programId, termId, {
                 name: sub.name,
-                code: sub.code.toUpperCase(),
+                code: subCode,
                 credit_value: sub.credit_value || 4,
                 total_sessions: sub.total_sessions || 30
             });
@@ -197,7 +201,8 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
             );
 
             for (const sub of payload.subjects ?? []) {
-                if (!sub.program_code || !sub.term_name || !sub.name || !sub.code) continue;
+                if (!sub.program_code || !sub.term_name || !sub.name) continue;
+                const subCode = (sub.code || sub.name.replace(/[^a-zA-Z0-9]+/g, '-')).toUpperCase().slice(0, 20);
 
                 try {
                     // Find/create assessment batch (= term)
@@ -231,7 +236,7 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
                     // Find/create assessment subject
                     const existingSubjects = await getAssessmentSubjects(branchId, undefined, batchId);
                     const alreadyExists = existingSubjects.some(
-                        (s: any) => s.code?.toLowerCase() === sub.code.toLowerCase()
+                        (s: any) => (s.code?.toLowerCase() === subCode.toLowerCase()) || (s.name?.toLowerCase() === sub.name.toLowerCase())
                     );
                     if (!alreadyExists) {
                         // Derive semester number from term name (e.g. "Semester 2 - 2026" → 2), default 1
@@ -241,7 +246,7 @@ export async function processBulkImport(payload: ImportPayload): Promise<ImportR
                             branch_id: branchId,
                             batch_id: batchId,
                             name: sub.name,
-                            code: sub.code.toUpperCase(),
+                            code: subCode,
                             semester
                         });
                     }
