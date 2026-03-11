@@ -22,6 +22,13 @@
   let savingMsg = $state('');
   let saving = $state(false);
 
+  // Known subjects (expertise)
+  let knownSubjects = $state<any[]>([]);
+  let knownSubLoading = $state(false);
+  let newKnownSubject = $state('');
+  let newKnownLevel = $state('PROFICIENT');
+  let addingKnown = $state(false);
+
   // Add new instructor
   let showAddModal = $state(false);
   let addForm = $state({ name: '', email: '', phone: '', employee_code: '', department: '', designation: '', specialization: '' });
@@ -80,6 +87,43 @@
     panelMode = 'view';
     subjectSearchQuery = '';
     savingMsg = '';
+    loadKnownSubjects(f.id);
+  }
+
+  async function loadKnownSubjects(facultyProfileId: string) {
+    knownSubLoading = true;
+    try {
+      const res = await fetch(`/api/academic/faculty/known-subjects?facultyProfileId=${facultyProfileId}`);
+      if (res.ok) knownSubjects = await res.json();
+      else knownSubjects = [];
+    } catch { knownSubjects = []; }
+    finally { knownSubLoading = false; }
+  }
+
+  async function addKnownSubject() {
+    if (!newKnownSubject.trim() || !selectedFaculty) return;
+    addingKnown = true;
+    try {
+      const res = await fetch('/api/academic/faculty/known-subjects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          faculty_profile_id: selectedFaculty.id,
+          subject_name: newKnownSubject.trim(),
+          proficiency_level: newKnownLevel
+        })
+      });
+      if (res.ok) {
+        newKnownSubject = '';
+        newKnownLevel = 'PROFICIENT';
+        loadKnownSubjects(selectedFaculty.id);
+      }
+    } finally { addingKnown = false; }
+  }
+
+  async function removeKnownSubject(id: string) {
+    await fetch(`/api/academic/faculty/known-subjects?id=${id}`, { method: 'DELETE' });
+    knownSubjects = knownSubjects.filter(k => k.id !== id);
   }
 
   function startEdit() {
@@ -462,6 +506,54 @@
                 </button>
               </div>
             {/each}
+          </div>
+        {/if}
+      </div>
+
+      <!-- Known Subjects (Expertise) -->
+      <div>
+        <h4 class="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-widest mb-3">
+          Known Subjects <span class="text-[9px] font-medium text-gray-400 normal-case">(can teach)</span>
+          <span class="ml-1 text-emerald-600">{knownSubjects.length}</span>
+        </h4>
+
+        {#if knownSubLoading}
+          <div class="py-4 flex justify-center"><div class="w-5 h-5 border-2 border-indigo-600 border-t-transparent animate-spin rounded-full"></div></div>
+        {:else}
+          {#if knownSubjects.length > 0}
+            <div class="space-y-1.5 mb-3">
+              {#each knownSubjects as ks}
+                <div class="flex items-center justify-between p-2.5 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl group">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate">{ks.subject_name}</span>
+                    <span class="text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0
+                      {ks.proficiency_level === 'EXPERT' ? 'bg-purple-100 text-purple-600' :
+                       ks.proficiency_level === 'PROFICIENT' ? 'bg-blue-100 text-blue-600' :
+                       'bg-gray-100 text-gray-500'}">{ks.proficiency_level}</span>
+                  </div>
+                  <button onclick={() => removeKnownSubject(ks.id)} class="w-5 h-5 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <p class="text-xs text-gray-400 font-medium italic py-3 text-center bg-gray-50 dark:bg-slate-800 rounded-xl mb-3">No known subjects added</p>
+          {/if}
+
+          <!-- Add known subject form -->
+          <div class="flex gap-2">
+            <input type="text" bind:value={newKnownSubject} placeholder="e.g. French, English, Thermodynamics..."
+              class="flex-1 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-emerald-500 outline-none" />
+            <select bind:value={newKnownLevel} class="px-2 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-[10px] font-bold">
+              <option value="BASIC">Basic</option>
+              <option value="PROFICIENT">Proficient</option>
+              <option value="EXPERT">Expert</option>
+            </select>
+            <button onclick={addKnownSubject} disabled={addingKnown || !newKnownSubject.trim()}
+              class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase rounded-xl transition-colors disabled:opacity-50 shrink-0">
+              {addingKnown ? '...' : 'Add'}
+            </button>
           </div>
         {/if}
       </div>

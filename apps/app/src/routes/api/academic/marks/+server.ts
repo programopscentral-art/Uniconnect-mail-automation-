@@ -6,13 +6,13 @@ import type { RequestHandler } from './$types';
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
 
-    const { entries } = await request.json();
+    const { entries, total_marks } = await request.json();
     if (!entries || !Array.isArray(entries) || entries.length === 0) {
         throw error(400, 'entries array is required');
     }
 
     try {
-        // Ensure marks table exists
+        // Ensure marks table exists with total_marks column
         await db.query(`
             CREATE TABLE IF NOT EXISTS student_marks (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -21,6 +21,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 section_id UUID REFERENCES sections(id) ON DELETE SET NULL,
                 exam_type TEXT NOT NULL,
                 marks NUMERIC(6,2) NOT NULL,
+                total_marks NUMERIC(6,2),
+                external_id TEXT,
                 entered_by UUID REFERENCES users(id) ON DELETE SET NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -33,15 +35,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let idx = 1;
 
         for (const e of entries) {
-            values.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
-            params.push(e.student_id, e.subject_id, e.section_id || null, e.exam_type, e.marks, locals.user.id);
+            values.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
+            params.push(e.student_id, e.subject_id, e.section_id || null, e.exam_type, e.marks, total_marks || e.total_marks || null, locals.user.id);
         }
 
         await db.query(
-            `INSERT INTO student_marks (student_id, subject_id, section_id, exam_type, marks, entered_by)
+            `INSERT INTO student_marks (student_id, subject_id, section_id, exam_type, marks, total_marks, entered_by)
              VALUES ${values.join(', ')}
              ON CONFLICT (student_id, subject_id, exam_type) DO UPDATE SET
                 marks = EXCLUDED.marks,
+                total_marks = EXCLUDED.total_marks,
                 entered_by = EXCLUDED.entered_by,
                 updated_at = NOW()`,
             params
