@@ -170,6 +170,21 @@ async function ensureAPDTables() {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        // Add aliases column to universities for APD name matching
+        await db.query(`ALTER TABLE universities ADD COLUMN IF NOT EXISTS aliases JSONB DEFAULT '[]'::jsonb`).catch(() => {});
+
+        // Populate known aliases: BITS → Chevella, MRV → Mallareddy
+        await db.query(`
+            UPDATE universities SET aliases = '["BITS", "BITS Pilani", "Niat Chevella"]'::jsonb
+            WHERE (LOWER(name) LIKE '%chevella%' OR LOWER(slug) LIKE '%chevella%')
+              AND (aliases IS NULL OR aliases = '[]'::jsonb)
+        `).catch(() => {});
+        await db.query(`
+            UPDATE universities SET aliases = '["MRV", "MRV University", "Malla Reddy"]'::jsonb
+            WHERE (LOWER(name) LIKE '%mallareddy%' OR LOWER(name) LIKE '%malla reddy%' OR LOWER(slug) LIKE '%mallareddy%' OR LOWER(slug) LIKE '%malla-reddy%')
+              AND (aliases IS NULL OR aliases = '[]'::jsonb)
+        `).catch(() => {});
+
         await db.query(`
             CREATE TABLE IF NOT EXISTS scheduling_constraints (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

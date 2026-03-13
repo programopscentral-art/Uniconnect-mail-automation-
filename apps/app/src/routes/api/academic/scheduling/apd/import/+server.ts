@@ -84,11 +84,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let dbUniversityNames: string[] = [];
 
         if (!universityId) {
-            const uniRes = await db.query(`SELECT id, name, slug FROM universities`);
+            const uniRes = await db.query(`SELECT id, name, slug, COALESCE(aliases, '[]'::jsonb) as aliases FROM universities`);
             for (const u of uniRes.rows) {
                 dbUniversityNames.push(u.name);
 
-                // Add all match keys for this university
+                // Add all match keys for this university's name
                 for (const key of generateMatchKeys(u.name)) {
                     uniLookup.set(key, u.id);
                 }
@@ -97,6 +97,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 if (u.slug) {
                     uniLookup.set(u.slug.toLowerCase(), u.id);
                     uniLookup.set(u.slug.toLowerCase().replace(/-/g, ' '), u.id);
+                }
+
+                // Add aliases (e.g., BITS, MRV, etc.)
+                const aliases: string[] = Array.isArray(u.aliases) ? u.aliases : [];
+                for (const alias of aliases) {
+                    if (alias) {
+                        for (const key of generateMatchKeys(alias)) {
+                            uniLookup.set(key, u.id);
+                        }
+                    }
                 }
             }
 
