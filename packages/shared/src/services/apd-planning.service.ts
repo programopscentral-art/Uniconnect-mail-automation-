@@ -94,7 +94,7 @@ async function ensureAPDTables() {
         await db.query(`
             CREATE TABLE IF NOT EXISTS apd_import_batches (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+                university_id UUID REFERENCES universities(id) ON DELETE CASCADE,
                 file_name TEXT NOT NULL,
                 file_size_bytes INTEGER,
                 row_count INTEGER DEFAULT 0,
@@ -108,6 +108,8 @@ async function ensureAPDTables() {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             )
         `);
+        // Allow NULL university_id for multi-university batch imports
+        await db.query(`ALTER TABLE apd_import_batches ALTER COLUMN university_id DROP NOT NULL`).catch(() => {});
         await db.query(`
             CREATE TABLE IF NOT EXISTS apd_university_plans (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -647,7 +649,7 @@ export class APDPlanningService {
     /**
      * Create an import batch record.
      */
-    static async createImportBatch(universityId: string, fileName: string, fileSizeBytes: number, uploadedBy: string) {
+    static async createImportBatch(universityId: string | null, fileName: string, fileSizeBytes: number, uploadedBy: string) {
         await ensureAPDTables();
         const res = await db.query(
             `INSERT INTO apd_import_batches (university_id, file_name, file_size_bytes, uploaded_by)

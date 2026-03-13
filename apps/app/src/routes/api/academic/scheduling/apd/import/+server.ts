@@ -51,8 +51,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        // Create a single import batch
-        const batchUniversityId = universityId || locals.user?.university_id || userId;
+        // Create a single import batch (null university for multi-university imports)
+        const batchUniversityId = universityId || locals.user?.university_id || null;
         const batch = await APDPlanningService.createImportBatch(
             batchUniversityId, file.name, buffer.length, userId
         );
