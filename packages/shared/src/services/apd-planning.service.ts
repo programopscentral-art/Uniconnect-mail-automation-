@@ -283,6 +283,13 @@ export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
     // Build column map from row 1 headers
     const colMap = buildColumnMap(headerRow1.map(h => h.toLowerCase()));
 
+    // Debug: log which column was mapped to university_name
+    if (colMap.university_name !== undefined) {
+        result.warnings.push(`University column detected: col ${colMap.university_name} = "${headerRow1[colMap.university_name]}"`);
+    } else {
+        result.warnings.push(`WARNING: No university name column detected. Headers: ${headerRow1.filter(h => h).join(' | ')}`);
+    }
+
     // Detect subject columns: find "Subject Wise Slots" header and read codes from row 2
     const subjectColumns = detectSubjectColumns(headerRow1, headerRow2);
     if (subjectColumns.length > 0) {
@@ -459,8 +466,14 @@ function buildColumnMap(headers: string[]): Record<string, number | undefined> {
         const h = headers[i];
         if (!h) continue;
 
-        // University name
-        if (/^universit|^college|^institution|^type/i.test(h)) map.university_name = i;
+        // PM Asks / Remarks — must match BEFORE university to avoid "University PMs Asks" matching university
+        if (/pm.*ask/i.test(h)) map.pm_asks = i;
+        else if (/remark|note|comment/i.test(h)) map.remarks = i;
+        // Signoff
+        else if (/pm.?sign|university.?pm.*sign/i.test(h)) map.pm_signoff = i;
+        else if (/boa.?sign|coop.*boa/i.test(h)) map.boa_signoff = i;
+        // University name — only match if NOT a compound header like "University PMs Asks", "University Assessment", etc.
+        else if (/^(type\s+)?universit(y|ies)$/i.test(h) || /^college/i.test(h) || /^institution/i.test(h)) map.university_name = i;
         // Dates
         else if (/start.?date|from.?date|begin/i.test(h)) map.start_date = i;
         else if (/end.?date|to.?date|last.?day/i.test(h)) map.end_date = i;
@@ -487,12 +500,6 @@ function buildColumnMap(headers: string[]): Record<string, number | undefined> {
         else if (/net.?niat.*week|niat.*no\.?of.?week/i.test(h)) map.net_niat_weeks = i;
         // Buffer
         else if (/buffer.?slot/i.test(h)) map.buffer_slots = i;
-        // Signoff
-        else if (/pm.?sign|university.?pm.*sign/i.test(h)) map.pm_signoff = i;
-        else if (/pm.*ask/i.test(h)) map.pm_asks = i;
-        else if (/boa.?sign|coop.*boa/i.test(h)) map.boa_signoff = i;
-        // Remarks
-        else if (/remark|note|comment/i.test(h)) map.remarks = i;
     }
     return map;
 }
