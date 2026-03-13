@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import * as XLSX from 'xlsx';
+import { read as xlsxRead, utils as xlsxUtils } from 'xlsx';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -249,7 +249,7 @@ async function ensureAPDTables() {
  * Also supports a separate "Subjects" sheet for backwards compatibility.
  */
 export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+    const workbook = xlsxRead(buffer, { type: 'buffer', cellDates: true });
     const result: APDParseResult = { plans: [], errors: [], warnings: [], totalRows: 0 };
 
     // Find the planning sheet
@@ -263,7 +263,7 @@ export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
     }
 
     const planSheet = workbook.Sheets[planSheetName];
-    const allRows: any[][] = XLSX.utils.sheet_to_json(planSheet, { header: 1, defval: '', raw: false });
+    const allRows: any[][] = xlsxUtils.sheet_to_json(planSheet, { header: 1, defval: '', raw: false });
 
     if (allRows.length < 3) {
         result.errors.push({ row: 0, field: '', message: 'Sheet needs at least 3 rows (header row, sub-header row, data)' });
@@ -401,7 +401,7 @@ export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
 
     if (subjectSheetName && subjectSheetName !== planSheetName) {
         const subjectSheet = workbook.Sheets[subjectSheetName];
-        const subjectRows: any[][] = XLSX.utils.sheet_to_json(subjectSheet, { header: 1, defval: '' });
+        const subjectRows: any[][] = xlsxUtils.sheet_to_json(subjectSheet, { header: 1, defval: '' });
 
         if (subjectRows.length >= 2) {
             const subHeader = subjectRows[0].map((h: any) => String(h).toLowerCase().trim());
