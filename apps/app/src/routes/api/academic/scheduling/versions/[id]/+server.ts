@@ -1,4 +1,4 @@
-import { TimetableOpsService, SchedulingService, db } from '@uniconnect/shared';
+import { TimetableOpsService, SchedulingService, SchedulingNotificationService, db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -26,6 +26,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
         if (action === 'publish') {
             if (!universityId) throw error(400, 'universityId required');
             await SchedulingService.publishTimetable(universityId, params.id, locals.user?.id || '');
+            // Fire-and-forget notifications
+            SchedulingNotificationService.notifyTimetablePublished(universityId, params.id).catch(() => {});
             return json({ success: true, message: 'Published' });
         }
 
