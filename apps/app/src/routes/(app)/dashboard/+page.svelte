@@ -1,1867 +1,927 @@
 <script lang="ts">
   import { goto, invalidateAll } from "$app/navigation";
-  import { fade } from "svelte/transition";
+  import { fade, fly, slide } from "svelte/transition";
   // @ts-ignore
   let { data } = $props();
 
-  // Live Refresh Polling
+  // ─── Calendar State ───────────────────────────────────────────────────────
+  type CalendarView = "month" | "week" | "day";
+  let calendarView = $state<CalendarView>("week");
+  let currentDate = $state(new Date());
+  let today = new Date();
+
+  // ─── Modals ───────────────────────────────────────────────────────────────
+  let showTaskModal = $state(false);
+  let showTaskDetail = $state(false);
+  let selectedTask = $state<any>(null);
+  let showCreateEvent = $state(false);
+  let createEventDate = $state('');
+  let createEventStartTime = $state('09:00');
+  let createEventEndTime = $state('10:00');
+
+  // ─── Task Form ────────────────────────────────────────────────────────────
+  let taskForm = $state({
+    title: '', description: '', priority: 'MEDIUM' as string,
+    assignee_ids: [] as string[], university_id: '',
+    due_date: '', start_time: '09:00', end_time: '10:00',
+    status: 'PENDING', estimated_time: '1h'
+  });
+  let isSaving = $state(false);
+
+  // ─── Task Detail State ────────────────────────────────────────────────────
+  let checklistItems = $state<any[]>([]);
+  let checklistProgress = $state({ total: 0, completed: 0, percent: 0 });
+  let viewStats = $state<any[]>([]);
+  let newChecklistTitle = $state('');
+  let viewLogId = $state('');
+  let viewStartTime = $state(0);
+
+  // ─── Event Form ───────────────────────────────────────────────────────────
+  let eventForm = $state({
+    title: '', type: 'EVENT' as string, description: '',
+    start_date: '', due_date: ''
+  });
+
+  // Polling
   $effect(() => {
-    const interval = setInterval(() => {
-      invalidateAll();
-    }, 30000); // Polling every 30 seconds
+    const interval = setInterval(() => invalidateAll(), 30000);
     return () => clearInterval(interval);
   });
 
-  // Calendar logic
-  const today = new Date();
-  let currentMonth = $state(today.getMonth());
-  let currentYear = $state(today.getFullYear());
-  let viewMode = $state<"MY_TASKS" | "STUDENT_SCHEDULE">("MY_TASKS");
+  // ─── Derived Data ─────────────────────────────────────────────────────────
+  let activeUniv = $derived(data.user.universities?.find((u: any) => u.id === data.user.university_id));
+  let isCentralBOA = $derived(data.user.role === 'BOA' && (!data.user.university_id || activeUniv?.is_team));
 
-  // Modal & Form State
-  let showDayModal = $state(false);
-  let showTaskModal = $state(false);
-
-  // Use $derived for reactivity from data props if possible, or watch data
-  let selectedUniversityId = $derived(data.selectedUniversityId);
-  let defaultUniversityId = $derived(data.defaultUniversityId);
-
-  let selectedDateEvents: any[] = $state([]);
-  let selectedDateLabel = $state("");
-  let selectedDayNum = $state(0);
-
-  let isAddingEvent = $state(false);
-  let newEvent = $state({
-    title: "",
-    type: "EVENT",
-    description: "",
-    start_date: "",
-    due_date: "",
+  const taskStats = $derived({
+    total: data.taskStats.total,
+    completed: data.taskStats.completed,
+    pending: data.taskStats.pending,
+    in_progress: data.taskStats.in_progress || 0,
+    overdue: data.taskStats.overdue || 0
   });
 
-  let taskForm = $state({
-    title: "",
-    description: "",
-    priority: "MEDIUM",
-    assignee_ids: [] as string[],
-    university_id: "",
-    due_date: new Date().toISOString().slice(0, 16),
-    status: "PENDING",
-    estimated_time: "1h",
-  });
-
-  const statusLabels: Record<string, string> = {
-    PENDING: "Pending",
-    IN_PROGRESS: "Processing",
-    COMPLETED: "Completed",
-    CANCELLED: "Cancelled",
-  };
-
-  const presenceColors: Record<string, string> = {
-    ONLINE: "bg-emerald-500",
-    AWAY: "bg-amber-500",
-    OFFLINE: "bg-gray-400",
-  };
-
-  let activeUniv = $derived(
-    data.user.universities?.find((u: any) => u.id === data.user.university_id),
-  );
-  let isCentralBOA = $derived(
-    data.user.role === "BOA" &&
-      (!data.user.university_id || activeUniv?.is_team),
-  );
-
-  function openTaskCreationModal() {
-    // Reset form to clean state
-    taskForm = {
-      title: "",
-      description: "",
-      priority: "MEDIUM",
-      assignee_ids: [data.userId],
-      university_id:
-        data.selectedUniversityId || data.defaultUniversityId || "",
-      due_date: new Date().toISOString().slice(0, 16),
-      status: "PENDING",
-    };
-
-    const canAssignToOthers =
-      [
-        "ADMIN",
-        "PROGRAM_OPS",
-        "UNIVERSITY_OPERATOR",
-        "BOA",
-        "COS",
-        "PM",
-        "PMA",
-        "CMA",
-        "CMA_MANAGER",
-      ].includes(data.user.role) || isCentralBOA;
-
-    if (!canAssignToOthers) {
-      taskForm.assignee_ids = [data.userId];
+  // Combine tasks + schedule events into unified events
+  let allEvents = $derived.by(() => {
+    const events: any[] = [];
+    for (const t of (data.tasks || [])) {
+      const startDate = t.due_date ? new Date(t.due_date) : new Date(t.created_at);
+      events.push({
+        ...t, eventType: 'task',
+        startDate,
+        endDate: new Date(startDate.getTime() + 60 * 60 * 1000), // 1hr default
+        color: t.status === 'COMPLETED' ? 'emerald' :
+               t.priority === 'URGENT' ? 'red' :
+               t.priority === 'HIGH' ? 'orange' : 'indigo'
+      });
     }
-    taskForm.estimated_time = "1h";
+    for (const e of (data.scheduleEvents || [])) {
+      events.push({
+        ...e, eventType: 'schedule',
+        startDate: new Date(e.start_date),
+        endDate: new Date(e.due_date),
+        color: e.type === 'HOLIDAY' ? 'amber' : e.type === 'EXAM' ? 'red' : 'violet'
+      });
+    }
+    return events;
+  });
 
-    showTaskModal = true;
+  // ─── Date Navigation ──────────────────────────────────────────────────────
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const shortDays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  function goToday() { currentDate = new Date(); }
+  function goPrev() {
+    const d = new Date(currentDate);
+    if (calendarView === 'month') d.setMonth(d.getMonth() - 1);
+    else if (calendarView === 'week') d.setDate(d.getDate() - 7);
+    else d.setDate(d.getDate() - 1);
+    currentDate = d;
+  }
+  function goNext() {
+    const d = new Date(currentDate);
+    if (calendarView === 'month') d.setMonth(d.getMonth() + 1);
+    else if (calendarView === 'week') d.setDate(d.getDate() + 7);
+    else d.setDate(d.getDate() + 1);
+    currentDate = d;
   }
 
-  let isSaving = $state(false);
+  function isSameDay(a: Date, b: Date) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+  function isToday(d: Date) { return isSameDay(d, today); }
 
-  const monthNames = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ];
-
-  let calendarDays = $derived.by(() => {
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    let days = [];
-    for (let i = 0; i < firstDay; i++) days.push(null);
-    for (let i = 1; i <= daysInMonth; i++) days.push(i);
+  // ─── Month View Data ──────────────────────────────────────────────────────
+  let monthDays = $derived.by(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+    const days: { date: Date; isCurrentMonth: boolean }[] = [];
+    for (let i = firstDay - 1; i >= 0; i--) {
+      days.push({ date: new Date(year, month - 1, prevMonthDays - i), isCurrentMonth: false });
+    }
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push({ date: new Date(year, month, i), isCurrentMonth: true });
+    }
+    const remaining = 42 - days.length;
+    for (let i = 1; i <= remaining; i++) {
+      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+    }
     return days;
   });
 
-  function nextMonth() {
-    if (currentMonth === 11) {
-      currentMonth = 0;
-      currentYear++;
-    } else {
-      currentMonth++;
+  // ─── Week View Data ───────────────────────────────────────────────────────
+  let weekDays = $derived.by(() => {
+    const d = new Date(currentDate);
+    const day = d.getDay();
+    const start = new Date(d);
+    start.setDate(d.getDate() - day);
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const dd = new Date(start);
+      dd.setDate(start.getDate() + i);
+      days.push(dd);
     }
+    return days;
+  });
+
+  const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
+
+  function getEventsForDate(date: Date) {
+    return allEvents.filter(e => isSameDay(e.startDate, date));
   }
 
-  function prevMonth() {
-    if (currentMonth === 0) {
-      currentMonth = 11;
-      currentYear--;
-    } else {
-      currentMonth--;
+  function getEventsForHour(date: Date, hour: number) {
+    return allEvents.filter(e => isSameDay(e.startDate, date) && e.startDate.getHours() === hour);
+  }
+
+  function formatHour(h: number) {
+    if (h === 0) return '12 AM';
+    if (h < 12) return `${h} AM`;
+    if (h === 12) return '12 PM';
+    return `${h - 12} PM`;
+  }
+
+  function formatTime(d: Date) {
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+
+  function getHeaderLabel() {
+    if (calendarView === 'month') return `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+    if (calendarView === 'week') {
+      const s = weekDays[0];
+      const e = weekDays[6];
+      if (s.getMonth() === e.getMonth()) return `${monthNames[s.getMonth()]} ${s.getDate()} - ${e.getDate()}, ${s.getFullYear()}`;
+      return `${monthNames[s.getMonth()]} ${s.getDate()} - ${monthNames[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
     }
+    return `${dayNames[currentDate.getDay()]}, ${monthNames[currentDate.getMonth()]} ${currentDate.getDate()}, ${currentDate.getFullYear()}`;
   }
 
-  // Task Stats
-  const taskStats = $derived([
-    {
-      label: "Total Tasks",
-      value: data.taskStats.total,
-      icon: "📋",
-      color: "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
-    },
-    {
-      label: "Done",
-      value: data.taskStats.completed,
-      icon: "✅",
-      color:
-        "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
-    },
-    {
-      label: "Pending",
-      value: data.taskStats.pending,
-      icon: "⏳",
-      color:
-        "bg-yellow-50 text-yellow-600 dark:bg-amber-900/20 dark:text-amber-400",
-    },
-    {
-      label: "Processing",
-      value: data.taskStats.in_progress || 0,
-      icon: "🚀",
-      color:
-        "bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400",
-    },
-    {
-      label: "Overdue",
-      value: data.taskStats.overdue || 0,
-      icon: "⚠️",
-      color: "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400",
-    },
-  ]);
-
-  function parseEvent(task: any) {
-    let type = "TASK";
-    let desc = task.description || "";
-    try {
-      if (desc.startsWith("{")) {
-        const parsed = JSON.parse(desc);
-        if (parsed.type) {
-          type = parsed.type;
-          desc = parsed.description || "";
-        }
-      }
-    } catch (e) {}
-
-    return { ...task, type, parsedDescription: desc };
-  }
-
-  function getEventsForDay(day: number) {
-    if (!day) return [];
-    const targetDate = new Date(currentYear, currentMonth, day);
-    targetDate.setHours(0, 0, 0, 0);
-    const targetTime = targetDate.getTime();
-
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-
-    if (viewMode === "MY_TASKS") {
-      return data.tasks
-        .filter((t: any) => {
-          const d = new Date(t.created_at);
-          const tTime = new Date(
-            d.getFullYear(),
-            d.getMonth(),
-            d.getDate(),
-          ).getTime();
-          return targetTime === tTime;
-        })
-        .map((t) => {
-          const dueDate = t.due_date
-            ? new Date(t.due_date)
-            : new Date(t.created_at);
-          dueDate.setHours(0, 0, 0, 0);
-          const isOverdue =
-            t.status !== "COMPLETED" && dueDate.getTime() < now.getTime();
-          return { ...t, type: "TASK", isOverdue };
-        });
-    } else {
-      return data.scheduleEvents.filter((e: any) => {
-        const startD = new Date(e.start_date);
-        startD.setHours(0, 0, 0, 0);
-        const endD = new Date(e.due_date);
-        endD.setHours(0, 0, 0, 0);
-        return targetTime >= startD.getTime() && targetTime <= endD.getTime();
-      });
-    }
-  }
-
-  function openDayModal(day: number) {
-    if (!day) return;
-    selectedDayNum = day;
-    selectedDateLabel = `${monthNames[currentMonth]} ${day}, ${currentYear}`;
-    selectedDateEvents = getEventsForDay(day);
-    isAddingEvent = false;
-    newEvent = {
-      title: "",
-      type: "EVENT",
-      description: "",
-      start_date: "",
-      due_date: "",
+  // ─── Event Colors ─────────────────────────────────────────────────────────
+  function eventBg(color: string) {
+    const map: Record<string, string> = {
+      indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800',
+      red: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+      orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+      emerald: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+      amber: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+      violet: 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border-violet-200 dark:border-violet-800'
     };
-    showDayModal = true;
+    return map[color] || map.indigo;
   }
 
+  function eventDot(color: string) {
+    const map: Record<string, string> = {
+      indigo: 'bg-indigo-500', red: 'bg-red-500', orange: 'bg-orange-500',
+      emerald: 'bg-emerald-500', amber: 'bg-amber-500', violet: 'bg-violet-500'
+    };
+    return map[color] || 'bg-indigo-500';
+  }
+
+  // ─── University Change ────────────────────────────────────────────────────
   function onUnivChange(e: Event) {
     const val = (e.target as HTMLSelectElement).value;
     const url = new URL(window.location.href);
-    if (val) url.searchParams.set("universityId", val);
-    else url.searchParams.delete("universityId");
+    if (val) url.searchParams.set('universityId', val);
+    else url.searchParams.delete('universityId');
     goto(url.toString());
   }
 
-  async function toggleStatus(task: any) {
-    const newStatus = task.status === "COMPLETED" ? "PENDING" : "COMPLETED";
-    const res = await fetch("/api/tasks", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: task.id, status: newStatus }),
-    });
-    if (res.ok) {
-      await invalidateAll();
-      setTimeout(() => {
-        selectedDateEvents = getEventsForDay(selectedDayNum);
-      }, 100);
-    }
-  }
-
-  async function deleteEvent(id: string, type: string) {
-    if (!confirm("Are you sure?")) return;
-    const endpoint =
-      type === "TASK" ? `/api/tasks?id=${id}` : `/api/schedule-events?id=${id}`;
-    const res = await fetch(endpoint, { method: "DELETE" });
-    if (res.ok) {
-      await invalidateAll();
-      setTimeout(() => {
-        selectedDateEvents = getEventsForDay(selectedDayNum);
-      }, 100);
-    }
-  }
-
-  async function saveEvent() {
-    if (!newEvent.title) return alert("Title is required.");
-    isSaving = true;
-    try {
-      const payload = {
-        title: newEvent.title,
-        type: newEvent.type,
-        description: newEvent.description,
-        start_date:
-          newEvent.start_date ||
-          new Date(currentYear, currentMonth, selectedDayNum, 9).toISOString(),
-        due_date:
-          newEvent.due_date ||
-          new Date(currentYear, currentMonth, selectedDayNum, 18).toISOString(),
-        university_id: data.selectedUniversityId || data.defaultUniversityId,
-      };
-
-      const res = await fetch("/api/schedule-events", {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (res.ok) {
-        await invalidateAll();
-        setTimeout(() => {
-          selectedDateEvents = getEventsForDay(selectedDayNum);
-          isAddingEvent = false;
-        }, 100);
-      } else {
-        alert("Failed to save event");
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Error");
-    } finally {
-      isSaving = false;
-    }
+  // ─── Task CRUD ────────────────────────────────────────────────────────────
+  function openCreateTask(date?: Date) {
+    const d = date || new Date();
+    taskForm = {
+      title: '', description: '', priority: 'MEDIUM',
+      assignee_ids: [data.userId],
+      university_id: data.selectedUniversityId || data.defaultUniversityId || '',
+      due_date: d.toISOString().split('T')[0],
+      start_time: '09:00', end_time: '10:00',
+      status: 'PENDING', estimated_time: '1h'
+    };
+    showTaskModal = true;
   }
 
   async function saveTask() {
-    if (!taskForm.title) return alert("Title is required.");
+    if (!taskForm.title) return alert('Title is required.');
     isSaving = true;
     try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify(taskForm),
-        headers: { "Content-Type": "application/json" },
+      const dueDateTime = taskForm.due_date
+        ? `${taskForm.due_date}T${taskForm.end_time || '17:00'}:00`
+        : new Date().toISOString();
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...taskForm,
+          due_date: dueDateTime
+        })
       });
       if (res.ok) {
+        const task = await res.json();
         showTaskModal = false;
-        taskForm = {
-          title: "",
-          description: "",
-          priority: "MEDIUM",
-          assignee_ids: [data.userId],
-          university_id:
-            data.selectedUniversityId || data.defaultUniversityId || "",
-          due_date: new Date().toISOString().slice(0, 16),
-          status: "PENDING",
-          estimated_time: "1h",
-        };
+        // Auto-generate checklist if description is substantial
+        if (taskForm.description && taskForm.description.length > 20) {
+          await fetch(`/api/tasks/${task.id}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auto_generate: true, description: taskForm.description })
+          });
+        }
         await invalidateAll();
       } else {
         const err = await res.json();
-        alert(err.message || "Failed to save task");
+        alert(err.message || 'Failed to save task');
       }
-    } finally {
-      isSaving = false;
-    }
+    } finally { isSaving = false; }
   }
 
-  function getEventColor(event: any) {
-    if (event.type === "TASK") {
-      if (event.status === "COMPLETED")
-        return "bg-green-50 text-green-700 border-green-200";
-      if (event.status === "CANCELLED")
-        return "bg-gray-100 text-gray-500 border-gray-200";
-
-      switch (event.priority) {
-        case "URGENT":
-          return "bg-red-50 text-red-700 border-red-200";
-        case "HIGH":
-          return "bg-orange-50 text-orange-700 border-orange-200";
-        case "MEDIUM":
-          return "bg-blue-50 text-blue-700 border-blue-200";
-        default:
-          return "bg-gray-50 text-gray-600 border-gray-200";
-      }
-    }
-    switch (event.type) {
-      case "HOLIDAY":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "EXAM":
-        return "bg-red-50 text-red-700 border-red-200";
-      case "EVENT":
-        return "bg-indigo-50 text-indigo-700 border-indigo-200";
-      default:
-        return "bg-gray-50 text-gray-600";
-    }
-  }
-
-  function getStatusSymbol(status: string) {
-    switch (status) {
-      case "PENDING":
-        return "🕒";
-      case "IN_PROGRESS":
-        return "🚀";
-      case "COMPLETED":
-        return "✅";
-      case "CANCELLED":
-        return "❌";
-      default:
-        return "📋";
-    }
-  }
-
-  const upcomingTasks = $derived.by(() => {
-    const now = new Date().getTime();
-    return data.tasks
-      .filter(
-        (t: any) =>
-          t.status !== "COMPLETED" &&
-          t.due_date &&
-          new Date(t.due_date).getTime() > now,
-      )
-      .sort(
-        (a: any, b: any) =>
-          new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
-      )
-      .slice(0, 5)
-      .map(parseEvent);
-  });
-
-  // Day Plan state and logic
-  let dayPlanItems = $derived(data.dayPlans || []);
-  let newDayPlanTitle = $state("");
-  let isAddingItem = $state(false);
-
-  async function toggleDayPlanItem(item: any) {
+  async function saveEvent() {
+    if (!eventForm.title) return alert('Title is required.');
+    isSaving = true;
     try {
-      const res = await fetch("/api/day-plans", {
-        method: "PATCH",
+      const res = await fetch('/api/schedule-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: item.id,
-          completed: !item.completed,
-        }),
-        headers: { "Content-Type": "application/json" },
+          ...eventForm,
+          start_date: eventForm.start_date || `${createEventDate}T${createEventStartTime}:00`,
+          due_date: eventForm.due_date || `${createEventDate}T${createEventEndTime}:00`,
+          university_id: data.selectedUniversityId || data.defaultUniversityId
+        })
       });
-      if (res.ok) await invalidateAll();
-    } catch (e) {
-      console.error("Error toggling day plan item:", e);
-    }
+      if (res.ok) { showCreateEvent = false; await invalidateAll(); }
+      else alert('Failed to save event');
+    } finally { isSaving = false; }
   }
 
-  async function addDayPlanItem() {
-    if (!newDayPlanTitle.trim()) return;
+  async function toggleTaskStatus(task: any) {
+    const newStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    await fetch('/api/tasks', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: task.id, status: newStatus })
+    });
+    await invalidateAll();
+  }
+
+  async function deleteEvent(id: string, type: string) {
+    if (!confirm('Are you sure?')) return;
+    const endpoint = type === 'task' ? `/api/tasks?id=${id}` : `/api/schedule-events?id=${id}`;
+    await fetch(endpoint, { method: 'DELETE' });
+    if (selectedTask?.id === id) { showTaskDetail = false; selectedTask = null; }
+    await invalidateAll();
+  }
+
+  // ─── Task Detail ──────────────────────────────────────────────────────────
+  async function openTaskDetail(task: any) {
+    selectedTask = task;
+    showTaskDetail = true;
+    viewStartTime = Date.now();
+    // Load checklist
     try {
-      const res = await fetch("/api/day-plans", {
-        method: "POST",
-        body: JSON.stringify({
-          title: newDayPlanTitle,
-          plan_date: new Date().toISOString().split("T")[0],
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(`/api/tasks/${task.id}/checklist`);
       if (res.ok) {
-        newDayPlanTitle = "";
-        isAddingItem = false;
-        await invalidateAll();
+        const data = await res.json();
+        checklistItems = data.items || [];
+        checklistProgress = data.progress || { total: 0, completed: 0, percent: 0 };
       }
-    } catch (e) {
-      console.error("Error adding day plan item:", e);
+    } catch {}
+    // Log view
+    try {
+      const res = await fetch(`/api/tasks/${task.id}/views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: crypto.randomUUID() })
+      });
+      if (res.ok) { const log = await res.json(); viewLogId = log.id; }
+    } catch {}
+    // Load view stats (admin)
+    if (['ADMIN', 'PROGRAM_OPS', 'BOA', 'PM', 'PMA', 'CMA_MANAGER'].includes(data.user.role)) {
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/views`);
+        if (res.ok) viewStats = await res.json();
+      } catch {}
     }
   }
 
-  async function deleteDayPlanItem(id: string) {
-    try {
-      const res = await fetch(`/api/day-plans?id=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) await invalidateAll();
-    } catch (e) {
-      console.error("Error deleting day plan item:", e);
+  function closeTaskDetail() {
+    // Update view duration
+    if (viewLogId && viewStartTime) {
+      const duration = Math.round((Date.now() - viewStartTime) / 1000);
+      fetch(`/api/tasks/${selectedTask?.id}/views`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ viewLogId, durationSeconds: duration })
+      }).catch(() => {});
+    }
+    showTaskDetail = false;
+    selectedTask = null;
+    viewLogId = '';
+    viewStartTime = 0;
+  }
+
+  async function toggleChecklistItem(itemId: string) {
+    const res = await fetch(`/api/tasks/${selectedTask.id}/checklist`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ toggle: true, itemId })
+    });
+    if (res.ok) {
+      // Refresh checklist
+      const r = await fetch(`/api/tasks/${selectedTask.id}/checklist`);
+      if (r.ok) {
+        const d = await r.json();
+        checklistItems = d.items || [];
+        checklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+      }
     }
   }
 
-  async function promoteToTask(item: any) {
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify({
-          title: item.title,
-          description: "Promoted from Day Plan",
-          priority: "MEDIUM",
-          assignee_ids: [data.userId],
-          university_id:
-            data.selectedUniversityId || data.defaultUniversityId || undefined,
-          estimated_time: "1h",
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        await deleteDayPlanItem(item.id);
-        await invalidateAll();
-      }
-    } catch (e) {
-      console.error("Error promoting task:", e);
+  async function addChecklistItem() {
+    if (!newChecklistTitle.trim()) return;
+    await fetch(`/api/tasks/${selectedTask.id}/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newChecklistTitle })
+    });
+    newChecklistTitle = '';
+    const r = await fetch(`/api/tasks/${selectedTask.id}/checklist`);
+    if (r.ok) {
+      const d = await r.json();
+      checklistItems = d.items || [];
+      checklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
     }
   }
-  // Notification Diagnostic
+
+  async function autoGenerateChecklist() {
+    if (!selectedTask?.description) return;
+    await fetch(`/api/tasks/${selectedTask.id}/checklist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_generate: true, description: selectedTask.description })
+    });
+    const r = await fetch(`/api/tasks/${selectedTask.id}/checklist`);
+    if (r.ok) {
+      const d = await r.json();
+      checklistItems = d.items || [];
+      checklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+    }
+  }
+
+  async function deleteChecklistItem(itemId: string) {
+    await fetch(`/api/tasks/${selectedTask.id}/checklist?itemId=${itemId}`, { method: 'DELETE' });
+    const r = await fetch(`/api/tasks/${selectedTask.id}/checklist`);
+    if (r.ok) {
+      const d = await r.json();
+      checklistItems = d.items || [];
+      checklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+    }
+  }
+
+  function formatDuration(seconds: number) {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
+    return `${Math.round(seconds / 3600 * 10) / 10}h`;
+  }
+
+  // Click on empty time slot to create event
+  function clickTimeSlot(date: Date, hour: number) {
+    createEventDate = date.toISOString().split('T')[0];
+    createEventStartTime = `${String(hour).padStart(2, '0')}:00`;
+    createEventEndTime = `${String(hour + 1).padStart(2, '0')}:00`;
+    eventForm = { title: '', type: 'EVENT', description: '', start_date: '', due_date: '' };
+    showCreateEvent = true;
+  }
+
+  // Notification imports
   import { getFcmToken } from "$lib/firebase";
-  let notificationStatus = $state<
-    "NOT_SUPPORTED" | "granted" | "denied" | "default"
-  >("default");
-  let isTestingNotification = $state(false);
-
+  let notificationStatus = $state<'NOT_SUPPORTED' | 'granted' | 'denied' | 'default'>('default');
   $effect(() => {
-    if (!("Notification" in window)) {
-      notificationStatus = "NOT_SUPPORTED";
-    } else {
-      notificationStatus = Notification.permission as any;
-    }
+    if (!('Notification' in window)) notificationStatus = 'NOT_SUPPORTED';
+    else notificationStatus = Notification.permission as any;
   });
-
   async function requestNotificationPermission() {
-    if (!("Notification" in window)) return;
+    if (!('Notification' in window)) return;
     const permission = await Notification.requestPermission();
     notificationStatus = permission;
-    if (permission === "granted") {
+    if (permission === 'granted') {
       const token = await getFcmToken();
       if (token) {
-        await fetch("/api/fcm/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token,
-            deviceInfo: { userAgent: navigator.userAgent },
-          }),
-        });
-        alert("Notifications enabled successfully!");
+        await fetch('/api/fcm/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, deviceInfo: { userAgent: navigator.userAgent } }) });
       }
-    }
-  }
-
-  async function testNotification() {
-    isTestingNotification = true;
-    try {
-      const res = await fetch("/api/fcm/test", { method: "POST" });
-      if (res.ok) {
-        // Handled by foreground message toast
-      } else {
-        const err = await res.json();
-        alert("Failed to send test notification: " + err.message);
-      }
-    } catch (e) {
-      alert("Error triggering test notification.");
-    } finally {
-      isTestingNotification = false;
     }
   }
 </script>
 
-<div class="flex flex-col 2xl:flex-row gap-8 min-h-screen relative" in:fade>
-  <!-- Main Content Area (Left) -->
-  <div class="flex-1 space-y-8">
-    <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
-      <div class="animate-premium-slide w-full sm:w-auto">
-        <h1
-          class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight"
-        >
-          Main Dashboard <span
-            class="text-[10px] font-normal text-gray-400 dark:text-slate-400 opacity-50 ml-2"
-            >(Build: 5.0)</span
-          >
-        </h1>
-        <p
-          class="text-[10px] sm:text-sm font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest leading-none"
-        >
-          Real-time Overview
-        </p>
-      </div>
-      {#if (data.user?.permissions || []).includes("universities") || data.universities.length > 1}
-        <div
-          class="w-full sm:w-auto animate-premium-fade"
-          style="animation-delay: 100ms;"
-        >
-          <select
-            onchange={onUnivChange}
-            value={data.selectedUniversityId || ""}
-            class="block w-full sm:w-72 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-black text-gray-700 dark:text-gray-300 shadow-[0_8px_30px_rgb(0,0,0,0.04)] focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 focus:border-indigo-600 transition-all outline-none"
-          >
-            <option value="">All Universities</option>
-            {#each data.universities as univ}
-              <option value={univ.id}>{univ.name}</option>
-            {/each}
-          </select>
-        </div>
+<div class="flex flex-col gap-6 min-h-screen" in:fade>
+  <!-- Top Bar -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Dashboard</h1>
+      <p class="text-xs text-gray-400 dark:text-slate-500 font-medium mt-0.5">Real-time overview and task management</p>
+    </div>
+    <div class="flex items-center gap-3">
+      {#if (data.user?.permissions || []).includes('universities') || data.universities.length > 1}
+        <select onchange={onUnivChange} value={data.selectedUniversityId || ''}
+          class="px-4 py-2.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 min-w-[180px]">
+          <option value="">All Universities</option>
+          {#each data.universities as univ}
+            <option value={univ.id}>{univ.name}</option>
+          {/each}
+        </select>
       {/if}
+      <button onclick={() => openCreateTask()} class="px-5 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        New Task
+      </button>
     </div>
-
-    <!-- Notification Status Card -->
-    {#if notificationStatus !== "granted"}
-      <div
-        class="bg-indigo-600 rounded-[2rem] p-6 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-500/20 animate-premium-slide"
-        style="animation-delay: 50ms;"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-2xl"
-          >
-            🔔
-          </div>
-          <div class="space-y-1">
-            <h3 class="font-black uppercase tracking-tight">
-              {notificationStatus === "denied"
-                ? "Notifications Blocked"
-                : "Enable Desktop Notifications"}
-            </h3>
-            <p
-              class="text-xs font-bold text-indigo-100 uppercase tracking-widest opacity-80"
-            >
-              {notificationStatus === "denied"
-                ? "Please enable notifications in your browser settings to receive alerts"
-                : "Don't miss your scheduled communication tasks and reminders"}
-            </p>
-          </div>
-        </div>
-        {#if notificationStatus !== "denied"}
-          <button
-            onclick={requestNotificationPermission}
-            class="px-8 py-3 bg-white text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95 whitespace-nowrap"
-          >
-            Enable Now
-          </button>
-        {:else}
-          <div
-            class="px-6 py-2 bg-indigo-700/50 rounded-lg text-[10px] font-black uppercase tracking-widest"
-          >
-            Fixed in Settings
-          </div>
-        {/if}
-      </div>
-    {/if}
-
-    <!-- Task Stats -->
-    <div
-      class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6 px-1 sm:px-0"
-    >
-      {#each taskStats as stat, i}
-        <div
-          class="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-3xl sm:rounded-[2.5rem] shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-gray-100 dark:border-slate-800 flex flex-col items-center text-center transition-all hover:scale-[1.05] hover:shadow-xl hover:shadow-indigo-500/10 cursor-default group animate-premium-slide {i ===
-          4
-            ? 'col-span-2 min-[500px]:col-span-1'
-            : ''}"
-          style="animation-delay: {200 + i * 50}ms;"
-        >
-          <div
-            class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex-shrink-0 flex items-center justify-center text-lg sm:text-xl {stat.color
-              .replace('bg-', 'bg-')
-              .replace(
-                'text-',
-                'text-',
-              )} dark:bg-opacity-10 shadow-sm mb-3 sm:mb-4 group-hover:rotate-6 transition-transform"
-          >
-            {stat.icon}
-          </div>
-          <div class="w-full">
-            <div
-              class="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-none mb-1"
-            >
-              {stat.value}
-            </div>
-            <div
-              class="text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.15em] sm:tracking-[0.2em]"
-            >
-              {stat.label}
-            </div>
-          </div>
-        </div>
-      {/each}
-    </div>
-
-    <!-- Calendar Section -->
-    <div
-      class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 p-4 sm:p-8 animate-premium-fade"
-      style="animation-delay: 500ms;"
-    >
-      <div
-        class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6 mb-6 sm:mb-8"
-      >
-        <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-          <h2
-            class="text-lg sm:text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight"
-          >
-            Task Calendar
-          </h2>
-          <div
-            class="flex bg-gray-50/50 dark:bg-slate-800/50 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-gray-100 dark:border-gray-700 w-full sm:w-auto"
-          >
-            <button
-              onclick={() => (viewMode = "MY_TASKS")}
-              class="flex-1 sm:flex-none px-3 sm:px-5 py-2 text-[10px] sm:text-xs font-black rounded-lg sm:rounded-xl transition-all {viewMode ===
-              'MY_TASKS'
-                ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}"
-              >All Tasks</button
-            >
-            <button
-              onclick={() => (viewMode = "STUDENT_SCHEDULE")}
-              class="flex-1 sm:flex-none px-3 sm:px-5 py-2 text-[10px] sm:text-xs font-black rounded-lg sm:rounded-xl transition-all {viewMode ===
-              'STUDENT_SCHEDULE'
-                ? 'bg-white dark:bg-gray-700 shadow-md text-indigo-600 dark:text-indigo-400'
-                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}"
-              >Schedule</button
-            >
-          </div>
-        </div>
-
-        <div
-          class="flex items-center justify-between sm:justify-start gap-2 sm:gap-3"
-        >
-          <button
-            onclick={prevMonth}
-            class="p-2 sm:p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-xl sm:rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600"
-            aria-label="Previous Month"
-            ><svg
-              class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2.5"
-                d="M15 19l-7-7 7-7"
-              /></svg
-            ></button
-          >
-          <span
-            class="text-[11px] sm:text-sm font-black w-32 sm:w-40 text-center text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-slate-800 py-2 sm:py-3 rounded-xl sm:rounded-[18px] tracking-wide border border-transparent"
-            >{monthNames[currentMonth]} {currentYear}</span
-          >
-          <button
-            onclick={nextMonth}
-            class="p-2 sm:p-3 bg-gray-50 dark:bg-slate-800 hover:bg-white dark:hover:bg-gray-700 hover:shadow-md rounded-xl sm:rounded-[18px] transition-all border border-transparent hover:border-gray-100 dark:hover:border-gray-600"
-            aria-label="Next Month"
-            ><svg
-              class="h-4 w-4 sm:h-5 sm:w-5 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2.5"
-                d="M9 5l7 7-7 7"
-              /></svg
-            ></button
-          >
-        </div>
-      </div>
-
-      <div class="grid grid-cols-7 gap-1 sm:gap-3 overflow-x-auto pb-2 sm:pb-0">
-        {#each ["S", "M", "T", "W", "T", "F", "S"] as day}
-          <div
-            class="py-2 sm:py-3 text-center text-[8px] sm:text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest"
-          >
-            {day}
-          </div>
-        {/each}
-        {#each calendarDays as day}
-          <div
-            role="button"
-            tabindex="0"
-            class="bg-gray-50/30 dark:bg-slate-800/20 h-16 sm:h-32 p-1 sm:p-3 relative rounded-xl sm:rounded-[24px] border border-transparent group hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 transition-all cursor-pointer min-w-[35px]"
-            onclick={() => day && openDayModal(day)}
-            onkeydown={(e) => e.key === "Enter" && day && openDayModal(day)}
-          >
-            {#if day}
-              <div class="flex justify-between items-start">
-                <span
-                  class="text-[10px] sm:text-sm font-black {day ===
-                    today.getDate() && currentMonth === today.getMonth()
-                    ? 'bg-indigo-600 text-white w-5 h-5 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200'
-                    : 'text-gray-700 dark:text-gray-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'} transition-colors"
-                >
-                  {day}
-                </span>
-              </div>
-              <div
-                class="mt-1 sm:mt-2 space-y-1 overflow-y-auto max-h-[calc(100%-1.5rem)] scrollbar-hide hidden sm:block"
-              >
-                {#each getEventsForDay(day).slice(0, 3) as event}
-                  <div
-                    class="text-[8px] sm:text-[9px] px-1 sm:px-2 py-1 rounded-lg sm:rounded-xl border transition-all hover:scale-[1.02] font-black uppercase tracking-tighter {getEventColor(
-                      event,
-                    )} dark:bg-opacity-10 dark:border-opacity-20 {event.isOverdue
-                      ? 'ring-2 ring-red-400/20 border-red-300 dark:border-red-500/50'
-                      : ''}"
-                  >
-                    <div class="truncate max-w-[90%]">
-                      {event.title}
-                    </div>
-                  </div>
-                {/each}
-                {#if getEventsForDay(day).length > 3}
-                  <div
-                    class="text-[7px] sm:text-[8px] text-indigo-400 dark:text-indigo-500 pl-1 font-black uppercase tracking-widest"
-                  >
-                    +{getEventsForDay(day).length - 3}
-                  </div>
-                {/if}
-              </div>
-              <!-- Mobile indicator dots -->
-              <div class="absolute bottom-1 left-1.5 flex gap-0.5 sm:hidden">
-                {#each getEventsForDay(day).slice(0, 2) as _}
-                  <div class="w-1 h-1 rounded-full bg-indigo-500"></div>
-                {/each}
-                {#if getEventsForDay(day).length > 2}
-                  <div
-                    class="w-1 h-1 rounded-full bg-gray-400 opacity-50"
-                  ></div>
-                {/if}
-              </div>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Recent Campaigns Table -->
-    {#if (data.user?.permissions || []).includes("campaigns")}
-      <div
-        class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 overflow-hidden animate-premium-fade"
-        style="animation-delay: 700ms;"
-      >
-        <div
-          class="p-6 sm:p-8 border-b border-gray-50 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/30 dark:bg-slate-800/30"
-        >
-          <div>
-            <h2
-              class="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tight"
-            >
-              Recent Activity
-            </h2>
-            <p
-              class="text-[10px] sm:text-xs font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase tracking-widest leading-none"
-            >
-              Live statistics and updates
-            </p>
-          </div>
-          <a
-            href="/campaigns"
-            class="w-full sm:w-auto text-center px-6 py-2.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 rounded-xl sm:rounded-2xl text-[10px] sm:text-xs font-black text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all shadow-sm"
-            >View All</a
-          >
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="min-w-full">
-            <thead>
-              <tr class="bg-gray-50/50 dark:bg-slate-800/50">
-                <th
-                  class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.1em]"
-                  >Campaign Name</th
-                >
-                <th
-                  class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.1em]"
-                  >University</th
-                >
-                <th
-                  class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.1em]"
-                  >Created By</th
-                >
-                <th
-                  class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.1em]"
-                  >Status</th
-                >
-                <th
-                  class="px-8 py-4 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.1em]"
-                  >Engagement</th
-                >
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-50 dark:divide-gray-800">
-              {#each data.stats.recent_campaigns || [] as campaign}
-                <tr
-                  class="group hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-colors"
-                >
-                  <td class="px-8 py-6">
-                    <div
-                      class="text-sm font-black text-gray-900 dark:text-gray-100 group-hover:text-indigo-700 dark:group-hover:text-indigo-400 transition-colors"
-                    >
-                      {campaign.name}
-                    </div>
-                    <div
-                      class="text-[10px] font-bold text-gray-400 dark:text-slate-400 mt-0.5"
-                    >
-                      {new Date(campaign.created_at).toLocaleDateString(
-                        undefined,
-                        { month: "short", day: "numeric", year: "numeric" },
-                      )}
-                    </div>
-                  </td>
-                  <td class="px-8 py-6">
-                    <span
-                      class="text-xs font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter bg-indigo-50/50 dark:bg-indigo-900/30 px-2.5 py-1 rounded-xl"
-                      >{campaign.university_name}</span
-                    >
-                  </td>
-                  <td class="px-8 py-6">
-                    <div
-                      class="text-xs font-black text-gray-700 dark:text-gray-300"
-                    >
-                      {campaign.creator_name || "System Auto"}
-                    </div>
-                    <div
-                      class="text-[10px] font-bold text-gray-400 dark:text-slate-400"
-                    >
-                      {campaign.creator_email || "automated@uniconnect.com"}
-                    </div>
-                  </td>
-                  <td class="px-8 py-6">
-                    <span
-                      class="px-3 py-1.5 text-[9px] font-black rounded-xl uppercase tracking-widest shadow-sm border
-                                            {campaign.status === 'COMPLETED'
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-100 dark:border-green-800'
-                        : campaign.status === 'IN_PROGRESS'
-                          ? 'bg-indigo-600 dark:bg-indigo-500 text-white animate-pulse border-transparent'
-                          : 'bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'}"
-                    >
-                      {campaign.status}
-                    </span>
-                  </td>
-                  <td class="px-8 py-6">
-                    <div class="flex items-center space-x-4 text-xs">
-                      <div class="flex flex-col">
-                        <span
-                          class="text-indigo-600 dark:text-indigo-400 font-black"
-                          >{campaign.sent_count}</span
-                        >
-                        <span
-                          class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter"
-                          >Velocity</span
-                        >
-                      </div>
-                      <div class="flex flex-col">
-                        <span
-                          class="text-green-600 dark:text-green-400 font-black"
-                          >{campaign.open_count}</span
-                        >
-                        <span
-                          class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter"
-                          >Opened</span
-                        >
-                      </div>
-                      <div class="flex flex-col">
-                        <span
-                          class="text-emerald-600 dark:text-emerald-400 font-black"
-                          >{campaign.ack_count || 0}</span
-                        >
-                        <span
-                          class="text-[8px] font-bold text-gray-400 dark:text-slate-400 uppercase tracking-tighter"
-                          >Acknowledged</span
-                        >
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              {:else}
-                <tr>
-                  <td colspan="5" class="px-8 py-16 text-center">
-                    <div class="flex flex-col items-center">
-                      <div
-                        class="w-16 h-16 bg-gray-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-2xl mb-4"
-                      >
-                        📭
-                      </div>
-                      <p
-                        class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest"
-                      >
-                        No Active Telemetry
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    {/if}
   </div>
 
-  <!-- Right Sidebar (Day Plan & Quick Actions) -->
-  <div
-    class="w-full 2xl:w-[320px] space-y-8 animate-premium-fade"
-    style="animation-delay: 800ms;"
-  >
-    <!-- Daily Focus / Day Plan -->
-    <div
-      class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 p-8 flex flex-col transition-all hover:shadow-indigo-500/5 hover:border-indigo-100 dark:hover:border-indigo-900/40 group"
-    >
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h3
-            class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest"
-          >
-            My Day Plan
-          </h3>
-          <p
-            class="text-[10px] font-bold text-gray-400 dark:text-slate-400 mt-1"
-          >
-            Personal Focus for Today
-          </p>
-        </div>
-        <div
-          class="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl group-hover:scale-110 transition-transform"
-        >
-          <svg
-            class="w-6 h-6 text-indigo-500 dark:text-indigo-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-            /></svg
-          >
-        </div>
+  <!-- Notification Banner -->
+  {#if notificationStatus !== 'granted'}
+    <div class="bg-indigo-600 rounded-2xl p-4 text-white flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-lg">🔔</div>
+        <p class="text-xs font-bold">{notificationStatus === 'denied' ? 'Notifications blocked in browser settings' : 'Enable notifications to stay updated'}</p>
       </div>
-
-      <div class="space-y-4">
-        {#each dayPlanItems as item}
-          <div
-            class="group flex items-start gap-3 p-4 rounded-2xl bg-gray-50/50 dark:bg-slate-800/50 border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/40 hover:bg-white dark:hover:bg-gray-800 transition-all shadow-sm hover:shadow-md"
-          >
-            <button
-              onclick={() => toggleDayPlanItem(item)}
-              class="mt-1 flex-shrink-0 w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center {item.completed
-                ? 'bg-green-500 border-green-500'
-                : 'border-gray-200 dark:border-gray-700'}"
-            >
-              {#if item.completed}
-                <svg
-                  class="w-3.5 h-3.5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="4"><path d="M5 13l4 4L19 7" /></svg
-                >
-              {/if}
-            </button>
-            <div class="flex-1 min-w-0">
-              <span
-                class="text-sm font-bold {item.completed
-                  ? 'text-gray-400 dark:text-gray-600 line-through'
-                  : 'text-gray-700 dark:text-gray-200'} transition-all block leading-snug"
-              >
-                {item.title}
-              </span>
-              {#if !item.completed}
-                <div
-                  class="flex items-center gap-3 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <button
-                    onclick={() => promoteToTask(item)}
-                    class="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter hover:text-indigo-700 dark:hover:text-indigo-300"
-                  >
-                    Move to Tasks →
-                  </button>
-                  <span class="text-gray-300 dark:text-gray-700">|</span>
-                  <button
-                    onclick={() => deleteDayPlanItem(item.id)}
-                    class="text-[9px] font-black text-red-500 dark:text-red-400 uppercase tracking-tighter hover:text-red-700 dark:hover:text-red-300"
-                  >
-                    Delete
-                  </button>
-                </div>
-              {/if}
-            </div>
-          </div>
-        {:else}
-          <div
-            class="text-center py-6 bg-gray-50/30 dark:bg-slate-800/20 rounded-2xl border border-dashed border-gray-100 dark:border-slate-800"
-          >
-            <p
-              class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest"
-            >
-              Plan is Empty
-            </p>
-          </div>
-        {/each}
-
-        {#if isAddingItem}
-          <div
-            transition:fade={{ duration: 200 }}
-            class="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800"
-          >
-            <input
-              bind:value={newDayPlanTitle}
-              placeholder="What's the focus?"
-              class="w-full bg-transparent border-none p-0 text-sm font-bold text-gray-700 dark:text-gray-200 placeholder:text-indigo-300 dark:placeholder:text-indigo-700 focus:ring-0"
-              onkeydown={(e) => e.key === "Enter" && addDayPlanItem()}
-            />
-            <div class="flex items-center justify-end gap-2 mt-3">
-              <button
-                onclick={() => {
-                  console.log("Cancelling add");
-                  isAddingItem = false;
-                }}
-                class="text-[9px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest hover:text-gray-600"
-                >Cancel</button
-              >
-              <button
-                onclick={addDayPlanItem}
-                class="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest px-3 py-1.5 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-900/50"
-                >Add Item</button
-              >
-            </div>
-          </div>
-        {/if}
-      </div>
-
-      {#if !isAddingItem}
-        <button
-          onclick={() => (isAddingItem = true)}
-          class="w-full mt-6 py-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all border border-transparent hover:border-indigo-100 dark:hover:border-indigo-800"
-        >
-          Add To Day Plan
-        </button>
+      {#if notificationStatus !== 'denied'}
+        <button onclick={requestNotificationPermission} class="px-5 py-2 bg-white text-indigo-600 rounded-lg font-bold text-xs hover:bg-gray-50">Enable</button>
       {/if}
     </div>
+  {/if}
 
-    <!-- Upcoming Tasks -->
-    <div
-      class="bg-white dark:bg-slate-900 rounded-[32px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 dark:border-slate-800 p-8 transition-all hover:shadow-red-500/5 group"
-    >
-      <div class="flex items-center justify-between mb-8">
-        <div>
-          <h3
-            class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest"
-          >
-            Upcoming Deadlines
-          </h3>
-          <p
-            class="text-[10px] font-bold text-gray-400 dark:text-slate-400 mt-1 uppercase"
-          >
-            {upcomingTasks.length} Pending tasks
-          </p>
+  <!-- Task Stats -->
+  <div class="grid grid-cols-5 gap-3">
+    {#each [
+      { label: 'Total', value: taskStats.total, color: 'indigo' },
+      { label: 'Done', value: taskStats.completed, color: 'emerald' },
+      { label: 'Pending', value: taskStats.pending, color: 'amber' },
+      { label: 'In Progress', value: taskStats.in_progress, color: 'blue' },
+      { label: 'Overdue', value: taskStats.overdue, color: 'red' }
+    ] as stat}
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-gray-100 dark:border-slate-800 text-center">
+        <p class="text-2xl font-black text-gray-900 dark:text-white">{stat.value}</p>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1">{stat.label}</p>
+      </div>
+    {/each}
+  </div>
+
+  <!-- Calendar Section -->
+  <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden flex-1">
+    <!-- Calendar Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+      <div class="flex items-center gap-3">
+        <button onclick={goToday} class="px-3 py-1.5 text-xs font-bold border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300">Today</button>
+        <div class="flex items-center gap-1">
+          <button onclick={goPrev} class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <button onclick={goNext} class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
         </div>
-        <div
-          class="p-3 bg-red-50 dark:bg-red-900/30 rounded-2xl group-hover:rotate-12 transition-transform"
-        >
-          <svg
-            class="w-6 h-6 text-red-500 dark:text-red-400"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            ><path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2.5"
-              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-            /></svg
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">{getHeaderLabel()}</h2>
+      </div>
+      <div class="flex bg-gray-100 dark:bg-slate-800 rounded-lg p-0.5">
+        {#each [['month','Month'],['week','Week'],['day','Day']] as [v, label]}
+          <button onclick={() => calendarView = v as CalendarView}
+            class="px-4 py-1.5 text-xs font-bold rounded-md transition-all {calendarView === v ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}">
+            {label}
+          </button>
+        {/each}
+      </div>
+    </div>
+
+    <!-- MONTH VIEW -->
+    {#if calendarView === 'month'}
+      <div class="grid grid-cols-7">
+        {#each shortDays as day}
+          <div class="px-3 py-2 text-[10px] font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider text-center border-b border-gray-100 dark:border-slate-800">{day}</div>
+        {/each}
+        {#each monthDays as { date, isCurrentMonth }}
+          <div
+            class="min-h-[100px] p-1.5 border-b border-r border-gray-50 dark:border-slate-800/50 cursor-pointer hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors {!isCurrentMonth ? 'opacity-40' : ''}"
+            onclick={() => { currentDate = date; calendarView = 'day'; }}
+            role="button" tabindex="0"
+            onkeydown={(e) => e.key === 'Enter' && (() => { currentDate = date; calendarView = 'day'; })()}
           >
+            <span class="text-xs font-bold inline-flex items-center justify-center w-7 h-7 rounded-full
+              {isToday(date) ? 'bg-indigo-600 text-white' : 'text-gray-700 dark:text-gray-300'}">
+              {date.getDate()}
+            </span>
+            <div class="mt-1 space-y-0.5">
+              {#each getEventsForDate(date).slice(0, 3) as event}
+                <div class="text-[9px] font-semibold px-1.5 py-0.5 rounded truncate border-l-2 {eventBg(event.color)}"
+                  onclick|stopPropagation={() => event.eventType === 'task' && openTaskDetail(event)}>
+                  {event.title}
+                </div>
+              {/each}
+              {#if getEventsForDate(date).length > 3}
+                <p class="text-[9px] text-gray-400 pl-1">+{getEventsForDate(date).length - 3} more</p>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- WEEK VIEW (Google Calendar style) -->
+    {#if calendarView === 'week'}
+      <div class="flex overflow-auto" style="max-height: calc(100vh - 320px);">
+        <!-- Time gutter -->
+        <div class="w-16 flex-shrink-0 border-r border-gray-100 dark:border-slate-800">
+          <div class="h-12"></div><!-- spacer for header -->
+          {#each hours as h}
+            <div class="h-16 flex items-start justify-end pr-2 -mt-2">
+              <span class="text-[10px] font-medium text-gray-400">{formatHour(h)}</span>
+            </div>
+          {/each}
+        </div>
+        <!-- Day columns -->
+        <div class="flex-1 grid grid-cols-7">
+          <!-- Day headers -->
+          {#each weekDays as wd, i}
+            <div class="h-12 flex flex-col items-center justify-center border-b border-r border-gray-100 dark:border-slate-800 {isToday(wd) ? 'bg-indigo-50/50 dark:bg-indigo-900/10' : ''}">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">{shortDays[i]}</span>
+              <span class="text-sm font-black {isToday(wd) ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/30 w-7 h-7 rounded-full flex items-center justify-center' : 'text-gray-700 dark:text-gray-300'}">
+                {wd.getDate()}
+              </span>
+            </div>
+          {/each}
+          <!-- Time slots per day -->
+          {#each weekDays as wd, dayIdx}
+            <div class="relative border-r border-gray-50 dark:border-slate-800/50" style="grid-row: 2 / span {hours.length}; grid-column: {dayIdx + 1};">
+              {#each hours as h, hIdx}
+                <div
+                  class="h-16 border-b border-gray-50 dark:border-slate-800/30 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors"
+                  onclick={() => clickTimeSlot(wd, h)}
+                  role="button" tabindex="0"
+                  onkeydown={(e) => e.key === 'Enter' && clickTimeSlot(wd, h)}
+                >
+                  <!-- Events in this slot -->
+                  {#each getEventsForHour(wd, h) as event}
+                    <div
+                      class="absolute left-0.5 right-0.5 rounded-lg px-2 py-1 text-[10px] font-semibold border cursor-pointer z-10 overflow-hidden {eventBg(event.color)}"
+                      style="top: {hIdx * 64 + 2}px; min-height: 28px;"
+                      onclick|stopPropagation={() => event.eventType === 'task' ? openTaskDetail(event) : null}
+                      role="button" tabindex="0"
+                      onkeydown|stopPropagation={(e) => e.key === 'Enter' && (event.eventType === 'task' ? openTaskDetail(event) : null)}
+                    >
+                      <p class="truncate font-bold">{event.title}</p>
+                      <p class="text-[8px] opacity-70">{formatTime(event.startDate)}</p>
+                    </div>
+                  {/each}
+                </div>
+              {/each}
+            </div>
+          {/each}
         </div>
       </div>
+    {/if}
 
-      <div class="space-y-6">
-        {#each upcomingTasks as task}
-          <div
-            role="button"
-            tabindex="0"
-            class="group cursor-pointer bg-gray-50/50 dark:bg-slate-800/50 p-5 rounded-2xl border border-transparent hover:border-indigo-100 dark:hover:border-indigo-900/40 hover:bg-white dark:hover:bg-gray-800 hover:shadow-xl hover:shadow-indigo-500/5 transition-all shadow-sm"
-            onclick={() => goto("/tasks")}
-            onkeydown={(e) =>
-              (e.key === "Enter" || e.key === " ") && goto("/tasks")}
-          >
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0">
+    <!-- DAY VIEW -->
+    {#if calendarView === 'day'}
+      <div class="flex overflow-auto" style="max-height: calc(100vh - 320px);">
+        <!-- Time gutter -->
+        <div class="w-20 flex-shrink-0 border-r border-gray-100 dark:border-slate-800">
+          {#each hours as h}
+            <div class="h-20 flex items-start justify-end pr-3 -mt-2">
+              <span class="text-xs font-medium text-gray-400">{formatHour(h)}</span>
+            </div>
+          {/each}
+        </div>
+        <!-- Day column -->
+        <div class="flex-1 relative">
+          {#each hours as h, hIdx}
+            <div
+              class="h-20 border-b border-gray-50 dark:border-slate-800/30 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors relative"
+              onclick={() => clickTimeSlot(currentDate, h)}
+              role="button" tabindex="0"
+              onkeydown={(e) => e.key === 'Enter' && clickTimeSlot(currentDate, h)}
+            >
+              {#each getEventsForHour(currentDate, h) as event}
                 <div
-                  class="text-sm font-black text-gray-900 dark:text-gray-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight"
+                  class="absolute left-2 right-2 rounded-xl px-4 py-2 border cursor-pointer z-10 {eventBg(event.color)}"
+                  style="top: 2px; min-height: 36px;"
+                  onclick|stopPropagation={() => event.eventType === 'task' ? openTaskDetail(event) : null}
+                  role="button" tabindex="0"
+                  onkeydown|stopPropagation={(e) => e.key === 'Enter' && (event.eventType === 'task' ? openTaskDetail(event) : null)}
                 >
-                  {task.title}
-                </div>
-                <div class="flex flex-col gap-1.5 mt-2">
-                  <div
-                    class="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-tighter"
-                  >
-                    <svg
-                      class="w-3 h-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      /></svg
-                    >
-                    T- {new Date(task.due_date).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                  {#if task.university_short_name}
-                    <span
-                      class="text-[9px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em]"
-                      >{task.university_short_name} Entity</span
-                    >
+                  <p class="text-sm font-bold truncate">{event.title}</p>
+                  <p class="text-xs opacity-70">{formatTime(event.startDate)} - {formatTime(event.endDate)}</p>
+                  {#if event.eventType === 'task' && event.assignees?.length}
+                    <p class="text-[10px] opacity-60 mt-1">{event.assignees.map((a: any) => a.name).join(', ')}</p>
                   {/if}
                 </div>
-              </div>
-              <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <span
-                  class="text-[10px] px-2.5 py-1.5 rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-600 dark:text-gray-300 font-black uppercase tracking-widest shadow-sm"
-                >
-                  {task.priority}
-                </span>
-                {#if task.assigned_by_name}
-                  <span
-                    class="text-[8px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-tighter opacity-70"
-                  >
-                    BY: {task.assigned_by_name}
-                  </span>
-                {/if}
-              </div>
+              {/each}
             </div>
-          </div>
-        {:else}
-          <div
-            class="text-center py-10 bg-gray-50/50 dark:bg-slate-800/20 rounded-[32px] border border-dashed border-gray-100 dark:border-slate-800"
-          >
-            <div class="text-3xl mb-3">🛡️</div>
-            <p
-              class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest"
-            >
-              Perimeter Secured
-            </p>
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
-      {#if upcomingTasks.length > 0}
-        <button
-          onclick={() => goto("/tasks")}
-          class="w-full mt-8 py-4 text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-2xl transition-all border border-indigo-100/50 dark:border-indigo-800"
-          >View All Tasks</button
-        >
-      {/if}
-    </div>
-
-    <!-- Quick Actions -->
-    <div
-      class="bg-gray-900 dark:bg-black rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden group shadow-floating"
-    >
-      <div
-        class="absolute inset-0 bg-gradient-to-br from-indigo-600/20 to-purple-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-700"
-      ></div>
-      <h3
-        class="relative z-10 text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-[0.2em] mb-6"
-      >
-        Quick Actions
-      </h3>
-      <div class="relative z-10 space-y-4">
-        <button
-          onclick={openTaskCreationModal}
-          class="w-full flex items-center p-5 rounded-2xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white hover:scale-[1.02] transition-all font-black shadow-xl group/btn hover:shadow-floating"
-        >
-          <div
-            class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mr-4 group-hover/btn:rotate-6 transition-transform shadow-lg shadow-indigo-500/30"
-          >
-            <svg
-              class="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2.5"
-                d="M12 4v16m8-8H4"
-              /></svg
-            >
-          </div>
-          CREATE TASK
-        </button>
-        {#if (data.user?.permissions || []).includes("universities")}
-          <button
-            onclick={() => goto("/universities")}
-            class="w-full flex items-center p-5 rounded-2xl bg-white/10 dark:bg-slate-800/50 border border-white/10 dark:border-gray-700 text-white hover:bg-white/20 dark:hover:bg-gray-800 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating"
-            >UNIVERSITIES</button
-          >
-        {/if}
-        {#if (data.user?.permissions || []).includes("users")}
-          <button
-            onclick={() => goto("/users")}
-            class="w-full flex items-center p-5 rounded-2xl bg-white/10 dark:bg-slate-800/50 border border-white/10 dark:border-gray-700 text-white hover:bg-white/20 dark:hover:bg-gray-800 transition-all font-black text-sm uppercase tracking-widest hover:shadow-floating"
-          >
-            TEAM MEMBERS
-          </button>
-        {/if}
-      </div>
-    </div>
+    {/if}
   </div>
 </div>
 
-{#if showDayModal}
-  <div
-    class="fixed z-[100] inset-0 overflow-y-auto"
-    aria-labelledby="modal-title"
-    role="dialog"
-    aria-modal="true"
-  >
-    <div
-      class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0"
-    >
-      <div
-        class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
-        role="presentation"
-        onclick={() => (showDayModal = false)}
-        onkeydown={(e) => e.key === "Escape" && (showDayModal = false)}
-      ></div>
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen"
-        >&#8203;</span
-      >
-      <div
-        class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full"
-      >
-        <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-          <h3
-            class="text-lg leading-6 font-medium text-gray-900 mb-4"
-            id="modal-title"
-          >
-            {selectedDateLabel}
-          </h3>
-
-          {#if isAddingEvent}
-            <div class="space-y-4 bg-gray-50 p-4 rounded-lg">
-              <h4 class="font-bold text-sm text-gray-700">
-                Add Schedule Event
-              </h4>
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    for="event-type"
-                    class="block text-xs font-medium text-gray-500"
-                    >Event Type</label
-                  >
-                  <select
-                    id="event-type"
-                    bind:value={newEvent.type}
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
-                  >
-                    <option value="EVENT">Event</option>
-                    <option value="HOLIDAY">Holiday</option>
-                    <option value="EXAM">Exam</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    for="event-title"
-                    class="block text-xs font-medium text-gray-500">Title</label
-                  >
-                  <input
-                    id="event-title"
-                    type="text"
-                    bind:value={newEvent.title}
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
-                    placeholder="e.g. Christmas"
-                  />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label
-                    for="event-start"
-                    class="block text-xs font-medium text-gray-500"
-                    >Start Date</label
-                  >
-                  <!-- Default to selected day -->
-                  <input
-                    id="event-start"
-                    type="datetime-local"
-                    bind:value={newEvent.start_date}
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label
-                    for="event-due"
-                    class="block text-xs font-medium text-gray-500"
-                    >End/Due Date</label
-                  >
-                  <input
-                    id="event-due"
-                    type="datetime-local"
-                    bind:value={newEvent.due_date}
-                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  for="event-description"
-                  class="block text-xs font-medium text-gray-500"
-                  >Description</label
-                >
-                <input
-                  id="event-description"
-                  type="text"
-                  bind:value={newEvent.description}
-                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm sm:text-sm"
-                  placeholder="Details..."
-                />
-              </div>
-              <div class="flex justify-end gap-2 mt-4">
-                <button
-                  onclick={() => (isAddingEvent = false)}
-                  class="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900"
-                  >Cancel</button
-                >
-                <button
-                  onclick={saveEvent}
-                  disabled={isSaving}
-                  class="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >{isSaving ? "Saving..." : "Save Event"}</button
-                >
-              </div>
-            </div>
-          {:else}
-            <!-- View Events -->
-            {#if selectedDateEvents.length === 0}
-              <div class="text-center py-8">
-                <p class="text-sm text-gray-500">
-                  No events scheduled for this day.
-                </p>
-              </div>
-            {:else}
-              <ul class="space-y-3 max-h-60 overflow-y-auto pr-1">
-                {#each selectedDateEvents as event}
-                  <li
-                    class="p-3 rounded-lg border bg-white flex justify-between items-start shadow-sm {getEventColor(
-                      event,
-                    )}"
-                  >
-                    <div class="flex gap-3">
-                      <!-- Status Icon -->
-                      <div class="flex-shrink-0 mt-1">
-                        <span class="text-lg"
-                          >{getStatusSymbol(event.status || "EVENT")}</span
-                        >
-                      </div>
-                      <div>
-                        <div
-                          class="font-bold text-gray-900 text-sm flex items-center gap-2"
-                        >
-                          {event.title}
-                          {#if event.priority}
-                            <span
-                              class="text-[9px] px-1.5 py-0.5 rounded-full border border-gray-200 bg-white font-black"
-                              >{event.priority}</span
-                            >
-                          {/if}
-                        </div>
-                        <div class="flex items-center gap-2 mt-0.5">
-                          {#if event.assigned_to_name}
-                            <div
-                              class="text-[10px] text-gray-500 font-medium px-1.5 py-0.5 bg-gray-100 rounded"
-                            >
-                              👤 {event.assigned_to_name}
-                            </div>
-                          {/if}
-                          {#if event.assigned_by_name}
-                            <div
-                              class="text-[10px] text-indigo-500 font-black uppercase tracking-tighter"
-                            >
-                              By: {event.assigned_by_name}
-                            </div>
-                          {/if}
-                        </div>
-
-                        <!-- Assignee Avatars for Tasks -->
-                        {#if event.type === "TASK" && event.assignees}
-                          <div class="flex -space-x-1 mt-2">
-                            {#each event.assignees as assignee}
-                              <div
-                                class="w-6 h-6 rounded-full {assignee.status ===
-                                'COMPLETED'
-                                  ? 'bg-green-100 dark:bg-green-900/50 border-green-500'
-                                  : 'bg-indigo-100 dark:bg-indigo-900/50 border-white dark:border-slate-800'} border-2 flex items-center justify-center text-[8px] font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-transform hover:scale-110"
-                                title="{assignee.name ||
-                                  assignee.email} - {assignee.status ||
-                                  'PENDING'}"
-                              >
-                                {#if assignee.status === "COMPLETED"}
-                                  <svg
-                                    class="w-2.5 h-2.5 text-green-600"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                    ><path
-                                      fill-rule="evenodd"
-                                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                      clip-rule="evenodd"
-                                    /></svg
-                                  >
-                                {:else}
-                                  {assignee.name?.substring(0, 1) || "?"}
-                                {/if}
-                              </div>
-                            {/each}
-                          </div>
-                        {/if}
-
-                        {#if event.parsedDescription}
-                          <div
-                            class="text-xs text-gray-600 mt-2 bg-black/5 p-2 rounded italic border-l-2 border-black/10"
-                          >
-                            {event.parsedDescription}
-                          </div>
-                        {/if}
-                      </div>
-                    </div>
-
-                    <div class="flex flex-col items-end gap-2">
-                      <span
-                        class="text-[9px] px-2 py-0.5 rounded-full bg-white border font-black uppercase tracking-widest"
-                        >{statusLabels[event.status] ||
-                          event.status ||
-                          event.type}</span
-                      >
-                      <div class="flex gap-2">
-                        {#if event.type === "TASK" && event.status !== "COMPLETED"}
-                          <button
-                            onclick={() => toggleStatus(event)}
-                            class="px-2 py-1 bg-green-600 text-white rounded text-[10px] font-bold shadow-sm hover:bg-green-700 transition-colors"
-                            >Mark Done</button
-                          >
-                        {/if}
-                        {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS" || event.assigned_by === data.user.id || (event.assignee_ids && event.assignee_ids.includes(data.user.id))}
-                          <button
-                            onclick={() => deleteEvent(event.id, event.type)}
-                            class="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-bold hover:bg-red-100 transition-colors"
-                            >Delete</button
-                          >
-                        {/if}
-                      </div>
-                    </div>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          {/if}
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- CREATE TASK MODAL -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+{#if showTaskModal}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => showTaskModal = false} role="dialog" in:fade={{ duration: 150 }}>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[85vh] overflow-y-auto"
+      onclick|stopPropagation role="document" in:fly={{ y: 20, duration: 200 }}>
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Task</h3>
+          <button onclick={() => showTaskModal = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
         </div>
-
-        <div
-          class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse sm:justify-between items-center"
-        >
-          <div class="flex gap-2">
-            <button
-              type="button"
-              onclick={() => (showDayModal = false)}
-              class="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
-            >
-              Close
-            </button>
+        <div class="space-y-4">
+          <input bind:value={taskForm.title} placeholder="Task title" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm font-medium dark:text-white focus:ring-2 ring-indigo-500 outline-none" />
+          <textarea bind:value={taskForm.description} placeholder="Description (checklist will be auto-generated from this)" rows="4"
+            class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white focus:ring-2 ring-indigo-500 outline-none"></textarea>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
+              <input type="date" bind:value={taskForm.due_date} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Priority</label>
+              <select bind:value={taskForm.priority} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+                <option value="URGENT">Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Start Time</label>
+              <input type="time" bind:value={taskForm.start_time} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">End Time</label>
+              <input type="time" bind:value={taskForm.end_time} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+            </div>
           </div>
-
-          {#if !isAddingEvent && viewMode === "STUDENT_SCHEDULE"}
-            <button
-              type="button"
-              onclick={() => {
-                isAddingEvent = true;
-                // Set default times
-                const baseDate = new Date(
-                  currentYear,
-                  currentMonth,
-                  selectedDayNum,
-                  9,
-                  0,
-                  0,
-                ); // 9 AM
-                const offset = baseDate.getTimezoneOffset() * 60000;
-                const localISOTime = new Date(baseDate.getTime() - offset)
-                  .toISOString()
-                  .slice(0, -1);
-                newEvent.start_date = localISOTime;
-                newEvent.due_date = localISOTime; // same day default
-              }}
-              class="inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:w-auto sm:text-sm"
-            >
-              Add Event
-            </button>
-          {/if}
+          <!-- Assignees -->
+          <div>
+            <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Assign To</label>
+            <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+              {#each data.allUsers as user}
+                <button
+                  onclick={() => {
+                    if (taskForm.assignee_ids.includes(user.id)) {
+                      taskForm.assignee_ids = taskForm.assignee_ids.filter(id => id !== user.id);
+                    } else {
+                      taskForm.assignee_ids = [...taskForm.assignee_ids, user.id];
+                    }
+                  }}
+                  class="px-3 py-1 text-xs rounded-full border transition-all {taskForm.assignee_ids.includes(user.id)
+                    ? 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300 font-bold'
+                    : 'border-gray-200 dark:border-slate-700 text-gray-500 hover:border-gray-300'}">
+                  {user.name}
+                </button>
+              {/each}
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Estimated Time</label>
+            <input bind:value={taskForm.estimated_time} placeholder="e.g. 2h, 30m" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button onclick={() => showTaskModal = false} class="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300">Cancel</button>
+          <button onclick={saveTask} disabled={isSaving} class="px-6 py-2 text-sm font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            {isSaving ? 'Saving...' : 'Create Task'}
+          </button>
         </div>
       </div>
     </div>
   </div>
 {/if}
 
-{#if showTaskModal}
-  <div
-    class="fixed z-[100] inset-0 overflow-y-auto"
-    aria-labelledby="task-modal-title"
-    role="dialog"
-    aria-modal="true"
-  >
-    <div
-      class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0"
-    >
-      <div
-        class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity"
-        role="presentation"
-        onclick={() => (showTaskModal = false)}
-      ></div>
-      <span class="hidden sm:inline-block sm:align-middle sm:h-screen"
-        >&#8203;</span
-      >
-      <div
-        class="inline-block align-bottom bg-white dark:bg-slate-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-gray-100 dark:border-slate-800"
-      >
-        <div
-          class="bg-gradient-to-br from-indigo-600 to-blue-700 px-6 py-4 flex justify-between items-center"
-        >
-          <h3 class="text-lg font-bold text-white" id="task-modal-title">
-            Create New Task
-          </h3>
-          <button
-            onclick={() => (showTaskModal = false)}
-            class="text-white/80 hover:text-white"
-            aria-label="Close"
-            ><svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              /></svg
-            ></button
-          >
-        </div>
-        <div class="p-6 space-y-4">
-          <div>
-            <label
-              for="task-title"
-              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-              >Task Title</label
-            >
-            <input
-              id="task-title"
-              type="text"
-              bind:value={taskForm.title}
-              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all placeholder:text-gray-400 dark:placeholder:text-slate-600"
-              placeholder="What needs to be done?"
-            />
-          </div>
-          <div>
-            <label
-              for="task-desc"
-              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-              >Description</label
-            >
-            <textarea
-              id="task-desc"
-              bind:value={taskForm.description}
-              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all min-h-[100px] placeholder:text-gray-400 dark:placeholder:text-slate-600"
-              placeholder="Add some context..."
-            ></textarea>
-          </div>
-          <div class="grid grid-cols-2 gap-4">
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- CREATE EVENT MODAL -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+{#if showCreateEvent}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => showCreateEvent = false} role="dialog" in:fade={{ duration: 150 }}>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md mx-4 shadow-2xl border border-gray-200 dark:border-slate-700"
+      onclick|stopPropagation role="document" in:fly={{ y: 20, duration: 200 }}>
+      <div class="p-6">
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4">New Event</h3>
+        <div class="space-y-3">
+          <input bind:value={eventForm.title} placeholder="Event title" class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+          <select bind:value={eventForm.type} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
+            <option value="EVENT">Event</option>
+            <option value="HOLIDAY">Holiday</option>
+            <option value="EXAM">Exam</option>
+          </select>
+          <textarea bind:value={eventForm.description} placeholder="Description" rows="2" class="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white"></textarea>
+          <div class="grid grid-cols-2 gap-3">
             <div>
-              <label
-                for="task-prio"
-                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-                >Priority</label
-              >
-              <select
-                id="task-prio"
-                bind:value={taskForm.priority}
-                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
-              >
-                <option value="URGENT">Urgent</option>
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
+              <input type="date" bind:value={createEventDate} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
+              <select bind:value={eventForm.type} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
+                <option value="EVENT">Event</option><option value="HOLIDAY">Holiday</option><option value="EXAM">Exam</option>
               </select>
             </div>
             <div>
-              <label
-                for="task-due"
-                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-                >Due Date</label
-              >
-              <input
-                id="task-due"
-                type="datetime-local"
-                bind:value={taskForm.due_date}
-                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
-              />
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Start</label>
+              <input type="time" bind:value={createEventStartTime} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
-              <label
-                for="task-est"
-                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-                >Est. Time (e.g. 2h)</label
-              >
-              <input
-                id="task-est"
-                type="text"
-                bind:value={taskForm.estimated_time}
-                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
-                placeholder="1h"
-              />
-            </div>
-          </div>
-          <div class="grid grid-cols-1 gap-4">
-            <div>
-              <label
-                for="task-assign"
-                class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5 px-1"
-                >Assign To (Team Member)</label
-              >
-              {#if data.user}
-                {@const activeUniv = data.user.universities?.find(
-                  (u) => u.id === data.user.university_id,
-                )}
-                {@const isCentralBOA =
-                  data.user.role === "BOA" &&
-                  (!data.user.university_id || (activeUniv as any)?.is_team)}
-                {#if ["ADMIN", "PROGRAM_OPS", "UNIVERSITY_OPERATOR", "COS", "PM", "PMA", "CMA", "CMA_MANAGER"].includes(data.user.role) || isCentralBOA}
-                  <div
-                    class="space-y-2 max-h-40 overflow-y-auto p-3 bg-gray-50 dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 custom-scrollbar"
-                  >
-                    <label
-                      class="flex items-center gap-3 p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
-                    >
-                      <input
-                        type="checkbox"
-                        value={data.userId}
-                        checked={taskForm.assignee_ids.includes(data.userId)}
-                        onchange={(e) => {
-                          if (e.currentTarget.checked)
-                            taskForm.assignee_ids = [
-                              ...taskForm.assignee_ids,
-                              data.userId,
-                            ];
-                          else
-                            taskForm.assignee_ids =
-                              taskForm.assignee_ids.filter(
-                                (id) => id !== data.userId,
-                              );
-                        }}
-                        class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span
-                        class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                        >Assign to Myself</span
-                      >
-                    </label>
-
-                    {#each (data.allUsers || []).filter((u: any) => u.id !== data.userId) as user}
-                      <label
-                        class="flex items-center justify-between p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all cursor-pointer group"
-                      >
-                        <div class="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            value={user.id}
-                            checked={taskForm.assignee_ids.includes(user.id)}
-                            onchange={(e) => {
-                              if (e.currentTarget.checked)
-                                taskForm.assignee_ids = [
-                                  ...taskForm.assignee_ids,
-                                  user.id,
-                                ];
-                              else
-                                taskForm.assignee_ids =
-                                  taskForm.assignee_ids.filter(
-                                    (id) => id !== user.id,
-                                  );
-                            }}
-                            class="w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          <span
-                            class="text-sm font-bold text-gray-700 dark:text-gray-300"
-                            >{user.name || user.email}</span
-                          >
-                        </div>
-                        <div
-                          class="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity"
-                        >
-                          <span
-                            class="text-[8px] font-black uppercase tracking-tighter text-gray-400 dark:text-slate-500"
-                            >{user.presence_status || "OFFLINE"}</span
-                          >
-                          <div
-                            class="w-2 h-2 rounded-full {presenceColors[
-                              user.presence_status
-                            ] || presenceColors.OFFLINE}"
-                          ></div>
-                        </div>
-                      </label>
-                    {/each}
-                  </div>
-                {/if}
-              {/if}
-            </div>
-            <div>
-              <label
-                for="task-univ"
-                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-                >Institutional Context (Optional)</label
-              >
-              <select
-                id="task-univ"
-                bind:value={taskForm.university_id}
-                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
-              >
-                <option value="">None / General</option>
-                {#each data.universities as univ}
-                  <option value={univ.id}>{univ.name}</option>
-                {/each}
-              </select>
-            </div>
-            <div>
-              <label
-                for="task-status"
-                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 px-1"
-                >Initial Status</label
-              >
-              <select
-                id="task-status"
-                bind:value={taskForm.status}
-                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
-              >
-                <option value="PENDING">Pending</option>
-                <option value="IN_PROGRESS">Processing</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">End</label>
+              <input type="time" bind:value={createEventEndTime} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
           </div>
         </div>
-        <div class="p-6 bg-gray-50 dark:bg-slate-800/50 flex gap-3">
-          <button
-            onclick={() => (showTaskModal = false)}
-            class="flex-1 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
-            >Cancel</button
-          >
-          <button
-            onclick={saveTask}
-            disabled={isSaving}
-            class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50"
-          >
-            {isSaving ? "Creating..." : "Create Task"}
+        <div class="flex justify-end gap-3 mt-5">
+          <button onclick={() => showCreateEvent = false} class="px-4 py-2 text-sm rounded-xl border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300">Cancel</button>
+          <button onclick={saveEvent} disabled={isSaving} class="px-6 py-2 text-sm font-bold rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50">
+            {isSaving ? 'Saving...' : 'Create'}
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TASK DETAIL MODAL (with Checklist, View Tracking, Analytics) -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+{#if showTaskDetail && selectedTask}
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={closeTaskDetail} role="dialog" in:fade={{ duration: 150 }}>
+    <div class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl w-full max-w-2xl mx-0 sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
+      onclick|stopPropagation role="document" in:fly={{ y: 30, duration: 200 }}>
+      <div class="p-6">
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                {selectedTask.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                 selectedTask.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}">
+                {selectedTask.status}
+              </span>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                {selectedTask.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
+                 selectedTask.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                 'bg-gray-100 text-gray-600'}">
+                {selectedTask.priority}
+              </span>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{selectedTask.title}</h3>
+            {#if selectedTask.description}
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedTask.description}</p>
+            {/if}
+          </div>
+          <div class="flex gap-2">
+            <button onclick={() => toggleTaskStatus(selectedTask)} class="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800">
+              {selectedTask.status === 'COMPLETED' ? 'Reopen' : 'Complete'}
+            </button>
+            <button onclick={() => deleteEvent(selectedTask.id, 'task')} class="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
+            <button onclick={closeTaskDetail} class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Meta Info -->
+        <div class="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400 mb-5 pb-5 border-b border-gray-100 dark:border-slate-800">
+          {#if selectedTask.due_date}
+            <span>Due: {new Date(selectedTask.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+          {/if}
+          {#if selectedTask.estimated_time}
+            <span>Est: {selectedTask.estimated_time}</span>
+          {/if}
+          {#if selectedTask.assignees?.length}
+            <span>Assigned: {selectedTask.assignees.map((a: any) => a.name).join(', ')}</span>
+          {/if}
+          {#if selectedTask.assigned_by_name}
+            <span>By: {selectedTask.assigned_by_name}</span>
+          {/if}
+        </div>
+
+        <!-- Checklist Section -->
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-3">
+              <h4 class="text-sm font-bold text-gray-900 dark:text-white">Checklist</h4>
+              {#if checklistProgress.total > 0}
+                <span class="text-[10px] font-bold text-gray-400">{checklistProgress.completed}/{checklistProgress.total}</span>
+                <div class="w-24 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div class="h-full bg-indigo-500 rounded-full transition-all" style="width: {checklistProgress.percent}%"></div>
+                </div>
+              {/if}
+            </div>
+            {#if selectedTask.description && checklistItems.length === 0}
+              <button onclick={autoGenerateChecklist} class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline">Auto-generate</button>
+            {/if}
+          </div>
+          <div class="space-y-1.5">
+            {#each checklistItems as item}
+              <div class="flex items-center gap-3 group px-3 py-2 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-800/50">
+                <button onclick={() => toggleChecklistItem(item.id)}
+                  class="w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all
+                    {item.is_completed ? 'bg-indigo-600 border-indigo-600' : 'border-gray-300 dark:border-slate-600 hover:border-indigo-400'}">
+                  {#if item.is_completed}
+                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  {/if}
+                </button>
+                <span class="text-sm flex-1 {item.is_completed ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'}">{item.title}</span>
+                {#if item.completed_by_name}
+                  <span class="text-[10px] text-gray-400">{item.completed_by_name}</span>
+                {/if}
+                <button onclick={() => deleteChecklistItem(item.id)} class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            {/each}
+          </div>
+          <!-- Add checklist item -->
+          <div class="flex gap-2 mt-2">
+            <input bind:value={newChecklistTitle} placeholder="Add checklist item..." onkeydown={(e) => e.key === 'Enter' && addChecklistItem()}
+              class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+            <button onclick={addChecklistItem} class="px-3 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Add</button>
+          </div>
+        </div>
+
+        <!-- View Analytics (Admin Only) -->
+        {#if viewStats.length > 0}
+          <div class="border-t border-gray-100 dark:border-slate-800 pt-5">
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3">View Analytics</h4>
+            <div class="space-y-2">
+              {#each viewStats as vs}
+                <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50 text-sm">
+                  <div>
+                    <p class="font-semibold text-gray-700 dark:text-gray-300">{vs.user_name}</p>
+                    <p class="text-[10px] text-gray-400">{vs.user_email}</p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-xs font-bold text-gray-600 dark:text-gray-300">{vs.view_count} view{vs.view_count > 1 ? 's' : ''}</p>
+                    <p class="text-[10px] text-gray-400">
+                      {formatDuration(parseInt(vs.total_duration_seconds || '0'))} total
+                      {#if vs.last_viewed_at}
+                         &middot; Last: {new Date(vs.last_viewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {/if}
+                    </p>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Assignee Status Tracking -->
+        {#if selectedTask.assignees?.length}
+          <div class="border-t border-gray-100 dark:border-slate-800 pt-5 mt-5">
+            <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3">Assignee Progress</h4>
+            <div class="space-y-2">
+              {#each selectedTask.assignees as assignee}
+                <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                      {assignee.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{assignee.name}</span>
+                  </div>
+                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full
+                    {assignee.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                     assignee.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                     'bg-gray-100 text-gray-500'}">
+                    {assignee.status || 'PENDING'}
+                  </span>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
