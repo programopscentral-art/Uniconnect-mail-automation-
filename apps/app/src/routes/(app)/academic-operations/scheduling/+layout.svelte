@@ -8,6 +8,7 @@
     { href: "/academic-operations/scheduling", label: "Overview" },
     { href: "/academic-operations/scheduling/apd", label: "APD Planning" },
     { href: "/academic-operations/scheduling/upload", label: "Upload" },
+    { href: "/academic-operations/scheduling/generate", label: "Generate" },
     { href: "/academic-operations/scheduling/availability", label: "Time Slots" },
     { href: "/academic-operations/scheduling/sessions", label: "Live Sessions" },
     { href: "/academic-operations/scheduling/conflicts", label: "Conflicts" },
