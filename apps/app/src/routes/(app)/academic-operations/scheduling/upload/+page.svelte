@@ -169,7 +169,9 @@
           termId: selectedTermId || null,
           matchedSessions: updatedSessions,
           slots: parseResult?.slots || [],
-          notes: `Imported from ${file?.name || 'Excel'}`
+          notes: `Imported from ${file?.name || 'Excel'}`,
+          fileName: file?.name || 'unknown.xlsx',
+          fileSizeBytes: file?.size || 0
         })
       });
 
@@ -524,16 +526,34 @@
           <p class="text-xs text-gray-400 font-bold uppercase tracking-widest">Version {confirmResult?.versionNumber || '?'} created as DRAFT</p>
         </div>
 
-        <div class="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+        <div class="grid grid-cols-3 gap-4 max-w-lg mx-auto">
           <div class="p-5 bg-gray-50 dark:bg-slate-800 rounded-2xl">
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Sessions</p>
             <p class="text-2xl font-black text-gray-900 dark:text-white">{confirmResult?.sessionsCreated || 0}</p>
+          </div>
+          <div class="p-5 bg-gray-50 dark:bg-slate-800 rounded-2xl">
+            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Skipped</p>
+            <p class="text-2xl font-black {(confirmResult?.sessionsSkipped || 0) > 0 ? 'text-red-500' : 'text-gray-300'}">{confirmResult?.sessionsSkipped || 0}</p>
           </div>
           <div class="p-5 bg-gray-50 dark:bg-slate-800 rounded-2xl">
             <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Conflicts</p>
             <p class="text-2xl font-black {(confirmResult?.conflictsDetected || 0) > 0 ? 'text-amber-600' : 'text-green-600'}">{confirmResult?.conflictsDetected || 0}</p>
           </div>
         </div>
+
+        {#if confirmResult?.errorDetails?.length > 0}
+          <div class="max-w-lg mx-auto p-4 bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-800 rounded-2xl">
+            <p class="text-[10px] font-black text-red-600 uppercase tracking-widest mb-2">Skipped Rows ({confirmResult.errorDetails.length})</p>
+            <div class="max-h-32 overflow-y-auto space-y-1">
+              {#each confirmResult.errorDetails.slice(0, 20) as err}
+                <p class="text-xs text-red-600 dark:text-red-400">{err.date} | Section {err.section} | {err.slot} | {err.subject} — {err.reason}</p>
+              {/each}
+              {#if confirmResult.errorDetails.length > 20}
+                <p class="text-xs text-red-400">...and {confirmResult.errorDetails.length - 20} more</p>
+              {/if}
+            </div>
+          </div>
+        {/if}
 
         <div class="flex flex-col items-center gap-4 pt-4">
           {#if !publishing}
