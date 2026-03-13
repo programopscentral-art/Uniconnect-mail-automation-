@@ -67,4 +67,5 @@ export * from './services/rbac.service';
 export * from './services/exam.service';
 export * from './services/apd-planning.service';
 export * from './services/timetable-generator.service';
+export * from './services/timetable-ops.service';
 // Ensure all assessment functions including createUniversityAsset are exported
