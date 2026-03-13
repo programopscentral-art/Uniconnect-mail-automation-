@@ -784,23 +784,29 @@ export class APDPlanningService {
     /**
      * Get all APD plans for a university, optionally filtered by term.
      */
-    static async getPlans(universityId: string, termId?: string): Promise<APDPlanRecord[]> {
+    static async getPlans(universityId?: string, termId?: string): Promise<APDPlanRecord[]> {
         await ensureAPDTables();
-        let query = `SELECT ap.*,
+        let query = `SELECT ap.*, u.name as university_name,
                         p.name as program_name, p.code as program_code,
                         t.name as term_name,
                         ib.file_name as import_file_name,
                         (SELECT COUNT(*) FROM apd_subject_slot_requirements sr WHERE sr.apd_plan_id = ap.id) as subject_count
                      FROM apd_university_plans ap
+                     LEFT JOIN universities u ON ap.university_id = u.id
                      LEFT JOIN programs p ON ap.program_id = p.id
                      LEFT JOIN terms t ON ap.term_id = t.id
-                     LEFT JOIN apd_import_batches ib ON ap.import_batch_id = ib.id
-                     WHERE ap.university_id = $1`;
-        const params: any[] = [universityId];
-        if (termId) {
-            query += ` AND ap.term_id = $2`;
-            params.push(termId);
+                     LEFT JOIN apd_import_batches ib ON ap.import_batch_id = ib.id`;
+        const params: any[] = [];
+        const conditions: string[] = [];
+        if (universityId) {
+            params.push(universityId);
+            conditions.push(`ap.university_id = $${params.length}`);
         }
+        if (termId) {
+            params.push(termId);
+            conditions.push(`ap.term_id = $${params.length}`);
+        }
+        if (conditions.length) query += ` WHERE ` + conditions.join(' AND ');
         query += ` ORDER BY ap.created_at DESC`;
         const res = await db.query(query, params);
         return res.rows;

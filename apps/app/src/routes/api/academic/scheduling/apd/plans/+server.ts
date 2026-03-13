@@ -2,13 +2,11 @@ import { APDPlanningService } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
-// GET — list APD plans for a university
+// GET — list APD plans, optionally filtered by university
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
 
-    const universityId = url.searchParams.get('universityId') || locals.user.university_id;
-    if (!universityId) throw error(400, 'universityId required');
-
+    const universityId = url.searchParams.get('universityId') || '';
     const termId = url.searchParams.get('termId') || undefined;
 
     try {
@@ -33,7 +31,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     try {
         const plan = await APDPlanningService.savePlan(universityId, planData, {
-            termId, programId, createdBy: locals.user.id
+            termId, programId, createdBy: locals.user?.id
         });
         return json(plan);
     } catch (e: any) {

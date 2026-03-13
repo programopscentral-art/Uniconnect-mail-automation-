@@ -44,14 +44,17 @@
     lab_slots_per_week: 0, priority: 1, remarks: ''
   });
 
-  $effect(() => { if (universityId) { loadPlans(); loadPrograms(); } });
+  $effect(() => { loadPlans(); if (universityId) loadPrograms(); });
   $effect(() => { if (universityId && selectedProgramId) loadTerms(); });
 
   async function loadPlans() {
     loading = true;
     try {
-      let url = `/api/academic/scheduling/apd/plans?universityId=${universityId}`;
-      if (selectedTermId) url += `&termId=${selectedTermId}`;
+      let url = `/api/academic/scheduling/apd/plans`;
+      const params: string[] = [];
+      if (universityId) params.push(`universityId=${universityId}`);
+      if (selectedTermId) params.push(`termId=${selectedTermId}`);
+      if (params.length) url += '?' + params.join('&');
       const res = await fetch(url);
       if (res.ok) plans = await res.json();
     } catch {} finally { loading = false; }
@@ -98,15 +101,9 @@
     uploadError = '';
     uploadResult = null;
 
-    if (!universityId) {
-      uploadError = 'Please select a university from the dropdown above first.';
-      uploading = false;
-      return;
-    }
-
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('universityId', universityId);
+    if (universityId) fd.append('universityId', universityId);
     if (selectedTermId) fd.append('termId', selectedTermId);
     if (selectedProgramId) fd.append('programId', selectedProgramId);
 
@@ -242,7 +239,14 @@
   <!-- Upload Panel -->
   {#if showUpload}
     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 p-6" in:fly={{ y: -10, duration: 200 }}>
-      <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Import APD Sheet</h3>
+      <h3 class="font-semibold text-gray-900 dark:text-white mb-2">Import APD Sheet</h3>
+      <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+        {#if universityId}
+          Importing for selected university only.
+        {:else}
+          <span class="text-indigo-600 dark:text-indigo-400 font-medium">All Universities mode</span> — each row will be auto-matched to its university by name.
+        {/if}
+      </p>
 
       <!-- Drop zone -->
       <div
@@ -283,6 +287,15 @@
         <div class="mt-4 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm">
           <p class="font-semibold">Import Successful</p>
           <p class="mt-1">{uploadResult.plansCreated} plan(s) created from {uploadResult.parseResult?.totalRows || 0} rows</p>
+          {#if uploadResult.unmatchedUniversities?.length}
+            <div class="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400">
+              <p class="text-xs font-semibold">Unmatched Universities (skipped):</p>
+              {#each uploadResult.unmatchedUniversities as name}
+                <p class="text-xs mt-0.5">- {name}</p>
+              {/each}
+              <p class="text-xs mt-1 italic">Add these universities to the system first, then re-import.</p>
+            </div>
+          {/if}
           {#if uploadResult.parseResult?.warnings?.length}
             <div class="mt-2 text-amber-600 dark:text-amber-400">
               {#each uploadResult.parseResult.warnings as w}
@@ -384,6 +397,9 @@
               <span class="text-xs font-bold {statusColor(plan.plan_status)} px-2 py-0.5 rounded-full">{plan.plan_status}</span>
               <span class="text-xs text-gray-400">{plan.subject_count || 0} subjects</span>
             </div>
+            {#if !universityId && plan.university_name}
+              <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate mb-0.5">{plan.university_name}</p>
+            {/if}
             <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
               {plan.program_name || 'All Programs'} — {plan.term_name || 'All Terms'}
             </p>
