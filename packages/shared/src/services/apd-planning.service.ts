@@ -248,7 +248,8 @@ async function ensureAPDTables() {
  * Also supports a separate "Subjects" sheet for backwards compatibility.
  */
 export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
-    const XLSX = await import('xlsx');
+    const xlsxModule = await import('xlsx');
+    const XLSX = xlsxModule.default || xlsxModule;
     const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     const result: APDParseResult = { plans: [], errors: [], warnings: [], totalRows: 0 };
 
