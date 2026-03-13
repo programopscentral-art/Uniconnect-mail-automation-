@@ -65,4 +65,5 @@ export * from './services/import.service';
 export * from './services/notification.service';
 export * from './services/rbac.service';
 export * from './services/exam.service';
+export * from './services/apd-planning.service';
 // Ensure all assessment functions including createUniversityAsset are exported

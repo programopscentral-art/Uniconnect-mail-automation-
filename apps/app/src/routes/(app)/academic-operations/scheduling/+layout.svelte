@@ -6,6 +6,7 @@
 
   const subLinks = [
     { href: "/academic-operations/scheduling", label: "Overview" },
+    { href: "/academic-operations/scheduling/apd", label: "APD Planning" },
     { href: "/academic-operations/scheduling/upload", label: "Upload" },
     { href: "/academic-operations/scheduling/availability", label: "Time Slots" },
     { href: "/academic-operations/scheduling/sessions", label: "Live Sessions" },
