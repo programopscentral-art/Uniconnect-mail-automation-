@@ -1,5 +1,9 @@
 import { db } from '../db/client';
-import { read as xlsxRead, utils as xlsxUtils } from 'xlsx';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const xlsx = require('xlsx');
+const xlsxRead = xlsx.read;
+const xlsxUtils = xlsx.utils;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
