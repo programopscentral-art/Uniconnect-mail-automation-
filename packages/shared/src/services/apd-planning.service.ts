@@ -585,6 +585,12 @@ function buildSubjectColumnMap(headers: string[]): Record<string, number | undef
     return map;
 }
 
+/** Round a value to the nearest integer for INTEGER DB columns, preserving null/undefined */
+function roundInt(val: number | undefined | null): number | null {
+    if (val === undefined || val === null) return null;
+    return Math.round(val);
+}
+
 function getStr(row: any[], idx: number | undefined): string {
     if (idx === undefined || idx < 0 || idx >= row.length) return '';
     return String(row[idx] ?? '').trim();
@@ -709,15 +715,15 @@ export class APDPlanningService {
             [
                 universityId, opts.importBatchId || null, opts.termId || null, opts.programId || null,
                 plan.start_date || null, plan.end_date || null,
-                plan.working_days_per_week ?? 5, plan.total_working_days ?? null,
+                roundInt(plan.working_days_per_week) ?? 5, roundInt(plan.total_working_days) ?? null,
                 plan.saturdays_off || 'ALL',
                 JSON.stringify(plan.non_working_saturdays || []),
                 JSON.stringify(plan.public_holidays || []),
-                plan.slots_per_day ?? 7, plan.slot_duration_minutes ?? 50,
-                plan.total_university_working_days ?? null, plan.university_assessment_days ?? 0,
-                plan.niat_working_days ?? null, plan.total_niat_slots ?? null,
-                plan.niat_assessment_slots ?? 0, plan.net_executional_slots ?? null,
-                plan.buffer_slots ?? 0, plan.pm_signoff ?? false, plan.boa_signoff ?? false,
+                roundInt(plan.slots_per_day) ?? 7, roundInt(plan.slot_duration_minutes) ?? 50,
+                roundInt(plan.total_university_working_days) ?? null, roundInt(plan.university_assessment_days) ?? 0,
+                roundInt(plan.niat_working_days) ?? null, roundInt(plan.total_niat_slots) ?? null,
+                roundInt(plan.niat_assessment_slots) ?? 0, roundInt(plan.net_executional_slots) ?? null,
+                roundInt(plan.buffer_slots) ?? 0, plan.pm_signoff ?? false, plan.boa_signoff ?? false,
                 plan.remarks || null, opts.createdBy || null
             ]
         );
@@ -765,9 +771,9 @@ export class APDPlanningService {
                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
                 [
                     apdPlanId, matchedId, subj.subject_code, subj.subject_name,
-                    subj.total_slots_required, subj.slots_per_week,
-                    subj.buffer_slots ?? 0, subj.lab_slots_required ?? 0,
-                    subj.lab_slots_per_week ?? 0, subj.priority ?? 1,
+                    roundInt(subj.total_slots_required), roundInt(subj.slots_per_week),
+                    roundInt(subj.buffer_slots) ?? 0, roundInt(subj.lab_slots_required) ?? 0,
+                    roundInt(subj.lab_slots_per_week) ?? 0, roundInt(subj.priority) ?? 1,
                     subj.remarks || null
                 ]
             );
