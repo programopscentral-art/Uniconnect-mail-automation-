@@ -239,20 +239,22 @@ async function ensureAPDTables() {
 
 /**
  * Parse an APD Excel file.
- * Expected format:
- * - "Planning" sheet with university plan rows (one row per university or one sheet = one plan)
- * - "Subjects" sheet (or subject columns in the same sheet) with per-subject slot requirements
  *
- * The parser is flexible — it detects column headers by name matching.
+ * Supported format (2-row header with inline subject columns):
+ * Row 1: Universities | Start Date | End Date | ... | Subject Wise Slots [merged] | Total subject wise slots | ...
+ * Row 2: (empty for plan cols) ... | WA2 | DBMS | DS | NA | EA | LLM | Phy | Che | ... | (empty) | ...
+ * Row 3+: Data rows — one per university
+ *
+ * Also supports a separate "Subjects" sheet for backwards compatibility.
  */
 export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
     const XLSX = await import('xlsx');
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     const result: APDParseResult = { plans: [], errors: [], warnings: [], totalRows: 0 };
 
-    // Find the planning sheet (flexible name matching)
+    // Find the planning sheet
     const planSheetName = workbook.SheetNames.find(n =>
-        /plan|apd|schedule|overview|summary/i.test(n)
+        /plan|apd|schedule|overview|summary|sheet1/i.test(n)
     ) || workbook.SheetNames[0];
 
     if (!planSheetName) {
@@ -261,68 +263,140 @@ export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
     }
 
     const planSheet = workbook.Sheets[planSheetName];
-    const planRows: any[][] = XLSX.utils.sheet_to_json(planSheet, { header: 1, defval: '' });
+    const allRows: any[][] = XLSX.utils.sheet_to_json(planSheet, { header: 1, defval: '', raw: false });
 
-    if (planRows.length < 2) {
-        result.errors.push({ row: 0, field: '', message: 'Planning sheet has no data rows' });
+    if (allRows.length < 3) {
+        result.errors.push({ row: 0, field: '', message: 'Sheet needs at least 3 rows (header row, sub-header row, data)' });
         return result;
     }
 
-    // Detect column mapping from header row
-    const headerRow = planRows[0].map((h: any) => String(h).toLowerCase().trim());
-    const colMap = buildColumnMap(headerRow);
+    // Row 1: main headers, Row 2: subject sub-headers
+    const headerRow1 = allRows[0].map((h: any) => String(h ?? '').trim());
+    const headerRow2 = allRows[1].map((h: any) => String(h ?? '').trim());
 
-    // Parse data rows
-    for (let i = 1; i < planRows.length; i++) {
-        const row = planRows[i];
+    // Build column map from row 1 headers
+    const colMap = buildColumnMap(headerRow1.map(h => h.toLowerCase()));
+
+    // Detect subject columns: find "Subject Wise Slots" header and read codes from row 2
+    const subjectColumns = detectSubjectColumns(headerRow1, headerRow2);
+    if (subjectColumns.length > 0) {
+        result.warnings.push(`Detected ${subjectColumns.length} subject columns: ${subjectColumns.map(s => s.code).join(', ')}`);
+    }
+
+    // Also detect the "Total subject wise slots" and "Subject wise slots per week" columns
+    const totalSubjectSlotsCol = headerRow1.findIndex(h => /total.?subject.?wise.?slot/i.test(h));
+    const subjectSlotsPerWeekCol = headerRow1.findIndex(h => /subject.?wise.?slots?.?per.?week/i.test(h));
+
+    // Parse data rows (starting from row 3, index 2)
+    for (let i = 2; i < allRows.length; i++) {
+        const row = allRows[i];
         if (!row || row.every((c: any) => !c && c !== 0)) continue;
-        result.totalRows++;
 
-        const plan: APDPlanRow = {};
+        // Skip rows that look like sub-totals or empty university name
+        const uniName = getStr(row, colMap.university_name);
+        if (!uniName) continue;
+
+        result.totalRows++;
         const rowNum = i + 1;
 
-        // Extract fields using column map
-        plan.university_name = getStr(row, colMap.university_name);
+        const plan: APDPlanRow = {};
+        plan.university_name = uniName;
         plan.start_date = parseExcelDate(row[colMap.start_date ?? -1]);
         plan.end_date = parseExcelDate(row[colMap.end_date ?? -1]);
         plan.working_days_per_week = getNum(row, colMap.working_days_per_week);
-        plan.total_working_days = getNum(row, colMap.total_working_days);
-        plan.saturdays_off = getStr(row, colMap.saturdays_off) || 'ALL';
+        plan.total_working_days = getNum(row, colMap.total_days);
         plan.slots_per_day = getNum(row, colMap.slots_per_day);
-        plan.slot_duration_minutes = getNum(row, colMap.slot_duration_minutes);
+
+        // Saturdays off — can be "Every saturday", "0", "2", "1,3", "2,4", etc.
+        const satRaw = getStr(row, colMap.saturdays_off);
+        plan.saturdays_off = parseSaturdaysOff(satRaw);
+
+        // Non-working saturdays count
+        const nonWorkingSatCount = getNum(row, colMap.non_working_saturdays);
+
+        // Public holidays — in this format it's a count, not a list
+        const holidayCount = getNum(row, colMap.public_holidays);
+
         plan.total_university_working_days = getNum(row, colMap.total_university_working_days);
         plan.university_assessment_days = getNum(row, colMap.university_assessment_days);
         plan.niat_working_days = getNum(row, colMap.niat_working_days);
         plan.total_niat_slots = getNum(row, colMap.total_niat_slots);
         plan.niat_assessment_slots = getNum(row, colMap.niat_assessment_slots);
         plan.net_executional_slots = getNum(row, colMap.net_executional_slots);
+
+        // Total NIAT Executional Days
+        const totalNiatExecDays = getNum(row, colMap.total_niat_exec_days);
+        // Net NIAT No.of weeks
+        const netNiatWeeks = getNum(row, colMap.net_niat_weeks);
+
+        // Buffer slots — look for dedicated column
         plan.buffer_slots = getNum(row, colMap.buffer_slots);
-        plan.remarks = getStr(row, colMap.remarks);
 
-        // Parse signoff booleans
-        const pmVal = getStr(row, colMap.pm_signoff)?.toLowerCase();
-        plan.pm_signoff = pmVal === 'yes' || pmVal === 'true' || pmVal === '1';
-        const boaVal = getStr(row, colMap.boa_signoff)?.toLowerCase();
-        plan.boa_signoff = boaVal === 'yes' || boaVal === 'true' || boaVal === '1';
+        // PM signoff and BOA signoff
+        const pmVal = getStr(row, colMap.pm_signoff)?.toUpperCase();
+        plan.pm_signoff = pmVal === 'TRUE' || pmVal === 'YES' || pmVal === '1';
+        const boaVal = getStr(row, colMap.boa_signoff)?.toUpperCase();
+        plan.boa_signoff = boaVal === 'TRUE' || boaVal === 'YES' || boaVal === '1';
 
-        // Parse holidays if present as a column
-        const holidayStr = getStr(row, colMap.public_holidays);
-        if (holidayStr) {
-            plan.public_holidays = parseHolidayString(holidayStr);
+        // Remarks — could be "University PMs askS" column
+        plan.remarks = getStr(row, colMap.remarks) || getStr(row, colMap.pm_asks);
+
+        // Extract inline subject slot values
+        if (subjectColumns.length > 0) {
+            const subjects: APDSubjectRow[] = [];
+            let totalSubjSlots = 0;
+            for (const sc of subjectColumns) {
+                const slots = getNum(row, sc.colIndex);
+                if (slots && slots > 0) {
+                    totalSubjSlots += slots;
+                    subjects.push({
+                        subject_code: sc.code,
+                        subject_name: sc.code, // Use code as name since we only have codes
+                        total_slots_required: slots,
+                        slots_per_week: 0, // Will be calculated below
+                        buffer_slots: 0,
+                        lab_slots_required: 0,
+                        lab_slots_per_week: 0,
+                        priority: 1,
+                    });
+                }
+            }
+
+            // Read the "Total subject wise slots" and "per week" from their columns
+            const totalFromSheet = totalSubjectSlotsCol >= 0 ? getNum(row, totalSubjectSlotsCol) : undefined;
+            const perWeekFromSheet = subjectSlotsPerWeekCol >= 0 ? getNum(row, subjectSlotsPerWeekCol) : undefined;
+
+            // Calculate slots_per_week for each subject proportionally
+            if (netNiatWeeks && netNiatWeeks > 0) {
+                for (const s of subjects) {
+                    s.slots_per_week = Math.round(s.total_slots_required / netNiatWeeks);
+                    if (s.slots_per_week < 1) s.slots_per_week = 1;
+                }
+            } else if (perWeekFromSheet && totalFromSheet && totalFromSheet > 0) {
+                // Proportionally distribute per-week based on total
+                for (const s of subjects) {
+                    s.slots_per_week = Math.round((s.total_slots_required / totalFromSheet) * perWeekFromSheet);
+                    if (s.slots_per_week < 1) s.slots_per_week = 1;
+                }
+            }
+
+            if (subjects.length > 0) {
+                plan.subjects = subjects;
+            }
         }
 
-        // Validate required fields
-        if (!plan.start_date && !plan.end_date && !plan.total_working_days) {
-            result.errors.push({ row: rowNum, field: 'start_date', message: 'Row has no date or working day information' });
+        // Validate: at least some useful data
+        if (!plan.start_date && !plan.end_date && !plan.total_working_days && !plan.niat_working_days) {
+            result.errors.push({ row: rowNum, field: 'start_date', message: `Row for "${uniName}" has no date or working day information` });
             continue;
         }
 
         result.plans.push(plan);
     }
 
-    // Check for a Subjects sheet
+    // Also check for a separate Subjects sheet (backwards compat)
     const subjectSheetName = workbook.SheetNames.find(n =>
-        /subject|slot|requirement|allocation|distribution/i.test(n)
+        /^subject/i.test(n.trim())
     );
 
     if (subjectSheetName && subjectSheetName !== planSheetName) {
@@ -355,17 +429,13 @@ export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
                 });
             }
 
-            // Attach subjects to all plans (or first plan if single)
-            for (const plan of result.plans) {
-                plan.subjects = subjects;
-            }
-
-            if (subjects.length === 0) {
-                result.warnings.push('Subjects sheet found but no valid subject rows detected');
+            // Override inline subjects with dedicated Subjects sheet data
+            if (subjects.length > 0) {
+                for (const plan of result.plans) {
+                    plan.subjects = subjects;
+                }
             }
         }
-    } else if (!subjectSheetName) {
-        result.warnings.push('No separate Subjects sheet found — subject slot requirements should be added manually');
     }
 
     if (result.plans.length === 0 && result.errors.length === 0) {
@@ -383,27 +453,117 @@ function buildColumnMap(headers: string[]): Record<string, number | undefined> {
         const h = headers[i];
         if (!h) continue;
 
-        if (/universit|college|institution/i.test(h)) map.university_name = i;
+        // University name
+        if (/^universit|^college|^institution|^type/i.test(h)) map.university_name = i;
+        // Dates
         else if (/start.?date|from.?date|begin/i.test(h)) map.start_date = i;
-        else if (/end.?date|to.?date/i.test(h)) map.end_date = i;
-        else if (/working.?days.?per.?week/i.test(h)) map.working_days_per_week = i;
-        else if (/total.?working.?day/i.test(h)) map.total_working_days = i;
-        else if (/saturday/i.test(h)) map.saturdays_off = i;
-        else if (/slot.?per.?day|slots.?day/i.test(h)) map.slots_per_day = i;
-        else if (/slot.?duration|duration/i.test(h)) map.slot_duration_minutes = i;
-        else if (/total.*university.*working|university.*total.*working/i.test(h)) map.total_university_working_days = i;
-        else if (/assessment.?day/i.test(h)) map.university_assessment_days = i;
-        else if (/niat.?working/i.test(h)) map.niat_working_days = i;
+        else if (/end.?date|to.?date|last.?day/i.test(h)) map.end_date = i;
+        // Saturdays
+        else if (/saturday/i.test(h) && !/non.?working/i.test(h)) map.saturdays_off = i;
+        else if (/non.?working.?saturday|total.*non.*working/i.test(h)) map.non_working_saturdays = i;
+        // Working days
+        else if (/working.?days?.?per.?week/i.test(h)) map.working_days_per_week = i;
+        else if (/total.?days?$/i.test(h)) map.total_days = i;
+        // Slots per day
+        else if (/slots?.?per.?day|number.?of.?slots/i.test(h)) map.slots_per_day = i;
+        // Holidays
+        else if (/public.?holiday|holiday/i.test(h)) map.public_holidays = i;
+        // University working days
+        else if (/total.?university.?working/i.test(h)) map.total_university_working_days = i;
+        // Assessment days
+        else if (/university.?assessment|assessment.?day/i.test(h)) map.university_assessment_days = i;
+        // NIAT columns
+        else if (/no\.?of.?working.?days?.?for.?niat|niat.?working/i.test(h)) map.niat_working_days = i;
         else if (/total.?niat.?slot/i.test(h)) map.total_niat_slots = i;
         else if (/niat.?assessment/i.test(h)) map.niat_assessment_slots = i;
-        else if (/net.?exec|executional/i.test(h)) map.net_executional_slots = i;
-        else if (/buffer/i.test(h)) map.buffer_slots = i;
-        else if (/pm.?sign|pm.?signoff/i.test(h)) map.pm_signoff = i;
-        else if (/boa.?sign|boa/i.test(h)) map.boa_signoff = i;
-        else if (/holiday/i.test(h)) map.public_holidays = i;
+        else if (/net.?niat.?exec|net.?exec/i.test(h)) map.net_executional_slots = i;
+        else if (/total.?niat.?exec.*day/i.test(h)) map.total_niat_exec_days = i;
+        else if (/net.?niat.*week|niat.*no\.?of.?week/i.test(h)) map.net_niat_weeks = i;
+        // Buffer
+        else if (/buffer.?slot/i.test(h)) map.buffer_slots = i;
+        // Signoff
+        else if (/pm.?sign|university.?pm.*sign/i.test(h)) map.pm_signoff = i;
+        else if (/pm.*ask/i.test(h)) map.pm_asks = i;
+        else if (/boa.?sign|coop.*boa/i.test(h)) map.boa_signoff = i;
+        // Remarks
         else if (/remark|note|comment/i.test(h)) map.remarks = i;
     }
     return map;
+}
+
+/**
+ * Detect inline subject columns from the 2-row header.
+ *
+ * Looks for "Subject Wise Slots" in row 1, then reads subject codes from row 2
+ * in the column range between "Subject Wise Slots" and "Total subject wise slots".
+ */
+function detectSubjectColumns(headerRow1: string[], headerRow2: string[]): { code: string; colIndex: number }[] {
+    const subjects: { code: string; colIndex: number }[] = [];
+
+    // Strategy 1: Find "Subject Wise Slots" header that spans multiple columns
+    let subjectStartCol = -1;
+    let subjectEndCol = -1;
+
+    for (let i = 0; i < headerRow1.length; i++) {
+        const h = headerRow1[i];
+        if (/subject.?wise.?slot/i.test(h) && !/total/i.test(h) && !/per.?week/i.test(h)) {
+            subjectStartCol = i;
+        }
+        if (subjectStartCol >= 0 && i > subjectStartCol && /total.?subject/i.test(h)) {
+            subjectEndCol = i;
+            break;
+        }
+    }
+
+    // If found the range, read subject codes from row 2
+    if (subjectStartCol >= 0) {
+        const endCol = subjectEndCol > 0 ? subjectEndCol : headerRow2.length;
+        for (let i = subjectStartCol; i < endCol; i++) {
+            const code = headerRow2[i]?.trim();
+            if (code && code.length >= 1 && code.length <= 10 && !/^[\d.]+$/.test(code)) {
+                subjects.push({ code, colIndex: i });
+            }
+        }
+    }
+
+    // Strategy 2: If no "Subject Wise Slots" header found, look for row 2 entries
+    // that look like subject codes (short uppercase strings) in columns after the main headers
+    if (subjects.length === 0) {
+        // Find where main headers end (look for first empty cell in row 1 after column ~15)
+        let gapStart = -1;
+        for (let i = 10; i < headerRow1.length; i++) {
+            if (!headerRow1[i] && headerRow2[i]?.trim()) {
+                if (gapStart < 0) gapStart = i;
+            }
+            if (gapStart >= 0 && headerRow1[i] && /total|buffer|pm|boa/i.test(headerRow1[i])) {
+                // We've hit the summary columns, stop
+                break;
+            }
+            if (gapStart >= 0) {
+                const code = headerRow2[i]?.trim();
+                if (code && code.length >= 1 && code.length <= 10 && !/^[\d.]+$/.test(code) && !headerRow1[i]) {
+                    subjects.push({ code, colIndex: i });
+                }
+            }
+        }
+    }
+
+    return subjects;
+}
+
+/**
+ * Parse the "Saturdays off" field.
+ * Handles: "Every saturday", "0" (none), "2" (2nd sat), "1,3" (1st & 3rd), "2,4" etc.
+ */
+function parseSaturdaysOff(raw: string): string {
+    if (!raw) return 'ALL';
+    const lower = raw.toLowerCase().trim();
+    if (lower === '0' || lower === 'none' || lower === 'no') return 'NONE';
+    if (/every|all/i.test(lower)) return 'ALL';
+    if (/alternate/i.test(lower)) return 'ALTERNATE';
+    // Specific saturdays like "2", "1,3", "2,4"
+    if (/^[\d,\s]+$/.test(raw.trim())) return `SPECIFIC:${raw.trim()}`;
+    return raw.trim();
 }
 
 function buildSubjectColumnMap(headers: string[]): Record<string, number | undefined> {
@@ -435,44 +595,39 @@ function getNum(row: any[], idx: number | undefined): number | undefined {
     const val = row[idx];
     if (val === '' || val === null || val === undefined) return undefined;
     const num = Number(val);
-    return isNaN(num) ? undefined : num;
+    return isNaN(num) ? undefined : Math.round(num * 100) / 100;
 }
 
 function parseExcelDate(val: any): string | undefined {
     if (!val) return undefined;
-    // If it's a JS Date (from xlsx serial-to-date conversion)
+    // If it's a JS Date (from xlsx cellDates: true)
     if (val instanceof Date) return val.toISOString().split('T')[0];
     // If it's a number (Excel serial date)
     if (typeof val === 'number' && val > 40000) {
         const d = new Date((val - 25569) * 86400 * 1000);
         return d.toISOString().split('T')[0];
     }
-    // String date
+    // String date — try various formats
     const str = String(val).trim();
+    if (!str) return undefined;
+
+    // Try MM/DD/YYYY and DD/MM/YYYY
+    const slashParts = str.split('/');
+    if (slashParts.length === 3) {
+        const [a, b, c] = slashParts.map(Number);
+        // If first part > 12, assume DD/MM/YYYY
+        if (a > 12 && b <= 12) {
+            const d = new Date(c < 100 ? 2000 + c : c, b - 1, a);
+            if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        }
+        // Otherwise assume MM/DD/YYYY
+        const d = new Date(c < 100 ? 2000 + c : c, a - 1, b);
+        if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+    }
+
     const d = new Date(str);
     if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
     return undefined;
-}
-
-function parseHolidayString(str: string): { date: string; name: string }[] {
-    // Format: "Jan 26 - Republic Day, Aug 15 - Independence Day" or JSON
-    try {
-        const parsed = JSON.parse(str);
-        if (Array.isArray(parsed)) return parsed;
-    } catch {}
-
-    const holidays: { date: string; name: string }[] = [];
-    const parts = str.split(',').map(s => s.trim()).filter(Boolean);
-    for (const part of parts) {
-        const [datePart, ...nameParts] = part.split('-').map(s => s.trim());
-        if (datePart) {
-            holidays.push({
-                date: datePart,
-                name: nameParts.join('-').trim() || datePart
-            });
-        }
-    }
-    return holidays;
 }
 
 // ─── APD Planning Service ────────────────────────────────────────────────────
