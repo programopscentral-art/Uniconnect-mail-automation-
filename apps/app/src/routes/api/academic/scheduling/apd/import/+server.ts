@@ -3,10 +3,52 @@ import { db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+/**
+ * Normalize a university name for matching:
+ * - lowercase, trim
+ * - remove common suffixes/prefixes
+ * - collapse whitespace
+ */
+function normalize(name: string): string {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s]/g, '') // remove punctuation
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * Generate multiple match keys for a university name.
+ * Returns an array of possible keys to match against.
+ */
+function generateMatchKeys(name: string): string[] {
+    const keys: string[] = [];
+    const norm = normalize(name);
+    if (norm) keys.push(norm);
+
+    // Without common words
+    const stripped = norm
+        .replace(/\b(university|college|institute|of|technology|the|and|for)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    if (stripped && stripped !== norm) keys.push(stripped);
+
+    // Extract abbreviation (first letters of each word)
+    const words = norm.split(/\s+/).filter(w => !['of', 'the', 'and', 'for'].includes(w));
+    if (words.length >= 2) {
+        const abbr = words.map(w => w[0]).join('');
+        if (abbr.length >= 2) keys.push(abbr);
+    }
+
+    // Also add the slug-style version (words joined with hyphens)
+    const slugStyle = norm.replace(/\s+/g, '-');
+    if (slugStyle !== norm) keys.push(slugStyle);
+
+    return keys;
+}
+
 // POST — upload and parse APD Excel, save plans
-// Supports two modes:
-// 1. Single university: universityId provided → all plans saved under that university
-// 2. All universities: no universityId → match each plan's university_name to DB
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!['ADMIN', 'PROGRAM_OPS'].includes(locals.user?.role || '')) {
         throw error(403, 'Forbidden');
@@ -25,8 +67,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     try {
         const buffer = Buffer.from(await file.arrayBuffer());
-
-        // Parse the file first
         const parseResult = await parseAPDExcel(buffer);
 
         if (parseResult.errors.length > 0 && parseResult.plans.length === 0) {
@@ -38,65 +78,83 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }, { status: 400 });
         }
 
-        // Build university name → id lookup from DB
+        // Build comprehensive university lookup from DB
+        // Maps multiple keys (name, slug, abbreviation, etc.) → university id
         let uniLookup = new Map<string, string>();
+        let dbUniversityNames: string[] = [];
+
         if (!universityId) {
-            const uniRes = await db.query(`SELECT id, name FROM universities`);
+            const uniRes = await db.query(`SELECT id, name, slug FROM universities`);
             for (const u of uniRes.rows) {
-                const name = u.name.trim();
-                uniLookup.set(name.toLowerCase(), u.id);
-                // Also store without common suffixes for flexible matching
-                const simplified = name.replace(/\s*(university|college|institute|of technology)\s*/gi, ' ').trim().toLowerCase();
-                if (simplified) uniLookup.set(simplified, u.id);
+                dbUniversityNames.push(u.name);
+
+                // Add all match keys for this university
+                for (const key of generateMatchKeys(u.name)) {
+                    uniLookup.set(key, u.id);
+                }
+
+                // Also add slug directly
+                if (u.slug) {
+                    uniLookup.set(u.slug.toLowerCase(), u.id);
+                    uniLookup.set(u.slug.toLowerCase().replace(/-/g, ' '), u.id);
+                }
             }
+
+            // Debug: show all DB universities
+            parseResult.warnings.push(`DB universities (${dbUniversityNames.length}): ${dbUniversityNames.join(', ')}`);
         }
 
-        // Create a single import batch (null university for multi-university imports)
+        // Create import batch
         const batchUniversityId = universityId || locals.user?.university_id || null;
         const batch = await APDPlanningService.createImportBatch(
             batchUniversityId, file.name, buffer.length, userId
         );
 
-        // Save each plan
         const savedPlans = [];
         const unmatchedUniversities: string[] = [];
+        const matchLog: string[] = [];
 
         for (const plan of parseResult.plans) {
             let targetUniversityId = universityId;
 
             if (!targetUniversityId && plan.university_name) {
-                // Try to match university by name
-                const planUniName = plan.university_name.trim().toLowerCase();
-                targetUniversityId = uniLookup.get(planUniName) || '';
+                const planName = plan.university_name.trim();
+                const planKeys = generateMatchKeys(planName);
 
-                // Try partial/fuzzy match if exact match fails
+                // Try each key against the lookup
+                for (const key of planKeys) {
+                    if (uniLookup.has(key)) {
+                        targetUniversityId = uniLookup.get(key)!;
+                        matchLog.push(`"${planName}" → matched via key "${key}"`);
+                        break;
+                    }
+                }
+
+                // Try substring matching if no exact key match
                 if (!targetUniversityId) {
+                    const planNorm = normalize(planName);
                     for (const [key, id] of uniLookup.entries()) {
-                        if (planUniName.includes(key) || key.includes(planUniName)) {
+                        // Check if plan name contains DB key or vice versa (min 3 chars to avoid false matches)
+                        if (key.length >= 3 && (planNorm.includes(key) || key.includes(planNorm))) {
                             targetUniversityId = id;
+                            matchLog.push(`"${planName}" → fuzzy matched via "${key}"`);
                             break;
                         }
                     }
                 }
 
                 if (!targetUniversityId) {
-                    unmatchedUniversities.push(plan.university_name);
-                    parseResult.warnings.push(
-                        `Could not match university "${plan.university_name}" to any university in the system. Skipped.`
-                    );
+                    unmatchedUniversities.push(planName);
+                    matchLog.push(`"${planName}" → NO MATCH (keys tried: ${planKeys.join(', ')})`);
                     continue;
                 }
             }
 
             if (!targetUniversityId) {
-                // Fallback to user's university
                 targetUniversityId = locals.user?.university_id || '';
             }
 
             if (!targetUniversityId) {
-                parseResult.warnings.push(
-                    `No university ID for plan "${plan.university_name || 'unknown'}". Skipped.`
-                );
                 continue;
             }
 
@@ -115,6 +173,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     message: `Failed to save plan for "${plan.university_name || 'unknown'}": ${planErr.message}`
                 });
             }
+        }
+
+        // Add match log to warnings for debugging
+        if (matchLog.length > 0) {
+            parseResult.warnings.push(`Match log: ${matchLog.join(' | ')}`);
         }
 
         await APDPlanningService.updateImportBatch(batch.id, {
