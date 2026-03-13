@@ -98,6 +98,12 @@
     uploadError = '';
     uploadResult = null;
 
+    if (!universityId) {
+      uploadError = 'Please select a university from the dropdown above first.';
+      uploading = false;
+      return;
+    }
+
     const fd = new FormData();
     fd.append('file', file);
     fd.append('universityId', universityId);

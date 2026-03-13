@@ -10,7 +10,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const universityId = formData.get('universityId') as string;
+    const universityId = (formData.get('universityId') as string) || locals.user?.university_id;
     const termId = formData.get('termId') as string;
     const programId = formData.get('programId') as string;
 
