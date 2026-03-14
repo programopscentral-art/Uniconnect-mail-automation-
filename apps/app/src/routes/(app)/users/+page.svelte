@@ -862,7 +862,7 @@
 
 <!-- Refined Invite Modal -->
 {#if showModal}
-  <div class="fixed inset-0 z-50 flex items-center justify-center px-4">
+  <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4">
     <div
       class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"
       onclick={closeModal}
@@ -872,7 +872,7 @@
       aria-label="Close modal background"
     ></div>
     <div
-      class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full border border-gray-100 animate-in zoom-in-95 duration-200"
+      class="inline-block align-bottom bg-white rounded-t-3xl sm:rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle w-full sm:max-w-2xl border border-gray-100 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto"
     >
       <div
         class="bg-gradient-to-br from-indigo-700 to-indigo-900 px-8 py-6 text-white border-b border-indigo-500/30"

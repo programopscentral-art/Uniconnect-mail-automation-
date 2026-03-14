@@ -331,18 +331,17 @@
   }
 </script>
 
-<div class="space-y-8 pb-12">
+<div class="space-y-4 sm:space-y-8 pb-12 px-1 sm:px-0">
   <!-- Header Area -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
     <div>
       <h1
-        class="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight"
+        class="text-xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight"
       >
         Task Center
       </h1>
-      <p class="mt-1 text-gray-500 font-medium">
-        Orchestrate your team's daily operations and student follow-ups. (Build:
-        5000)
+      <p class="mt-1 text-xs sm:text-base text-gray-500 font-medium hidden sm:block">
+        Orchestrate your team's daily operations and student follow-ups.
       </p>
     </div>
     <div class="flex items-center gap-3">
@@ -369,7 +368,7 @@
       {/if}
       <button
         onclick={openCreate}
-        class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 font-bold hover:bg-indigo-700 hover:-translate-y-0.5 transition-all duration-200"
+        class="inline-flex items-center px-3 sm:px-6 py-2 sm:py-3 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 text-sm sm:text-base font-bold hover:bg-indigo-700 hover:-translate-y-0.5 transition-all duration-200"
       >
         <svg
           class="w-5 h-5 mr-2"
@@ -394,9 +393,9 @@
   </div>
 
   <!-- Stats Dashboard View -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
     <div
-      class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
+      class="bg-white dark:bg-slate-900 p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
     >
       <div
         class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest mb-1.5 opacity-60"
@@ -404,13 +403,13 @@
         Open Tasks
       </div>
       <div
-        class="text-3xl font-black text-gray-900 dark:text-white leading-tight"
+        class="text-xl sm:text-3xl font-black text-gray-900 dark:text-white leading-tight"
       >
         {data.tasks.filter((t: any) => t.status !== "COMPLETED").length}
       </div>
     </div>
     <div
-      class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
+      class="bg-white dark:bg-slate-900 p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
     >
       <div
         class="text-[10px] font-black text-red-500 dark:text-red-400 uppercase tracking-widest mb-1.5 opacity-60"
@@ -426,7 +425,7 @@
       </div>
     </div>
     <div
-      class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
+      class="bg-white dark:bg-slate-900 p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
     >
       <div
         class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-1.5 opacity-60"
@@ -440,7 +439,7 @@
       </div>
     </div>
     <div
-      class="bg-white dark:bg-slate-900 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
+      class="bg-white dark:bg-slate-900 p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-floating"
     >
       <div
         class="text-[10px] font-black text-green-500 dark:text-green-400 uppercase tracking-widest mb-1.5 opacity-60"
@@ -457,7 +456,7 @@
 
   <!-- Filters Strip -->
   <div
-    class="flex flex-wrap items-end gap-6 bg-gray-50/50 dark:bg-slate-900/50 p-6 rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner"
+    class="flex flex-wrap items-end gap-3 sm:gap-6 bg-gray-50/50 dark:bg-slate-900/50 p-3 sm:p-6 rounded-2xl sm:rounded-[32px] border border-gray-100 dark:border-slate-800 shadow-inner"
   >
     <div class="flex items-center gap-3">
       <input
@@ -473,7 +472,7 @@
         >Select All</label
       >
     </div>
-    <div class="flex-1 min-w-[200px]">
+    <div class="flex-1 min-w-[140px] sm:min-w-[200px]">
       <label
         for="filter-status"
         class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1"
@@ -496,7 +495,7 @@
       </select>
     </div>
     {#if data.user.role === "ADMIN" || data.user.role === "PROGRAM_OPS"}
-      <div class="flex-1 min-w-[200px]">
+      <div class="flex-1 min-w-[140px] sm:min-w-[200px]">
         <label
           for="filter-university"
           class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1"
@@ -517,7 +516,7 @@
         </select>
       </div>
     {/if}
-    <div class="flex-1 min-w-[200px]">
+    <div class="flex-1 min-w-[140px] sm:min-w-[200px]">
       <label
         for="filter-assigned"
         class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1"
@@ -537,7 +536,7 @@
         {/each}
       </select>
     </div>
-    <div class="flex-1 min-w-[200px]">
+    <div class="flex-1 min-w-[140px] sm:min-w-[200px]">
       <label
         for="filter-date"
         class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1"
@@ -935,7 +934,7 @@
 <!-- Premium Task Modal -->
 {#if showModal}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center px-4"
+    class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:px-4"
     transition:fade={{ duration: 200 }}
   >
     <div
@@ -948,7 +947,7 @@
     ></div>
 
     <div
-      class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-lg shadow-2xl relative overflow-hidden border border-transparent dark:border-slate-800"
+      class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg shadow-2xl relative overflow-hidden border border-transparent dark:border-slate-800 max-h-[90vh] overflow-y-auto"
       transition:fly={{ y: 30, duration: 400 }}
     >
       <div class="bg-indigo-600 px-8 py-6 text-white relative">

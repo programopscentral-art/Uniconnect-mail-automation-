@@ -75,8 +75,8 @@
 <div class="space-y-8 animate-premium-fade">
   <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
     <div class="animate-premium-slide">
-      <h1 class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Mailbox Connections</h1>
-      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-white">Establish and manage secure Gmail integrations for system automation.</p>
+      <h1 class="text-xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Mailbox Connections</h1>
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-white hidden sm:block">Establish and manage secure Gmail integrations for system automation.</p>
     </div>
     <button 
       onclick={connectMailbox}
@@ -114,28 +114,28 @@
       <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
           <thead class="bg-gray-50/50 dark:bg-slate-800/50">
               <tr>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Mailbox Identity</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Operational Status</th>
-                  <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Integration Date</th>
-                  <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Control</th>
+                  <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Mailbox Identity</th>
+                  <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Operational Status</th>
+                  <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Integration Date</th>
+                  <th class="px-3 sm:px-8 py-3 sm:py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Control</th>
               </tr>
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
               {#each mailboxes as box}
                   <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                      <td class="px-8 py-6 whitespace-nowrap">
+                      <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                         <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{box.email}</div>
                       </td>
-                      <td class="px-8 py-6 whitespace-nowrap">
+                      <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                           <span class="px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full {box.status === 'ACTIVE' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}">
                               {box.status}
                           </span>
                       </td>
-                      <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-gray-400 dark:text-slate-400 font-mono italic">
+                      <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap text-xs font-bold text-gray-400 dark:text-slate-400 font-mono italic">
                         {new Date(box.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </td>
-                      <td class="px-8 py-6 whitespace-nowrap text-right text-sm font-medium">
-                          <div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                      <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap text-right text-sm font-medium">
+                          <div class="flex justify-end gap-3 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-4 sm:group-hover:translate-x-0">
                             {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS' || data.userRole === 'UNIVERSITY_OPERATOR'}
                                 <button 
                                     onclick={() => revokeMailbox(box.id)}
@@ -198,23 +198,23 @@
             <table class="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
                 <thead class="bg-gray-50/50 dark:bg-slate-800/50">
                     <tr>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Inquirer Profile</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Target Resource</th>
-                        <th class="px-8 py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Status</th>
-                        <th class="px-8 py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Decision</th>
+                        <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Inquirer Profile</th>
+                        <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Target Resource</th>
+                        <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Status</th>
+                        <th class="px-3 sm:px-8 py-3 sm:py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">System Decision</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
                     {#each data.permissions as perm}
                         <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
-                            <td class="px-8 py-6 whitespace-nowrap">
+                            <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                                 <div class="text-sm font-bold text-gray-900 dark:text-white">{perm.user_name || 'System Operator'}</div>
                                 <div class="text-xs font-semibold text-gray-400 dark:text-slate-400">{perm.user_email}</div>
                             </td>
-                            <td class="px-8 py-6 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-300">
+                            <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap text-xs font-bold text-gray-700 dark:text-gray-300">
                               {perm.mailbox_email}
                             </td>
-                            <td class="px-8 py-6 whitespace-nowrap">
+                            <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                                 <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest 
                                     {perm.status === 'APPROVED' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 
                                      perm.status === 'PENDING' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300' : 
@@ -222,7 +222,7 @@
                                     {perm.status}
                                 </span>
                             </td>
-                            <td class="px-8 py-6 whitespace-nowrap text-right text-sm font-medium">
+                            <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
                                   {#if perm.status === 'PENDING'}
                                       <button 

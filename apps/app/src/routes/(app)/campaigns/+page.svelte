@@ -88,11 +88,11 @@
   >
     <div class="animate-premium-slide">
       <h1
-        class="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase"
+        class="text-xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase"
       >
         Campaigns
       </h1>
-      <p class="mt-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+      <p class="mt-1 sm:mt-2 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 hidden sm:block">
         Monitor and manage email campaigns.
       </p>
     </div>
@@ -109,7 +109,7 @@
           alert("Please select an institution first to initiate a campaign.");
         }
       }}
-      class="inline-flex items-center px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 animate-premium-slide"
+      class="inline-flex items-center px-4 sm:px-8 py-2.5 sm:py-4 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] sm:text-[12px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 animate-premium-slide"
       style="animation-delay: 100ms;"
     >
       <svg
