@@ -212,38 +212,65 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const sheetUrl = body.sheetUrl;
             if (!sheetUrl) throw error(400, 'Sheet URL required');
 
-            // Save config
-            const config = await upsertOpsSheetConfig(sheetUrl, locals.user.id);
+            try {
+                // Save config
+                const config = await upsertOpsSheetConfig(sheetUrl, locals.user.id);
 
-            // Fetch CSV
-            const resp = await fetch(sheetUrl);
-            if (!resp.ok) throw error(400, 'Failed to fetch sheet');
-            const csvText = await resp.text();
+                // Fetch CSV — follow redirects (Google Sheets always redirects)
+                const resp = await fetch(sheetUrl, { redirect: 'follow' });
+                if (!resp.ok) {
+                    console.error('[OPS] Sheet fetch failed:', resp.status, resp.statusText);
+                    return json({ success: false, error: `Sheet fetch failed: ${resp.status} ${resp.statusText}` }, { status: 400 });
+                }
+                const csvText = await resp.text();
 
-            // Parse and store
-            const { dailyData, instructorData } = parseOpsCSV(csvText);
-            await upsertOpsDailyData(dailyData);
-            if (instructorData.length) await upsertOpsInstructorDaily(instructorData);
+                if (!csvText || csvText.length < 10) {
+                    return json({ success: false, error: 'Sheet returned empty content' }, { status: 400 });
+                }
 
-            if (config?.id) await updateSheetLastSynced(config.id);
+                // Parse and store
+                const { dailyData, instructorData } = parseOpsCSV(csvText);
 
-            return json({
-                success: true,
-                rowsProcessed: dailyData.length,
-                instructorRows: instructorData.length
-            });
+                if (!dailyData.length) {
+                    return json({
+                        success: false,
+                        error: 'No data rows parsed. Check that your CSV headers match the expected format.',
+                        headers: csvText.split('\n')[0],
+                        rowCount: csvText.split('\n').length
+                    }, { status: 400 });
+                }
+
+                await upsertOpsDailyData(dailyData);
+                if (instructorData.length) await upsertOpsInstructorDaily(instructorData);
+
+                if (config?.id) await updateSheetLastSynced(config.id);
+
+                return json({
+                    success: true,
+                    rowsProcessed: dailyData.length,
+                    instructorRows: instructorData.length
+                });
+            } catch (e: any) {
+                console.error('[OPS] Sync error:', e);
+                return json({ success: false, error: e.message || 'Unknown error during sync' }, { status: 500 });
+            }
         }
 
         case 'load-sample': {
-            const { dailyData, instructorData } = generateOpsSampleData();
-            await upsertOpsDailyData(dailyData);
-            await upsertOpsInstructorDaily(instructorData);
-            return json({
-                success: true,
-                rowsProcessed: dailyData.length,
-                instructorRows: instructorData.length,
-                message: 'Sample data loaded'
-            });
+            try {
+                const { dailyData, instructorData } = generateOpsSampleData();
+                await upsertOpsDailyData(dailyData);
+                await upsertOpsInstructorDaily(instructorData);
+                return json({
+                    success: true,
+                    rowsProcessed: dailyData.length,
+                    instructorRows: instructorData.length,
+                    message: 'Sample data loaded'
+                });
+            } catch (e: any) {
+                console.error('[OPS] Sample data error:', e);
+                return json({ success: false, error: e.message || 'Failed to load sample data. Has the migration been run?' }, { status: 500 });
+            }
         }
 
         default:

@@ -7,6 +7,7 @@
     let isLoading = $state(true);
     let isSyncing = $state(false);
     let sampleLoaded = $state(false);
+    let syncError = $state('');
     let viewData = $state<any>(null);
     let selectedDate = $state(new Date().toISOString().split('T')[0]);
     let selectedUniversity = $state('');
@@ -56,17 +57,23 @@
     async function syncSheet() {
         if (!sheetUrl) return;
         isSyncing = true;
+        syncError = '';
         try {
             const res = await fetch('/api/ops', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'sync-sheet', sheetUrl })
             });
-            if (res.ok) {
+            const result = await res.json();
+            if (result.success) {
                 sampleLoaded = false;
+                syncError = '';
                 await loadViewData();
+            } else {
+                syncError = result.error || 'Failed to sync sheet';
             }
-        } catch (e) {
+        } catch (e: any) {
+            syncError = e.message || 'Network error during sync';
             console.error('Sync failed:', e);
         } finally {
             isSyncing = false;
@@ -75,17 +82,23 @@
 
     async function loadSampleData() {
         isSyncing = true;
+        syncError = '';
         try {
             const res = await fetch('/api/ops', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'load-sample' })
             });
-            if (res.ok) {
+            const result = await res.json();
+            if (result.success) {
                 sampleLoaded = true;
+                syncError = '';
                 await loadViewData();
+            } else {
+                syncError = result.error || 'Failed to load sample data';
             }
-        } catch (e) {
+        } catch (e: any) {
+            syncError = e.message || 'Network error';
             console.error('Sample load failed:', e);
         } finally {
             isSyncing = false;
@@ -239,6 +252,9 @@
             </button>
             {#if sampleLoaded}
                 <span class="text-sm font-mono text-green-400">Sample data loaded</span>
+            {/if}
+            {#if syncError}
+                <span class="text-sm font-mono text-red-400">{syncError}</span>
             {/if}
         </div>
 
