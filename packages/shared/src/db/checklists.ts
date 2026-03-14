@@ -128,34 +128,43 @@ export async function getChecklistProgress(taskId: string) {
     };
 }
 
-// ─── Auto-generate checklists from description ──────────────────────────────
+// ─── Auto-generate checklists from description text ─────────────────────────
 
 export function generateChecklistFromDescription(description: string): string[] {
-    if (!description || description.trim().length < 10) return [];
+    if (!description || description.trim().length < 3) return [];
+    const text = description.trim();
+    const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
     const items: string[] = [];
 
-    // Strategy 1: Extract numbered/bulleted items
-    const listPattern = /(?:^|\n)\s*(?:\d+[.)]\s*|-\s*|\*\s*|•\s*)(.+)/g;
+    // Strategy 1: Numbered/bulleted list items
+    const listPattern = /(?:^|\n)\s*(?:\d+[.)]\s*|-\s*|\*\s*|•\s*|>\s*|☐\s*|□\s*)(.+)/g;
     let match;
-    while ((match = listPattern.exec(description)) !== null) {
+    while ((match = listPattern.exec(text)) !== null) {
         const item = match[1].trim();
-        if (item.length > 3 && item.length < 200) items.push(item);
+        if (item.length > 3 && item.length < 500) items.push(item);
     }
-    if (items.length >= 2) return items;
+    if (items.length >= 2) return items.slice(0, 200);
 
-    // Strategy 2: Split by sentences and create actionable items
-    const sentences = description
-        .split(/[.!?\n]+/)
+    // Strategy 2: Every meaningful line becomes a checklist item
+    for (const line of lines) {
+        if (line.length >= 5 && line.length < 500) {
+            items.push(line);
+        }
+    }
+    if (items.length >= 2) return items.slice(0, 200);
+
+    // Strategy 3: Split by sentences
+    const sentences = text
+        .split(/[.!?;]+/)
         .map(s => s.trim())
-        .filter(s => s.length > 10 && s.length < 200);
+        .filter(s => s.length > 5 && s.length < 300);
+    if (sentences.length >= 2) return sentences.slice(0, 200);
 
-    for (const sentence of sentences) {
-        // Skip greetings, fillers
-        if (/^(hi|hello|hey|please|thanks|note|fyi)/i.test(sentence)) continue;
-        items.push(sentence);
+    // Fallback
+    if (text.length > 5) {
+        return [text.length > 300 ? text.substring(0, 300) + '...' : text];
     }
-
-    return items.slice(0, 20); // Cap at 20 items
+    return [];
 }
 
 // ─── View Tracking ───────────────────────────────────────────────────────────
