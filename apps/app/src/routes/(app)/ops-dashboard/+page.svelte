@@ -1,6 +1,4 @@
 <script lang="ts">
-    import { page } from '$app/stores';
-
     let { data } = $props();
 
     // ─── State ───────────────────────────────────────────────────
@@ -911,34 +909,33 @@
                 <!-- Activity completion donut -->
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <h4 class="text-sm font-semibold text-white mb-4">Activity completion rate by role</h4>
-                    <div class="flex items-center justify-center">
-                        <svg viewBox="0 0 200 200" class="w-48 h-48">
-                            {@const instPct = parseFloat(avgInst as string) / 8}
-                            {@const coachPct = parseFloat(avgCoach as string) / 8}
-                            {@const poPct = parseFloat(avgPO as string) / 8}
-                            {@const total = instPct + coachPct + poPct}
-                            {@const instArc = total ? (instPct / total) * 360 : 120}
-                            {@const coachArc = total ? (coachPct / total) * 360 : 120}
-                            <!-- Donut segments -->
-                            {@const r = 70}
-                            {@const cx = 100}
-                            {@const cy = 100}
-                            {@const instEnd = instArc}
-                            {@const coachEnd = instArc + coachArc}
-                            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#3B82F6" stroke-width="30"
-                                stroke-dasharray="{(instArc / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                transform="rotate(-90 {cx} {cy})" />
-                            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#14B8A6" stroke-width="30"
-                                stroke-dasharray="{(coachArc / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                stroke-dashoffset="-{(instArc / 360) * 2 * Math.PI * r}"
-                                transform="rotate(-90 {cx} {cy})" />
-                            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F97316" stroke-width="30"
-                                stroke-dasharray="{((360 - instArc - coachArc) / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                stroke-dashoffset="-{(coachEnd / 360) * 2 * Math.PI * r}"
-                                transform="rotate(-90 {cx} {cy})" />
-                            <circle cx={cx} cy={cy} r="55" fill="#111827" />
-                        </svg>
-                    </div>
+                    {#if true}
+                        {@const instPct = parseFloat(avgInst as string) / 8}
+                        {@const coachPct = parseFloat(avgCoach as string) / 8}
+                        {@const poPct = parseFloat(avgPO as string) / 8}
+                        {@const total = instPct + coachPct + poPct}
+                        {@const instArc = total ? (instPct / total) * 360 : 120}
+                        {@const coachArc = total ? (coachPct / total) * 360 : 120}
+                        {@const coachEnd = instArc + coachArc}
+                        {@const r = 70}
+                        {@const circ = 2 * Math.PI * r}
+                        <div class="flex items-center justify-center">
+                            <svg viewBox="0 0 200 200" class="w-48 h-48">
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#3B82F6" stroke-width="30"
+                                    stroke-dasharray="{(instArc / 360) * circ} {circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#14B8A6" stroke-width="30"
+                                    stroke-dasharray="{(coachArc / 360) * circ} {circ}"
+                                    stroke-dashoffset="-{(instArc / 360) * circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#F97316" stroke-width="30"
+                                    stroke-dasharray="{((360 - instArc - coachArc) / 360) * circ} {circ}"
+                                    stroke-dashoffset="-{(coachEnd / 360) * circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r="55" fill="#111827" />
+                            </svg>
+                        </div>
+                    {/if}
                     <div class="flex items-center justify-center gap-4 mt-2">
                         <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-blue-500 inline-block"></span> Instructors</span>
                         <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-teal-500 inline-block"></span> Success coaches</span>
@@ -1037,6 +1034,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <h4 class="text-sm font-semibold text-white mb-4">Submission rate — last 7 days</h4>
+                    {#if true}
                     {@const days = [...new Set(weekComp.map((r: any) => r.date))].sort()}
                     <div class="flex items-end gap-2 h-40">
                         {#each days as day}
@@ -1052,32 +1050,35 @@
                             </div>
                         {/each}
                     </div>
+                    {/if}
                 </div>
 
                 <!-- On-time vs late vs missing donut -->
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <h4 class="text-sm font-semibold text-white mb-4">On-time vs late vs missing</h4>
-                    <div class="flex items-center justify-center">
-                        <svg viewBox="0 0 200 200" class="w-44 h-44">
-                            {@const total = onTime + lateToday + missingToday || 1}
-                            {@const onTimeArc = (onTime / total) * 360}
-                            {@const lateArc = (lateToday / total) * 360}
-                            {@const missingArc = (missingToday / total) * 360}
-                            {@const r = 70}
-                            <circle cx="100" cy="100" r={r} fill="none" stroke="#14B8A6" stroke-width="30"
-                                stroke-dasharray="{(onTimeArc / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                transform="rotate(-90 100 100)" />
-                            <circle cx="100" cy="100" r={r} fill="none" stroke="#F59E0B" stroke-width="30"
-                                stroke-dasharray="{(lateArc / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                stroke-dashoffset="-{(onTimeArc / 360) * 2 * Math.PI * r}"
-                                transform="rotate(-90 100 100)" />
-                            <circle cx="100" cy="100" r={r} fill="none" stroke="#F472B6" stroke-width="30"
-                                stroke-dasharray="{(missingArc / 360) * 2 * Math.PI * r} {2 * Math.PI * r}"
-                                stroke-dashoffset="-{((onTimeArc + lateArc) / 360) * 2 * Math.PI * r}"
-                                transform="rotate(-90 100 100)" />
-                            <circle cx="100" cy="100" r="55" fill="#111827" />
-                        </svg>
-                    </div>
+                    {#if true}
+                        {@const total = onTime + lateToday + missingToday || 1}
+                        {@const onTimeArc = (onTime / total) * 360}
+                        {@const lateArc = (lateToday / total) * 360}
+                        {@const r = 70}
+                        {@const circ = 2 * Math.PI * r}
+                        <div class="flex items-center justify-center">
+                            <svg viewBox="0 0 200 200" class="w-44 h-44">
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#14B8A6" stroke-width="30"
+                                    stroke-dasharray="{(onTimeArc / 360) * circ} {circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#F59E0B" stroke-width="30"
+                                    stroke-dasharray="{(lateArc / 360) * circ} {circ}"
+                                    stroke-dashoffset="-{(onTimeArc / 360) * circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#F472B6" stroke-width="30"
+                                    stroke-dasharray="{((360 - onTimeArc - lateArc) / 360) * circ} {circ}"
+                                    stroke-dashoffset="-{((onTimeArc + lateArc) / 360) * circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r="55" fill="#111827" />
+                            </svg>
+                        </div>
+                    {/if}
                     <div class="flex items-center justify-center gap-4 mt-2">
                         <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-teal-500 inline-block"></span> On time ({onTime})</span>
                         <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-yellow-500 inline-block"></span> Late ({lateToday})</span>
@@ -1160,6 +1161,7 @@
             <!-- Heatmap -->
             <div class="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-6">
                 <h4 class="text-sm font-semibold text-white mb-4">Compliance heatmap — last 30 days (all universities)</h4>
+                {#if true}
                 {@const dates = [...new Set(comp.map((r: any) => r.date))].sort()}
                 <div class="overflow-x-auto">
                     <div class="flex gap-1 mb-2 ml-36">
@@ -1185,6 +1187,7 @@
                     <span class="flex items-center gap-1 text-[10px] text-gray-400"><span class="w-3 h-3 rounded-sm bg-red-500 inline-block"></span> Missing</span>
                     <span class="flex items-center gap-1 text-[10px] text-gray-400"><span class="w-3 h-3 rounded-sm bg-gray-800 inline-block"></span> No data</span>
                 </div>
+                {/if}
             </div>
 
             <!-- Compliance rate by university bar chart -->
@@ -1210,6 +1213,7 @@
                 <!-- Compliance by role donut -->
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
                     <h4 class="text-sm font-semibold text-white mb-4">Compliance by role — this month</h4>
+                    {#if true}
                     {@const instFiled = comp.filter((r: any) => r.instructor_report === 'Filed').length}
                     {@const coachFiled = comp.filter((r: any) => r.coach_report === 'Filed').length}
                     {@const opsFiled = comp.filter((r: any) => r.ops_report === 'Filed').length}
@@ -1228,6 +1232,7 @@
                             <div class="w-full bg-gray-800 rounded h-3"><div class="h-full rounded bg-orange-500" style="width: {totalDue ? (opsFiled / totalDue) * 100 : 0}%"></div></div>
                         </div>
                     </div>
+                    {/if}
                 </div>
             </div>
 
