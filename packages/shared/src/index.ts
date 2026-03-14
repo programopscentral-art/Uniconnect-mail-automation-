@@ -70,4 +70,5 @@ export * from './services/apd-planning.service';
 export * from './services/timetable-generator.service';
 export * from './services/timetable-ops.service';
 export * from './services/scheduling-notifications.service';
+export * from './db/ops';
 // Ensure all assessment functions including createUniversityAsset are exported
