@@ -1,22 +1,51 @@
 <script lang="ts">
-  import { goto, invalidateAll } from '$app/navigation';
+  import { goto } from '$app/navigation';
   // @ts-ignore
   let { data } = $props();
 
   let selectedUniversityId = $state('');
-  let isLoading = $state(false);
+  let isLoading = $state(true);
   let mailboxes = $state<any[]>([]);
+  let universitiesList = $state<any[]>([]);
+  let permissionsList = $state<any[]>([]);
 
-  $effect.pre(() => {
+  async function loadMailboxesData() {
+    const isAdmin = data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS';
+    const univId = selectedUniversityId || data.userUniversityId || '';
+    try {
+      const fetches: Promise<any>[] = [];
+      if (univId) {
+        fetches.push(fetch(`/api/mailboxes?universityId=${univId}`).then(r => r.ok ? r.json() : []));
+        fetches.push(fetch(`/api/mailboxes/permissions?universityId=${univId}`).then(r => r.ok ? r.json() : []));
+      } else {
+        fetches.push(Promise.resolve([]));
+        fetches.push(Promise.resolve([]));
+      }
+      if (isAdmin) {
+        fetches.push(fetch('/api/universities').then(r => r.ok ? r.json() : []));
+      } else {
+        fetches.push(Promise.resolve([]));
+      }
+      const [m, p, u] = await Promise.all(fetches);
+      mailboxes = m || [];
+      permissionsList = p || [];
+      universitiesList = u || [];
+    } catch (e) {
+      console.error('[MAILBOXES] Client-side load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  $effect(() => {
     selectedUniversityId = data.userUniversityId || '';
-    mailboxes = data.mailboxes;
+    loadMailboxesData();
   });
 
   async function loadMailboxes() {
       if (!selectedUniversityId) return;
       isLoading = true;
       try {
-          // Implementing API fetch for mailboxes on client side for Admin filter
           const res = await fetch(`/api/mailboxes?universityId=${selectedUniversityId}`);
           if (res.ok) {
               mailboxes = await res.json();
@@ -40,7 +69,7 @@
       });
       if (res.ok) {
           alert('Access request submitted.');
-          invalidateAll();
+          loadMailboxesData();
       }
   }
 
@@ -51,7 +80,7 @@
           headers: { 'Content-Type': 'application/json' }
       });
       if (res.ok) {
-          invalidateAll();
+          loadMailboxesData();
       }
   }
 
@@ -62,7 +91,7 @@
           const res = await fetch(`/api/mailboxes?id=${id}`, { method: 'DELETE' });
           if (res.ok) {
               alert('Connection revoked.');
-              invalidateAll();
+              loadMailboxesData();
           } else {
               alert('Failed to revoke.');
           }
@@ -102,7 +131,7 @@
             class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy (All)</option>
-            {#each data.universities as univ}
+            {#each universitiesList as univ}
                 <option value={univ.id}>{univ.name}</option>
             {/each}
         </select>
@@ -143,16 +172,16 @@
                                 >
                                     Revoke
                                 </button>
-                            {:else if !data.permissions.find(p => p.mailbox_id === box.id && p.user_id === data.userId)}
+                            {:else if !permissionsList.find(p => p.mailbox_id === box.id && p.user_id === data.userId)}
                                 <button 
                                   onclick={() => requestAccess(box.id)} 
                                   class="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 dark:hover:bg-indigo-500 hover:text-white transition-all active:scale-95"
                                 >
                                   Request Authority
                                 </button>
-                            {:else if data.permissions.find(p => p.mailbox_id === box.id && p.user_id === data.userId && p.status === 'PENDING')}
+                            {:else if permissionsList.find(p => p.mailbox_id === box.id && p.user_id === data.userId && p.status === 'PENDING')}
                                 <span class="text-[9px] font-black uppercase tracking-widest text-gray-400 italic">Request Pending</span>
-                            {:else if data.permissions.find(p => p.mailbox_id === box.id && p.user_id === data.userId && p.status === 'APPROVED')}
+                            {:else if permissionsList.find(p => p.mailbox_id === box.id && p.user_id === data.userId && p.status === 'APPROVED')}
                                 <span class="text-[9px] font-black uppercase tracking-widest text-green-500 flex items-center gap-1.5">
                                   <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                                   Authority Granted
@@ -186,12 +215,12 @@
     </div>
   </div>
 
-  {#if (data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS' || data.userRole === 'UNIVERSITY_OPERATOR') && data.permissions.length > 0}
+  {#if (data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS' || data.userRole === 'UNIVERSITY_OPERATOR') && permissionsList.length > 0}
     <div class="mt-16 space-y-6 animate-premium-slide" style="animation-delay: 400ms;">
         <div class="flex items-center gap-4">
           <h2 class="text-xl font-black text-gray-900 dark:text-white tracking-widest uppercase">Authority Requests</h2>
           <div class="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
-          <span class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-full uppercase tracking-tighter italic">{data.permissions.length} Pending</span>
+          <span class="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-full uppercase tracking-tighter italic">{permissionsList.length} Pending</span>
         </div>
         
         <div class="glass overflow-hidden rounded-[2.5rem]">
@@ -205,7 +234,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-                    {#each data.permissions as perm}
+                    {#each permissionsList as perm}
                         <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                             <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                                 <div class="text-sm font-bold text-gray-900 dark:text-white">{perm.user_name || 'System Operator'}</div>

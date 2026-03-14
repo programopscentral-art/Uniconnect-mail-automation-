@@ -1,11 +1,33 @@
 <script lang="ts">
-  import { goto, invalidateAll } from "$app/navigation";
-  import { onMount } from "svelte";
+  import { goto } from "$app/navigation";
   import { fade } from "svelte/transition";
   // @ts-ignore
   let { data } = $props();
 
+  // ─── Client-side Data State ─────────────────────────────────────────────
+  let campaignsList = $state<any[]>([]);
+  let universitiesList = $state<any[]>([]);
+  let isLoading = $state(true);
+
   let selectedUniversityId = $state("");
+
+  async function loadCampaignsData() {
+    const univId = data.selectedUniversityId || '';
+    const qs = univId ? `?university_id=${univId}` : '';
+    try {
+      const isGlobal = (data.userPermissions || []).includes('universities');
+      const [c, u] = await Promise.all([
+        fetch(`/api/campaigns${qs}`).then(r => r.ok ? r.json() : []),
+        isGlobal ? fetch('/api/universities').then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+      ]);
+      campaignsList = c || [];
+      universitiesList = u || [];
+    } catch (e) {
+      console.error('[CAMPAIGNS] Client-side load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
 
   $effect(() => {
     if (data.selectedUniversityId && selectedUniversityId === "") {
@@ -13,19 +35,18 @@
     }
   });
 
-  let campaigns = $derived(data.campaigns);
+  let campaigns = $derived(campaignsList);
 
-  onMount(() => {
+  // Load on mount + poll for active campaigns
+  $effect(() => {
+    const _univId = data.selectedUniversityId;
+    isLoading = true;
+    loadCampaignsData();
     const interval = setInterval(() => {
-      // Refresh data if any campaign is active
-      if (
-        data.campaigns.some((c: any) =>
-          ["IN_PROGRESS", "QUEUED", "SCHEDULED"].includes(c.status),
-        )
-      ) {
-        invalidateAll();
+      if (campaignsList.some((c: any) => ["IN_PROGRESS", "QUEUED", "SCHEDULED"].includes(c.status))) {
+        loadCampaignsData();
       }
-    }, 5000); // 5s polling for live feel
+    }, 5000);
     return () => clearInterval(interval);
   });
 
@@ -44,7 +65,7 @@
     try {
       const res = await fetch(`/api/campaigns/${id}`, { method: "DELETE" });
       if (res.ok) {
-        invalidateAll();
+        loadCampaignsData();
       } else {
         const err = await res.json();
         alert(err.message || "Failed to delete");
@@ -82,6 +103,17 @@
   });
 </script>
 
+{#if isLoading}
+  <div class="flex items-center justify-center h-[60vh]">
+    <div class="text-center">
+      <svg class="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <p class="text-sm text-gray-400 dark:text-slate-500 font-medium">Loading campaigns...</p>
+    </div>
+  </div>
+{:else}
 <div class="space-y-8 animate-premium-fade">
   <div
     class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6"
@@ -128,7 +160,7 @@
     </a>
   </div>
 
-  {#if (data.user?.permissions || []).includes("universities") || data.universities.length > 1}
+  {#if (data.user?.permissions || []).includes("universities") || universitiesList.length > 1}
     <div
       class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide"
       style="animation-delay: 200ms;"
@@ -163,7 +195,7 @@
         class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
       >
         <option value="">All Universities</option>
-        {#each data.universities as univ}
+        {#each universitiesList as univ}
           <option value={univ.id}>{univ.name}</option>
         {/each}
       </select>
@@ -380,3 +412,4 @@
     {/each}
   </div>
 </div>
+{/if}

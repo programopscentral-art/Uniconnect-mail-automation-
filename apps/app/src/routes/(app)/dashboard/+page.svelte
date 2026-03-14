@@ -1,8 +1,16 @@
 <script lang="ts">
-  import { goto, invalidateAll } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { fade, fly } from "svelte/transition";
   // @ts-ignore
   let { data } = $props();
+
+  // ─── Client-side Data State ─────────────────────────────────────────────
+  let tasks = $state<any[]>([]);
+  let scheduleEvents = $state<any[]>([]);
+  let calendarFreezes = $state<any[]>([]);
+  let allUsers = $state<any[]>([]);
+  let rawTaskStats = $state<any>({ PENDING: 0, IN_PROGRESS: 0, COMPLETED: 0, CANCELLED: 0, OVERDUE: 0 });
+  let isLoading = $state(true);
 
   // ─── Calendar State ───────────────────────────────────────────────────────
   type CalendarView = "month" | "week" | "day";
@@ -84,9 +92,47 @@
   let freezeUniversityId = $state('');
   const canFreeze = $derived(['PM', 'PMA', 'COS', 'ADMIN', 'PROGRAM_OPS'].includes(data.userRole as string));
 
-  // Polling
+  // ─── Client-side Data Loading ──────────────────────────────────────────
+  async function loadDashboardData() {
+    const univParam = data.selectedUniversityId || data.defaultUniversityId || '';
+    const qs = univParam ? `?university_id=${univParam}` : '';
+    const isAdmin = data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS';
+    const hasTasks = (data.userPermissions || []).includes('tasks');
+
+    try {
+      const fetches: Promise<any>[] = [
+        // Tasks
+        hasTasks ? fetch(`/api/tasks${qs ? qs + '&' : '?'}limit=1000`).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        // Schedule Events
+        fetch(`/api/schedule-events${qs}`).then(r => r.ok ? r.json() : []),
+        // Calendar Freezes
+        fetch(`/api/calendar-freeze${qs}`).then(r => r.ok ? r.json() : []),
+        // Users (minimal)
+        hasTasks ? fetch(`/api/users${qs ? qs + '&' : '?'}minimal=true`).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        // Task Stats
+        hasTasks ? fetch(`/api/task-stats${qs}`).then(r => r.ok ? r.json() : {}) : Promise.resolve({}),
+      ];
+
+      const [t, se, cf, u, ts] = await Promise.all(fetches);
+      tasks = t || [];
+      scheduleEvents = se || [];
+      calendarFreezes = cf || [];
+      allUsers = u || [];
+      rawTaskStats = ts || {};
+    } catch (e) {
+      console.error('[DASHBOARD] Client-side data load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Load data on mount + when university changes + poll every 60s
   $effect(() => {
-    const interval = setInterval(() => invalidateAll(), 30000);
+    // Track selectedUniversityId so this effect re-runs when university changes
+    const _univId = data.selectedUniversityId;
+    isLoading = true;
+    loadDashboardData();
+    const interval = setInterval(() => loadDashboardData(), 60000);
     return () => clearInterval(interval);
   });
 
@@ -95,11 +141,11 @@
   let isCentralBOA = $derived(data.user?.role === 'BOA' && (!data.user?.university_id || activeUniv?.is_team));
 
   const taskStats = $derived({
-    total: data.taskStats?.total || 0,
-    completed: data.taskStats?.completed || 0,
-    pending: data.taskStats?.pending || 0,
-    in_progress: data.taskStats?.in_progress || 0,
-    overdue: data.taskStats?.overdue || 0
+    total: (rawTaskStats.PENDING || 0) + (rawTaskStats.IN_PROGRESS || 0) + (rawTaskStats.COMPLETED || 0) + (rawTaskStats.CANCELLED || 0),
+    completed: rawTaskStats.COMPLETED || 0,
+    pending: rawTaskStats.PENDING || 0,
+    in_progress: rawTaskStats.IN_PROGRESS || 0,
+    overdue: rawTaskStats.OVERDUE || 0
   });
 
   // Color maps for event types
@@ -176,7 +222,7 @@
   let allEvents = $derived.by(() => {
     const events: any[] = [];
     if (showTasks) {
-      for (const t of (data.tasks || [])) {
+      for (const t of tasks) {
         const startDate = t.due_date ? new Date(t.due_date) : new Date(t.created_at);
         events.push({
           ...t, eventType: 'task',
@@ -185,7 +231,7 @@
         });
       }
     }
-    for (const e of (data.scheduleEvents || [])) {
+    for (const e of scheduleEvents) {
       if (e.type === 'HOLIDAY' && !showHolidays) continue;
       if (e.type === 'EXAM' && !showExams) continue;
       if (ACADEMIC_TYPES.includes(e.type) && !showAcademics) continue;
@@ -198,7 +244,7 @@
       });
     }
     // Add calendar freezes as visual indicators
-    for (const f of (data.calendarFreezes || [])) {
+    for (const f of calendarFreezes) {
       const fDate = new Date(f.freeze_date);
       events.push({
         ...f, eventType: 'freeze',
@@ -217,20 +263,20 @@
 
   // Event counts per type for sidebar
   let eventCounts = $derived.by(() => {
-    const se = data.scheduleEvents || [];
-    const tasks = (data.tasks || []).length;
+    const se = scheduleEvents;
+    const taskCount = tasks.length;
     const holidays = se.filter((e: any) => e.type === 'HOLIDAY').length;
     const exams = se.filter((e: any) => e.type === 'EXAM').length;
     const academics = se.filter((e: any) => ACADEMIC_TYPES.includes(e.type)).length;
     const activities = se.filter((e: any) => ACTIVITY_TYPES.includes(e.type)).length;
     const events = se.filter((e: any) => !['HOLIDAY', 'EXAM', ...ACADEMIC_TYPES, ...ACTIVITY_TYPES].includes(e.type)).length;
-    const freezes = (data.calendarFreezes || []).length;
-    return { tasks, holidays, exams, academics, activities, events, freezes };
+    const freezes = calendarFreezes.length;
+    return { tasks: taskCount, holidays, exams, academics, activities, events, freezes };
   });
 
   // ─── Users grouped by university (for assignee picker) ──────────────────
   let usersGroupedByUniv = $derived.by(() => {
-    const users = data.allUsers || [];
+    const users = allUsers;
     const groups: Record<string, { univName: string; univId: string; users: any[] }> = {};
     for (const u of users) {
       const key = u.university_id || '__none__';
@@ -487,11 +533,11 @@
             if (clData.generated > 0) autoChecklistGenerated = true;
           }
         }
-        await invalidateAll();
+        await loadDashboardData();
         // Auto-open the newly created task to show the checklist
         if (autoChecklistGenerated) {
           setTimeout(() => {
-            const newTask = (data.tasks || []).find((t: any) => t.id === task.id);
+            const newTask = tasks.find((t: any) => t.id === task.id);
             if (newTask) openTaskDetail(newTask);
           }, 500);
         }
@@ -571,9 +617,9 @@
         }
 
         // Refresh calendar immediately, background tasks continue
-        await invalidateAll();
+        await loadDashboardData();
         if (backgroundTasks.length > 0) {
-          Promise.all(backgroundTasks).then(() => invalidateAll()).catch(() => {});
+          Promise.all(backgroundTasks).then(() => loadDashboardData()).catch(() => {});
         }
       } else {
         const err = await res.json().catch(() => ({ message: 'Failed to save event' }));
@@ -589,7 +635,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: newStatus })
     });
-    await invalidateAll();
+    await loadDashboardData();
   }
 
   async function deleteEvent(id: string, type: string) {
@@ -597,7 +643,7 @@
     const endpoint = type === 'task' ? `/api/tasks?id=${id}` : `/api/schedule-events?id=${id}`;
     await fetch(endpoint, { method: 'DELETE' });
     if (selectedTask?.id === id) { showTaskDetail = false; selectedTask = null; }
-    await invalidateAll();
+    await loadDashboardData();
   }
 
   // ─── Task Detail ──────────────────────────────────────────────────────────
@@ -1041,7 +1087,7 @@
     if (!confirm('Are you sure you want to delete this event?')) return;
     await fetch(`/api/schedule-events?id=${id}`, { method: 'DELETE' });
     if (selectedEvent?.id === id) { showEventDetail = false; selectedEvent = null; }
-    await invalidateAll();
+    await loadDashboardData();
   }
 
   // ─── Calendar Freeze ───────────────────────────────────────────────────
@@ -1067,7 +1113,7 @@
         const result = await res.json();
         alert(`Successfully frozen ${result.frozen} date(s). Student Engagement team has been notified.`);
         showFreezeModal = false;
-        await invalidateAll();
+        await loadDashboardData();
       } else {
         const err = await res.json().catch(() => ({ message: 'Unknown error' }));
         alert(`Failed to freeze dates: ${err.message || 'Server error'}`);
@@ -1082,7 +1128,7 @@
     try {
       const res = await fetch(`/api/calendar-freeze?id=${freezeId}`, { method: 'DELETE' });
       if (res.ok) {
-        await invalidateAll();
+        await loadDashboardData();
       } else {
         const err = await res.json().catch(() => ({ message: 'Unknown error' }));
         alert(`Failed to remove freeze: ${err.message || 'Server error'}`);
@@ -1093,7 +1139,7 @@
   }
 
   function isFrozenDate(date: Date): any {
-    return (data.calendarFreezes || []).find((f: any) => {
+    return calendarFreezes.find((f: any) => {
       const fd = new Date(f.freeze_date);
       return fd.getFullYear() === date.getFullYear() && fd.getMonth() === date.getMonth() && fd.getDate() === date.getDate();
     });
@@ -1253,14 +1299,14 @@
       </div>
 
       <!-- Calendar Freezes -->
-      {#if (data.calendarFreezes || []).length > 0}
+      {#if calendarFreezes.length > 0}
         <div class="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 mb-2 flex items-center gap-1">
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             Frozen Dates ({eventCounts.freezes})
           </p>
           <div class="space-y-1 max-h-40 overflow-y-auto">
-            {#each (data.calendarFreezes || []) as f}
+            {#each calendarFreezes as f}
               <div class="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-[10px] group">
                 <span class="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"></span>
                 <span class="flex-1 text-gray-600 dark:text-gray-400 truncate">{new Date(f.freeze_date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })} — {f.reason || 'Frozen'}</span>
@@ -1276,13 +1322,13 @@
       {/if}
 
       <!-- University Filter -->
-      {#if (data.user?.permissions || []).includes('universities') || (data.universities || []).length > 1}
+      {#if (data.user?.permissions || []).includes('universities') || (data.universities).length > 1}
         <div class="mt-5 pt-4 border-t border-gray-100 dark:border-slate-800">
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-1 mb-2">University</p>
           <select onchange={onUnivChange} value={data.selectedUniversityId || ''}
             class="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300">
             <option value="">All Universities</option>
-            {#each data.universities || [] as univ}
+            {#each data.universities as univ}
               <option value={univ.id}>{univ.name}</option>
             {/each}
           </select>
@@ -1379,8 +1425,19 @@
 
     <!-- ═══════ CALENDAR VIEWS ═══════ -->
     <div class="flex-1 overflow-auto">
+      <!-- Loading State -->
+      {#if isLoading}
+        <div class="flex items-center justify-center h-full">
+          <div class="text-center">
+            <svg class="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p class="text-sm text-gray-400 dark:text-slate-500 font-medium">Loading calendar...</p>
+          </div>
+        </div>
       <!-- MONTH VIEW -->
-      {#if calendarView === 'month'}
+      {:else if calendarView === 'month'}
         <div class="h-full flex flex-col">
           <div class="grid grid-cols-7 border-b border-gray-200 dark:border-slate-800 flex-shrink-0">
             {#each shortDays as day}
@@ -1433,10 +1490,9 @@
             {/each}
           </div>
         </div>
-      {/if}
 
       <!-- ════════════════════ WEEK VIEW ════════════════════ -->
-      {#if calendarView === 'week'}
+      {:else if calendarView === 'week'}
         <div class="h-full flex flex-col bg-white dark:bg-slate-950">
           <!-- Sticky header row: gutter + 7 day columns -->
           <div class="flex-shrink-0 border-b border-gray-200 dark:border-slate-800">
@@ -1531,10 +1587,9 @@
             </div>
           </div>
         </div>
-      {/if}
 
       <!-- ════════════════════ DAY VIEW ════════════════════ -->
-      {#if calendarView === 'day'}
+      {:else if calendarView === 'day'}
         <div class="h-full flex flex-col bg-white dark:bg-slate-950">
           <!-- Day header -->
           <div class="flex-shrink-0 border-b border-gray-200 dark:border-slate-800 px-3 sm:px-6 py-2 sm:py-4">
@@ -1700,7 +1755,7 @@
             {#if taskForm.assignee_ids.length > 0}
               <div class="flex flex-wrap gap-1.5 mb-2">
                 {#each taskForm.assignee_ids as uid}
-                  {@const u = (data.allUsers || []).find((x: any) => x.id === uid)}
+                  {@const u = allUsers.find((x: any) => x.id === uid)}
                   {#if u}
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold rounded-full">
                       {u.name}
@@ -1838,7 +1893,7 @@
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">University</label>
               <select bind:value={eventForm.university_id} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
                 <option value="">Select University</option>
-                {#each data.universities || [] as univ}
+                {#each data.universities as univ}
                   <option value={univ.id}>{univ.name}</option>
                 {/each}
               </select>
@@ -1894,7 +1949,7 @@
             {#if eventForm.assignee_ids.length > 0}
               <div class="flex flex-wrap gap-1.5 mb-2">
                 {#each eventForm.assignee_ids as uid}
-                  {#each (data.allUsers || []).filter((u) => u.id === uid) as u}
+                  {#each allUsers.filter((u) => u.id === uid) as u}
                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-[10px] font-medium">
                       {u.name || u.email}
                       <button onclick={() => eventForm.assignee_ids = eventForm.assignee_ids.filter(i => i !== uid)} class="hover:text-red-500">
@@ -2520,7 +2575,7 @@
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">University</label>
             <select bind:value={freezeUniversityId} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
               <option value="">Select University</option>
-              {#each data.universities || [] as univ}
+              {#each data.universities as univ}
                 <option value={univ.id}>{univ.name}</option>
               {/each}
             </select>

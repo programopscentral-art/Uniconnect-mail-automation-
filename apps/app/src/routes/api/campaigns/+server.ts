@@ -1,11 +1,18 @@
-import { createCampaign, getTemplates, getMailboxes, getAllUniversities } from '@uniconnect/shared';
+import { createCampaign, getCampaigns, getTemplates, getMailboxes, getAllUniversities } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ locals }) => {
-    // List campaigns? Or dependent resources for wizard?
-    // Let's implement List in another file if needed or here using query params
-    return json({ error: 'Use separate endpoint for listing' });
+export const GET: RequestHandler = async ({ url, locals }) => {
+    if (!locals.user) throw error(401);
+
+    let universityId = url.searchParams.get('university_id') || undefined;
+    const isGlobal = locals.user.permissions?.includes('universities');
+    if (!isGlobal && locals.user.university_id) {
+        universityId = locals.user.university_id;
+    }
+
+    const campaigns = await getCampaigns(universityId);
+    return json(campaigns);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {

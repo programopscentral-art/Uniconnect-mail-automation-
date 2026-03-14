@@ -9,6 +9,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const assigned_to = url.searchParams.get('assigned_to') || undefined;
     let university_id = url.searchParams.get('university_id') || undefined;
     const status = url.searchParams.get('status') as any || undefined;
+    const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
 
     // Strict Multi-Tenant Enforcement
     const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
@@ -20,7 +21,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         assigned_to,
         university_id,
         status,
-        creator_id: isGlobalAdmin ? undefined : locals.user.id
+        creator_id: isGlobalAdmin ? undefined : locals.user.id,
+        limit
     });
     return json(tasks);
 };

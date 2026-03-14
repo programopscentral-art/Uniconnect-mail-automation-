@@ -1,8 +1,38 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
   import { onMount } from "svelte";
   // @ts-ignore
   let { data } = $props();
+
+  // ─── Client-side Data State ─────────────────────────────────────────────
+  let usersList = $state<any[]>([]);
+  let universitiesList = $state<any[]>([]);
+  let isLoading = $state(true);
+
+  async function loadUsersData() {
+    try {
+      const fetches: Promise<any>[] = [
+        fetch('/api/users').then(r => r.ok ? r.json() : []),
+        fetch('/api/universities').then(r => r.ok ? r.json() : []),
+      ];
+      if (data.isGlobalAdmin) {
+        fetches.push(fetch('/api/users/access-requests').then(r => r.ok ? r.json() : []));
+      }
+      const results = await Promise.all(fetches);
+      usersList = results[0] || [];
+      universitiesList = results[1] || [];
+      if (data.isGlobalAdmin) {
+        accessRequests = results[2] || [];
+      }
+    } catch (e) {
+      console.error('[USERS] Client-side load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  $effect(() => {
+    loadUsersData();
+  });
 
   let showModal = $state(false);
   let isSubmitting = $state(false);
@@ -22,10 +52,6 @@
   let activeTab = $state<"users" | "requests">("users");
   let accessRequests = $state<any[]>([]);
 
-  onMount(() => {
-    accessRequests = [...data.accessRequests];
-  });
-
   async function handleRequestAction(
     id: string,
     status: "APPROVED" | "REJECTED",
@@ -40,7 +66,7 @@
       if (res.ok) {
         accessRequests = accessRequests.filter((r) => r.id !== id);
         alert(`Request ${status.toLowerCase()} successfully`);
-        invalidateAll();
+        loadUsersData();
       } else {
         alert("Failed to update request");
       }
@@ -86,7 +112,7 @@
       }
 
       closeModal();
-      invalidateAll();
+      loadUsersData();
     } catch (e) {
       console.error(e);
       alert("Error saving user");
@@ -115,7 +141,7 @@
   }
 
   const selectAll = () =>
-    (universityIds = data.universities.map((u: any) => u.id));
+    (universityIds = universitiesList.map((u: any) => u.id));
   const clearSelection = () => (universityIds = []);
 
   function closeModal() {
@@ -150,7 +176,7 @@
       const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
       if (res.ok) {
         alert("User removed");
-        invalidateAll();
+        loadUsersData();
       } else {
         alert("Failed to remove user");
       }
@@ -164,7 +190,7 @@
   let selectedUser = $state<any>(null);
 
   let filteredUsers = $derived(
-    data.users.filter((u: any) => {
+    usersList.filter((u: any) => {
       if (
         searchQuery &&
         !u.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -190,7 +216,7 @@
         body: JSON.stringify({ id, ...updates }),
       });
       if (res.ok) {
-        invalidateAll();
+        loadUsersData();
       }
     } catch (e) {
       console.error(e);
@@ -228,6 +254,17 @@
   }
 </script>
 
+{#if isLoading}
+  <div class="flex items-center justify-center h-[60vh]">
+    <div class="text-center">
+      <svg class="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <p class="text-sm text-gray-400 dark:text-slate-500 font-medium">Loading team members...</p>
+    </div>
+  </div>
+{:else}
 <div class="space-y-8 pb-12">
   <!-- Header & Navigation -->
   <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -350,7 +387,7 @@
             class="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl sm:rounded-2xl px-4 sm:px-5 py-2.5 sm:py-3.5 text-xs sm:text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all shadow-sm cursor-pointer"
           >
             <option value="" class="dark:bg-slate-900">All Universities</option>
-            {#each data.universities as univ}
+            {#each universitiesList as univ}
               <option value={univ.id} class="dark:bg-slate-900"
                 >{univ.name}</option
               >
@@ -832,7 +869,7 @@
                     >
                       <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"
                       ></span>
-                      {data.universities.find((u: any) => u.id === univId)
+                      {universitiesList.find((u: any) => u.id === univId)
                         ?.name || "Institutional Access"}
                     </span>
                   {/each}
@@ -859,6 +896,7 @@
     </div>
   {/if}
 </div>
+{/if}
 
 <!-- Refined Invite Modal -->
 {#if showModal}
@@ -997,7 +1035,7 @@
                 class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all"
               >
                 <option value="">No Team Assigned</option>
-                {#each data.universities.filter((u: any) => u.is_team) as team}
+                {#each universitiesList.filter((u: any) => u.is_team) as team}
                   <option value={team.id}>{team.name}</option>
                 {/each}
               </select>
@@ -1034,7 +1072,7 @@
                 class="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-48 overflow-y-auto space-y-2 shadow-inner"
                 aria-labelledby="assign-inst-label"
               >
-                {#each data.universities.filter((u: any) => !u.is_team) as univ}
+                {#each universitiesList.filter((u: any) => !u.is_team) as univ}
                   <label
                     class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:bg-indigo-50/50 hover:border-indigo-100 cursor-pointer transition-all group"
                   >

@@ -5,7 +5,10 @@ import { json, error } from '@sveltejs/kit';
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
 
-    let universityId = url.searchParams.get('universityId');
+    let universityId = url.searchParams.get('universityId') || url.searchParams.get('university_id');
+    const page = parseInt(url.searchParams.get('page') || '1');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
 
     // RBAC
     if (locals.user.role === 'UNIVERSITY_OPERATOR') {
@@ -16,12 +19,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     }
 
     if (!universityId) {
-        // If admin and no ID provided, maybe return empty or error?
-        // Let's require it for simplicity
+        universityId = locals.user.university_id;
+    }
+
+    if (!universityId) {
         throw error(400, 'University ID required');
     }
 
-    const students = await getStudents({ universityId, userId: locals.user.id });
+    const students = await getStudents({ universityId, userId: locals.user.id, limit, offset });
     return json(students);
 };
 

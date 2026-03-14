@@ -1,14 +1,39 @@
 <script lang="ts">
-  import { invalidateAll } from "$app/navigation";
   import { fly, fade } from "svelte/transition";
+  import { browser } from '$app/environment';
   // @ts-ignore
   let { data } = $props();
 
-  // Live Refresh Polling
+  // ─── Client-side Data State ─────────────────────────────────────────────
+  let taskList = $state<any[]>([]);
+  let userList = $state<any[]>([]);
+  let universityList = $state<any[]>([]);
+  let isLoading = $state(true);
+
+  async function loadTasksData() {
+    const univId = data.user?.university_id || '';
+    const isAdmin = data.user?.role === 'ADMIN' || data.user?.role === 'PROGRAM_OPS';
+    const qs = univId && !isAdmin ? `?university_id=${univId}` : '';
+    try {
+      const [t, u, univ] = await Promise.all([
+        fetch(`/api/tasks${qs ? qs + '&' : '?'}limit=1000`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/users?minimal=true`).then(r => r.ok ? r.json() : []),
+        fetch('/api/universities').then(r => r.ok ? r.json() : []),
+      ]);
+      taskList = t || [];
+      userList = u || [];
+      universityList = univ || [];
+    } catch (e) {
+      console.error('[TASKS] Client-side load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Load on mount + poll every 60s
   $effect(() => {
-    const interval = setInterval(() => {
-      invalidateAll();
-    }, 30000); // Polling every 30 seconds
+    loadTasksData();
+    const interval = setInterval(() => loadTasksData(), 60000);
     return () => clearInterval(interval);
   });
 
@@ -72,7 +97,7 @@
   };
 
   let filteredTasks = $derived(
-    data.tasks.filter((t: any) => {
+    taskList.filter((t: any) => {
       if (filterStatus && t.status !== filterStatus) return false;
       if (filterUniversity && t.university_id !== filterUniversity)
         return false;
@@ -103,14 +128,14 @@
     const isCentralBAOOrAdmin = isGlobalAdmin || isCentralBOA;
 
     if (isCentralBAOOrAdmin) {
-      if (!form.university_id) return data.users;
-      return data.users.filter(
+      if (!form.university_id) return userList;
+      return userList.filter(
         (u: any) => u.university_id === form.university_id,
       );
     }
 
     // Non-global admins can only see users from their own university
-    return data.users.filter(
+    return userList.filter(
       (u: any) => u.university_id === data.user.university_id,
     );
   });
@@ -179,7 +204,7 @@
 
       if (res.ok) {
         showModal = false;
-        invalidateAll();
+        loadTasksData();
       }
     } finally {
       isSubmitting = false;
@@ -211,7 +236,7 @@
         task.status = originalStatus;
         alert("Failed to update status");
       } else {
-        await invalidateAll();
+        await loadTasksData();
       }
     } catch (err) {
       if (assignee) assignee.status = originalAssigneeStatus;
@@ -227,7 +252,7 @@
     updatingTaskId = id;
     try {
       const res = await fetch(`/api/tasks?id=${id}`, { method: "DELETE" });
-      if (res.ok) await invalidateAll();
+      if (res.ok) await loadTasksData();
     } finally {
       updatingTaskId = null;
     }
@@ -245,7 +270,7 @@
 
     // Safety check: ensure all selected tasks are actually deletable by this user
     const deletableSelection = Array.from(selectedTasks).filter((id) => {
-      const task = data.tasks.find((t: any) => t.id === id);
+      const task = taskList.find((t: any) => t.id === id);
       return task && canDelete(task);
     });
 
@@ -269,7 +294,7 @@
       );
       selectedTasks = new Set();
       selectAll = false;
-      invalidateAll();
+      loadTasksData();
     } catch (err) {
       alert("Failed to delete some tasks");
     }
@@ -331,6 +356,17 @@
   }
 </script>
 
+{#if isLoading}
+  <div class="flex items-center justify-center h-[60vh]">
+    <div class="text-center">
+      <svg class="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <p class="text-sm text-gray-400 dark:text-slate-500 font-medium">Loading tasks...</p>
+    </div>
+  </div>
+{:else}
 <div class="space-y-4 sm:space-y-8 pb-12 px-1 sm:px-0">
   <!-- Header Area -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -405,7 +441,7 @@
       <div
         class="text-xl sm:text-3xl font-black text-gray-900 dark:text-white leading-tight"
       >
-        {data.tasks.filter((t: any) => t.status !== "COMPLETED").length}
+        {taskList.filter((t: any) => t.status !== "COMPLETED").length}
       </div>
     </div>
     <div
@@ -419,7 +455,7 @@
       <div
         class="text-3xl font-black text-red-600 dark:text-red-500 leading-tight"
       >
-        {data.tasks.filter(
+        {taskList.filter(
           (t: any) => t.priority === "URGENT" || t.priority === "HIGH",
         ).length}
       </div>
@@ -435,7 +471,7 @@
       <div
         class="text-3xl font-black text-indigo-600 dark:text-indigo-400 leading-tight"
       >
-        {data.tasks.filter((t: any) => t.status === "IN_PROGRESS").length}
+        {taskList.filter((t: any) => t.status === "IN_PROGRESS").length}
       </div>
     </div>
     <div
@@ -449,7 +485,7 @@
       <div
         class="text-3xl font-black text-green-600 dark:text-green-500 leading-tight"
       >
-        {data.tasks.filter((t: any) => t.status === "COMPLETED").length}
+        {taskList.filter((t: any) => t.status === "COMPLETED").length}
       </div>
     </div>
   </div>
@@ -508,7 +544,7 @@
           style="color: inherit; background-color: inherit;"
         >
           <option value="" class="dark:bg-slate-800">All Universities</option>
-          {#each data.universities as univ}
+          {#each universityList as univ}
             <option value={univ.id} class="dark:bg-slate-800"
               >{univ.name}</option
             >
@@ -529,7 +565,7 @@
         style="color: inherit; background-color: inherit;"
       >
         <option value="" class="dark:bg-slate-800">All Members</option>
-        {#each data.users as user}
+        {#each userList as user}
           <option value={user.id} class="dark:bg-slate-800"
             >{user.name || user.email}</option
           >
@@ -930,6 +966,7 @@
     {/each}
   </div>
 </div>
+{/if}
 
 <!-- Premium Task Modal -->
 {#if showModal}
@@ -1163,7 +1200,7 @@
                   class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all"
                 >
                   <option value="" class="dark:bg-slate-800">None</option>
-                  {#each data.universities as univ}
+                  {#each universityList as univ}
                     <option value={univ.id} class="dark:bg-slate-800"
                       >{univ.name}</option
                     >
@@ -1173,7 +1210,7 @@
                 <div
                   class="w-full bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-500 dark:text-slate-400 truncate"
                 >
-                  {data.universities.find(
+                  {universityList.find(
                     (u) => u.id === data.user.university_id,
                   )?.name || "University"}
                 </div>

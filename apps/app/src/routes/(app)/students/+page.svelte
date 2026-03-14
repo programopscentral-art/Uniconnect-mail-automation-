@@ -1,10 +1,46 @@
 <script lang="ts">
-  import { invalidateAll, goto } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { fade, fly, slide } from 'svelte/transition';
   import type { PageData } from './$types';
-  
+
   // @ts-ignore
   let { data } = $props();
+
+  // ─── Client-side Data State ─────────────────────────────────────────────
+  let studentsList = $state<any[]>([]);
+  let universitiesList = $state<any[]>([]);
+  let totalCount = $state(0);
+  let dailySentCount = $state(0);
+  let isLoading = $state(true);
+
+  async function loadStudentsData() {
+    const univId = data.selectedUniversityId || data.userUniversityId || '';
+    const page = data.currentPage || 1;
+    const limit = data.limit || 50;
+    try {
+      const isGlobal = data.user?.permissions?.includes('universities');
+      const [students, meta, univs] = await Promise.all([
+        fetch(`/api/students?universityId=${univId}&page=${page}&limit=${limit}`).then(r => r.ok ? r.json() : []),
+        fetch(`/api/students/meta?universityId=${univId}`).then(r => r.ok ? r.json() : { totalCount: 0, dailySentCount: 0 }),
+        isGlobal ? fetch('/api/universities').then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+      ]);
+      studentsList = students || [];
+      totalCount = meta.totalCount || 0;
+      dailySentCount = meta.dailySentCount || 0;
+      universitiesList = univs || [];
+    } catch (e) {
+      console.error('[STUDENTS] Client-side load error:', e);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  $effect(() => {
+    const _univId = data.selectedUniversityId;
+    const _page = data.currentPage;
+    isLoading = true;
+    loadStudentsData();
+  });
 
   let selectedUniversityId = $state('');
 
@@ -124,12 +160,12 @@
       goto(url.toString());
   }
 
-  let totalPages = $derived(Math.ceil(data.totalCount / data.limit));
+  let totalPages = $derived(Math.ceil(totalCount / data.limit));
   
   // Extract dynamic headers from metadata (for main table)
   let dynamicHeaders = $derived.by(() => {
     const keys = new Set<string>();
-    data.students.forEach((s: any) => {
+    studentsList.forEach((s: any) => {
       Object.keys(s.metadata || {}).forEach(k => keys.add(k));
     });
     const internal = ['sort_order', 'id', 'university_id', 'created_at', 'updated_at'];
@@ -144,7 +180,7 @@
 
     async function uploadCsv() {
         if (!uploadFiles || uploadFiles.length === 0) return;
-        if (!selectedUniversityId && data.universities.length > 1) {
+        if (!selectedUniversityId && universitiesList.length > 1) {
             alert('Select a university first');
             return;
         }
@@ -176,7 +212,7 @@
             console.log('Import successful:', result);
             
             // Refresh data immediately
-            await invalidateAll();
+            await loadStudentsData();
             
             // Auto-close modal after 2.5 seconds if successful
             setTimeout(() => {
@@ -196,7 +232,7 @@
     }
 
     async function deleteAllStudents() {
-        if (!selectedUniversityId && data.universities.length > 1) {
+        if (!selectedUniversityId && universitiesList.length > 1) {
             alert('Select a university first');
             return;
         }
@@ -208,7 +244,7 @@
                 method: 'DELETE'
             });
             if (res.ok) {
-                invalidateAll();
+                loadStudentsData();
             } else {
                 alert('Failed to delete students');
             }
@@ -225,7 +261,7 @@
                 method: 'DELETE'
             });
             if (res.ok) {
-                invalidateAll();
+                loadStudentsData();
             } else {
                 alert('Failed to delete student');
             }
@@ -235,6 +271,17 @@
     }
 </script>
 
+{#if isLoading}
+  <div class="flex items-center justify-center h-[60vh]">
+    <div class="text-center">
+      <svg class="w-8 h-8 animate-spin text-indigo-500 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      <p class="text-sm text-gray-400 dark:text-slate-500 font-medium">Loading contacts...</p>
+    </div>
+  </div>
+{:else}
 <div class="space-y-8 animate-premium-fade w-full max-w-full overflow-hidden">
   <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
     <div class="animate-premium-slide">
@@ -249,16 +296,16 @@
                 <div class="w-32 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                     <div 
                         class="h-full bg-indigo-600 transition-all duration-1000" 
-                        style="width: {Math.min((data.dailySentCount / 1500) * 100, 100)}%"
+                        style="width: {Math.min((dailySentCount / 1500) * 100, 100)}%"
                     ></div>
                 </div>
-                <span class="text-xs font-black {data.dailySentCount > 1400 ? 'text-red-600' : 'text-indigo-600'} dark:text-indigo-400">
-                    {1500 - data.dailySentCount} <span class="text-[8px] text-gray-400 font-normal uppercase">Left</span>
+                <span class="text-xs font-black {dailySentCount > 1400 ? 'text-red-600' : 'text-indigo-600'} dark:text-indigo-400">
+                    {1500 - dailySentCount} <span class="text-[8px] text-gray-400 font-normal uppercase">Left</span>
                 </span>
             </div>
         </div>
 
-        {#if data.students.length > 0}
+        {#if studentsList.length > 0}
             <button 
                 onclick={deleteAllStudents}
                 class="flex-1 lg:flex-none px-6 py-3 border border-red-200 dark:border-red-900/30 text-[11px] font-black uppercase tracking-widest rounded-2xl text-red-600 dark:text-red-400 bg-white/50 dark:bg-red-950/20 hover:bg-red-600 hover:text-white transition-all active:scale-95"
@@ -277,7 +324,7 @@
     </div>
   </div>
 
-  {#if data.universities.length > 1}
+  {#if universitiesList.length > 1}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
         <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">University:</label>
         <select 
@@ -287,7 +334,7 @@
             class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-gray-700 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy</option>
-            {#each data.universities as univ}
+            {#each universitiesList as univ}
                 <option value={univ.id}>{univ.name}</option>
             {/each}
         </select>
@@ -306,7 +353,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50 dark:divide-gray-800/50">
-          {#each data.students as student}
+          {#each studentsList as student}
             <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
               {#each dynamicHeaders as header}
                   <td class="px-8 py-6 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
@@ -331,7 +378,7 @@
               </td>
             </tr>
           {/each}
-          {#if data.students.length === 0}
+          {#if studentsList.length === 0}
               <tr>
                   <td colspan={1 + dynamicHeaders.length} class="px-8 py-24 text-center">
                     <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4">
@@ -340,7 +387,7 @@
                         </div>
                         <p class="text-[10px] font-black uppercase tracking-[0.2em]">
                           {selectedUniversityId 
-                            ? `No records found in ${data.universities.find(u => u.id === selectedUniversityId)?.name || 'this university'}.` 
+                            ? `No records found in ${universitiesList.find(u => u.id === selectedUniversityId)?.name || 'this university'}.` 
                             : data.userUniversityId 
                                 ? `No records found. Try re-importing for your assigned university.` 
                                 : 'Select a university from the menu to view student records.'}
@@ -354,7 +401,7 @@
     </div>
 
     <!-- Pagination Controls -->
-    {#if data.totalCount > 0}
+    {#if totalCount > 0}
       <div class="bg-gray-50/50 dark:bg-slate-800/50 px-8 py-6 flex items-center justify-between border-t border-gray-100 dark:border-slate-800">
         <div class="flex-1 flex justify-between sm:hidden">
             <button onclick={() => changePage(data.currentPage - 1)} disabled={data.currentPage === 1} class="px-5 py-2.5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-30 transition-all shadow-sm active:scale-95 cursor-pointer">Previous</button>
@@ -362,7 +409,7 @@
         </div>
         <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
             <div class="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest">
-                Displaying <span class="text-indigo-600 dark:text-indigo-400">{(data.currentPage - 1) * data.limit + 1} - {Math.min(data.currentPage * data.limit, data.totalCount)}</span> <span class="mx-1">/</span> Total {data.totalCount} Records
+                Displaying <span class="text-indigo-600 dark:text-indigo-400">{(data.currentPage - 1) * data.limit + 1} - {Math.min(data.currentPage * data.limit, totalCount)}</span> <span class="mx-1">/</span> Total {totalCount} Records
             </div>
             <div class="flex items-center space-x-4">
                 <nav class="relative z-0 inline-flex shadow-sm -space-x-px rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden" aria-label="Pagination">
@@ -386,6 +433,7 @@
     {/if}
   </div>
 </div>
+{/if}
 
 {#if showUploadModal}
 <div class="fixed z-[60] inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
@@ -432,7 +480,7 @@
             </div>
         {/if}
 
-        {#if data.universities.length > 1 && !selectedUniversityId}
+        {#if universitiesList.length > 1 && !selectedUniversityId}
             <div class="bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-5 rounded-2xl mb-6 text-[11px] font-black uppercase tracking-widest border border-red-100 dark:border-red-800/50">
                 Warning: A university must be selected before importing.
             </div>
@@ -517,7 +565,7 @@
         <button 
             type="button" 
             onclick={uploadCsv}
-            disabled={isUploading || !uploadFiles || (data.universities.length > 1 && !selectedUniversityId)}
+            disabled={isUploading || !uploadFiles || (universitiesList.length > 1 && !selectedUniversityId)}
             class="w-full inline-flex justify-center rounded-2xl border border-transparent shadow-lg px-6 py-3 bg-indigo-600 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-indigo-700 transition-all sm:ml-4 sm:w-auto active:scale-95 disabled:opacity-30 disabled:grayscale"
         >
           {isUploading ? 'Importing...' : `Confirm Import`}

@@ -2,19 +2,30 @@ import { getAllUsers, createUser, getAllUniversities } from '@uniconnect/shared'
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
     const userRole = locals.user.role as any;
 
     const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
     const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
 
-    if (userRole !== 'ADMIN' && userRole !== 'PROGRAM_OPS' && userRole !== 'UNIVERSITY_OPERATOR' && !isCentralBOA) {
+    // Allow users with tasks permission to fetch minimal user list for assignee pickers
+    const minimal = url.searchParams.get('minimal') === 'true';
+    const hasTasks = (locals.user.permissions || []).includes('tasks');
+    const isPrivileged = userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || userRole === 'UNIVERSITY_OPERATOR' || isCentralBOA;
+
+    if (!isPrivileged && !hasTasks) {
         throw error(403, 'Forbidden');
     }
 
-    const universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA) ? undefined : locals.user?.university_id;
-    const users = await getAllUsers(universityId || undefined);
+    let universityId = url.searchParams.get('university_id') || undefined;
+    if (!isPrivileged) {
+        universityId = locals.user?.university_id || undefined;
+    } else if (!universityId) {
+        universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA) ? undefined : locals.user?.university_id;
+    }
+
+    const users = await getAllUsers(universityId || undefined, { minimal });
     return json(users);
 };
 
