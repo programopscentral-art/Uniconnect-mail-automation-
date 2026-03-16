@@ -8,7 +8,8 @@ import {
     getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport,
     upsertOpsDailyData, upsertOpsInstructorDaily,
     getOpsSheetConfig, upsertOpsSheetConfig, updateSheetLastSynced,
-    parseOpsCSV, generateOpsSampleData
+    parseOpsCSV, generateOpsSampleData,
+    clearOpsData
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -46,47 +47,51 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             const [today, weekData, monthData, universities] = await Promise.all([
                 getOpsTodaySummary(date),
                 getOpsWeekSummary(week.start, week.end),
-                getOpsWeekSummary(monthStart, monthEnd),
+                getOpsMonthSummary(d.getFullYear(), d.getMonth() + 1),
                 getOpsUniversities()
             ]);
             return json({ today, week: weekData, month: monthData, universities, date });
         }
 
         case 'sessions': {
-            const [todayByUniv, weekByUniv, todaySummary, weekSummary] = await Promise.all([
+            const [todayByUniv, weekByUniv, todaySummary, weekSummary, universities] = await Promise.all([
                 getOpsSessionsByUniversity(date),
                 getOpsWeekByUniversity(week.start, week.end),
                 getOpsTodaySummary(date),
-                getOpsWeekSummary(week.start, week.end)
+                getOpsWeekSummary(week.start, week.end),
+                getOpsUniversities()
             ]);
-            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, weekSummary, date });
+            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, weekSummary, universities, date });
         }
 
         case 'attendance': {
-            const [todayByUniv, weekByUniv, todaySummary, weekSummary] = await Promise.all([
+            const [todayByUniv, weekByUniv, todaySummary, weekSummary, universities] = await Promise.all([
                 getOpsAttendanceByUniversity(date),
                 getOpsWeekByUniversity(week.start, week.end),
                 getOpsTodaySummary(date),
-                getOpsWeekSummary(week.start, week.end)
+                getOpsWeekSummary(week.start, week.end),
+                getOpsUniversities()
             ]);
-            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, weekSummary, date });
+            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, weekSummary, universities, date });
         }
 
         case 'instructors': {
-            const [todayByUniv, weekByUniv, todaySummary] = await Promise.all([
+            const [todayByUniv, weekByUniv, todaySummary, universities] = await Promise.all([
                 getOpsInstructorsByUniversity(date),
                 getOpsWeekByUniversity(week.start, week.end),
-                getOpsTodaySummary(date)
+                getOpsTodaySummary(date),
+                getOpsUniversities()
             ]);
-            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, date });
+            return json({ todayByUniversity: todayByUniv, weekByUniversity: weekByUniv, todaySummary, universities, date });
         }
 
         case 'at-risk': {
-            const [todayData, weekData] = await Promise.all([
+            const [todayData, weekData, universities] = await Promise.all([
                 getOpsDailyByDate(date),
-                getOpsWeekByUniversity(week.start, week.end)
+                getOpsWeekByUniversity(week.start, week.end),
+                getOpsUniversities()
             ]);
-            return json({ todayByUniversity: todayData, weekByUniversity: weekData, date });
+            return json({ todayByUniversity: todayData, weekByUniversity: weekData, universities, date });
         }
 
         case 'events': {
@@ -101,7 +106,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 byUniv[row.university_name].events_cancelled += parseInt(row.events_cancelled) || 0;
             }
             const monthSummary = await getOpsWeekSummary(monthStart, monthEnd);
-            return json({ byUniversity: Object.values(byUniv), monthSummary, date });
+            return json({ byUniversity: Object.values(byUniv), monthSummary, date, monthStart, monthEnd });
         }
 
         case 'exams': {
@@ -116,7 +121,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 byUniv[row.university_name].post_exam_comms_sent += parseInt(row.post_exam_comms_sent) || 0;
             }
             const monthSummary = await getOpsWeekSummary(monthStart, monthEnd);
-            return json({ byUniversity: Object.values(byUniv), monthSummary, date });
+            return json({ byUniversity: Object.values(byUniv), monthSummary, date, monthStart, monthEnd });
         }
 
         case 'post-exam': {
@@ -129,7 +134,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
                 byUniv[row.university_name].exams_completed += parseInt(row.exams_completed) || 0;
                 byUniv[row.university_name].post_exam_comms_sent += parseInt(row.post_exam_comms_sent) || 0;
             }
-            return json({ byUniversity: Object.values(byUniv), date });
+            return json({ byUniversity: Object.values(byUniv), date, monthStart, monthEnd });
         }
 
         case 'per-university': {
@@ -147,11 +152,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         }
 
         case 'team-activity': {
-            const [teamData, instructorData] = await Promise.all([
+            const [teamData, instructorData, universities] = await Promise.all([
                 getOpsTeamActivity(date, university),
-                getOpsInstructorActivity(date, university, role)
+                getOpsInstructorActivity(date, university, role),
+                getOpsUniversities()
             ]);
-            return json({ teamData, instructorData, date });
+            return json({ teamData, instructorData, universities, date });
         }
 
         case 'daily-reports': {
@@ -210,6 +216,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     switch (action) {
         case 'sync-sheet': {
             const sheetUrl = body.sheetUrl;
+            const syncDate = body.syncDate; // optional: YYYY-MM-DD date for the data
             if (!sheetUrl) throw error(400, 'Sheet URL required');
 
             try {
@@ -228,8 +235,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     return json({ success: false, error: 'Sheet returned empty content' }, { status: 400 });
                 }
 
-                // Parse and store
-                const { dailyData, instructorData } = parseOpsCSV(csvText);
+                // Parse and store — pass syncDate so rows without a date column get the right date
+                const { dailyData, instructorData } = parseOpsCSV(csvText, syncDate);
 
                 if (!dailyData.length) {
                     return json({
@@ -240,6 +247,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     }, { status: 400 });
                 }
 
+                // Log what dates we're storing
+                const dates = [...new Set(dailyData.map((r: any) => r.date))];
+                const universities = [...new Set(dailyData.map((r: any) => r.university_name))];
+                console.log(`[OPS] Syncing ${dailyData.length} rows: dates=${dates.join(',')} universities=${universities.length} syncDate=${syncDate || 'none'}`);
+
                 await upsertOpsDailyData(dailyData);
                 if (instructorData.length) await upsertOpsInstructorDaily(instructorData);
 
@@ -248,7 +260,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 return json({
                     success: true,
                     rowsProcessed: dailyData.length,
-                    instructorRows: instructorData.length
+                    instructorRows: instructorData.length,
+                    dates,
+                    universityCount: universities.length
                 });
             } catch (e: any) {
                 console.error('[OPS] Sync error:', e);
@@ -270,6 +284,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             } catch (e: any) {
                 console.error('[OPS] Sample data error:', e);
                 return json({ success: false, error: e.message || 'Failed to load sample data. Has the migration been run?' }, { status: 500 });
+            }
+        }
+
+        case 'clear-data': {
+            try {
+                const clearDate = body.date; // optional: clear only a specific date
+                await clearOpsData(clearDate);
+                return json({
+                    success: true,
+                    message: clearDate ? `Data for ${clearDate} cleared` : 'All ops data cleared'
+                });
+            } catch (e: any) {
+                console.error('[OPS] Clear data error:', e);
+                return json({ success: false, error: e.message || 'Failed to clear data' }, { status: 500 });
             }
         }
 

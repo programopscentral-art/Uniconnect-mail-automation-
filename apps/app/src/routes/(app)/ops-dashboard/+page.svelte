@@ -4,15 +4,19 @@
     // ─── State ───────────────────────────────────────────────────
     let activeView = $state('overview');
     let sheetUrl = $state('');
+    let syncDate = $state('');
     let isLoading = $state(true);
     let isSyncing = $state(false);
     let sampleLoaded = $state(false);
     let syncError = $state('');
+    let syncSuccess = $state('');
     let viewData = $state<any>(null);
     let selectedDate = $state(new Date().toISOString().split('T')[0]);
     let selectedUniversity = $state('');
     let selectedRole = $state('All roles');
     let dateRange = $state('today');
+    let allUniversities = $state<string[]>([]);
+    let isDownloading = $state(false);
 
     const views = [
         { id: 'overview', label: 'Overview', icon: 'grid' },
@@ -29,7 +33,7 @@
         { id: 'compliance', label: 'Report compliance', icon: 'star' },
     ];
 
-    const viewGroups = {
+    const viewGroups: Record<string, string[]> = {
         'VIEWS': ['overview', 'sessions', 'attendance', 'at-risk', 'instructors', 'events', 'exams', 'post-exam', 'per-university'],
         'TEAM & COMPLIANCE': ['team-activity', 'daily-reports', 'compliance']
     };
@@ -44,9 +48,15 @@
                 dateRange
             });
             if (selectedUniversity) params.set('university', selectedUniversity);
-            if (selectedRole) params.set('role', selectedRole);
+            if (selectedRole && selectedRole !== 'All roles') params.set('role', selectedRole);
             const res = await fetch(`/api/ops?${params}`);
-            if (res.ok) viewData = await res.json();
+            if (res.ok) {
+                viewData = await res.json();
+                // Keep a global list of universities
+                if (viewData?.universities?.length) {
+                    allUniversities = viewData.universities;
+                }
+            }
         } catch (e) {
             console.error('Failed to load ops data:', e);
         } finally {
@@ -58,16 +68,23 @@
         if (!sheetUrl) return;
         isSyncing = true;
         syncError = '';
+        syncSuccess = '';
         try {
+            const payload: any = { action: 'sync-sheet', sheetUrl };
+            if (syncDate) payload.syncDate = syncDate;
             const res = await fetch('/api/ops', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'sync-sheet', sheetUrl })
+                body: JSON.stringify(payload)
             });
             const result = await res.json();
             if (result.success) {
                 sampleLoaded = false;
                 syncError = '';
+                const dateInfo = result.dates?.length ? ` → date(s): ${result.dates.join(', ')}` : '';
+                syncSuccess = `Synced ${result.rowsProcessed} rows (${result.universityCount} universities)${dateInfo}`;
+                // If synced with a specific date, switch to view that date
+                if (syncDate) selectedDate = syncDate;
                 await loadViewData();
             } else {
                 syncError = result.error || 'Failed to sync sheet';
@@ -83,6 +100,7 @@
     async function loadSampleData() {
         isSyncing = true;
         syncError = '';
+        syncSuccess = '';
         try {
             const res = await fetch('/api/ops', {
                 method: 'POST',
@@ -93,6 +111,7 @@
             if (result.success) {
                 sampleLoaded = true;
                 syncError = '';
+                syncSuccess = `Sample data loaded: ${result.rowsProcessed} daily rows, ${result.instructorRows} instructor rows`;
                 await loadViewData();
             } else {
                 syncError = result.error || 'Failed to load sample data';
@@ -100,6 +119,41 @@
         } catch (e: any) {
             syncError = e.message || 'Network error';
             console.error('Sample load failed:', e);
+        } finally {
+            isSyncing = false;
+        }
+    }
+
+    function navigateTo(view: string) {
+        activeView = view;
+    }
+
+    async function clearData(dateOnly?: boolean) {
+        const confirmMsg = dateOnly
+            ? `Clear all data for ${selectedDate}?`
+            : 'Clear ALL ops data? This cannot be undone.';
+        if (!confirm(confirmMsg)) return;
+        isSyncing = true;
+        syncError = '';
+        syncSuccess = '';
+        try {
+            const payload: any = { action: 'clear-data' };
+            if (dateOnly) payload.date = selectedDate;
+            const res = await fetch('/api/ops', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            if (result.success) {
+                syncSuccess = result.message;
+                viewData = null;
+                await loadViewData();
+            } else {
+                syncError = result.error || 'Failed to clear data';
+            }
+        } catch (e: any) {
+            syncError = e.message || 'Network error';
         } finally {
             isSyncing = false;
         }
@@ -125,22 +179,29 @@
         if (!den) return '0%';
         return Math.round((num / den) * 100) + '%';
     }
+    function pctNum(a: any, b: any) {
+        const num = parseInt(a) || 0;
+        const den = parseInt(b) || 0;
+        if (!den) return 0;
+        return Math.round((num / den) * 100);
+    }
     function deviation(planned: any, completed: any) {
         const p = parseInt(planned) || 0;
         const c = parseInt(completed) || 0;
         if (!p) return '0%';
         return Math.round(((p - c) / p) * 100) + '%';
     }
+    function devNum(planned: any, completed: any) {
+        const p = parseInt(planned) || 0;
+        const c = parseInt(completed) || 0;
+        if (!p) return 0;
+        return Math.round(((p - c) / p) * 100);
+    }
     function statusBadge(deviationPct: number) {
         return deviationPct > 10 ? 'Attention' : 'On track';
     }
-    function statusColor(status: string) {
-        if (status === 'On track') return 'text-green-400';
-        if (status === 'Attention') return 'text-orange-400';
-        return 'text-red-400';
-    }
     function reportStatus(val: string) {
-        if (val === 'Filed') return 'bg-green-600 text-white';
+        if (val === 'Filed' || val === 'Submitted') return 'bg-green-600 text-white';
         if (val === 'Late') return 'bg-yellow-600 text-white';
         return 'bg-red-600/80 text-white';
     }
@@ -159,10 +220,121 @@
     }
     function getOverallReportStatus(row: any) {
         const reports = [row.instructor_report, row.coach_report, row.ops_report];
-        const filed = reports.filter((r: string) => r === 'Filed').length;
+        const filed = reports.filter((r: string) => r === 'Filed' || r === 'Submitted').length;
         if (filed === 3) return 'Complete';
         if (filed > 0) return 'Partial';
         return 'Missing';
+    }
+
+    // ─── Download Report ─────────────────────────────────────────
+    async function downloadReport(type: 'daily' | 'weekly' | 'monthly') {
+        isDownloading = true;
+        try {
+            const params = new URLSearchParams({ view: 'report', type, date: selectedDate });
+            const res = await fetch(`/api/ops?${params}`);
+            if (!res.ok) return;
+            const report = await res.json();
+            const content = generateReportHTML(report, type);
+            const blob = new Blob([content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `UniOps_${type}_report_${selectedDate}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error('Download failed:', e);
+        } finally {
+            isDownloading = false;
+        }
+    }
+
+    function generateReportHTML(report: any, type: string) {
+        const title = type === 'daily' ? `Daily Report — ${report.date}` :
+            type === 'weekly' ? `Weekly Report — ${report.weekStart} to ${report.weekEnd}` :
+            `Monthly Report — ${report.year}-${String(report.month).padStart(2, '0')}`;
+        const s = report.summary || {};
+        const byUniv = report.byUniversity || [];
+        const daily = report.dailyBreakdown || [];
+
+        let univRows = byUniv.map((r: any) => `<tr>
+            <td style="padding:8px;border-bottom:1px solid #eee">${r.university_name}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.sessions_planned || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.sessions_completed || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.enrolled || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.attended || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.coach_calls || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.at_risk_total || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.events_planned || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.events_executed || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.exams_planned || 0}</td>
+            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.exams_completed || 0}</td>
+        </tr>`).join('');
+
+        let dailyRows = '';
+        if (daily.length && type !== 'daily') {
+            dailyRows = `<h2 style="margin-top:24px;color:#333">Daily Breakdown</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead><tr style="background:#f5f5f5">
+                <th style="padding:8px;text-align:left;border-bottom:2px solid #ddd">Date</th>
+                <th style="padding:8px;text-align:left;border-bottom:2px solid #ddd">University</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Sessions</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Attended</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Enrolled</th>
+                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Coach Calls</th>
+            </tr></thead><tbody>` +
+            daily.map((r: any) => `<tr>
+                <td style="padding:6px;border-bottom:1px solid #eee">${r.date}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee">${r.university_name}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.sessions_completed}/${r.sessions_planned}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.attended}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.enrolled}</td>
+                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.coach_calls}</td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        }
+
+        return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+        <style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:0 auto;padding:24px;color:#333}
+        h1{color:#1a1a2e;border-bottom:3px solid #1a1a2e;padding-bottom:8px}
+        .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+        .card{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:16px;text-align:center}
+        .card .label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px}
+        .card .value{font-size:28px;font-weight:bold;margin-top:4px}
+        .green{color:#16a34a}.red{color:#dc2626}.blue{color:#2563eb}.yellow{color:#ca8a04}
+        table{width:100%;border-collapse:collapse}th{text-align:left;background:#f5f5f5}
+        @media print{body{padding:0}.card{break-inside:avoid}}</style></head><body>
+        <h1>UniOps — ${title}</h1>
+        <p style="color:#666">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard</p>
+        <div class="summary-grid">
+            <div class="card"><div class="label">Sessions Planned</div><div class="value">${s.sessions_planned || 0}</div></div>
+            <div class="card"><div class="label">Sessions Completed</div><div class="value green">${s.sessions_completed || 0}</div></div>
+            <div class="card"><div class="label">Students Enrolled</div><div class="value blue">${s.enrolled || 0}</div></div>
+            <div class="card"><div class="label">Students Attended</div><div class="value green">${s.attended || 0}</div></div>
+            <div class="card"><div class="label">Attendance Rate</div><div class="value">${parseInt(s.enrolled) ? Math.round((parseInt(s.attended) / parseInt(s.enrolled)) * 100) : 0}%</div></div>
+            <div class="card"><div class="label">Coach Calls</div><div class="value yellow">${s.coach_calls || 0}</div></div>
+            <div class="card"><div class="label">At-Risk Students</div><div class="value red">${s.at_risk_total || 0}</div></div>
+            <div class="card"><div class="label">Events Executed</div><div class="value">${s.events_executed || 0} / ${s.events_planned || 0}</div></div>
+            <div class="card"><div class="label">Exams Completed</div><div class="value">${s.exams_completed || 0} / ${s.exams_planned || 0}</div></div>
+            <div class="card"><div class="label">Post-Exam Comms</div><div class="value">${s.post_exam_comms_sent || 0}</div></div>
+        </div>
+        <h2 style="margin-top:24px;color:#333">By University</h2>
+        <table style="font-size:13px"><thead><tr style="background:#f5f5f5">
+            <th style="padding:8px;border-bottom:2px solid #ddd">University</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Sessions Planned</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Completed</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Enrolled</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Attended</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Coach Calls</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">At-Risk</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Events Planned</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Events Done</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Exams Planned</th>
+            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Exams Done</th>
+        </tr></thead><tbody>${univRows}</tbody></table>
+        ${dailyRows}
+        <hr style="margin-top:32px"><p style="color:#999;font-size:12px;text-align:center">This report was auto-generated by UniConnect Ops Dashboard</p>
+        </body></html>`;
     }
 </script>
 
@@ -228,51 +400,107 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto bg-gray-950 p-6">
         <!-- Top Bar: Sheet URL + controls -->
-        <div class="flex items-center gap-3 mb-6 flex-wrap">
-            <span class="text-sm text-gray-400 font-mono whitespace-nowrap">Google Sheet CSV URL</span>
-            <input
-                type="text"
-                bind:value={sheetUrl}
-                placeholder="Paste your published Google Sheet CSV URL here..."
-                class="flex-1 min-w-[300px] bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-            />
-            <button
-                onclick={syncSheet}
-                disabled={isSyncing || !sheetUrl}
-                class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
-            >
-                {isSyncing ? 'Syncing...' : 'Load data'}
-            </button>
-            <button
-                onclick={loadSampleData}
-                disabled={isSyncing}
-                class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm font-mono rounded transition-colors"
-            >
-                Use sample data
-            </button>
-            {#if sampleLoaded}
-                <span class="text-sm font-mono text-green-400">Sample data loaded</span>
-            {/if}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4">
+            <div class="flex items-center gap-3 flex-wrap">
+                <input
+                    type="text"
+                    bind:value={sheetUrl}
+                    placeholder="Paste published Google Sheet CSV URL..."
+                    class="flex-1 min-w-[250px] bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                />
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-500">Data date:</label>
+                    <input
+                        type="date"
+                        bind:value={syncDate}
+                        class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-2 py-2 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+                <button
+                    onclick={syncSheet}
+                    disabled={isSyncing || !sheetUrl}
+                    class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
+                >
+                    {isSyncing ? 'Syncing...' : 'Load data'}
+                </button>
+                <button
+                    onclick={loadSampleData}
+                    disabled={isSyncing}
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm font-mono rounded transition-colors"
+                >
+                    Use sample data
+                </button>
+                <div class="flex items-center gap-1 ml-2">
+                    <button
+                        onclick={() => clearData(true)}
+                        disabled={isSyncing}
+                        class="px-3 py-2 bg-yellow-700 hover:bg-yellow-600 disabled:opacity-50 text-white text-xs rounded transition-colors"
+                        title="Clear data for the selected sync date only"
+                    >
+                        Clear date
+                    </button>
+                    <button
+                        onclick={() => clearData(false)}
+                        disabled={isSyncing}
+                        class="px-3 py-2 bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white text-xs rounded transition-colors"
+                        title="Clear ALL ops data"
+                    >
+                        Clear all
+                    </button>
+                </div>
+            </div>
             {#if syncError}
-                <span class="text-sm font-mono text-red-400">{syncError}</span>
+                <p class="text-sm font-mono text-red-400 mt-2">{syncError}</p>
+            {/if}
+            {#if syncSuccess}
+                <p class="text-sm font-mono text-green-400 mt-2">{syncSuccess}</p>
             {/if}
         </div>
 
-        <!-- View Header -->
-        <div class="flex items-center justify-between mb-6">
+        <!-- View Header with Date Picker + University filter + Download -->
+        <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
                 <h1 class="text-2xl font-bold text-white font-mono">
                     {views.find(v => v.id === activeView)?.label || 'Operations overview'}
                 </h1>
                 <p class="text-sm text-gray-500 font-mono">{formatDate(selectedDate)}</p>
             </div>
-            <div class="flex items-center gap-3">
-                {#if viewData?.universities?.length}
-                    <span class="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">{viewData.universities.length} universities</span>
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs text-gray-500">View date:</label>
+                    <input
+                        type="date"
+                        bind:value={selectedDate}
+                        class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                    />
+                </div>
+                {#if allUniversities.length > 0 && ['overview', 'sessions', 'attendance', 'at-risk', 'instructors', 'events', 'exams', 'post-exam', 'team-activity', 'daily-reports'].includes(activeView)}
+                    <select
+                        bind:value={selectedUniversity}
+                        class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                    >
+                        <option value="">All universities</option>
+                        {#each allUniversities as univ}
+                            <option value={univ}>{univ}</option>
+                        {/each}
+                    </select>
                 {/if}
-                {#if sampleLoaded}
-                    <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded font-mono">Sample data</span>
+                {#if allUniversities.length}
+                    <span class="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">{allUniversities.length} universities</span>
                 {/if}
+                <!-- Download buttons -->
+                <div class="flex items-center gap-1">
+                    <button onclick={() => downloadReport('daily')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download daily report">
+                        Daily
+                    </button>
+                    <button onclick={() => downloadReport('weekly')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download weekly report">
+                        Weekly
+                    </button>
+                    <button onclick={() => downloadReport('monthly')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download monthly report">
+                        Monthly
+                    </button>
+                    <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
             </div>
         </div>
 
@@ -292,39 +520,42 @@
             {@const t = viewData.today || {}}
             {@const m = viewData.month || {}}
             <div class="mb-4">
-                <p class="text-xs font-semibold text-gray-500 tracking-wider mb-3">TODAY'S PULSE</p>
+                <p class="text-xs font-semibold text-gray-500 tracking-wider mb-3">TODAY'S PULSE — {formatDate(selectedDate)}</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    <button onclick={() => navigateTo('sessions')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SESSIONS PLANNED</p>
                         <p class="text-3xl font-bold text-white mt-1">{fmt(t.sessions_planned)}</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                        <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                    </button>
+                    <button onclick={() => navigateTo('sessions')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-green-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SESSIONS COMPLETED</p>
                         <p class="text-3xl font-bold text-green-400 mt-1">{fmt(t.sessions_completed)}</p>
                         <p class="text-xs text-gray-500">{pct(t.sessions_completed, t.sessions_planned)} completion</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    </button>
+                    <button onclick={() => navigateTo('sessions')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-red-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">SESSIONS CANCELLED</p>
                         <p class="text-3xl font-bold text-red-400 mt-1">{fmt(t.sessions_cancelled)}</p>
                         <p class="text-xs text-gray-500">{deviation(t.sessions_planned, t.sessions_completed)} deviation</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    </button>
+                    <button onclick={() => navigateTo('attendance')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">STUDENTS ATTENDED</p>
                         <p class="text-3xl font-bold text-blue-400 mt-1">{fmt(t.attended)}</p>
                         <p class="text-xs text-gray-500">of {fmt(t.enrolled)} enrolled</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    </button>
+                    <button onclick={() => navigateTo('attendance')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-teal-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">ATTENDANCE RATE</p>
                         <p class="text-3xl font-bold text-teal-400 mt-1">{pct(t.attended, t.enrolled)}</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                        <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                    </button>
+                    <button onclick={() => navigateTo('attendance')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-yellow-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">COACH CALLS TODAY</p>
                         <p class="text-3xl font-bold text-yellow-400 mt-1">{fmt(t.coach_calls)}</p>
-                    </div>
-                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    </button>
+                    <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-red-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">AT-RISK STUDENTS</p>
                         <p class="text-3xl font-bold text-red-400 mt-1">{fmt(t.at_risk_total)}</p>
-                    </div>
+                        <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                    </button>
                 </div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
@@ -332,58 +563,124 @@
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">PARENT CALLS TODAY</p>
                     <p class="text-3xl font-bold text-blue-400 mt-1">{fmt(t.parent_calls)}</p>
                 </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-green-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">ACKNOWLEDGMENTS</p>
                     <p class="text-3xl font-bold text-green-400 mt-1">{fmt(t.acknowledgments)}</p>
                     <p class="text-xs text-gray-500">{pct(t.acknowledgments, t.at_risk_total)} ack rate</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                </button>
+                <button onclick={() => navigateTo('instructors')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-orange-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">INSTRUCTORS ON LEAVE</p>
                     <p class="text-3xl font-bold text-orange-400 mt-1">{fmt(t.instructors_on_leave)}</p>
-                    <p class="text-xs text-gray-500">today</p>
+                    <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                </button>
+            </div>
+
+            <!-- Overview charts: Session completion donut + Attendance bar -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <h4 class="text-sm font-semibold text-white mb-4">Session completion</h4>
+                    {#if true}
+                        {@const completed = parseInt(t.sessions_completed) || 0}
+                        {@const cancelled = parseInt(t.sessions_cancelled) || 0}
+                        {@const planned = parseInt(t.sessions_planned) || 1}
+                        {@const compPct = (completed / planned) * 360}
+                        {@const cancPct = (cancelled / planned) * 360}
+                        {@const r = 70}
+                        {@const circ = 2 * Math.PI * r}
+                        <div class="flex items-center justify-center">
+                            <svg viewBox="0 0 200 200" class="w-44 h-44">
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#374151" stroke-width="28" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#22C55E" stroke-width="28"
+                                    stroke-dasharray="{(compPct / 360) * circ} {circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#EF4444" stroke-width="28"
+                                    stroke-dasharray="{(cancPct / 360) * circ} {circ}"
+                                    stroke-dashoffset="-{(compPct / 360) * circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r="56" fill="#111827" />
+                                <text x="100" y="95" text-anchor="middle" fill="white" font-size="24" font-weight="bold">{pct(t.sessions_completed, t.sessions_planned)}</text>
+                                <text x="100" y="115" text-anchor="middle" fill="#9CA3AF" font-size="11">completed</text>
+                            </svg>
+                        </div>
+                    {/if}
+                    <div class="flex items-center justify-center gap-4 mt-2">
+                        <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-green-500 inline-block"></span> Completed ({fmt(t.sessions_completed)})</span>
+                        <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-red-500 inline-block"></span> Cancelled ({fmt(t.sessions_cancelled)})</span>
+                    </div>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                    <h4 class="text-sm font-semibold text-white mb-4">Attendance rate</h4>
+                    {#if true}
+                        {@const attRate = pctNum(t.attended, t.enrolled)}
+                        {@const r = 70}
+                        {@const circ = 2 * Math.PI * r}
+                        <div class="flex items-center justify-center">
+                            <svg viewBox="0 0 200 200" class="w-44 h-44">
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#374151" stroke-width="28" />
+                                <circle cx="100" cy="100" r={r} fill="none" stroke="#14B8A6" stroke-width="28"
+                                    stroke-dasharray="{(attRate / 100) * circ} {circ}"
+                                    transform="rotate(-90 100 100)" />
+                                <circle cx="100" cy="100" r="56" fill="#111827" />
+                                <text x="100" y="95" text-anchor="middle" fill="white" font-size="24" font-weight="bold">{attRate}%</text>
+                                <text x="100" y="115" text-anchor="middle" fill="#9CA3AF" font-size="11">attendance</text>
+                            </svg>
+                        </div>
+                    {/if}
+                    <div class="flex items-center justify-center gap-4 mt-2">
+                        <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-teal-500 inline-block"></span> Attended ({fmt(t.attended)})</span>
+                        <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-gray-600 inline-block"></span> Absent ({fmt((parseInt(t.enrolled) || 0) - (parseInt(t.attended) || 0))})</span>
+                    </div>
                 </div>
             </div>
 
             <p class="text-xs font-semibold text-gray-500 tracking-wider mb-3">THIS MONTH</p>
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                <button onclick={() => navigateTo('events')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EVENTS PLANNED</p>
                     <p class="text-3xl font-bold text-white mt-1">{fmt(m.events_planned)}</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                </button>
+                <button onclick={() => navigateTo('events')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-green-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EVENTS EXECUTED</p>
                     <p class="text-3xl font-bold text-green-400 mt-1">{fmt(m.events_executed)}</p>
                     <p class="text-xs text-gray-500">{parseInt(m.events_planned || 0) - parseInt(m.events_executed || 0)} pending</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                </button>
+                <button onclick={() => navigateTo('events')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-red-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EVENTS CANCELLED</p>
                     <p class="text-3xl font-bold text-red-400 mt-1">{fmt(m.events_cancelled)}</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
-                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">REPORTS MISSING</p>
-                    <p class="text-3xl font-bold text-red-400 mt-1">-</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                </button>
+                <button onclick={() => navigateTo('daily-reports')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-red-500/50 transition-colors cursor-pointer">
+                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">REPORT COMPLIANCE</p>
+                    <p class="text-3xl font-bold text-purple-400 mt-1">{pct(m.sessions_completed, m.sessions_planned)}</p>
+                    <p class="text-[10px] text-blue-400 mt-1">View reports →</p>
+                </button>
+                <button onclick={() => navigateTo('exams')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EXAMS PLANNED</p>
                     <p class="text-3xl font-bold text-white mt-1">{fmt(m.exams_planned)}</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    <p class="text-[10px] text-blue-400 mt-1">View details →</p>
+                </button>
+                <button onclick={() => navigateTo('exams')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-green-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EXAMS COMPLETED</p>
                     <p class="text-3xl font-bold text-green-400 mt-1">{fmt(m.exams_completed)}</p>
                     <p class="text-xs text-gray-500">{parseInt(m.exams_planned || 0) - parseInt(m.exams_completed || 0)} pending</p>
-                </div>
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                </button>
+                <button onclick={() => navigateTo('post-exam')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-purple-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">POST-EXAM COMMS SENT</p>
                     <p class="text-3xl font-bold text-purple-400 mt-1">{fmt(m.post_exam_comms_sent)}</p>
                     <p class="text-xs text-gray-500">of {fmt(m.exams_completed)} done exams</p>
-                </div>
+                </button>
             </div>
-            <div class="grid grid-cols-2 md:grid-cols-2 gap-3">
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
-                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">AT-RISK INFORMED</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-orange-500/50 transition-colors cursor-pointer">
+                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">AT-RISK INFORMED (MONTH)</p>
                     <p class="text-3xl font-bold text-orange-400 mt-1">{fmt(m.at_risk_informed)}</p>
                     <p class="text-xs text-gray-500">{parseInt(m.at_risk_total || 0) - parseInt(m.at_risk_informed || 0)} not yet</p>
-                </div>
+                </button>
+                <button onclick={() => navigateTo('team-activity')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
+                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">TEAM ACTIVITY</p>
+                    <p class="text-3xl font-bold text-blue-400 mt-1">{fmt(t.coach_calls)}</p>
+                    <p class="text-xs text-gray-500">coach calls today · click to view team</p>
+                </button>
             </div>
 
         <!-- ─── SESSIONS ──────────────────────────────────────────── -->
@@ -524,8 +821,10 @@
             {@const todayData = viewData.todayByUniversity || []}
             {@const totalAtRisk = todayData.reduce((s: number, r: any) => s + (parseInt(r.at_risk_total) || 0), 0)}
             {@const totalInformed = todayData.reduce((s: number, r: any) => s + (parseInt(r.at_risk_informed) || 0), 0)}
-            <p class="text-sm text-gray-500 mb-4 font-mono">At-risk student tracking · parent notifications</p>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {@const totalAcks = todayData.reduce((s: number, r: any) => s + (parseInt(r.acknowledgments) || 0), 0)}
+            {@const totalParentCalls = todayData.reduce((s: number, r: any) => s + (parseInt(r.parent_calls) || 0), 0)}
+            <p class="text-sm text-gray-500 mb-4 font-mono">At-risk student tracking · parent notifications · acknowledgments</p>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">TOTAL AT-RISK</p>
                     <p class="text-3xl font-bold text-red-400 mt-1">{fmt(totalAtRisk)}</p>
@@ -542,7 +841,67 @@
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">INFORM RATE</p>
                     <p class="text-3xl font-bold text-teal-400 mt-1">{pct(totalInformed, totalAtRisk)}</p>
                 </div>
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">PARENT CALLS</p>
+                    <p class="text-3xl font-bold text-blue-400 mt-1">{fmt(totalParentCalls)}</p>
+                </div>
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                    <p class="text-[10px] text-gray-500 font-semibold tracking-wider">ACKNOWLEDGMENTS</p>
+                    <p class="text-3xl font-bold text-purple-400 mt-1">{fmt(totalAcks)}</p>
+                </div>
             </div>
+
+            {#if totalAtRisk === 0 && todayData.length > 0}
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6 text-center">
+                    <p class="text-green-400 text-lg font-semibold">No at-risk students reported for this date</p>
+                    <p class="text-gray-500 text-sm mt-1">If your sheet has at-risk data, ensure the <code class="bg-gray-800 px-1 rounded">at_risk</code> and <code class="bg-gray-800 px-1 rounded">risk_informed</code> columns have values.</p>
+                </div>
+            {/if}
+
+            <!-- At-risk donut chart -->
+            {#if totalAtRisk > 0}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                        <h4 class="text-sm font-semibold text-white mb-4">Informed vs pending</h4>
+                        {#if true}
+                            {@const informedPct = totalAtRisk ? (totalInformed / totalAtRisk) * 360 : 0}
+                            {@const r = 70}
+                            {@const circ = 2 * Math.PI * r}
+                            <div class="flex items-center justify-center">
+                                <svg viewBox="0 0 200 200" class="w-44 h-44">
+                                    <circle cx="100" cy="100" r={r} fill="none" stroke="#374151" stroke-width="28" />
+                                    <circle cx="100" cy="100" r={r} fill="none" stroke="#22C55E" stroke-width="28"
+                                        stroke-dasharray="{(informedPct / 360) * circ} {circ}"
+                                        transform="rotate(-90 100 100)" />
+                                    <circle cx="100" cy="100" r="56" fill="#111827" />
+                                    <text x="100" y="95" text-anchor="middle" fill="white" font-size="24" font-weight="bold">{pct(totalInformed, totalAtRisk)}</text>
+                                    <text x="100" y="115" text-anchor="middle" fill="#9CA3AF" font-size="11">informed</text>
+                                </svg>
+                            </div>
+                        {/if}
+                        <div class="flex items-center justify-center gap-4 mt-2">
+                            <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-green-500 inline-block"></span> Informed ({totalInformed})</span>
+                            <span class="flex items-center gap-1 text-xs text-gray-400"><span class="w-3 h-3 rounded bg-gray-600 inline-block"></span> Pending ({totalAtRisk - totalInformed})</span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg p-5">
+                        <h4 class="text-sm font-semibold text-white mb-4">At-risk by university</h4>
+                        <div class="space-y-2">
+                            {#each todayData.filter((r: any) => parseInt(r.at_risk_total) > 0) as row}
+                                {@const rowPct = pctNum(row.at_risk_informed, row.at_risk_total)}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] text-gray-400 w-28 truncate text-right">{row.university_name}</span>
+                                    <div class="flex-1 bg-gray-800 rounded h-4 overflow-hidden">
+                                        <div class="h-full rounded bg-green-500" style="width: {rowPct}%"></div>
+                                    </div>
+                                    <span class="text-[10px] text-gray-400 w-16">{row.at_risk_informed}/{row.at_risk_total}</span>
+                                </div>
+                            {/each}
+                        </div>
+                    </div>
+                </div>
+            {/if}
+
             <h3 class="text-lg font-semibold text-white mb-3">By university</h3>
             <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
                 <table class="w-full text-sm">
@@ -551,6 +910,8 @@
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">AT-RISK</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">INFORMED</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">PENDING</th>
+                        <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">PARENT CALLS</th>
+                        <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">ACKS</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">RATE</th>
                     </tr></thead>
                     <tbody>
@@ -558,9 +919,11 @@
                             {@const pending = (parseInt(row.at_risk_total) || 0) - (parseInt(row.at_risk_informed) || 0)}
                             <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
                                 <td class="px-4 py-3 text-white">{row.university_name}</td>
-                                <td class="px-4 py-3 text-center text-red-400">{row.at_risk_total}</td>
-                                <td class="px-4 py-3 text-center text-green-400">{row.at_risk_informed}</td>
+                                <td class="px-4 py-3 text-center text-red-400">{row.at_risk_total || 0}</td>
+                                <td class="px-4 py-3 text-center text-green-400">{row.at_risk_informed || 0}</td>
                                 <td class="px-4 py-3 text-center text-orange-400">{pending}</td>
+                                <td class="px-4 py-3 text-center text-blue-400">{row.parent_calls || 0}</td>
+                                <td class="px-4 py-3 text-center text-purple-400">{row.acknowledgments || 0}</td>
                                 <td class="px-4 py-3 text-center text-gray-300">{pct(row.at_risk_informed, row.at_risk_total)}</td>
                             </tr>
                         {/each}
@@ -624,7 +987,11 @@
         <!-- ─── EVENTS ────────────────────────────────────────────── -->
         {:else if activeView === 'events'}
             {@const ms = viewData.monthSummary || {}}
-            <p class="text-sm text-gray-500 mb-4 font-mono">Monthly event tracking</p>
+            <p class="text-sm text-gray-500 mb-2 font-mono">Monthly event tracking</p>
+            <div class="bg-blue-900/30 border border-blue-700/40 rounded-lg px-4 py-2 mb-4 flex items-center gap-2">
+                <span class="text-blue-400 text-xs">ℹ</span>
+                <span class="text-xs text-blue-300">Showing data from <strong>{viewData.monthStart || '—'}</strong> to <strong>{viewData.monthEnd || '—'}</strong> (full month range)</span>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EVENTS PLANNED</p>
@@ -670,7 +1037,11 @@
         <!-- ─── EXAMS ─────────────────────────────────────────────── -->
         {:else if activeView === 'exams'}
             {@const ms = viewData.monthSummary || {}}
-            <p class="text-sm text-gray-500 mb-4 font-mono">Monthly exam tracking</p>
+            <p class="text-sm text-gray-500 mb-2 font-mono">Monthly exam tracking</p>
+            <div class="bg-blue-900/30 border border-blue-700/40 rounded-lg px-4 py-2 mb-4 flex items-center gap-2">
+                <span class="text-blue-400 text-xs">ℹ</span>
+                <span class="text-xs text-blue-300">Showing data from <strong>{viewData.monthStart || '—'}</strong> to <strong>{viewData.monthEnd || '—'}</strong> (full month range)</span>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EXAMS PLANNED</p>
@@ -716,7 +1087,11 @@
             {@const byUniv = viewData.byUniversity || []}
             {@const totalExams = byUniv.reduce((s: number, r: any) => s + (parseInt(r.exams_completed) || 0), 0)}
             {@const totalComms = byUniv.reduce((s: number, r: any) => s + (parseInt(r.post_exam_comms_sent) || 0), 0)}
-            <p class="text-sm text-gray-500 mb-4 font-mono">Post-exam communication tracking</p>
+            <p class="text-sm text-gray-500 mb-2 font-mono">Post-exam communication tracking</p>
+            <div class="bg-blue-900/30 border border-blue-700/40 rounded-lg px-4 py-2 mb-4 flex items-center gap-2">
+                <span class="text-blue-400 text-xs">ℹ</span>
+                <span class="text-xs text-blue-300">Showing data from <strong>{viewData.monthStart || '—'}</strong> to <strong>{viewData.monthEnd || '—'}</strong> (full month range)</span>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">EXAMS DONE</p>
@@ -760,7 +1135,7 @@
                     class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-3 py-2 focus:outline-none focus:border-blue-500"
                 >
                     <option value="">Select university...</option>
-                    {#each (viewData.universities || []) as univ}
+                    {#each (viewData.universities || allUniversities) as univ}
                         <option value={univ}>{univ}</option>
                     {/each}
                 </select>
@@ -837,7 +1212,7 @@
                     class="bg-gray-800 border border-gray-700 text-white text-sm rounded px-3 py-2"
                 >
                     <option value="">All universities</option>
-                    {#each (viewData.teamData || []).map((r: any) => r.university_name) as univ}
+                    {#each allUniversities.length ? allUniversities : (viewData.teamData || []).map((r: any) => r.university_name) as univ}
                         <option value={univ}>{univ}</option>
                     {/each}
                 </select>
@@ -851,6 +1226,13 @@
                     <option value="Program ops">Program ops</option>
                 </select>
             </div>
+
+            {#if teams.length === 0}
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6 text-center">
+                    <p class="text-gray-400 text-lg">No team activity data for {formatDate(selectedDate)}</p>
+                    <p class="text-gray-500 text-sm mt-1">Try selecting a different date or load data first.</p>
+                </div>
+            {/if}
 
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
@@ -883,6 +1265,7 @@
             </div>
 
             <!-- Time utilisation bar chart -->
+            {#if true}
             {@const avgInst = teams.length ? (teams.reduce((s: number, r: any) => s + (parseFloat(r.avg_hours_instructors) || 0), 0) / teams.length).toFixed(1) : '0'}
             {@const avgCoach = teams.length ? (teams.reduce((s: number, r: any) => s + (parseFloat(r.avg_hours_coaches) || 0), 0) / teams.length).toFixed(1) : '0'}
             {@const avgPO = teams.length ? (teams.reduce((s: number, r: any) => s + (parseFloat(r.avg_hours_program_ops) || 0), 0) / teams.length).toFixed(1) : '0'}
@@ -959,6 +1342,7 @@
                     </div>
                 </div>
             </div>
+            {/if}
 
             {#if instructors.length}
                 <h4 class="text-sm font-semibold text-gray-500 tracking-wider mb-3">INSTRUCTORS — DAILY ACTIVITY LOG</h4>
@@ -1146,7 +1530,11 @@
             {@const onTime = comp.filter((r: any) => { if (!r.report_submitted_at) return false; const h = parseInt(r.report_submitted_at.split(':')[0]); return h < 19; }).length}
             {@const late = totalFiled - onTime}
             {@const missing = totalDue - totalFiled}
-            <p class="text-sm text-gray-500 mb-4 font-mono">Daily report filing compliance · streaks · gaps</p>
+            <p class="text-sm text-gray-500 mb-2 font-mono">Daily report filing compliance · streaks · gaps</p>
+            <div class="bg-blue-900/30 border border-blue-700/40 rounded-lg px-4 py-2 mb-4 flex items-center gap-2">
+                <span class="text-blue-400 text-xs">ℹ</span>
+                <span class="text-xs text-blue-300">Showing data from <strong>{viewData.startDate || '—'}</strong> to <strong>{viewData.endDate || '—'}</strong> (last 30 days)</span>
+            </div>
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">TOTAL REPORTS DUE (30D)</p>
@@ -1270,12 +1658,12 @@
                 </div>
 
                 <div class="bg-gray-900 border border-gray-800 rounded-lg p-6">
-                    <h3 class="text-sm font-semibold text-white mb-3">Required CSV columns</h3>
-                    <p class="text-xs text-gray-500 mb-3">Your sheet must have these column headers (first row):</p>
+                    <h3 class="text-sm font-semibold text-white mb-3">Supported CSV columns</h3>
+                    <p class="text-xs text-gray-500 mb-3">Your sheet should have <strong>university_name</strong> as the first column. The system auto-maps these column names:</p>
                     <div class="font-mono text-xs text-gray-400 bg-gray-800 p-3 rounded overflow-x-auto">
-                        date, university_name, sessions_planned, sessions_completed, sessions_cancelled, enrolled, attended, coach_calls, parent_calls, instructors_total, instructors_on_leave, events_planned, events_executed, events_cancelled, exams_planned, exams_completed, post_exam_comms_sent, at_risk_total, at_risk_informed, acknowledgments, report_submitted_by, report_submitted_at, instructor_report, coach_report, ops_report
+                        university_name, sessions_planned, sessions_completed, sessions_cancelled, enrolled, attended, coach_calls, parent_calls, at_risk, acks, risk_informed, instructors_total, leave_today, events_planned, events_executed, events_cancelled, exams_planned, exams_executed, email_sent, wa_sent, reports_uploaded
                     </div>
-                    <p class="text-xs text-gray-500 mt-3">One row per university per day. Date format: YYYY-MM-DD</p>
+                    <p class="text-xs text-gray-500 mt-3">One row per university. Use the "Data date" field above to set which date this data belongs to. If your CSV has a <code class="bg-gray-700 px-1 rounded">date</code> column, it will be used instead.</p>
                 </div>
             </div>
         {/if}

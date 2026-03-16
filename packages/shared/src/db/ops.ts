@@ -121,6 +121,28 @@ export async function upsertOpsDailyData(rows: any[]) {
     }
 }
 
+// ─── Clear Data ─────────────────────────────────────────────────────
+
+export async function clearOpsData(date?: string) {
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        if (date) {
+            await client.query('DELETE FROM ops_instructor_daily WHERE date = $1', [date]);
+            await client.query('DELETE FROM ops_daily_data WHERE date = $1', [date]);
+        } else {
+            await client.query('DELETE FROM ops_instructor_daily');
+            await client.query('DELETE FROM ops_daily_data');
+        }
+        await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
 // ─── Query Helpers ───────────────────────────────────────────────────
 
 export async function getOpsDailyByDate(date: string) {
@@ -378,8 +400,10 @@ export async function getOpsMonthlyReport(year: number, month: number) {
 
 // ─── CSV Parsing ─────────────────────────────────────────────────────
 
-export function parseOpsCSV(csvText: string): { dailyData: any[]; instructorData: any[] } {
-    const lines = csvText.trim().split('\n');
+export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData: any[]; instructorData: any[] } {
+    // Strip BOM and normalize line endings
+    const cleanText = csvText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = cleanText.trim().split('\n');
     if (lines.length < 2) return { dailyData: [], instructorData: [] };
 
     const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
@@ -412,9 +436,14 @@ export function parseOpsCSV(csvText: string): { dailyData: any[]; instructorData
                 clicks_shares_sent: parseInt(row.clicks_shares_sent) || 0,
             });
         } else {
+            // dateOverride ALWAYS wins if provided; otherwise use CSV date or today
+            const rowDate = dateOverride || row.date || new Date().toISOString().split('T')[0];
+            const uniName = (row.university_name || row.university || '').trim();
+            if (!uniName) continue; // skip rows without university name
+
             dailyData.push({
-                date: row.date,
-                university_name: row.university_name || row.university,
+                date: rowDate,
+                university_name: uniName,
                 sessions_planned: parseInt(row.sessions_planned) || 0,
                 sessions_completed: parseInt(row.sessions_completed) || 0,
                 sessions_cancelled: parseInt(row.sessions_cancelled) || 0,
@@ -423,27 +452,27 @@ export function parseOpsCSV(csvText: string): { dailyData: any[]; instructorData
                 coach_calls: parseInt(row.coach_calls) || 0,
                 parent_calls: parseInt(row.parent_calls) || 0,
                 instructors_total: parseInt(row.instructors_total) || 0,
-                instructors_on_leave: parseInt(row.instructors_on_leave) || 0,
+                instructors_on_leave: parseInt(row.instructors_on_leave || row.leave_today) || 0,
                 events_planned: parseInt(row.events_planned) || 0,
                 events_executed: parseInt(row.events_executed) || 0,
                 events_cancelled: parseInt(row.events_cancelled) || 0,
                 exams_planned: parseInt(row.exams_planned) || 0,
-                exams_completed: parseInt(row.exams_completed) || 0,
-                post_exam_comms_sent: parseInt(row.post_exam_comms_sent) || 0,
-                at_risk_total: parseInt(row.at_risk_total) || 0,
-                at_risk_informed: parseInt(row.at_risk_informed) || 0,
-                acknowledgments: parseInt(row.acknowledgments) || 0,
+                exams_completed: parseInt(row.exams_completed || row.exams_executed) || 0,
+                post_exam_comms_sent: parseInt(row.post_exam_comms_sent || row.email_sent) || 0,
+                at_risk_total: parseInt(row.at_risk_total || row.at_risk) || 0,
+                at_risk_informed: parseInt(row.at_risk_informed || row.risk_informed || row.fail_risk_informed) || 0,
+                acknowledgments: parseInt(row.acknowledgments || row.acks || row.parent_acks_comms) || 0,
                 report_submitted_by: row.report_submitted_by || null,
-                report_submitted_at: row.report_submitted_at || null,
-                instructor_report: row.instructor_report || 'Missing',
-                coach_report: row.coach_report || 'Missing',
-                ops_report: row.ops_report || 'Missing',
-                instructors_active: parseInt(row.instructors_active) || 0,
+                report_submitted_at: row.report_submitted_at || (row.reports_uploaded ? '18:00' : null),
+                instructor_report: row.instructor_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
+                coach_report: row.coach_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
+                ops_report: row.ops_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
+                instructors_active: parseInt(row.instructors_active || row.instructors_total) || 0,
                 coaches_active: parseInt(row.coaches_active) || 0,
                 program_ops_active: parseInt(row.program_ops_active) || 0,
-                total_calls_made: parseInt(row.total_calls_made) || 0,
+                total_calls_made: parseInt(row.total_calls_made || row.coach_calls) || 0,
                 tickets_resolved: parseInt(row.tickets_resolved) || 0,
-                clicks_shares_sent: parseInt(row.clicks_shares_sent) || 0,
+                clicks_shares_sent: parseInt(row.clicks_shares_sent || row.wa_sent) || 0,
                 avg_hours_instructors: parseFloat(row.avg_hours_instructors) || 0,
                 avg_hours_coaches: parseFloat(row.avg_hours_coaches) || 0,
                 avg_hours_program_ops: parseFloat(row.avg_hours_program_ops) || 0,
@@ -528,7 +557,6 @@ export function generateOpsSampleData(): { dailyData: any[]; instructorData: any
 
             const reportHour = 18 + Math.floor(Math.random() * 6);
             const reportMin = Math.floor(Math.random() * 60);
-            const isLate = reportHour >= 19;
             const didSubmit = Math.random() > 0.25;
             const hasInstructorReport = didSubmit && Math.random() > 0.2;
             const hasCoachReport = didSubmit && Math.random() > 0.3;
