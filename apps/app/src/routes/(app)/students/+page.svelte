@@ -362,13 +362,7 @@
               {/each}
               <td class="px-8 py-6 whitespace-nowrap text-right text-sm font-medium">
                 <div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                  <a 
-                    href="/plagiarism"
-                    class="p-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all active:scale-95 shadow-sm"
-                  >
-                    Scan Analysis
-                  </a>
-                  <button 
+                  <button
                     onclick={() => deleteOneStudent(student.id)}
                     class="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 shadow-sm"
                   >

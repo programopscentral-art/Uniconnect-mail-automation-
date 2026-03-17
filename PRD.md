@@ -7,7 +7,7 @@
 - **Efficiency**: Replace manual, repetitive tasks (like individual emailing and question paper formatting) with automated workflows.
 - **Scale**: Enable administrators to manage thousands of students and multiple university partners simultaneously.
 - **Consistency**: Ensure institutional branding and formatting standards across all outgoing communications and academic documents.
-- **Intelligence**: Leverage AI-driven tools for plagiarism detection and content analysis.
+- **Intelligence**: Leverage AI-driven tools for content analysis and operational insights.
 
 ---
 
@@ -70,4 +70,4 @@ While the core platform focuses on execution, higher-level AI features are curre
 - **Automated Layout Reconstruction**: Direct UI integration for converting PDFs to editable Design Studio templates.
 - **AI-Powered Question Generation**: Generating academic content based on syllabus inputs.
 - **Communication Intelligence**: Predictive analysis for student engagement and response rates.
-- **Plagiarism & Integrity Suite**: Advanced scanning for academic honesty.
+- **Academic Integrity Suite**: Automated compliance tracking and report generation.
