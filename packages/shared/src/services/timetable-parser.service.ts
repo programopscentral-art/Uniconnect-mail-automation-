@@ -64,9 +64,17 @@ export async function parseTimetableExcel(buffer: Buffer, year?: number): Promis
             const row = rawData[rowIdx];
             if (!row || row.length === 0) continue;
 
-            // Check if this row is a date header (e.g. "Jan 5", "Feb 10")
-            const firstCell = String(row[0] || '').trim();
-            const dateMatch = tryParseDate(firstCell, inferredYear);
+            // Check if any cell in this row is a date header (e.g. "Jan 5", "Feb 10", "Mar 9")
+            // Date can be in column A, B, or any cell (sheets often merge or offset date headers)
+            let dateMatch: string | null = null;
+            for (let ci = 0; ci < Math.min(row.length, 10); ci++) {
+                const cellText = String(row[ci] || '').trim();
+                const parsed = tryParseDate(cellText, inferredYear);
+                if (parsed) {
+                    dateMatch = parsed;
+                    break;
+                }
+            }
 
             if (dateMatch) {
                 currentDate = dateMatch;
@@ -350,9 +358,9 @@ function parseCellContent(text: string): CellParsed | null {
     for (let i = topicStartIdx; i < topicEndIdx; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        // Clean up topic: replace double underscores with spaces, remove duration annotations
+        // Clean up topic: replace underscores with spaces, remove duration annotations
         let topic = line
-            .replace(/__/g, ' ')
+            .replace(/_+/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
         topics.push(topic);
