@@ -51,8 +51,8 @@ export async function parseTimetableExcel(buffer: Buffer, year?: number): Promis
         const worksheet = workbook.Sheets[sheetName];
         if (!worksheet) continue;
 
-        // Get raw 2D array (header: 1 means array of arrays)
-        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        // Get 2D array with formatted strings (raw: false converts dates/numbers to display text)
+        const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '', raw: false });
         if (rawData.length === 0) continue;
 
         let sheetSessionCount = 0;
@@ -66,10 +66,13 @@ export async function parseTimetableExcel(buffer: Buffer, year?: number): Promis
 
             // Check if any cell in this row is a date header (e.g. "Jan 5", "Feb 10", "Mar 9")
             // Date can be in column A, B, or any cell (sheets often merge or offset date headers)
+            // Also handle raw values (Excel serial numbers, Date objects)
             let dateMatch: string | null = null;
             for (let ci = 0; ci < Math.min(row.length, 10); ci++) {
-                const cellText = String(row[ci] || '').trim();
-                const parsed = tryParseDate(cellText, inferredYear);
+                const rawVal = row[ci];
+                // Try the raw value first (could be a number or Date), then try as string
+                const parsed = tryParseDate(rawVal, inferredYear) ||
+                               tryParseDate(String(rawVal || '').trim(), inferredYear);
                 if (parsed) {
                     dateMatch = parsed;
                     break;
@@ -160,19 +163,40 @@ export async function parseTimetableExcel(buffer: Buffer, year?: number): Promis
 }
 
 /**
- * Try to parse a date string like "Jan 5", "Feb 10", "January 5" with the given year.
+ * Try to parse a date from various formats:
+ * - "Jan 5", "Feb 10", "January 5" (text month + day)
+ * - "Mar-9", "Mar_9" (with separators)
+ * - "3/9/2026", "03/09/2026" (MM/DD/YYYY)
+ * - "9-Mar", "9 Mar" (day first)
+ * - Excel serial numbers (e.g. 46085)
+ * - JavaScript Date objects
  */
-function tryParseDate(text: string, year: number): string | null {
-    if (!text) return null;
-    const cleaned = text.trim().replace(/[,]/g, '');
+function tryParseDate(text: string | number | Date, year: number): string | null {
+    if (text === null || text === undefined || text === '') return null;
 
-    // Pattern: "Jan 5", "January 5", "Feb 10", "Mar 15"
-    const monthDayPattern = /^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})$/i;
-    const match = cleaned.match(monthDayPattern);
-    if (!match) return null;
+    // Handle Excel serial numbers (numbers > 30000 are likely dates)
+    if (typeof text === 'number') {
+        if (text > 30000 && text < 100000) {
+            // Excel serial: days since 1900-01-01 (with the famous Excel leap year bug)
+            const excelEpoch = new Date(1899, 11, 30);
+            const d = new Date(excelEpoch.getTime() + text * 86400000);
+            if (!isNaN(d.getTime())) {
+                return d.toISOString().split('T')[0];
+            }
+        }
+        return null;
+    }
 
-    const monthStr = match[1];
-    const day = parseInt(match[2]);
+    // Handle Date objects
+    if (text instanceof Date) {
+        if (!isNaN(text.getTime())) {
+            return text.toISOString().split('T')[0];
+        }
+        return null;
+    }
+
+    const cleaned = String(text).trim().replace(/[,]/g, '');
+    if (!cleaned) return null;
 
     const monthMap: Record<string, number> = {
         jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
@@ -181,11 +205,44 @@ function tryParseDate(text: string, year: number): string | null {
         nov: 10, november: 10, dec: 11, december: 11
     };
 
-    const month = monthMap[monthStr.toLowerCase()];
-    if (month === undefined || day < 1 || day > 31) return null;
+    // Pattern 1: "Jan 5", "January 5", "Mar 9" (month first)
+    const monthDayPattern = /^(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s*[-_]?\s*(\d{1,2})$/i;
+    const match1 = cleaned.match(monthDayPattern);
+    if (match1) {
+        const month = monthMap[match1[1].toLowerCase()];
+        const day = parseInt(match1[2]);
+        if (month !== undefined && day >= 1 && day <= 31) {
+            const d = new Date(year, month, day);
+            return d.toISOString().split('T')[0];
+        }
+    }
 
-    const d = new Date(year, month, day);
-    return d.toISOString().split('T')[0];
+    // Pattern 2: "9 Mar", "9-Mar", "10 February" (day first)
+    const dayMonthPattern = /^(\d{1,2})\s*[-_]?\s*(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)$/i;
+    const match2 = cleaned.match(dayMonthPattern);
+    if (match2) {
+        const day = parseInt(match2[1]);
+        const month = monthMap[match2[2].toLowerCase()];
+        if (month !== undefined && day >= 1 && day <= 31) {
+            const d = new Date(year, month, day);
+            return d.toISOString().split('T')[0];
+        }
+    }
+
+    // Pattern 3: "M/D/YYYY" or "MM/DD/YYYY" or "M/D" (common Excel formatted output)
+    const slashPattern = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/;
+    const match3 = cleaned.match(slashPattern);
+    if (match3) {
+        const m = parseInt(match3[1]) - 1;
+        const d = parseInt(match3[2]);
+        const y = match3[3] ? (match3[3].length === 2 ? 2000 + parseInt(match3[3]) : parseInt(match3[3])) : year;
+        if (m >= 0 && m <= 11 && d >= 1 && d <= 31) {
+            const date = new Date(y, m, d);
+            return date.toISOString().split('T')[0];
+        }
+    }
+
+    return null;
 }
 
 /**

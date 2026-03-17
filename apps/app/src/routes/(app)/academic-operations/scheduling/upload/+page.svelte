@@ -112,6 +112,16 @@
 
       if (!data.success) {
         errorMsg = data.message || 'Failed to parse file';
+        if (data.debugSheets?.length) {
+          errorMsg += '\n\nSheet preview (first 5 sheets):\n';
+          for (const ds of data.debugSheets) {
+            errorMsg += `\n📄 "${ds.name}" (${ds.rowCount} rows):\n`;
+            for (const row of ds.preview) {
+              const cells = row.cells.map((c: any) => c.value || '(empty)').join(' | ');
+              errorMsg += `  Row ${row.row}: ${cells}\n`;
+            }
+          }
+        }
         processing = false;
         return;
       }
@@ -238,7 +248,7 @@
   <div class="p-10 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm max-w-4xl mx-auto min-h-[450px]">
 
     {#if errorMsg}
-      <div class="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-300 font-medium">
+      <div class="mb-6 p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800 rounded-2xl text-sm text-red-700 dark:text-red-300 font-medium whitespace-pre-wrap font-mono">
         {errorMsg}
       </div>
     {/if}

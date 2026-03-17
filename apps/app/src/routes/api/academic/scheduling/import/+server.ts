@@ -23,10 +23,25 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const parseResult = await parseTimetableExcel(buffer, year ? parseInt(year) : undefined);
 
         if (parseResult.sessions.length === 0) {
+            // Debug: show what was found in each sheet to help diagnose format issues
+            const XLSX = await import('xlsx');
+            const workbook = XLSX.read(buffer, { type: 'buffer' });
+            const debugSheets: any[] = [];
+            for (const sn of workbook.SheetNames.slice(0, 5)) {
+                const ws = workbook.Sheets[sn];
+                if (!ws) continue;
+                const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+                const preview = rows.slice(0, 6).map((r, i) => ({
+                    row: i,
+                    cells: r.slice(0, 8).map((c: any) => ({ value: String(c || '').substring(0, 50), type: typeof c }))
+                }));
+                debugSheets.push({ name: sn, rowCount: rows.length, preview });
+            }
             return json({
                 success: false,
-                message: 'No sessions found in the file. Check the format.',
-                parseResult: { ...parseResult, sessions: [] }
+                message: `No sessions found. Sheets: ${workbook.SheetNames.length}. Errors: ${parseResult.errors.join('; ') || 'none'}. Warnings: ${parseResult.warnings.join('; ') || 'none'}`,
+                parseResult: { ...parseResult, sessions: [] },
+                debugSheets
             });
         }
 
