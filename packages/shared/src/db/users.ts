@@ -50,6 +50,7 @@ export async function getAllUsers(universityId?: string, options: { minimal?: bo
     LEFT JOIN user_universities uu ON u.id = uu.user_id
     LEFT JOIN universities uu_univ ON uu.university_id = uu_univ.id
     WHERE u.is_active = true
+      AND u.role != 'STUDENT'
   `;
     const params: any[] = [];
     if (universityId) {
