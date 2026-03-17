@@ -385,34 +385,52 @@
           <p class="text-xs mt-1">Import an APD sheet or create a manual plan</p>
         </div>
       {:else}
-        {#each plans as plan}
-          <button
-            onclick={() => loadPlanDetail(plan.id)}
-            class="w-full text-left p-4 rounded-xl border transition-all
-              {selectedPlan?.id === plan.id
-                ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-500'
-                : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'}"
-          >
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold {statusColor(plan.plan_status)} px-2 py-0.5 rounded-full">{plan.plan_status}</span>
-              <span class="text-xs text-gray-400">{plan.subject_count || 0} subjects</span>
-            </div>
-            {#if !universityId && plan.university_name}
-              <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 truncate mb-0.5">{plan.university_name}</p>
-            {/if}
-            <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
-              {plan.program_name || 'All Programs'} — {plan.term_name || 'All Terms'}
-            </p>
-            {#if plan.start_date}
-              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {plan.start_date} to {plan.end_date || '—'}
-              </p>
-            {/if}
-            <p class="text-xs text-gray-400 mt-1">
-              {plan.net_executional_slots || '—'} executional slots | {plan.buffer_slots || 0} buffer
-            </p>
-          </button>
-        {/each}
+        <!-- Group plans by university for easier navigation -->
+        {#if true}
+          {@const grouped = plans.reduce((acc, plan) => {
+            const key = plan.university_name || 'Unknown';
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(plan);
+            return acc;
+          }, {} as Record<string, any[]>)}
+          {@const univNames = Object.keys(grouped).sort()}
+          <div class="max-h-[70vh] overflow-y-auto space-y-4 pr-1">
+            {#each univNames as univName}
+              <div>
+                {#if !universityId}
+                  <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-2 sticky top-0 bg-gray-50 dark:bg-slate-900 py-1 px-1 rounded">{univName} ({grouped[univName].length})</p>
+                {/if}
+                <div class="space-y-2">
+                  {#each grouped[univName] as plan}
+                    <button
+                      onclick={() => loadPlanDetail(plan.id)}
+                      class="w-full text-left p-3 rounded-xl border transition-all
+                        {selectedPlan?.id === plan.id
+                          ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-500'
+                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'}"
+                    >
+                      <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold {statusColor(plan.plan_status)} px-2 py-0.5 rounded-full">{plan.plan_status}</span>
+                        <span class="text-xs text-gray-400">{plan.subject_count || 0} subjects</span>
+                      </div>
+                      <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {plan.program_name || 'All Programs'} — {plan.term_name || 'All Terms'}
+                      </p>
+                      {#if plan.start_date}
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {plan.start_date} to {plan.end_date || '—'}
+                        </p>
+                      {/if}
+                      <p class="text-xs text-gray-400 mt-1">
+                        {plan.net_executional_slots || '—'} exec | {plan.buffer_slots || 0} buffer
+                      </p>
+                    </button>
+                  {/each}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
       {/if}
     </div>
 

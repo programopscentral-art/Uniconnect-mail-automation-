@@ -84,6 +84,14 @@ export async function matchParsedSessions(
         if (s.code) subjectLookup.set(s.code.toUpperCase().trim(), s.id);
         // Also map by name for fuzzy matching
         if (s.name) subjectLookup.set(s.name.toUpperCase().trim(), s.id);
+        // Also map without spaces/hyphens for lenient matching (e.g. "Data Structures" -> "DATASTRUCTURES")
+        if (s.code) subjectLookup.set(s.code.toUpperCase().replace(/[\s\-_]/g, ''), s.id);
+        if (s.name) subjectLookup.set(s.name.toUpperCase().replace(/[\s\-_]/g, ''), s.id);
+    }
+
+    console.log(`[timetable-import] University ${universityId}: ${dbSubjects.length} subjects, ${dbFaculty.length} faculty, ${dbSections.length} sections in DB`);
+    if (dbSubjects.length > 0) {
+        console.log(`[timetable-import] DB subject codes: ${dbSubjects.map(s => s.code).join(', ')}`);
     }
 
     // Build faculty lookup (name -> id) - multiple strategies
@@ -165,7 +173,10 @@ export async function matchParsedSessions(
         // Match subject
         const subjKey = s.subjectCode.toUpperCase().trim();
         if (!subjectMatches.has(subjKey)) {
-            const matchedId = subjectLookup.get(subjKey) || null;
+            // Try exact code, then name, then without spaces/special chars
+            const matchedId = subjectLookup.get(subjKey)
+                || subjectLookup.get(subjKey.replace(/[\s\-_]/g, ''))
+                || null;
             const matchedSubj = matchedId ? dbSubjects.find(ds => ds.id === matchedId) : null;
             subjectMatches.set(subjKey, {
                 parsed: s.subjectCode,
