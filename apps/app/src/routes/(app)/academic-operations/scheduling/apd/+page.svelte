@@ -13,6 +13,9 @@
   let loading = $state(false);
   let selectedPlan = $state<any>(null);
   let showUpload = $state(false);
+  let selectMode = $state(false);
+  let selectedIds = $state<Set<string>>(new Set());
+  let deleting = $state(false);
 
   // Upload state
   let file = $state<File | null>(null);
@@ -192,6 +195,46 @@
     await loadPlanDetail(selectedPlan.id);
   }
 
+  function toggleSelect(planId: string) {
+    const next = new Set(selectedIds);
+    if (next.has(planId)) next.delete(planId);
+    else next.add(planId);
+    selectedIds = next;
+  }
+
+  function selectAllInGroup(groupPlans: any[]) {
+    const next = new Set(selectedIds);
+    const allSelected = groupPlans.every(p => next.has(p.id));
+    for (const p of groupPlans) {
+      if (allSelected) next.delete(p.id);
+      else next.add(p.id);
+    }
+    selectedIds = next;
+  }
+
+  function selectAll() {
+    if (selectedIds.size === plans.length) {
+      selectedIds = new Set();
+    } else {
+      selectedIds = new Set(plans.map(p => p.id));
+    }
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} selected plan(s)? This cannot be undone.`)) return;
+    deleting = true;
+    try {
+      for (const id of selectedIds) {
+        await fetch(`/api/academic/scheduling/apd/plans/${id}`, { method: 'DELETE' });
+      }
+      if (selectedPlan && selectedIds.has(selectedPlan.id)) selectedPlan = null;
+      selectedIds = new Set();
+      selectMode = false;
+      await loadPlans();
+    } catch {} finally { deleting = false; }
+  }
+
   function statusColor(status: string) {
     if (status === 'ACTIVE') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
     if (status === 'ARCHIVED') return 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
@@ -207,14 +250,35 @@
       <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Upload APD sheets and manage university scheduling constraints</p>
     </div>
     <div class="flex gap-2">
-      <button onclick={() => showManualForm = !showManualForm}
-        class="px-4 py-2 text-sm font-medium rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
-        Manual Plan
-      </button>
-      <button onclick={() => showUpload = !showUpload}
-        class="px-4 py-2 text-sm font-medium rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-        Import APD Sheet
-      </button>
+      {#if selectMode}
+        <button onclick={selectAll}
+          class="px-4 py-2 text-sm font-medium rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+          {selectedIds.size === plans.length ? 'Deselect All' : 'Select All'}
+        </button>
+        <button onclick={deleteSelected} disabled={selectedIds.size === 0 || deleting}
+          class="px-4 py-2 text-sm font-medium rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
+          {deleting ? 'Deleting...' : `Delete (${selectedIds.size})`}
+        </button>
+        <button onclick={() => { selectMode = false; selectedIds = new Set(); }}
+          class="px-4 py-2 text-sm font-medium rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+          Cancel
+        </button>
+      {:else}
+        {#if plans.length > 0}
+          <button onclick={() => selectMode = true}
+            class="px-4 py-2 text-sm font-medium rounded-xl border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            Select & Delete
+          </button>
+        {/if}
+        <button onclick={() => showManualForm = !showManualForm}
+          class="px-4 py-2 text-sm font-medium rounded-xl border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors">
+          Manual Plan
+        </button>
+        <button onclick={() => showUpload = !showUpload}
+          class="px-4 py-2 text-sm font-medium rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
+          Import APD Sheet
+        </button>
+      {/if}
     </div>
   </div>
 
@@ -398,20 +462,38 @@
             {#each univNames as univName}
               <div>
                 {#if !universityId}
-                  <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-2 sticky top-0 bg-gray-50 dark:bg-slate-900 py-1 px-1 rounded">{univName} ({grouped[univName].length})</p>
+                  <div class="flex items-center gap-2 sticky top-0 bg-gray-50 dark:bg-slate-900 py-1 px-1 rounded mb-2">
+                    {#if selectMode}
+                      <button onclick={() => selectAllInGroup(grouped[univName])}
+                        class="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] transition-colors
+                          {grouped[univName].every(p => selectedIds.has(p.id))
+                            ? 'bg-red-500 border-red-500 text-white' : 'border-gray-400 dark:border-gray-500'}">
+                        {grouped[univName].every(p => selectedIds.has(p.id)) ? '✓' : ''}
+                      </button>
+                    {/if}
+                    <p class="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide">{univName} ({grouped[univName].length})</p>
+                  </div>
                 {/if}
                 <div class="space-y-2">
                   {#each grouped[univName] as plan}
                     <button
-                      onclick={() => loadPlanDetail(plan.id)}
+                      onclick={() => selectMode ? toggleSelect(plan.id) : loadPlanDetail(plan.id)}
                       class="w-full text-left p-3 rounded-xl border transition-all
-                        {selectedPlan?.id === plan.id
-                          ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-500'
-                          : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'}"
+                        {selectMode && selectedIds.has(plan.id)
+                          ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10 dark:border-red-500'
+                          : selectedPlan?.id === plan.id
+                            ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/10 dark:border-indigo-500'
+                            : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-gray-300 dark:hover:border-slate-600'}"
                     >
-                      <div class="flex items-center justify-between mb-1">
+                      <div class="flex items-center gap-2 mb-1">
+                        {#if selectMode}
+                          <span class="w-4 h-4 rounded border-2 flex items-center justify-center text-[10px] shrink-0 transition-colors
+                            {selectedIds.has(plan.id) ? 'bg-red-500 border-red-500 text-white' : 'border-gray-400 dark:border-gray-500'}">
+                            {selectedIds.has(plan.id) ? '✓' : ''}
+                          </span>
+                        {/if}
                         <span class="text-xs font-bold {statusColor(plan.plan_status)} px-2 py-0.5 rounded-full">{plan.plan_status}</span>
-                        <span class="text-xs text-gray-400">{plan.subject_count || 0} subjects</span>
+                        <span class="text-xs text-gray-400 ml-auto">{plan.subject_count || 0} subjects</span>
                       </div>
                       <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">
                         {plan.program_name || 'All Programs'} — {plan.term_name || 'All Terms'}
