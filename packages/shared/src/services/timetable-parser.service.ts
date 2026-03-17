@@ -349,6 +349,41 @@ function parseSectionNumber(text: string): number | null {
     return null;
 }
 
+/**
+ * Determine if a line looks like a faculty name vs a topic.
+ * Faculty names: short, plain words (e.g. "Sesha", "Pranathi", "Rachana, Bershina")
+ * Topics: contain underscores, special chars, are long, have numbers, colons, etc.
+ */
+function looksLikeFacultyName(text: string): boolean {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    // If it contains underscores, it's a topic (e.g. Merge_Sort_Part_1)
+    if (trimmed.includes('_')) return false;
+
+    // If it contains colons (except trailing ones), it's a topic (e.g. "Session 1: Activity")
+    if (/:./.test(trimmed)) return false;
+
+    // If it's very long (> 40 chars), probably a topic
+    if (trimmed.length > 40) return false;
+
+    // If it starts with special chars or has lots of dashes, it's a topic
+    if (/^[-_.]/.test(trimmed)) return false;
+    if ((trimmed.match(/-/g) || []).length >= 3) return false;
+
+    // If it contains parentheses with content (like "(25 Mins)"), it's a topic
+    if (/\(.+\)/.test(trimmed) && !/\(P\)/i.test(trimmed)) return false;
+
+    // If every "word" is a plausible name token (letters, possibly with . or ')
+    // Faculty: "Sesha", "Rachana, Bershina", "Sai Naga Teja"
+    const parts = trimmed.split(/[,]/).map(p => p.trim()).filter(p => p);
+    return parts.every(part => {
+        // Each comma-separated name should be mostly letters/spaces
+        const cleaned = part.replace(/[.'"\s]/g, '');
+        return /^[A-Za-z]+$/.test(cleaned) && cleaned.length >= 2;
+    });
+}
+
 interface CellParsed {
     subjectCode: string;
     isLab: boolean;
@@ -377,8 +412,8 @@ function parseCellContent(text: string): CellParsed | null {
     const isLab = /\(P\)/i.test(firstLine);
     let subjectCode = firstLine.replace(/\s*\(P\)\s*/gi, '').trim();
 
-    // Clean up subject code — remove trailing whitespace and normalize
-    subjectCode = subjectCode.replace(/\s+/g, ' ').trim();
+    // Clean up subject code — remove quotes, trailing punctuation, normalize whitespace
+    subjectCode = subjectCode.replace(/['"]+/g, '').replace(/\s+/g, ' ').trim();
 
     if (!subjectCode) return null;
 
@@ -387,17 +422,19 @@ function parseCellContent(text: string): CellParsed | null {
     const lastLine = lines[lines.length - 1];
     let facultyNames: string[] = [];
     let deliveryMode = 'PHYSICAL';
+    let lastLineIsFaculty = false;
 
     // Check if last line is faculty or topic
     if (lines.length > 1) {
         const lastLineLower = lastLine.toLowerCase().trim();
 
         // Detect "Online" as delivery mode
-        if (lastLineLower === 'online' || lastLineLower === 'online\'') {
+        if (lastLineLower === 'online' || lastLineLower.replace(/['"]/g, '') === 'online') {
             deliveryMode = 'ONLINE';
-            facultyNames = [];
-        } else {
-            // Split by comma for multiple faculty
+            lastLineIsFaculty = true;
+        } else if (looksLikeFacultyName(lastLine)) {
+            // Only treat as faculty if it looks like a name, not a topic
+            lastLineIsFaculty = true;
             facultyNames = lastLine.split(',').map(n => n.trim()).filter(n => n.length > 0);
 
             // Check if any of the names is "Online"
@@ -407,11 +444,12 @@ function parseCellContent(text: string): CellParsed | null {
                 facultyNames.splice(onlineIdx, 1);
             }
         }
+        // If last line looks like a topic, leave facultyNames empty
     }
 
-    // Middle lines: topics
+    // Middle lines: topics (include last line if it wasn't faculty)
     const topicStartIdx = 1;
-    const topicEndIdx = lines.length > 1 ? lines.length - 1 : 1;
+    const topicEndIdx = lastLineIsFaculty ? lines.length - 1 : lines.length;
     const topics: string[] = [];
 
     for (let i = topicStartIdx; i < topicEndIdx; i++) {
