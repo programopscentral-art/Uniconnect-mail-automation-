@@ -64,6 +64,8 @@ export async function parseTimetableExcel(buffer: Buffer, year?: number): Promis
             const row = rawData[rowIdx];
             if (!row || row.length === 0) continue;
 
+            const firstCell = String(row[0] || '').trim();
+
             // Check if any cell in this row is a date header (e.g. "Jan 5", "Feb 10", "Mar 9")
             // Date can be in column A, B, or any cell (sheets often merge or offset date headers)
             // Also handle raw values (Excel serial numbers, Date objects)
