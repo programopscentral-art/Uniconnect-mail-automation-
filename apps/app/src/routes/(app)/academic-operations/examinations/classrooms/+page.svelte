@@ -14,7 +14,9 @@
   let showImport = $state(false);
   let showLayout = $state<any>(null);
   let saving = $state(false);
-  let importRows = $state('');
+  let importFile = $state<File | null>(null);
+  let importResult = $state<any>(null);
+  let importError = $state('');
   let zoomLevel = $state(1);
 
   // Create form
@@ -70,45 +72,49 @@
     saving = false;
   }
 
+  function handleFileDrop(e: DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer?.files?.[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+      importFile = file;
+      importError = '';
+    }
+  }
+
+  function handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.[0]) {
+      importFile = input.files[0];
+      importError = '';
+    }
+  }
+
   async function importFromSheet() {
+    if (!importFile) return;
     saving = true;
+    importError = '';
+    importResult = null;
     try {
-      // Parse pasted data — expect tab-separated or JSON
-      let rows: any[];
-      try {
-        rows = JSON.parse(importRows);
-      } catch {
-        // Parse as tab-separated
-        const lines = importRows.trim().split('\n').filter(l => l.trim());
-        rows = lines.map(line => {
-          const cols = line.split('\t');
-          return {
-            university_name: cols[0]?.trim() || '',
-            classrooms_count: parseInt(cols[1]) || 1,
-            benches_per_classroom: cols[2]?.trim() || '30',
-            students_per_bench: parseInt(cols[3]) || 2,
-            max_capacity_per_classroom: cols[4]?.trim() || '',
-            total_capacity: parseInt(cols[5]) || 0,
-            invigilators_per_classroom: cols[6]?.trim() || '1',
-            total_invigilators: parseInt(cols[7]) || 0,
-            remarks: cols[8]?.trim() || ''
-          };
-        });
-      }
+      const formData = new FormData();
+      formData.append('file', importFile);
+      if (universityId) formData.append('universityId', universityId);
+
       const res = await fetch('/api/academic/classrooms/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ universityId, rows })
+        body: formData
       });
-      if (res.ok) {
-        const data = await res.json();
-        showImport = false;
-        importRows = '';
-        await loadClassrooms();
-        alert(`Successfully imported ${data.created} classrooms!`);
+      const data = await res.json();
+      if (!res.ok) {
+        importError = data.error || 'Import failed';
+        importResult = data;
+      } else {
+        importResult = data;
+        if (data.created > 0) {
+          await loadClassrooms();
+        }
       }
     } catch (e: any) {
-      alert('Import failed: ' + e.message);
+      importError = 'Import failed: ' + e.message;
     }
     saving = false;
   }
@@ -482,28 +488,101 @@
 
 <!-- Import from Sheet Modal -->
 {#if showImport}
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showImport = false} transition:fade>
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => { showImport = false; importResult = null; importError = ''; importFile = null; }} transition:fade>
     <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800">
-        <h3 class="text-lg font-black text-gray-900 dark:text-white">Import Classrooms from Sheet</h3>
-        <p class="text-xs text-gray-500 mt-1">Paste the data from your "Exam Detail Required" Google Sheet (tab-separated)</p>
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">Import Classrooms from Excel</h3>
+        <p class="text-xs text-gray-500 mt-1">Upload your "Exam Detail Required" sheet — it auto-detects all classrooms, benches, capacity, and invigilators</p>
       </div>
 
       <div class="p-6 space-y-4">
-        <div class="bg-blue-50 dark:bg-blue-500/5 border border-blue-100 dark:border-blue-500/20 rounded-xl p-4">
-          <p class="text-[10px] font-black text-blue-700 dark:text-blue-300 uppercase tracking-widest mb-2">Expected Columns (tab-separated)</p>
-          <p class="text-[10px] text-blue-600 font-mono">University | Classrooms Count | Benches/Classroom | Students/Bench | Max Capacity | Total Capacity | Invigilators/Room | Total Invigilators | Remarks</p>
+        <!-- How it works -->
+        <div class="bg-indigo-50 dark:bg-indigo-500/5 border border-indigo-100 dark:border-indigo-500/20 rounded-xl p-4">
+          <p class="text-[10px] font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest mb-2">How it works</p>
+          <ul class="text-[10px] text-indigo-600 dark:text-indigo-400 space-y-1">
+            <li>1. Upload the Excel file from your "Exam Detail Required" Google Sheet</li>
+            <li>2. It auto-detects columns: University, Classrooms, Benches, Students/Bench, Capacity, Invigilators</li>
+            <li>3. Handles complex data like "Hall 1: 32, Hall 2: 40" or "24 (small) / 48 (large)"</li>
+            <li>4. Matches university names to your DB and creates classrooms with proper bench layouts</li>
+          </ul>
         </div>
 
-        <textarea bind:value={importRows} rows="8" placeholder="Paste tab-separated data here (skip the header row)...
-Example:
-Annamacharya	4	24 / 48	1	24 / 48	142	1 / 2	3	"
-          class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-mono resize-y"></textarea>
+        <!-- File Upload -->
+        <div
+          class="relative border-2 border-dashed rounded-2xl p-8 text-center transition-all
+            {importFile ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/5' : 'border-gray-200 dark:border-slate-700 hover:border-indigo-400'}"
+          ondragover={(e) => e.preventDefault()}
+          ondrop={handleFileDrop}>
+          {#if importFile}
+            <svg class="w-10 h-10 text-emerald-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p class="text-sm font-black text-emerald-700 dark:text-emerald-400">{importFile.name}</p>
+            <p class="text-[10px] text-emerald-600 mt-1">{(importFile.size / 1024).toFixed(1)} KB</p>
+            <button onclick={() => { importFile = null; importResult = null; importError = ''; }}
+              class="mt-3 text-[10px] font-bold text-gray-500 hover:text-rose-500 underline">Remove file</button>
+          {:else}
+            <svg class="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <p class="text-sm font-bold text-gray-500 dark:text-gray-400">Drag & drop your Excel file here</p>
+            <p class="text-[10px] text-gray-400 mt-1">or click to browse (.xlsx, .xls)</p>
+            <input type="file" accept=".xlsx,.xls" onchange={handleFileSelect}
+              class="absolute inset-0 opacity-0 cursor-pointer" />
+          {/if}
+        </div>
 
-        <button onclick={importFromSheet} disabled={saving || !importRows.trim()}
-          class="w-full py-3 bg-gray-900 dark:bg-slate-700 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all disabled:opacity-50">
-          {saving ? 'Importing...' : 'Import Classrooms'}
+        <!-- Import button -->
+        <button onclick={importFromSheet} disabled={saving || !importFile}
+          class="w-full py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-sm">
+          {saving ? 'Importing & Creating Classrooms...' : 'Import Classrooms'}
         </button>
+
+        <!-- Results -->
+        {#if importResult}
+          <div class="space-y-3">
+            {#if importResult.created > 0}
+              <div class="bg-emerald-50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded-xl p-4">
+                <p class="text-sm font-black text-emerald-700 dark:text-emerald-400">
+                  Successfully created {importResult.created} classrooms!
+                </p>
+                {#if importResult.skipped > 0}
+                  <p class="text-[10px] text-amber-600 mt-1">{importResult.skipped} skipped (see details below)</p>
+                {/if}
+              </div>
+            {/if}
+
+            {#if importResult.skippedDetails?.length > 0}
+              <div class="bg-amber-50 dark:bg-amber-500/5 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4">
+                <p class="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">Skipped ({importResult.skippedDetails.length})</p>
+                <div class="space-y-1 max-h-[150px] overflow-y-auto">
+                  {#each importResult.skippedDetails as s}
+                    <p class="text-[10px] text-amber-600">{s.name}: {s.reason}</p>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+
+            {#if importResult.classrooms?.length > 0}
+              <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-4">
+                <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Created Classrooms</p>
+                <div class="space-y-1 max-h-[200px] overflow-y-auto">
+                  {#each importResult.classrooms as c}
+                    <div class="flex items-center justify-between text-[10px]">
+                      <span class="font-bold text-gray-700 dark:text-gray-300">{c.name}</span>
+                      <span class="text-gray-400">{c.total_benches} benches · {c.capacity} seats · {c.invigilators_required} invig.</span>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
+          </div>
+        {/if}
+
+        {#if importError && !importResult?.created}
+          <div class="bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 rounded-xl p-4">
+            <p class="text-sm font-bold text-rose-700 dark:text-rose-400">{importError}</p>
+            {#if importResult?.hint}
+              <p class="text-[10px] text-rose-600 mt-1">{importResult.hint}</p>
+            {/if}
+          </div>
+        {/if}
       </div>
     </div>
   </div>
