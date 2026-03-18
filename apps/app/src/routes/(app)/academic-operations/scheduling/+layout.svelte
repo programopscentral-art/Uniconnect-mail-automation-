@@ -11,6 +11,7 @@
     { href: "/academic-operations/scheduling/generate", label: "Generate" },
     { href: "/academic-operations/scheduling/availability", label: "Time Slots" },
     { href: "/academic-operations/scheduling/weeks", label: "Weeks" },
+    { href: "/academic-operations/scheduling/timetable", label: "Timetable" },
     { href: "/academic-operations/scheduling/sessions", label: "Live Sessions" },
     { href: "/academic-operations/scheduling/conflicts", label: "Conflicts" },
     { href: "/academic-operations/scheduling/publish", label: "Publish" },

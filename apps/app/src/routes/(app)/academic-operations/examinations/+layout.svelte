@@ -6,10 +6,9 @@
 
   const subLinks = [
     { href: "/academic-operations/examinations", label: "Overview" },
-    { href: "/academic-operations/examinations/planning", label: "Planning" },
-    { href: "/academic-operations/examinations/scheduling", label: "Scheduling" },
-    { href: "/academic-operations/examinations/invigilation", label: "Invigilation" },
+    { href: "/academic-operations/examinations/classrooms", label: "Classrooms" },
     { href: "/academic-operations/examinations/seating", label: "Seating" },
+    { href: "/academic-operations/examinations/invigilation", label: "Invigilation" },
     { href: "/academic-operations/examinations/marks", label: "Marks Entry" },
   ];
 </script>

@@ -1,141 +1,401 @@
 <script lang="ts">
+  import { page } from "$app/stores";
+  import { getContext } from "svelte";
   import { fade, fly } from "svelte/transition";
 
-  const examStats = [
-    { label: "Active Cycles", value: "2", sub: "CIA 1, Mid-Sem", color: "from-violet-500 to-fuchsia-600", icon: "M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" },
-    { label: "Total Students", value: "12,450", sub: "Registered", color: "from-blue-500 to-indigo-600", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
-    { label: "Invigilators", value: "142", sub: "Assigned", color: "from-emerald-400 to-teal-500", icon: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" },
-    { label: "Pending Marks", value: "4", sub: "Subjects", color: "from-rose-500 to-red-600", icon: "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" },
-  ];
+  let opsUniversityId: { get: () => string } | undefined;
+  try { opsUniversityId = getContext('opsUniversityId'); } catch {}
+  const universityId = $derived(opsUniversityId?.get() || $page.data?.user?.university_id || '');
 
-  const upcomingExams = [
-    { name: "Computer Organization & Architecture", code: "CS302", date: "12 Mar 2024", time: "10:00 AM - 01:00 PM", venue: "Main Hall", status: "READY" },
-    { name: "Design & Analysis of Algorithms", code: "CS304", date: "14 Mar 2024", time: "10:00 AM - 01:00 PM", venue: "Block B, R202", status: "PENDING_RESOURCES" },
-    { name: "Probability & Statistics", code: "MA201", date: "15 Mar 2024", time: "02:00 PM - 05:00 PM", venue: "Main Hall", status: "READY" },
-  ];
+  let plans = $state<any[]>([]);
+  let loading = $state(true);
+  let showCreate = $state(false);
+  let saving = $state(false);
+  let programs = $state<any[]>([]);
+  let terms = $state<any[]>([]);
+  let subjects = $state<any[]>([]);
+  let sections = $state<any[]>([]);
+  let classrooms = $state<any[]>([]);
+  let selectedPlan = $state<any>(null);
+  let showAddExam = $state(false);
+
+  let planForm = $state({
+    exam_name: '', exam_type: 'INTERNAL' as const,
+    program_id: '', term_id: '', start_date: '', end_date: ''
+  });
+
+  let examForm = $state({
+    subject_id: '', section_id: '', exam_date: '',
+    slot_start: '10:00', slot_end: '13:00', classroom_id: '', exam_mode: 'OFFLINE'
+  });
+
+  $effect(() => {
+    if (universityId) { loadPlans(); loadRefs(); }
+  });
+
+  async function loadPlans() {
+    loading = true;
+    try {
+      const res = await fetch(`/api/academic/exams/plans?universityId=${universityId}`);
+      if (res.ok) plans = await res.json();
+    } catch {}
+    loading = false;
+  }
+
+  async function loadRefs() {
+    try {
+      const [pRes, tRes, sRes, secRes, cRes] = await Promise.all([
+        fetch(`/api/academic/programs?universityId=${universityId}`),
+        fetch(`/api/academic/terms?universityId=${universityId}`),
+        fetch(`/api/academic/subjects?universityId=${universityId}`),
+        fetch(`/api/academic/sections?universityId=${universityId}`),
+        fetch(`/api/academic/classrooms?universityId=${universityId}`)
+      ]);
+      if (pRes.ok) programs = await pRes.json();
+      if (tRes.ok) terms = await tRes.json();
+      if (sRes.ok) subjects = await sRes.json();
+      if (secRes.ok) sections = await secRes.json();
+      if (cRes.ok) classrooms = await cRes.json();
+    } catch {}
+  }
+
+  async function createPlan() {
+    saving = true;
+    try {
+      const res = await fetch('/api/academic/exams/plans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...planForm, university_id: universityId })
+      });
+      if (res.ok) {
+        showCreate = false;
+        planForm = { exam_name: '', exam_type: 'INTERNAL', program_id: '', term_id: '', start_date: '', end_date: '' };
+        await loadPlans();
+      }
+    } catch {}
+    saving = false;
+  }
+
+  async function selectPlan(plan: any) {
+    try {
+      const res = await fetch(`/api/academic/exams/plans/${plan.id}`);
+      if (res.ok) selectedPlan = await res.json();
+    } catch {}
+  }
+
+  async function addExamToPlan() {
+    if (!selectedPlan) return;
+    saving = true;
+    try {
+      const res = await fetch(`/api/academic/exams/plans/${selectedPlan.id}/exams`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(examForm)
+      });
+      if (res.ok) {
+        showAddExam = false;
+        examForm = { subject_id: '', section_id: '', exam_date: '', slot_start: '10:00', slot_end: '13:00', classroom_id: '', exam_mode: 'OFFLINE' };
+        await selectPlan(selectedPlan);
+      }
+    } catch {}
+    saving = false;
+  }
+
+  async function deletePlan(id: string) {
+    if (!confirm('Delete this exam plan and all its exams?')) return;
+    await fetch(`/api/academic/exams/plans/${id}`, { method: 'DELETE' });
+    selectedPlan = null;
+    await loadPlans();
+  }
+
+  function fmtDate(d: string) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function fmtTime(t: string) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  }
 </script>
 
-<div class="space-y-8" in:fade>
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-    {#each examStats as stat, i}
-      <div 
-        class="relative group p-6 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm overflow-hidden"
-        in:fly={{ y: 20, delay: i * 100 }}
-      >
-        <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={stat.icon} /></svg>
+<div class="space-y-6" in:fade>
+  <div class="flex items-center justify-between flex-wrap gap-4">
+    <div>
+      <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Exam <span class="text-indigo-600">Control Center</span></h2>
+      <p class="text-sm text-gray-500 font-medium mt-1">Create exam plans, schedule exams, assign classrooms, and manage seating</p>
+    </div>
+    <button onclick={() => showCreate = true}
+      class="px-6 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-sm">
+      + New Exam Plan
+    </button>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    {#each [
+      { label: 'Exam Plans', value: plans.length, color: 'text-violet-600', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+      { label: 'Draft', value: plans.filter(p => p.version_status === 'DRAFT').length, color: 'text-amber-600', icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' },
+      { label: 'Published', value: plans.filter(p => p.version_status === 'PUBLISHED').length, color: 'text-emerald-600', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+      { label: 'Total Exams', value: plans.reduce((s, p) => s + (parseInt(p.exam_count) || 0), 0), color: 'text-indigo-600', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' }
+    ] as stat, i}
+      <div class="relative overflow-hidden p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl group" in:fly={{ y: 15, delay: i * 60 }}>
+        <div class="absolute top-2 right-2 opacity-5 group-hover:opacity-10 transition-opacity">
+          <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={stat.icon}/></svg>
         </div>
-        <div class="p-3 bg-gradient-to-br {stat.color} text-white rounded-2xl w-fit mb-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d={stat.icon} /></svg>
-        </div>
-        <p class="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">{stat.label}</p>
-        <div class="flex items-end justify-between mt-1">
-            <h3 class="text-3xl font-black text-gray-900 dark:text-white leading-none">{stat.value}</h3>
-            <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase">{stat.sub}</span>
-        </div>
+        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+        <p class="text-3xl font-black {stat.color} mt-1">{stat.value}</p>
       </div>
     {/each}
   </div>
 
-  <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
-     <!-- Exam Schedule Table -->
-     <div class="xl:col-span-2 p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3rem] shadow-sm">
-        <div class="flex items-center justify-between mb-8">
-            <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Active Exam <span class="text-indigo-600">Schedule</span></h2>
-            <button class="px-6 py-2 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl">New Cycle</button>
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    <!-- Plans List -->
+    <div class="xl:col-span-1 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden">
+      <div class="p-4 border-b border-gray-50 dark:border-slate-800">
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Exam Plans</h3>
+      </div>
+      {#if loading}
+        <div class="p-10 text-center">
+          <div class="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
+      {:else if plans.length === 0}
+        <div class="p-10 text-center text-gray-400 text-sm">No exam plans yet. Create one to get started.</div>
+      {:else}
+        <div class="divide-y divide-gray-50 dark:divide-slate-800 max-h-[600px] overflow-y-auto">
+          {#each plans as plan}
+            <button onclick={() => selectPlan(plan)}
+              class="w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all
+              {selectedPlan?.id === plan.id ? 'bg-indigo-50 dark:bg-indigo-500/5 border-l-4 border-indigo-600' : ''}">
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-sm font-black text-gray-900 dark:text-white">{plan.exam_name}</p>
+                  <p class="text-[10px] text-gray-400 font-bold mt-0.5">{plan.program_name || '—'} · {plan.term_name || '—'}</p>
+                  <p class="text-[10px] text-gray-400 mt-0.5">{fmtDate(plan.start_date)} — {fmtDate(plan.end_date)}</p>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                  <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase
+                    {plan.version_status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' :
+                     plan.version_status === 'ARCHIVED' ? 'bg-gray-100 text-gray-500' : 'bg-amber-100 text-amber-700'}">
+                    {plan.version_status}
+                  </span>
+                  <span class="text-[10px] font-bold text-gray-400">{plan.exam_count || 0} exams</span>
+                </div>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
+    <!-- Plan Detail -->
+    <div class="xl:col-span-2">
+      {#if selectedPlan}
+        <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden" in:fly={{ x: 20 }}>
+          <div class="p-5 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <h3 class="text-lg font-black text-gray-900 dark:text-white">{selectedPlan.exam_name}</h3>
+              <p class="text-xs text-gray-500 mt-0.5">
+                <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-indigo-100 text-indigo-700">{selectedPlan.exam_type}</span>
+                · {fmtDate(selectedPlan.start_date)} — {fmtDate(selectedPlan.end_date)}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick={() => showAddExam = true} class="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl">+ Add Exam</button>
+              <a href="/academic-operations/examinations/seating?planId={selectedPlan.id}" class="px-4 py-2 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl">Seating</a>
+              <a href="/academic-operations/examinations/invigilation?planId={selectedPlan.id}" class="px-4 py-2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl">Invigilation</a>
+              <button onclick={() => deletePlan(selectedPlan.id)} class="p-2 text-gray-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+
+          {#if selectedPlan.stats}
+            <div class="grid grid-cols-3 md:grid-cols-6 gap-3 p-4 bg-gray-50 dark:bg-slate-800/50">
+              {#each [
+                { l: 'Exams', v: selectedPlan.stats.total_exams },
+                { l: 'Subjects', v: selectedPlan.stats.total_subjects },
+                { l: 'Sections', v: selectedPlan.stats.total_sections },
+                { l: 'Rooms', v: selectedPlan.stats.classrooms_assigned },
+                { l: 'Invigilators', v: selectedPlan.stats.invigilators_assigned },
+                { l: 'Seating', v: selectedPlan.stats.seating_plans_generated },
+              ] as stat}
+                <div class="text-center">
+                  <p class="text-lg font-black text-gray-900 dark:text-white">{stat.v || 0}</p>
+                  <p class="text-[8px] font-bold text-gray-400 uppercase">{stat.l}</p>
+                </div>
+              {/each}
+            </div>
+          {/if}
+
+          {#if selectedPlan.exams?.length > 0}
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
                 <thead>
-                    <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800">
-                        <th class="pb-4">Subject</th>
-                        <th class="pb-4">Schedule</th>
-                        <th class="pb-4">Venue</th>
-                        <th class="pb-4 text-right">Status</th>
-                    </tr>
+                  <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800">
+                    <th class="px-4 py-3">Subject</th>
+                    <th class="px-4 py-3">Section</th>
+                    <th class="px-4 py-3">Date</th>
+                    <th class="px-4 py-3">Time</th>
+                    <th class="px-4 py-3">Room</th>
+                    <th class="px-4 py-3">Status</th>
+                  </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
-                    {#each upcomingExams as exam}
-                        <tr class="group">
-                            <td class="py-6">
-                                <p class="font-black text-gray-900 dark:text-white group-hover:text-indigo-600 transition-colors">{exam.name}</p>
-                                <p class="text-[10px] font-bold text-gray-500 uppercase mt-1">{exam.code}</p>
-                            </td>
-                            <td class="py-6">
-                                <p class="text-sm font-bold text-gray-700 dark:text-gray-300">{exam.date}</p>
-                                <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">{exam.time}</p>
-                            </td>
-                            <td class="py-6">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
-                                    <span class="text-sm font-bold text-gray-700 dark:text-gray-300">{exam.venue}</span>
-                                </div>
-                            </td>
-                            <td class="py-6 text-right">
-                                <span class="px-3 py-1.5 rounded-xl {exam.status === 'READY' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'} text-[10px] font-black uppercase tracking-widest">
-                                    {exam.status.replace('_', ' ')}
-                                </span>
-                            </td>
-                        </tr>
-                    {/each}
+                  {#each selectedPlan.exams as exam}
+                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all">
+                      <td class="px-4 py-3">
+                        <p class="text-xs font-black text-gray-900 dark:text-white">{exam.subject_name}</p>
+                        <p class="text-[9px] text-gray-400 font-bold">{exam.subject_code}</p>
+                      </td>
+                      <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.section_name}</td>
+                      <td class="px-4 py-3 text-xs font-bold text-gray-700">{fmtDate(exam.exam_date)}</td>
+                      <td class="px-4 py-3 text-[10px] font-bold text-gray-500">{fmtTime(exam.slot_start)} — {fmtTime(exam.slot_end)}</td>
+                      <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.classroom_name || '—'}</td>
+                      <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-blue-100 text-blue-700">{exam.exam_status}</span>
+                      </td>
+                    </tr>
+                  {/each}
                 </tbody>
-            </table>
-        </div>
-     </div>
-
-     <!-- Status Summary -->
-     <div class="space-y-6">
-        <div class="p-8 bg-gray-900 dark:bg-slate-800 text-white rounded-[3rem] shadow-xl">
-            <h3 class="text-lg font-black tracking-tight mb-4 text-indigo-400">Readiness Check</h3>
-            <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-gray-300">Question Papers Uploaded</span>
-                    <span class="text-xs font-black">92%</span>
-                </div>
-                <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-indigo-500" style="width: 92%"></div>
-                </div>
-                
-                <div class="flex items-center justify-between mt-6">
-                    <span class="text-xs font-bold text-gray-300">Invigilation Duty Assigned</span>
-                    <span class="text-xs font-black">100%</span>
-                </div>
-                <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-emerald-500" style="width: 100%"></div>
-                </div>
-
-                <div class="flex items-center justify-between mt-6">
-                    <span class="text-xs font-bold text-gray-300">Seating Plan Generated</span>
-                    <span class="text-xs font-black">45%</span>
-                </div>
-                <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div class="h-full bg-amber-500" style="width: 45%"></div>
-                </div>
+              </table>
             </div>
-
-            <button class="w-full mt-10 py-4 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-indigo-600/30">
-                Generate Seating Plan
-            </button>
+          {:else}
+            <div class="p-10 text-center text-gray-400 text-sm">No exams added yet. Click "+ Add Exam" to start.</div>
+          {/if}
         </div>
-
-        <div class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[3rem] shadow-sm">
-             <h3 class="text-sm font-black text-gray-900 dark:text-white tracking-widest uppercase mb-4">Quick Links</h3>
-             <div class="grid grid-cols-2 gap-3">
-                 <button class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100">
-                    <span class="text-[10px] font-black uppercase tracking-widest">Hall Ticket</span>
-                 </button>
-                 <button class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100">
-                    <span class="text-[10px] font-black uppercase tracking-widest">Barcodes</span>
-                 </button>
-                 <button class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100">
-                    <span class="text-[10px] font-black uppercase tracking-widest">Invig. Slip</span>
-                 </button>
-                 <button class="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-slate-800 rounded-2xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100">
-                    <span class="text-[10px] font-black uppercase tracking-widest">Reports</span>
-                 </button>
-             </div>
+      {:else}
+        <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-20 text-center">
+          <svg class="w-16 h-16 text-gray-200 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <p class="text-gray-400 font-bold">Select an exam plan or create a new one</p>
         </div>
-     </div>
+      {/if}
+    </div>
   </div>
 </div>
+
+<!-- Create Plan Modal -->
+{#if showCreate}
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showCreate = false} transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-lg shadow-2xl" onclick={(e) => e.stopPropagation()}>
+      <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">New Exam Plan</h3>
+        <button onclick={() => showCreate = false} class="p-2 hover:bg-gray-100 rounded-xl">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Exam Name</label>
+          <input type="text" bind:value={planForm.exam_name} placeholder="CIA 1 - March 2026" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Type</label>
+            <select bind:value={planForm.exam_type} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="INTERNAL">Internal (CIA)</option>
+              <option value="SEMESTER_END">Semester End</option>
+              <option value="BACKLOG">Backlog</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Program</label>
+            <select bind:value={planForm.program_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select...</option>
+              {#each programs as p}<option value={p.id}>{p.name}</option>{/each}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Term</label>
+            <select bind:value={planForm.term_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select...</option>
+              {#each terms as t}<option value={t.id}>{t.name}</option>{/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Start</label>
+            <input type="date" bind:value={planForm.start_date} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">End</label>
+            <input type="date" bind:value={planForm.end_date} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+        </div>
+        <button onclick={createPlan} disabled={saving || !planForm.exam_name}
+          class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+          {saving ? 'Creating...' : 'Create Plan'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Add Exam Modal -->
+{#if showAddExam && selectedPlan}
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showAddExam = false} transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-lg shadow-2xl" onclick={(e) => e.stopPropagation()}>
+      <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">Add Exam to {selectedPlan.exam_name}</h3>
+        <button onclick={() => showAddExam = false} class="p-2 hover:bg-gray-100 rounded-xl">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Subject</label>
+            <select bind:value={examForm.subject_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select...</option>
+              {#each subjects as s}<option value={s.id}>{s.code ? s.code + ' - ' : ''}{s.name}</option>{/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Section</label>
+            <select bind:value={examForm.section_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select...</option>
+              {#each sections as s}<option value={s.id}>{s.name}</option>{/each}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Date</label>
+            <input type="date" bind:value={examForm.exam_date} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Start</label>
+            <input type="time" bind:value={examForm.slot_start} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">End</label>
+            <input type="time" bind:value={examForm.slot_end} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Classroom</label>
+            <select bind:value={examForm.classroom_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select...</option>
+              {#each classrooms as c}<option value={c.id}>{c.name} ({c.capacity} seats)</option>{/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Mode</label>
+            <select bind:value={examForm.exam_mode} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="OFFLINE">Offline</option>
+              <option value="ONLINE">Online</option>
+            </select>
+          </div>
+        </div>
+        <button onclick={addExamToPlan} disabled={saving || !examForm.subject_id || !examForm.section_id || !examForm.exam_date}
+          class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50">
+          {saving ? 'Adding...' : 'Add Exam'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}

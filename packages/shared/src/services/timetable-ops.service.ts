@@ -591,4 +591,77 @@ export class TimetableOpsService {
             changer_name: r.changer_name
         }));
     }
+
+    // --- Topic Tracking ---
+
+    static async getTopicProgress(sectionId: string, subjectId: string) {
+        const result = await db.query(
+            `SELECT id, date, slot_start, slot_end, planned_topic, planned_sequence_no,
+                    session_status, delivery_mode
+             FROM timetable_sessions
+             WHERE section_id = $1 AND subject_id = $2
+             ORDER BY planned_sequence_no NULLS LAST, date, slot_start`,
+            [sectionId, subjectId]
+        );
+        const sessions = result.rows;
+        const completed = sessions.filter(s => s.session_status === 'COMPLETED').length;
+        const total = sessions.length;
+        const missed = sessions.filter(s => s.session_status === 'MISSED' || s.session_status === 'CANCELLED').length;
+
+        return {
+            sessions,
+            completed,
+            total,
+            missed,
+            coverage_pct: total > 0 ? Math.round((completed / total) * 100) : 0,
+            topics: sessions.map(s => ({
+                topic: s.planned_topic || `Session ${s.planned_sequence_no || '?'}`,
+                status: s.session_status,
+                date: s.date,
+                slot: s.slot_start,
+                session_id: s.id
+            }))
+        };
+    }
+
+    static async shiftMissedTopics(sectionId: string, subjectId: string) {
+        // Get all sessions ordered by date
+        const result = await db.query(
+            `SELECT id, date, slot_start, planned_topic, planned_sequence_no, session_status
+             FROM timetable_sessions
+             WHERE section_id = $1 AND subject_id = $2
+             ORDER BY date, slot_start`,
+            [sectionId, subjectId]
+        );
+        const sessions = result.rows;
+
+        // Collect missed topics
+        const missedTopics: string[] = [];
+        for (const s of sessions) {
+            if ((s.session_status === 'MISSED' || s.session_status === 'CANCELLED') && s.planned_topic) {
+                missedTopics.push(s.planned_topic);
+            }
+        }
+        if (missedTopics.length === 0) return { shifted: 0 };
+
+        // Find upcoming SCHEDULED sessions
+        const upcoming = sessions.filter(s => s.session_status === 'SCHEDULED');
+        let shifted = 0;
+
+        // Cascade: push missed topics into upcoming sessions
+        for (let i = 0; i < missedTopics.length && i < upcoming.length; i++) {
+            const existingTopic = upcoming[i].planned_topic;
+            await db.query(
+                `UPDATE timetable_sessions SET planned_topic = $1 WHERE id = $2`,
+                [missedTopics[i], upcoming[i].id]
+            );
+            // Push displaced topic to the end
+            if (existingTopic && i + 1 < upcoming.length) {
+                missedTopics.push(existingTopic);
+            }
+            shifted++;
+        }
+
+        return { shifted, remaining: Math.max(0, missedTopics.length - upcoming.length) };
+    }
 }
