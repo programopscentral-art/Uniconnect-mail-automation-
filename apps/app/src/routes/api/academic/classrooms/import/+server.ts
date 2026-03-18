@@ -4,6 +4,54 @@ import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 import XLSX from 'xlsx';
 
+// Direct batch insert — bypasses service layer for maximum speed
+async function directBatchInsert(classrooms: any[]): Promise<any[]> {
+    if (classrooms.length === 0) return [];
+
+    // Auto-calculate bench grid
+    for (const data of classrooms) {
+        if (!data.bench_rows && !data.bench_columns && data.total_benches > 0) {
+            data.bench_columns = Math.ceil(Math.sqrt(data.total_benches));
+            data.bench_rows = Math.ceil(data.total_benches / data.bench_columns);
+        }
+        if (!data.capacity && data.total_benches && data.seats_per_bench) {
+            data.capacity = data.total_benches * data.seats_per_bench;
+        }
+    }
+
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let idx = 1;
+    for (const data of classrooms) {
+        placeholders.push(`($${idx}, $${idx+1}, $${idx+2}, $${idx+3}, $${idx+4}, $${idx+5}, $${idx+6}, $${idx+7}, $${idx+8}, $${idx+9}, $${idx+10}, $${idx+11}, $${idx+12}, $${idx+13}, $${idx+14})`);
+        values.push(
+            data.university_id, data.campus_id || null, data.name, data.code,
+            data.room_type || 'LECTURE', data.capacity, data.floor || null, data.building || null,
+            data.total_benches, data.seats_per_bench || 2,
+            data.bench_rows || 0, data.bench_columns || 0,
+            data.layout_type || 'grid', data.invigilators_required || 1,
+            JSON.stringify(data.metadata_json || {})
+        );
+        idx += 15;
+    }
+
+    const result = await db.query(
+        `INSERT INTO classrooms (university_id, campus_id, name, code, room_type, capacity, floor, building,
+            total_benches, seats_per_bench, bench_rows, bench_columns, layout_type, invigilators_required, metadata_json)
+         VALUES ${placeholders.join(', ')}
+         ON CONFLICT (university_id, campus_id, code) DO UPDATE SET
+            name = EXCLUDED.name, capacity = EXCLUDED.capacity, floor = EXCLUDED.floor,
+            building = EXCLUDED.building, total_benches = EXCLUDED.total_benches,
+            seats_per_bench = EXCLUDED.seats_per_bench, bench_rows = EXCLUDED.bench_rows,
+            bench_columns = EXCLUDED.bench_columns, layout_type = EXCLUDED.layout_type,
+            invigilators_required = EXCLUDED.invigilators_required, metadata_json = EXCLUDED.metadata_json,
+            room_type = EXCLUDED.room_type, updated_at = NOW()
+         RETURNING *`,
+        values
+    );
+    return result.rows;
+}
+
 interface ParsedClassroom {
     university_name: string;
     university_id?: string;
@@ -325,20 +373,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             });
         }
 
-        // Batch insert all classrooms in one query
+        // Direct batch insert — single query, no service overhead
         let created: any[] = [];
         if (toCreate.length > 0) {
             try {
-                const results = await ClassroomService.batchCreateClassrooms(toCreate);
+                const results = await directBatchInsert(toCreate);
                 created = results.map((room, i) => ({ ...room, university_name: toCreate[i]?.university_name }));
             } catch (e: any) {
-                // Fallback: if batch fails (e.g. mixed campus conflicts), insert one by one
-                for (const data of toCreate) {
+                // Fallback: try smaller batches if parameter limit exceeded
+                const BATCH_SIZE = 20;
+                for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
+                    const batch = toCreate.slice(i, i + BATCH_SIZE);
                     try {
-                        const room = await ClassroomService.createClassroom(data);
-                        created.push({ ...room, university_name: data.university_name });
+                        const results = await directBatchInsert(batch);
+                        created.push(...results.map((room, j) => ({ ...room, university_name: batch[j]?.university_name })));
                     } catch (err: any) {
-                        skipped.push({ ...data, reason: err.message });
+                        skipped.push(...batch.map(d => ({ ...d, reason: err.message })));
                     }
                 }
             }

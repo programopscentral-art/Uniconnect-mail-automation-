@@ -568,8 +568,16 @@
 
         <!-- Import button -->
         <button onclick={importFromSheet} disabled={saving || !importFile}
-          class="w-full py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-sm">
-          {saving ? 'Importing & Creating Classrooms...' : 'Import Classrooms'}
+          class="w-full py-3.5 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-sm relative overflow-hidden">
+          {#if saving}
+            <span class="flex items-center justify-center gap-2">
+              <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Importing & Creating Classrooms...
+            </span>
+            <div class="absolute bottom-0 left-0 h-1 bg-white/30 animate-pulse w-full"></div>
+          {:else}
+            Import Classrooms
+          {/if}
         </button>
 
         <!-- Results -->
