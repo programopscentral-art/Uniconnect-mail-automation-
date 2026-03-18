@@ -7,6 +7,15 @@
   try { opsUniversityId = getContext('opsUniversityId'); } catch {}
   const universityId = $derived(opsUniversityId?.get() || $page.data?.user?.university_id || '');
 
+  // Toast notification system
+  let toasts = $state<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  let toastId = 0;
+  function toast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    const id = ++toastId;
+    toasts = [...toasts, { id, message, type }];
+    setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 4000);
+  }
+
   let classrooms = $state<any[]>([]);
   let loading = $state(true);
   let filterType = $state('');
@@ -35,7 +44,8 @@
     try {
       const res = await fetch(`/api/academic/classrooms?universityId=${universityId}`);
       if (res.ok) classrooms = await res.json();
-    } catch {}
+      else toast('Failed to load classrooms', 'error');
+    } catch { toast('Network error loading classrooms', 'error'); }
     loading = false;
   }
 
@@ -66,9 +76,13 @@
       if (res.ok) {
         showCreate = false;
         form = { name: '', code: '', room_type: 'LECTURE', capacity: 0, floor: 0, building: '', total_benches: 30, seats_per_bench: 2, bench_rows: 5, bench_columns: 6, layout_type: 'grid', invigilators_required: 1 };
+        toast('Classroom created successfully!', 'success');
         await loadClassrooms();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.message || 'Failed to create classroom', 'error');
       }
-    } catch {}
+    } catch { toast('Network error creating classroom', 'error'); }
     saving = false;
   }
 
@@ -110,6 +124,7 @@
       } else {
         importResult = data;
         if (data.created > 0) {
+          toast(`Successfully imported ${data.created} classrooms!`, 'success');
           await loadClassrooms();
         }
       }
@@ -120,9 +135,12 @@
   }
 
   async function deleteClassroom(id: string) {
-    if (!confirm('Delete this classroom?')) return;
-    await fetch(`/api/academic/classrooms/${id}`, { method: 'DELETE' });
-    await loadClassrooms();
+    if (!confirm('Delete this classroom? This cannot be undone.')) return;
+    try {
+      await fetch(`/api/academic/classrooms/${id}`, { method: 'DELETE' });
+      toast('Classroom deleted', 'success');
+      await loadClassrooms();
+    } catch { toast('Failed to delete classroom', 'error'); }
   }
 
   // Section colors for BookMyShow visualization
@@ -136,6 +154,26 @@
     return row * totalCols + col;
   }
 </script>
+
+<!-- Toast Notifications -->
+<div class="fixed top-4 right-4 z-[100] space-y-2 pointer-events-none">
+  {#each toasts as t (t.id)}
+    <div class="pointer-events-auto px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-xl text-sm font-bold flex items-center gap-3 min-w-[280px] border
+      {t.type === 'success' ? 'bg-emerald-50/95 dark:bg-emerald-900/90 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700' :
+       t.type === 'error' ? 'bg-rose-50/95 dark:bg-rose-900/90 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-700' :
+       'bg-indigo-50/95 dark:bg-indigo-900/90 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700'}"
+      transition:fly={{ x: 50, duration: 300 }}>
+      {#if t.type === 'success'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else if t.type === 'error'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {/if}
+      <span>{t.message}</span>
+    </div>
+  {/each}
+</div>
 
 <div class="space-y-6" in:fade>
   <!-- Header + Stats -->

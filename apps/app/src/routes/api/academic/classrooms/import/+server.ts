@@ -246,30 +246,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }, { status: 400 });
         }
 
-        // Match university names to DB records
-        const uniResult = await db.query(`SELECT id, name FROM universities`);
-        const universities = uniResult.rows;
+        // Match university names to DB records + pre-fetch all campuses (2 queries total)
+        const [uniResult, campusResult] = await Promise.all([
+            db.query(`SELECT id, name FROM universities`),
+            db.query(`SELECT id, university_id FROM campuses`)
+        ]);
+
         const uniMap = new Map<string, string>();
-        for (const u of universities) {
+        for (const u of uniResult.rows) {
             uniMap.set(u.name.toUpperCase().trim(), u.id);
-            // Also match partial names
             const words = u.name.toUpperCase().split(/\s+/);
             for (const w of words) {
                 if (w.length > 3) uniMap.set(w, u.id);
             }
         }
 
-        const created: any[] = [];
+        // Cache campus IDs per university
+        const campusMap = new Map<string, string>();
+        for (const c of campusResult.rows) {
+            if (!campusMap.has(c.university_id)) campusMap.set(c.university_id, c.id);
+        }
+
+        const toCreate: any[] = [];
         const skipped: any[] = [];
 
         for (const classroom of parsed) {
-            // Determine university ID
             let uniId = targetUniversityId;
             if (!uniId) {
                 const nameUp = classroom.university_name.toUpperCase().trim();
                 uniId = uniMap.get(nameUp) || '';
                 if (!uniId) {
-                    // Try partial match
                     for (const [key, id] of uniMap) {
                         if (nameUp.includes(key) || key.includes(nameUp)) {
                             uniId = id;
@@ -284,49 +290,57 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 continue;
             }
 
-            try {
-                // Get or create campus
-                let campusResult = await db.query(`SELECT id FROM campuses WHERE university_id = $1 LIMIT 1`, [uniId]);
-                let campusId: string;
-                if (campusResult.rows.length === 0) {
-                    const nc = await db.query(
-                        `INSERT INTO campuses (university_id, name, code) VALUES ($1, 'Main Campus', 'MAIN') ON CONFLICT DO NOTHING RETURNING id`,
-                        [uniId]
-                    );
-                    campusId = nc.rows[0]?.id;
-                    if (!campusId) {
-                        campusResult = await db.query(`SELECT id FROM campuses WHERE university_id = $1 LIMIT 1`, [uniId]);
-                        campusId = campusResult.rows[0]?.id;
-                    }
-                } else {
-                    campusId = campusResult.rows[0].id;
-                }
-
+            // Get or create campus (cached)
+            let campusId = campusMap.get(uniId);
+            if (!campusId) {
+                const nc = await db.query(
+                    `INSERT INTO campuses (university_id, name, code) VALUES ($1, 'Main Campus', 'MAIN') ON CONFLICT DO NOTHING RETURNING id`,
+                    [uniId]
+                );
+                campusId = nc.rows[0]?.id;
                 if (!campusId) {
-                    skipped.push({ ...classroom, reason: 'Could not find/create campus' });
-                    continue;
+                    const existing = await db.query(`SELECT id FROM campuses WHERE university_id = $1 LIMIT 1`, [uniId]);
+                    campusId = existing.rows[0]?.id;
                 }
+                if (campusId) campusMap.set(uniId, campusId);
+            }
 
-                const bCols = Math.ceil(Math.sqrt(classroom.total_benches));
-                const bRows = Math.ceil(classroom.total_benches / bCols);
+            if (!campusId) {
+                skipped.push({ ...classroom, reason: 'Could not find/create campus' });
+                continue;
+            }
 
-                const room = await ClassroomService.createClassroom({
-                    university_id: uniId,
-                    campus_id: campusId,
-                    name: classroom.name,
-                    code: classroom.code,
-                    room_type: classroom.room_type,
-                    capacity: classroom.capacity,
-                    total_benches: classroom.total_benches,
-                    seats_per_bench: classroom.seats_per_bench,
-                    bench_rows: bRows,
-                    bench_columns: bCols,
-                    invigilators_required: classroom.invigilators_required,
-                    layout_type: 'grid'
-                });
-                created.push({ ...room, university_name: classroom.university_name });
+            toCreate.push({
+                university_id: uniId,
+                campus_id: campusId,
+                name: classroom.name,
+                code: classroom.code,
+                room_type: classroom.room_type,
+                capacity: classroom.capacity,
+                total_benches: classroom.total_benches,
+                seats_per_bench: classroom.seats_per_bench,
+                invigilators_required: classroom.invigilators_required,
+                layout_type: 'grid',
+                university_name: classroom.university_name
+            });
+        }
+
+        // Batch insert all classrooms in one query
+        let created: any[] = [];
+        if (toCreate.length > 0) {
+            try {
+                const results = await ClassroomService.batchCreateClassrooms(toCreate);
+                created = results.map((room, i) => ({ ...room, university_name: toCreate[i]?.university_name }));
             } catch (e: any) {
-                skipped.push({ ...classroom, reason: e.message });
+                // Fallback: if batch fails (e.g. mixed campus conflicts), insert one by one
+                for (const data of toCreate) {
+                    try {
+                        const room = await ClassroomService.createClassroom(data);
+                        created.push({ ...room, university_name: data.university_name });
+                    } catch (err: any) {
+                        skipped.push({ ...data, reason: err.message });
+                    }
+                }
             }
         }
 

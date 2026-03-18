@@ -18,6 +18,16 @@
   let generating = $state(false);
   let zoomLevel = $state(1);
   let selectedSeat = $state<any>(null);
+  let selectedExamId = $state('');
+
+  // Toast
+  let toasts = $state<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  let toastId = 0;
+  function toast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    const id = ++toastId;
+    toasts = [...toasts, { id, message, type }];
+    setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 4000);
+  }
 
   const SECTION_COLORS = [
     { bg: 'bg-blue-500', text: 'text-white', light: 'bg-blue-100 text-blue-700' },
@@ -30,6 +40,11 @@
     { bg: 'bg-teal-500', text: 'text-white', light: 'bg-teal-100 text-teal-700' },
     { bg: 'bg-orange-500', text: 'text-white', light: 'bg-orange-100 text-orange-700' },
     { bg: 'bg-indigo-500', text: 'text-white', light: 'bg-indigo-100 text-indigo-700' },
+    { bg: 'bg-lime-500', text: 'text-white', light: 'bg-lime-100 text-lime-700' },
+    { bg: 'bg-fuchsia-500', text: 'text-white', light: 'bg-fuchsia-100 text-fuchsia-700' },
+    { bg: 'bg-sky-500', text: 'text-white', light: 'bg-sky-100 text-sky-700' },
+    { bg: 'bg-red-500', text: 'text-white', light: 'bg-red-100 text-red-700' },
+    { bg: 'bg-yellow-500', text: 'text-white', light: 'bg-yellow-100 text-yellow-700' },
   ];
 
   let sectionColorMap = $state(new Map<string, number>());
@@ -49,6 +64,11 @@
     if (selectedPlanId) loadPlanDetail();
   });
 
+  // When exam changes, reload seating
+  $effect(() => {
+    if (selectedExamId) loadSeatingForExam(selectedExamId);
+  });
+
   async function loadData() {
     loading = true;
     try {
@@ -59,7 +79,7 @@
       if (pRes.ok) plans = await pRes.json();
       if (cRes.ok) classrooms = await cRes.json();
       if (selectedPlanId) await loadPlanDetail();
-    } catch {}
+    } catch { toast('Failed to load data', 'error'); }
     loading = false;
   }
 
@@ -69,12 +89,14 @@
       const res = await fetch(`/api/academic/exams/plans/${selectedPlanId}`);
       if (res.ok) {
         planDetail = await res.json();
-        // Load seating plans for first exam
-        if (planDetail.exams?.length > 0) {
-          await loadSeatingForExam(planDetail.exams[0].id);
+        // Auto-select first exam if none selected
+        if (planDetail.exams?.length > 0 && !selectedExamId) {
+          selectedExamId = planDetail.exams[0].id;
         }
+      } else {
+        toast('Failed to load plan details', 'error');
       }
-    } catch {}
+    } catch { toast('Network error', 'error'); }
   }
 
   async function loadSeatingForExam(examId: string) {
@@ -95,12 +117,12 @@
           }
         }
       }
-    } catch {}
+    } catch { toast('Failed to load seating data', 'error'); }
   }
 
   async function generateSeating() {
     if (!selectedPlanId || selectedClassroomIds.length === 0) {
-      alert('Select at least one classroom');
+      toast('Select at least one classroom', 'error');
       return;
     }
     generating = true;
@@ -113,29 +135,34 @@
       if (res.ok) {
         const result = await res.json();
         if (result.error) {
-          alert(result.error);
+          toast(result.error, 'error');
         } else {
-          alert(`Seating generated! ${result.total_seated} students seated across ${result.results?.length || 0} classrooms.`);
+          toast(`Seating generated! ${result.total_seated} students seated across ${result.results?.length || 0} classrooms`, 'success');
           await loadPlanDetail();
         }
+      } else {
+        toast('Failed to generate seating', 'error');
       }
     } catch (e: any) {
-      alert('Generation failed: ' + e.message);
+      toast('Generation failed: ' + e.message, 'error');
     }
     generating = false;
   }
 
   async function swapSeats(plan: any, seat1: any, seat2: any) {
     try {
-      await fetch(`/api/academic/exams/seating/${plan.id}/swap`, {
+      const res = await fetch(`/api/academic/exams/seating/${plan.id}/swap`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seat1, seat2 })
       });
-      if (planDetail.exams?.length > 0) {
-        await loadSeatingForExam(planDetail.exams[0].id);
+      if (res.ok) {
+        toast('Seats swapped successfully', 'success');
+        if (selectedExamId) await loadSeatingForExam(selectedExamId);
+      } else {
+        toast('Failed to swap seats', 'error');
       }
-    } catch {}
+    } catch { toast('Swap failed', 'error'); }
     selectedSeat = null;
   }
 
@@ -145,7 +172,6 @@
     } else if (selectedSeat.assignment === assignment) {
       selectedSeat = null;
     } else {
-      // Swap
       swapSeats(plan, {
         row: selectedSeat.assignment.bench_row,
         col: selectedSeat.assignment.bench_col,
@@ -166,6 +192,16 @@
       : activeSeating.seating_data_json;
   });
 
+  // Stats derived
+  const totalSeated = $derived(seatingPlans.reduce((sum, p) => {
+    const d = typeof p.seating_data_json === 'string' ? JSON.parse(p.seating_data_json) : p.seating_data_json;
+    return sum + (d?.total_seated || 0);
+  }, 0));
+  const totalViolations = $derived(seatingPlans.reduce((sum, p) => {
+    const d = typeof p.seating_data_json === 'string' ? JSON.parse(p.seating_data_json) : p.seating_data_json;
+    return sum + (d?.violations || 0);
+  }, 0));
+
   function getAssignment(data: any, row: number, col: number, seat: number) {
     return data?.assignments?.find((a: any) => a.bench_row === row && a.bench_col === col && a.seat === seat);
   }
@@ -180,14 +216,46 @@
   }
 
   function exportCSV() {
-    if (!planDetail?.exams?.[0]) return;
-    window.open(`/api/academic/exams/seating/${planDetail.exams[0].id}/export`, '_blank');
+    if (!selectedExamId) return;
+    window.open(`/api/academic/exams/seating/${selectedExamId}/export`, '_blank');
   }
 
   function printLayout() {
     window.print();
   }
+
+  function fmtDate(d: string) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  }
+
+  function fmtTime(t: string) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+  }
 </script>
+
+<!-- Toast -->
+<div class="fixed top-4 right-4 z-[100] space-y-2 pointer-events-none">
+  {#each toasts as t (t.id)}
+    <div class="pointer-events-auto px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-xl text-sm font-bold flex items-center gap-3 min-w-[280px] border
+      {t.type === 'success' ? 'bg-emerald-50/95 dark:bg-emerald-900/90 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700' :
+       t.type === 'error' ? 'bg-rose-50/95 dark:bg-rose-900/90 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-700' :
+       'bg-indigo-50/95 dark:bg-indigo-900/90 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700'}"
+      transition:fly={{ x: 50, duration: 300 }}>
+      {#if t.type === 'success'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else if t.type === 'error'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {/if}
+      <span>{t.message}</span>
+    </div>
+  {/each}
+</div>
 
 <div class="space-y-6" in:fade>
   <!-- Header -->
@@ -196,25 +264,60 @@
       <h2 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Exam <span class="text-violet-600">Seating Plan</span></h2>
       <p class="text-sm text-gray-500 font-medium mt-1">Visual seat assignment with branch-interleaving constraints</p>
     </div>
-    <div class="flex items-center gap-3">
-      <select bind:value={selectedPlanId}
+    <div class="flex items-center gap-3 flex-wrap">
+      <select bind:value={selectedPlanId} onchange={() => { selectedExamId = ''; seatingPlans = []; activeClassroom = ''; }}
         class="px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold min-w-[200px] shadow-sm">
         <option value="">Select Exam Plan...</option>
         {#each plans as p}<option value={p.id}>{p.exam_name}</option>{/each}
       </select>
+
+      <!-- Exam selector within plan -->
+      {#if planDetail?.exams?.length > 1}
+        <select bind:value={selectedExamId}
+          class="px-4 py-2.5 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-xl text-xs font-bold min-w-[180px] shadow-sm text-violet-700 dark:text-violet-300">
+          {#each planDetail.exams as exam}
+            <option value={exam.id}>{exam.subject_name} · {fmtDate(exam.exam_date)} {fmtTime(exam.slot_start)}</option>
+          {/each}
+        </select>
+      {/if}
+
       {#if seatingPlans.length > 0}
-        <button onclick={exportCSV} class="px-4 py-2.5 bg-gray-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm">Export CSV</button>
-        <button onclick={printLayout} class="px-4 py-2.5 bg-gray-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm">Print</button>
+        <button onclick={exportCSV} class="px-4 py-2.5 bg-gray-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-gray-800 transition-all">Export CSV</button>
+        <button onclick={printLayout} class="px-4 py-2.5 bg-gray-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-gray-600 transition-all">Print</button>
       {/if}
     </div>
   </div>
 
+  <!-- Stats bar when seating exists -->
+  {#if seatingPlans.length > 0}
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Seated</p>
+        <p class="text-2xl font-black text-violet-600 mt-1">{totalSeated}</p>
+      </div>
+      <div class="p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Classrooms Used</p>
+        <p class="text-2xl font-black text-indigo-600 mt-1">{seatingPlans.length}</p>
+      </div>
+      <div class="p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sections</p>
+        <p class="text-2xl font-black text-blue-600 mt-1">{sectionColorMap.size}</p>
+      </div>
+      <div class="p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
+        <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Violations</p>
+        <p class="text-2xl font-black {totalViolations > 0 ? 'text-rose-600' : 'text-emerald-600'} mt-1">{totalViolations}</p>
+      </div>
+    </div>
+  {/if}
+
   {#if loading}
     <div class="p-20 text-center">
       <div class="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p class="text-xs text-gray-400 font-bold mt-4">Loading seating data...</p>
     </div>
   {:else if !selectedPlanId}
     <div class="p-20 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl text-center">
+      <svg class="w-16 h-16 text-gray-200 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
       <p class="text-gray-400 font-bold">Select an exam plan to view or generate seating</p>
     </div>
   {:else}
@@ -242,8 +345,15 @@
             {/each}
           </div>
           <button onclick={generateSeating} disabled={generating || selectedClassroomIds.length === 0}
-            class="w-full py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all">
-            {generating ? 'Generating...' : 'Generate Seating Plan'}
+            class="w-full py-3 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all relative overflow-hidden">
+            {#if generating}
+              <span class="flex items-center justify-center gap-2">
+                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Generating...
+              </span>
+            {:else}
+              Generate Seating Plan
+            {/if}
           </button>
         </div>
 
@@ -294,25 +404,25 @@
           {@const data = activeData()}
           <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden">
             <!-- Toolbar -->
-            <div class="p-4 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between">
+            <div class="p-4 border-b border-gray-50 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
               <div>
                 <h3 class="text-lg font-black text-gray-900 dark:text-white">{activeSeating.classroom_name}</h3>
                 <p class="text-[10px] text-gray-400 font-bold">
                   {activeSeating.bench_rows} rows x {activeSeating.bench_columns} cols · {data.total_seated || 0}/{activeSeating.capacity} seats filled
                   {#if data.violations > 0}
-                    · <span class="text-rose-500">{data.violations} constraint violations</span>
+                    · <span class="text-rose-500 font-black">{data.violations} constraint violations</span>
                   {/if}
                 </p>
               </div>
               <div class="flex items-center gap-2">
                 {#if selectedSeat}
                   <span class="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-lg text-[9px] font-black animate-pulse">Click another seat to swap</span>
-                  <button onclick={() => selectedSeat = null} class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black">Cancel</button>
+                  <button onclick={() => selectedSeat = null} class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-[9px] font-black hover:bg-gray-200 transition-all">Cancel</button>
                 {/if}
                 <div class="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
-                  <button onclick={() => zoomLevel = Math.max(0.5, zoomLevel - 0.1)} class="p-1.5 hover:bg-white rounded-lg text-xs font-black">−</button>
+                  <button onclick={() => zoomLevel = Math.max(0.5, zoomLevel - 0.1)} class="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg text-xs font-black transition-all">−</button>
                   <span class="text-[10px] font-bold text-gray-500 w-10 text-center">{Math.round(zoomLevel * 100)}%</span>
-                  <button onclick={() => zoomLevel = Math.min(2, zoomLevel + 0.1)} class="p-1.5 hover:bg-white rounded-lg text-xs font-black">+</button>
+                  <button onclick={() => zoomLevel = Math.min(2, zoomLevel + 0.1)} class="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg text-xs font-black transition-all">+</button>
                 </div>
               </div>
             </div>
@@ -432,7 +542,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/>
             </svg>
             <p class="text-gray-400 font-bold">No seating plan generated yet</p>
-            <p class="text-gray-300 text-xs mt-1">Select classrooms and click "Generate Seating Plan" to auto-assign students</p>
+            <p class="text-gray-300 text-xs mt-1">Select classrooms from the sidebar and click "Generate Seating Plan"</p>
           </div>
         {/if}
       </div>
@@ -443,5 +553,6 @@
 <style>
   @media print {
     :global(nav), :global(header), :global(.no-print) { display: none !important; }
+    :global(body) { background: white !important; }
   }
 </style>

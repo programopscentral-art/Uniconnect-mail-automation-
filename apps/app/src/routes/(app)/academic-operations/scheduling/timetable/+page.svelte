@@ -7,6 +7,15 @@
   try { opsUniversityId = getContext('opsUniversityId'); } catch {}
   const universityId = $derived(opsUniversityId?.get() || $page.data?.user?.university_id || '');
 
+  // Toast
+  let toasts = $state<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
+  let toastId = 0;
+  function toast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    const id = ++toastId;
+    toasts = [...toasts, { id, message, type }];
+    setTimeout(() => { toasts = toasts.filter(t => t.id !== id); }, 4000);
+  }
+
   let sessions = $state<any[]>([]);
   let loading = $state(true);
   let sections = $state<any[]>([]);
@@ -52,11 +61,18 @@
   }
 
   $effect(() => {
-    if (universityId) loadSections();
+    if (universityId) {
+      loadSections();
+      loadSessions();
+    }
   });
 
+  // Reload when week changes
   $effect(() => {
-    if (universityId) loadSessions();
+    // Track weekStart to reload on week navigation
+    const _w = weekStart;
+    const _s = selectedSection;
+    if (universityId && _w) loadSessions();
   });
 
   async function loadSections() {
@@ -66,7 +82,7 @@
         sections = await res.json();
         if (sections.length > 0 && !selectedSection) selectedSection = sections[0].id;
       }
-    } catch {}
+    } catch { toast('Failed to load sections', 'error'); }
   }
 
   async function loadSessions() {
@@ -80,7 +96,8 @@
       if (selectedSection) params.set('sectionId', selectedSection);
       const res = await fetch(`/api/academic/scheduling/sessions?${params}`);
       if (res.ok) sessions = await res.json();
-    } catch {}
+      else toast('Failed to load sessions', 'error');
+    } catch { toast('Network error loading timetable', 'error'); }
     loading = false;
   }
 
@@ -121,6 +138,26 @@
   const sectionName = $derived(sections.find(s => s.id === selectedSection)?.name || 'All');
 </script>
 
+<!-- Toast -->
+<div class="fixed top-4 right-4 z-[100] space-y-2 pointer-events-none">
+  {#each toasts as t (t.id)}
+    <div class="pointer-events-auto px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-xl text-sm font-bold flex items-center gap-3 min-w-[280px] border
+      {t.type === 'success' ? 'bg-emerald-50/95 dark:bg-emerald-900/90 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-700' :
+       t.type === 'error' ? 'bg-rose-50/95 dark:bg-rose-900/90 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-700' :
+       'bg-indigo-50/95 dark:bg-indigo-900/90 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-700'}"
+      transition:fly={{ x: 50, duration: 300 }}>
+      {#if t.type === 'success'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else if t.type === 'error'}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {:else}
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      {/if}
+      <span>{t.message}</span>
+    </div>
+  {/each}
+</div>
+
 <div class="space-y-6" in:fade>
   <!-- Header -->
   <div class="flex items-center justify-between flex-wrap gap-4">
@@ -130,7 +167,7 @@
     </div>
     <div class="flex items-center gap-3">
       <!-- Section Filter -->
-      <select bind:value={selectedSection} onchange={() => loadSessions()}
+      <select bind:value={selectedSection}
         class="px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold min-w-[180px] shadow-sm">
         <option value="">All Sections</option>
         {#each sections as sec}<option value={sec.id}>{sec.name}</option>{/each}

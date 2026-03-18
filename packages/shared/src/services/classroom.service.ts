@@ -41,8 +41,16 @@ export class ClassroomService {
         await db.query(`ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS layout_type TEXT DEFAULT 'grid'`);
     }
 
-    static async getClassrooms(universityId: string) {
+    private static columnsEnsured = false;
+
+    private static async ensureColumnsOnce() {
+        if (this.columnsEnsured) return;
         await this.ensureColumns();
+        this.columnsEnsured = true;
+    }
+
+    static async getClassrooms(universityId: string) {
+        await this.ensureColumnsOnce();
         const result = await db.query(
             `SELECT id, university_id, campus_id, name, code, room_type, capacity, floor, building,
                     total_benches, seats_per_bench, bench_rows, bench_columns, layout_type,
@@ -56,7 +64,7 @@ export class ClassroomService {
     }
 
     static async getClassroom(id: string) {
-        await this.ensureColumns();
+        await this.ensureColumnsOnce();
         const result = await db.query(
             `SELECT * FROM classrooms WHERE id = $1 AND is_active = true`,
             [id]
@@ -64,8 +72,57 @@ export class ClassroomService {
         return result.rows[0] || null;
     }
 
+    static async batchCreateClassrooms(classrooms: ClassroomInput[]): Promise<any[]> {
+        await this.ensureColumnsOnce();
+        if (classrooms.length === 0) return [];
+
+        // Auto-calculate bench grid and capacity for each
+        for (const data of classrooms) {
+            if (!data.bench_rows && !data.bench_columns && data.total_benches > 0) {
+                data.bench_columns = Math.ceil(Math.sqrt(data.total_benches));
+                data.bench_rows = Math.ceil(data.total_benches / data.bench_columns);
+            }
+            if (!data.capacity && data.total_benches && data.seats_per_bench) {
+                data.capacity = data.total_benches * data.seats_per_bench;
+            }
+        }
+
+        // Build multi-row INSERT
+        const values: any[] = [];
+        const placeholders: string[] = [];
+        let idx = 1;
+        for (const data of classrooms) {
+            placeholders.push(`($${idx}, $${idx+1}, $${idx+2}, $${idx+3}, $${idx+4}, $${idx+5}, $${idx+6}, $${idx+7}, $${idx+8}, $${idx+9}, $${idx+10}, $${idx+11}, $${idx+12}, $${idx+13}, $${idx+14})`);
+            values.push(
+                data.university_id, data.campus_id || null, data.name, data.code,
+                data.room_type || 'LECTURE', data.capacity, data.floor || null, data.building || null,
+                data.total_benches, data.seats_per_bench || 2,
+                data.bench_rows, data.bench_columns,
+                data.layout_type || 'grid', data.invigilators_required || 1,
+                JSON.stringify(data.metadata_json || {})
+            );
+            idx += 15;
+        }
+
+        const result = await db.query(
+            `INSERT INTO classrooms (university_id, campus_id, name, code, room_type, capacity, floor, building,
+                total_benches, seats_per_bench, bench_rows, bench_columns, layout_type, invigilators_required, metadata_json)
+             VALUES ${placeholders.join(', ')}
+             ON CONFLICT (university_id, campus_id, code) DO UPDATE SET
+                name = EXCLUDED.name, capacity = EXCLUDED.capacity, floor = EXCLUDED.floor,
+                building = EXCLUDED.building, total_benches = EXCLUDED.total_benches,
+                seats_per_bench = EXCLUDED.seats_per_bench, bench_rows = EXCLUDED.bench_rows,
+                bench_columns = EXCLUDED.bench_columns, layout_type = EXCLUDED.layout_type,
+                invigilators_required = EXCLUDED.invigilators_required, metadata_json = EXCLUDED.metadata_json,
+                room_type = EXCLUDED.room_type, updated_at = NOW()
+             RETURNING *`,
+            values
+        );
+        return result.rows;
+    }
+
     static async createClassroom(data: ClassroomInput) {
-        await this.ensureColumns();
+        await this.ensureColumnsOnce();
         // Auto-calculate bench grid if not provided
         if (!data.bench_rows && !data.bench_columns && data.total_benches > 0) {
             data.bench_columns = Math.ceil(Math.sqrt(data.total_benches));
@@ -101,7 +158,7 @@ export class ClassroomService {
     }
 
     static async updateClassroom(id: string, data: Partial<ClassroomInput>) {
-        await this.ensureColumns();
+        await this.ensureColumnsOnce();
         const sets: string[] = [];
         const vals: any[] = [];
         let idx = 1;
@@ -140,7 +197,7 @@ export class ClassroomService {
     }
 
     static async bulkImportClassrooms(universityId: string, rows: BulkClassroomRow[]) {
-        await this.ensureColumns();
+        await this.ensureColumnsOnce();
         // Get or create a default campus for the university
         let campusResult = await db.query(
             `SELECT id FROM campuses WHERE university_id = $1 LIMIT 1`,
@@ -207,7 +264,7 @@ export class ClassroomService {
     }
 
     static async getAvailableClassrooms(universityId: string, date: string, slotStart: string, slotEnd: string, minCapacity?: number) {
-        await this.ensureColumns();
+        await this.ensureColumnsOnce();
         let query = `
             SELECT c.* FROM classrooms c
             WHERE c.university_id = $1 AND c.is_active = true
