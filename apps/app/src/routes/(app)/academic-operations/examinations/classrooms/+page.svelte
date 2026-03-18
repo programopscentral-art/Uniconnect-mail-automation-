@@ -275,18 +275,47 @@
             </div>
           </div>
 
-          <!-- Mini Bench Preview -->
+          <!-- Mini Bench Preview (BookMyShow style) -->
           <div class="p-4 bg-gray-50/50 dark:bg-slate-800/30">
             <div class="flex justify-center mb-3">
-              <div class="px-8 py-1 bg-gray-200 dark:bg-slate-700 rounded-b-lg text-[7px] font-black text-gray-500 uppercase tracking-widest">Board</div>
+              <div class="px-10 py-0.5 bg-gradient-to-r from-transparent via-gray-300 dark:via-slate-600 to-transparent rounded-full"></div>
             </div>
-            <div class="flex justify-center">
-              <div class="grid gap-[3px]" style="grid-template-columns: repeat({Math.min(room.bench_columns || 6, 10)}, 1fr);">
-                {#each Array(Math.min((room.bench_rows || 5) * (room.bench_columns || 6), 60)) as _, idx}
-                  <div class="w-3.5 h-2.5 rounded-[2px] bg-emerald-400/60 dark:bg-emerald-500/40 transition-all hover:bg-indigo-500"></div>
+            <div class="text-center text-[6px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Board</div>
+            {#each [Math.min(room.bench_columns || Math.ceil(Math.sqrt(room.total_benches || 20)), 8)] as previewCols}
+              {#each [Math.min(room.bench_rows || Math.ceil((room.total_benches || 20) / previewCols), 6)] as previewRows}
+                {#each [Math.min(room.seats_per_bench || 2, 4)] as spb}
+                  <div class="flex flex-col items-center gap-1.5">
+                    {#each Array(previewRows) as _, rowIdx}
+                      <div class="flex items-center gap-1">
+                        <span class="text-[6px] font-black text-gray-300 w-3 text-right">{String.fromCharCode(65 + rowIdx)}</span>
+                        <div class="flex gap-1">
+                          {#each Array(previewCols) as _, colIdx}
+                            {@const benchNum = rowIdx * previewCols + colIdx + 1}
+                            {@const isActive = benchNum <= (room.total_benches || 20)}
+                            {#if isActive}
+                              <div class="flex gap-[1px] px-[2px] py-[1px] rounded-[3px] bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                                {#each Array(spb) as _}
+                                  <div class="w-[5px] h-[6px] rounded-[1px] bg-emerald-400 dark:bg-emerald-500"></div>
+                                {/each}
+                              </div>
+                            {:else}
+                              <div class="flex gap-[1px] px-[2px] py-[1px] rounded-[3px] opacity-20">
+                                {#each Array(spb) as _}
+                                  <div class="w-[5px] h-[6px] rounded-[1px] bg-gray-300 dark:bg-slate-600"></div>
+                                {/each}
+                              </div>
+                            {/if}
+                          {/each}
+                        </div>
+                      </div>
+                    {/each}
+                  </div>
+                  <div class="text-center mt-2">
+                    <span class="text-[7px] font-bold text-gray-400">{room.total_benches || 0} benches × {room.seats_per_bench || 2} seats</span>
+                  </div>
                 {/each}
-              </div>
-            </div>
+              {/each}
+            {/each}
           </div>
 
           <!-- Stats Footer -->
@@ -361,22 +390,30 @@
               {#each Array(showLayout.bench_columns || 6) as _, colIdx}
                 {@const benchNum = getBenchIndex(rowIdx, colIdx, showLayout.bench_columns || 6) + 1}
                 {@const isActive = benchNum <= (showLayout.total_benches || 30)}
-                <div class="flex flex-col items-center">
+                <div class="flex flex-col items-center gap-1">
                   {#if isActive}
-                    <!-- Bench with seats -->
-                    <div class="flex gap-0.5 p-1.5 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:border-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-all group/bench cursor-pointer">
-                      {#each Array(showLayout.seats_per_bench || 2) as _, seatIdx}
-                        <div class="w-8 h-8 rounded-md bg-emerald-400 dark:bg-emerald-500 flex items-center justify-center text-[7px] font-black text-white shadow-sm group-hover/bench:bg-indigo-500 transition-colors">
-                          {String.fromCharCode(65 + rowIdx)}{colIdx + 1}
-                        </div>
-                      {/each}
+                    <!-- Bench: desk table + seats -->
+                    <div class="flex flex-col items-center group/bench cursor-pointer">
+                      <!-- Seat circles (students sit here) -->
+                      <div class="flex gap-1 mb-0.5">
+                        {#each Array(showLayout.seats_per_bench || 2) as _, seatIdx}
+                          <div class="w-7 h-7 rounded-full bg-emerald-400 dark:bg-emerald-500 flex items-center justify-center text-[6px] font-black text-white shadow-sm group-hover/bench:bg-indigo-500 transition-colors border-2 border-emerald-300 dark:border-emerald-400 group-hover/bench:border-indigo-400">
+                            {seatIdx + 1}
+                          </div>
+                        {/each}
+                      </div>
+                      <!-- Desk/table surface -->
+                      <div class="w-full h-2.5 bg-amber-700/70 dark:bg-amber-800/60 rounded-[3px] shadow-inner group-hover/bench:bg-indigo-700/50 transition-colors" style="min-width: {(showLayout.seats_per_bench || 2) * 28 + 4}px;"></div>
                     </div>
-                    <p class="text-[7px] text-gray-300 font-bold mt-0.5">{benchNum}</p>
+                    <p class="text-[7px] text-gray-300 font-bold">{String.fromCharCode(65 + rowIdx)}{colIdx + 1}</p>
                   {:else}
-                    <div class="flex gap-0.5 p-1.5 rounded-lg border border-dashed border-gray-100 dark:border-slate-800 opacity-30">
-                      {#each Array(showLayout.seats_per_bench || 2) as _}
-                        <div class="w-8 h-8 rounded-md bg-gray-200 dark:bg-slate-700"></div>
-                      {/each}
+                    <div class="flex flex-col items-center opacity-20">
+                      <div class="flex gap-1 mb-0.5">
+                        {#each Array(showLayout.seats_per_bench || 2) as _}
+                          <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-slate-700 border-2 border-gray-100 dark:border-slate-600"></div>
+                        {/each}
+                      </div>
+                      <div class="w-full h-2.5 bg-gray-300 dark:bg-slate-600 rounded-[3px]" style="min-width: {(showLayout.seats_per_bench || 2) * 28 + 4}px;"></div>
                     </div>
                   {/if}
                 </div>
