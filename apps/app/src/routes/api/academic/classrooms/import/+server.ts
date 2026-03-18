@@ -65,6 +65,22 @@ interface ParsedClassroom {
     remarks: string;
 }
 
+// Parse a number from text, handling ranges like "38-40" → first number
+function parseCount(text: string): number {
+    const s = String(text || '').trim();
+    // Handle ranges: "38-40" → 38, "5-6" → 5
+    const rangeMatch = s.match(/^(\d+)\s*[-–—to]+\s*(\d+)$/i);
+    if (rangeMatch) return parseInt(rangeMatch[1]);
+    // Just get the first number
+    const m = s.match(/(\d+)/);
+    return m ? parseInt(m[1]) : 0;
+}
+
+// Extract all numbers from multi-value cells, preserving line structure
+function extractNumbers(text: string): number[] {
+    return (text.match(/\d+/g) || []).map(Number).filter(n => n > 0);
+}
+
 function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroom[], debug: any[] } {
     const workbook = XLSX.read(buffer, { type: 'array' });
     const sheetName = workbook.SheetNames[0];
@@ -111,7 +127,7 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
         else if (h.includes('remark')) colMap.remarks = i;
     }
 
-    // Fallback: if column detection failed, use positional (A=uni, B=count, C=benches, D=students, E=maxcap, F=totalcap, G=invig, H=totalinvig, I=remarks)
+    // Fallback positional: A=uni, B=count, C=benches, D=students, E=maxcap, F=totalcap, G=invig
     if (colMap.university === -1) colMap.university = 0;
     if (colMap.classrooms_count === -1) colMap.classrooms_count = 1;
     if (colMap.benches === -1) colMap.benches = 2;
@@ -128,130 +144,259 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
         const uniName = String(row[colMap.university] || '').trim();
         if (!uniName) continue;
 
-        const classroomCount = parseInt(String(row[colMap.classrooms_count] || '0').replace(/[^\d]/g, '')) || 1;
+        const classroomCount = parseCount(row[colMap.classrooms_count]) || 1;
         const benchesCell = String(row[colMap.benches] || '');
         const studentsPerBenchCell = String(row[colMap.students_per_bench] || '2');
         const maxCapCell = String(row[colMap.max_capacity] || '');
         const invigCell = String(row[colMap.invig_per_class] || '1');
         const remarksCell = colMap.remarks >= 0 ? String(row[colMap.remarks] || '') : '';
 
-        // Parse students per bench — might be "3 in a big one\n2 in small one" or "1 student per bench" or just "2"
-        let seatsPerBench = 2;
-        const seatMatch = studentsPerBenchCell.match(/(\d+)/);
-        if (seatMatch) seatsPerBench = parseInt(seatMatch[1]);
+        // Parse seats per bench — handle multi-line: "3 in a big one\n2 in small one"
+        // Extract all seat counts for different classroom types
+        const seatLines = studentsPerBenchCell.split(/[\n\r]+/).map(l => l.trim()).filter(l => l);
+        const seatNums = seatLines.map(l => {
+            const m = l.match(/(\d+)/);
+            return m ? parseInt(m[1]) : 2;
+        });
+        const defaultSeatsPerBench = seatNums[0] || 2;
 
-        // Parse benches cell — this is the complex one
-        // Could be:
-        // "24 (small class room)\n48 (large class room)"
-        // "21 big\n2 small"
-        // "35 & 40"
-        // "60"
-        // "80 seats" (these are seats, not benches)
-        // "Hall 1  32\nHall 2  32\nHall 3  40\n..." (individual halls with bench counts)
-        // "Section 1: 40\nSection 2: 25\n..."
-        // "32(sec-3),28(sec-2),28(sec-1)"
+        // Parse benches cell — the most complex column
+        // Formats seen in the sheet:
+        // 1. "24 ( small class room )\n48 ( large class room )" — types with counts
+        // 2. "21 big\n2 small" — named types with counts
+        // 3. "35 & 40" — two bench sizes
+        // 4. "60" — single number
+        // 5. "80 seats" — seat count, not bench count
+        // 6. "Hall 1  32\nHall 2  32\n..." — named halls with bench counts
+        // 7. "Section 1: 40\nSection 3:28\n..." — named sections
+        // 8. "32(sec-3),28(sec-2),28(sec-1)" — comma-separated with names
+        // 9. "minimum 24 benches" — text with number
+        // 10. "90 seats each class room" — seats per classroom
 
         const benchLines = benchesCell.split(/[\n\r]+/).map(l => l.trim()).filter(l => l);
-        const hallPattern = /^(hall|section|room)\s*(\d+)\s*[:\s]+(\d+)/i;
-        const namedPattern = /^(.+?)\s+(\d+)\s*$/;
-        const commaPattern = /(\d+)\s*\(([^)]+)\)/g;
 
         interface ClassroomSpec {
             name: string;
             benches: number;
+            seatsPerBench: number;
             capacity: number;
             invigilators: number;
         }
 
         const specs: ClassroomSpec[] = [];
 
-        // Check if benches cell contains "Hall 1: 32, Hall 2: 32" type individual listings
+        // Pattern: "Hall 1  32" or "Section 1: 40" — named individual rooms
+        const hallPattern = /^(hall|section|room|block)\s*[-.]?\s*(\d+)\s*[:\s]+(\d+)/i;
+        // Pattern: "number(name)" like "32(sec-3)" or "24 ( small class room )"
+        const parenPattern = /(\d+)\s*\(\s*([^)]+)\s*\)/g;
+        // Pattern: "number label" like "21 big" or "48 (large class room)"
+        const numLabelPattern = /^(\d+)\s+(.+)$/;
+        // Pattern: "label number" like "5.0 lab:5"
+        const labelNumPattern = /^(.+?)\s*[:\s]\s*(\d+)\s*$/;
+
         const hasHallNames = benchLines.some(l => hallPattern.test(l));
-        const hasCommaSeparated = [...benchesCell.matchAll(commaPattern)].length >= 2;
+        const parenMatches = [...benchesCell.matchAll(parenPattern)];
+        const hasParenFormat = parenMatches.length >= 1;
 
         if (hasHallNames) {
-            // Each line is a named hall: "Hall 1  32"
+            // CDU-style: "Hall 1  32\nHall 2  32\n..." — each line is one room
             for (const line of benchLines) {
-                const m = line.match(hallPattern) || line.match(namedPattern);
+                const m = line.match(hallPattern);
                 if (m) {
-                    const hallName = m[1] + (m[2] ? ' ' + m[2] : '');
-                    const benchCount = parseInt(m[m.length === 4 ? 3 : 2]) || 30;
+                    const benchCount = parseInt(m[3]) || 30;
                     specs.push({
-                        name: hallName.trim(),
+                        name: `${m[1]} ${m[2]}`,
                         benches: benchCount,
-                        capacity: benchCount * seatsPerBench,
+                        seatsPerBench: defaultSeatsPerBench,
+                        capacity: benchCount * defaultSeatsPerBench,
                         invigilators: 1
                     });
                 }
             }
-        } else if (hasCommaSeparated) {
-            // "32(sec-3),28(sec-2),28(sec-1)"
-            for (const m of benchesCell.matchAll(commaPattern)) {
+            // Also check for non-hall lines like "5.0 lab:5"
+            for (const line of benchLines) {
+                if (hallPattern.test(line)) continue;
+                const m = line.match(labelNumPattern);
+                if (m) {
+                    const benchCount = parseInt(m[2]) || 0;
+                    if (benchCount > 0) {
+                        specs.push({
+                            name: m[1].trim(),
+                            benches: benchCount,
+                            seatsPerBench: defaultSeatsPerBench,
+                            capacity: benchCount * defaultSeatsPerBench,
+                            invigilators: 1
+                        });
+                    }
+                }
+            }
+        } else if (hasParenFormat && parenMatches.length >= 2) {
+            // NRI-style: "32(sec-3),28(sec-2),28(sec-1)" — each match is one room
+            // Also Annamacharya-style: "24 ( small class room )\n48 ( large class room )" — types of rooms
+            for (const m of parenMatches) {
+                const benchCount = parseInt(m[1]);
+                const label = m[2].trim();
                 specs.push({
-                    name: m[2].trim(),
-                    benches: parseInt(m[1]),
-                    capacity: parseInt(m[1]) * seatsPerBench,
+                    name: label,
+                    benches: benchCount,
+                    seatsPerBench: defaultSeatsPerBench,
+                    capacity: benchCount * defaultSeatsPerBench,
+                    invigilators: 1
+                });
+            }
+            // If we have fewer specs than classroomCount, distribute
+            // e.g., Annamacharya: 2 types (small=24, large=48) but 4 classrooms
+            if (specs.length < classroomCount && specs.length > 0) {
+                const typeSpecs = [...specs];
+                specs.length = 0;
+                // Distribute classrooms across types evenly
+                const perType = Math.ceil(classroomCount / typeSpecs.length);
+                let idx = 0;
+                for (let t = 0; t < typeSpecs.length; t++) {
+                    const count = Math.min(perType, classroomCount - idx);
+                    for (let j = 0; j < count; j++) {
+                        specs.push({
+                            ...typeSpecs[t],
+                            name: `${typeSpecs[t].name} ${j + 1}`
+                        });
+                        idx++;
+                    }
+                }
+            }
+        } else if (hasParenFormat && parenMatches.length === 1) {
+            // Single paren like "35(Large Class Rooms)\n30(Small Class Rooms)" — Chalapathi
+            // Actually this would be caught by >= 2 case above via multi-line
+            // But handle single-match case: just one type
+            const m = parenMatches[0];
+            const benchCount = parseInt(m[1]);
+            for (let i = 0; i < classroomCount; i++) {
+                specs.push({
+                    name: `Classroom ${i + 1}`,
+                    benches: benchCount,
+                    seatsPerBench: defaultSeatsPerBench,
+                    capacity: benchCount * defaultSeatsPerBench,
                     invigilators: 1
                 });
             }
         } else {
-            // Generic: extract all numbers, distribute across classrooms
-            const benchNums = (benchesCell.match(/\d+/g) || ['30']).map(Number).filter(n => n > 0);
-            const capNums = (maxCapCell.match(/\d+/g) || []).map(Number).filter(n => n > 0);
-            const invigNums = (invigCell.match(/\d+/g) || ['1']).map(Number).filter(n => n > 0);
-
-            // Check if benches cell mentions "seats" — then benches = seats / seatsPerBench
+            // Generic path: "35 & 40", "60", "80 seats", "minimum 24 benches"
             const isSeatCount = /seats?/i.test(benchesCell);
+            const benchNums = extractNumbers(benchesCell);
+            const invigNums = extractNumbers(invigCell);
 
-            for (let i = 0; i < classroomCount; i++) {
-                let benchCount = benchNums[i % benchNums.length] || benchNums[0] || 30;
-                if (isSeatCount) benchCount = Math.ceil(benchCount / seatsPerBench);
-                const cap = capNums.length > 0
-                    ? (capNums[i % capNums.length] || capNums[0])
-                    : benchCount * seatsPerBench;
-                const invig = invigNums[i % invigNums.length] || 1;
+            if (benchNums.length === 0) benchNums.push(30);
 
-                const label = benchNums.length > 1 && benchNums[i % benchNums.length] >= 35 ? 'Large' :
-                              benchNums.length > 1 ? 'Standard' : '';
+            // If multi-line with labels like "21 big\n2 small" — MRV
+            const hasLabels = benchLines.length >= 2 && benchLines.every(l => {
+                const parts = l.match(/^(\d+)\s+(.+)/);
+                return parts !== null;
+            });
 
-                specs.push({
-                    name: classroomCount === 1 ? 'Classroom 1' : `Classroom ${i + 1}${label ? ` (${label})` : ''}`,
-                    benches: benchCount,
-                    capacity: cap,
-                    invigilators: invig
-                });
+            if (hasLabels) {
+                // MRV-style: "21 big\n2 small" — each line is a type
+                // With seatLines: "3 in a big one\n2 in small one"
+                const typeSpecs: { benches: number; label: string; seats: number }[] = [];
+                for (let li = 0; li < benchLines.length; li++) {
+                    const m = benchLines[li].match(/^(\d+)\s+(.+)/);
+                    if (m) {
+                        typeSpecs.push({
+                            benches: parseInt(m[1]),
+                            label: m[2].trim(),
+                            seats: seatNums[li] || defaultSeatsPerBench
+                        });
+                    }
+                }
+                // Distribute classroomCount across types
+                const perType = Math.ceil(classroomCount / typeSpecs.length);
+                let idx = 0;
+                for (const ts of typeSpecs) {
+                    const count = Math.min(perType, classroomCount - idx);
+                    for (let j = 0; j < count; j++) {
+                        let benchCount = ts.benches;
+                        if (isSeatCount) benchCount = Math.ceil(benchCount / ts.seats);
+                        specs.push({
+                            name: `Classroom ${idx + 1} (${ts.label})`,
+                            benches: benchCount,
+                            seatsPerBench: ts.seats,
+                            capacity: benchCount * ts.seats,
+                            invigilators: invigNums[idx % invigNums.length] || 1
+                        });
+                        idx++;
+                    }
+                }
+            } else {
+                // Simple: "35 & 40", "60", "80 seats", "minimum 24 benches"
+                for (let i = 0; i < classroomCount; i++) {
+                    let benchCount = benchNums[i % benchNums.length] || benchNums[0] || 30;
+                    const spb = defaultSeatsPerBench;
+                    if (isSeatCount) benchCount = Math.ceil(benchCount / spb);
+
+                    const label = benchNums.length > 1
+                        ? (benchNums[i % benchNums.length] >= Math.max(...benchNums) * 0.8 ? 'Large' : 'Standard')
+                        : '';
+
+                    specs.push({
+                        name: classroomCount === 1
+                            ? 'Classroom 1'
+                            : `Classroom ${i + 1}${label ? ` (${label})` : ''}`,
+                        benches: benchCount,
+                        seatsPerBench: spb,
+                        capacity: benchCount * spb,
+                        invigilators: invigNums[i % invigNums.length] || 1
+                    });
+                }
             }
         }
 
-        // Parse max capacity per classroom if individual specs don't have it
-        const capNums = (maxCapCell.match(/\d+/g) || []).map(Number);
-        const invigNums = (invigCell.match(/\d+/g) || []).map(Number);
+        // Override capacity from max_capacity column if provided (per-classroom values)
+        const capLines = maxCapCell.split(/[\n\r]+/).map(l => l.trim()).filter(l => l);
+        // Check if capacity column has named entries like "Section 1: 120\nSection 2: 75"
+        const capHasNames = capLines.some(l => /^(hall|section|room|block)\s*\d/i.test(l) || /^\d+\s*\(/i.test(l));
+
+        let capNums: number[] = [];
+        if (capHasNames) {
+            // Extract numbers maintaining order: "86(sec-3),77(sec-2),77(sec-1)" → [86,77,77]
+            // or "Section 1: 120\nSection 2: 75" → [120,75]
+            for (const line of capLines) {
+                const nums = extractNumbers(line);
+                // For lines like "Section 1: 120", take the LAST number (120, not 1)
+                if (nums.length > 0) capNums.push(nums[nums.length - 1]);
+            }
+        } else {
+            capNums = extractNumbers(maxCapCell);
+        }
+
+        const invigNums = extractNumbers(invigCell);
 
         for (let i = 0; i < specs.length; i++) {
             const spec = specs[i];
-            if (capNums.length > 0 && specs.length === 1) {
-                spec.capacity = capNums[0];
-            } else if (capNums.length >= specs.length) {
-                spec.capacity = capNums[i];
+            // Override capacity if we have per-classroom values
+            if (capNums.length > 0) {
+                if (capNums.length >= specs.length) {
+                    spec.capacity = capNums[i];
+                } else if (capNums.length === 1) {
+                    spec.capacity = capNums[0];
+                } else {
+                    spec.capacity = capNums[i % capNums.length];
+                }
             }
-            if (invigNums.length >= specs.length) {
-                spec.invigilators = invigNums[i];
-            } else if (invigNums.length > 0) {
-                spec.invigilators = invigNums[i % invigNums.length] || 1;
+            // Override invigilators if provided
+            if (invigNums.length > 0) {
+                if (invigNums.length >= specs.length) {
+                    spec.invigilators = invigNums[i];
+                } else {
+                    spec.invigilators = invigNums[i % invigNums.length] || 1;
+                }
             }
-
-            const benchCount = spec.benches;
-            const bCols = Math.ceil(Math.sqrt(benchCount));
-            const bRows = Math.ceil(benchCount / bCols);
 
             parsed.push({
                 university_name: uniName,
                 name: `${uniName} - ${spec.name}`,
-                code: `${uniName.substring(0, 3).toUpperCase()}-R${i + 1}`,
-                room_type: benchCount >= 40 ? 'HALL' : benchCount <= 5 ? 'LAB' : 'LECTURE',
-                total_benches: benchCount,
-                seats_per_bench: seatsPerBench,
-                capacity: spec.capacity || benchCount * seatsPerBench,
+                code: `${uniName.substring(0, 4).toUpperCase().replace(/\s+/g, '')}-R${r}-${i + 1}`,
+                room_type: spec.benches >= 40 ? 'HALL' : spec.benches <= 5 ? 'LAB' : 'LECTURE',
+                total_benches: spec.benches,
+                seats_per_bench: spec.seatsPerBench,
+                capacity: spec.capacity || spec.benches * spec.seatsPerBench,
                 invigilators_required: spec.invigilators,
                 remarks: remarksCell
             });
@@ -261,7 +406,8 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
             row: r + 1,
             university: uniName,
             classrooms_parsed: specs.length,
-            raw: { benchesCell, studentsPerBenchCell, maxCapCell, invigCell }
+            specs: specs.map(s => ({ name: s.name, benches: s.benches, seats: s.seatsPerBench, cap: s.capacity })),
+            raw: { benchesCell, studentsPerBenchCell, maxCapCell, invigCell, classroomCount }
         });
     }
 
@@ -323,11 +469,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         ]);
 
         const uniMap = new Map<string, string>();
+        const uniNames: { name: string; id: string }[] = [];
         for (const u of uniResult.rows) {
-            uniMap.set(u.name.toUpperCase().trim(), u.id);
-            const words = u.name.toUpperCase().split(/\s+/);
+            const nameUp = u.name.toUpperCase().trim();
+            uniMap.set(nameUp, u.id);
+            uniNames.push({ name: nameUp, id: u.id });
+            // Index individual words (length >= 2 to match short names like "MRV", "NRI", "SGU", "CDU")
+            const words = nameUp.split(/\s+/);
             for (const w of words) {
-                if (w.length > 3) uniMap.set(w, u.id);
+                if (w.length >= 2 && !['OF', 'THE', 'AND', 'FOR', 'IN', 'AT', 'TO', 'BY'].includes(w)) {
+                    uniMap.set(w, u.id);
+                }
             }
         }
 
@@ -343,19 +495,43 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const resolved: { classroom: ParsedClassroom; uniId: string }[] = [];
         const missingCampusUniIds = new Set<string>();
 
+        // Cache resolved university IDs by sheet name to avoid repeated lookups
+        const uniIdCache = new Map<string, string>();
+
+        function resolveUniversityId(sheetName: string): string {
+            const nameUp = sheetName.toUpperCase().trim();
+            if (uniIdCache.has(nameUp)) return uniIdCache.get(nameUp)!;
+
+            // 1. Exact match
+            let id = uniMap.get(nameUp) || '';
+            if (!id) {
+                // 2. Sheet name is a word in DB name or vice versa
+                for (const [key, uid] of uniMap) {
+                    if (nameUp.includes(key) || key.includes(nameUp)) {
+                        id = uid;
+                        break;
+                    }
+                }
+            }
+            if (!id) {
+                // 3. Fuzzy: any word from sheet name matches any word from DB name
+                const sheetWords = nameUp.split(/\s+/).filter(w => w.length >= 2);
+                for (const { name: dbName, id: uid } of uniNames) {
+                    const dbWords = dbName.split(/\s+/);
+                    const match = sheetWords.some(sw => dbWords.some(dw =>
+                        sw === dw || sw.includes(dw) || dw.includes(sw)
+                    ));
+                    if (match) { id = uid; break; }
+                }
+            }
+            uniIdCache.set(nameUp, id);
+            return id;
+        }
+
         for (const classroom of parsed) {
             let uniId = targetUniversityId;
             if (!uniId) {
-                const nameUp = classroom.university_name.toUpperCase().trim();
-                uniId = uniMap.get(nameUp) || '';
-                if (!uniId) {
-                    for (const [key, id] of uniMap) {
-                        if (nameUp.includes(key) || key.includes(nameUp)) {
-                            uniId = id;
-                            break;
-                        }
-                    }
-                }
+                uniId = resolveUniversityId(classroom.university_name);
             }
 
             if (!uniId) {

@@ -143,6 +143,16 @@
     } catch { toast('Failed to delete classroom', 'error'); }
   }
 
+  async function deleteAllClassrooms() {
+    if (!confirm(`Delete ALL ${classrooms.length} classrooms? This will clear everything so you can re-import fresh.`)) return;
+    try {
+      const res = await fetch(`/api/academic/classrooms`, { method: 'DELETE' });
+      const data = await res.json();
+      toast(`Deleted ${data.deleted} classrooms`, 'success');
+      await loadClassrooms();
+    } catch { toast('Failed to delete classrooms', 'error'); }
+  }
+
   // Section colors for BookMyShow visualization
   const SECTION_COLORS = [
     'bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500',
@@ -195,6 +205,11 @@
       <button onclick={() => showCreate = true} class="px-5 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-sm">
         + Add Classroom
       </button>
+      {#if classrooms.length > 0}
+        <button onclick={deleteAllClassrooms} class="px-5 py-2.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-700 transition-all shadow-sm">
+          Delete All
+        </button>
+      {/if}
     </div>
   </div>
 
