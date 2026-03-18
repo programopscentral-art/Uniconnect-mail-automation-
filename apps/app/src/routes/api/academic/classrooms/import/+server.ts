@@ -294,10 +294,32 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }, { status: 400 });
         }
 
-        // Match university names to DB records + pre-fetch all campuses (2 queries total)
+        // Match university names to DB records + pre-fetch all campuses + ensure schema (parallel)
         const [uniResult, campusResult] = await Promise.all([
             db.query(`SELECT id, name FROM universities`),
-            db.query(`SELECT id, university_id FROM campuses`)
+            db.query(`SELECT id, university_id FROM campuses`),
+            // Ensure unique constraint exists for ON CONFLICT upsert
+            db.query(`
+                DO $$ BEGIN
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS campus_id UUID;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS code TEXT;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS room_type TEXT;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS total_benches INTEGER DEFAULT 0;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS seats_per_bench INTEGER DEFAULT 2;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS bench_rows INTEGER DEFAULT 0;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS bench_columns INTEGER DEFAULT 0;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS layout_type TEXT DEFAULT 'grid';
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS invigilators_required INTEGER DEFAULT 1;
+                    ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS building TEXT;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'classrooms_university_id_campus_id_code_key') THEN
+                        UPDATE classrooms SET code = UPPER(REPLACE(LEFT(name, 20), ' ', '-')) WHERE code IS NULL;
+                        ALTER TABLE classrooms ALTER COLUMN code SET NOT NULL;
+                        ALTER TABLE classrooms ADD CONSTRAINT classrooms_university_id_campus_id_code_key UNIQUE (university_id, campus_id, code);
+                    END IF;
+                END $$;
+            `)
         ]);
 
         const uniMap = new Map<string, string>();
@@ -315,8 +337,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!campusMap.has(c.university_id)) campusMap.set(c.university_id, c.id);
         }
 
-        const toCreate: any[] = [];
         const skipped: any[] = [];
+
+        // Step 1: Resolve university IDs for all classrooms
+        const resolved: { classroom: ParsedClassroom; uniId: string }[] = [];
+        const missingCampusUniIds = new Set<string>();
 
         for (const classroom of parsed) {
             let uniId = targetUniversityId;
@@ -337,27 +362,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 skipped.push({ ...classroom, reason: `University "${classroom.university_name}" not found in DB` });
                 continue;
             }
+            resolved.push({ classroom, uniId });
+            if (!campusMap.has(uniId)) missingCampusUniIds.add(uniId);
+        }
 
-            // Get or create campus (cached)
-            let campusId = campusMap.get(uniId);
-            if (!campusId) {
-                const nc = await db.query(
-                    `INSERT INTO campuses (university_id, name, code) VALUES ($1, 'Main Campus', 'MAIN') ON CONFLICT DO NOTHING RETURNING id`,
-                    [uniId]
-                );
-                campusId = nc.rows[0]?.id;
-                if (!campusId) {
-                    const existing = await db.query(`SELECT id FROM campuses WHERE university_id = $1 LIMIT 1`, [uniId]);
-                    campusId = existing.rows[0]?.id;
-                }
-                if (campusId) campusMap.set(uniId, campusId);
-            }
+        // Step 2: Batch-create all missing campuses in ONE query
+        if (missingCampusUniIds.size > 0) {
+            const uniIds = [...missingCampusUniIds];
+            const vals = uniIds.flatMap(id => [id, 'Main Campus', 'MAIN']);
+            const ph = uniIds.map((_, i) => `($${i*3+1}, $${i*3+2}, $${i*3+3})`).join(', ');
+            await db.query(
+                `INSERT INTO campuses (university_id, name, code) VALUES ${ph} ON CONFLICT DO NOTHING`,
+                vals
+            );
+            // Re-fetch all campuses for these universities in one query
+            const placeholders = uniIds.map((_, i) => `$${i+1}`).join(', ');
+            const campResult = await db.query(
+                `SELECT DISTINCT ON (university_id) id, university_id FROM campuses WHERE university_id IN (${placeholders}) ORDER BY university_id, created_at`,
+                uniIds
+            );
+            for (const c of campResult.rows) campusMap.set(c.university_id, c.id);
+        }
 
+        // Step 3: Build toCreate array
+        const toCreate: any[] = [];
+        for (const { classroom, uniId } of resolved) {
+            const campusId = campusMap.get(uniId);
             if (!campusId) {
                 skipped.push({ ...classroom, reason: 'Could not find/create campus' });
                 continue;
             }
-
             toCreate.push({
                 university_id: uniId,
                 campus_id: campusId,

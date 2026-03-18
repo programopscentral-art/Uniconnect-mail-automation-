@@ -34,6 +34,12 @@ export class ClassroomService {
     static async ensureColumns() {
         await db.query(`
             DO $$ BEGIN
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS campus_id UUID REFERENCES campuses(id) ON DELETE SET NULL;
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS code TEXT;
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS room_type TEXT;
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'ACTIVE';
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;
+                ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS metadata_json JSONB DEFAULT '{}'::jsonb;
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS building TEXT;
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS total_benches INTEGER DEFAULT 0;
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS seats_per_bench INTEGER DEFAULT 2;
@@ -41,6 +47,18 @@ export class ClassroomService {
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS bench_rows INTEGER DEFAULT 0;
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS bench_columns INTEGER DEFAULT 0;
                 ALTER TABLE classrooms ADD COLUMN IF NOT EXISTS layout_type TEXT DEFAULT 'grid';
+            END $$;
+        `);
+        // Ensure unique constraint exists for upsert
+        await db.query(`
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'classrooms_university_id_campus_id_code_key'
+                ) THEN
+                    UPDATE classrooms SET code = UPPER(REPLACE(LEFT(name, 20), ' ', '-')) WHERE code IS NULL;
+                    ALTER TABLE classrooms ALTER COLUMN code SET NOT NULL;
+                    ALTER TABLE classrooms ADD CONSTRAINT classrooms_university_id_campus_id_code_key UNIQUE (university_id, campus_id, code);
+                END IF;
             END $$;
         `);
     }
