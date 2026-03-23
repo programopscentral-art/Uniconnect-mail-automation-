@@ -25,6 +25,7 @@ export async function createTask(data: {
     assignee_ids?: string[];
     assigned_by: string;
     university_id?: string;
+    start_date?: string;
     due_date?: string;
     estimated_time?: string;
 }) {
@@ -34,14 +35,15 @@ export async function createTask(data: {
     const estimated_time = data.estimated_time || '1h';
 
     const result = await db.query(
-        `INSERT INTO tasks (title, description, priority, assigned_by, university_id, due_date, estimated_time)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        `INSERT INTO tasks (title, description, priority, assigned_by, university_id, start_date, due_date, estimated_time)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [
             taskData.title,
             (taskData.description && taskData.description.trim() !== '') ? taskData.description : null,
             taskData.priority || 'MEDIUM',
             taskData.assigned_by,
             (taskData.university_id && taskData.university_id !== '') ? taskData.university_id : null,
+            (taskData.start_date && taskData.start_date !== '') ? taskData.start_date : null,
             (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null,
             estimated_time
         ]
@@ -101,7 +103,7 @@ export async function getTasks(filters: {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.due_date, t.created_at, t.assigned_by, t.estimated_time,
+        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.start_date, t.due_date, t.created_at, t.assigned_by, t.estimated_time,
             u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
             u_by.email as assigned_by_email,
@@ -127,7 +129,7 @@ export async function getTasks(filters: {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
-         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.start_date, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
          ORDER BY t.created_at DESC${limitClause}`,
         params
     );

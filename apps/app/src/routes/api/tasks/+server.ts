@@ -13,15 +13,21 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     // Strict Multi-Tenant Enforcement
     const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
-    if (!isGlobalAdmin) {
+
+    // Check if user is a Central BOA (team member)
+    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === (university_id || locals.user!.university_id));
+    const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
+
+    if (!isGlobalAdmin && !isCentralBOA) {
         university_id = locals.user.university_id || undefined;
     }
+    // For Central BOA: use the requested university_id (their team's id) to see all team tasks
 
     const tasks = await getTasks({
         assigned_to,
         university_id,
         status,
-        creator_id: isGlobalAdmin ? undefined : locals.user.id,
+        creator_id: (isGlobalAdmin || isCentralBOA) ? undefined : locals.user.id,
         limit
     });
     return json(tasks);

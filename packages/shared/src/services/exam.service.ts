@@ -3,8 +3,12 @@ import { db } from '../db/client';
 export interface ExamPlan {
     id: string;
     university_id: string;
-    program_id: string;
-    term_id: string;
+    program_id: string | null;
+    term_id: string | null;
+    batch_id?: string | null;
+    semester_number?: number | null;
+    term_ids?: string[];
+    covered_programs_json?: any;
     exam_name: string;
     exam_type: 'INTERNAL' | 'SEMESTER_END' | 'BACKLOG';
     start_date: Date;
@@ -36,7 +40,10 @@ export interface SeatAssignment {
     student_name: string;
     section_id: string;
     section_name: string;
+    program_id?: string;
     program_name: string;
+    batch_id?: string;
+    batch_name?: string;
 }
 
 export class ExamService {
@@ -45,10 +52,12 @@ export class ExamService {
     static async getExamPlans(universityId: string) {
         const result = await db.query(
             `SELECT ep.*, p.name as program_name, t.name as term_name,
+                    ab.name as batch_name,
                     (SELECT COUNT(*) FROM exams e WHERE e.exam_plan_id = ep.id) as exam_count
              FROM exam_plans ep
              LEFT JOIN programs p ON ep.program_id = p.id
              LEFT JOIN terms t ON ep.term_id = t.id
+             LEFT JOIN academic_batches ab ON ep.batch_id = ab.id
              WHERE ep.university_id = $1
              ORDER BY ep.created_at DESC`,
             [universityId]
@@ -58,22 +67,37 @@ export class ExamService {
 
     static async getExamPlan(planId: string) {
         const result = await db.query(
-            `SELECT ep.*, p.name as program_name, t.name as term_name
+            `SELECT ep.*, p.name as program_name, t.name as term_name,
+                    ab.name as batch_name
              FROM exam_plans ep
              LEFT JOIN programs p ON ep.program_id = p.id
              LEFT JOIN terms t ON ep.term_id = t.id
+             LEFT JOIN academic_batches ab ON ep.batch_id = ab.id
              WHERE ep.id = $1`,
             [planId]
         );
         return result.rows[0] || null;
     }
 
-    static async createExamPlan(data: Omit<ExamPlan, 'id' | 'version_status'>) {
+    static async createExamPlan(data: any) {
+        // Support both old-style (program_id + term_id) and new-style (batch_id + semester_number)
         const result = await db.query(
-            `INSERT INTO exam_plans (university_id, program_id, term_id, exam_name, exam_type, start_date, end_date, version_status)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'DRAFT')
+            `INSERT INTO exam_plans (university_id, program_id, term_id, batch_id, semester_number, term_ids, covered_programs_json, exam_name, exam_type, start_date, end_date, version_status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'DRAFT')
              RETURNING *`,
-            [data.university_id, data.program_id, data.term_id, data.exam_name, data.exam_type, data.start_date, data.end_date]
+            [
+                data.university_id,
+                data.program_id || null,
+                data.term_id || null,
+                data.batch_id || null,
+                data.semester_number || null,
+                data.term_ids || null,
+                data.covered_programs_json ? JSON.stringify(data.covered_programs_json) : null,
+                data.exam_name,
+                data.exam_type,
+                data.start_date,
+                data.end_date
+            ]
         );
         return result.rows[0] as ExamPlan;
     }
@@ -301,15 +325,75 @@ export class ExamService {
                 }
 
                 if (assignments.length > 0) {
-                    // Validate constraints
-                    let violations = 0;
-                    for (let i = 0; i < assignments.length; i++) {
-                        const a = assignments[i];
-                        // Check same-bench neighbor
-                        const neighbor = assignments.find(b =>
-                            b.bench_row === a.bench_row && b.bench_col === a.bench_col && b.seat !== a.seat
-                        );
-                        if (neighbor && neighbor.section_id === a.section_id) violations++;
+                    // Validate constraints and repair violations
+                    const countViolations = () => {
+                        let v = 0;
+                        for (let i = 0; i < assignments.length; i++) {
+                            const a = assignments[i];
+                            const neighbor = assignments.find(b =>
+                                b.bench_row === a.bench_row && b.bench_col === a.bench_col && b.seat !== a.seat
+                            );
+                            if (neighbor && neighbor.section_id === a.section_id) v++;
+                        }
+                        return v;
+                    };
+
+                    let violations = countViolations();
+
+                    // Repair loop: try to fix violations by swapping students across benches
+                    const MAX_REPAIR_PASSES = 3;
+                    for (let pass = 0; pass < MAX_REPAIR_PASSES && violations > 0; pass++) {
+                        for (let i = 0; i < assignments.length; i++) {
+                            const a = assignments[i];
+                            const benchMate = assignments.find(b =>
+                                b.bench_row === a.bench_row && b.bench_col === a.bench_col && b.seat !== a.seat
+                            );
+                            if (!benchMate || benchMate.section_id !== a.section_id) continue;
+
+                            // a is a violating student — find a swap candidate on a different bench
+                            let swapped = false;
+                            for (let j = 0; j < assignments.length && !swapped; j++) {
+                                const candidate = assignments[j];
+                                // Must be on a different bench
+                                if (candidate.bench_row === a.bench_row && candidate.bench_col === a.bench_col) continue;
+
+                                // Check that putting 'a' on the candidate's bench won't create a new violation
+                                const candidateBenchMate = assignments.find(b =>
+                                    b.bench_row === candidate.bench_row && b.bench_col === candidate.bench_col && b.seat !== candidate.seat
+                                );
+
+                                // a's section must differ from candidate's bench-mate's section (if bench-mate exists)
+                                if (candidateBenchMate && candidateBenchMate.section_id === a.section_id) continue;
+
+                                // candidate's section must differ from a's bench-mate's section
+                                if (benchMate.section_id === candidate.section_id) continue;
+
+                                // Perform the swap — exchange student fields between a and candidate
+                                const tempStudentId = a.student_id;
+                                const tempEnrollment = a.enrollment_no;
+                                const tempName = a.student_name;
+                                const tempSection = a.section_id;
+                                const tempSectionName = a.section_name;
+                                const tempProgram = a.program_name;
+
+                                a.student_id = candidate.student_id;
+                                a.enrollment_no = candidate.enrollment_no;
+                                a.student_name = candidate.student_name;
+                                a.section_id = candidate.section_id;
+                                a.section_name = candidate.section_name;
+                                a.program_name = candidate.program_name;
+
+                                candidate.student_id = tempStudentId;
+                                candidate.enrollment_no = tempEnrollment;
+                                candidate.student_name = tempName;
+                                candidate.section_id = tempSection;
+                                candidate.section_name = tempSectionName;
+                                candidate.program_name = tempProgram;
+
+                                swapped = true;
+                            }
+                        }
+                        violations = countViolations();
                     }
 
                     const seatingData = {
@@ -521,13 +605,15 @@ export class ExamService {
     static async getExamSchedule(planId: string) {
         const result = await db.query(
             `SELECT e.*, s.name as subject_name, s.code as subject_code,
-                    cl.name as classroom_name, sec.name as section_name
+                    cl.name as classroom_name, sec.name as section_name,
+                    p.name as program_name, p.id as program_id
              FROM exams e
              JOIN subjects s ON e.subject_id = s.id
              LEFT JOIN classrooms cl ON e.classroom_id = cl.id
              JOIN sections sec ON e.section_id = sec.id
+             JOIN programs p ON sec.program_id = p.id
              WHERE e.exam_plan_id = $1
-             ORDER BY e.exam_date, e.slot_start`,
+             ORDER BY e.exam_date, e.slot_start, p.name`,
             [planId]
         );
         return result.rows;
@@ -549,5 +635,257 @@ export class ExamService {
             [planId]
         );
         return result.rows[0];
+    }
+
+    // --- Auto Timetable Generation (Multi-Branch) ---
+
+    static async autoGenerateTimetable(params: {
+        examPlanId: string;
+        timeSlots: Array<{ start: string; end: string }>;
+        classroomIds: string[];
+        excludeDates?: string[];
+        maxExamsPerDayPerStudent?: number;
+    }): Promise<{ exams_created: number; conflicts: string[]; warnings: string[] }> {
+        const { examPlanId, timeSlots, classroomIds, excludeDates = [], maxExamsPerDayPerStudent = 2 } = params;
+        const conflicts: string[] = [];
+        const warnings: string[] = [];
+
+        // 1. Get the exam plan
+        const planResult = await db.query(
+            `SELECT ep.*, ab.name as batch_name
+             FROM exam_plans ep
+             LEFT JOIN academic_batches ab ON ep.batch_id = ab.id
+             WHERE ep.id = $1`,
+            [examPlanId]
+        );
+        const plan = planResult.rows[0];
+        if (!plan) throw new Error(`Exam plan not found: ${examPlanId}`);
+
+        // 2. Resolve all programs/terms/sections/subjects for this plan
+        // New-style: batch_id + semester_number (multi-branch)
+        // Old-style fallback: program_id + term_id (single branch)
+        let allSubjects: any[] = [];
+        let allSections: any[] = [];
+
+        if (plan.batch_id && plan.semester_number) {
+            // Multi-branch: find all terms for this semester across all programs
+            const termsResult = await db.query(
+                `SELECT t.id, t.program_id, p.name as program_name
+                 FROM terms t
+                 JOIN programs p ON t.program_id = p.id
+                 WHERE t.university_id = $1 AND t.semester_number = $2 AND t.is_active = true`,
+                [plan.university_id, plan.semester_number]
+            );
+
+            for (const term of termsResult.rows) {
+                // Get sections for this program + batch
+                let secs = await db.query(
+                    `SELECT s.id, s.name, s.strength, s.program_id, $3::text as program_name
+                     FROM sections s
+                     WHERE s.program_id = $1 AND s.batch_id = $2 AND s.is_active = true`,
+                    [term.program_id, plan.batch_id, term.program_name]
+                );
+                if (secs.rows.length === 0) {
+                    // Fallback: match by program_id only
+                    secs = await db.query(
+                        `SELECT s.id, s.name, s.strength, s.program_id, $2::text as program_name
+                         FROM sections s
+                         WHERE s.program_id = $1 AND s.is_active = true`,
+                        [term.program_id, term.program_name]
+                    );
+                }
+                allSections.push(...secs.rows);
+
+                // Get subjects for this program + term
+                let subs = await db.query(
+                    `SELECT id, name, code, program_id FROM subjects
+                     WHERE program_id = $1 AND term_id = $2 AND is_active = true`,
+                    [term.program_id, term.id]
+                );
+                if (subs.rows.length === 0) {
+                    subs = await db.query(
+                        `SELECT id, name, code, program_id FROM subjects
+                         WHERE program_id = $1 AND is_active = true`,
+                        [term.program_id]
+                    );
+                }
+                allSubjects.push(...subs.rows);
+            }
+        } else if (plan.program_id) {
+            // Old-style: single program
+            let subs = await db.query(
+                `SELECT id, name, code, program_id FROM subjects WHERE program_id = $1 AND is_active = true ORDER BY name`,
+                [plan.program_id]
+            );
+            allSubjects = subs.rows;
+
+            let secs = await db.query(
+                `SELECT s.id, s.name, s.strength, s.program_id, p.name as program_name
+                 FROM sections s JOIN programs p ON s.program_id = p.id
+                 WHERE s.program_id = $1 AND s.is_active = true`,
+                [plan.program_id]
+            );
+            allSections = secs.rows;
+        }
+
+        if (allSubjects.length === 0) {
+            warnings.push('No subjects found for this plan. Check program/term setup.');
+            return { exams_created: 0, conflicts, warnings };
+        }
+        if (allSections.length === 0) {
+            warnings.push('No sections found for this plan. Check batch/section setup.');
+            return { exams_created: 0, conflicts, warnings };
+        }
+
+        // 3. Get classroom details
+        const classroomsResult = await db.query(
+            `SELECT id, name, capacity FROM classrooms WHERE id = ANY($1) AND is_active = true ORDER BY capacity DESC`,
+            [classroomIds]
+        );
+        const classrooms = classroomsResult.rows;
+        if (classrooms.length === 0) {
+            warnings.push('No valid active classrooms found');
+            return { exams_created: 0, conflicts, warnings };
+        }
+
+        // 4. Get student counts per section
+        const sectionIds = allSections.map((s: any) => s.id);
+        const studentCountsResult = await db.query(
+            `SELECT section_id, COUNT(*)::int as student_count FROM student_profiles WHERE section_id = ANY($1) GROUP BY section_id`,
+            [sectionIds]
+        );
+        const studentCountMap = new Map<string, number>();
+        for (const row of studentCountsResult.rows) {
+            studentCountMap.set(row.section_id, row.student_count);
+        }
+        for (const sec of allSections) {
+            sec.strength = studentCountMap.get(sec.id) || sec.strength || 0;
+        }
+
+        // 5. Build exam requirements: one per (subject, section) where subject.program_id matches section.program_id
+        interface ExamReq {
+            subjectId: string; subjectName: string; subjectCode: string;
+            sectionId: string; sectionName: string; programName: string;
+            strength: number; programId: string;
+        }
+        const examReqs: ExamReq[] = [];
+        for (const subject of allSubjects) {
+            const matchingSections = allSections.filter((s: any) => s.program_id === subject.program_id);
+            for (const section of matchingSections) {
+                examReqs.push({
+                    subjectId: subject.id, subjectName: subject.name, subjectCode: subject.code || '',
+                    sectionId: section.id, sectionName: section.name, programName: section.program_name || '',
+                    strength: section.strength || 0, programId: subject.program_id,
+                });
+            }
+        }
+
+        warnings.push(`Found ${allSubjects.length} subjects across ${new Set(allSections.map((s: any) => s.program_id)).size} branches, ${allSections.length} sections. Scheduling ${examReqs.length} exams.`);
+
+        // 6. Generate valid dates
+        const excludeSet = new Set(excludeDates.map(d => d.substring(0, 10)));
+        const validDates: string[] = [];
+        const startDate = new Date(plan.start_date);
+        const endDate = new Date(plan.end_date);
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().substring(0, 10);
+            if (d.getDay() === 0) continue; // Skip Sundays
+            if (excludeSet.has(dateStr)) continue;
+            validDates.push(dateStr);
+        }
+        if (validDates.length === 0) {
+            warnings.push('No valid dates in range');
+            return { exams_created: 0, conflicts, warnings };
+        }
+
+        // 7. Delete existing exams
+        await db.query(`DELETE FROM exams WHERE exam_plan_id = $1`, [examPlanId]);
+
+        // 8. Save config
+        await db.query(
+            `UPDATE exam_plans SET time_slots_json = $1, available_classroom_ids = $2, generation_config_json = $3 WHERE id = $4`,
+            [JSON.stringify(timeSlots), classroomIds, JSON.stringify({ excludeDates, maxExamsPerDayPerStudent }), examPlanId]
+        );
+
+        // 9. Greedy scheduling — sort most constrained sections first
+        const subjectsPerSection = new Map<string, number>();
+        for (const req of examReqs) {
+            subjectsPerSection.set(req.sectionId, (subjectsPerSection.get(req.sectionId) || 0) + 1);
+        }
+        examReqs.sort((a, b) => (subjectsPerSection.get(b.sectionId) || 0) - (subjectsPerSection.get(a.sectionId) || 0));
+
+        const sectionSlotBooked = new Map<string, Set<string>>();
+        const classroomSlotBooked = new Map<string, Set<string>>();
+        const sectionDayCount = new Map<string, Map<string, number>>();
+        const sectionLastDate = new Map<string, string>();
+        let examsCreated = 0;
+
+        for (const req of examReqs) {
+            let placed = false;
+            const candidates: Array<{ date: string; slotIdx: number; isConsecutive: boolean }> = [];
+            for (const date of validDates) {
+                for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
+                    const lastDate = sectionLastDate.get(req.sectionId);
+                    let isConsecutive = false;
+                    if (lastDate) {
+                        const prev = new Date(lastDate);
+                        prev.setDate(prev.getDate() + 1);
+                        isConsecutive = prev.toISOString().substring(0, 10) === date;
+                    }
+                    candidates.push({ date, slotIdx, isConsecutive });
+                }
+            }
+            candidates.sort((a, b) => {
+                if (a.isConsecutive !== b.isConsecutive) return a.isConsecutive ? 1 : -1;
+                if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+                return a.slotIdx - b.slotIdx;
+            });
+
+            for (const { date, slotIdx } of candidates) {
+                const slotKey = `${date}|${slotIdx}`;
+                const secBooked = sectionSlotBooked.get(req.sectionId);
+                if (secBooked && secBooked.has(slotKey)) continue;
+                const dayMap = sectionDayCount.get(req.sectionId);
+                if ((dayMap?.get(date) || 0) >= maxExamsPerDayPerStudent) continue;
+
+                // Find available classroom
+                let assignedClassroom: any = null;
+                for (const cr of classrooms) {
+                    const crBooked = classroomSlotBooked.get(cr.id);
+                    if (crBooked && crBooked.has(slotKey)) continue;
+                    if (cr.capacity >= req.strength) { assignedClassroom = cr; break; }
+                }
+                if (!assignedClassroom) continue;
+
+                const slot = timeSlots[slotIdx];
+                await db.query(
+                    `INSERT INTO exams (exam_plan_id, subject_id, section_id, exam_date, slot_start, slot_end, classroom_id, exam_mode, exam_status)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'OFFLINE', 'SCHEDULED')`,
+                    [examPlanId, req.subjectId, req.sectionId, date, slot.start, slot.end, assignedClassroom.id]
+                );
+
+                if (!sectionSlotBooked.has(req.sectionId)) sectionSlotBooked.set(req.sectionId, new Set());
+                sectionSlotBooked.get(req.sectionId)!.add(slotKey);
+                if (!classroomSlotBooked.has(assignedClassroom.id)) classroomSlotBooked.set(assignedClassroom.id, new Set());
+                classroomSlotBooked.get(assignedClassroom.id)!.add(slotKey);
+                if (!sectionDayCount.has(req.sectionId)) sectionDayCount.set(req.sectionId, new Map());
+                sectionDayCount.get(req.sectionId)!.set(date, (sectionDayCount.get(req.sectionId)!.get(date) || 0) + 1);
+                sectionLastDate.set(req.sectionId, date);
+
+                examsCreated++;
+                placed = true;
+                break;
+            }
+
+            if (!placed) {
+                conflicts.push(`Could not schedule: ${req.subjectCode || req.subjectName} for ${req.programName} ${req.sectionName}`);
+            }
+        }
+
+        if (conflicts.length > 0) {
+            warnings.push(`${conflicts.length} exam(s) could not be placed.`);
+        }
+
+        return { exams_created: examsCreated, conflicts, warnings };
     }
 }

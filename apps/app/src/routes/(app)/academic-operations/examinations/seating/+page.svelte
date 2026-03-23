@@ -19,6 +19,23 @@
   let zoomLevel = $state(1);
   let selectedSeat = $state<any>(null);
   let selectedExamId = $state('');
+  let selectedSlotKey = $state('');
+
+  const examSlots = $derived(() => {
+    if (!planDetail?.exams) return [];
+    const slotMap = new Map<string, { key: string; date: string; slot_start: string; slot_end: string; exam_ids: string[]; subjects: string[] }>();
+    for (const exam of planDetail.exams) {
+      const key = `${exam.exam_date}|${exam.slot_start}|${exam.slot_end}`;
+      if (!slotMap.has(key)) {
+        slotMap.set(key, { key, date: exam.exam_date, slot_start: exam.slot_start, slot_end: exam.slot_end, exam_ids: [], subjects: [] });
+      }
+      const entry = slotMap.get(key)!;
+      entry.exam_ids.push(exam.id);
+      const subName = exam.subject_name || 'Unknown';
+      if (!entry.subjects.includes(subName)) entry.subjects.push(subName);
+    }
+    return [...slotMap.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.slot_start < b.slot_start ? -1 : 1);
+  });
 
   // Toast
   let toasts = $state<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -64,9 +81,16 @@
     if (selectedPlanId) loadPlanDetail();
   });
 
-  // When exam changes, reload seating
+  // When slot changes, reload seating using first exam_id from that slot
   $effect(() => {
-    if (selectedExamId) loadSeatingForExam(selectedExamId);
+    if (selectedSlotKey) {
+      const slots = examSlots();
+      const slot = slots.find(s => s.key === selectedSlotKey);
+      if (slot && slot.exam_ids.length > 0) {
+        selectedExamId = slot.exam_ids[0];
+        loadSeatingForExam(slot.exam_ids[0]);
+      }
+    }
   });
 
   async function loadData() {
@@ -89,9 +113,12 @@
       const res = await fetch(`/api/academic/exams/plans/${selectedPlanId}`);
       if (res.ok) {
         planDetail = await res.json();
-        // Auto-select first exam if none selected
-        if (planDetail.exams?.length > 0 && !selectedExamId) {
-          selectedExamId = planDetail.exams[0].id;
+        // Auto-select first slot if none selected
+        if (planDetail.exams?.length > 0 && !selectedSlotKey) {
+          const slots = examSlots();
+          if (slots.length > 0) {
+            selectedSlotKey = slots[0].key;
+          }
         }
       } else {
         toast('Failed to load plan details', 'error');
@@ -215,7 +242,7 @@
     return !!neighbor;
   }
 
-  function exportCSV() {
+  function exportPDF() {
     if (!selectedExamId) return;
     window.open(`/api/academic/exams/seating/${selectedExamId}/export`, '_blank');
   }
@@ -265,24 +292,24 @@
       <p class="text-sm text-gray-500 font-medium mt-1">Visual seat assignment with branch-interleaving constraints</p>
     </div>
     <div class="flex items-center gap-3 flex-wrap">
-      <select bind:value={selectedPlanId} onchange={() => { selectedExamId = ''; seatingPlans = []; activeClassroom = ''; }}
+      <select bind:value={selectedPlanId} onchange={() => { selectedExamId = ''; selectedSlotKey = ''; seatingPlans = []; activeClassroom = ''; }}
         class="px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold min-w-[200px] shadow-sm">
         <option value="">Select Exam Plan...</option>
         {#each plans as p}<option value={p.id}>{p.exam_name}</option>{/each}
       </select>
 
-      <!-- Exam selector within plan -->
-      {#if planDetail?.exams?.length > 1}
-        <select bind:value={selectedExamId}
+      <!-- Slot selector within plan -->
+      {#if examSlots().length > 1}
+        <select bind:value={selectedSlotKey}
           class="px-4 py-2.5 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-xl text-xs font-bold min-w-[180px] shadow-sm text-violet-700 dark:text-violet-300">
-          {#each planDetail.exams as exam}
-            <option value={exam.id}>{exam.subject_name} · {fmtDate(exam.exam_date)} {fmtTime(exam.slot_start)}</option>
+          {#each examSlots() as slot}
+            <option value={slot.key}>{fmtDate(slot.date)} {fmtTime(slot.slot_start)} - {fmtTime(slot.slot_end)} ({slot.subjects.length} subject{slot.subjects.length !== 1 ? 's' : ''})</option>
           {/each}
         </select>
       {/if}
 
       {#if seatingPlans.length > 0}
-        <button onclick={exportCSV} class="px-4 py-2.5 bg-gray-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-gray-800 transition-all">Export CSV</button>
+        <button onclick={exportPDF} class="px-4 py-2.5 bg-gray-900 dark:bg-slate-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-gray-800 transition-all">Export PDF</button>
         <button onclick={printLayout} class="px-4 py-2.5 bg-gray-700 text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-sm hover:bg-gray-600 transition-all">Print</button>
       {/if}
     </div>
@@ -387,10 +414,18 @@
             <div class="space-y-2">
               {#each [...sectionColorMap.entries()] as [sectionId, colorIdx]}
                 {@const color = SECTION_COLORS[colorIdx]}
-                {@const sectionName = activeData()?.assignments?.find((a: any) => a.section_id === sectionId)?.section_name || sectionId}
+                {@const matchingAssignment = (() => {
+                  for (const plan of seatingPlans) {
+                    const d = typeof plan.seating_data_json === 'string' ? JSON.parse(plan.seating_data_json) : plan.seating_data_json;
+                    const found = d?.assignments?.find((a: any) => a.section_id === sectionId);
+                    if (found) return found;
+                  }
+                  return null;
+                })()}
+                {@const displayName = matchingAssignment ? `${matchingAssignment.section_name}${matchingAssignment.program_name ? ' (' + matchingAssignment.program_name + ')' : ''}` : sectionId.substring(0, 8)}
                 <div class="flex items-center gap-2">
                   <div class="w-4 h-4 rounded {color.bg}"></div>
-                  <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400">{sectionName}</span>
+                  <span class="text-[10px] font-bold text-gray-600 dark:text-gray-400">{displayName}</span>
                 </div>
               {/each}
             </div>
@@ -428,87 +463,95 @@
             </div>
 
             <!-- Seating Grid -->
-            <div class="p-8 overflow-auto">
-              <div class="flex flex-col items-center" style="transform: scale({zoomLevel}); transform-origin: top center;">
+            <div class="seating-scroll-area overflow-auto" style="max-height: calc(100vh - 260px);">
+              <div class="inline-flex flex-col items-center p-4 min-w-max" style="transform: scale({zoomLevel}); transform-origin: top center;">
                 <!-- Board -->
-                <div class="w-2/3 mb-8">
-                  <div class="h-2 bg-gradient-to-r from-transparent via-gray-300 dark:via-slate-600 to-transparent rounded-full"></div>
-                  <p class="text-center text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-2">Invigilator / Board</p>
+                <div class="w-full max-w-[60%] mb-3 mx-auto">
+                  <div class="h-1.5 bg-gradient-to-r from-transparent via-gray-300 dark:via-slate-600 to-transparent rounded-full"></div>
+                  <p class="text-center text-[9px] font-black text-gray-400 uppercase tracking-[0.3em] mt-1">Invigilator / Board</p>
                 </div>
 
-                <!-- Bench Grid -->
-                <div class="grid gap-3" style="grid-template-columns: auto repeat({activeSeating.bench_columns || 6}, 1fr) auto;">
+                <!-- Bench Grid as HTML table for proper alignment -->
+                <table class="border-collapse mx-auto">
+                  <thead>
+                    <tr>
+                      <th class="w-6"></th>
+                      {#each Array(activeSeating.bench_columns || 6) as _, colIdx}
+                        <th class="text-center pb-1"><span class="text-[9px] font-black text-gray-400">{colIdx + 1}</span></th>
+                      {/each}
+                      <th class="w-6"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                   {#each Array(activeSeating.bench_rows || 5) as _, rowIdx}
-                    <div class="flex items-center justify-center">
-                      <span class="text-[10px] font-black text-gray-400 w-6 text-right">{String.fromCharCode(65 + rowIdx)}</span>
-                    </div>
+                    <tr>
+                      <td class="text-right pr-2 align-middle">
+                        <span class="text-[10px] font-black text-gray-400">{String.fromCharCode(65 + rowIdx)}</span>
+                      </td>
 
-                    {#each Array(activeSeating.bench_columns || 6) as _, colIdx}
-                      {@const benchNum = rowIdx * (activeSeating.bench_columns || 6) + colIdx}
-                      {@const isActive = benchNum < (activeSeating.total_benches || 30)}
-                      <div class="flex flex-col items-center">
-                        {#if isActive}
-                          <div class="flex gap-0.5 p-1 rounded-lg bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-                            {#each Array(activeSeating.seats_per_bench || 2) as _, seatIdx}
-                              {@const assignment = getAssignment(data, rowIdx, colIdx, seatIdx)}
-                              {@const violation = assignment ? isViolation(data, assignment) : false}
-                              {@const isSelected = selectedSeat?.assignment === assignment}
-                              {#if assignment}
-                                {@const color = getSectionColor(assignment.section_id)}
-                                <button
-                                  onclick={() => handleSeatClick(activeSeating, assignment)}
-                                  class="w-12 h-12 rounded-md {color.bg} {color.text} flex flex-col items-center justify-center transition-all hover:scale-110 hover:shadow-lg relative
-                                  {violation ? 'ring-2 ring-rose-500 ring-offset-1' : ''}
-                                  {isSelected ? 'ring-2 ring-amber-400 ring-offset-2 scale-110 shadow-lg' : ''}">
-                                  <span class="text-[7px] font-black leading-none">{assignment.enrollment_no || '?'}</span>
-                                  <span class="text-[6px] font-bold opacity-80 leading-none mt-0.5 truncate max-w-[40px]">{assignment.section_name}</span>
-                                  {#if violation}
-                                    <div class="absolute -top-1 -right-1 w-3 h-3 bg-rose-500 rounded-full flex items-center justify-center">
-                                      <span class="text-[6px] text-white font-black">!</span>
-                                    </div>
-                                  {/if}
-                                </button>
-                              {:else}
-                                <div class="w-12 h-12 rounded-md bg-gray-100 dark:bg-slate-700 border border-dashed border-gray-200 dark:border-slate-600 flex items-center justify-center">
-                                  <span class="text-[8px] text-gray-300 font-bold">{String.fromCharCode(65 + rowIdx)}{colIdx + 1}</span>
-                                </div>
-                              {/if}
-                            {/each}
-                          </div>
-                        {:else}
-                          <div class="flex gap-0.5 p-1 opacity-20">
-                            {#each Array(activeSeating.seats_per_bench || 2) as _}
-                              <div class="w-12 h-12 rounded-md bg-gray-200 dark:bg-slate-700"></div>
-                            {/each}
-                          </div>
-                        {/if}
-                      </div>
-                    {/each}
+                      {#each Array(activeSeating.bench_columns || 6) as _, colIdx}
+                        {@const benchNum = rowIdx * (activeSeating.bench_columns || 6) + colIdx}
+                        {@const isActive = benchNum < (activeSeating.total_benches || 30)}
+                        <td class="p-[2px] align-middle">
+                          {#if isActive}
+                            <div class="flex gap-[2px] p-[3px] rounded-md bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
+                              {#each Array(activeSeating.seats_per_bench || 2) as _, seatIdx}
+                                {@const assignment = getAssignment(data, rowIdx, colIdx, seatIdx)}
+                                {@const violation = assignment ? isViolation(data, assignment) : false}
+                                {@const isSelected = selectedSeat?.assignment === assignment}
+                                {@const seatLabel = `${String.fromCharCode(65 + rowIdx)}${colIdx + 1}-S${seatIdx + 1}`}
+                                {#if assignment}
+                                  {@const color = getSectionColor(assignment.section_id)}
+                                  <button
+                                    onclick={() => handleSeatClick(activeSeating, assignment)}
+                                    title="{assignment.enrollment_no} — {assignment.student_name} ({assignment.section_name}) — Seat {seatLabel}"
+                                    class="seat-cell rounded {color.bg} {color.text} flex flex-col items-center justify-center relative overflow-hidden
+                                    {violation ? 'ring-2 ring-rose-500 ring-offset-1' : ''}
+                                    {isSelected ? 'ring-2 ring-amber-400 ring-offset-2 shadow-lg' : ''}"
+                                    style="transition: transform 0.1s;">
+                                    <span class="seat-pos opacity-60">{seatLabel}</span>
+                                    <span class="seat-roll">{assignment.enrollment_no || '?'}</span>
+                                    <span class="seat-section opacity-80">{assignment.section_name}</span>
+                                    {#if violation}
+                                      <div class="absolute -top-0.5 -right-0.5 w-3 h-3 bg-rose-500 rounded-full flex items-center justify-center">
+                                        <span class="text-[5px] text-white font-black">!</span>
+                                      </div>
+                                    {/if}
+                                  </button>
+                                {:else}
+                                  <div class="seat-cell rounded bg-gray-100 dark:bg-slate-700 border border-dashed border-gray-200 dark:border-slate-600 flex flex-col items-center justify-center">
+                                    <span class="seat-pos text-gray-400">{seatLabel}</span>
+                                  </div>
+                                {/if}
+                              {/each}
+                            </div>
+                          {:else}
+                            <div class="flex gap-[2px] p-[3px] opacity-15">
+                              {#each Array(activeSeating.seats_per_bench || 2) as _}
+                                <div class="seat-cell rounded bg-gray-200 dark:bg-slate-700"></div>
+                              {/each}
+                            </div>
+                          {/if}
+                        </td>
+                      {/each}
 
-                    <div class="flex items-center justify-center">
-                      <span class="text-[10px] font-black text-gray-400 w-6">{String.fromCharCode(65 + rowIdx)}</span>
-                    </div>
+                      <td class="text-left pl-2 align-middle">
+                        <span class="text-[10px] font-black text-gray-400">{String.fromCharCode(65 + rowIdx)}</span>
+                      </td>
+                    </tr>
                   {/each}
-                </div>
-
-                <!-- Column Numbers -->
-                <div class="grid gap-3 mt-3" style="grid-template-columns: auto repeat({activeSeating.bench_columns || 6}, 1fr) auto;">
-                  <div></div>
-                  {#each Array(activeSeating.bench_columns || 6) as _, colIdx}
-                    <div class="text-center"><span class="text-[9px] font-black text-gray-400">{colIdx + 1}</span></div>
-                  {/each}
-                  <div></div>
-                </div>
+                  </tbody>
+                </table>
 
                 <!-- Entry/Exit -->
-                <div class="flex justify-between w-full mt-8 px-8">
+                <div class="flex justify-between w-full mt-3 px-8">
                   <div class="flex items-center gap-2 text-gray-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-                    <span class="text-[9px] font-black uppercase tracking-widest">Entry</span>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                    <span class="text-[8px] font-black uppercase tracking-widest">Entry</span>
                   </div>
                   <div class="flex items-center gap-2 text-gray-300">
-                    <span class="text-[9px] font-black uppercase tracking-widest">Exit</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    <span class="text-[8px] font-black uppercase tracking-widest">Exit</span>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                   </div>
                 </div>
               </div>
@@ -551,6 +594,43 @@
 </div>
 
 <style>
+  .seat-cell {
+    width: 68px;
+    height: 54px;
+    overflow: hidden;
+    cursor: pointer;
+    padding: 2px 1px;
+  }
+  .seat-cell:hover {
+    transform: scale(1.08);
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .seat-pos {
+    font-size: 6px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.3px;
+  }
+  .seat-roll {
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1;
+    margin-top: 2px;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .seat-section {
+    font-size: 7px;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: 1px;
+  }
+  .seating-scroll-area {
+    scrollbar-width: thin;
+  }
   @media print {
     :global(nav), :global(header), :global(.no-print) { display: none !important; }
     :global(body) { background: white !important; }

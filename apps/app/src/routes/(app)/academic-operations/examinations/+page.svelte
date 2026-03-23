@@ -11,6 +11,7 @@
   let loading = $state(true);
   let showCreate = $state(false);
   let saving = $state(false);
+  let batches = $state<any[]>([]);
   let programs = $state<any[]>([]);
   let terms = $state<any[]>([]);
   let subjects = $state<any[]>([]);
@@ -18,6 +19,15 @@
   let classrooms = $state<any[]>([]);
   let selectedPlan = $state<any>(null);
   let showAddExam = $state(false);
+  let showAutoGenerate = $state(false);
+  let generating = $state(false);
+  let coverage = $state<any>(null);
+
+  let genForm = $state({
+    timeSlots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }],
+    classroomIds: [] as string[],
+    excludeDates: '' // comma-separated
+  });
 
   // Toast notification system
   let toasts = $state<{ id: number; message: string; type: 'success' | 'error' | 'info' }[]>([]);
@@ -30,7 +40,8 @@
 
   let planForm = $state({
     exam_name: '', exam_type: 'INTERNAL' as const,
-    program_id: '', term_id: '', start_date: '', end_date: ''
+    batch_id: '', semester_number: 0,
+    start_date: '', end_date: ''
   });
 
   let examForm = $state({
@@ -54,19 +65,38 @@
 
   async function loadRefs() {
     try {
-      const [pRes, tRes, sRes, secRes, cRes] = await Promise.all([
+      const [bRes, pRes, tRes, cRes] = await Promise.all([
+        fetch(`/api/academic/batches?universityId=${universityId}`),
         fetch(`/api/academic/programs?universityId=${universityId}`),
         fetch(`/api/academic/terms?universityId=${universityId}`),
-        fetch(`/api/academic/subjects?universityId=${universityId}`),
-        fetch(`/api/academic/sections?universityId=${universityId}`),
         fetch(`/api/academic/classrooms?universityId=${universityId}`)
       ]);
+      if (bRes.ok) batches = await bRes.json();
       if (pRes.ok) programs = await pRes.json();
       if (tRes.ok) terms = await tRes.json();
-      if (sRes.ok) subjects = await sRes.json();
-      if (secRes.ok) sections = await secRes.json();
       if (cRes.ok) classrooms = await cRes.json();
     } catch { toast('Failed to load reference data', 'error'); }
+  }
+
+  // Load subjects & sections when a plan is selected (needs programId + termId)
+  async function loadSubjectsAndSections(programId: string, termId: string) {
+    try {
+      const [sRes, secRes] = await Promise.all([
+        fetch(`/api/academic/subjects?programId=${programId}&termId=${termId}`),
+        fetch(`/api/academic/sections?programId=${programId}&termId=${termId}`)
+      ]);
+      if (sRes.ok) subjects = await sRes.json();
+      if (secRes.ok) sections = await secRes.json();
+    } catch { toast('Failed to load subjects/sections', 'error'); }
+  }
+
+  async function loadCoverage() {
+    if (!planForm.batch_id || !planForm.semester_number) { coverage = null; return; }
+    try {
+      const res = await fetch(`/api/academic/exams/resolve-coverage?universityId=${universityId}&batchId=${planForm.batch_id}&semesterNumber=${planForm.semester_number}`);
+      if (res.ok) coverage = await res.json();
+      else coverage = null;
+    } catch { coverage = null; }
   }
 
   async function createPlan() {
@@ -75,11 +105,22 @@
       const res = await fetch('/api/academic/exams/plans', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...planForm, university_id: universityId })
+        body: JSON.stringify({
+          university_id: universityId,
+          batch_id: planForm.batch_id || null,
+          semester_number: planForm.semester_number || null,
+          term_ids: coverage?.term_ids || null,
+          covered_programs_json: coverage?.programs || null,
+          exam_name: planForm.exam_name,
+          exam_type: planForm.exam_type,
+          start_date: planForm.start_date,
+          end_date: planForm.end_date
+        })
       });
       if (res.ok) {
         showCreate = false;
-        planForm = { exam_name: '', exam_type: 'INTERNAL', program_id: '', term_id: '', start_date: '', end_date: '' };
+        planForm = { exam_name: '', exam_type: 'INTERNAL', batch_id: '', semester_number: 0, start_date: '', end_date: '' };
+        coverage = null;
         toast('Exam plan created successfully!', 'success');
         await loadPlans();
       } else {
@@ -93,7 +134,13 @@
   async function selectPlan(plan: any) {
     try {
       const res = await fetch(`/api/academic/exams/plans/${plan.id}`);
-      if (res.ok) selectedPlan = await res.json();
+      if (res.ok) {
+        selectedPlan = await res.json();
+        // Load subjects & sections for this plan's program + term
+        if (selectedPlan.program_id) {
+          await loadSubjectsAndSections(selectedPlan.program_id, selectedPlan.term_id || '');
+        }
+      }
       else toast('Failed to load plan details', 'error');
     } catch { toast('Network error', 'error'); }
   }
@@ -128,6 +175,59 @@
       toast('Exam plan deleted', 'success');
       await loadPlans();
     } catch { toast('Failed to delete plan', 'error'); }
+  }
+
+  async function autoGenerateTimetable() {
+    if (!selectedPlan) return;
+    if (genForm.classroomIds.length === 0) { toast('Select at least one classroom', 'error'); return; }
+    generating = true;
+    try {
+      const res = await fetch(`/api/academic/exams/plans/${selectedPlan.id}/generate-timetable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timeSlots: genForm.timeSlots.filter(s => s.start && s.end),
+          classroomIds: genForm.classroomIds,
+          excludeDates: genForm.excludeDates ? genForm.excludeDates.split(',').map(d => d.trim()).filter(Boolean) : []
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast(`Timetable generated: ${data.exams_created} exams scheduled!`, 'success');
+        if (data.conflicts?.length > 0) toast(`${data.conflicts.length} exams could not be placed`, 'error');
+        showAutoGenerate = false;
+        await selectPlan(selectedPlan);
+      } else {
+        toast(data.message || 'Failed to generate timetable', 'error');
+      }
+    } catch { toast('Network error generating timetable', 'error'); }
+    generating = false;
+  }
+
+  function downloadTimetable(format: 'datewise' | 'branchwise') {
+    if (!selectedPlan) return;
+    window.open(`/api/academic/exams/plans/${selectedPlan.id}/export-timetable?format=${format}`, '_blank');
+  }
+
+  function downloadSeatingPlans() {
+    if (!selectedPlan) return;
+    window.open(`/api/academic/exams/plans/${selectedPlan.id}/export-seating`, '_blank');
+  }
+
+  function toggleClassroom(id: string) {
+    if (genForm.classroomIds.includes(id)) {
+      genForm.classroomIds = genForm.classroomIds.filter(c => c !== id);
+    } else {
+      genForm.classroomIds = [...genForm.classroomIds, id];
+    }
+  }
+
+  function addTimeSlot() {
+    genForm.timeSlots = [...genForm.timeSlots, { start: '', end: '' }];
+  }
+
+  function removeTimeSlot(i: number) {
+    genForm.timeSlots = genForm.timeSlots.filter((_, idx) => idx !== i);
   }
 
   function fmtDate(d: string) {
@@ -219,7 +319,7 @@
               <div class="flex items-start justify-between">
                 <div>
                   <p class="text-sm font-black text-gray-900 dark:text-white">{plan.exam_name}</p>
-                  <p class="text-[10px] text-gray-400 font-bold mt-0.5">{plan.program_name || '—'} · {plan.term_name || '—'}</p>
+                  <p class="text-[10px] text-gray-400 font-bold mt-0.5">{plan.batch_name || plan.program_name || '—'} · {plan.semester_number ? `Sem ${plan.semester_number}` : plan.term_name || '—'}</p>
                   <p class="text-[10px] text-gray-400 mt-0.5">{fmtDate(plan.start_date)} — {fmtDate(plan.end_date)}</p>
                 </div>
                 <div class="flex flex-col items-end gap-1">
@@ -246,13 +346,27 @@
               <h3 class="text-lg font-black text-gray-900 dark:text-white">{selectedPlan.exam_name}</h3>
               <p class="text-xs text-gray-500 mt-0.5">
                 <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-indigo-100 text-indigo-700">{selectedPlan.exam_type}</span>
+                {#if selectedPlan.batch_name}
+                  · <span class="font-bold">{selectedPlan.batch_name}</span> · Semester {selectedPlan.semester_number}
+                {:else if selectedPlan.program_name}
+                  · {selectedPlan.program_name}
+                {/if}
                 · {fmtDate(selectedPlan.start_date)} — {fmtDate(selectedPlan.end_date)}
               </p>
             </div>
             <div class="flex items-center gap-2 flex-wrap">
               <button onclick={() => showAddExam = true} class="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all hover:shadow-md active:scale-95">+ Add Exam</button>
+              <button onclick={() => showAutoGenerate = true} class="px-4 py-2 bg-amber-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-700 transition-all hover:shadow-md active:scale-95">Auto-Generate</button>
               <a href="/academic-operations/examinations/seating?planId={selectedPlan.id}" class="px-4 py-2 bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-violet-700 transition-all">Seating</a>
               <a href="/academic-operations/examinations/invigilation?planId={selectedPlan.id}" class="px-4 py-2 bg-teal-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-teal-700 transition-all">Invigilation</a>
+              {#if selectedPlan.exams?.length > 0}
+                <button onclick={() => downloadTimetable('branchwise')} class="px-3 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-all" title="Download timetable (branch-wise CSV)">
+                  <svg class="w-4 h-4 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Timetable
+                </button>
+                <button onclick={downloadSeatingPlans} class="px-3 py-2 bg-cyan-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-cyan-700 transition-all" title="Download all seating plans CSV">
+                  <svg class="w-4 h-4 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Seating
+                </button>
+              {/if}
               <button onclick={() => deletePlan(selectedPlan.id)} class="p-2 text-gray-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 transition-all" title="Delete Plan">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
               </button>
@@ -345,7 +459,7 @@
           <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Exam Name <span class="text-rose-500">*</span></label>
           <input type="text" bind:value={planForm.exam_name} placeholder="CIA 1 - March 2026" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" />
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Type</label>
             <select bind:value={planForm.exam_type} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
@@ -355,31 +469,52 @@
             </select>
           </div>
           <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Program</label>
-            <select bind:value={planForm.program_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
-              <option value="">Select...</option>
-              {#each programs as p}<option value={p.id}>{p.name}</option>{/each}
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Batch <span class="text-rose-500">*</span></label>
+            <select bind:value={planForm.batch_id} onchange={() => loadCoverage()} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="">Select Batch...</option>
+              {#each batches as b}<option value={b.id}>{b.name} ({b.start_year}-{b.end_year})</option>{/each}
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Semester <span class="text-rose-500">*</span></label>
+            <select bind:value={planForm.semester_number} onchange={() => loadCoverage()} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value={0}>Select...</option>
+              {#each [1,2,3,4,5,6,7,8] as sem}<option value={sem}>Semester {sem}</option>{/each}
             </select>
           </div>
         </div>
-        <div class="grid grid-cols-3 gap-4">
-          <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Term</label>
-            <select bind:value={planForm.term_id} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
-              <option value="">Select...</option>
-              {#each terms as t}<option value={t.id}>{t.name}</option>{/each}
-            </select>
+
+        {#if coverage && coverage.programs?.length > 0}
+          <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-3">
+            <p class="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-2">
+              This plan covers <strong>{coverage.programs.length} branches</strong>, <strong>{coverage.total_students} students</strong>, <strong>{coverage.total_subjects} subjects</strong>
+            </p>
+            <div class="space-y-1">
+              {#each coverage.programs as prog}
+                <div class="flex items-center justify-between text-[10px]">
+                  <span class="font-bold text-indigo-600">{prog.program_name}</span>
+                  <span class="text-indigo-500">{prog.sections.length} section(s) · {prog.total_students} students · {prog.subjects} subjects</span>
+                </div>
+              {/each}
+            </div>
           </div>
+        {:else if planForm.batch_id && planForm.semester_number}
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3">
+            <p class="text-xs font-bold text-amber-700">No branches found for this batch + semester combination</p>
+          </div>
+        {/if}
+
+        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Start</label>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Start Date</label>
             <input type="date" bind:value={planForm.start_date} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">End</label>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">End Date</label>
             <input type="date" bind:value={planForm.end_date} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
         </div>
-        <button onclick={createPlan} disabled={saving || !planForm.exam_name}
+        <button onclick={createPlan} disabled={saving || !planForm.exam_name || !planForm.batch_id || !planForm.semester_number}
           class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all hover:shadow-lg active:scale-[0.98]">
           {saving ? 'Creating...' : 'Create Plan'}
         </button>
@@ -448,6 +583,104 @@
         <button onclick={addExamToPlan} disabled={saving || !examForm.subject_id || !examForm.section_id || !examForm.exam_date}
           class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all hover:shadow-lg active:scale-[0.98]">
           {saving ? 'Adding...' : 'Add Exam'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Auto-Generate Timetable Modal -->
+{#if showAutoGenerate && selectedPlan}
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showAutoGenerate = false} transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto" onclick={(e) => e.stopPropagation()}>
+      <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-black text-gray-900 dark:text-white">Auto-Generate Timetable</h3>
+          <p class="text-xs text-gray-500 mt-0.5">Automatically schedule all subject exams across all sections for {selectedPlan.exam_name}</p>
+        </div>
+        <button onclick={() => showAutoGenerate = false} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-5">
+        <!-- Time Slots -->
+        <div>
+          <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Time Slots</label>
+          {#each genForm.timeSlots as slot, i}
+            <div class="flex items-center gap-2 mb-2">
+              <input type="time" bind:value={slot.start} class="flex-1 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+              <span class="text-gray-400 text-xs font-bold">to</span>
+              <input type="time" bind:value={slot.end} class="flex-1 px-3 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+              {#if genForm.timeSlots.length > 1}
+                <button onclick={() => removeTimeSlot(i)} class="p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              {/if}
+            </div>
+          {/each}
+          <button onclick={addTimeSlot} class="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 mt-1">+ Add Time Slot</button>
+        </div>
+
+        <!-- Classrooms -->
+        <div>
+          <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">
+            Select Classrooms <span class="text-gray-400">({genForm.classroomIds.length} selected)</span>
+          </label>
+          <div class="max-h-48 overflow-y-auto border border-gray-200 dark:border-slate-700 rounded-xl p-2 space-y-1 bg-gray-50 dark:bg-slate-800">
+            {#if classrooms.length === 0}
+              <p class="text-xs text-gray-400 p-2">No classrooms found. Import classrooms first.</p>
+            {:else}
+              <button onclick={() => { genForm.classroomIds = genForm.classroomIds.length === classrooms.length ? [] : classrooms.map(c => c.id); }}
+                class="w-full text-left px-3 py-1.5 text-[10px] font-black text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all">
+                {genForm.classroomIds.length === classrooms.length ? 'Deselect All' : 'Select All'}
+              </button>
+              {#each classrooms as c}
+                <label class="flex items-center gap-2 px-3 py-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-all">
+                  <input type="checkbox" checked={genForm.classroomIds.includes(c.id)} onchange={() => toggleClassroom(c.id)}
+                    class="w-4 h-4 text-indigo-600 rounded border-gray-300" />
+                  <span class="text-xs font-bold text-gray-700 dark:text-gray-300 flex-1">{c.name}</span>
+                  <span class="text-[10px] text-gray-400">{c.capacity} seats</span>
+                </label>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <!-- Exclude Dates -->
+        <div>
+          <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Exclude Dates (optional)</label>
+          <input type="text" bind:value={genForm.excludeDates} placeholder="2026-03-25, 2026-03-30"
+            class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          <p class="text-[9px] text-gray-400 mt-1">Comma-separated dates (YYYY-MM-DD). Sundays are excluded automatically.</p>
+        </div>
+
+        <!-- Summary of what will be generated -->
+        <div class="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-3">
+          {#if selectedPlan.covered_programs_json?.length > 0}
+            <p class="text-xs font-bold text-indigo-700 dark:text-indigo-300 mb-1">
+              Will schedule across <strong>{selectedPlan.covered_programs_json.length} branches</strong>
+            </p>
+            {#each selectedPlan.covered_programs_json as prog}
+              <p class="text-[10px] text-indigo-500">{prog.program_name}: {prog.subjects} subjects, {prog.total_students} students</p>
+            {/each}
+          {:else}
+            <p class="text-xs font-bold text-indigo-700 dark:text-indigo-300">
+              Will schedule exams for all subjects and sections in this plan's program/batch
+            </p>
+          {/if}
+        </div>
+
+        {#if selectedPlan.exams?.length > 0}
+          <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-3">
+            <p class="text-xs font-bold text-amber-700 dark:text-amber-300">
+              This plan has {selectedPlan.exams.length} existing exams. Auto-generating will replace them all.
+            </p>
+          </div>
+        {/if}
+
+        <button onclick={autoGenerateTimetable} disabled={generating || genForm.classroomIds.length === 0}
+          class="w-full py-3 bg-amber-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all hover:shadow-lg active:scale-[0.98]">
+          {generating ? 'Generating Timetable...' : 'Generate Exam Timetable'}
         </button>
       </div>
     </div>

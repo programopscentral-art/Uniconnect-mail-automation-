@@ -507,13 +507,23 @@
     isSaving = true;
     autoChecklistGenerated = false;
     try {
+      // Build proper start/end datetime with explicit timezone offset
+      const tzOffset = new Date().getTimezoneOffset(); // in minutes, negative for IST
+      const tzSign = tzOffset <= 0 ? '+' : '-';
+      const tzHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+      const tzMins = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+      const tzStr = `${tzSign}${tzHours}:${tzMins}`;
+
+      const startDateTime = taskForm.due_date
+        ? `${taskForm.due_date}T${taskForm.start_time || '09:00'}:00${tzStr}`
+        : new Date().toISOString();
       const dueDateTime = taskForm.due_date
-        ? `${taskForm.due_date}T${taskForm.end_time || '17:00'}:00`
+        ? `${taskForm.due_date}T${taskForm.end_time || '17:00'}:00${tzStr}`
         : new Date().toISOString();
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...taskForm, due_date: dueDateTime })
+        body: JSON.stringify({ ...taskForm, start_date: startDateTime, due_date: dueDateTime })
       });
       if (res.ok) {
         const task = await res.json();
@@ -2036,7 +2046,7 @@
           {#if selectedTask.due_date}
             <span class="flex items-center gap-1">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              Due: {new Date(selectedTask.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+              Due: {new Date(selectedTask.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}{#if selectedTask.start_date}, {new Date(selectedTask.start_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – {new Date(selectedTask.due_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}{:else}, {new Date(selectedTask.due_date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}{/if}
             </span>
           {/if}
           {#if selectedTask.estimated_time}

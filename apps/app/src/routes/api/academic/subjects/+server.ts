@@ -6,10 +6,35 @@ export const GET: RequestHandler = async ({ url, locals }: { url: URL, locals: A
     if (!locals.user) throw error(401, 'Unauthorized');
 
     const termId = url.searchParams.get('termId');
-    if (!termId) throw error(400, 'termId is required');
+    const programId = url.searchParams.get('programId');
 
-    const subjects = await AcademicService.getSubjects(termId);
-    return json(subjects);
+    if (!termId && !programId) throw error(400, 'termId or programId is required');
+
+    if (termId && programId) {
+        // Try exact match first, fallback to just programId
+        const { db } = await import('@uniconnect/shared');
+        let result = await db.query(
+            'SELECT * FROM subjects WHERE program_id = $1 AND term_id = $2 AND is_active = true ORDER BY name',
+            [programId, termId]
+        );
+        if (result.rows.length === 0) {
+            result = await db.query(
+                'SELECT * FROM subjects WHERE program_id = $1 AND is_active = true ORDER BY name',
+                [programId]
+            );
+        }
+        return json(result.rows);
+    } else if (programId) {
+        const { db } = await import('@uniconnect/shared');
+        const result = await db.query(
+            'SELECT * FROM subjects WHERE program_id = $1 AND is_active = true ORDER BY name',
+            [programId]
+        );
+        return json(result.rows);
+    } else {
+        const subjects = await AcademicService.getSubjects(termId!);
+        return json(subjects);
+    }
 };
 
 export const POST: RequestHandler = async ({ request, locals }: { request: Request, locals: App.Locals }) => {
