@@ -394,16 +394,45 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
                     // Check if single number might be TOTAL benches (not per-classroom)
                     // NIU: 160 benches total, 8 classrooms → 20 each
                     // BUT ADYPU: "90 seats each class room" → 90 is per-room, NOT total
-                    // Heuristic: if benches * spb ≈ E (max cap per room), it's per-room
+                    // BUT Crescent: "60" → 60 is per-room (E=60, 60×1=60 capacity)
+                    // Strategy: try both interpretations, see which matches E better
                     const eCapPerRoom = parseCount(maxCapCell) || 0;
                     if (benchNums.length === 1 && classroomCount > 1 && benchNums[0] > classroomCount * 15) {
-                        const perRoomProduct = benchNums[0] * seatsPerBench;
-                        const dividedProduct = Math.ceil(benchNums[0] / classroomCount) * seatsPerBench;
-                        // If per-room value matches E capacity, keep it as per-room
-                        if (eCapPerRoom > 0 && Math.abs(perRoomProduct - eCapPerRoom) <= eCapPerRoom * 0.2) {
-                            // 90 * 1 = 90 ≈ E(90) → per-room, don't divide
+                        if (eCapPerRoom > 0) {
+                            // Try per-room: does benchNum * any_spb(1-6) ≈ E?
+                            let perRoomMatch = false;
+                            for (let trySpb = 1; trySpb <= 6; trySpb++) {
+                                if (Math.abs(benchNums[0] * trySpb - eCapPerRoom) <= eCapPerRoom * 0.2) {
+                                    perRoomMatch = true; break;
+                                }
+                            }
+                            // Try divided: does (benchNum/count) * any_spb(1-6) ≈ E?
+                            const divided = Math.ceil(benchNums[0] / classroomCount);
+                            let dividedMatch = false;
+                            for (let trySpb = 1; trySpb <= 6; trySpb++) {
+                                if (Math.abs(divided * trySpb - eCapPerRoom) <= eCapPerRoom * 0.2) {
+                                    dividedMatch = true; break;
+                                }
+                            }
+                            // If per-room matches E, keep it. If only divided matches, divide.
+                            if (!perRoomMatch && dividedMatch) {
+                                benchNums[0] = divided;
+                            }
+                            // If both or neither match, check text for clues
+                            else if (!perRoomMatch && !dividedMatch) {
+                                // Default: if number > classroomCount * 50, likely total
+                                if (benchNums[0] > classroomCount * 50) {
+                                    benchNums[0] = divided;
+                                }
+                            }
+                            // perRoomMatch=true → keep as-is
                         } else {
-                            benchNums[0] = Math.ceil(benchNums[0] / classroomCount);
+                            // No E data, use text-based heuristic
+                            if (/\beach\b|\bper\b|\bclassroom\b|\broom\b/i.test(benchesCell)) {
+                                // "90 seats each class room" → per-room
+                            } else {
+                                benchNums[0] = Math.ceil(benchNums[0] / classroomCount);
+                            }
                         }
                     }
 
@@ -483,6 +512,8 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
         const eWordCount = maxCapCell.split(/\s+/).filter(w => w.length > 0).length;
         const eNumCount = capValues.length;
         const eIsDescriptive = eWordCount > 15 && eNumCount > specs.length;
+        // Was D column a clear, simple value? If so, trust it over E-based inference
+        const dIsClear = rawSeatsPerBench >= 1 && rawSeatsPerBench <= 6;
         if (capValues.length > 0 && !eIsDescriptive) {
             for (let i = 0; i < specs.length; i++) {
                 const cap = capValues.length >= specs.length
@@ -498,15 +529,17 @@ function parseExcelClassrooms(buffer: ArrayBuffer): { classrooms: ParsedClassroo
 
                     // If benches × spb doesn't match capacity, figure out which to fix
                     if (Math.abs(computed - cap) > cap * 0.15 && benches > 0) {
-                        // Try to infer correct spb from capacity / benches
-                        const inferredSpb = Math.round(cap / benches);
-                        if (inferredSpb >= 1 && inferredSpb <= 6 && Math.abs(benches * inferredSpb - cap) <= cap * 0.15) {
-                            // Adjusting spb gives a good match — use it
-                            // e.g. NIU: 20 benches, cap 40 → spb=2; Crescent: 60 benches, cap 60 → spb=1
-                            specs[i].seatsPerBench = inferredSpb;
-                        } else {
-                            // Can't fix spb cleanly — adjust bench count instead
+                        if (dIsClear) {
+                            // D gave a clear spb value — trust it, adjust benches instead
                             specs[i].benches = Math.ceil(cap / spb);
+                        } else {
+                            // D was unclear (>6, 0, etc.) — try to infer spb from cap/benches
+                            const inferredSpb = Math.round(cap / benches);
+                            if (inferredSpb >= 1 && inferredSpb <= 6 && Math.abs(benches * inferredSpb - cap) <= cap * 0.15) {
+                                specs[i].seatsPerBench = inferredSpb;
+                            } else {
+                                specs[i].benches = Math.ceil(cap / spb);
+                            }
                         }
                     }
                 }
@@ -681,7 +714,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
             }
             // Also generate common abbreviation from initials
-            const initials = nameUp.split(/\s+/).filter(w => !['OF', 'THE', 'AND', 'FOR', 'IN', 'AT', 'TO', 'BY', 'IS', 'IT', 'OR', 'AN', 'UNIVERSITY', '&'].includes(w)).map(w => w[0]).join('');
+            const initials = nameUp.split(/\s+/).filter((w: string) => !['OF', 'THE', 'AND', 'FOR', 'IN', 'AT', 'TO', 'BY', 'IS', 'IT', 'OR', 'AN', 'UNIVERSITY', '&'].includes(w)).map((w: string) => w[0]).join('');
             if (initials.length >= 2) uniMap.set(initials, u.id);
         }
 
@@ -697,7 +730,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (nameUp.includes('CRESCENT')) abbreviationAliases['CRESCENT'] = [u.id];
             if (nameUp.includes('NSRIT')) abbreviationAliases['NSRIT'] = [u.id];
             if (nameUp.includes('NRI')) abbreviationAliases['NRI'] = [u.id];
-            if (nameUp.includes('CHALAPATHI')) abbreviationAliases['CHALAPATHI'] = [u.id];
+            if (nameUp.includes('CHALAPATHI') || nameUp === 'CRM') { abbreviationAliases['CHALAPATHI'] = [u.id]; abbreviationAliases['CRM'] = [u.id]; }
             if (nameUp.includes('CDU')) abbreviationAliases['CDU'] = [u.id];
             if (nameUp.includes('GHODAWAT')) { abbreviationAliases['SGU'] = [u.id]; abbreviationAliases['SANJAY GHODAWAT'] = [u.id]; }
             if (nameUp.includes('VYASA') || nameUp.includes('S-VYASA')) abbreviationAliases['SVYASA'] = [u.id];
@@ -776,6 +809,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 uniIds
             );
             for (const c of campResult.rows) campusMap.set(c.university_id, c.id);
+        }
+
+        // Delete existing classrooms for universities being imported to prevent accumulation
+        const resolvedUniIds = [...new Set(resolved.map(r => r.uniId))];
+        if (resolvedUniIds.length > 0) {
+            const delPh = resolvedUniIds.map((_, i) => `$${i + 1}`).join(', ');
+            const delResult = await db.query(`DELETE FROM classrooms WHERE university_id IN (${delPh})`, resolvedUniIds);
+            console.log(`[import] deleted ${delResult.rowCount} old classrooms for ${resolvedUniIds.length} universities`);
         }
 
         // Build toCreate
