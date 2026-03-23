@@ -27,6 +27,9 @@
   let importResult = $state<any>(null);
   let importError = $state('');
   let zoomLevel = $state(1);
+  let editingRoom = $state<any>(null);
+  let editForm = $state({ name: '', code: '', room_type: 'LECTURE', building: '', floor: 0, total_benches: 0, seats_per_bench: 2, invigilators_required: 1 });
+  let editSaving = $state(false);
 
   // Create form
   let form = $state({
@@ -153,6 +156,36 @@
     } catch { toast('Failed to delete classrooms', 'error'); }
   }
 
+  function startEdit(room: any, e?: Event) {
+    e?.stopPropagation();
+    editingRoom = room;
+    editForm = { name: room.name, code: room.code || '', room_type: room.room_type || 'LECTURE', building: room.building || '', floor: room.floor || 0, total_benches: room.total_benches || 0, seats_per_bench: room.seats_per_bench || 2, invigilators_required: room.invigilators_required || 1 };
+  }
+
+  async function saveEdit() {
+    if (!editingRoom) return;
+    editSaving = true;
+    try {
+      const cols = Math.ceil(Math.sqrt(editForm.total_benches));
+      const rows = Math.ceil(editForm.total_benches / cols);
+      const res = await fetch(`/api/academic/classrooms/${editingRoom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editForm, bench_rows: rows, bench_columns: cols, capacity: editForm.total_benches * editForm.seats_per_bench })
+      });
+      if (res.ok) {
+        toast('Classroom updated!', 'success');
+        editingRoom = null;
+        showLayout = null;
+        await loadClassrooms();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast(data.message || 'Failed to update', 'error');
+      }
+    } catch { toast('Network error', 'error'); }
+    editSaving = false;
+  }
+
   // Section colors for BookMyShow visualization
   const SECTION_COLORS = [
     'bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500',
@@ -268,10 +301,16 @@
                   <p class="text-[10px] text-gray-400 font-bold mt-0.5">{room.building || ''}{room.building && room.floor ? ', ' : ''}{room.floor ? `Floor ${room.floor}` : ''}</p>
                 {/if}
               </div>
-              <button onclick={(e) => { e.stopPropagation(); deleteClassroom(room.id); }}
-                class="opacity-0 group-hover:opacity-100 p-1.5 text-gray-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-              </button>
+              <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <button onclick={(e) => startEdit(room, e)}
+                  class="p-1.5 text-gray-300 hover:text-indigo-500 rounded-lg hover:bg-indigo-50 transition-all" title="Edit classroom">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+                <button onclick={(e) => { e.stopPropagation(); deleteClassroom(room.id); }}
+                  class="p-1.5 text-gray-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" title="Delete classroom">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -358,6 +397,10 @@
           </p>
         </div>
         <div class="flex items-center gap-3">
+          <button onclick={() => { startEdit(showLayout); showLayout = null; }}
+            class="px-4 py-2 bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-200 transition-all">
+            Edit
+          </button>
           <!-- Zoom -->
           <div class="flex items-center gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl p-1">
             <button onclick={() => zoomLevel = Math.max(0.5, zoomLevel - 0.1)} class="p-1.5 hover:bg-white rounded-lg text-xs font-black">−</button>
@@ -570,6 +613,62 @@
         <button onclick={createClassroom} disabled={saving || !form.name || !form.code}
           class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
           {saving ? 'Creating...' : 'Create Classroom'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Edit Classroom Modal -->
+{#if editingRoom}
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => editingRoom = null} transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
+      <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">Edit Classroom</h3>
+        <button onclick={() => editingRoom = null} class="p-2 hover:bg-gray-100 rounded-xl">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Name</label>
+            <input type="text" bind:value={editForm.name} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Code</label>
+            <input type="text" bind:value={editForm.code} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Type</label>
+            <select bind:value={editForm.room_type} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
+              <option value="LECTURE">Lecture</option><option value="LAB">Lab</option><option value="HALL">Hall</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Building</label>
+            <input type="text" bind:value={editForm.building} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Total Benches</label>
+            <input type="number" bind:value={editForm.total_benches} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Seats per Bench</label>
+            <input type="number" bind:value={editForm.seats_per_bench} min="1" max="6" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Invigilators</label>
+            <input type="number" bind:value={editForm.invigilators_required} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
+          </div>
+          <div>
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Capacity (auto)</label>
+            <div class="px-4 py-2.5 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-sm font-black text-center text-indigo-700">{editForm.total_benches * editForm.seats_per_bench}</div>
+          </div>
+        </div>
+        <button onclick={saveEdit} disabled={editSaving || !editForm.name}
+          class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50">
+          {editSaving ? 'Saving...' : 'Save Changes'}
         </button>
       </div>
     </div>

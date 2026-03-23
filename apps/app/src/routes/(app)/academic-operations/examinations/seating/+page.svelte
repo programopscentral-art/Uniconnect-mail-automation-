@@ -303,7 +303,7 @@
         <select bind:value={selectedSlotKey}
           class="px-4 py-2.5 bg-violet-50 dark:bg-violet-500/10 border border-violet-200 dark:border-violet-500/30 rounded-xl text-xs font-bold min-w-[180px] shadow-sm text-violet-700 dark:text-violet-300">
           {#each examSlots() as slot}
-            <option value={slot.key}>{fmtDate(slot.date)} {fmtTime(slot.slot_start)} - {fmtTime(slot.slot_end)} ({slot.subjects.length} subject{slot.subjects.length !== 1 ? 's' : ''})</option>
+            <option value={slot.key}>{fmtDate(slot.date)} {fmtTime(slot.slot_start)} - {fmtTime(slot.slot_end)} — {slot.subjects.join(', ')}</option>
           {/each}
         </select>
       {/if}

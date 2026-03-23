@@ -1,4 +1,4 @@
-import { ExamService } from '@uniconnect/shared';
+import { ExamService, db } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -28,17 +28,67 @@ function contrastText(hex: string): string {
     return luminance > 0.5 ? '#000' : '#fff';
 }
 
+function fmtDate(d: string) {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function fmtTime(t: string) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hr = parseInt(h);
+    return `${hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+}
+
 export const GET: RequestHandler = async ({ params, url, locals }) => {
     if (!locals.user) throw error(401, 'Unauthorized');
     const classroomId = url.searchParams.get('classroomId') || undefined;
 
     try {
+        // Get exam info (subject, date, time)
+        const examRes = await db.query(
+            `SELECT e.*, s.name as subject_name, s.code as subject_code,
+                    e.exam_date, e.slot_start, e.slot_end, e.exam_plan_id,
+                    ep.exam_name as plan_name
+             FROM exams e
+             JOIN subjects s ON e.subject_id = s.id
+             LEFT JOIN exam_plans ep ON e.exam_plan_id = ep.id
+             WHERE e.id = $1`,
+            [params.id]
+        );
+        const examInfo = examRes.rows[0];
+
+        // Get all exams in same slot (same plan, date, time) to find all subjects
+        let slotSubjects: string[] = [];
+        let slotDates: string[] = [];
+        if (examInfo) {
+            const slotRes = await db.query(
+                `SELECT DISTINCT s.name as subject_name, e.exam_date
+                 FROM exams e
+                 JOIN subjects s ON e.subject_id = s.id
+                 WHERE e.exam_plan_id = $1 AND e.slot_start = $2 AND e.slot_end = $3
+                 ORDER BY s.name`,
+                [examInfo.exam_plan_id, examInfo.slot_start, examInfo.slot_end]
+            );
+            slotSubjects = slotRes.rows.map((r: any) => r.subject_name);
+            // Check if same seating plan covers multiple dates
+            const dateRes = await db.query(
+                `SELECT DISTINCT e.exam_date FROM exams e
+                 WHERE e.exam_plan_id = $1 AND e.slot_start = $2 AND e.slot_end = $3
+                 ORDER BY e.exam_date`,
+                [examInfo.exam_plan_id, examInfo.slot_start, examInfo.slot_end]
+            );
+            slotDates = dateRes.rows.map((r: any) => {
+                const d = r.exam_date instanceof Date ? r.exam_date : new Date(r.exam_date);
+                return d.toISOString().split('T')[0];
+            });
+        }
+
         const plans = await ExamService.getSeatingPlan(params.id, classroomId);
         const planList = Array.isArray(plans) ? plans : [plans];
 
         const sectionColorMap = new Map<string, number>();
 
-        // Pre-scan all sections for color assignment
         for (const plan of planList) {
             if (!plan?.seating_data_json) continue;
             const data = typeof plan.seating_data_json === 'string' ? JSON.parse(plan.seating_data_json) : plan.seating_data_json;
@@ -46,6 +96,16 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
                 getSectionColor(a.section_id, sectionColorMap);
             }
         }
+
+        // Build subject and date info header
+        const subjectLine = slotSubjects.length > 0 ? slotSubjects.join(', ') : 'Examination';
+        const dateLine = (() => {
+            if (slotDates.length === 0) return '';
+            if (slotDates.length === 1) return fmtDate(slotDates[0]);
+            return `${fmtDate(slotDates[0])} to ${fmtDate(slotDates[slotDates.length - 1])}`;
+        })();
+        const timeLine = examInfo ? `${fmtTime(examInfo.slot_start)} — ${fmtTime(examInfo.slot_end)}` : '';
+        const planName = examInfo?.plan_name || '';
 
         let classroomPages = '';
 
@@ -58,18 +118,15 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
             const seatsPerBench = plan.seats_per_bench || 2;
             const totalBenches = plan.total_benches || (rows * cols);
 
-            // Build assignment lookup
             const lookup = new Map<string, any>();
             for (const a of assignments) {
                 lookup.set(`${a.bench_row}-${a.bench_col}-${a.seat}`, a);
             }
 
-            // Build grid HTML
             let gridHtml = '';
-            // Column header row
             gridHtml += '<tr><th class="row-label"></th>';
             for (let c = 0; c < cols; c++) {
-                gridHtml += `<th class="col-label" colspan="1">${c + 1}</th>`;
+                gridHtml += `<th class="col-label">${c + 1}</th>`;
             }
             gridHtml += '</tr>';
 
@@ -104,7 +161,6 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
                 gridHtml += '</tr>';
             }
 
-            // Build summary table
             const sorted = [...assignments].sort((a, b) => {
                 if (a.section_name !== b.section_name) return a.section_name.localeCompare(b.section_name);
                 return (a.enrollment_no || '').localeCompare(b.enrollment_no || '');
@@ -125,12 +181,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
                 </tr>`;
             }
 
-            // Section legend
             const sectionsInPlan = new Map<string, string>();
             for (const a of assignments) {
-                if (!sectionsInPlan.has(a.section_id)) {
-                    sectionsInPlan.set(a.section_id, a.section_name);
-                }
+                if (!sectionsInPlan.has(a.section_id)) sectionsInPlan.set(a.section_id, a.section_name);
             }
             let legendHtml = '';
             for (const [secId, secName] of sectionsInPlan) {
@@ -141,7 +194,13 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
             classroomPages += `
             <div class="classroom-page">
                 <div class="header">
-                    <h1>Seating Plan</h1>
+                    <h1>SEATING PLAN</h1>
+                    ${planName ? `<p class="plan-name">${esc(planName)}</p>` : ''}
+                    <div class="subject-info">
+                        <p class="subject-line">${esc(subjectLine)}</p>
+                        <p class="date-line">${esc(dateLine)}${timeLine ? ' &bull; ' + esc(timeLine) : ''}</p>
+                        ${slotDates.length > 1 ? `<p class="date-note">Same seating arrangement for ${slotDates.length} exam days (${slotDates.map(d => fmtDate(d)).join(', ')})</p>` : ''}
+                    </div>
                     <h2>${esc(plan.classroom_name)}</h2>
                     <p class="meta">${data.total_seated || 0} students seated &bull; ${rows} rows &times; ${cols} columns &bull; ${seatsPerBench} seats per bench</p>
                     <div class="legend">${legendHtml}</div>
@@ -178,7 +237,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seating Plan</title>
+<title>Seating Plan — ${esc(subjectLine)}</title>
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1a1a1a; background: #fff; }
@@ -187,7 +246,12 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
     .header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; }
     .header h1 { font-size: 28px; font-weight: 900; color: #4f46e5; letter-spacing: 1px; text-transform: uppercase; }
-    .header h2 { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 4px; }
+    .header .plan-name { font-size: 11px; color: #94a3b8; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+    .header .subject-info { margin: 10px 0; padding: 10px 20px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; display: inline-block; }
+    .header .subject-line { font-size: 16px; font-weight: 800; color: #0369a1; }
+    .header .date-line { font-size: 12px; font-weight: 600; color: #0284c7; margin-top: 2px; }
+    .header .date-note { font-size: 10px; font-weight: 700; color: #f59e0b; margin-top: 4px; }
+    .header h2 { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 10px; }
     .header .meta { font-size: 12px; color: #64748b; margin-top: 6px; }
 
     .legend { display: flex; gap: 16px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }

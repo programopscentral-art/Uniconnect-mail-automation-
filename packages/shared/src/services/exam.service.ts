@@ -490,13 +490,17 @@ export class ExamService {
     }
 
     static async autoAssignInvigilators(examPlanId: string, universityId: string, assignedBy: string) {
-        // Get all exams with classroom requirements
+        // Get exams that have seating plans generated (only these classrooms need invigilators)
+        // Group by (date, slot, classroom) to avoid duplicate assignments
         const examsResult = await db.query(
-            `SELECT e.*, c.invigilators_required, c.name as classroom_name
+            `SELECT DISTINCT ON (e.exam_date, e.slot_start, esp.classroom_id)
+                    e.id, e.exam_date, e.slot_start, e.slot_end, e.subject_id,
+                    esp.classroom_id, c.invigilators_required, c.name as classroom_name
              FROM exams e
-             JOIN classrooms c ON e.classroom_id = c.id
+             JOIN exam_seating_plans esp ON esp.exam_id = e.id
+             JOIN classrooms c ON esp.classroom_id = c.id
              WHERE e.exam_plan_id = $1
-             ORDER BY e.exam_date, e.slot_start`,
+             ORDER BY e.exam_date, e.slot_start, esp.classroom_id`,
             [examPlanId]
         );
 
@@ -611,9 +615,9 @@ export class ExamService {
              JOIN subjects s ON e.subject_id = s.id
              LEFT JOIN classrooms cl ON e.classroom_id = cl.id
              JOIN sections sec ON e.section_id = sec.id
-             JOIN programs p ON sec.program_id = p.id
+             LEFT JOIN programs p ON sec.program_id = p.id
              WHERE e.exam_plan_id = $1
-             ORDER BY e.exam_date, e.slot_start, p.name`,
+             ORDER BY e.exam_date, e.slot_start, COALESCE(p.name, sec.name)`,
             [planId]
         );
         return result.rows;
