@@ -28,7 +28,23 @@ export const handle: Handle = async ({ event, resolve }) => {
                     if (hasAccess || user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
                         // If 'ALL' is selected, we set university_id to null to indicate global context
                         user.university_id = activeUnivId === 'ALL' ? null : activeUnivId;
+                    } else {
+                        // Cookie points to a university the user no longer has access to
+                        // (e.g. admin changed their universities) — fall back to their first accessible university
+                        if (user.universities?.length > 0) {
+                            user.university_id = user.universities[0].id;
+                            event.cookies.set('active_university_id', user.universities[0].id, {
+                                path: '/', httpOnly: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 365
+                            });
+                        }
+                        // else: keep whatever university_id is in the DB
                     }
+                } else if (!user.university_id && user.universities?.length > 0) {
+                    // No cookie set and no primary university — auto-select first accessible
+                    user.university_id = user.universities[0].id;
+                    event.cookies.set('active_university_id', user.universities[0].id, {
+                        path: '/', httpOnly: true, sameSite: 'lax', maxAge: 60 * 60 * 24 * 365
+                    });
                 }
 
                 // Ensure plain objects for serialization

@@ -148,24 +148,24 @@ export async function updateUser(id: string, data: {
     }
 
     // Update junction table if university_ids is provided
-    if (university_ids !== undefined) {
+    if (university_ids !== undefined && university_ids.length > 0) {
         // Delete existing associations
         await db.query(`DELETE FROM user_universities WHERE user_id = $1`, [id]);
 
         // Insert new associations
-        if (university_ids.length > 0) {
-            const values = university_ids.map((univId, idx) =>
-                `($1, $${idx + 2})`
-            ).join(', ');
+        const values = university_ids.map((univId, idx) =>
+            `($1, $${idx + 2})`
+        ).join(', ');
 
-            await db.query(
-                `INSERT INTO user_universities (user_id, university_id) 
-                  VALUES ${values} 
-                  ON CONFLICT (user_id, university_id) DO NOTHING`,
-                [id, ...university_ids]
-            );
-        }
+        await db.query(
+            `INSERT INTO user_universities (user_id, university_id)
+              VALUES ${values}
+              ON CONFLICT (user_id, university_id) DO NOTHING`,
+            [id, ...university_ids]
+        );
     }
+    // Note: empty university_ids[] for ADMIN/PROGRAM_OPS is intentional (they see all),
+    // but we don't wipe junction table for them — they just don't need it
 }
 
 export async function deleteUser(id: string) {
