@@ -28,17 +28,31 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         const planRes = await db.query('SELECT exam_name FROM exam_plans WHERE id = $1', [params.id]);
         const planName = planRes.rows[0]?.exam_name || 'Exam Timetable';
 
-        let bodyHtml: string;
-        if (format === 'datewise') {
-            bodyHtml = buildDatewiseHTML(exams);
-        } else {
-            bodyHtml = buildBranchwiseHTML(exams);
-        }
+        const branchwiseHtml = buildBranchwiseHTML(exams);
+        const datewiseHtml = buildDatewiseHTML(exams);
 
         const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${esc(planName)} — Timetable</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;background:#fff;padding:24px 32px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;background:#fff}
+
+/* Toolbar */
+.toolbar{position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.toolbar-left{display:flex;align-items:center;gap:16px}
+.toolbar-title{color:#fff;font-size:14px;font-weight:800;letter-spacing:.5px}
+.toolbar-subtitle{color:#94a3b8;font-size:11px;font-weight:600}
+.toolbar-right{display:flex;gap:8px;align-items:center}
+.toolbar-btn{padding:8px 16px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn-print{background:#4f46e5;color:#fff}.btn-print:hover{background:#4338ca}
+.btn-download{background:#059669;color:#fff}.btn-download:hover{background:#047857}
+
+/* View toggle */
+.view-toggle{display:flex;background:#334155;border-radius:6px;overflow:hidden}
+.view-btn{padding:7px 14px;border:none;background:transparent;color:#94a3b8;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s}
+.view-btn.active{background:#4f46e5;color:#fff}
+.view-btn:hover:not(.active){color:#e2e8f0}
+
+.content-area{padding:24px 32px}
 .page-header{text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e5e7eb}
 .page-header h1{font-size:28px;font-weight:900;color:#4f46e5;letter-spacing:1px;text-transform:uppercase}
 .page-header .plan-name{font-size:16px;font-weight:700;color:#1e293b;margin-top:4px}
@@ -49,7 +63,9 @@ table.timetable th.branch-header{background:#1e293b;text-align:left;min-width:12
 table.timetable th.slot-header{background:#6366f1;font-size:9px}
 table.timetable td{padding:8px 6px;border:1px solid #e2e8f0;text-align:center;vertical-align:middle}
 table.timetable td.branch-cell{text-align:left;font-weight:800;color:#1e293b;background:#f8fafc;white-space:nowrap}
-table.timetable td.subject-cell{font-weight:700;color:#475569;font-size:10px}
+table.timetable td.subject-cell{font-weight:700;color:#475569;font-size:10px;line-height:1.3}
+.sub-name{font-size:10px;font-weight:800;color:#4f46e5}
+.sub-code{font-size:9px;font-weight:600;color:#475569}
 table.timetable td.subject-cell:not(:empty){background:#f0f9ff}
 table.timetable tr:nth-child(even) td{background:#fafbfc}
 table.timetable tr:nth-child(even) td.subject-cell:not(:empty){background:#eff6ff}
@@ -62,15 +78,65 @@ table.datewise th{background:#f1f5f9;text-align:left;padding:8px 10px;font-weigh
 table.datewise td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
 table.datewise tr:hover td{background:#f8fafc}
 .bold{font-weight:700}
-@media print{body{padding:12px 16px}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+@media print{
+    .toolbar{display:none!important}
+    .content-area{padding:12px 16px}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 @page{size:A4 landscape;margin:10mm}
 </style></head><body>
-<div class="page-header">
-    <h1>EXAM TIMETABLE</h1>
-    <p class="plan-name">${esc(planName)}</p>
-    <p class="meta">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches &bull; ${format === 'branchwise' ? 'Branch-wise view' : 'Date-wise view'}</p>
+
+<div class="toolbar">
+    <div class="toolbar-left">
+        <div>
+            <div class="toolbar-title">EXAM TIMETABLE — ${esc(planName)}</div>
+            <div class="toolbar-subtitle">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches</div>
+        </div>
+        <div class="view-toggle">
+            <button class="view-btn${format === 'branchwise' ? ' active' : ''}" id="btn-branchwise" onclick="switchView('branchwise')">Branch-wise</button>
+            <button class="view-btn${format === 'datewise' ? ' active' : ''}" id="btn-datewise" onclick="switchView('datewise')">Date-wise</button>
+        </div>
+    </div>
+    <div class="toolbar-right">
+        <button class="toolbar-btn btn-print" onclick="window.print()" title="Print timetable">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            Print
+        </button>
+        <button class="toolbar-btn btn-download" onclick="downloadHTML()" title="Download as HTML file">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download
+        </button>
+    </div>
 </div>
-${bodyHtml}
+
+<div class="content-area">
+    <div class="page-header">
+        <h1>EXAM TIMETABLE</h1>
+        <p class="plan-name">${esc(planName)}</p>
+        <p class="meta">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches</p>
+    </div>
+    <div id="view-branchwise" style="${format === 'datewise' ? 'display:none' : ''}">${branchwiseHtml}</div>
+    <div id="view-datewise" style="${format === 'branchwise' ? 'display:none' : ''}">${datewiseHtml}</div>
+</div>
+
+<script>
+function switchView(view) {
+    document.getElementById('view-branchwise').style.display = view === 'branchwise' ? '' : 'none';
+    document.getElementById('view-datewise').style.display = view === 'datewise' ? '' : 'none';
+    document.getElementById('btn-branchwise').classList.toggle('active', view === 'branchwise');
+    document.getElementById('btn-datewise').classList.toggle('active', view === 'datewise');
+}
+
+function downloadHTML() {
+    var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'timetable-${params.id}.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+</script>
 </body></html>`;
 
         return new Response(html, {
@@ -114,8 +180,7 @@ function buildDatewiseHTML(exams: any[]): string {
 }
 
 function buildBranchwiseHTML(exams: any[]): string {
-    // Get all unique branches (programs), fallback to section for exams without program
-    const branchMap = new Map<string, string>(); // id -> name
+    const branchMap = new Map<string, string>();
     for (const e of exams) {
         const bid = e.program_id || e.section_id;
         const bname = e.program_name || e.section_name || 'Unknown';
@@ -125,7 +190,6 @@ function buildBranchwiseHTML(exams: any[]): string {
     }
     const branches = [...branchMap.entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
-    // Get unique date+slot columns
     const colSet = new Map<string, { date: string; slot_start: string; slot_end: string }>();
     for (const exam of exams) {
         const date = exam.exam_date instanceof Date ? exam.exam_date.toISOString().split('T')[0] : String(exam.exam_date).split('T')[0];
@@ -134,7 +198,6 @@ function buildBranchwiseHTML(exams: any[]): string {
     }
     const columns = [...colSet.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
-    // Build lookup: branch_id -> "date|slot_start|slot_end" -> subject names
     const lookup = new Map<string, Map<string, string[]>>();
     for (const exam of exams) {
         const pid = exam.program_id || exam.section_id;
@@ -144,15 +207,14 @@ function buildBranchwiseHTML(exams: any[]): string {
         if (!lookup.has(pid)) lookup.set(pid, new Map());
         const cellMap = lookup.get(pid)!;
         if (!cellMap.has(key)) cellMap.set(key, []);
-        const subName = exam.subject_code || exam.subject_name;
-        if (!cellMap.get(key)!.includes(subName)) cellMap.get(key)!.push(subName);
+        const subDisplay = exam.subject_code && exam.subject_name
+            ? `${exam.subject_name}\n${exam.subject_code}`
+            : (exam.subject_name || exam.subject_code || '—');
+        if (!cellMap.get(key)!.includes(subDisplay)) cellMap.get(key)!.push(subDisplay);
     }
 
-    // Build table
     let html = '<table class="timetable"><thead>';
-    // Date header row
     html += '<tr><th class="branch-header" rowspan="2">Branch</th>';
-    // Group columns by date for colspan
     const dateGroups = new Map<string, number>();
     for (const [, col] of columns) {
         if (!dateGroups.has(col.date)) dateGroups.set(col.date, 0);
@@ -162,7 +224,6 @@ function buildBranchwiseHTML(exams: any[]): string {
         html += `<th colspan="${count}">${fmtDate(date)}</th>`;
     }
     html += '</tr>';
-    // Slot header row
     html += '<tr>';
     for (const [, col] of columns) {
         html += `<th class="slot-header">${fmtTime(col.slot_start)}-${fmtTime(col.slot_end)}</th>`;
@@ -173,7 +234,13 @@ function buildBranchwiseHTML(exams: any[]): string {
         html += `<tr><td class="branch-cell">${esc(pname)}</td>`;
         for (const [key] of columns) {
             const subjects = lookup.get(pid)?.get(key) || [];
-            html += `<td class="subject-cell">${subjects.map(s => esc(s)).join('<br>')}</td>`;
+            html += `<td class="subject-cell">${subjects.map(s => {
+                const lines = s.split('\n');
+                if (lines.length === 2) {
+                    return `<span class="sub-name">${esc(lines[0])}</span><br><span class="sub-code">${esc(lines[1])}</span>`;
+                }
+                return esc(s);
+            }).join('<hr style="margin:4px 0;border-color:#e2e8f0">')}</td>`;
         }
         html += '</tr>';
     }

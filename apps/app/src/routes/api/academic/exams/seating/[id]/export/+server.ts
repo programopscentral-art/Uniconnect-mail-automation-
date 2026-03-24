@@ -58,30 +58,21 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
         );
         const examInfo = examRes.rows[0];
 
-        // Get all exams in same slot (same plan, date, time) to find all subjects
+        // Get all subjects in the same slot on the same date (same plan, same date, same time)
         let slotSubjects: string[] = [];
-        let slotDates: string[] = [];
+        let examDate = '';
         if (examInfo) {
             const slotRes = await db.query(
-                `SELECT DISTINCT s.name as subject_name, e.exam_date
+                `SELECT DISTINCT s.name as subject_name
                  FROM exams e
                  JOIN subjects s ON e.subject_id = s.id
-                 WHERE e.exam_plan_id = $1 AND e.slot_start = $2 AND e.slot_end = $3
+                 WHERE e.exam_plan_id = $1 AND e.exam_date = $2 AND e.slot_start = $3 AND e.slot_end = $4
                  ORDER BY s.name`,
-                [examInfo.exam_plan_id, examInfo.slot_start, examInfo.slot_end]
+                [examInfo.exam_plan_id, examInfo.exam_date, examInfo.slot_start, examInfo.slot_end]
             );
             slotSubjects = slotRes.rows.map((r: any) => r.subject_name);
-            // Check if same seating plan covers multiple dates
-            const dateRes = await db.query(
-                `SELECT DISTINCT e.exam_date FROM exams e
-                 WHERE e.exam_plan_id = $1 AND e.slot_start = $2 AND e.slot_end = $3
-                 ORDER BY e.exam_date`,
-                [examInfo.exam_plan_id, examInfo.slot_start, examInfo.slot_end]
-            );
-            slotDates = dateRes.rows.map((r: any) => {
-                const d = r.exam_date instanceof Date ? r.exam_date : new Date(r.exam_date);
-                return d.toISOString().split('T')[0];
-            });
+            const d = examInfo.exam_date instanceof Date ? examInfo.exam_date : new Date(examInfo.exam_date);
+            examDate = d.toISOString().split('T')[0];
         }
 
         const plans = await ExamService.getSeatingPlan(params.id, classroomId);
@@ -99,11 +90,7 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 
         // Build subject and date info header
         const subjectLine = slotSubjects.length > 0 ? slotSubjects.join(', ') : 'Examination';
-        const dateLine = (() => {
-            if (slotDates.length === 0) return '';
-            if (slotDates.length === 1) return fmtDate(slotDates[0]);
-            return `${fmtDate(slotDates[0])} to ${fmtDate(slotDates[slotDates.length - 1])}`;
-        })();
+        const dateLine = examDate ? fmtDate(examDate) : '';
         const timeLine = examInfo ? `${fmtTime(examInfo.slot_start)} — ${fmtTime(examInfo.slot_end)}` : '';
         const planName = examInfo?.plan_name || '';
 
@@ -115,8 +102,10 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
             const assignments: any[] = data.assignments || [];
             const rows = plan.bench_rows || 5;
             const cols = plan.bench_columns || 6;
-            const seatsPerBench = plan.seats_per_bench || 2;
+            const defaultSeatsPerBench = plan.seats_per_bench || 2;
             const totalBenches = plan.total_benches || (rows * cols);
+            // Per-bench seat counts from seating data (set during generation)
+            const seatsForBench: number[] = data.seats_for_bench || [];
 
             const lookup = new Map<string, any>();
             for (const a of assignments) {
@@ -140,8 +129,9 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
                         gridHtml += '<td class="bench inactive"><div class="bench-box inactive-box"></div></td>';
                         continue;
                     }
+                    const seatsThisBench = seatsForBench[benchNum] || defaultSeatsPerBench;
                     let seatsHtml = '';
-                    for (let s = 0; s < seatsPerBench; s++) {
+                    for (let s = 0; s < seatsThisBench; s++) {
                         const a = lookup.get(`${r}-${c}-${s}`);
                         const seatLabel = `${rowLabel}${c + 1}-S${s + 1}`;
                         if (a) {
@@ -199,10 +189,11 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
                     <div class="subject-info">
                         <p class="subject-line">${esc(subjectLine)}</p>
                         <p class="date-line">${esc(dateLine)}${timeLine ? ' &bull; ' + esc(timeLine) : ''}</p>
-                        ${slotDates.length > 1 ? `<p class="date-note">Same seating arrangement for ${slotDates.length} exam days (${slotDates.map(d => fmtDate(d)).join(', ')})</p>` : ''}
                     </div>
                     <h2>${esc(plan.classroom_name)}</h2>
-                    <p class="meta">${data.total_seated || 0} students seated &bull; ${rows} rows &times; ${cols} columns &bull; ${seatsPerBench} seats per bench</p>
+                    <p class="meta">${data.total_seated || 0} students seated &bull; ${rows} rows &times; ${cols} columns &bull; ${data.bench_types?.length > 0
+                        ? data.bench_types.map((bt: any) => `${bt.count} benches &times; ${bt.seats_per_bench} seats${bt.label ? ' (' + esc(bt.label) + ')' : ''}`).join(' + ')
+                        : defaultSeatsPerBench + ' seats per bench'}</p>
                     <div class="legend">${legendHtml}</div>
                 </div>
 

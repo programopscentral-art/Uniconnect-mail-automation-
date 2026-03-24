@@ -28,8 +28,12 @@
   let importError = $state('');
   let zoomLevel = $state(1);
   let editingRoom = $state<any>(null);
-  let editForm = $state({ name: '', code: '', room_type: 'LECTURE', building: '', floor: 0, total_benches: 0, seats_per_bench: 2, invigilators_required: 1 });
+  let editForm = $state({ name: '', code: '', room_type: 'LECTURE', building: '', floor: 0, total_benches: 0, seats_per_bench: 2, invigilators_required: 1, bench_types: [{ count: 0, seats_per_bench: 2, label: '' }] as Array<{count: number; seats_per_bench: number; label: string}> });
   let editSaving = $state(false);
+
+  // Computed totals from bench types
+  const editTotalBenches = $derived(editForm.bench_types.reduce((s, b) => s + (b.count || 0), 0));
+  const editCapacity = $derived(editForm.bench_types.reduce((s, b) => s + (b.count || 0) * (b.seats_per_bench || 2), 0));
 
   // Create form
   let form = $state({
@@ -159,19 +163,29 @@
   function startEdit(room: any, e?: Event) {
     e?.stopPropagation();
     editingRoom = room;
-    editForm = { name: room.name, code: room.code || '', room_type: room.room_type || 'LECTURE', building: room.building || '', floor: room.floor || 0, total_benches: room.total_benches || 0, seats_per_bench: room.seats_per_bench || 2, invigilators_required: room.invigilators_required || 1 };
+    const meta = typeof room.metadata_json === 'string' ? JSON.parse(room.metadata_json || '{}') : (room.metadata_json || {});
+    const benchTypes = meta.bench_types?.length > 0
+      ? meta.bench_types
+      : [{ count: room.total_benches || 0, seats_per_bench: room.seats_per_bench || 2, label: '' }];
+    editForm = { name: room.name, code: room.code || '', room_type: room.room_type || 'LECTURE', building: room.building || '', floor: room.floor || 0, total_benches: room.total_benches || 0, seats_per_bench: room.seats_per_bench || 2, invigilators_required: room.invigilators_required || 1, bench_types: benchTypes };
   }
 
   async function saveEdit() {
     if (!editingRoom) return;
     editSaving = true;
     try {
-      const cols = Math.ceil(Math.sqrt(editForm.total_benches));
-      const rows = Math.ceil(editForm.total_benches / cols);
+      const totalBenches = editTotalBenches;
+      const capacity = editCapacity;
+      const cols = Math.ceil(Math.sqrt(totalBenches || 1));
+      const rows = Math.ceil((totalBenches || 1) / cols);
+      // Use the most common seats_per_bench as default
+      const mainType = editForm.bench_types.reduce((a, b) => b.count > a.count ? b : a, editForm.bench_types[0]);
+      const meta = { bench_types: editForm.bench_types.filter(b => b.count > 0) };
+      const { bench_types: _, ...formData } = editForm;
       const res = await fetch(`/api/academic/classrooms/${editingRoom.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...editForm, bench_rows: rows, bench_columns: cols, capacity: editForm.total_benches * editForm.seats_per_bench })
+        body: JSON.stringify({ ...formData, total_benches: totalBenches, seats_per_bench: mainType.seats_per_bench, bench_rows: rows, bench_columns: cols, capacity, metadata_json: meta })
       });
       if (res.ok) {
         toast('Classroom updated!', 'success');
@@ -322,7 +336,10 @@
             <div class="text-center text-[6px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Board</div>
             {#each [Math.min(room.bench_columns || Math.ceil(Math.sqrt(room.total_benches || 20)), 8)] as previewCols}
               {#each [Math.min(room.bench_rows || Math.ceil((room.total_benches || 20) / previewCols), 6)] as previewRows}
-                {#each [Math.min(room.seats_per_bench || 2, 4)] as spb}
+                {@const meta = typeof room.metadata_json === 'string' ? JSON.parse(room.metadata_json || '{}') : (room.metadata_json || {})}
+                {@const benchTypes = meta.bench_types || []}
+                {@const seatsPerBenchArr = (() => { const arr = []; for (const bt of benchTypes) { for (let i = 0; i < (bt.count || 0); i++) arr.push(bt.seats_per_bench || 2); } return arr.length > 0 ? arr : null; })()}
+                {#each [Math.min(room.seats_per_bench || 2, 4)] as defaultSpb}
                   <div class="flex flex-col items-center gap-1.5">
                     {#each Array(previewRows) as _, rowIdx}
                       <div class="flex items-center gap-1">
@@ -331,15 +348,17 @@
                           {#each Array(previewCols) as _, colIdx}
                             {@const benchNum = rowIdx * previewCols + colIdx + 1}
                             {@const isActive = benchNum <= (room.total_benches || 20)}
+                            {@const spb = Math.min(seatsPerBenchArr ? (seatsPerBenchArr[benchNum - 1] || defaultSpb) : defaultSpb, 4)}
+                            {@const isSmall = seatsPerBenchArr ? (seatsPerBenchArr[benchNum - 1] || defaultSpb) < (seatsPerBenchArr[0] || defaultSpb) : false}
                             {#if isActive}
-                              <div class="flex gap-[1px] px-[2px] py-[1px] rounded-[3px] bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+                              <div class="flex gap-[1px] px-[2px] py-[1px] rounded-[3px] bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 shadow-[0_1px_2px_rgba(0,0,0,0.05)]" title="{spb}-seater {isSmall ? '(small)' : ''}">
                                 {#each Array(spb) as _}
-                                  <div class="w-[5px] h-[6px] rounded-[1px] bg-emerald-400 dark:bg-emerald-500"></div>
+                                  <div class="w-[5px] h-[6px] rounded-[1px] {isSmall ? 'bg-amber-400 dark:bg-amber-500' : 'bg-emerald-400 dark:bg-emerald-500'}"></div>
                                 {/each}
                               </div>
                             {:else}
                               <div class="flex gap-[1px] px-[2px] py-[1px] rounded-[3px] opacity-20">
-                                {#each Array(spb) as _}
+                                {#each Array(defaultSpb) as _}
                                   <div class="w-[5px] h-[6px] rounded-[1px] bg-gray-300 dark:bg-slate-600"></div>
                                 {/each}
                               </div>
@@ -350,7 +369,11 @@
                     {/each}
                   </div>
                   <div class="text-center mt-2">
-                    <span class="text-[7px] font-bold text-gray-400">{room.total_benches || 0} benches × {room.seats_per_bench || 2} seats</span>
+                    {#if benchTypes.length > 1}
+                      <span class="text-[7px] font-bold text-gray-400">{benchTypes.map((bt: any) => `${bt.count}×${bt.seats_per_bench}-seat`).join(' + ')}</span>
+                    {:else}
+                      <span class="text-[7px] font-bold text-gray-400">{room.total_benches || 0} benches × {room.seats_per_bench || 2} seats</span>
+                    {/if}
                   </div>
                 {/each}
               {/each}
@@ -393,7 +416,14 @@
             </span>
           </div>
           <p class="text-xs text-gray-500 mt-1">
-            {showLayout.bench_rows || 5} rows x {showLayout.bench_columns || 6} columns · {showLayout.total_benches || 30} benches · {showLayout.seats_per_bench || 2} seats/bench · Capacity: {showLayout.capacity}
+            {showLayout.bench_rows || 5} rows x {showLayout.bench_columns || 6} columns ·
+            {(() => {
+              const m = typeof showLayout.metadata_json === 'string' ? JSON.parse(showLayout.metadata_json || '{}') : (showLayout.metadata_json || {});
+              const bts = m.bench_types || [];
+              if (bts.length > 1) return bts.map((bt: any) => `${bt.count} × ${bt.seats_per_bench}-seat${bt.label ? ' (' + bt.label + ')' : ''}`).join(' + ') + ' ·';
+              return `${showLayout.total_benches || 30} benches · ${showLayout.seats_per_bench || 2} seats/bench ·`;
+            })()}
+            Capacity: {showLayout.capacity}
           </p>
         </div>
         <div class="flex items-center gap-3">
@@ -423,6 +453,8 @@
           </div>
 
           <!-- Bench Grid -->
+          {#each [(() => { const m = typeof showLayout.metadata_json === 'string' ? JSON.parse(showLayout.metadata_json || '{}') : (showLayout.metadata_json || {}); const bts = m.bench_types || []; const arr = []; for (const bt of bts) { for (let i = 0; i < (bt.count || 0); i++) arr.push(bt.seats_per_bench || 2); } return arr.length > 0 ? arr : null; })()] as modalSeatsArr}
+          {#each [showLayout.seats_per_bench || 2] as defaultSeats}
           <div class="grid gap-3" style="grid-template-columns: auto repeat({showLayout.bench_columns || 6}, 1fr) auto;">
             {#each Array(showLayout.bench_rows || 5) as _, rowIdx}
               <!-- Row Label -->
@@ -433,30 +465,29 @@
               {#each Array(showLayout.bench_columns || 6) as _, colIdx}
                 {@const benchNum = getBenchIndex(rowIdx, colIdx, showLayout.bench_columns || 6) + 1}
                 {@const isActive = benchNum <= (showLayout.total_benches || 30)}
+                {@const thisBenchSeats = modalSeatsArr ? (modalSeatsArr[benchNum - 1] || defaultSeats) : defaultSeats}
+                {@const isSmallBench = modalSeatsArr ? thisBenchSeats < (modalSeatsArr[0] || defaultSeats) : false}
                 <div class="flex flex-col items-center gap-1">
                   {#if isActive}
-                    <!-- Bench: desk table + seats -->
-                    <div class="flex flex-col items-center group/bench cursor-pointer">
-                      <!-- Seat circles (students sit here) -->
+                    <div class="flex flex-col items-center group/bench cursor-pointer" title="{thisBenchSeats}-seater{isSmallBench ? ' (small)' : ''}">
                       <div class="flex gap-1 mb-0.5">
-                        {#each Array(showLayout.seats_per_bench || 2) as _, seatIdx}
-                          <div class="w-7 h-7 rounded-full bg-emerald-400 dark:bg-emerald-500 flex items-center justify-center text-[6px] font-black text-white shadow-sm group-hover/bench:bg-indigo-500 transition-colors border-2 border-emerald-300 dark:border-emerald-400 group-hover/bench:border-indigo-400">
+                        {#each Array(thisBenchSeats) as _, seatIdx}
+                          <div class="w-7 h-7 rounded-full {isSmallBench ? 'bg-amber-400 dark:bg-amber-500 border-amber-300 dark:border-amber-400 group-hover/bench:bg-orange-500 group-hover/bench:border-orange-400' : 'bg-emerald-400 dark:bg-emerald-500 border-emerald-300 dark:border-emerald-400 group-hover/bench:bg-indigo-500 group-hover/bench:border-indigo-400'} flex items-center justify-center text-[6px] font-black text-white shadow-sm transition-colors border-2">
                             {seatIdx + 1}
                           </div>
                         {/each}
                       </div>
-                      <!-- Desk/table surface -->
-                      <div class="w-full h-2.5 bg-amber-700/70 dark:bg-amber-800/60 rounded-[3px] shadow-inner group-hover/bench:bg-indigo-700/50 transition-colors" style="min-width: {(showLayout.seats_per_bench || 2) * 28 + 4}px;"></div>
+                      <div class="w-full h-2.5 bg-amber-700/70 dark:bg-amber-800/60 rounded-[3px] shadow-inner group-hover/bench:bg-indigo-700/50 transition-colors" style="min-width: {thisBenchSeats * 28 + 4}px;"></div>
                     </div>
                     <p class="text-[7px] text-gray-300 font-bold">{String.fromCharCode(65 + rowIdx)}{colIdx + 1}</p>
                   {:else}
                     <div class="flex flex-col items-center opacity-20">
                       <div class="flex gap-1 mb-0.5">
-                        {#each Array(showLayout.seats_per_bench || 2) as _}
+                        {#each Array(defaultSeats) as _}
                           <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-slate-700 border-2 border-gray-100 dark:border-slate-600"></div>
                         {/each}
                       </div>
-                      <div class="w-full h-2.5 bg-gray-300 dark:bg-slate-600 rounded-[3px]" style="min-width: {(showLayout.seats_per_bench || 2) * 28 + 4}px;"></div>
+                      <div class="w-full h-2.5 bg-gray-300 dark:bg-slate-600 rounded-[3px]" style="min-width: {defaultSeats * 28 + 4}px;"></div>
                     </div>
                   {/if}
                 </div>
@@ -468,6 +499,8 @@
               </div>
             {/each}
           </div>
+          {/each}
+          {/each}
 
           <!-- Column Numbers -->
           <div class="grid gap-3 mt-2" style="grid-template-columns: auto repeat({showLayout.bench_columns || 6}, 1fr) auto;">
@@ -650,21 +683,47 @@
             <input type="text" bind:value={editForm.building} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Total Benches</label>
-            <input type="number" bind:value={editForm.total_benches} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
-          </div>
-          <div>
-            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Seats per Bench</label>
-            <input type="number" bind:value={editForm.seats_per_bench} min="1" max="6" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
-          </div>
-          <div>
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Invigilators</label>
             <input type="number" bind:value={editForm.invigilators_required} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Capacity (auto)</label>
-            <div class="px-4 py-2.5 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-sm font-black text-center text-indigo-700">{editForm.total_benches * editForm.seats_per_bench}</div>
+            <div class="px-4 py-2.5 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-sm font-black text-center text-indigo-700">{editCapacity} seats ({editTotalBenches} benches)</div>
           </div>
+        </div>
+
+        <!-- Bench Types Configuration -->
+        <div class="mt-4">
+          <div class="flex items-center justify-between mb-2">
+            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Bench Types</label>
+            <button onclick={() => editForm.bench_types = [...editForm.bench_types, { count: 0, seats_per_bench: 2, label: '' }]}
+              class="px-2 py-1 text-[9px] font-black text-indigo-600 hover:bg-indigo-50 rounded-lg uppercase">+ Add Type</button>
+          </div>
+          <div class="space-y-2">
+            {#each editForm.bench_types as bt, i}
+              <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-800 rounded-xl">
+                <div class="flex-1">
+                  <label class="text-[8px] font-bold text-gray-400 uppercase">Count</label>
+                  <input type="number" bind:value={bt.count} min="0" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
+                </div>
+                <div class="flex-1">
+                  <label class="text-[8px] font-bold text-gray-400 uppercase">Seats/Bench</label>
+                  <input type="number" bind:value={bt.seats_per_bench} min="1" max="6" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
+                </div>
+                <div class="flex-1">
+                  <label class="text-[8px] font-bold text-gray-400 uppercase">Label</label>
+                  <input type="text" bind:value={bt.label} placeholder="e.g. Big, Small" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
+                </div>
+                {#if editForm.bench_types.length > 1}
+                  <button onclick={() => editForm.bench_types = editForm.bench_types.filter((_, idx) => idx !== i)}
+                    class="mt-4 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                {/if}
+              </div>
+            {/each}
+          </div>
+          <p class="text-[9px] text-gray-400 font-bold mt-1">Example: 21 benches × 3 seats (Big) + 2 benches × 2 seats (Small)</p>
         </div>
         <button onclick={saveEdit} disabled={editSaving || !editForm.name}
           class="w-full py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50">

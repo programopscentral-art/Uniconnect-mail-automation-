@@ -21,7 +21,11 @@ function contrastText(hex: string): string {
 }
 function fmtDate(d: string) {
     if (!d) return '';
-    return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function fmtDateShort(d: string) {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 function fmtTime(t: string) {
     if (!t) return '';
@@ -50,14 +54,23 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         }
         const slots = [...slotMap.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.slot_start < b.slot_start ? -1 : 1);
 
-        let allPages = '';
+        // Build structured data: slot tabs -> classroom sub-tabs -> page content
+        interface SlotTab {
+            id: string;
+            label: string;
+            dateLabel: string;
+            classrooms: { id: string; name: string; pageHtml: string }[];
+        }
+        const slotTabs: SlotTab[] = [];
 
-        for (const slot of slots) {
+        for (let si = 0; si < slots.length; si++) {
+            const slot = slots[si];
             const subjects = [...new Set(slot.exams.map(e => e.subject_name))].sort();
             const subjectLine = subjects.join(', ');
             const dateLine = `${fmtDate(slot.date)} &bull; ${fmtTime(slot.slot_start)} — ${fmtTime(slot.slot_end)}`;
+            const slotId = `slot-${si}`;
+            const slotLabel = `${fmtDateShort(slot.date)} ${fmtTime(slot.slot_start)}`;
 
-            // Get seating for first exam in this slot (all share same seating)
             const firstExamId = slot.exams[0].id;
             const plans = await ExamService.getSeatingPlan(firstExamId);
             const planList = Array.isArray(plans) ? plans : plans ? [plans] : [];
@@ -69,7 +82,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 for (const a of data.assignments || []) getSectionColor(a.section_id, sectionColorMap);
             }
 
-            for (const plan of planList) {
+            const classrooms: SlotTab['classrooms'] = [];
+
+            for (let ci = 0; ci < planList.length; ci++) {
+                const plan = planList[ci];
                 if (!plan?.seating_data_json) continue;
                 const data = typeof plan.seating_data_json === 'string' ? JSON.parse(plan.seating_data_json) : plan.seating_data_json;
                 const assignments: any[] = data.assignments || [];
@@ -126,8 +142,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                     legendHtml += `<span class="legend-item"><span class="legend-swatch" style="background:${color}"></span>${esc(secName)}</span>`;
                 }
 
-                allPages += `
-                <div class="classroom-page">
+                const classroomId = `${slotId}-room-${ci}`;
+                const pageHtml = `
+                <div class="classroom-page" id="${classroomId}">
                     <div class="header">
                         <h1>SEATING PLAN</h1>
                         <p class="plan-name">${esc(planName)}</p>
@@ -146,13 +163,72 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                     <h3 class="summary-title">Student List &mdash; ${esc(plan.classroom_name)}</h3>
                     <table class="summary-table"><thead><tr><th>#</th><th>Roll No</th><th>Name</th><th>Section</th><th>Program</th><th>Seat</th></tr></thead><tbody>${summaryRows}</tbody></table>
                 </div>`;
+
+                classrooms.push({ id: classroomId, name: plan.classroom_name || `Room ${ci + 1}`, pageHtml });
             }
+
+            slotTabs.push({ id: slotId, label: slotLabel, dateLabel: dateLine, classrooms });
+        }
+
+        // Build tab navigation HTML
+        let slotTabsHtml = '';
+        for (let i = 0; i < slotTabs.length; i++) {
+            const tab = slotTabs[i];
+            slotTabsHtml += `<button class="slot-tab${i === 0 ? ' active' : ''}" data-slot="${tab.id}" onclick="switchSlot('${tab.id}')">${esc(tab.label)}</button>`;
+        }
+
+        // Build classroom sub-tabs and pages per slot
+        let contentHtml = '';
+        for (let i = 0; i < slotTabs.length; i++) {
+            const tab = slotTabs[i];
+            let roomTabsHtml = '';
+            for (let j = 0; j < tab.classrooms.length; j++) {
+                const room = tab.classrooms[j];
+                roomTabsHtml += `<button class="room-tab${j === 0 ? ' active' : ''}" data-slot="${tab.id}" data-room="${room.id}" onclick="switchRoom('${tab.id}','${room.id}')">${esc(room.name)}</button>`;
+            }
+
+            let roomPagesHtml = '';
+            for (let j = 0; j < tab.classrooms.length; j++) {
+                roomPagesHtml += tab.classrooms[j].pageHtml;
+            }
+
+            contentHtml += `
+            <div class="slot-content" id="content-${tab.id}" style="${i === 0 ? '' : 'display:none'}">
+                <div class="room-tabs" id="roomtabs-${tab.id}">${roomTabsHtml}</div>
+                <div class="room-pages" id="roompages-${tab.id}">${roomPagesHtml}</div>
+            </div>`;
         }
 
         const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Seating Plan — ${esc(planName)}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;background:#fff}
-.classroom-page{padding:24px 32px}
+
+/* Toolbar */
+.toolbar{position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 24px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.toolbar-left{display:flex;align-items:center;gap:12px}
+.toolbar-title{color:#fff;font-size:14px;font-weight:800;letter-spacing:.5px}
+.toolbar-subtitle{color:#94a3b8;font-size:11px;font-weight:600}
+.toolbar-right{display:flex;gap:8px}
+.toolbar-btn{padding:8px 16px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn-print{background:#4f46e5;color:#fff}.btn-print:hover{background:#4338ca}
+.btn-download{background:#059669;color:#fff}.btn-download:hover{background:#047857}
+.btn-print-all{background:#7c3aed;color:#fff}.btn-print-all:hover{background:#6d28d9}
+
+/* Slot tabs */
+.slot-tabs{display:flex;gap:4px;padding:12px 24px 0;background:#f8fafc;border-bottom:2px solid #e2e8f0;overflow-x:auto;flex-wrap:wrap}
+.slot-tab{padding:8px 16px;border:none;background:transparent;color:#64748b;font-size:12px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;border-radius:6px 6px 0 0;transition:all .15s;white-space:nowrap}
+.slot-tab:hover{color:#4f46e5;background:#ede9fe}
+.slot-tab.active{color:#4f46e5;background:#fff;border-bottom-color:#4f46e5;box-shadow:0 -2px 4px rgba(79,70,229,.1)}
+
+/* Room sub-tabs */
+.room-tabs{display:flex;gap:4px;padding:8px 24px;background:#fff;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-wrap:wrap}
+.room-tab{padding:6px 14px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:11px;font-weight:700;cursor:pointer;border-radius:6px;transition:all .15s;white-space:nowrap}
+.room-tab:hover{border-color:#4f46e5;color:#4f46e5;background:#ede9fe}
+.room-tab.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+
+/* Content */
+.classroom-page{padding:24px 32px;display:none}
+.classroom-page.active{display:block}
 .header{text-align:center;margin-bottom:24px;border-bottom:2px solid #e5e7eb;padding-bottom:16px}
 .header h1{font-size:28px;font-weight:900;color:#4f46e5;letter-spacing:1px;text-transform:uppercase}
 .header .plan-name{font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
@@ -178,15 +254,116 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 .seat .roll{font-size:9px;font-weight:900;line-height:1.1;margin-top:1px}
 .seat .section{font-size:7px;font-weight:600;opacity:.85;line-height:1.1;margin-top:1px}
 .seat .empty-label{font-size:7px;color:#94a3b8;font-weight:600;margin-top:2px}
-.summary-title{font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;border-bottom:1px solid #e5e7eb;padding-bottom:6px}
-.summary-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:20px}
+.summary-title{font-size:14px;font-weight:800;color:#1e293b;margin-bottom:10px;border-bottom:1px solid #e5e7eb;padding-bottom:6px;padding-left:32px}
+.summary-table{width:calc(100% - 64px);margin:0 32px 20px;border-collapse:collapse;font-size:11px}
 .summary-table th{background:#f1f5f9;text-align:left;padding:8px 10px;font-weight:800;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#475569;border-bottom:2px solid #e2e8f0}
 .summary-table td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
 .summary-table .bold{font-weight:700}
 .section-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
-@media print{.classroom-page{page-break-after:always;padding:12px 16px}.classroom-page:last-child{page-break-after:auto}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* Print styles */
+@media print{
+    .toolbar,.slot-tabs,.room-tabs{display:none!important}
+    .slot-content{display:block!important}
+    .classroom-page{display:block!important;page-break-after:always;padding:12px 16px}
+    .classroom-page:last-child{page-break-after:auto}
+    .summary-table{width:100%;margin:0 0 20px}
+    .summary-title{padding-left:0}
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media print and (prefers-color-scheme:light){body{background:#fff}}
 @page{size:A4 landscape;margin:10mm}
-</style></head><body>${allPages}</body></html>`;
+
+/* Print current only */
+body.print-current .slot-content{display:none!important}
+body.print-current .slot-content.print-target{display:block!important}
+body.print-current .slot-content.print-target .classroom-page{display:none!important}
+body.print-current .slot-content.print-target .classroom-page.print-target-room{display:block!important}
+</style></head><body>
+
+<div class="toolbar">
+    <div class="toolbar-left">
+        <div>
+            <div class="toolbar-title">SEATING PLAN — ${esc(planName)}</div>
+            <div class="toolbar-subtitle">${slots.length} slots &bull; ${slotTabs.reduce((sum, s) => sum + s.classrooms.length, 0)} classrooms</div>
+        </div>
+    </div>
+    <div class="toolbar-right">
+        <button class="toolbar-btn btn-print" onclick="printCurrent()" title="Print current classroom">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            Print This Room
+        </button>
+        <button class="toolbar-btn btn-print-all" onclick="printAll()" title="Print all classrooms">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            Print All
+        </button>
+        <button class="toolbar-btn btn-download" onclick="downloadHTML()" title="Download as HTML file">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Download
+        </button>
+    </div>
+</div>
+
+<div class="slot-tabs">${slotTabsHtml}</div>
+${contentHtml}
+
+<script>
+var currentSlot = '${slotTabs[0]?.id || ''}';
+var currentRooms = {};
+${slotTabs.map(s => `currentRooms['${s.id}'] = '${s.classrooms[0]?.id || ''}';`).join('\n')}
+
+function switchSlot(slotId) {
+    currentSlot = slotId;
+    document.querySelectorAll('.slot-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.slot === slotId); });
+    document.querySelectorAll('.slot-content').forEach(function(c) { c.style.display = c.id === 'content-' + slotId ? '' : 'none'; });
+    showRoom(slotId, currentRooms[slotId]);
+}
+
+function switchRoom(slotId, roomId) {
+    currentRooms[slotId] = roomId;
+    showRoom(slotId, roomId);
+}
+
+function showRoom(slotId, roomId) {
+    var container = document.getElementById('roompages-' + slotId);
+    if (!container) return;
+    container.querySelectorAll('.classroom-page').forEach(function(p) { p.classList.toggle('active', p.id === roomId); });
+    var tabContainer = document.getElementById('roomtabs-' + slotId);
+    if (tabContainer) tabContainer.querySelectorAll('.room-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.room === roomId); });
+}
+
+function printCurrent() {
+    var slotContent = document.getElementById('content-' + currentSlot);
+    var roomPage = document.getElementById(currentRooms[currentSlot]);
+    if (!slotContent || !roomPage) { window.print(); return; }
+    document.body.classList.add('print-current');
+    slotContent.classList.add('print-target');
+    roomPage.classList.add('print-target-room');
+    window.print();
+    document.body.classList.remove('print-current');
+    slotContent.classList.remove('print-target');
+    roomPage.classList.remove('print-target-room');
+}
+
+function printAll() {
+    window.print();
+}
+
+function downloadHTML() {
+    var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'seating-plan-${params.id}.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+}
+
+// Initialize first room visibility
+(function() {
+    ${slotTabs.map(s => s.classrooms.length > 0 ? `showRoom('${s.id}', '${s.classrooms[0].id}');` : '').join('\n    ')}
+})();
+</script>
+</body></html>`;
 
         return new Response(html, {
             headers: {

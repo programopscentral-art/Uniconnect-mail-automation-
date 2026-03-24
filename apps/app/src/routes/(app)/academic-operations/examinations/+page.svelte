@@ -22,6 +22,7 @@
   let showAutoGenerate = $state(false);
   let generating = $state(false);
   let coverage = $state<any>(null);
+  let viewMode = $state<'list' | 'timetable'>('timetable');
 
   let genForm = $state({
     timeSlots: [{ start: '09:00', end: '12:00' }, { start: '14:00', end: '17:00' }],
@@ -241,6 +242,66 @@
     const hr = parseInt(h);
     return `${hr > 12 ? hr - 12 : hr}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
   }
+
+  // Build timetable grid data from exams
+  const timetableData = $derived.by(() => {
+    if (!selectedPlan?.exams?.length) return null;
+    const exams = selectedPlan.exams;
+
+    // Detect if any branch has multiple sections
+    const branchSections = new Map<string, Set<string>>();
+    for (const e of exams) {
+      const prog = e.program_name || 'Unknown';
+      if (!branchSections.has(prog)) branchSections.set(prog, new Set());
+      branchSections.get(prog)!.add(e.section_name || '');
+    }
+    const hasMultiSections = [...branchSections.values()].some(s => s.size > 1);
+
+    // Branches (rows) — include section if multiple sections per branch
+    const branchMap = new Map<string, string>();
+    for (const e of exams) {
+      const prog = e.program_name || e.section_name || 'Unknown';
+      const bid = hasMultiSections && e.section_name ? `${prog} (${e.section_name})` : prog;
+      if (!branchMap.has(bid)) branchMap.set(bid, e.section_name);
+    }
+    const branches = [...branchMap.keys()].sort();
+
+    // Columns: date + slot
+    const colSet = new Map<string, { date: string; slot_start: string; slot_end: string }>();
+    for (const e of exams) {
+      const date = e.exam_date?.split?.('T')?.[0] || e.exam_date || '';
+      const key = `${date}|${e.slot_start}|${e.slot_end}`;
+      if (!colSet.has(key)) colSet.set(key, { date, slot_start: e.slot_start, slot_end: e.slot_end });
+    }
+    const columns = [...colSet.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+    // Date groups for colspan
+    const dateGroups: Array<{ date: string; count: number }> = [];
+    let lastDate = '';
+    for (const [, col] of columns) {
+      if (col.date !== lastDate) {
+        dateGroups.push({ date: col.date, count: 1 });
+        lastDate = col.date;
+      } else {
+        dateGroups[dateGroups.length - 1].count++;
+      }
+    }
+
+    // Lookup: branch -> colKey -> subjects
+    const lookup = new Map<string, Map<string, Array<{ name: string; code: string }>>>();
+    for (const e of exams) {
+      const prog = e.program_name || e.section_name || 'Unknown';
+      const branch = hasMultiSections && e.section_name ? `${prog} (${e.section_name})` : prog;
+      const date = e.exam_date?.split?.('T')?.[0] || e.exam_date || '';
+      const key = `${date}|${e.slot_start}|${e.slot_end}`;
+      if (!lookup.has(branch)) lookup.set(branch, new Map());
+      const m = lookup.get(branch)!;
+      if (!m.has(key)) m.set(key, []);
+      m.get(key)!.push({ name: e.subject_name, code: e.subject_code || '' });
+    }
+
+    return { branches, columns, dateGroups, lookup };
+  });
 </script>
 
 <!-- Toast Notifications -->
@@ -392,40 +453,105 @@
           {/if}
 
           {#if selectedPlan.exams?.length > 0}
-            <div class="overflow-x-auto">
-              <table class="w-full text-left">
-                <thead>
-                  <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800">
-                    <th class="px-4 py-3">Subject</th>
-                    <th class="px-4 py-3">Section</th>
-                    <th class="px-4 py-3">Date</th>
-                    <th class="px-4 py-3">Time</th>
-                    <th class="px-4 py-3">Room</th>
-                    <th class="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
-                  {#each selectedPlan.exams as exam}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all">
-                      <td class="px-4 py-3">
-                        <p class="text-xs font-black text-gray-900 dark:text-white">{exam.subject_name}</p>
-                        <p class="text-[9px] text-gray-400 font-bold">{exam.subject_code}</p>
-                      </td>
-                      <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.section_name}</td>
-                      <td class="px-4 py-3 text-xs font-bold text-gray-700">{fmtDate(exam.exam_date)}</td>
-                      <td class="px-4 py-3 text-[10px] font-bold text-gray-500">{fmtTime(exam.slot_start)} — {fmtTime(exam.slot_end)}</td>
-                      <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.classroom_name || '—'}</td>
-                      <td class="px-4 py-3">
-                        <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase
-                          {exam.exam_status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
-                           exam.exam_status === 'CANCELLED' ? 'bg-gray-100 text-gray-500' :
-                           exam.exam_status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}">{exam.exam_status}</span>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
+            <!-- View Toggle -->
+            <div class="flex items-center gap-1 px-4 pt-3 pb-1">
+              <button onclick={() => viewMode = 'timetable'}
+                class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all
+                {viewMode === 'timetable' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800'}">
+                Timetable View
+              </button>
+              <button onclick={() => viewMode = 'list'}
+                class="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all
+                {viewMode === 'list' ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800'}">
+                List View
+              </button>
             </div>
+
+            {#if viewMode === 'timetable' && timetableData}
+              <!-- Timetable Grid (University format) -->
+              <div class="overflow-x-auto p-4">
+                <table class="w-full border-collapse text-xs">
+                  <thead>
+                    <tr>
+                      <th rowspan="2" class="bg-gray-900 dark:bg-slate-700 text-white px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest rounded-tl-xl border border-gray-800">Branch</th>
+                      {#each timetableData.dateGroups as dg}
+                        <th colspan={dg.count} class="bg-indigo-600 text-white px-3 py-2.5 text-center text-[10px] font-black uppercase tracking-wider border border-indigo-500">
+                          {fmtDate(dg.date)}
+                        </th>
+                      {/each}
+                    </tr>
+                    <tr>
+                      {#each timetableData.columns as [, col]}
+                        <th class="bg-indigo-500 text-white px-2 py-2 text-center text-[9px] font-bold border border-indigo-400 whitespace-nowrap">
+                          {fmtTime(col.slot_start)}-{fmtTime(col.slot_end)}
+                        </th>
+                      {/each}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {#each timetableData.branches as branch, bi}
+                      <tr class="{bi % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-800/50'}">
+                        <td class="px-4 py-3 font-black text-gray-900 dark:text-white text-xs border border-gray-200 dark:border-slate-700 whitespace-nowrap bg-gray-50 dark:bg-slate-800">
+                          {branch}
+                        </td>
+                        {#each timetableData.columns as [key]}
+                          {@const subjects = timetableData.lookup.get(branch)?.get(key) || []}
+                          <td class="px-2 py-2 text-center border border-gray-200 dark:border-slate-700 {subjects.length > 0 ? 'bg-blue-50 dark:bg-blue-900/10' : ''}">
+                            {#each subjects as subj}
+                              <div class="mb-0.5 last:mb-0">
+                                <p class="text-[10px] font-black text-indigo-700 dark:text-indigo-400 leading-tight">{subj.name}</p>
+                                {#if subj.code}
+                                  <p class="text-[9px] font-semibold text-gray-500 dark:text-gray-400">{subj.code}</p>
+                                {/if}
+                              </div>
+                            {/each}
+                            {#if subjects.length === 0}
+                              <span class="text-gray-300">—</span>
+                            {/if}
+                          </td>
+                        {/each}
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {:else}
+              <!-- List View -->
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead>
+                    <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800">
+                      <th class="px-4 py-3">Subject</th>
+                      <th class="px-4 py-3">Section</th>
+                      <th class="px-4 py-3">Date</th>
+                      <th class="px-4 py-3">Time</th>
+                      <th class="px-4 py-3">Room</th>
+                      <th class="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
+                    {#each selectedPlan.exams as exam}
+                      <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all">
+                        <td class="px-4 py-3">
+                          <p class="text-xs font-black text-gray-900 dark:text-white">{exam.subject_name}</p>
+                          <p class="text-[9px] text-gray-400 font-bold">{exam.subject_code}</p>
+                        </td>
+                        <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.section_name}</td>
+                        <td class="px-4 py-3 text-xs font-bold text-gray-700">{fmtDate(exam.exam_date)}</td>
+                        <td class="px-4 py-3 text-[10px] font-bold text-gray-500">{fmtTime(exam.slot_start)} — {fmtTime(exam.slot_end)}</td>
+                        <td class="px-4 py-3 text-xs font-bold text-gray-600">{exam.classroom_name || '—'}</td>
+                        <td class="px-4 py-3">
+                          <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase
+                            {exam.exam_status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                             exam.exam_status === 'CANCELLED' ? 'bg-gray-100 text-gray-500' :
+                             exam.exam_status === 'IN_PROGRESS' ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}">{exam.exam_status}</span>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {/if}
           {:else}
             <div class="p-10 text-center text-gray-400 text-sm">
               <svg class="w-10 h-10 text-gray-200 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>

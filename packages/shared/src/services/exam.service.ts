@@ -236,12 +236,9 @@ export class ExamService {
                 pools.get(student.section_id)!.push(student);
             }
 
-            // Shuffle each pool for randomness
+            // Sort each pool by enrollment number (roll number order)
             for (const pool of pools.values()) {
-                for (let i = pool.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [pool[i], pool[j]] = [pool[j], pool[i]];
-                }
+                pool.sort((a: any, b: any) => (a.enrollment_number || '').localeCompare(b.enrollment_number || ''));
             }
 
             // Create round-robin iterator across pools
@@ -289,8 +286,21 @@ export class ExamService {
                 const assignments: SeatAssignment[] = [];
                 const rows = classroom.bench_rows || 5;
                 const cols = classroom.bench_columns || 6;
-                const seatsPerBench = classroom.seats_per_bench || 2;
+                const defaultSeatsPerBench = classroom.seats_per_bench || 2;
                 const totalBenches = classroom.total_benches || (rows * cols);
+
+                // Build per-bench seat count map from bench_types in metadata
+                const meta = typeof classroom.metadata_json === 'string' ? JSON.parse(classroom.metadata_json || '{}') : (classroom.metadata_json || {});
+                const benchTypes: Array<{count: number; seats_per_bench: number}> = meta.bench_types || [];
+                // Create array: seatsForBench[benchNum] = number of seats
+                const seatsForBench: number[] = [];
+                if (benchTypes.length > 0) {
+                    for (const bt of benchTypes) {
+                        for (let i = 0; i < (bt.count || 0); i++) {
+                            seatsForBench.push(bt.seats_per_bench || defaultSeatsPerBench);
+                        }
+                    }
+                }
 
                 let lastSectionOnBench: string | null = null;
 
@@ -300,9 +310,11 @@ export class ExamService {
                         if (benchNum >= totalBenches) break;
                         if (totalAssigned >= totalStudents) break;
 
+                        // Use per-bench seat count if available, else default
+                        const seatsThisBench = seatsForBench[benchNum] || defaultSeatsPerBench;
                         lastSectionOnBench = null;
 
-                        for (let s = 0; s < seatsPerBench; s++) {
+                        for (let s = 0; s < seatsThisBench; s++) {
                             if (totalAssigned >= totalStudents) break;
 
                             const student = getNextStudent(lastSectionOnBench || undefined);
@@ -402,7 +414,9 @@ export class ExamService {
                         violations,
                         total_seated: assignments.length,
                         generation_strategy: 'interleave_branches',
-                        generated_at: new Date().toISOString()
+                        generated_at: new Date().toISOString(),
+                        bench_types: benchTypes.length > 0 ? benchTypes : undefined,
+                        seats_for_bench: seatsForBench.length > 0 ? seatsForBench : undefined
                     };
 
                     // Store for each exam in this slot
@@ -457,12 +471,12 @@ export class ExamService {
         return data;
     }
 
-    static async assignInvigilator(examId: string, facultyProfileId: string, assignedBy: string) {
+    static async assignInvigilator(examId: string, facultyProfileId: string, assignedBy: string, classroomId?: string) {
         const result = await db.query(
-            `INSERT INTO invigilation_assignments (exam_id, faculty_profile_id, assigned_by)
-             VALUES ($1, $2, $3)
+            `INSERT INTO invigilation_assignments (exam_id, faculty_profile_id, assigned_by, classroom_id)
+             VALUES ($1, $2, $3, $4)
              RETURNING *`,
-            [examId, facultyProfileId, assignedBy]
+            [examId, facultyProfileId, assignedBy, classroomId || null]
         );
         return result.rows[0];
     }
@@ -473,15 +487,38 @@ export class ExamService {
 
     static async getInvigilationAssignments(examPlanId: string) {
         const result = await db.query(
-            `SELECT ia.*, e.exam_date, e.slot_start, e.slot_end, e.classroom_id,
-                    u.name as faculty_name, c.name as classroom_name,
-                    s.name as subject_name, s.code as subject_code
+            `SELECT ia.id, ia.exam_id, ia.faculty_profile_id, ia.assignment_status, ia.classroom_id,
+                    e.exam_date, e.slot_start, e.slot_end,
+                    u.name as faculty_name,
+                    c.name as classroom_name,
+                    -- Get ALL subjects for the same slot + classroom (case-insensitive dedup)
+                    (SELECT string_agg(sub_name, ', ' ORDER BY sub_name)
+                     FROM (SELECT DISTINCT ON (LOWER(sub.name)) sub.name as sub_name
+                           FROM exams e2
+                           JOIN exam_seating_plans esp2 ON esp2.exam_id = e2.id
+                           JOIN subjects sub ON e2.subject_id = sub.id
+                           WHERE e2.exam_plan_id = $1
+                             AND e2.exam_date = e.exam_date
+                             AND e2.slot_start = e.slot_start
+                             AND esp2.classroom_id = ia.classroom_id
+                           ORDER BY LOWER(sub.name), sub.name) sq
+                    ) as all_subjects,
+                    (SELECT string_agg(sub_code, ', ' ORDER BY sub_code)
+                     FROM (SELECT DISTINCT ON (LOWER(sub.code)) sub.code as sub_code
+                           FROM exams e2
+                           JOIN exam_seating_plans esp2 ON esp2.exam_id = e2.id
+                           JOIN subjects sub ON e2.subject_id = sub.id
+                           WHERE e2.exam_plan_id = $1
+                             AND e2.exam_date = e.exam_date
+                             AND e2.slot_start = e.slot_start
+                             AND esp2.classroom_id = ia.classroom_id
+                           ORDER BY LOWER(sub.code), sub.code) sq2
+                    ) as all_subject_codes
              FROM invigilation_assignments ia
              JOIN exams e ON ia.exam_id = e.id
              JOIN faculty_profiles fp ON ia.faculty_profile_id = fp.id
              JOIN users u ON fp.user_id = u.id
-             LEFT JOIN classrooms c ON e.classroom_id = c.id
-             LEFT JOIN subjects s ON e.subject_id = s.id
+             LEFT JOIN classrooms c ON ia.classroom_id = c.id
              WHERE e.exam_plan_id = $1
              ORDER BY e.exam_date, e.slot_start, c.name`,
             [examPlanId]
@@ -523,7 +560,6 @@ export class ExamService {
         );
 
         const assignments: any[] = [];
-        let facultyIdx = 0;
 
         // Group exams by date+slot
         const slotGroups = new Map<string, any[]>();
@@ -533,24 +569,49 @@ export class ExamService {
             slotGroups.get(key)!.push(exam);
         }
 
-        for (const [, slotExams] of slotGroups) {
+        // Build a flat list of "seats needed" per slot: [{examId, classroomId, seatIdx}]
+        // Then rotate the faculty list by a different offset each slot
+        const sortedSlotKeys = [...slotGroups.keys()].sort();
+        const numClassrooms = Math.max(...[...slotGroups.values()].map(s => s.length), 1);
+        // Shift by number of seats that guarantees different pairing each slot
+        // Use an offset that's coprime with faculty.length for maximum spread
+        const shiftPerSlot = numClassrooms > 1 ? Math.ceil(faculty.length / numClassrooms) : 1;
+
+        for (let si = 0; si < sortedSlotKeys.length; si++) {
+            const slotExams = slotGroups.get(sortedSlotKeys[si])!;
             const assignedInSlot = new Set<string>();
 
+            // Build ordered seat requests for this slot
+            const seatRequests: { exam: any; seatNum: number }[] = [];
             for (const exam of slotExams) {
                 const required = exam.invigilators_required || 1;
                 for (let i = 0; i < required; i++) {
-                    // Find next available faculty not already assigned in this slot
-                    let tries = 0;
-                    while (tries < faculty.length) {
-                        const f = faculty[facultyIdx % faculty.length];
-                        facultyIdx++;
-                        if (!assignedInSlot.has(f.id)) {
-                            assignedInSlot.add(f.id);
-                            const assignment = await this.assignInvigilator(exam.id, f.id, assignedBy);
-                            assignments.push({ ...assignment, faculty_name: f.faculty_name });
+                    seatRequests.push({ exam, seatNum: i });
+                }
+            }
+
+            // Rotate faculty starting position each slot
+            const baseOffset = (si * shiftPerSlot) % faculty.length;
+
+            for (let ri = 0; ri < seatRequests.length; ri++) {
+                const { exam } = seatRequests[ri];
+                const fIdx = (baseOffset + ri) % faculty.length;
+                const f = faculty[fIdx];
+
+                if (!assignedInSlot.has(f.id)) {
+                    assignedInSlot.add(f.id);
+                    const assignment = await this.assignInvigilator(exam.id, f.id, assignedBy, exam.classroom_id);
+                    assignments.push({ ...assignment, faculty_name: f.faculty_name });
+                } else {
+                    // Faculty already used in this slot (can happen if faculty < seats), find next available
+                    for (let t = 1; t < faculty.length; t++) {
+                        const altF = faculty[(fIdx + t) % faculty.length];
+                        if (!assignedInSlot.has(altF.id)) {
+                            assignedInSlot.add(altF.id);
+                            const assignment = await this.assignInvigilator(exam.id, altF.id, assignedBy, exam.classroom_id);
+                            assignments.push({ ...assignment, faculty_name: altF.faculty_name });
                             break;
                         }
-                        tries++;
                     }
                 }
             }
@@ -811,82 +872,161 @@ export class ExamService {
             [JSON.stringify(timeSlots), classroomIds, JSON.stringify({ excludeDates, maxExamsPerDayPerStudent }), examPlanId]
         );
 
-        // 9. Greedy scheduling — sort most constrained sections first
-        const subjectsPerSection = new Map<string, number>();
-        for (const req of examReqs) {
-            subjectsPerSection.set(req.sectionId, (subjectsPerSection.get(req.sectionId) || 0) + 1);
-        }
-        examReqs.sort((a, b) => (subjectsPerSection.get(b.sectionId) || 0) - (subjectsPerSection.get(a.sectionId) || 0));
+        // 9. University-style scheduling:
+        //    - Common subjects (same name across branches) go in the SAME slot
+        //    - Different subjects for each branch are staggered across slots
+        //    - Respects maxExamsPerDayPerStudent constraint
 
-        const sectionSlotBooked = new Map<string, Set<string>>();
-        const classroomSlotBooked = new Map<string, Set<string>>();
-        const sectionDayCount = new Map<string, Map<string, number>>();
-        const sectionLastDate = new Map<string, string>();
+        // Group subjects by program (branch)
+        const branchSubjects = new Map<string, ExamReq[]>();
+        for (const req of examReqs) {
+            if (!branchSubjects.has(req.programId)) branchSubjects.set(req.programId, []);
+            branchSubjects.get(req.programId)!.push(req);
+        }
+        const branches = [...branchSubjects.keys()];
+
+        // Find common subjects (same name across multiple branches) and unique subjects
+        // Group all exam reqs by subject name
+        const subjectNameGroups = new Map<string, ExamReq[]>();
+        for (const req of examReqs) {
+            const key = req.subjectName.toLowerCase().trim();
+            if (!subjectNameGroups.has(key)) subjectNameGroups.set(key, []);
+            subjectNameGroups.get(key)!.push(req);
+        }
+
+        // Separate into: common subjects (shared by 2+ branches) and branch-specific
+        const commonSubjects: Array<{ name: string; reqs: ExamReq[] }> = [];
+        const branchOnlySubjects = new Map<string, ExamReq[]>(); // programId -> branch-specific reqs
+
+        for (const [name, reqs] of subjectNameGroups) {
+            const uniqueBranches = new Set(reqs.map(r => r.programId));
+            if (uniqueBranches.size > 1) {
+                // Common subject — all branches with this subject get it in the same slot
+                commonSubjects.push({ name, reqs });
+            } else {
+                // Branch-specific subject
+                const branchId = reqs[0].programId;
+                if (!branchOnlySubjects.has(branchId)) branchOnlySubjects.set(branchId, []);
+                branchOnlySubjects.get(branchId)!.push(...reqs);
+            }
+        }
+
+        // Sort common subjects alphabetically for consistent ordering
+        commonSubjects.sort((a, b) => a.name.localeCompare(b.name));
+
+        // Sort branch-specific subjects alphabetically within each branch
+        for (const reqs of branchOnlySubjects.values()) {
+            reqs.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+        }
+
+        // Build time slots list
+        const allSlots: Array<{ date: string; slotIdx: number }> = [];
+        for (const date of validDates) {
+            for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
+                allSlots.push({ date, slotIdx });
+            }
+        }
+
+        // Track per-branch slot assignments to avoid double-booking
+        const branchSlotUsed = new Map<string, Set<number>>(); // programId -> set of slot numbers
+        for (const b of branches) branchSlotUsed.set(b, new Set());
+
+        // Track per-branch per-day exam count for maxExamsPerDayPerStudent
+        const branchDayCount = new Map<string, Map<string, number>>();
+        for (const b of branches) branchDayCount.set(b, new Map());
+
         let examsCreated = 0;
 
-        for (const req of examReqs) {
+        function canScheduleInSlot(slotNum: number, branchId: string): boolean {
+            if (slotNum >= allSlots.length) return false;
+            if (branchSlotUsed.get(branchId)!.has(slotNum)) return false;
+            const date = allSlots[slotNum].date;
+            const dayCount = branchDayCount.get(branchId)!.get(date) || 0;
+            return dayCount < maxExamsPerDayPerStudent;
+        }
+
+        function markSlot(slotNum: number, branchId: string) {
+            branchSlotUsed.get(branchId)!.add(slotNum);
+            const date = allSlots[slotNum].date;
+            const dc = branchDayCount.get(branchId)!;
+            dc.set(date, (dc.get(date) || 0) + 1);
+        }
+
+        // Phase 1: Schedule common subjects — all branches get them in the SAME slot
+        for (const common of commonSubjects) {
+            // Find a slot where ALL branches with this subject are free
             let placed = false;
-            const candidates: Array<{ date: string; slotIdx: number; isConsecutive: boolean }> = [];
-            for (const date of validDates) {
-                for (let slotIdx = 0; slotIdx < timeSlots.length; slotIdx++) {
-                    const lastDate = sectionLastDate.get(req.sectionId);
-                    let isConsecutive = false;
-                    if (lastDate) {
-                        const prev = new Date(lastDate);
-                        prev.setDate(prev.getDate() + 1);
-                        isConsecutive = prev.toISOString().substring(0, 10) === date;
-                    }
-                    candidates.push({ date, slotIdx, isConsecutive });
-                }
-            }
-            candidates.sort((a, b) => {
-                if (a.isConsecutive !== b.isConsecutive) return a.isConsecutive ? 1 : -1;
-                if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-                return a.slotIdx - b.slotIdx;
-            });
+            for (let s = 0; s < allSlots.length; s++) {
+                const allFree = common.reqs.every(r => canScheduleInSlot(s, r.programId));
+                if (!allFree) continue;
 
-            for (const { date, slotIdx } of candidates) {
-                const slotKey = `${date}|${slotIdx}`;
-                const secBooked = sectionSlotBooked.get(req.sectionId);
-                if (secBooked && secBooked.has(slotKey)) continue;
-                const dayMap = sectionDayCount.get(req.sectionId);
-                if ((dayMap?.get(date) || 0) >= maxExamsPerDayPerStudent) continue;
-
-                // Find available classroom
-                let assignedClassroom: any = null;
-                for (const cr of classrooms) {
-                    const crBooked = classroomSlotBooked.get(cr.id);
-                    if (crBooked && crBooked.has(slotKey)) continue;
-                    if (cr.capacity >= req.strength) { assignedClassroom = cr; break; }
-                }
-                if (!assignedClassroom) continue;
-
+                const { date, slotIdx } = allSlots[s];
                 const slot = timeSlots[slotIdx];
-                await db.query(
-                    `INSERT INTO exams (exam_plan_id, subject_id, section_id, exam_date, slot_start, slot_end, classroom_id, exam_mode, exam_status)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'OFFLINE', 'SCHEDULED')`,
-                    [examPlanId, req.subjectId, req.sectionId, date, slot.start, slot.end, assignedClassroom.id]
-                );
-
-                if (!sectionSlotBooked.has(req.sectionId)) sectionSlotBooked.set(req.sectionId, new Set());
-                sectionSlotBooked.get(req.sectionId)!.add(slotKey);
-                if (!classroomSlotBooked.has(assignedClassroom.id)) classroomSlotBooked.set(assignedClassroom.id, new Set());
-                classroomSlotBooked.get(assignedClassroom.id)!.add(slotKey);
-                if (!sectionDayCount.has(req.sectionId)) sectionDayCount.set(req.sectionId, new Map());
-                sectionDayCount.get(req.sectionId)!.set(date, (sectionDayCount.get(req.sectionId)!.get(date) || 0) + 1);
-                sectionLastDate.set(req.sectionId, date);
-
-                examsCreated++;
+                for (const req of common.reqs) {
+                    await db.query(
+                        `INSERT INTO exams (exam_plan_id, subject_id, section_id, exam_date, slot_start, slot_end, classroom_id, exam_mode, exam_status)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, 'OFFLINE', 'SCHEDULED')`,
+                        [examPlanId, req.subjectId, req.sectionId, date, slot.start, slot.end, classrooms[0].id]
+                    );
+                    markSlot(s, req.programId);
+                    examsCreated++;
+                }
                 placed = true;
                 break;
             }
-
             if (!placed) {
-                conflicts.push(`Could not schedule: ${req.subjectCode || req.subjectName} for ${req.programName} ${req.sectionName}`);
+                for (const req of common.reqs) {
+                    conflicts.push(`Could not schedule common subject: ${req.subjectName} for ${req.programName}`);
+                }
             }
         }
 
-        if (conflicts.length > 0) {
+        // Phase 2: Schedule branch-specific subjects — stagger across remaining slots
+        // Collect all branch-specific subjects into a round-robin queue
+        const branchQueues = new Map<string, ExamReq[]>();
+        for (const [branchId, reqs] of branchOnlySubjects) {
+            branchQueues.set(branchId, [...reqs]);
+        }
+
+        // Round-robin: cycle through branches, pick next unscheduled subject, find next free slot
+        let anyPlaced = true;
+        while (anyPlaced) {
+            anyPlaced = false;
+            for (const branchId of branches) {
+                const queue = branchQueues.get(branchId);
+                if (!queue || queue.length === 0) continue;
+
+                const req = queue[0];
+                let placed = false;
+                for (let s = 0; s < allSlots.length; s++) {
+                    if (!canScheduleInSlot(s, branchId)) continue;
+
+                    const { date, slotIdx } = allSlots[s];
+                    const slot = timeSlots[slotIdx];
+                    await db.query(
+                        `INSERT INTO exams (exam_plan_id, subject_id, section_id, exam_date, slot_start, slot_end, classroom_id, exam_mode, exam_status)
+                         VALUES ($1, $2, $3, $4, $5, $6, $7, 'OFFLINE', 'SCHEDULED')`,
+                        [examPlanId, req.subjectId, req.sectionId, date, slot.start, slot.end, classrooms[0].id]
+                    );
+                    markSlot(s, branchId);
+                    examsCreated++;
+                    queue.shift();
+                    placed = true;
+                    anyPlaced = true;
+                    break;
+                }
+                if (!placed) {
+                    conflicts.push(`Could not schedule: ${req.subjectCode || req.subjectName} for ${req.programName}`);
+                    queue.shift();
+                    anyPlaced = true; // keep trying others
+                }
+            }
+        }
+
+        // Check for any unplaced exams
+        const totalNeeded = examReqs.length;
+        if (examsCreated < totalNeeded) {
+            conflicts.push(`${totalNeeded - examsCreated} exam(s) could not be placed due to insufficient time slots.`);
             warnings.push(`${conflicts.length} exam(s) could not be placed.`);
         }
 

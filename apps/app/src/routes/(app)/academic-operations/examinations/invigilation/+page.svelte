@@ -88,19 +88,75 @@
     } catch { toast('Network error', 'error'); }
   }
 
-  // Group assignments by date+slot
-  const grouped = $derived(() => {
-    const groups = new Map<string, any[]>();
+  // Group: date+slot → classroom → { invigilators[], subjects[], subjectCodes[] }
+  interface ClassroomRow {
+    classroomName: string;
+    classroomId: string;
+    invigilators: { id: string; name: string; assignmentId: string }[];
+    subjects: string[];
+    subjectCodes: string[];
+  }
+  interface SlotGroup {
+    key: string;
+    examDate: string;
+    slotStart: string;
+    slotEnd: string;
+    classrooms: ClassroomRow[];
+  }
+
+  const grouped = $derived((): SlotGroup[] => {
+    const slotMap = new Map<string, { examDate: string; slotStart: string; slotEnd: string; classroomMap: Map<string, ClassroomRow> }>();
+
     for (const a of assignments) {
-      const key = `${a.exam_date}_${a.slot_start}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(a);
+      const slotKey = `${a.exam_date}_${a.slot_start}`;
+      if (!slotMap.has(slotKey)) {
+        slotMap.set(slotKey, { examDate: a.exam_date, slotStart: a.slot_start, slotEnd: a.slot_end, classroomMap: new Map() });
+      }
+      const slot = slotMap.get(slotKey)!;
+      const cId = a.classroom_id || 'unknown';
+      const cName = a.classroom_name || '—';
+
+      if (!slot.classroomMap.has(cId)) {
+        slot.classroomMap.set(cId, { classroomName: cName, classroomId: cId, invigilators: [], subjects: [], subjectCodes: [] });
+      }
+      const room = slot.classroomMap.get(cId)!;
+
+      // Add invigilator if not already present
+      if (!room.invigilators.some(inv => inv.id === a.faculty_profile_id)) {
+        room.invigilators.push({ id: a.faculty_profile_id, name: a.faculty_name || 'Unknown', assignmentId: a.id });
+      }
+
+      // Add subjects from all_subjects or single subject
+      if (a.all_subjects) {
+        for (const s of a.all_subjects.split(', ')) {
+          if (s && !room.subjects.includes(s)) room.subjects.push(s);
+        }
+      } else if (a.subject_name && !room.subjects.includes(a.subject_name)) {
+        room.subjects.push(a.subject_name);
+      }
+
+      if (a.all_subject_codes) {
+        for (const c of a.all_subject_codes.split(', ')) {
+          if (c && !room.subjectCodes.includes(c)) room.subjectCodes.push(c);
+        }
+      } else if (a.subject_code && !room.subjectCodes.includes(a.subject_code)) {
+        room.subjectCodes.push(a.subject_code);
+      }
     }
-    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+
+    return [...slotMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, val]) => ({
+        key,
+        examDate: val.examDate,
+        slotStart: val.slotStart,
+        slotEnd: val.slotEnd,
+        classrooms: [...val.classroomMap.values()].sort((a, b) => a.classroomName.localeCompare(b.classroomName))
+      }));
   });
 
-  // Unique classrooms count
   const uniqueClassrooms = $derived(new Set(assignments.map(a => a.classroom_id).filter(Boolean)).size);
+  const uniqueFaculty = $derived(new Set(assignments.map(a => a.faculty_profile_id)).size);
 
   function fmtDate(d: string) {
     if (!d) return '—';
@@ -159,6 +215,13 @@
             Auto-Assign Invigilators
           {/if}
         </button>
+        {#if assignments.length > 0}
+          <a href="/api/academic/exams/plans/{selectedPlanId}/export-invigilation" target="_blank"
+            class="px-4 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-all shadow-sm hover:shadow-lg active:scale-95 inline-flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Export
+          </a>
+        {/if}
       {/if}
     </div>
   </div>
@@ -190,7 +253,7 @@
       </div>
       <div class="p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
         <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Unique Faculty</p>
-        <p class="text-3xl font-black text-indigo-600 mt-1">{new Set(assignments.map(a => a.faculty_profile_id)).size}</p>
+        <p class="text-3xl font-black text-indigo-600 mt-1">{uniqueFaculty}</p>
       </div>
       <div class="p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
         <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Exam Slots</p>
@@ -203,58 +266,63 @@
     </div>
 
     <!-- Grouped by Date/Slot -->
-    <div class="space-y-4">
-      {#each grouped() as [slotKey, slotAssignments], i}
-        {@const first = slotAssignments[0]}
+    <div class="space-y-5">
+      {#each grouped() as slot, i}
         <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden" in:fly={{ y: 15, delay: i * 50 }}>
-          <div class="p-4 bg-gray-50 dark:bg-slate-800/50 flex items-center gap-4 flex-wrap">
+          <!-- Slot Header -->
+          <div class="px-5 py-3 bg-gray-50 dark:bg-slate-800/50 flex items-center gap-4 flex-wrap border-b border-gray-100 dark:border-slate-800">
             <div class="px-3 py-1.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-black">
-              {fmtDate(first.exam_date)}
+              {fmtDate(slot.examDate)}
             </div>
-            <span class="text-xs font-bold text-gray-500">{fmtTime(first.slot_start)} — {fmtTime(first.slot_end)}</span>
-            <span class="text-[10px] font-bold text-gray-400">{slotAssignments.length} invigilators</span>
+            <span class="text-xs font-bold text-gray-500">{fmtTime(slot.slotStart)} — {fmtTime(slot.slotEnd)}</span>
+            <span class="text-[10px] font-bold text-gray-400">{slot.classrooms.length} classrooms</span>
           </div>
+
+          <!-- Table: one row per classroom -->
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
-                <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-slate-800">
-                  <th class="px-4 py-2">Faculty</th>
-                  <th class="px-4 py-2">Classroom</th>
-                  <th class="px-4 py-2">Subject</th>
-                  <th class="px-4 py-2">Status</th>
-                  <th class="px-4 py-2 w-10"></th>
+                <tr class="text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-slate-800">
+                  <th class="px-5 py-2.5 w-10">#</th>
+                  <th class="px-5 py-2.5">Classroom</th>
+                  <th class="px-5 py-2.5">Invigilators</th>
+                  <th class="px-5 py-2.5">Subjects</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
-                {#each slotAssignments as a}
-                  <tr class="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-all group">
-                    <td class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <div class="w-7 h-7 rounded-full bg-teal-100 dark:bg-teal-500/20 flex items-center justify-center text-[10px] font-black text-teal-700 dark:text-teal-300">
-                          {(a.faculty_name || '?')[0]}
-                        </div>
-                        <span class="text-xs font-bold text-gray-900 dark:text-white">{a.faculty_name || 'Unknown'}</span>
+                {#each slot.classrooms as room, ri}
+                  <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-all group">
+                    <td class="px-5 py-3 text-xs font-bold text-gray-300">{ri + 1}</td>
+                    <td class="px-5 py-3">
+                      <span class="text-sm font-extrabold text-gray-900 dark:text-white">{room.classroomName}</span>
+                    </td>
+                    <td class="px-5 py-3">
+                      <div class="flex flex-wrap gap-2">
+                        {#each room.invigilators as inv}
+                          <div class="flex items-center gap-1.5 px-2.5 py-1 bg-teal-50 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 rounded-lg group/inv">
+                            <div class="w-5 h-5 rounded-full bg-teal-500 text-white flex items-center justify-center text-[8px] font-black shrink-0">
+                              {inv.name[0]}
+                            </div>
+                            <span class="text-xs font-bold text-teal-800 dark:text-teal-300">{inv.name}</span>
+                            <button onclick={() => removeAssignment(inv.assignmentId)}
+                              class="opacity-0 group-hover/inv:opacity-100 ml-0.5 text-gray-300 hover:text-rose-500 transition-all" title="Remove">
+                              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                          </div>
+                        {/each}
                       </div>
                     </td>
-                    <td class="px-4 py-3 text-xs font-bold text-gray-600">{a.classroom_name || '—'}</td>
-                    <td class="px-4 py-3">
-                      <span class="text-xs font-bold text-gray-500">{a.subject_name || '—'}</span>
-                      {#if a.subject_code}
-                        <span class="text-[9px] text-gray-400 ml-1">({a.subject_code})</span>
-                      {/if}
-                    </td>
-                    <td class="px-4 py-3">
-                      <span class="px-2 py-0.5 rounded text-[8px] font-black uppercase
-                        {a.assignment_status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' :
-                         a.assignment_status === 'CANCELLED' ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}">
-                        {a.assignment_status || 'ASSIGNED'}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3">
-                      <button onclick={() => removeAssignment(a.id)}
-                        class="opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" title="Remove assignment">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                      </button>
+                    <td class="px-5 py-3">
+                      <div class="flex flex-wrap gap-1.5">
+                        {#each room.subjects as subj, si}
+                          <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 rounded text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                            {subj}
+                            {#if room.subjectCodes[si]}
+                              <span class="text-[9px] font-semibold text-indigo-400">({room.subjectCodes[si]})</span>
+                            {/if}
+                          </span>
+                        {/each}
+                      </div>
                     </td>
                   </tr>
                 {/each}
