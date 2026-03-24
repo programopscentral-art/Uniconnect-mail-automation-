@@ -193,11 +193,11 @@ tbody tr:hover td{background:#f8fafc}
         </div>
     </div>
     <div class="toolbar-right">
-        <button class="toolbar-btn btn-print" onclick="window.print()">
+        <button class="toolbar-btn btn-print" data-action="print">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
             Print
         </button>
-        <button class="toolbar-btn btn-download" onclick="downloadHTML()">
+        <button class="toolbar-btn btn-download" data-action="download">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Download
         </button>
@@ -214,24 +214,33 @@ tbody tr:hover td{background:#f8fafc}
 </div>
 
 <script>
-function downloadHTML() {
-    try {
-        var content = document.documentElement.outerHTML;
-        var blob = new Blob([content], { type: 'text/html' });
-        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
-            var file = new File([blob], 'invigilation-duty.html', { type: 'text/html' });
-            navigator.share({ files: [file], title: 'Invigilation Duty' }).catch(function() { fallbackDL(blob); });
-        } else { fallbackDL(blob); }
-    } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
-}
-function fallbackDL(blob) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'invigilation-duty.html';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
-}
+(function() {
+    function fallbackDL(blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'invigilation-duty.html';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
+    }
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        if (action === 'print') {
+            window.print();
+        } else if (action === 'download') {
+            try {
+                var content = document.documentElement.outerHTML;
+                var blob = new Blob([content], { type: 'text/html' });
+                if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+                    var file = new File([blob], 'invigilation-duty.html', { type: 'text/html' });
+                    navigator.share({ files: [file], title: 'Invigilation Duty' }).catch(function() { fallbackDL(blob); });
+                } else { fallbackDL(blob); }
+            } catch(ex) { alert('Download failed. Try Save Page from browser menu.'); }
+        }
+    });
+})();
 </script>
 </body></html>`;
 

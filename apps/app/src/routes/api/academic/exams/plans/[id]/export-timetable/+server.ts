@@ -116,16 +116,16 @@ table.datewise tr:hover td{background:#f8fafc}
             <div class="toolbar-subtitle">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches</div>
         </div>
         <div class="view-toggle">
-            <button class="view-btn${format === 'branchwise' ? ' active' : ''}" id="btn-branchwise" onclick="switchView('branchwise')">Branch-wise</button>
-            <button class="view-btn${format === 'datewise' ? ' active' : ''}" id="btn-datewise" onclick="switchView('datewise')">Date-wise</button>
+            <button class="view-btn${format === 'branchwise' ? ' active' : ''}" id="btn-branchwise" data-action="view" data-view="branchwise">Branch-wise</button>
+            <button class="view-btn${format === 'datewise' ? ' active' : ''}" id="btn-datewise" data-action="view" data-view="datewise">Date-wise</button>
         </div>
     </div>
     <div class="toolbar-right">
-        <button class="toolbar-btn btn-print" onclick="window.print()" title="Print timetable">
+        <button class="toolbar-btn btn-print" data-action="print" title="Print timetable">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
             Print
         </button>
-        <button class="toolbar-btn btn-download" onclick="downloadHTML()" title="Download as HTML file">
+        <button class="toolbar-btn btn-download" data-action="download" title="Download as HTML file">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Download
         </button>
@@ -143,31 +143,39 @@ table.datewise tr:hover td{background:#f8fafc}
 </div>
 
 <script>
-function switchView(view) {
-    document.getElementById('view-branchwise').style.display = view === 'branchwise' ? '' : 'none';
-    document.getElementById('view-datewise').style.display = view === 'datewise' ? '' : 'none';
-    document.getElementById('btn-branchwise').classList.toggle('active', view === 'branchwise');
-    document.getElementById('btn-datewise').classList.toggle('active', view === 'datewise');
-}
-
-function downloadHTML() {
-    try {
-        var content = document.documentElement.outerHTML;
-        var blob = new Blob([content], { type: 'text/html' });
-        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
-            var file = new File([blob], 'timetable.html', { type: 'text/html' });
-            navigator.share({ files: [file], title: 'Exam Timetable' }).catch(function() { fallbackDL(blob); });
-        } else { fallbackDL(blob); }
-    } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
-}
-function fallbackDL(blob) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'timetable.html';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
-}
+(function() {
+    function fallbackDL(blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'timetable.html';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
+    }
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        if (action === 'view') {
+            var view = btn.getAttribute('data-view');
+            document.getElementById('view-branchwise').style.display = view === 'branchwise' ? '' : 'none';
+            document.getElementById('view-datewise').style.display = view === 'datewise' ? '' : 'none';
+            document.getElementById('btn-branchwise').classList.toggle('active', view === 'branchwise');
+            document.getElementById('btn-datewise').classList.toggle('active', view === 'datewise');
+        } else if (action === 'print') {
+            window.print();
+        } else if (action === 'download') {
+            try {
+                var content = document.documentElement.outerHTML;
+                var blob = new Blob([content], { type: 'text/html' });
+                if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+                    var file = new File([blob], 'timetable.html', { type: 'text/html' });
+                    navigator.share({ files: [file], title: 'Exam Timetable' }).catch(function() { fallbackDL(blob); });
+                } else { fallbackDL(blob); }
+            } catch(ex) { alert('Download failed. Try Save Page from browser menu.'); }
+        }
+    });
+})();
 </script>
 </body></html>`;
 
