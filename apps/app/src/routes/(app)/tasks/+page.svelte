@@ -59,6 +59,7 @@
     priority: "MEDIUM" as const,
     assignee_ids: [] as string[],
     university_id: "",
+    start_date: "",
     due_date: "",
     estimated_time: "",
   });
@@ -164,6 +165,7 @@
       assignee_ids: canAssignToOthers || isCentralBOA ? [] : [data.user.id],
       university_id:
         isGlobalAdmin || isCentralBOA ? "" : data.user.university_id || "",
+      start_date: "",
       due_date: "",
       estimated_time: "",
     };
@@ -178,6 +180,9 @@
       priority: task.priority || "MEDIUM",
       assignee_ids: task.assignee_ids || [],
       university_id: task.university_id || "",
+      start_date: task.start_date
+        ? new Date(task.start_date).toISOString().slice(0, 16)
+        : "",
       due_date: task.due_date
         ? new Date(task.due_date).toISOString().slice(0, 16)
         : "",
@@ -831,9 +836,11 @@
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                   /></svg
                 >
-                {task.due_date
-                  ? new Date(task.due_date).toLocaleDateString()
-                  : "Set Date"}
+                {#if task.due_date}
+                  {new Date(task.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                {:else}
+                  Set Date
+                {/if}
               </div>
               {#if task.estimated_time}
                 <div class="flex items-center text-xs font-bold text-amber-600">
@@ -1068,9 +1075,40 @@
             </div>
             <div>
               <label
+                for="f-est"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
+                >Estimated Time (e.g. 2h, 1.5d)</label
+              >
+              <input
+                id="f-est"
+                type="text"
+                required
+                bind:value={form.estimated_time}
+                placeholder="e.g. 2h, 1.5d, 30m"
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                for="f-start"
+                class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
+                >Start Date & Time</label
+              >
+              <input
+                id="f-start"
+                type="datetime-local"
+                bind:value={form.start_date}
+                class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all [color-scheme:dark]"
+              />
+            </div>
+            <div>
+              <label
                 for="f-due"
                 class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
-                >Deadline (Optional)</label
+                >Deadline</label
               >
               <input
                 id="f-due"
@@ -1079,22 +1117,6 @@
                 class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/20 transition-all [color-scheme:dark]"
               />
             </div>
-          </div>
-
-          <div>
-            <label
-              for="f-est"
-              class="block text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-2"
-              >Estimated Time (e.g. 2h, 1.5d)</label
-            >
-            <input
-              id="f-est"
-              type="text"
-              required
-              bind:value={form.estimated_time}
-              placeholder="e.g. 2h, 1.5d, 30m"
-              class="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-5 py-3 text-sm font-bold text-gray-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition-all shadow-sm"
-            />
           </div>
 
           <div class="grid grid-cols-2 gap-4">

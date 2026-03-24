@@ -220,7 +220,7 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
         Object.entries(updateData).forEach(([key, val]) => {
             fields.push(`${key} = $${i++}`);
             // Convert empty strings to null for specific fields
-            if (['description', 'notes', 'university_id', 'due_date'].includes(key) && val === '') {
+            if (['description', 'notes', 'university_id', 'start_date', 'due_date'].includes(key) && val === '') {
                 values.push(null);
             } else {
                 values.push(val);
