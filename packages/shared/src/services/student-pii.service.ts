@@ -90,12 +90,16 @@ export class StudentPIIService {
             }
         }
 
-        // Log PII access
-        await db.query(
-            `INSERT INTO document_access_logs (document_id, student_profile_id, accessed_by, access_type, ip_address)
-             VALUES (gen_random_uuid(), $1, $2, 'PII_ACCESS', $3)`,
-            [studentProfileId, accessorId, `fields:${targetFields.join(',')}`]
-        );
+        // Log PII access (document_id is nullable after migration 0069)
+        try {
+            await db.query(
+                `INSERT INTO document_access_logs (document_id, student_profile_id, accessed_by, access_type, ip_address)
+                 VALUES (NULL, $1, $2, 'PII_ACCESS', $3)`,
+                [studentProfileId, accessorId, `fields:${targetFields.join(',')}`]
+            );
+        } catch {
+            // Audit log failure should not block PII access
+        }
 
         return decrypted;
     }

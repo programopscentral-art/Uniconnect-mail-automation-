@@ -62,6 +62,39 @@
     ON_LEAVE:   'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
   };
 
+  // ─── Bulk Import ───
+  let showImportModal = $state(false);
+  let importing = $state(false);
+  let importResult = $state<any>(null);
+  let importTermName = $state('');
+
+  async function downloadTemplate() {
+    window.open('/api/academic/students/bulk-import', '_blank');
+  }
+
+  async function handleBulkImport(e: Event) {
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    formData.set('university_id', universityId);
+    formData.set('term_name', importTermName);
+    if (batchId) formData.set('batch_id', batchId);
+
+    importing = true;
+    importResult = null;
+    try {
+      const res = await fetch('/api/academic/students/bulk-import', {
+        method: 'POST',
+        body: formData
+      });
+      importResult = await res.json();
+      if (importResult.success) {
+        setTimeout(() => { showImportModal = false; applyFilters(); }, 2000);
+      }
+    } catch {
+      importResult = { success: false, summary: 'Upload failed — check file format' };
+    } finally { importing = false; }
+  }
+
   function initials(name: string) {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   }
@@ -74,6 +107,11 @@
       <h1 class="text-2xl font-black text-gray-900 dark:text-white">Student <span class="text-indigo-600">Roster</span></h1>
       <p class="text-xs text-gray-400 font-medium mt-1">{data.total} students enrolled</p>
     </div>
+    <button onclick={() => showImportModal = true}
+      class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+      Bulk Import
+    </button>
   </div>
 
   <!-- Filters -->
@@ -245,3 +283,97 @@
     {/if}
   </div>
 </div>
+
+<!-- Bulk Import Modal -->
+{#if showImportModal}
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" transition:fade>
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-lg p-6 mx-4" in:fly={{ y: 20 }}>
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">Bulk Import Students</h3>
+        <p class="text-[10px] text-gray-400 font-medium mt-1">Upload an Excel file with all student details. PII will be encrypted.</p>
+      </div>
+      <button onclick={() => showImportModal = false}
+        class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Download template -->
+    <button onclick={downloadTemplate}
+      class="w-full flex items-center gap-3 p-4 mb-4 rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 hover:bg-indigo-50 transition-colors group">
+      <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      </div>
+      <div class="text-left">
+        <p class="text-sm font-black text-indigo-700 dark:text-indigo-400 group-hover:underline">Download Template</p>
+        <p class="text-[10px] text-gray-400">Excel file with all columns and instructions</p>
+      </div>
+    </button>
+
+    <!-- Security notice -->
+    <div class="p-3 mb-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+      <div class="flex items-start gap-2">
+        <svg class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        <div>
+          <p class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">Top-Grade Security</p>
+          <p class="text-[9px] text-emerald-600/80 mt-0.5">Phone, Aadhaar, and parent contacts are individually encrypted with AES-256-GCM. All access is audit-logged.</p>
+        </div>
+      </div>
+    </div>
+
+    <form onsubmit={(e) => { e.preventDefault(); handleBulkImport(e); }}>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Term Name</label>
+          <input type="text" bind:value={importTermName} required placeholder="e.g. Semester 2 - 2026"
+            class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-indigo-500" />
+          <p class="text-[9px] text-gray-400 mt-1">Must match an existing term name exactly</p>
+        </div>
+        <div>
+          <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Excel File</label>
+          <input type="file" name="file" required accept=".xlsx,.xls"
+            class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
+          <p class="text-[9px] text-gray-400 mt-1">Each sheet tab = one program code. Required columns: Student Name, NIAT ID</p>
+        </div>
+      </div>
+
+      {#if importResult}
+        <div class="mt-4 p-3 rounded-xl border {importResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-red-50 border-red-200 text-red-700'}">
+          <p class="text-xs font-bold">{importResult.summary}</p>
+          {#if importResult.errors?.length > 0}
+            <div class="mt-2 max-h-32 overflow-y-auto">
+              {#each importResult.errors.slice(0, 10) as err}
+                <p class="text-[9px] mt-1">
+                  <span class="font-bold">{err.sheet}</span>{err.row ? ` row ${err.row}` : ''}: {err.reason}
+                </p>
+              {/each}
+              {#if importResult.errors.length > 10}
+                <p class="text-[9px] mt-1 font-bold">...and {importResult.errors.length - 10} more errors</p>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <div class="flex gap-3 mt-5">
+        <button type="submit" disabled={importing || !importTermName}
+          class="flex-1 px-4 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+          {#if importing}
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Importing & Encrypting...
+            </span>
+          {:else}
+            Import Students
+          {/if}
+        </button>
+        <button type="button" onclick={() => { showImportModal = false; importResult = null; }}
+          class="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{/if}

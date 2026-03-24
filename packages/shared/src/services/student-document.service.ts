@@ -1,5 +1,6 @@
 import { db } from '../db/client';
 import { encryptString, decryptString } from '../crypto';
+import crypto from 'crypto';
 
 export interface StudentDocument {
     id: string;
@@ -26,7 +27,8 @@ export class StudentDocumentService {
 
     /**
      * Upload a document for a student profile.
-     * Sensitive documents (Aadhaar, PAN, etc.) are encrypted at rest.
+     * ALL documents are encrypted at rest with AES-256-GCM.
+     * SHA-256 hash is stored for integrity verification.
      */
     static async uploadDocument(params: {
         universityId: string;
@@ -40,16 +42,19 @@ export class StudentDocumentService {
         ipAddress?: string;
         userAgent?: string;
     }): Promise<StudentDocument> {
-        // Check if this document type is sensitive
+        // Check document type metadata
         const typeRes = await db.query(
             'SELECT is_sensitive FROM student_document_types WHERE code = $1',
             [params.documentType]
         );
-        const isSensitive = typeRes.rows[0]?.is_sensitive || false;
+        const isSensitive = typeRes.rows[0]?.is_sensitive ?? true; // default sensitive
 
-        // Encrypt content if sensitive
+        // Compute SHA-256 hash of original content for integrity verification
+        const fileHash = crypto.createHash('sha256').update(params.fileContent).digest('hex');
+
+        // Encrypt ALL document content at rest (not just sensitive)
         let storedContent = params.fileContent;
-        if (isSensitive && params.fileContent) {
+        if (params.fileContent) {
             storedContent = encryptString(params.fileContent);
         }
 
@@ -57,8 +62,9 @@ export class StudentDocumentService {
             `INSERT INTO documents (
                 university_id, owner_entity_type, owner_entity_id, document_type,
                 file_url, file_name, file_status, is_encrypted, file_content,
-                file_size_bytes, category, uploaded_by, uploaded_at, metadata_json
-            ) VALUES ($1, 'STUDENT', $2, $3, $4, $5, 'ACTIVE', $6, $7, $8, $9, $10, NOW(), '{}'::jsonb)
+                file_size_bytes, category, uploaded_by, uploaded_at, metadata_json,
+                file_hash, encryption_algorithm
+            ) VALUES ($1, 'STUDENT', $2, $3, $4, $5, 'ACTIVE', true, $6, $7, $8, $9, NOW(), '{}'::jsonb, $10, 'AES-256-GCM')
             RETURNING *`,
             [
                 params.universityId,
@@ -66,11 +72,11 @@ export class StudentDocumentService {
                 params.documentType,
                 params.fileUrl,
                 params.fileName,
-                isSensitive,
                 storedContent,
                 params.fileSizeBytes,
                 isSensitive ? 'SENSITIVE' : 'GENERAL',
-                params.uploadedBy
+                params.uploadedBy,
+                fileHash
             ]
         );
 
@@ -123,7 +129,7 @@ export class StudentDocumentService {
     }
 
     /**
-     * Download/view a specific document with decryption and audit logging.
+     * Download/view a specific document with decryption, integrity check, and audit logging.
      */
     static async getDocumentFile(
         documentId: string,
@@ -131,7 +137,7 @@ export class StudentDocumentService {
         accessorRole: string,
         ipAddress?: string,
         userAgent?: string
-    ): Promise<{ content: string; fileName: string; isEncrypted: boolean }> {
+    ): Promise<{ content: string; fileName: string; isEncrypted: boolean; integrityVerified: boolean }> {
         if (!this.canAccessDocuments(accessorRole)) {
             throw new Error('Insufficient permissions to access this document');
         }
@@ -147,15 +153,21 @@ export class StudentDocumentService {
         if (!result.rows[0]) throw new Error('Document not found');
         const doc = result.rows[0];
 
-        // Log access
-        await this.logAccess({
-            documentId,
-            studentProfileId: doc.owner_entity_id,
-            accessedBy: accessorUserId,
-            accessType: 'DOWNLOAD',
-            ipAddress,
-            userAgent
-        });
+        // Log access and increment counter
+        await Promise.all([
+            this.logAccess({
+                documentId,
+                studentProfileId: doc.owner_entity_id,
+                accessedBy: accessorUserId,
+                accessType: 'DOWNLOAD',
+                ipAddress,
+                userAgent
+            }),
+            db.query(
+                'UPDATE documents SET last_accessed_at = NOW(), access_count = COALESCE(access_count, 0) + 1 WHERE id = $1',
+                [documentId]
+            )
+        ]);
 
         // Decrypt if needed
         let content = doc.file_content;
@@ -167,10 +179,29 @@ export class StudentDocumentService {
             }
         }
 
+        // Verify integrity via SHA-256 hash
+        let integrityVerified = true;
+        if (doc.file_hash && content) {
+            const currentHash = crypto.createHash('sha256').update(content).digest('hex');
+            integrityVerified = currentHash === doc.file_hash;
+            if (!integrityVerified) {
+                // Log integrity failure
+                await this.logAccess({
+                    documentId,
+                    studentProfileId: doc.owner_entity_id,
+                    accessedBy: accessorUserId,
+                    accessType: 'INTEGRITY_FAILURE',
+                    ipAddress,
+                    userAgent
+                });
+            }
+        }
+
         return {
             content,
             fileName: doc.file_name,
-            isEncrypted: doc.is_encrypted
+            isEncrypted: doc.is_encrypted,
+            integrityVerified
         };
     }
 

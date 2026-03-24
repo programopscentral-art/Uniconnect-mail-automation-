@@ -179,6 +179,50 @@ export class StudentService {
         return results;
     }
 
+    // --- Profile Update ---
+
+    static async updateProfile(studentProfileId: string, data: {
+        niat_id?: string;
+        phone?: string;
+        father_name?: string;
+        mother_name?: string;
+        date_of_birth?: string;
+        gender?: string;
+        blood_group?: string;
+        admission_date?: string;
+        roll_number?: string;
+    }) {
+        const fields: string[] = [];
+        const params: any[] = [];
+        let idx = 1;
+
+        const allowedColumns: Record<string, string> = {
+            niat_id: 'niat_id', phone: 'phone', father_name: 'father_name',
+            mother_name: 'mother_name', date_of_birth: 'date_of_birth',
+            gender: 'gender', blood_group: 'blood_group',
+            admission_date: 'admission_date', roll_number: 'roll_number',
+        };
+
+        for (const [key, col] of Object.entries(allowedColumns)) {
+            if (data[key as keyof typeof data] !== undefined) {
+                fields.push(`${col} = $${idx}`);
+                params.push(data[key as keyof typeof data] || null);
+                idx++;
+            }
+        }
+
+        if (fields.length === 0) return null;
+
+        fields.push(`updated_at = NOW()`);
+        params.push(studentProfileId);
+
+        const result = await db.query(
+            `UPDATE student_profiles SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+            params
+        );
+        return result.rows[0];
+    }
+
     // --- Academic Performance (Placeholder for Exam Domain integration) ---
 
     static async getExamMarks(studentProfileId: string) {

@@ -3,7 +3,7 @@
   import { page } from "$app/stores";
 
   let { data } = $props();
-  const student = data.student;
+  let student = $state(data.student);
   const user = data.user;
 
   // ─── Tabs ───
@@ -17,6 +17,56 @@
   let editingPii = $state(false);
   let piiForm = $state<Record<string, string>>({});
   let savingPii = $state(false);
+
+  // ─── Profile Edit ───
+  let editingProfile = $state(false);
+  let savingProfile = $state(false);
+  let profileForm = $state<Record<string, string>>({});
+
+  function toDateStr(v: any): string {
+    if (!v) return '';
+    if (v instanceof Date) return v.toISOString().split('T')[0];
+    return String(v).split('T')[0];
+  }
+
+  function startEditProfile() {
+    profileForm = {
+      student_name: student.student_name || '',
+      student_email: student.student_email || '',
+      niat_id: student.niat_id || '',
+      phone: student.phone || '',
+      date_of_birth: toDateStr(student.date_of_birth),
+      gender: student.gender || '',
+      blood_group: student.blood_group || '',
+      father_name: student.father_name || '',
+      mother_name: student.mother_name || '',
+      admission_date: toDateStr(student.admission_date),
+      roll_number: student.roll_number || '',
+    };
+    editingProfile = true;
+  }
+
+  async function saveProfileChanges() {
+    savingProfile = true;
+    try {
+      const res = await fetch(`/api/academic/students/${student.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(profileForm)
+      });
+      if (res.ok) {
+        const result = await res.json();
+        // Merge refreshed student data from server
+        if (result.student) {
+          student = { ...student, ...result.student };
+        }
+        editingProfile = false;
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Failed to save');
+      }
+    } catch { alert('Save failed'); } finally { savingProfile = false; }
+  }
 
   // ─── Documents ───
   let documents = $state(data.documents || []);
@@ -250,31 +300,109 @@
 
     <!-- Basic Info Card -->
     <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-6">
-      <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Basic Information</h3>
-      <div class="space-y-3">
-        {#each [
-          ['Name', student.student_name],
-          ['Email', student.student_email],
-          ['Enrollment No.', student.enrollment_number],
-          ['NIAT ID', student.niat_id],
-          ['Phone', student.phone],
-          ['Date of Birth', student.date_of_birth ? fmtDate(student.date_of_birth) : '—'],
-          ['Gender', student.gender],
-          ['Blood Group', student.blood_group],
-          ['Father Name', student.father_name],
-          ['Mother Name', student.mother_name],
-          ['Program', student.program_name],
-          ['Term', student.term_name],
-          ['Section', student.section_name],
-          ['Batch', student.batch_name],
-          ['Admission Date', student.admission_date ? fmtDate(student.admission_date) : '—'],
-        ] as [label, value]}
-          <div class="flex justify-between py-2 border-b border-gray-50 dark:border-slate-800 last:border-0">
-            <span class="text-xs font-bold text-gray-400">{label}</span>
-            <span class="text-sm font-bold text-gray-900 dark:text-white">{value || '—'}</span>
-          </div>
-        {/each}
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Basic Information</h3>
+        {#if !editingProfile}
+          <button onclick={startEditProfile}
+            class="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
+            Edit
+          </button>
+        {/if}
       </div>
+
+      {#if editingProfile}
+        <div class="space-y-3">
+          {#each [
+            { key: 'student_name', label: 'Name', type: 'text' },
+            { key: 'student_email', label: 'Email', type: 'email' },
+            { key: 'niat_id', label: 'NIAT ID', type: 'text' },
+            { key: 'phone', label: 'Phone', type: 'tel' },
+            { key: 'date_of_birth', label: 'Date of Birth', type: 'date' },
+            { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
+            { key: 'blood_group', label: 'Blood Group', type: 'select', options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
+            { key: 'father_name', label: 'Father Name', type: 'text' },
+            { key: 'mother_name', label: 'Mother Name', type: 'text' },
+            { key: 'roll_number', label: 'Roll Number', type: 'text' },
+            { key: 'admission_date', label: 'Admission Date', type: 'date' },
+          ] as field}
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-bold text-gray-400 w-28 shrink-0">{field.label}</span>
+              {#if field.type === 'select'}
+                <select
+                  value={profileForm[field.key] || ''}
+                  onchange={(e) => profileForm[field.key] = e.currentTarget.value}
+                  class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500">
+                  <option value="">—</option>
+                  {#each field.options || [] as opt}
+                    <option value={opt}>{opt}</option>
+                  {/each}
+                </select>
+              {:else}
+                <input
+                  type={field.type}
+                  value={profileForm[field.key] || ''}
+                  oninput={(e) => profileForm[field.key] = e.currentTarget.value}
+                  class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500"
+                />
+              {/if}
+            </div>
+          {/each}
+
+          <!-- Non-editable academic fields -->
+          <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+            <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Academic (Read-only)</p>
+            {#each [
+              ['Enrollment No.', student.enrollment_number],
+              ['Program', student.program_name],
+              ['Term', student.term_name],
+              ['Section', student.section_name],
+              ['Batch', student.batch_name],
+            ] as [label, value]}
+              <div class="flex justify-between py-1.5">
+                <span class="text-xs font-bold text-gray-400">{label}</span>
+                <span class="text-sm font-bold text-gray-500">{value || '—'}</span>
+              </div>
+            {/each}
+          </div>
+
+          <div class="flex gap-2 pt-3">
+            <button onclick={saveProfileChanges} disabled={savingProfile}
+              class="px-4 py-2 text-xs font-bold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+              {savingProfile ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button onclick={() => editingProfile = false}
+              class="px-4 py-2 text-xs font-bold bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">
+              Cancel
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div class="space-y-3">
+          {#each [
+            ['Name', student.student_name],
+            ['Email', student.student_email],
+            ['Enrollment No.', student.enrollment_number],
+            ['NIAT ID', student.niat_id],
+            ['Phone', student.phone],
+            ['Date of Birth', student.date_of_birth ? fmtDate(student.date_of_birth) : '—'],
+            ['Gender', student.gender],
+            ['Blood Group', student.blood_group],
+            ['Father Name', student.father_name],
+            ['Mother Name', student.mother_name],
+            ['Roll Number', student.roll_number],
+            ['Program', student.program_name],
+            ['Term', student.term_name],
+            ['Section', student.section_name],
+            ['Batch', student.batch_name],
+            ['Admission Date', student.admission_date ? fmtDate(student.admission_date) : '—'],
+          ] as [label, value]}
+            <div class="flex justify-between py-2 border-b border-gray-50 dark:border-slate-800 last:border-0">
+              <span class="text-xs font-bold text-gray-400">{label}</span>
+              <span class="text-sm font-bold text-gray-900 dark:text-white">{value || '—'}</span>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <!-- Sensitive PII Card -->
@@ -481,7 +609,7 @@
               <option value="">Select type...</option>
               {#each documentTypes as dt}
                 <option value={dt.code}>
-                  {dt.label} {dt.is_required ? '(Required)' : ''} {dt.is_sensitive ? '- Encrypted' : ''}
+                  {dt.label} {dt.is_required ? '(Required)' : ''}
                 </option>
               {/each}
             </select>
@@ -491,11 +619,9 @@
             <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.webp"
               class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
           </div>
-          {#if documentTypes.find((t: any) => t.code === uploadDocType)?.is_sensitive}
-            <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200">
-              <p class="text-[10px] font-bold text-emerald-700">This document will be encrypted at rest with AES-256-GCM before storage.</p>
-            </div>
-          {/if}
+          <div class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200">
+            <p class="text-[10px] font-bold text-emerald-700">All documents are encrypted at rest with AES-256-GCM and integrity-verified with SHA-256.</p>
+          </div>
         </div>
         <div class="flex gap-3 mt-6">
           <button type="submit" disabled={uploadingDoc}
@@ -540,14 +666,13 @@
       </div>
       <!-- Preview Content -->
       <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-4 min-h-[400px]">
-        {@const ext = (previewDoc.file_name || '').split('.').pop()?.toLowerCase()}
-        {#if ext === 'pdf'}
+        {#if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
           <iframe
             src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
             class="w-full h-full min-h-[70vh] rounded-xl border-0"
             title="Document preview"
           ></iframe>
-        {:else if ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')}
+        {:else if ['jpg', 'jpeg', 'png', 'webp'].includes((previewDoc.file_name || '').split('.').pop()?.toLowerCase() || '')}
           <div class="flex items-center justify-center h-full">
             <img
               src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
