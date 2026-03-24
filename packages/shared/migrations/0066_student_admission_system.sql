@@ -69,7 +69,6 @@ INSERT INTO student_document_types (code, label, is_sensitive, is_required, sort
     ('MARKSHEET_10TH', '10th Marksheet', false, true, 4),
     ('MARKSHEET_12TH', '12th Marksheet', false, true, 5),
     ('ID_PROOF_AADHAAR', 'Aadhaar Card', true, true, 6),
-    ('ID_PROOF_PAN', 'PAN Card', true, false, 7),
     ('PASSPORT_PHOTO', 'Passport Photo', false, true, 8),
     ('SIGNATURE', 'Signature', false, true, 9),
     ('PAYMENT_RECEIPT', 'Payment Receipt', false, true, 10),

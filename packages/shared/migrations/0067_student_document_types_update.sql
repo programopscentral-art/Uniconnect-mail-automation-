@@ -31,5 +31,5 @@ UPDATE student_document_types SET sort_order = 18 WHERE code = 'CASTE_CERTIFICAT
 UPDATE student_document_types SET sort_order = 19 WHERE code = 'SCHOLARSHIP_LETTER';
 UPDATE student_document_types SET sort_order = 99 WHERE code = 'OTHER';
 
--- Remove PAN card from required doc types (keep as optional)
-UPDATE student_document_types SET is_required = false WHERE code = 'ID_PROOF_PAN';
+-- Remove PAN card — not needed for student documents
+DELETE FROM student_document_types WHERE code = 'ID_PROOF_PAN';
