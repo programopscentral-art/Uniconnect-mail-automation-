@@ -1,12 +1,12 @@
 import { db } from '../db/client';
 import { encryptString, decryptString } from '../crypto';
 
-export type PIIField = 'niat_id' | 'phone' | 'aadhaar' | 'pan' | 'email' | 'father_phone' | 'mother_phone' | 'emergency_contact' | 'bank_account' | 'ifsc_code';
+export type PIIField = 'niat_id' | 'phone' | 'aadhaar' | 'email' | 'father_phone' | 'mother_phone' | 'emergency_contact';
 
 // Define which roles can see which PII fields
 const PII_ACCESS_MATRIX: Record<string, PIIField[]> = {
-    ADMIN: ['niat_id', 'phone', 'aadhaar', 'pan', 'email', 'father_phone', 'mother_phone', 'emergency_contact', 'bank_account', 'ifsc_code'],
-    PROGRAM_OPS: ['niat_id', 'phone', 'aadhaar', 'pan', 'email', 'father_phone', 'mother_phone', 'emergency_contact', 'bank_account', 'ifsc_code'],
+    ADMIN: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
+    PROGRAM_OPS: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
     UNIVERSITY_OPERATOR: ['niat_id', 'phone', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
     COS: ['niat_id', 'phone', 'email'],
     PM: ['niat_id', 'phone', 'email'],
@@ -162,8 +162,6 @@ export class StudentPIIService {
         switch (fieldType) {
             case 'aadhaar':
                 return `••••••${value.slice(-4)}`;
-            case 'pan':
-                return `${value.slice(0, 2)}••••${value.slice(-2)}`;
             case 'phone':
             case 'father_phone':
             case 'mother_phone':
@@ -172,10 +170,6 @@ export class StudentPIIService {
             case 'email':
                 const [local, domain] = value.split('@');
                 return `${local[0]}••••@${domain}`;
-            case 'bank_account':
-                return `••••••${value.slice(-4)}`;
-            case 'ifsc_code':
-                return `${value.slice(0, 4)}•••`;
             case 'niat_id':
                 return value.length > 4 ? `${value.slice(0, 2)}••${value.slice(-2)}` : value;
             default:

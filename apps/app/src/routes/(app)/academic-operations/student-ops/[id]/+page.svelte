@@ -29,6 +29,9 @@
   let workflow = $state(data.workflow);
   let updatingWorkflow = $state(false);
 
+  // ─── Document Preview ───
+  let previewDoc = $state<any>(null);
+
   // ─── Audit ───
   let auditLogs = $state<any[]>([]);
   let auditLoading = $state(false);
@@ -162,9 +165,9 @@
   }
 
   const piiLabels: Record<string, string> = {
-    niat_id: 'NIAT ID', phone: 'Phone', aadhaar: 'Aadhaar', pan: 'PAN Card',
+    niat_id: 'NIAT ID', phone: 'Phone', aadhaar: 'Aadhaar',
     email: 'Email', father_phone: 'Father Phone', mother_phone: 'Mother Phone',
-    emergency_contact: 'Emergency Contact', bank_account: 'Bank Account', ifsc_code: 'IFSC Code'
+    emergency_contact: 'Emergency Contact'
   };
 
   const statusSteps = ['INITIATED', 'DOCUMENTS_PENDING', 'DOCUMENTS_SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'ENROLLED'];
@@ -369,8 +372,11 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       {#each documentTypes as dtype}
         {@const uploaded = documents.find((d: any) => d.document_type === dtype.code)}
-        <div class="p-4 rounded-2xl border-2 transition-all
-          {uploaded ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/30 dark:bg-emerald-500/5' : dtype.is_required ? 'border-red-200 bg-red-50/50 dark:border-red-500/30 dark:bg-red-500/5' : 'border-gray-100 bg-gray-50/50 dark:border-slate-800 dark:bg-slate-900'}">
+        <div class="p-4 rounded-2xl border-2 transition-all {uploaded ? 'cursor-pointer hover:shadow-md' : ''}
+          {uploaded ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/30 dark:bg-emerald-500/5' : dtype.is_required ? 'border-red-200 bg-red-50/50 dark:border-red-500/30 dark:bg-red-500/5' : 'border-gray-100 bg-gray-50/50 dark:border-slate-800 dark:bg-slate-900'}"
+          onclick={() => { if (uploaded) previewDoc = uploaded; }}
+          role={uploaded ? 'button' : undefined}
+          tabindex={uploaded ? 0 : undefined}>
           <div class="flex items-center gap-2 mb-1">
             {#if uploaded}
               <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
@@ -439,9 +445,13 @@
               </td>
               <td class="px-5 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
+                  <button onclick={() => previewDoc = doc}
+                    class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black hover:bg-indigo-100 transition-colors" title="View document">
+                    View
+                  </button>
                   <a href="/api/academic/students/{student.id}/documents/{doc.id}" target="_blank"
-                    class="p-1.5 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-indigo-600 transition-colors" title="View">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 transition-colors" title="Open in new tab">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
                   </a>
                   <button onclick={() => deleteDocument(doc.id)}
                     class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete">
@@ -498,6 +508,61 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+  {/if}
+
+  <!-- Document Preview Modal -->
+  {#if previewDoc}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+        <div>
+          <h3 class="text-sm font-black text-gray-900 dark:text-white">{previewDoc.file_name}</h3>
+          <p class="text-[10px] text-gray-400 font-medium mt-0.5">
+            {previewDoc.type_label || previewDoc.document_type} &bull; {fmtSize(previewDoc.file_size_bytes)} &bull; {fmtDate(previewDoc.uploaded_at)}
+            {#if previewDoc.is_encrypted}
+              &bull; <span class="text-emerald-600 font-bold">AES-256 Encrypted</span>
+            {/if}
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="/api/academic/students/{student.id}/documents/{previewDoc.id}" target="_blank" download
+            class="px-3 py-1.5 text-[10px] font-black bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
+            Download
+          </a>
+          <button onclick={() => previewDoc = null}
+            class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <!-- Preview Content -->
+      <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-4 min-h-[400px]">
+        {@const ext = (previewDoc.file_name || '').split('.').pop()?.toLowerCase()}
+        {#if ext === 'pdf'}
+          <iframe
+            src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
+            class="w-full h-full min-h-[70vh] rounded-xl border-0"
+            title="Document preview"
+          ></iframe>
+        {:else if ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')}
+          <div class="flex items-center justify-center h-full">
+            <img
+              src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
+              alt={previewDoc.file_name}
+              class="max-w-full max-h-[70vh] rounded-xl shadow-lg object-contain"
+            />
+          </div>
+        {:else}
+          <div class="flex flex-col items-center justify-center h-full py-16">
+            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <p class="text-sm font-bold text-gray-400">Preview not available for this file type</p>
+            <a href="/api/academic/students/{student.id}/documents/{previewDoc.id}" target="_blank" class="mt-3 text-sm text-indigo-600 font-bold hover:underline">Open in new tab</a>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
   {/if}
