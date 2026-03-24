@@ -68,6 +68,11 @@
   let importResult = $state<any>(null);
   let importTermName = $state('');
 
+  // ─── Bulk Document Upload ───
+  let showDocUploadModal = $state(false);
+  let uploadingDocs = $state(false);
+  let docUploadResult = $state<any>(null);
+
   async function downloadTemplate() {
     window.open('/api/academic/students/bulk-import', '_blank');
   }
@@ -95,6 +100,24 @@
     } finally { importing = false; }
   }
 
+  async function handleBulkDocUpload(e: Event) {
+    const form = e.target as HTMLFormElement;
+    const formData = new FormData(form);
+    formData.set('university_id', universityId);
+
+    uploadingDocs = true;
+    docUploadResult = null;
+    try {
+      const res = await fetch('/api/academic/students/bulk-documents', {
+        method: 'POST',
+        body: formData
+      });
+      docUploadResult = await res.json();
+    } catch {
+      docUploadResult = { success: false, summary: 'Upload failed — check ZIP format' };
+    } finally { uploadingDocs = false; }
+  }
+
   function initials(name: string) {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   }
@@ -107,11 +130,18 @@
       <h1 class="text-2xl font-black text-gray-900 dark:text-white">Student <span class="text-indigo-600">Roster</span></h1>
       <p class="text-xs text-gray-400 font-medium mt-1">{data.total} students enrolled</p>
     </div>
-    <button onclick={() => showImportModal = true}
-      class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-      Bulk Import
-    </button>
+    <div class="flex items-center gap-2">
+      <button onclick={() => showDocUploadModal = true}
+        class="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Bulk Documents
+      </button>
+      <button onclick={() => showImportModal = true}
+        class="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Bulk Import
+      </button>
+    </div>
   </div>
 
   <!-- Filters -->
@@ -369,6 +399,196 @@
           {/if}
         </button>
         <button type="button" onclick={() => { showImportModal = false; importResult = null; }}
+          class="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{/if}
+
+<!-- Bulk Document Upload Modal -->
+{#if showDocUploadModal}
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" transition:fade>
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-2xl p-6 mx-4 max-h-[90vh] overflow-y-auto" in:fly={{ y: 20 }}>
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-lg font-black text-gray-900 dark:text-white">Bulk Document Upload</h3>
+        <p class="text-[10px] text-gray-400 font-medium mt-1">Upload a ZIP file with all student documents. Every file will be encrypted with AES-256-GCM.</p>
+      </div>
+      <button onclick={() => { showDocUploadModal = false; docUploadResult = null; }}
+        class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- How to structure the ZIP -->
+    <div class="p-4 mb-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+      <h4 class="text-xs font-black text-gray-700 dark:text-gray-300 uppercase tracking-widest mb-3">How to prepare the ZIP file</h4>
+
+      <div class="space-y-3">
+        <div class="flex gap-3">
+          <div class="w-7 h-7 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
+            <span class="text-xs font-black text-indigo-600">1</span>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-gray-700 dark:text-gray-300">Create a folder for each student using their <span class="text-indigo-600 font-black">NIAT ID</span> as the folder name</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">Example: <code class="bg-gray-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono">N25H02A0004/</code></p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-7 h-7 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
+            <span class="text-xs font-black text-indigo-600">2</span>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-gray-700 dark:text-gray-300">Name each file using the <span class="text-indigo-600 font-black">document type code</span> (see table below)</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">Example: <code class="bg-gray-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono">CERTIFICATE_10TH.pdf</code></p>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <div class="w-7 h-7 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
+            <span class="text-xs font-black text-indigo-600">3</span>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-gray-700 dark:text-gray-300">ZIP all the folders together and upload</p>
+            <p class="text-[10px] text-gray-400 mt-0.5">Select all student folders > Right-click > Compress / Send to ZIP</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Example structure -->
+      <div class="mt-4 p-3 bg-gray-900 dark:bg-black rounded-xl">
+        <p class="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">Example ZIP structure</p>
+        <pre class="text-[11px] font-mono text-emerald-400 leading-relaxed">documents.zip
+  N25H02A0004/
+    CERTIFICATE_10TH.pdf
+    MARKSHEET_10TH.pdf
+    ID_PROOF_AADHAAR.jpg
+    PASSPORT_PHOTO.jpg
+  N25H02A0006/
+    CERTIFICATE_10TH.pdf
+    CERTIFICATE_12TH.pdf
+    PAYMENT_RECEIPT.pdf</pre>
+      </div>
+    </div>
+
+    <!-- Document Type Codes Reference -->
+    <details class="mb-4">
+      <summary class="cursor-pointer px-4 py-3 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs font-black text-gray-600 dark:text-gray-300 hover:bg-gray-100 transition-colors">
+        Document Type Codes (click to expand)
+      </summary>
+      <div class="mt-2 grid grid-cols-2 gap-1.5 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
+        {#each [
+          ['CERTIFICATE_10TH', '10th Certificate', true],
+          ['MARKSHEET_10TH', '10th Marksheet', true],
+          ['CERTIFICATE_11TH', '11th Certificate', false],
+          ['MARKSHEET_11TH', '11th Marksheet', false],
+          ['CERTIFICATE_12TH', '12th Certificate', true],
+          ['MARKSHEET_12TH', '12th Marksheet', true],
+          ['DEGREE_CERTIFICATE', 'Degree Certificate', false],
+          ['TRANSFER_CERTIFICATE', 'Transfer Certificate', false],
+          ['MIGRATION_CERTIFICATE', 'Migration Certificate', false],
+          ['ID_PROOF_AADHAAR', 'Aadhaar Card', true],
+          ['PASSPORT_PHOTO', 'Passport Photo', true],
+          ['SIGNATURE', 'Signature', true],
+          ['PAYMENT_RECEIPT', 'Payment Receipt', true],
+          ['ADMISSION_RECEIPT', 'Admission Receipt', true],
+          ['FEE_RECEIPT', 'Fee Receipt', false],
+          ['HOSTEL_RECEIPT', 'Hostel Fee Receipt', false],
+          ['INCOME_CERTIFICATE', 'Income Certificate', false],
+          ['CASTE_CERTIFICATE', 'Caste Certificate', false],
+          ['SCHOLARSHIP_LETTER', 'Scholarship Letter', false],
+          ['OTHER', 'Other Document', false],
+        ] as [code, label, required]}
+          <div class="flex items-center justify-between px-2 py-1.5 rounded-lg {required ? 'bg-indigo-50 dark:bg-indigo-500/10' : ''}">
+            <code class="text-[10px] font-mono font-bold text-gray-700 dark:text-gray-300">{code}</code>
+            {#if required}
+              <span class="text-[8px] font-black text-red-500 uppercase">Req</span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+    </details>
+
+    <!-- Security notice -->
+    <div class="p-3 mb-4 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
+      <div class="flex items-start gap-2">
+        <svg class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        <div>
+          <p class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">End-to-End Encryption</p>
+          <p class="text-[9px] text-emerald-600/80 mt-0.5">Every file is encrypted with AES-256-GCM + SHA-256 integrity hash. No plaintext files are stored on disk — documents exist only as encrypted blobs in the database. Every upload is audit-logged.</p>
+        </div>
+      </div>
+    </div>
+
+    <form onsubmit={(e) => { e.preventDefault(); handleBulkDocUpload(e); }}>
+      <div>
+        <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ZIP File</label>
+        <input type="file" name="file" required accept=".zip"
+          class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100" />
+        <p class="text-[9px] text-gray-400 mt-1">Max 500MB. Allowed file types inside: PDF, JPG, PNG, WebP (max 10MB each)</p>
+      </div>
+
+      {#if docUploadResult}
+        <div class="mt-4 p-4 rounded-xl border {docUploadResult.success ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}">
+          <p class="text-xs font-bold {docUploadResult.success ? 'text-emerald-700' : 'text-amber-700'}">{docUploadResult.summary}</p>
+
+          {#if docUploadResult.students_not_found?.length > 0}
+            <div class="mt-2">
+              <p class="text-[10px] font-black text-red-600 uppercase">Students not found:</p>
+              <p class="text-[10px] text-red-500 mt-1">{docUploadResult.students_not_found.join(', ')}</p>
+            </div>
+          {/if}
+
+          {#if docUploadResult.errors?.length > 0}
+            <div class="mt-2 max-h-40 overflow-y-auto">
+              <p class="text-[10px] font-black text-red-600 uppercase mb-1">Errors:</p>
+              {#each docUploadResult.errors.slice(0, 15) as err}
+                <p class="text-[9px] text-red-600 mt-0.5">
+                  <span class="font-bold font-mono">{err.niatId}/{err.file}</span>: {err.reason}
+                </p>
+              {/each}
+              {#if docUploadResult.errors.length > 15}
+                <p class="text-[9px] text-red-600 mt-1 font-bold">...and {docUploadResult.errors.length - 15} more</p>
+              {/if}
+            </div>
+          {/if}
+
+          {#if docUploadResult.documents_uploaded > 0}
+            <div class="mt-3 grid grid-cols-3 gap-2">
+              <div class="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 text-center">
+                <p class="text-lg font-black text-emerald-700">{docUploadResult.documents_uploaded}</p>
+                <p class="text-[8px] font-bold text-emerald-600 uppercase">Encrypted</p>
+              </div>
+              <div class="p-2 rounded-lg bg-gray-100 dark:bg-slate-700 text-center">
+                <p class="text-lg font-black text-gray-600">{docUploadResult.documents_skipped}</p>
+                <p class="text-[8px] font-bold text-gray-500 uppercase">Skipped</p>
+              </div>
+              <div class="p-2 rounded-lg bg-red-100 dark:bg-red-500/20 text-center">
+                <p class="text-lg font-black text-red-600">{docUploadResult.documents_failed}</p>
+                <p class="text-[8px] font-bold text-red-500 uppercase">Failed</p>
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <div class="flex gap-3 mt-5">
+        <button type="submit" disabled={uploadingDocs}
+          class="flex-1 px-4 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+          {#if uploadingDocs}
+            <span class="inline-flex items-center gap-2">
+              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+              Encrypting & Uploading...
+            </span>
+          {:else}
+            Upload & Encrypt All
+          {/if}
+        </button>
+        <button type="button" onclick={() => { showDocUploadModal = false; docUploadResult = null; }}
           class="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors">
           Cancel
         </button>
