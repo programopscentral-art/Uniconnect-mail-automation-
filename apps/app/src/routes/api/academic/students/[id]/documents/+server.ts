@@ -1,9 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { StudentDocumentService } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
-import fs from 'node:fs';
-import path from 'node:path';
-import crypto from 'node:crypto';
 
 const ALLOWED_MIME_TYPES = [
     'application/pdf',
@@ -31,7 +28,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 export const POST: RequestHandler = async ({ params, request, locals }) => {
     if (!locals.user) throw error(401);
 
-    const allowedRoles = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'BOA', 'COS', 'PM', 'PMA'];
+    const allowedRoles = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR'];
     if (!allowedRoles.includes(locals.user.role as string)) {
         throw error(403, 'Insufficient permissions to upload documents');
     }
@@ -56,21 +53,11 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             throw error(400, 'File size exceeds 10MB limit');
         }
 
+        // Convert to base64 — NO disk storage. Only encrypted DB storage.
         const buffer = await file.arrayBuffer();
         const base64Content = Buffer.from(buffer).toString('base64');
-        const ext = path.extname(file.name) || '.pdf';
-        const fileName = `student_${params.id}_${crypto.randomUUID()}${ext}`;
 
-        // Save to disk
-        const uploadDir = path.resolve('static/uploads/student-documents');
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const filePath = path.join(uploadDir, fileName);
-        fs.writeFileSync(filePath, Buffer.from(buffer));
-
-        const publicUrl = `/api/uploads/student-documents/${fileName}`;
-
+        // Store encrypted in DB only. No plaintext file on disk.
         const doc = await StudentDocumentService.uploadDocument({
             universityId,
             studentProfileId: params.id,
@@ -78,13 +65,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             fileName: file.name,
             fileContent: base64Content,
             fileSizeBytes: file.size,
-            fileUrl: publicUrl,
+            fileUrl: 'encrypted://db', // No disk URL — served via decrypt API only
             uploadedBy: locals.user.id,
             ipAddress: request.headers.get('x-forwarded-for') || undefined,
             userAgent: request.headers.get('user-agent') || undefined
         });
 
-        return json(doc);
+        // Strip encrypted content from response
+        return json({ ...doc, file_content: undefined });
     } catch (e: any) {
         if (e.status) throw e;
         console.error('[STUDENT_DOC_UPLOAD_ERROR]', e);

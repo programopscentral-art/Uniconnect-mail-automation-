@@ -14,7 +14,12 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
             request.headers.get('user-agent') || undefined
         );
 
-        // Return as downloadable file
+        // Block serving tampered documents
+        if (!result.integrityVerified) {
+            throw error(422, 'Document integrity check failed — file may have been tampered with. This incident has been logged.');
+        }
+
+        // Decrypt and return — document only exists encrypted in DB, never on disk
         const buffer = Buffer.from(result.content, 'base64');
         const ext = result.fileName.split('.').pop()?.toLowerCase() || 'pdf';
         const mimeTypes: Record<string, string> = {
@@ -30,10 +35,13 @@ export const GET: RequestHandler = async ({ params, locals, request }) => {
                 'Content-Type': mimeTypes[ext] || 'application/octet-stream',
                 'Content-Disposition': `inline; filename="${result.fileName}"`,
                 'Cache-Control': 'no-store, no-cache, must-revalidate',
-                'X-Content-Type-Options': 'nosniff'
+                'X-Content-Type-Options': 'nosniff',
+                'X-Integrity-Verified': 'true',
+                'X-Encryption': 'AES-256-GCM'
             }
         });
     } catch (e: any) {
+        if (e.status) throw e;
         throw error(e.message?.includes('permission') ? 403 : 500, e.message);
     }
 };
