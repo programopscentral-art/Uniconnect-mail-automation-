@@ -103,7 +103,7 @@ export async function getTasks(filters: {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
-        `SELECT t.id, t.title, t.description, t.priority, t.university_id, t.status, t.start_date, t.due_date, t.created_at, t.assigned_by, t.estimated_time,
+        `SELECT t.id, t.title, t.description, t.notes, t.priority, t.university_id, t.status, t.start_date, t.due_date, t.created_at, t.assigned_by, t.estimated_time,
             u_by.name as assigned_by_name, 
             univ.name as university_name, univ.short_name as university_short_name,
             u_by.email as assigned_by_email,
@@ -129,7 +129,7 @@ export async function getTasks(filters: {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
-         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.start_date, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.start_date, t.due_date, t.title, t.description, t.notes, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
          ORDER BY t.created_at DESC${limitClause}`,
         params
     );
@@ -171,7 +171,7 @@ export async function getTaskById(id: string) {
     } as Task & { assignees: Array<{ id: string, status: string }> };
 }
 
-export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; start_date?: string; due_date?: string; estimated_time?: string; assignee_ids?: string[]; assignee_id?: string; assignee_status?: TaskStatus }) {
+export async function updateTask(id: string, data: { status?: TaskStatus; priority?: TaskPriority; title?: string; description?: string; notes?: string; start_date?: string; due_date?: string; estimated_time?: string; assignee_ids?: string[]; assignee_id?: string; assignee_status?: TaskStatus }) {
     const { assignee_ids, assignee_id, assignee_status, ...updateData } = data;
 
     // 1. Update individual assignee status
@@ -220,7 +220,7 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
         Object.entries(updateData).forEach(([key, val]) => {
             fields.push(`${key} = $${i++}`);
             // Convert empty strings to null for specific fields
-            if (['description', 'university_id', 'due_date'].includes(key) && val === '') {
+            if (['description', 'notes', 'university_id', 'due_date'].includes(key) && val === '') {
                 values.push(null);
             } else {
                 values.push(val);

@@ -61,6 +61,9 @@
   let viewLogId = $state('');
   let viewStartTime = $state(0);
   let taskTimeline = $state<any>(null);
+  let taskNotes = $state('');
+  let savingNotes = $state(false);
+  let notesTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ─── Event Form (Enhanced) ──────────────────────────────────────────────
   let eventForm = $state({
@@ -640,12 +643,20 @@
 
   async function toggleTaskStatus(task: any) {
     const newStatus = task.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED';
+    // Optimistic update — reflect immediately in modal
+    task.status = newStatus;
+    if (selectedTask?.id === task.id) selectedTask = { ...selectedTask, status: newStatus };
     await fetch('/api/tasks', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: task.id, status: newStatus })
     });
     await loadDashboardData();
+    // Re-sync selectedTask with fresh data
+    if (selectedTask?.id === task.id) {
+      const fresh = tasks.find((t: any) => t.id === task.id);
+      if (fresh) selectedTask = { ...fresh };
+    }
   }
 
   async function deleteEvent(id: string, type: string) {
@@ -662,6 +673,9 @@
     showTaskDetail = true;
     viewStartTime = Date.now();
     taskTimeline = null;
+    taskNotes = task.notes || '';
+    savingNotes = false;
+    if (notesTimer) { clearTimeout(notesTimer); notesTimer = null; }
 
     // Build task timeline
     const created = task.created_at ? new Date(task.created_at) : null;
@@ -754,6 +768,22 @@
       checklistItems = d.items || [];
       checklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
     }
+  }
+
+  function saveNotes(value: string) {
+    taskNotes = value;
+    if (notesTimer) clearTimeout(notesTimer);
+    savingNotes = false;
+    notesTimer = setTimeout(async () => {
+      savingNotes = true;
+      try {
+        await fetch('/api/tasks', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: selectedTask.id, notes: taskNotes })
+        });
+      } catch {} finally { savingNotes = false; }
+    }, 800);
   }
 
   async function autoGenerateChecklist() {
@@ -2174,6 +2204,24 @@
               class="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 ring-indigo-500 outline-none" />
             <button onclick={addChecklistItem} class="px-3 py-2 text-xs font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Add</button>
           </div>
+        </div>
+
+        <!-- ═══ NOTES ═══ -->
+        <div class="mb-4 pb-4 border-t border-gray-100 dark:border-slate-800 pt-4">
+          <h4 class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            Notes
+            {#if savingNotes}
+              <span class="text-[10px] font-normal text-amber-500 animate-pulse">Saving...</span>
+            {/if}
+          </h4>
+          <textarea
+            value={taskNotes}
+            oninput={(e) => saveNotes(e.currentTarget.value)}
+            placeholder="Add notes, additional info, or context..."
+            rows="4"
+            class="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white focus:ring-2 ring-indigo-500 outline-none resize-y placeholder:text-gray-400"
+          ></textarea>
         </div>
 
         <!-- ═══ ASSIGNEE PROGRESS ═══ -->
