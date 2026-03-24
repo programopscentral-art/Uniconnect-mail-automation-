@@ -174,7 +174,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         let slotTabsHtml = '';
         for (let i = 0; i < slotTabs.length; i++) {
             const tab = slotTabs[i];
-            slotTabsHtml += `<button class="slot-tab${i === 0 ? ' active' : ''}" data-slot="${tab.id}" onclick="switchSlot('${tab.id}')">${esc(tab.label)}</button>`;
+            slotTabsHtml += `<button class="slot-tab${i === 0 ? ' active' : ''}" data-slot="${tab.id}" data-action="switch-slot">${esc(tab.label)}</button>`;
         }
 
         // Build classroom sub-tabs and pages per slot
@@ -184,7 +184,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             let roomTabsHtml = '';
             for (let j = 0; j < tab.classrooms.length; j++) {
                 const room = tab.classrooms[j];
-                roomTabsHtml += `<button class="room-tab${j === 0 ? ' active' : ''}" data-slot="${tab.id}" data-room="${room.id}" onclick="switchRoom('${tab.id}','${room.id}')">${esc(room.name)}</button>`;
+                roomTabsHtml += `<button class="room-tab${j === 0 ? ' active' : ''}" data-slot="${tab.id}" data-room="${room.id}" data-action="switch-room">${esc(room.name)}</button>`;
             }
 
             let roomPagesHtml = '';
@@ -316,15 +316,15 @@ body.print-current .slot-content.print-target .classroom-page.print-target-room{
         </div>
     </div>
     <div class="toolbar-right">
-        <button class="toolbar-btn btn-print" onclick="printCurrent()" title="Print current classroom">
+        <button class="toolbar-btn btn-print" data-action="print-current" title="Print current classroom">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
             Print This Room
         </button>
-        <button class="toolbar-btn btn-print-all" onclick="printAll()" title="Print all classrooms">
+        <button class="toolbar-btn btn-print-all" data-action="print-all" title="Print all classrooms">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
             Print All
         </button>
-        <button class="toolbar-btn btn-download" onclick="downloadHTML()" title="Download as HTML file">
+        <button class="toolbar-btn btn-download" data-action="download" title="Download as HTML file">
             <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             Download
         </button>
@@ -335,70 +335,68 @@ body.print-current .slot-content.print-target .classroom-page.print-target-room{
 ${contentHtml}
 
 <script>
-var currentSlot = '${slotTabs[0]?.id || ''}';
-var currentRooms = {};
-${slotTabs.map(s => `currentRooms['${s.id}'] = '${s.classrooms[0]?.id || ''}';`).join('\n')}
-
-function switchSlot(slotId) {
-    currentSlot = slotId;
-    document.querySelectorAll('.slot-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.slot === slotId); });
-    document.querySelectorAll('.slot-content').forEach(function(c) { c.style.display = c.id === 'content-' + slotId ? '' : 'none'; });
-    showRoom(slotId, currentRooms[slotId]);
-}
-
-function switchRoom(slotId, roomId) {
-    currentRooms[slotId] = roomId;
-    showRoom(slotId, roomId);
-}
-
-function showRoom(slotId, roomId) {
-    var container = document.getElementById('roompages-' + slotId);
-    if (!container) return;
-    container.querySelectorAll('.classroom-page').forEach(function(p) { p.classList.toggle('active', p.id === roomId); });
-    var tabContainer = document.getElementById('roomtabs-' + slotId);
-    if (tabContainer) tabContainer.querySelectorAll('.room-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.room === roomId); });
-}
-
-function printCurrent() {
-    var slotContent = document.getElementById('content-' + currentSlot);
-    var roomPage = document.getElementById(currentRooms[currentSlot]);
-    if (!slotContent || !roomPage) { window.print(); return; }
-    document.body.classList.add('print-current');
-    slotContent.classList.add('print-target');
-    roomPage.classList.add('print-target-room');
-    window.print();
-    document.body.classList.remove('print-current');
-    slotContent.classList.remove('print-target');
-    roomPage.classList.remove('print-target-room');
-}
-
-function printAll() {
-    window.print();
-}
-
-function downloadHTML() {
-    try {
-        var content = document.documentElement.outerHTML;
-        var blob = new Blob([content], { type: 'text/html' });
-        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
-            var file = new File([blob], 'seating-plan.html', { type: 'text/html' });
-            navigator.share({ files: [file], title: 'Seating Plan' }).catch(function() { fallbackDownload(blob); });
-        } else {
-            fallbackDownload(blob);
-        }
-    } catch(e) { alert('Download failed. Try using your browser\\'s Save Page option.'); }
-}
-function fallbackDownload(blob) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'seating-plan.html';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
-}
-
-// Initialize first room visibility
 (function() {
+    var currentSlot = '${slotTabs[0]?.id || ''}';
+    var currentRooms = {};
+    ${slotTabs.map(s => `currentRooms['${s.id}'] = '${s.classrooms[0]?.id || ''}';`).join('\n    ')}
+
+    function switchSlot(slotId) {
+        currentSlot = slotId;
+        document.querySelectorAll('.slot-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.slot === slotId); });
+        document.querySelectorAll('.slot-content').forEach(function(c) { c.style.display = c.id === 'content-' + slotId ? '' : 'none'; });
+        showRoom(slotId, currentRooms[slotId]);
+    }
+
+    function showRoom(slotId, roomId) {
+        currentRooms[slotId] = roomId;
+        var container = document.getElementById('roompages-' + slotId);
+        if (!container) return;
+        container.querySelectorAll('.classroom-page').forEach(function(p) { p.classList.toggle('active', p.id === roomId); });
+        var tabContainer = document.getElementById('roomtabs-' + slotId);
+        if (tabContainer) tabContainer.querySelectorAll('.room-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.room === roomId); });
+    }
+
+    function printCurrent() {
+        var slotContent = document.getElementById('content-' + currentSlot);
+        var roomPage = document.getElementById(currentRooms[currentSlot]);
+        if (!slotContent || !roomPage) { window.print(); return; }
+        document.body.classList.add('print-current');
+        slotContent.classList.add('print-target');
+        roomPage.classList.add('print-target-room');
+        window.print();
+        document.body.classList.remove('print-current');
+        slotContent.classList.remove('print-target');
+        roomPage.classList.remove('print-target-room');
+    }
+
+    function doDownload() {
+        try {
+            var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+            if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+                var file = new File([blob], 'seating-plan.html', { type: 'text/html' });
+                navigator.share({ files: [file], title: 'Seating Plan' }).catch(function() { dlFallback(blob); });
+            } else { dlFallback(blob); }
+        } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
+    }
+    function dlFallback(blob) {
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'seating-plan.html';
+        document.body.appendChild(a); a.click();
+        setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
+    }
+
+    // Event delegation — works in local files, mobile, everywhere
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        var action = btn.getAttribute('data-action');
+        if (action === 'switch-slot') switchSlot(btn.getAttribute('data-slot'));
+        else if (action === 'switch-room') showRoom(btn.getAttribute('data-slot'), btn.getAttribute('data-room'));
+        else if (action === 'print-current') printCurrent();
+        else if (action === 'print-all') window.print();
+        else if (action === 'download') doDownload();
+    });
+
+    // Initialize first room visibility
     ${slotTabs.map(s => s.classrooms.length > 0 ? `showRoom('${s.id}', '${s.classrooms[0].id}');` : '').join('\n    ')}
 })();
 </script>
