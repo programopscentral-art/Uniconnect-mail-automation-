@@ -261,6 +261,33 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 .summary-table .bold{font-weight:700}
 .section-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
 
+/* Mobile responsive */
+@media (max-width:768px){
+    .toolbar{flex-direction:column;gap:8px;padding:10px 12px}
+    .toolbar-left{width:100%}
+    .toolbar-right{width:100%;justify-content:stretch;flex-wrap:wrap}
+    .toolbar-btn{flex:1;justify-content:center;padding:10px 8px;font-size:11px;min-height:44px}
+    .slot-tabs{padding:8px 12px 0;gap:4px}
+    .slot-tab{padding:8px 10px;font-size:11px;min-height:40px}
+    .room-tabs{padding:6px 12px;gap:4px}
+    .room-tab{padding:6px 10px;font-size:10px;min-height:36px}
+    .classroom-page{padding:12px}
+    .header h1{font-size:18px}
+    .header h2{font-size:15px}
+    .header .subject-line{font-size:13px}
+    .grid-container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .seat{width:52px;height:48px}
+    .seat .roll{font-size:7px}
+    .seat .section{font-size:6px}
+    .seat .seat-pos{font-size:5px}
+    .board-indicator{width:80%}
+    .summary-table{width:100%;margin:0 0 20px;font-size:10px}
+    .summary-table th,.summary-table td{padding:4px 6px}
+    .summary-title{padding-left:12px;font-size:12px}
+    .legend{gap:8px}
+    .legend-item{font-size:9px}
+}
+
 /* Print styles */
 @media print{
     .toolbar,.slot-tabs,.room-tabs{display:none!important}
@@ -350,12 +377,24 @@ function printAll() {
 }
 
 function downloadHTML() {
-    var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+    try {
+        var content = document.documentElement.outerHTML;
+        var blob = new Blob([content], { type: 'text/html' });
+        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+            var file = new File([blob], 'seating-plan.html', { type: 'text/html' });
+            navigator.share({ files: [file], title: 'Seating Plan' }).catch(function() { fallbackDownload(blob); });
+        } else {
+            fallbackDownload(blob);
+        }
+    } catch(e) { alert('Download failed. Try using your browser\\'s Save Page option.'); }
+}
+function fallbackDownload(blob) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'seating-plan-${params.id}.html';
+    a.download = 'seating-plan.html';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
 }
 
 // Initialize first room visibility

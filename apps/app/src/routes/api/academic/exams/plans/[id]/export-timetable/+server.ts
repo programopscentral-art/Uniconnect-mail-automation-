@@ -79,6 +79,28 @@ table.datewise td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
 table.datewise tr:hover td{background:#f8fafc}
 .bold{font-weight:700}
 
+/* Mobile responsive */
+@media (max-width:768px){
+    .toolbar{flex-direction:column;gap:8px;padding:10px 12px}
+    .toolbar-left{width:100%;flex-direction:column;gap:8px}
+    .toolbar-right{width:100%;justify-content:stretch}
+    .toolbar-btn{flex:1;justify-content:center;padding:10px 8px;font-size:11px;min-height:44px}
+    .view-toggle{width:100%;justify-content:center}
+    .view-btn{flex:1;text-align:center;padding:10px 8px;min-height:40px}
+    .content-area{padding:12px 8px}
+    .page-header h1{font-size:18px}
+    .page-header .plan-name{font-size:13px}
+    table.timetable{font-size:9px;display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table.timetable th,table.timetable td{padding:6px 4px;font-size:8px;white-space:nowrap}
+    table.timetable td.subject-cell{white-space:normal;min-width:80px}
+    table.timetable td.branch-cell{min-width:80px;font-size:9px}
+    .sub-name{font-size:8px}.sub-code{font-size:7px}
+    table.datewise{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:10px}
+    table.datewise th,table.datewise td{padding:5px 6px}
+    .date-badge{font-size:11px;padding:4px 10px}
+    .slot-badge{font-size:10px}
+}
+
 @media print{
     .toolbar{display:none!important}
     .content-area{padding:12px 16px}
@@ -129,12 +151,22 @@ function switchView(view) {
 }
 
 function downloadHTML() {
-    var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+    try {
+        var content = document.documentElement.outerHTML;
+        var blob = new Blob([content], { type: 'text/html' });
+        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+            var file = new File([blob], 'timetable.html', { type: 'text/html' });
+            navigator.share({ files: [file], title: 'Exam Timetable' }).catch(function() { fallbackDL(blob); });
+        } else { fallbackDL(blob); }
+    } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
+}
+function fallbackDL(blob) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'timetable-${params.id}.html';
+    a.download = 'timetable.html';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
 }
 </script>
 </body></html>`;

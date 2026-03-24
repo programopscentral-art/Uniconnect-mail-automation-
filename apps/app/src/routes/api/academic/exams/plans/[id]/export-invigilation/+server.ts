@@ -154,6 +154,28 @@ tbody tr:hover td{background:#f8fafc}
 .sub-badge{display:inline-block;padding:3px 10px;background:#e0e7ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:6px;font-size:11px;font-weight:700;margin:2px 3px 2px 0}
 .sub-badge small{font-weight:600;color:#6366f1;font-size:9px}
 
+/* Mobile responsive */
+@media (max-width:768px){
+    .toolbar{flex-direction:column;gap:8px;padding:10px 12px}
+    .toolbar-left{width:100%}
+    .toolbar-right{width:100%;justify-content:stretch}
+    .toolbar-btn{flex:1;justify-content:center;padding:10px 8px;font-size:11px;min-height:44px}
+    .content{padding:12px 8px}
+    .page-header h1{font-size:18px}
+    .page-header .plan-name{font-size:13px}
+    .slot-header{gap:6px}
+    .date-badge{font-size:10px;padding:4px 10px}
+    .time-badge{font-size:10px}
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;font-size:11px}
+    thead th{padding:8px 6px;font-size:9px}
+    tbody td{padding:8px 6px}
+    .col-room{min-width:100px}
+    .col-inv{min-width:140px}
+    .col-sub{min-width:140px}
+    .inv-badge,.sub-badge{font-size:10px;padding:3px 6px;margin:1px 2px 1px 0}
+    .col-room strong{font-size:11px}
+}
+
 @media print{
     .toolbar{display:none!important}
     .content{padding:12px 16px}
@@ -193,12 +215,22 @@ tbody tr:hover td{background:#f8fafc}
 
 <script>
 function downloadHTML() {
-    var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+    try {
+        var content = document.documentElement.outerHTML;
+        var blob = new Blob([content], { type: 'text/html' });
+        if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+            var file = new File([blob], 'invigilation-duty.html', { type: 'text/html' });
+            navigator.share({ files: [file], title: 'Invigilation Duty' }).catch(function() { fallbackDL(blob); });
+        } else { fallbackDL(blob); }
+    } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
+}
+function fallbackDL(blob) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'invigilation-duty-${params.id}.html';
+    a.download = 'invigilation-duty.html';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
 }
 </script>
 </body></html>`;
