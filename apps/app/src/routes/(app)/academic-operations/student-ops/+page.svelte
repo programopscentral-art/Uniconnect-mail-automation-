@@ -194,7 +194,7 @@
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
             {#each data.students as student, i (student.id)}
-              <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors" in:fly={{ y: 8, delay: Math.min(i * 20, 200) }}>
+              <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onclick={() => goto(`/academic-operations/student-ops/${student.id}`)} in:fly={{ y: 8, delay: Math.min(i * 20, 200) }}>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-[10px] font-black shrink-0">

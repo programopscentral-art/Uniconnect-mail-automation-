@@ -71,5 +71,8 @@ export * from './services/timetable-generator.service';
 export * from './services/timetable-ops.service';
 export * from './services/scheduling-notifications.service';
 export * from './services/classroom.service';
+export * from './services/admission.service';
+export * from './services/student-document.service';
+export * from './services/student-pii.service';
 export * from './db/ops';
 // Ensure all assessment functions including createUniversityAsset are exported
