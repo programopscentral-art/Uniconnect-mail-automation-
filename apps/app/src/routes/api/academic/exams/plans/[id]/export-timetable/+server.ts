@@ -46,11 +46,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;c
 .btn-print{background:#4f46e5;color:#fff}.btn-print:hover{background:#4338ca}
 .btn-download{background:#059669;color:#fff}.btn-download:hover{background:#047857}
 
-/* View toggle */
-.view-toggle{display:flex;background:#334155;border-radius:6px;overflow:hidden}
-.view-btn{padding:7px 14px;border:none;background:transparent;color:#94a3b8;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s}
-.view-btn.active{background:#4f46e5;color:#fff}
-.view-btn:hover:not(.active){color:#e2e8f0}
+/* Details/Summary navigation (works without JS) */
+.view-details{margin-bottom:8px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+.view-details summary{padding:12px 20px;background:#f1f5f9;font-size:13px;font-weight:800;color:#4f46e5;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.view-details summary::-webkit-details-marker{display:none}
+.view-details summary::before{content:'\\25B6';font-size:10px;transition:transform .2s}
+.view-details[open] summary::before{transform:rotate(90deg)}
+.view-details[open] summary{background:#4f46e5;color:#fff;border-bottom:1px solid #4338ca}
+.view-details .view-body{padding:16px}
 
 .content-area{padding:24px 32px}
 .page-header{text-align:center;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e5e7eb}
@@ -85,8 +88,7 @@ table.datewise tr:hover td{background:#f8fafc}
     .toolbar-left{width:100%;flex-direction:column;gap:8px}
     .toolbar-right{width:100%;justify-content:stretch}
     .toolbar-btn{flex:1;justify-content:center;padding:10px 8px;font-size:11px;min-height:44px}
-    .view-toggle{width:100%;justify-content:center}
-    .view-btn{flex:1;text-align:center;padding:10px 8px;min-height:40px}
+    .view-details summary{font-size:12px;padding:10px 14px}
     .content-area{padding:12px 8px}
     .page-header h1{font-size:18px}
     .page-header .plan-name{font-size:13px}
@@ -104,6 +106,9 @@ table.datewise tr:hover td{background:#f8fafc}
 @media print{
     .toolbar{display:none!important}
     .content-area{padding:12px 16px}
+    .view-details,.view-details[open]{border:none}
+    .view-details summary{background:#4f46e5;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .view-details .view-body{display:block!important}
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 @page{size:A4 landscape;margin:10mm}
@@ -114,10 +119,6 @@ table.datewise tr:hover td{background:#f8fafc}
         <div>
             <div class="toolbar-title">EXAM TIMETABLE — ${esc(planName)}</div>
             <div class="toolbar-subtitle">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches</div>
-        </div>
-        <div class="view-toggle">
-            <button class="view-btn${format === 'branchwise' ? ' active' : ''}" id="btn-branchwise" data-action="view" data-view="branchwise">Branch-wise</button>
-            <button class="view-btn${format === 'datewise' ? ' active' : ''}" id="btn-datewise" data-action="view" data-view="datewise">Date-wise</button>
         </div>
     </div>
     <div class="toolbar-right">
@@ -138,8 +139,14 @@ table.datewise tr:hover td{background:#f8fafc}
         <p class="plan-name">${esc(planName)}</p>
         <p class="meta">${exams.length} exams &bull; ${new Set(exams.map((e: any) => e.program_name)).size} branches</p>
     </div>
-    <div id="view-branchwise" style="${format === 'datewise' ? 'display:none' : ''}">${branchwiseHtml}</div>
-    <div id="view-datewise" style="${format === 'branchwise' ? 'display:none' : ''}">${datewiseHtml}</div>
+    <details class="view-details" ${format !== 'datewise' ? 'open' : ''}>
+        <summary>Branch-wise View</summary>
+        <div class="view-body">${branchwiseHtml}</div>
+    </details>
+    <details class="view-details" ${format === 'datewise' ? 'open' : ''}>
+        <summary>Date-wise View</summary>
+        <div class="view-body">${datewiseHtml}</div>
+    </details>
 </div>
 
 <script>
@@ -156,18 +163,11 @@ table.datewise tr:hover td{background:#f8fafc}
         var btn = e.target.closest('[data-action]');
         if (!btn) return;
         var action = btn.getAttribute('data-action');
-        if (action === 'view') {
-            var view = btn.getAttribute('data-view');
-            document.getElementById('view-branchwise').style.display = view === 'branchwise' ? '' : 'none';
-            document.getElementById('view-datewise').style.display = view === 'datewise' ? '' : 'none';
-            document.getElementById('btn-branchwise').classList.toggle('active', view === 'branchwise');
-            document.getElementById('btn-datewise').classList.toggle('active', view === 'datewise');
-        } else if (action === 'print') {
+        if (action === 'print') {
             window.print();
         } else if (action === 'download') {
             try {
-                var content = document.documentElement.outerHTML;
-                var blob = new Blob([content], { type: 'text/html' });
+                var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
                 if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
                     var file = new File([blob], 'timetable.html', { type: 'text/html' });
                     navigator.share({ files: [file], title: 'Exam Timetable' }).catch(function() { fallbackDL(blob); });

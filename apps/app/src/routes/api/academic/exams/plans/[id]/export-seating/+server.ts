@@ -170,33 +170,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             slotTabs.push({ id: slotId, label: slotLabel, dateLabel: dateLine, classrooms });
         }
 
-        // Build tab navigation HTML
-        let slotTabsHtml = '';
-        for (let i = 0; i < slotTabs.length; i++) {
-            const tab = slotTabs[i];
-            slotTabsHtml += `<button class="slot-tab${i === 0 ? ' active' : ''}" data-slot="${tab.id}" data-action="switch-slot">${esc(tab.label)}</button>`;
-        }
-
-        // Build classroom sub-tabs and pages per slot
+        // Build collapsible details sections (works without JS)
         let contentHtml = '';
         for (let i = 0; i < slotTabs.length; i++) {
             const tab = slotTabs[i];
-            let roomTabsHtml = '';
+            let roomDetailsHtml = '';
             for (let j = 0; j < tab.classrooms.length; j++) {
                 const room = tab.classrooms[j];
-                roomTabsHtml += `<button class="room-tab${j === 0 ? ' active' : ''}" data-slot="${tab.id}" data-room="${room.id}" data-action="switch-room">${esc(room.name)}</button>`;
-            }
-
-            let roomPagesHtml = '';
-            for (let j = 0; j < tab.classrooms.length; j++) {
-                roomPagesHtml += tab.classrooms[j].pageHtml;
+                roomDetailsHtml += `
+                <details class="room-details" ${i === 0 && j === 0 ? 'open' : ''}>
+                    <summary>${esc(room.name)}<span class="room-meta">Tap to ${i === 0 && j === 0 ? 'collapse' : 'expand'}</span></summary>
+                    ${room.pageHtml}
+                </details>`;
             }
 
             contentHtml += `
-            <div class="slot-content" id="content-${tab.id}" style="${i === 0 ? '' : 'display:none'}">
-                <div class="room-tabs" id="roomtabs-${tab.id}">${roomTabsHtml}</div>
-                <div class="room-pages" id="roompages-${tab.id}">${roomPagesHtml}</div>
-            </div>`;
+            <details class="slot-details" ${i === 0 ? 'open' : ''}>
+                <summary>${esc(tab.label)}<span class="slot-meta">${tab.classrooms.length} classrooms</span></summary>
+                ${roomDetailsHtml}
+            </details>`;
         }
 
         const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Seating Plan — ${esc(planName)}</title>
@@ -214,21 +206,28 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 .btn-download{background:#059669;color:#fff}.btn-download:hover{background:#047857}
 .btn-print-all{background:#7c3aed;color:#fff}.btn-print-all:hover{background:#6d28d9}
 
-/* Slot tabs */
-.slot-tabs{display:flex;gap:4px;padding:12px 24px 0;background:#f8fafc;border-bottom:2px solid #e2e8f0;overflow-x:auto;flex-wrap:wrap}
-.slot-tab{padding:8px 16px;border:none;background:transparent;color:#64748b;font-size:12px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;border-radius:6px 6px 0 0;transition:all .15s;white-space:nowrap}
-.slot-tab:hover{color:#4f46e5;background:#ede9fe}
-.slot-tab.active{color:#4f46e5;background:#fff;border-bottom-color:#4f46e5;box-shadow:0 -2px 4px rgba(79,70,229,.1)}
+/* Slot details (collapsible, works without JS) */
+.slot-details{margin:8px 16px;border:2px solid #e2e8f0;border-radius:10px;overflow:hidden}
+.slot-details summary{padding:14px 20px;background:#f1f5f9;font-size:14px;font-weight:800;color:#1e293b;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;user-select:none}
+.slot-details summary::-webkit-details-marker{display:none}
+.slot-details summary::before{content:'\\25B6';font-size:10px;color:#4f46e5;transition:transform .2s}
+.slot-details[open] summary::before{transform:rotate(90deg)}
+.slot-details[open] summary{background:#4f46e5;color:#fff;border-bottom:1px solid #4338ca}
+.slot-details[open] summary .slot-meta{color:#c7d2fe}
+.slot-meta{font-size:11px;font-weight:600;color:#64748b;margin-left:auto}
 
-/* Room sub-tabs */
-.room-tabs{display:flex;gap:4px;padding:8px 24px;background:#fff;border-bottom:1px solid #e2e8f0;overflow-x:auto;flex-wrap:wrap}
-.room-tab{padding:6px 14px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:11px;font-weight:700;cursor:pointer;border-radius:6px;transition:all .15s;white-space:nowrap}
-.room-tab:hover{border-color:#4f46e5;color:#4f46e5;background:#ede9fe}
-.room-tab.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+/* Room details (nested collapsible) */
+.room-details{margin:8px 12px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+.room-details summary{padding:10px 16px;background:#f8fafc;font-size:13px;font-weight:700;color:#475569;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;user-select:none}
+.room-details summary::-webkit-details-marker{display:none}
+.room-details summary::before{content:'\\25B6';font-size:9px;color:#6366f1;transition:transform .2s}
+.room-details[open] summary::before{transform:rotate(90deg)}
+.room-details[open] summary{background:#6366f1;color:#fff}
+.room-details[open] summary .room-meta{color:#c7d2fe}
+.room-meta{font-size:10px;font-weight:600;color:#94a3b8;margin-left:auto}
 
 /* Content */
-.classroom-page{padding:24px 32px;display:none}
-.classroom-page.active{display:block}
+.classroom-page{padding:24px 32px}
 .header{text-align:center;margin-bottom:24px;border-bottom:2px solid #e5e7eb;padding-bottom:16px}
 .header h1{font-size:28px;font-weight:900;color:#4f46e5;letter-spacing:1px;text-transform:uppercase}
 .header .plan-name{font-size:11px;color:#94a3b8;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:2px}
@@ -267,10 +266,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     .toolbar-left{width:100%}
     .toolbar-right{width:100%;justify-content:stretch;flex-wrap:wrap}
     .toolbar-btn{flex:1;justify-content:center;padding:10px 8px;font-size:11px;min-height:44px}
-    .slot-tabs{padding:8px 12px 0;gap:4px}
-    .slot-tab{padding:8px 10px;font-size:11px;min-height:40px}
-    .room-tabs{padding:6px 12px;gap:4px}
-    .room-tab{padding:6px 10px;font-size:10px;min-height:36px}
+    .slot-details{margin:6px 8px}
+    .slot-details summary{padding:12px 14px;font-size:12px}
+    .room-details{margin:6px 8px}
+    .room-details summary{padding:8px 12px;font-size:11px}
     .classroom-page{padding:12px}
     .header h1{font-size:18px}
     .header h2{font-size:15px}
@@ -290,8 +289,10 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 /* Print styles */
 @media print{
-    .toolbar,.slot-tabs,.room-tabs{display:none!important}
-    .slot-content{display:block!important}
+    .toolbar{display:none!important}
+    .slot-details,.room-details{border:none;margin:0}
+    .slot-details summary,.room-details summary{display:none}
+    .slot-details,.slot-details[open],.room-details,.room-details[open]{display:block!important}
     .classroom-page{display:block!important;page-break-after:always;padding:12px 16px}
     .classroom-page:last-child{page-break-after:auto}
     .summary-table{width:100%;margin:0 0 20px}
@@ -300,12 +301,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 }
 @media print and (prefers-color-scheme:light){body{background:#fff}}
 @page{size:A4 landscape;margin:10mm}
-
-/* Print current only */
-body.print-current .slot-content{display:none!important}
-body.print-current .slot-content.print-target{display:block!important}
-body.print-current .slot-content.print-target .classroom-page{display:none!important}
-body.print-current .slot-content.print-target .classroom-page.print-target-room{display:block!important}
 </style></head><body>
 
 <div class="toolbar">
@@ -331,73 +326,31 @@ body.print-current .slot-content.print-target .classroom-page.print-target-room{
     </div>
 </div>
 
-<div class="slot-tabs">${slotTabsHtml}</div>
 ${contentHtml}
 
 <script>
 (function() {
-    var currentSlot = '${slotTabs[0]?.id || ''}';
-    var currentRooms = {};
-    ${slotTabs.map(s => `currentRooms['${s.id}'] = '${s.classrooms[0]?.id || ''}';`).join('\n    ')}
-
-    function switchSlot(slotId) {
-        currentSlot = slotId;
-        document.querySelectorAll('.slot-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.slot === slotId); });
-        document.querySelectorAll('.slot-content').forEach(function(c) { c.style.display = c.id === 'content-' + slotId ? '' : 'none'; });
-        showRoom(slotId, currentRooms[slotId]);
-    }
-
-    function showRoom(slotId, roomId) {
-        currentRooms[slotId] = roomId;
-        var container = document.getElementById('roompages-' + slotId);
-        if (!container) return;
-        container.querySelectorAll('.classroom-page').forEach(function(p) { p.classList.toggle('active', p.id === roomId); });
-        var tabContainer = document.getElementById('roomtabs-' + slotId);
-        if (tabContainer) tabContainer.querySelectorAll('.room-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.room === roomId); });
-    }
-
-    function printCurrent() {
-        var slotContent = document.getElementById('content-' + currentSlot);
-        var roomPage = document.getElementById(currentRooms[currentSlot]);
-        if (!slotContent || !roomPage) { window.print(); return; }
-        document.body.classList.add('print-current');
-        slotContent.classList.add('print-target');
-        roomPage.classList.add('print-target-room');
-        window.print();
-        document.body.classList.remove('print-current');
-        slotContent.classList.remove('print-target');
-        roomPage.classList.remove('print-target-room');
-    }
-
-    function doDownload() {
-        try {
-            var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
-            if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
-                var file = new File([blob], 'seating-plan.html', { type: 'text/html' });
-                navigator.share({ files: [file], title: 'Seating Plan' }).catch(function() { dlFallback(blob); });
-            } else { dlFallback(blob); }
-        } catch(e) { alert('Download failed. Try Save Page from browser menu.'); }
-    }
     function dlFallback(blob) {
         var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'seating-plan.html';
         document.body.appendChild(a); a.click();
         setTimeout(function() { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 100);
     }
-
-    // Event delegation — works in local files, mobile, everywhere
     document.addEventListener('click', function(e) {
         var btn = e.target.closest('[data-action]');
         if (!btn) return;
         var action = btn.getAttribute('data-action');
-        if (action === 'switch-slot') switchSlot(btn.getAttribute('data-slot'));
-        else if (action === 'switch-room') showRoom(btn.getAttribute('data-slot'), btn.getAttribute('data-room'));
-        else if (action === 'print-current') printCurrent();
-        else if (action === 'print-all') window.print();
-        else if (action === 'download') doDownload();
+        if (action === 'print-current' || action === 'print-all') {
+            window.print();
+        } else if (action === 'download') {
+            try {
+                var blob = new Blob([document.documentElement.outerHTML], { type: 'text/html' });
+                if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+                    var file = new File([blob], 'seating-plan.html', { type: 'text/html' });
+                    navigator.share({ files: [file], title: 'Seating Plan' }).catch(function() { dlFallback(blob); });
+                } else { dlFallback(blob); }
+            } catch(ex) { alert('Download failed. Try Save Page from browser menu.'); }
+        }
     });
-
-    // Initialize first room visibility
-    ${slotTabs.map(s => s.classrooms.length > 0 ? `showRoom('${s.id}', '${s.classrooms[0].id}');` : '').join('\n    ')}
 })();
 </script>
 </body></html>`;
