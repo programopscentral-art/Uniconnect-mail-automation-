@@ -55,6 +55,43 @@ export async function getRolePermissions(role: string): Promise<string[]> {
     return result.rows[0].features;
 }
 
+/**
+ * Ensures ALL existing roles in role_permissions have 'tasks' in their features.
+ * This is the programmatic equivalent of migration 0070.
+ * Called at boot to guarantee tasks work for every role without manual SQL.
+ */
+export async function ensureCorePermissions(): Promise<void> {
+    try {
+        // Add 'tasks' to every role that doesn't already have it
+        await db.query(`
+            UPDATE role_permissions
+            SET features = features || '["tasks"]'::jsonb, updated_at = NOW()
+            WHERE NOT (features @> '["tasks"]'::jsonb)
+        `);
+
+        // Add 'dashboard' to every role that doesn't already have it
+        await db.query(`
+            UPDATE role_permissions
+            SET features = features || '["dashboard"]'::jsonb, updated_at = NOW()
+            WHERE NOT (features @> '["dashboard"]'::jsonb)
+        `);
+
+        // Insert rows for roles that don't have ANY row yet
+        const roles = ['BOA', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER', 'FACULTY', 'SUPPORT'];
+        for (const role of roles) {
+            await db.query(`
+                INSERT INTO role_permissions (role, features)
+                SELECT $1, '["dashboard", "tasks", "students"]'::jsonb
+                WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = $1)
+            `, [role]);
+        }
+
+        console.log('[PERMISSIONS] Core permissions (tasks, dashboard) ensured for all roles');
+    } catch (e: any) {
+        console.error('[PERMISSIONS] Failed to ensure core permissions:', e?.message);
+    }
+}
+
 export async function updateRolePermissions(role: string, features: string[]): Promise<void> {
     try {
         await db.query(

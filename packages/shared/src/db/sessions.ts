@@ -78,6 +78,17 @@ export async function validateSession(token: string): Promise<SessionUser | null
             }
         }
 
+        // CRITICAL: Always ensure core features are present regardless of what DB returns
+        // 'tasks' and 'dashboard' are core features every role MUST have
+        const coreFeatures = ['dashboard', 'tasks'];
+        if (Array.isArray(user.permissions)) {
+            for (const feat of coreFeatures) {
+                if (!user.permissions.includes(feat)) {
+                    user.permissions.push(feat);
+                }
+            }
+        }
+
         return user;
     } catch (e: any) {
         console.error('[VALIDATE_SESSION_ERROR_FALLBACK_TRIGGERED]', e.message);

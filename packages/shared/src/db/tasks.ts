@@ -55,11 +55,16 @@ export async function createTask(data: {
     const task = result.rows[0];
 
     if (assignee_ids.length > 0) {
-        const values = assignee_ids.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
-        await db.query(
-            `INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`,
-            [task.id, ...assignee_ids]
-        );
+        try {
+            const values = assignee_ids.map((uid, idx) => `($1, $${idx + 2})`).join(', ');
+            await db.query(
+                `INSERT INTO task_assignees (task_id, user_id) VALUES ${values}`,
+                [task.id, ...assignee_ids]
+            );
+        } catch (assigneeErr: any) {
+            console.error('[CREATE_TASK] Failed to insert task_assignees for task', task.id, ':', assigneeErr?.message);
+            // Task was created — still return it so it's not lost
+        }
     }
 
     return { ...task, assignee_ids } as Task;

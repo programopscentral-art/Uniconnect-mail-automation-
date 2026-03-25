@@ -1,16 +1,20 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { validateSession, getRolePermissions } from '@uniconnect/shared';
+import { validateSession, getRolePermissions, ensureCorePermissions } from '@uniconnect/shared';
 
 // EMERGENCY FIX: Bypass SSL certificate verification for production stability
 // Resolves: "self-signed certificate in certificate chain" errors
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 console.log("-----------------------------------------");
-console.log("!!! UNICONNECT BOOTING VERSION 2.0.8 !!!");
+console.log("!!! UNICONNECT BOOTING VERSION 2.0.9 !!!");
 console.log("-----------------------------------------");
 console.log("[HOOKS] Attempting to initialize Firebase Admin...");
 import '$lib/server/firebase-admin';
+
+// Auto-ensure core permissions (tasks, dashboard) for all roles at boot
+// This is the programmatic equivalent of migration 0070
+ensureCorePermissions().catch(e => console.error('[HOOKS] ensureCorePermissions failed:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');

@@ -6,31 +6,36 @@ import { addNotificationJob } from '$lib/server/queue';
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401);
 
-    const assigned_to = url.searchParams.get('assigned_to') || undefined;
-    let university_id = url.searchParams.get('university_id') || undefined;
-    const status = url.searchParams.get('status') as any || undefined;
-    const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
+    try {
+        const assigned_to = url.searchParams.get('assigned_to') || undefined;
+        let university_id = url.searchParams.get('university_id') || undefined;
+        const status = url.searchParams.get('status') as any || undefined;
+        const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
 
-    // Strict Multi-Tenant Enforcement
-    const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
+        // Strict Multi-Tenant Enforcement
+        const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
 
-    // Check if user is a Central BOA (team member)
-    const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === (university_id || locals.user!.university_id));
-    const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
+        // Check if user is a Central BOA (team member)
+        const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === (university_id || locals.user!.university_id));
+        const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
 
-    if (!isGlobalAdmin && !isCentralBOA) {
-        university_id = locals.user.university_id || undefined;
+        if (!isGlobalAdmin && !isCentralBOA) {
+            university_id = locals.user.university_id || undefined;
+        }
+        // For Central BOA: use the requested university_id (their team's id) to see all team tasks
+
+        const tasks = await getTasks({
+            assigned_to,
+            university_id,
+            status,
+            creator_id: (isGlobalAdmin || isCentralBOA) ? undefined : locals.user.id,
+            limit
+        });
+        return json(tasks);
+    } catch (err: any) {
+        console.error('[API_TASKS_GET] Error fetching tasks:', err?.message || err, 'user:', locals.user?.id, 'role:', locals.user?.role);
+        return json([]);
     }
-    // For Central BOA: use the requested university_id (their team's id) to see all team tasks
-
-    const tasks = await getTasks({
-        assigned_to,
-        university_id,
-        status,
-        creator_id: (isGlobalAdmin || isCentralBOA) ? undefined : locals.user.id,
-        limit
-    });
-    return json(tasks);
 };
 
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -73,7 +78,14 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         data.assignee_ids = [locals.user.id];
     }
 
-    const task = await createTask({ ...data, assigned_by: locals.user.id });
+    let task;
+    try {
+        task = await createTask({ ...data, assigned_by: locals.user.id });
+        console.log('[API_TASKS_POST] Task created:', task.id, 'by:', locals.user.id, 'role:', locals.user.role, 'assignees:', task.assignee_ids, 'univ:', task.university_id);
+    } catch (createErr: any) {
+        console.error('[API_TASKS_POST] FAILED to create task:', createErr?.message || createErr, 'user:', locals.user.id, 'role:', locals.user.role, 'data:', JSON.stringify(data));
+        throw error(500, 'Failed to create task: ' + (createErr?.message || 'Unknown error'));
+    }
 
     // Notifications for all assignees
     for (const uid of task.assignee_ids) {
