@@ -165,7 +165,7 @@
       priority: "MEDIUM",
       assignee_ids: canAssignToOthers || isCentralBOA ? [] : [data.user.id],
       university_id:
-        isGlobalAdmin || isCentralBOA ? "" : data.user.university_id || "",
+        isGlobalAdmin ? "" : data.user.university_id || "",
       start_date: "",
       due_date: "",
       estimated_time: "",

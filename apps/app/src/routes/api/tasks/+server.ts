@@ -24,11 +24,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         }
         // For Central BOA: use the requested university_id (their team's id) to see all team tasks
 
+        // ALWAYS pass creator_id for non-admin users so they see their own tasks
+        // Previously central BOA got creator_id=undefined, which meant tasks with
+        // NULL university_id (created when form didn't pre-fill) were invisible
         const tasks = await getTasks({
             assigned_to,
             university_id,
             status,
-            creator_id: (isGlobalAdmin || isCentralBOA) ? undefined : locals.user.id,
+            creator_id: isGlobalAdmin ? undefined : locals.user.id,
             limit
         });
         return json(tasks);
@@ -52,8 +55,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === locals.user!.university_id);
     const isCentralBOA = locals.user!.role === 'BOA' && (!locals.user!.university_id || activeUniv?.is_team);
 
-    if (!isGlobalAdmin && !isCentralBOA) {
-        data.university_id = locals.user.university_id;
+    // ALWAYS set university_id for non-admin users (including central BOA)
+    // Previously central BOA skipped this, causing tasks to be stored with NULL university_id
+    if (!isGlobalAdmin) {
+        if (!data.university_id || data.university_id === '') {
+            data.university_id = locals.user.university_id;
+        }
     }
 
     // 2. Assignment Restrictions

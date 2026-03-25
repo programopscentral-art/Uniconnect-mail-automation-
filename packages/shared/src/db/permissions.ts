@@ -86,6 +86,16 @@ export async function ensureCorePermissions(): Promise<void> {
             `, [role]);
         }
 
+        // Fix orphaned tasks: tasks with NULL university_id should inherit from their creator
+        await db.query(`
+            UPDATE tasks t
+            SET university_id = u.university_id
+            FROM users u
+            WHERE t.assigned_by = u.id
+              AND t.university_id IS NULL
+              AND u.university_id IS NOT NULL
+        `);
+
         console.log('[PERMISSIONS] Core permissions (tasks, dashboard) ensured for all roles');
     } catch (e: any) {
         console.error('[PERMISSIONS] Failed to ensure core permissions:', e?.message);
