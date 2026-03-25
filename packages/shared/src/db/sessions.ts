@@ -74,7 +74,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
             if (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') {
                 user.permissions = allFeatures;
             } else {
-                user.permissions = ['dashboard', 'students'];
+                user.permissions = ['dashboard', 'tasks', 'students'];
             }
         }
 
@@ -95,7 +95,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
             if (result.rows.length === 0) return null;
             const user = result.rows[0];
             user.universities = [];
-            user.permissions = (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') ? allFeatures : ['dashboard', 'students'];
+            user.permissions = (user.role === 'ADMIN' || user.role === 'PROGRAM_OPS') ? allFeatures : ['dashboard', 'tasks', 'students'];
             return user;
         } catch (fatal: any) {
             console.error('[VALIDATE_SESSION_FATAL]', fatal.message);

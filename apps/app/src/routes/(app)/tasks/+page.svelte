@@ -151,6 +151,7 @@
       "ADMIN",
       "PROGRAM_OPS",
       "UNIVERSITY_OPERATOR",
+      "BOA",
       "COS",
       "PM",
       "PMA",
@@ -199,7 +200,28 @@
     try {
       const url = "/api/tasks";
       const method = editingTask ? "PATCH" : "POST";
-      const body = editingTask ? { id: editingTask.id, ...form } : form;
+
+      // Build timezone-aware dates (datetime-local inputs have no timezone)
+      const tzOffset = new Date().getTimezoneOffset();
+      const tzSign = tzOffset <= 0 ? '+' : '-';
+      const tzHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+      const tzMins = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+      const tzStr = `${tzSign}${tzHours}:${tzMins}`;
+
+      const formData = { ...form };
+      // Append timezone offset to datetime-local values so DB stores correct UTC
+      if (formData.start_date) {
+        formData.start_date = formData.start_date.includes('+') || formData.start_date.includes('Z')
+          ? formData.start_date
+          : `${formData.start_date}:00${tzStr}`;
+      }
+      if (formData.due_date) {
+        formData.due_date = formData.due_date.includes('+') || formData.due_date.includes('Z')
+          ? formData.due_date
+          : `${formData.due_date}:00${tzStr}`;
+      }
+
+      const body = editingTask ? { id: editingTask.id, ...formData } : formData;
 
       const res = await fetch(url, {
         method,
@@ -209,7 +231,10 @@
 
       if (res.ok) {
         showModal = false;
-        loadTasksData();
+        await loadTasksData();
+      } else {
+        const err = await res.json().catch(() => ({ message: 'Failed to save task' }));
+        alert(err.message || 'Failed to save task');
       }
     } finally {
       isSubmitting = false;

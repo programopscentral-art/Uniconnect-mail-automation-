@@ -34,17 +34,21 @@ export async function createTask(data: {
     // Default estimation if missing to ensure operational stability
     const estimated_time = data.estimated_time || '1h';
 
+    // Default dates: if no start_date provided, use NOW; if no due_date provided, use end of current day
+    const startDate = (taskData.start_date && taskData.start_date !== '') ? taskData.start_date : null;
+    const dueDate = (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null;
+
     const result = await db.query(
         `INSERT INTO tasks (title, description, priority, assigned_by, university_id, start_date, due_date, estimated_time)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+         VALUES ($1, $2, $3, $4, $5, COALESCE($6, NOW()), COALESCE($7, NOW() + INTERVAL '8 hours'), $8) RETURNING *`,
         [
             taskData.title,
             (taskData.description && taskData.description.trim() !== '') ? taskData.description : null,
             taskData.priority || 'MEDIUM',
             taskData.assigned_by,
             (taskData.university_id && taskData.university_id !== '') ? taskData.university_id : null,
-            (taskData.start_date && taskData.start_date !== '') ? taskData.start_date : null,
-            (taskData.due_date && taskData.due_date !== '') ? taskData.due_date : null,
+            startDate,
+            dueDate,
             estimated_time
         ]
     );
@@ -129,7 +133,7 @@ export async function getTasks(filters: {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          ${where}
-         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name, t.estimated_time, t.start_date, t.due_date, t.title, t.description, t.notes, t.priority, t.university_id, t.status, t.created_at, t.assigned_by
+         GROUP BY t.id, u_by.name, u_by.email, univ.name, univ.short_name
          ORDER BY t.created_at DESC${limitClause}`,
         params
     );
@@ -160,7 +164,7 @@ export async function getTaskById(id: string) {
          LEFT JOIN users u_by ON t.assigned_by = u_by.id
          LEFT JOIN universities univ ON t.university_id = univ.id
          WHERE t.id = $1
-         GROUP BY t.id, u_by.name, u_by.email, univ.name, t.estimated_time, t.due_date, t.title, t.description, t.priority, t.university_id, t.status, t.created_at, t.assigned_by`,
+         GROUP BY t.id, u_by.name, u_by.email, univ.name`,
         [id]
     );
     if (!result.rows[0]) return null;
@@ -199,7 +203,7 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
             [id]
         );
         const stats = rows[0];
-        if (parseInt(stats.total) > 0 && stats.total === stats.completed) {
+        if (parseInt(stats.total) > 0 && parseInt(stats.total) === parseInt(stats.completed)) {
             updateData.status = 'COMPLETED';
         } else if (assignee_status === 'IN_PROGRESS' || assignee_status === 'PENDING') {
             // If someone moved back to pending/processing, the main task can't be 'COMPLETED'

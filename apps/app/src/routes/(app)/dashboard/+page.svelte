@@ -99,21 +99,19 @@
   async function loadDashboardData() {
     const univParam = data.selectedUniversityId || data.defaultUniversityId || '';
     const qs = univParam ? `?university_id=${univParam}` : '';
-    const isAdmin = data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS';
-    const hasTasks = (data.userPermissions || []).includes('tasks');
 
     try {
       const fetches: Promise<any>[] = [
-        // Tasks
-        hasTasks ? fetch(`/api/tasks${qs ? qs + '&' : '?'}limit=1000`).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        // Tasks — always fetch (tasks are core for all roles)
+        fetch(`/api/tasks${qs ? qs + '&' : '?'}limit=1000`).then(r => r.ok ? r.json() : []),
         // Schedule Events
         fetch(`/api/schedule-events${qs}`).then(r => r.ok ? r.json() : []),
         // Calendar Freezes
         fetch(`/api/calendar-freeze${qs}`).then(r => r.ok ? r.json() : []),
         // Users (minimal)
-        hasTasks ? fetch(`/api/users${qs ? qs + '&' : '?'}minimal=true`).then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        fetch(`/api/users${qs ? qs + '&' : '?'}minimal=true`).then(r => r.ok ? r.json() : []),
         // Task Stats
-        hasTasks ? fetch(`/api/task-stats${qs}`).then(r => r.ok ? r.json() : {}) : Promise.resolve({}),
+        fetch(`/api/task-stats${qs}`).then(r => r.ok ? r.json() : {}),
       ];
 
       const [t, se, cf, u, ts] = await Promise.all(fetches);
