@@ -7,17 +7,8 @@
     if (!enabled) return;
 
     function handleVisibilityChange() {
-      if (document.hidden) {
-        isBlurred = true;
-      }
-    }
-
-    function handleBlur() {
-      isBlurred = true;
-    }
-
-    function handleFocus() {
-      isBlurred = false;
+      // Only blur when tab is actually hidden (not when clicking iframes/embeds)
+      isBlurred = document.hidden;
     }
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -44,14 +35,10 @@
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('keydown', handleKeyDown);
     };
   });
