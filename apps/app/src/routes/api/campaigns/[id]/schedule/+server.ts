@@ -64,7 +64,10 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         console.log(`[CAMPAIGN_START] Found ${students.length} students`);
 
         // 5. Create recipients if not already created
-        await createRecipients(campaignId, students, campaign.recipient_email_key);
+        const recipientResult = await createRecipients(campaignId, students, campaign.recipient_email_key);
+        if (recipientResult?.skipped > 0) {
+            console.log(`[CAMPAIGN_START] ${recipientResult.skipped} students skipped during recipient creation`);
+        }
         const recipients = await getCampaignRecipients(campaignId);
 
         // 6. Update campaign status to indicate it has started

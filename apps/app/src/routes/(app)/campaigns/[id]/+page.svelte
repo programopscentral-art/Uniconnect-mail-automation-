@@ -29,8 +29,50 @@
   let isSendingTest = $state(false);
 
   let isRetrying = $state(false);
-  let statusFilter = $state<"ALL" | "FAILED" | "SENT" | "ACKNOWLEDGED">("ALL");
+  let isDownloading = $state(false);
+  let statusFilter = $state<"ALL" | "FAILED" | "SENT" | "ACKNOWLEDGED" | "SKIPPED">("ALL");
   let recipientSearch = $state("");
+
+  async function downloadRecipients() {
+    isDownloading = true;
+    try {
+      // Fetch all recipients if not already loaded
+      let allRecipients = recipients;
+      if (allRecipients.length === 0) {
+        const res = await fetch(`/api/campaigns/${data.campaign.id}/recipients`);
+        if (!res.ok) { alert('Failed to fetch recipients'); return; }
+        allRecipients = await res.json();
+      }
+
+      // Build CSV
+      const headers = ['S.No', 'Student Name', 'Email', 'External ID', 'Status', 'Error/Skip Reason', 'Sent At', 'Opened At', 'Acknowledged At'];
+      const rows = allRecipients.map((r: any, idx: number) => [
+        idx + 1,
+        `"${(r.student_name || 'N/A').replace(/"/g, '""')}"`,
+        `"${(r.to_email || '').replace(/"/g, '""')}"`,
+        r.external_id || '',
+        r.status || '',
+        `"${(r.error_message || '').replace(/"/g, '""')}"`,
+        r.sent_at ? new Date(r.sent_at).toLocaleString('en-IN') : '',
+        r.opened_at ? new Date(r.opened_at).toLocaleString('en-IN') : '',
+        r.acknowledged_at ? new Date(r.acknowledged_at).toLocaleString('en-IN') : '',
+      ]);
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${data.campaign.name.replace(/[^a-zA-Z0-9]/g, '_')}_recipients_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Failed to download recipients');
+      console.error(e);
+    } finally {
+      isDownloading = false;
+    }
+  }
 
   let filteredRecipients = $derived.by(() => {
     let result = recipients;
@@ -625,7 +667,7 @@
   {/if}
 
   <!-- Stats -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
     <button
       onclick={() => loadRecipients(false, "ALL")}
       class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter === 'ALL'
@@ -689,6 +731,27 @@
         {/if}
       </div>
     </button>
+    <button
+      onclick={() => loadRecipients(false, "SKIPPED")}
+      class="bg-white p-6 rounded-2xl shadow-sm border {statusFilter ===
+      'SKIPPED'
+        ? 'border-orange-500 ring-4 ring-orange-50'
+        : 'border-gray-100'} hover:border-orange-200 transition-all text-left relative group"
+    >
+      <h3 class="text-sm font-bold uppercase" style="color: #6b7280 !important">
+        Skipped
+      </h3>
+      <div class="flex items-end justify-between">
+        <p class="mt-2 text-3xl font-black text-orange-600">
+          {recipients.filter(r => r.status === 'SKIPPED').length || '—'}
+        </p>
+        <div
+          class="text-[10px] font-black text-orange-500 uppercase tracking-widest"
+        >
+          Click to view ↴
+        </div>
+      </div>
+    </button>
   </div>
 
   <!-- Recipients -->
@@ -711,7 +774,7 @@
         </div>
         <div class="mt-4 space-y-4">
           <div class="flex flex-wrap gap-2">
-            {#each ["ALL", "SENT", "ACKNOWLEDGED", "FAILED"] as filter}
+            {#each ["ALL", "SENT", "ACKNOWLEDGED", "FAILED", "SKIPPED"] as filter}
               <button
                 onclick={() => (statusFilter = filter as any)}
                 class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all
@@ -770,6 +833,16 @@
           </button>
         {/if}
         <button
+          onclick={downloadRecipients}
+          disabled={isDownloading}
+          class="inline-flex items-center px-5 py-2 bg-white border border-gray-200 text-xs font-black rounded-xl text-gray-700 hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50 active:scale-95"
+        >
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {isDownloading ? "Downloading..." : "DOWNLOAD LIST"}
+        </button>
+        <button
           onclick={() => loadRecipients()}
           class="text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline"
         >
@@ -825,7 +898,9 @@
                             ? 'bg-green-100 text-green-800'
                             : r.status === 'FAILED'
                               ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'}"
+                              : r.status === 'SKIPPED'
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-gray-100 text-gray-800'}"
                       >
                         {r.status}
                       </span>

@@ -85,9 +85,11 @@ export async function deleteCampaign(id: string) {
 
 // Bulk Insert Recipients
 export async function createRecipients(campaignId: string, students: any[], recipientEmailKey?: string | null) {
-    if (students.length === 0) return;
+    if (students.length === 0) return { total: 0, skipped: 0, skippedStudents: [] };
 
     const client = await db.pool.connect();
+    const skippedStudents: Array<{ id: string; name: string; email: string; external_id: string; reason: string }> = [];
+
     try {
         await client.query('BEGIN');
 
@@ -99,30 +101,33 @@ export async function createRecipients(campaignId: string, students: any[], reci
         for (let i = 0; i < students.length; i += chunkSize) {
             const chunk = students.slice(i, i + chunkSize);
 
-            const uniqueChunk = chunk.filter(s => {
+            const uniqueChunk: any[] = [];
+            for (const s of chunk) {
                 let email = (s.email || '').toLowerCase().trim();
-                let hasCustomEmail = false;
 
                 if (recipientEmailKey) {
                     const custom = s.metadata?.[recipientEmailKey];
                     if (custom && typeof custom === 'string' && custom.trim().includes('@')) {
                         email = custom.toLowerCase().trim();
-                        hasCustomEmail = true;
-                    } else if (recipientEmailKey) {
-                        // If they chose a custom key and THIS student doesn't have it,
-                        // we SKIP them entirely rather than adding as a 'Failed' recipient.
-                        // This keeps the campaign counts clean.
-                        return false;
+                    } else {
+                        skippedStudents.push({ id: s.id, name: s.name || 'N/A', email: s.email || '', external_id: s.external_id || '', reason: `Missing custom email field: ${recipientEmailKey}` });
+                        continue;
                     }
                 }
 
-                if (!email || !email.includes('@')) return false;
+                if (!email || !email.includes('@')) {
+                    skippedStudents.push({ id: s.id, name: s.name || 'N/A', email: s.email || '', external_id: s.external_id || '', reason: 'No valid email address' });
+                    continue;
+                }
 
-                // If we already added this email in this campaign, skip it
-                if (seenEmails.has(email)) return false;
+                if (seenEmails.has(email)) {
+                    skippedStudents.push({ id: s.id, name: s.name || 'N/A', email: email, external_id: s.external_id || '', reason: `Duplicate email (already added)` });
+                    continue;
+                }
+
                 seenEmails.add(email);
-                return true;
-            });
+                uniqueChunk.push(s);
+            }
 
             if (uniqueChunk.length === 0) continue;
 
@@ -149,25 +154,47 @@ export async function createRecipients(campaignId: string, students: any[], reci
             );
         }
 
-        // Recalculate total_recipients and failed_count for accuracy
+        // Also insert skipped students with SKIPPED status so they appear in recipient list
+        if (skippedStudents.length > 0) {
+            for (const sk of skippedStudents) {
+                try {
+                    await client.query(
+                        `INSERT INTO campaign_recipients (campaign_id, student_id, to_email, tracking_token, status, error_message)
+                         VALUES ($1, $2, $3, $4, 'SKIPPED', $5)
+                         ON CONFLICT (campaign_id, student_id) DO NOTHING`,
+                        [campaignId, sk.id, sk.email || '', crypto.randomBytes(16).toString('hex'), sk.reason]
+                    );
+                } catch { /* skip if insert fails */ }
+            }
+        }
+
+        // Recalculate total_recipients and failed_count for accuracy (exclude SKIPPED from total)
         const statsRes = await client.query(`
-            SELECT 
-                COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status = 'FAILED') as failed
-            FROM campaign_recipients 
+            SELECT
+                COUNT(*) FILTER (WHERE status != 'SKIPPED') as total,
+                COUNT(*) FILTER (WHERE status = 'FAILED') as failed,
+                COUNT(*) FILTER (WHERE status = 'SKIPPED') as skipped
+            FROM campaign_recipients
             WHERE campaign_id = $1
         `, [campaignId]);
 
         const { total, failed } = statsRes.rows[0];
 
         await client.query(
-            `UPDATE campaigns 
-             SET total_recipients = $1, failed_count = $2, status = 'SCHEDULED', scheduled_at = NOW() 
+            `UPDATE campaigns
+             SET total_recipients = $1, failed_count = $2, status = 'SCHEDULED', scheduled_at = NOW()
              WHERE id = $3`,
             [parseInt(total), parseInt(failed), campaignId]
         );
 
         await client.query('COMMIT');
+
+        if (skippedStudents.length > 0) {
+            console.log(`[CAMPAIGN] ${campaignId}: ${skippedStudents.length} students skipped. Reasons:`,
+                skippedStudents.reduce((acc, s) => { acc[s.reason] = (acc[s.reason] || 0) + 1; return acc; }, {} as Record<string, number>));
+        }
+
+        return { total: parseInt(total), skipped: skippedStudents.length, skippedStudents };
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
