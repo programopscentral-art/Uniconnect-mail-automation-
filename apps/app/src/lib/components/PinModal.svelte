@@ -13,10 +13,13 @@
 
   let pin = $state('');
   let confirmPin = $state('');
+  let currentPin = $state('');
   let errorMsg = $state('');
   let loading = $state(false);
   let setupMode = $state(isSettingUp);
+  let changePinMode = $state(false);
   let noAccess = $state(false);
+  let pinChanged = $state(false);
 
   // Number challenge state
   let verifyMethod = $state<'pin' | 'email'>('pin');
@@ -104,6 +107,33 @@
     } catch { errorMsg = 'Verification failed'; }
   }
 
+  async function handleChangePin() {
+    errorMsg = '';
+    if (!/^\d{6}$/.test(currentPin)) { errorMsg = 'Enter your current 6-digit PIN'; return; }
+    if (!/^\d{6}$/.test(pin)) { errorMsg = 'New PIN must be exactly 6 digits'; return; }
+    if (pin !== confirmPin) { errorMsg = 'New PINs do not match'; return; }
+    if (pin === currentPin) { errorMsg = 'New PIN must be different from current PIN'; return; }
+
+    loading = true;
+    try {
+      const res = await fetch('/api/auth/security-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, currentPin })
+      });
+      if (res.ok) {
+        pinChanged = true;
+        changePinMode = false;
+        pin = ''; confirmPin = ''; currentPin = '';
+        setTimeout(() => pinChanged = false, 3000);
+      } else {
+        const err = await res.json();
+        errorMsg = err.message || 'Failed to change PIN';
+      }
+    } catch { errorMsg = 'Failed to change PIN'; }
+    finally { loading = false; }
+  }
+
   async function startEmailChallenge() {
     errorMsg = '';
     loading = true;
@@ -159,11 +189,12 @@
     }, 300000);
   }
 
-  function handleInput(e: Event, field: 'pin' | 'confirm') {
+  function handleInput(e: Event, field: 'pin' | 'confirm' | 'current') {
     const input = e.target as HTMLInputElement;
     const value = input.value.replace(/\D/g, '').slice(0, 6);
     if (field === 'pin') pin = value;
-    else confirmPin = value;
+    else if (field === 'confirm') confirmPin = value;
+    else currentPin = value;
     input.value = value;
   }
 </script>
@@ -185,6 +216,8 @@
       <h3 class="text-lg font-black text-gray-900 dark:text-white">
         {#if noAccess}
           Access Restricted
+        {:else if changePinMode}
+          Change PIN
         {:else if verifyMethod === 'email' && challengeSent}
           Check Your Email
         {:else}
@@ -194,6 +227,8 @@
       <p class="text-xs text-gray-500 mt-1">
         {#if noAccess}
           You don't have PIN access. Ask an administrator to grant you access.
+        {:else if changePinMode}
+          Enter your current PIN and choose a new one
         {:else if verifyMethod === 'email' && challengeSent}
           Tap the number below in the email we just sent you
         {:else if setupMode}
@@ -202,6 +237,9 @@
           Choose a verification method to continue
         {/if}
       </p>
+      {#if pinChanged}
+        <p class="text-xs font-bold text-emerald-500 mt-2">PIN changed successfully!</p>
+      {/if}
     </div>
 
     {#if noAccess}
@@ -212,6 +250,43 @@
       >
         Close
       </button>
+    </div>
+    {:else if changePinMode}
+    <!-- Change PIN View -->
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Current PIN</label>
+        <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
+          value={currentPin} oninput={(e) => handleInput(e, 'current')}
+          class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500"
+          autofocus />
+      </div>
+      <div>
+        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">New PIN</label>
+        <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
+          value={pin} oninput={(e) => handleInput(e, 'pin')}
+          class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500" />
+      </div>
+      <div>
+        <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm New PIN</label>
+        <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
+          value={confirmPin} oninput={(e) => handleInput(e, 'confirm')}
+          class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500" />
+      </div>
+      {#if errorMsg}
+        <p class="text-xs font-bold text-red-500 text-center">{errorMsg}</p>
+      {/if}
+      <div class="flex gap-3">
+        <button onclick={handleChangePin}
+          disabled={loading || currentPin.length !== 6 || pin.length !== 6 || confirmPin.length !== 6}
+          class="flex-1 px-4 py-3 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all">
+          {loading ? 'Changing...' : 'Change PIN'}
+        </button>
+        <button onclick={() => { changePinMode = false; pin = ''; confirmPin = ''; currentPin = ''; errorMsg = ''; }}
+          class="px-4 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-sm font-bold rounded-xl hover:bg-gray-200 transition-all">
+          Back
+        </button>
+      </div>
     </div>
     {:else if verifyMethod === 'email' && challengeSent}
     <!-- Number Challenge View -->
@@ -355,6 +430,12 @@
         </div>
       {/if}
 
+      {#if !setupMode && verifyMethod === 'pin'}
+        <button onclick={() => { changePinMode = true; pin = ''; confirmPin = ''; currentPin = ''; errorMsg = ''; }}
+          class="w-full text-[10px] text-indigo-500 font-bold hover:text-indigo-700 transition-colors text-center">
+          Change PIN
+        </button>
+      {/if}
       <p class="text-[9px] text-gray-400 text-center">
         {verifyMethod === 'pin' ? 'PIN verification is cached for 5 minutes.' : 'Email verification is valid for 5 minutes.'}
       </p>

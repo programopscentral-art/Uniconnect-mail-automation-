@@ -42,13 +42,15 @@ export const GET: RequestHandler = async ({ params, request }) => {
         return new Response(fileBuffer, {
             headers: {
                 'Content-Type': contentType,
-                'Content-Disposition': `inline; filename="${doc.fileName}"`,
-                'Cache-Control': 'no-store, no-cache, must-revalidate',
+                'Content-Disposition': 'inline',
+                'Cache-Control': 'no-store, no-cache, must-revalidate, private',
                 'Pragma': 'no-cache',
                 'Expires': new Date(tokenData.expiresAt * 1000).toUTCString(),
                 'X-Content-Type-Options': 'nosniff',
                 'X-Integrity-Verified': String(doc.integrityVerified),
-                'X-Encryption': 'AES-256-GCM'
+                'X-Encryption': 'AES-256-GCM',
+                'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'",
+                'X-Frame-Options': 'SAMEORIGIN'
             }
         });
     } catch (e: any) {

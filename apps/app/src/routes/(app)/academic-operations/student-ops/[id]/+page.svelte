@@ -618,18 +618,18 @@
               </td>
               <td class="px-5 py-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  <button onclick={() => previewDoc = doc}
-                    class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black hover:bg-indigo-100 transition-colors" title="View document">
-                    View
-                  </button>
-                  <button onclick={async () => { const url = await getSecureDocUrl(doc.id); if (url) window.open(url, '_blank'); }}
-                    class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 transition-colors" title="Open in new tab">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                  </button>
-                  <button onclick={() => deleteDocument(doc.id)}
-                    class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                  </button>
+                  {#if ['ADMIN', 'PROGRAM_OPS'].includes(user.role)}
+                    <button onclick={() => previewDoc = doc}
+                      class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black hover:bg-indigo-100 transition-colors" title="View document">
+                      View
+                    </button>
+                    <button onclick={() => deleteDocument(doc.id)}
+                      class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                  {:else}
+                    <span class="text-[10px] text-gray-400 font-bold">View restricted</span>
+                  {/if}
                 </div>
               </td>
             </tr>
@@ -686,7 +686,7 @@
   <!-- Document Preview Modal -->
   {#if previewDoc}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
-    <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={true}>
+    <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={true} studentId={student.id} studentName={student.student_name || student.name || ''}>
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
@@ -701,7 +701,7 @@
           </p>
         </div>
         <div class="flex items-center gap-2">
-          {#if previewTokenUrl}
+          {#if previewTokenUrl && ['ADMIN', 'PROGRAM_OPS'].includes(user.role)}
             <a href={previewTokenUrl} target="_blank" download
               class="px-3 py-1.5 text-[10px] font-black bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
               Download
