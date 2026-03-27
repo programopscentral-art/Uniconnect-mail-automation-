@@ -188,7 +188,7 @@ export class AdmissionService {
                     rv.name as reviewer_name,
                     prog.name as program_name,
                     (SELECT COUNT(*) FROM documents d
-                     WHERE d.owner_entity_type = 'STUDENT' AND d.owner_entity_id = sp.id::text AND d.file_status = 'ACTIVE') as doc_count
+                     WHERE d.owner_entity_type = 'STUDENT' AND d.owner_entity_id = sp.id AND d.file_status = 'ACTIVE') as doc_count
              FROM admission_workflows aw
              JOIN student_profiles sp ON aw.student_profile_id = sp.id
              LEFT JOIN users u ON sp.user_id = u.id

@@ -26,13 +26,13 @@ type DocPermission = 'VIEW_METADATA' | 'DOWNLOAD' | 'UPLOAD' | 'DELETE';
 const DOC_ACCESS_MATRIX: Record<string, DocPermission[]> = {
     ADMIN: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD', 'DELETE'],
     PROGRAM_OPS: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD', 'DELETE'],
-    UNIVERSITY_OPERATOR: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD'],
-    COS: ['VIEW_METADATA', 'DOWNLOAD'],
-    PM: ['VIEW_METADATA', 'DOWNLOAD'],
+    UNIVERSITY_OPERATOR: ['VIEW_METADATA', 'UPLOAD'],
+    COS: ['VIEW_METADATA'],
+    PM: ['VIEW_METADATA'],
     PMA: ['VIEW_METADATA'],
     BOA: ['VIEW_METADATA'],
     CMA: ['VIEW_METADATA'],
-    CMA_MANAGER: ['VIEW_METADATA', 'DOWNLOAD'],
+    CMA_MANAGER: ['VIEW_METADATA'],
 };
 
 const FULL_ACCESS_ROLES = ['ADMIN', 'PROGRAM_OPS'];
@@ -160,8 +160,8 @@ export class StudentDocumentService {
         const result = await db.query(
             `SELECT d.*, sp.university_id as student_university_id
              FROM documents d
-             LEFT JOIN student_profiles sp ON d.owner_entity_id = sp.id::text
-             WHERE d.id = $1 AND d.file_status = 'ACTIVE'`,
+             LEFT JOIN student_profiles sp ON d.owner_entity_id = sp.id
+             WHERE d.id = $1::uuid AND d.file_status = 'ACTIVE'`,
             [documentId]
         );
 
@@ -179,7 +179,7 @@ export class StudentDocumentService {
                 userAgent
             }),
             db.query(
-                'UPDATE documents SET last_accessed_at = NOW(), access_count = COALESCE(access_count, 0) + 1 WHERE id = $1',
+                'UPDATE documents SET last_accessed_at = NOW(), access_count = COALESCE(access_count, 0) + 1 WHERE id = $1::uuid',
                 [documentId]
             )
         ]);
@@ -189,7 +189,7 @@ export class StudentDocumentService {
             try {
                 const accessorRes = await db.query('SELECT name, email FROM users WHERE id = $1', [accessorUserId]);
                 const studentRes = await db.query(
-                    "SELECT u.name FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE sp.id::text = $1",
+                    "SELECT u.name FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE sp.id = $1::uuid",
                     [doc.owner_entity_id]
                 );
                 await AccessAlertService.sendAccessAlert({
@@ -257,7 +257,7 @@ export class StudentDocumentService {
 
         await db.query(
             `UPDATE documents SET file_status = 'DELETED', metadata_json = metadata_json || jsonb_build_object('deleted_by', $2, 'deleted_at', NOW()::text)
-             WHERE id = $1`,
+             WHERE id = $1::uuid`,
             [documentId, actorId]
         );
 
@@ -289,7 +289,7 @@ export class StudentDocumentService {
             FROM student_profiles sp
             LEFT JOIN users u ON sp.user_id = u.id
             LEFT JOIN documents d ON d.owner_entity_type = 'STUDENT'
-                AND d.owner_entity_id = sp.id::text
+                AND d.owner_entity_id = sp.id
                 AND d.file_status = 'ACTIVE'
             LEFT JOIN student_document_types sdt ON d.document_type = sdt.code
             WHERE sp.university_id = $1 AND sp.is_active = true`;
@@ -324,7 +324,7 @@ export class StudentDocumentService {
             `SELECT dal.*, u.name as accessor_name, u.email as accessor_email
              FROM document_access_logs dal
              JOIN users u ON dal.accessed_by = u.id
-             WHERE dal.document_id = $1
+             WHERE dal.document_id = $1::uuid
              ORDER BY dal.created_at DESC
              LIMIT 100`,
             [documentId]
