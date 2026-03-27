@@ -77,5 +77,6 @@ export * from './services/student-pii.service';
 export * from './services/document-token.service';
 export * from './services/security-pin.service';
 export * from './services/access-alert.service';
+export * from './services/number-challenge.service';
 export * from './db/ops';
 // Ensure all assessment functions including createUniversityAsset are exported
