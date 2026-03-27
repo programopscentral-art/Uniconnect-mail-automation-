@@ -28,15 +28,27 @@
     }
   });
 
-  function applyFilters() {
+  function applyFilters(pg = 1) {
     const params = new URLSearchParams();
     if (universityId) params.set('universityId', universityId);
     if (programId) params.set('programId', programId);
     if (termId) params.set('termId', termId);
     if (batchId) params.set('batchId', batchId);
     if (search) params.set('search', search);
+    if (pg > 1) params.set('page', String(pg));
     goto(`?${params.toString()}`, { keepFocus: true });
   }
+
+  function gotoPage(pg: number) { applyFilters(pg); }
+
+  $effect(() => {
+    // Derived pagination values
+    totalPages = Math.max(1, Math.ceil(data.total / (data.pageSize || 50)));
+    currentPage = data.page || 1;
+  });
+
+  let totalPages = $state(1);
+  let currentPage = $state(1);
 
   function onSearchInput() {
     clearTimeout(searchTimeout);
@@ -305,9 +317,32 @@
           </tbody>
         </table>
       </div>
-      {#if data.total > 500}
-        <div class="px-6 py-4 border-t border-gray-100 dark:border-slate-800 text-center">
-          <p class="text-xs text-gray-400 font-medium">Showing 500 of {data.total} students — use filters to narrow down</p>
+      {#if totalPages > 1}
+        <div class="px-6 py-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <p class="text-xs text-gray-400 font-medium">
+            Showing {(currentPage - 1) * (data.pageSize || 50) + 1}–{Math.min(currentPage * (data.pageSize || 50), data.total)} of {data.total}
+          </p>
+          <div class="flex items-center gap-1">
+            <button onclick={() => gotoPage(currentPage - 1)} disabled={currentPage <= 1}
+              class="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors">
+              Prev
+            </button>
+            {#each Array.from({length: Math.min(totalPages, 7)}, (_, i) => {
+              if (totalPages <= 7) return i + 1;
+              if (currentPage <= 4) return i + 1;
+              if (currentPage >= totalPages - 3) return totalPages - 6 + i;
+              return currentPage - 3 + i;
+            }) as pg}
+              <button onclick={() => gotoPage(pg)}
+                class="w-8 h-8 text-xs font-bold rounded-lg transition-colors {pg === currentPage ? 'bg-indigo-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-500'}">
+                {pg}
+              </button>
+            {/each}
+            <button onclick={() => gotoPage(currentPage + 1)} disabled={currentPage >= totalPages}
+              class="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-30 transition-colors">
+              Next
+            </button>
+          </div>
         </div>
       {/if}
     {/if}
