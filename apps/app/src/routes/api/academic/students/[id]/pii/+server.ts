@@ -13,14 +13,20 @@ export const GET: RequestHandler = async ({ params, url, locals, cookies, reques
             const data = await StudentPIIService.getMaskedPII(params.id);
             return json(data);
         } else {
-            // PIN verification required for full PII reveal
+            // PIN verification required for full PII reveal (only if user has PIN access)
             process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
-            const hasPin = await SecurityPinService.hasPin(locals.user.id);
-            if (hasPin) {
-                const pinCookie = cookies.get('pin_verified');
-                const sessionToken = cookies.get(env.COOKIE_NAME || 'uniconnect_session') || '';
-                if (!pinCookie || !SecurityPinService.verifyVerificationToken(pinCookie, sessionToken)) {
-                    return json({ requirePin: true }, { status: 428 });
+            const hasPinAccess = await SecurityPinService.hasPinAccess(locals.user.id);
+            if (hasPinAccess) {
+                const hasPin = await SecurityPinService.hasPin(locals.user.id);
+                if (hasPin) {
+                    const pinCookie = cookies.get('pin_verified');
+                    const sessionToken = cookies.get(env.COOKIE_NAME || 'uniconnect_session') || '';
+                    if (!pinCookie || !SecurityPinService.verifyVerificationToken(pinCookie, sessionToken)) {
+                        return json({ requirePin: true }, { status: 428 });
+                    }
+                } else {
+                    // User has PIN access but hasn't set a PIN yet — require setup first
+                    return json({ requirePin: true, needsSetup: true }, { status: 428 });
                 }
             }
 

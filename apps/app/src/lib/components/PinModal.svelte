@@ -16,6 +16,7 @@
   let errorMsg = $state('');
   let loading = $state(false);
   let setupMode = $state(isSettingUp);
+  let noAccess = $state(false);
 
   // Check if user has PIN on mount
   let hasCheckedPin = $state(false);
@@ -32,6 +33,10 @@
       const res = await fetch('/api/auth/security-pin');
       if (res.ok) {
         const data = await res.json();
+        if (!data.hasPinAccess) {
+          noAccess = true;
+          return;
+        }
         setupMode = !data.hasPin;
       }
     } catch {}
@@ -97,21 +102,43 @@
 <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" transition:fade>
   <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm p-8 mx-4" in:fly={{ y: 20 }}>
     <div class="text-center mb-6">
-      <div class="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-500/20 flex items-center justify-center mx-auto mb-4">
-        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+      <div class="w-16 h-16 rounded-2xl {noAccess ? 'bg-red-50 dark:bg-red-500/20' : 'bg-indigo-50 dark:bg-indigo-500/20'} flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 {noAccess ? 'text-red-500' : 'text-indigo-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {#if noAccess}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+          {:else}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+          {/if}
         </svg>
       </div>
       <h3 class="text-lg font-black text-gray-900 dark:text-white">
-        {setupMode ? 'Set Security PIN' : 'Verify Identity'}
+        {#if noAccess}
+          Access Restricted
+        {:else}
+          {setupMode ? 'Set Security PIN' : 'Verify Identity'}
+        {/if}
       </h3>
       <p class="text-xs text-gray-500 mt-1">
-        {setupMode
-          ? 'Create a 6-digit PIN to protect sensitive data access'
-          : 'Enter your 6-digit security PIN to continue'}
+        {#if noAccess}
+          You don't have PIN access. Ask an administrator to grant you access.
+        {:else if setupMode}
+          Create a 6-digit PIN to protect sensitive data access
+        {:else}
+          Enter your 6-digit security PIN to continue
+        {/if}
       </p>
     </div>
 
+    {#if noAccess}
+    <div class="flex justify-center">
+      <button
+        onclick={onCancel}
+        class="px-6 py-3 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-sm font-bold rounded-xl hover:bg-gray-200 transition-all"
+      >
+        Close
+      </button>
+    </div>
+    {:else}
     <div class="space-y-4">
       <div>
         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
@@ -168,5 +195,6 @@
         PIN verification is cached for 5 minutes. You won't need to re-enter it for subsequent requests.
       </p>
     </div>
+    {/if}
   </div>
 </div>

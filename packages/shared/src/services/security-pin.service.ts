@@ -51,6 +51,54 @@ export class SecurityPinService {
     }
 
     /**
+     * Check if a user has been granted PIN access.
+     * ADMIN and PROGRAM_OPS always have access.
+     */
+    static async hasPinAccess(userId: string): Promise<boolean> {
+        const result = await db.query(
+            'SELECT role, pin_access_granted FROM users WHERE id = $1',
+            [userId]
+        );
+        const row = result.rows[0];
+        if (!row) return false;
+        if (row.role === 'ADMIN' || row.role === 'PROGRAM_OPS') return true;
+        return !!row.pin_access_granted;
+    }
+
+    /**
+     * Grant PIN access to a user. Only ADMIN/PROGRAM_OPS should call this.
+     */
+    static async grantPinAccess(userId: string): Promise<void> {
+        await db.query(
+            'UPDATE users SET pin_access_granted = TRUE WHERE id = $1',
+            [userId]
+        );
+    }
+
+    /**
+     * Revoke PIN access from a user. Also removes their PIN.
+     */
+    static async revokePinAccess(userId: string): Promise<void> {
+        await db.query(
+            'UPDATE users SET pin_access_granted = FALSE, security_pin_hash = NULL, pin_set_at = NULL WHERE id = $1',
+            [userId]
+        );
+    }
+
+    /**
+     * List users with their PIN access status.
+     */
+    static async listPinAccessUsers(): Promise<Array<{ id: string; name: string; email: string; role: string; pin_access_granted: boolean; has_pin: boolean }>> {
+        const result = await db.query(
+            `SELECT id, name, email, role, COALESCE(pin_access_granted, FALSE) as pin_access_granted,
+                    (security_pin_hash IS NOT NULL) as has_pin
+             FROM users WHERE is_active = true
+             ORDER BY role, name`
+        );
+        return result.rows;
+    }
+
+    /**
      * Generate a signed cookie value for PIN verification.
      * Valid for ttlSeconds (default 300 = 5 minutes).
      */
