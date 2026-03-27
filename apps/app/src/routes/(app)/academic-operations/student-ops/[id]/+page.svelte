@@ -687,7 +687,7 @@
   {#if previewDoc}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
     <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={true}>
-    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
         <div>
@@ -714,7 +714,7 @@
         </div>
       </div>
       <!-- Preview Content -->
-      <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-4 min-h-[400px]">
+      <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-2 min-h-[500px]">
         {#if !previewTokenUrl}
           <div class="flex items-center justify-center h-full py-16">
             <div class="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
@@ -722,8 +722,8 @@
           </div>
         {:else if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
           <iframe
-            src={previewTokenUrl}
-            class="w-full h-full min-h-[70vh] rounded-xl border-0"
+            src="{previewTokenUrl}#view=FitH&toolbar=1&navpanes=0"
+            class="w-full h-full min-h-[80vh] rounded-xl border-0"
             title="Document preview"
           ></iframe>
         {:else if ['jpg', 'jpeg', 'png', 'webp'].includes((previewDoc.file_name || '').split('.').pop()?.toLowerCase() || '')}
