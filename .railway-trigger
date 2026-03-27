@@ -1,5 +1,5 @@
-DEPLOYMENT_TRIGGER_V51
-Timestamp: 2026-02-04T13:52:03+05:30
-Commit: d7bc5d0 (Python fix applied)
-Status: Force webhook trigger for Railway
-Changes: Removed requirements.txt, implemented V49 granular templates
+DEPLOYMENT_TRIGGER_V52
+Timestamp: 2026-03-27T12:00:00+05:30
+Commit: 8ab4bf6 (Security overhaul)
+Status: Force rebuild — PII encryption, signed doc URLs, PIN verification, audit dashboard
+Changes: Comprehensive security overhaul with 7 phases deployed
