@@ -112,7 +112,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         for (const file of files) {
             const ext = file.name.split('.').pop()?.toLowerCase() || '';
-            const typeCode = file.name.replace(/\.[^.]+$/, '').toUpperCase().replace(/[\s-]+/g, '_');
+            // Strip ALL extensions (handles double extensions like CERTIFICATE_10TH.jpg.jpg)
+            const typeCode = file.name.replace(/(\.(pdf|jpg|jpeg|png|webp))+$/i, '').toUpperCase().replace(/[\s-]+/g, '_');
 
             // Validate extension
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
