@@ -691,8 +691,8 @@
 
   <!-- Document Preview Modal -->
   {#if previewDoc}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
-    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
+  <div class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm" transition:fade>
+    <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
       <!-- Header — always visible, outside SecureViewer -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
         <div class="min-w-0 flex-1 mr-3">
