@@ -1,6 +1,8 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
   import { page } from "$app/stores";
+  import SecureViewer from "$lib/components/SecureViewer.svelte";
+  import PinModal from "$lib/components/PinModal.svelte";
 
   let { data } = $props();
   let student = $state(data.student);
@@ -33,13 +35,6 @@
     profileForm = {
       student_name: student.student_name || '',
       student_email: student.student_email || '',
-      niat_id: student.niat_id || '',
-      phone: student.phone || '',
-      date_of_birth: toDateStr(student.date_of_birth),
-      gender: student.gender || '',
-      blood_group: student.blood_group || '',
-      father_name: student.father_name || '',
-      mother_name: student.mother_name || '',
       admission_date: toDateStr(student.admission_date),
       roll_number: student.roll_number || '',
     };
@@ -81,6 +76,14 @@
 
   // ─── Document Preview ───
   let previewDoc = $state<any>(null);
+  let previewTokenUrl = $state('');
+
+  // ─── Security PIN ───
+  let showPinModal = $state(false);
+  let pinVerifiedUntil = $state(0);
+  let pendingPinAction = $state<(() => void) | null>(null);
+
+  function isPinVerified() { return Date.now() < pinVerifiedUntil; }
 
   // ─── Audit ───
   let auditLogs = $state<any[]>([]);
@@ -102,9 +105,17 @@
     piiLoading = true;
     try {
       const res = await fetch(`/api/academic/students/${student.id}/pii`);
+      if (res.status === 428) {
+        // PIN required
+        piiLoading = false;
+        pendingPinAction = () => revealPii();
+        showPinModal = true;
+        return;
+      }
       if (res.ok) {
         revealedPii = await res.json();
         piiRevealed = true;
+        pinVerifiedUntil = Date.now() + 300_000; // Cache for 5 min
       } else {
         alert('Insufficient permissions to view sensitive data');
       }
@@ -203,21 +214,55 @@
     } catch {} finally { updatingWorkflow = false; }
   }
 
+  // Fetch a secure token URL for a document (15-min expiry)
+  async function getSecureDocUrl(docId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/academic/students/${student.id}/documents/${docId}/token`);
+      if (res.status === 428) {
+        // PIN required
+        pendingPinAction = () => { if (previewDoc) fetchPreviewToken(previewDoc.id); };
+        showPinModal = true;
+        return null;
+      }
+      if (res.ok) {
+        const data = await res.json();
+        pinVerifiedUntil = Date.now() + 300_000;
+        return data.url;
+      }
+    } catch {}
+    return null;
+  }
+
+  async function fetchPreviewToken(docId: string) {
+    const url = await getSecureDocUrl(docId);
+    if (url) previewTokenUrl = url;
+  }
+
+  // When previewDoc changes, fetch a token
+  $effect(() => {
+    if (previewDoc) {
+      previewTokenUrl = '';
+      fetchPreviewToken(previewDoc.id);
+    }
+  });
+
   async function loadAuditLogs() {
     auditLoading = true;
     try {
-      // Fetch from document access logs for this student's documents
-      const docIds = documents.map((d: any) => d.id);
-      if (docIds.length === 0) { auditLogs = []; return; }
-      // We'll load logs via a simple approach - fetch all docs and compile
-      auditLogs = []; // Will be populated from API when available
+      const res = await fetch(`/api/admin/audit-logs?studentProfileId=${student.id}&limit=50`);
+      if (res.ok) {
+        const data = await res.json();
+        auditLogs = data.logs || [];
+      }
     } catch {} finally { auditLoading = false; }
   }
 
   const piiLabels: Record<string, string> = {
     niat_id: 'NIAT ID', phone: 'Phone', aadhaar: 'Aadhaar',
     email: 'Email', father_phone: 'Father Phone', mother_phone: 'Mother Phone',
-    emergency_contact: 'Emergency Contact'
+    emergency_contact: 'Emergency Contact',
+    date_of_birth: 'Date of Birth', gender: 'Gender', blood_group: 'Blood Group',
+    father_name: 'Father Name', mother_name: 'Mother Name'
   };
 
   const statusSteps = ['INITIATED', 'DOCUMENTS_PENDING', 'DOCUMENTS_SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'ENROLLED'];
@@ -315,13 +360,6 @@
           {#each [
             { key: 'student_name', label: 'Name', type: 'text' },
             { key: 'student_email', label: 'Email', type: 'email' },
-            { key: 'niat_id', label: 'NIAT ID', type: 'text' },
-            { key: 'phone', label: 'Phone', type: 'tel' },
-            { key: 'date_of_birth', label: 'Date of Birth', type: 'date' },
-            { key: 'gender', label: 'Gender', type: 'select', options: ['Male', 'Female', 'Other'] },
-            { key: 'blood_group', label: 'Blood Group', type: 'select', options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] },
-            { key: 'father_name', label: 'Father Name', type: 'text' },
-            { key: 'mother_name', label: 'Mother Name', type: 'text' },
             { key: 'roll_number', label: 'Roll Number', type: 'text' },
             { key: 'admission_date', label: 'Admission Date', type: 'date' },
           ] as field}
@@ -382,13 +420,6 @@
             ['Name', student.student_name],
             ['Email', student.student_email],
             ['Enrollment No.', student.enrollment_number],
-            ['NIAT ID', student.niat_id],
-            ['Phone', student.phone],
-            ['Date of Birth', student.date_of_birth ? fmtDate(student.date_of_birth) : '—'],
-            ['Gender', student.gender],
-            ['Blood Group', student.blood_group],
-            ['Father Name', student.father_name],
-            ['Mother Name', student.mother_name],
             ['Roll Number', student.roll_number],
             ['Program', student.program_name],
             ['Term', student.term_name],
@@ -406,6 +437,7 @@
     </div>
 
     <!-- Sensitive PII Card -->
+    <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={piiRevealed}>
     <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
@@ -478,7 +510,20 @@
         </div>
       {/if}
     </div>
+    </SecureViewer>
   </div>
+  {/if}
+
+  <!-- PIN Modal -->
+  {#if showPinModal}
+    <PinModal
+      onVerified={() => {
+        showPinModal = false;
+        pinVerifiedUntil = Date.now() + 300_000;
+        if (pendingPinAction) { pendingPinAction(); pendingPinAction = null; }
+      }}
+      onCancel={() => { showPinModal = false; pendingPinAction = null; }}
+    />
   {/if}
 
   <!-- ═══ DOCUMENTS TAB ═══ -->
@@ -577,10 +622,10 @@
                     class="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-black hover:bg-indigo-100 transition-colors" title="View document">
                     View
                   </button>
-                  <a href="/api/academic/students/{student.id}/documents/{doc.id}" target="_blank"
+                  <button onclick={async () => { const url = await getSecureDocUrl(doc.id); if (url) window.open(url, '_blank'); }}
                     class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-400 transition-colors" title="Open in new tab">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                  </a>
+                  </button>
                   <button onclick={() => deleteDocument(doc.id)}
                     class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -641,6 +686,7 @@
   <!-- Document Preview Modal -->
   {#if previewDoc}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
+    <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={true}>
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
@@ -651,14 +697,17 @@
             {#if previewDoc.is_encrypted}
               &bull; <span class="text-emerald-600 font-bold">AES-256 Encrypted</span>
             {/if}
+            &bull; <span class="text-amber-600 font-bold">Expires in 15 min</span>
           </p>
         </div>
         <div class="flex items-center gap-2">
-          <a href="/api/academic/students/{student.id}/documents/{previewDoc.id}" target="_blank" download
-            class="px-3 py-1.5 text-[10px] font-black bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
-            Download
-          </a>
-          <button onclick={() => previewDoc = null}
+          {#if previewTokenUrl}
+            <a href={previewTokenUrl} target="_blank" download
+              class="px-3 py-1.5 text-[10px] font-black bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors">
+              Download
+            </a>
+          {/if}
+          <button onclick={() => { previewDoc = null; previewTokenUrl = ''; }}
             class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -666,16 +715,21 @@
       </div>
       <!-- Preview Content -->
       <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-4 min-h-[400px]">
-        {#if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
+        {#if !previewTokenUrl}
+          <div class="flex items-center justify-center h-full py-16">
+            <div class="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
+            <p class="ml-3 text-sm text-gray-500 font-bold">Generating secure link...</p>
+          </div>
+        {:else if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
           <iframe
-            src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
+            src={previewTokenUrl}
             class="w-full h-full min-h-[70vh] rounded-xl border-0"
             title="Document preview"
           ></iframe>
         {:else if ['jpg', 'jpeg', 'png', 'webp'].includes((previewDoc.file_name || '').split('.').pop()?.toLowerCase() || '')}
           <div class="flex items-center justify-center h-full">
             <img
-              src="/api/academic/students/{student.id}/documents/{previewDoc.id}"
+              src={previewTokenUrl}
               alt={previewDoc.file_name}
               class="max-w-full max-h-[70vh] rounded-xl shadow-lg object-contain"
             />
@@ -684,11 +738,12 @@
           <div class="flex flex-col items-center justify-center h-full py-16">
             <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             <p class="text-sm font-bold text-gray-400">Preview not available for this file type</p>
-            <a href="/api/academic/students/{student.id}/documents/{previewDoc.id}" target="_blank" class="mt-3 text-sm text-indigo-600 font-bold hover:underline">Open in new tab</a>
+            <a href={previewTokenUrl} target="_blank" class="mt-3 text-sm text-indigo-600 font-bold hover:underline">Open in new tab</a>
           </div>
         {/if}
       </div>
     </div>
+    </SecureViewer>
   </div>
   {/if}
   {/if}

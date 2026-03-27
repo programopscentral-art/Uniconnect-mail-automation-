@@ -1,20 +1,38 @@
 import { db } from '../db/client';
 import { encryptString, decryptString } from '../crypto';
 
-export type PIIField = 'niat_id' | 'phone' | 'aadhaar' | 'email' | 'father_phone' | 'mother_phone' | 'emergency_contact';
+export type PIIField =
+    | 'niat_id' | 'phone' | 'aadhaar' | 'email'
+    | 'father_phone' | 'mother_phone' | 'emergency_contact'
+    | 'date_of_birth' | 'gender' | 'blood_group' | 'father_name' | 'mother_name';
 
-// Define which roles can see which PII fields
+export type PIIPermission = 'MASKED_VIEW' | 'FULL_VIEW' | 'EDIT';
+
+const PII_PERMISSION_MATRIX: Record<string, PIIPermission[]> = {
+    ADMIN: ['MASKED_VIEW', 'FULL_VIEW', 'EDIT'],
+    PROGRAM_OPS: ['MASKED_VIEW', 'FULL_VIEW', 'EDIT'],
+    UNIVERSITY_OPERATOR: ['MASKED_VIEW', 'FULL_VIEW', 'EDIT'],
+    COS: ['MASKED_VIEW', 'FULL_VIEW'],
+    PM: ['MASKED_VIEW', 'FULL_VIEW'],
+    PMA: ['MASKED_VIEW'],
+    BOA: ['MASKED_VIEW'],
+};
+
 const PII_ACCESS_MATRIX: Record<string, PIIField[]> = {
-    ADMIN: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
-    PROGRAM_OPS: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
-    UNIVERSITY_OPERATOR: ['niat_id', 'phone', 'email', 'father_phone', 'mother_phone', 'emergency_contact'],
-    COS: ['niat_id', 'phone', 'email'],
-    PM: ['niat_id', 'phone', 'email'],
+    ADMIN: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact', 'date_of_birth', 'gender', 'blood_group', 'father_name', 'mother_name'],
+    PROGRAM_OPS: ['niat_id', 'phone', 'aadhaar', 'email', 'father_phone', 'mother_phone', 'emergency_contact', 'date_of_birth', 'gender', 'blood_group', 'father_name', 'mother_name'],
+    UNIVERSITY_OPERATOR: ['niat_id', 'phone', 'email', 'father_phone', 'mother_phone', 'emergency_contact', 'date_of_birth', 'gender', 'blood_group', 'father_name', 'mother_name'],
+    COS: ['niat_id', 'phone', 'email', 'gender', 'date_of_birth'],
+    PM: ['niat_id', 'phone', 'email', 'gender', 'date_of_birth'],
     PMA: ['niat_id', 'phone', 'email'],
     BOA: ['niat_id', 'phone', 'email'],
 };
 
 export class StudentPIIService {
+
+    static hasPIIPermission(role: string, permission: PIIPermission): boolean {
+        return (PII_PERMISSION_MATRIX[role] || []).includes(permission);
+    }
 
     /**
      * Encrypt and store PII data for a student profile.
@@ -61,6 +79,10 @@ export class StudentPIIService {
         accessorId: string,
         fields?: PIIField[]
     ): Promise<Record<string, string>> {
+        if (!this.hasPIIPermission(accessorRole, 'FULL_VIEW')) {
+            throw new Error('Insufficient permissions to access student PII');
+        }
+
         const allowedFields = PII_ACCESS_MATRIX[accessorRole] || [];
         if (allowedFields.length === 0) {
             throw new Error('Insufficient permissions to access student PII');
@@ -176,6 +198,17 @@ export class StudentPIIService {
                 return `${local[0]}••••@${domain}`;
             case 'niat_id':
                 return value.length > 4 ? `${value.slice(0, 2)}••${value.slice(-2)}` : value;
+            case 'date_of_birth': {
+                const year = value.split(/[-/]/).pop() || value.slice(-4);
+                return `••/••/${year}`;
+            }
+            case 'gender':
+                return value[0] + '••';
+            case 'blood_group':
+                return value;
+            case 'father_name':
+            case 'mother_name':
+                return value.length > 2 ? `${value.slice(0, 2)}••••` : value;
             default:
                 return `${value.slice(0, 2)}••••`;
         }

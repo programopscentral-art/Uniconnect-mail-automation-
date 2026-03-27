@@ -1,8 +1,9 @@
 import { json, error } from '@sveltejs/kit';
-import { StudentService, db } from '@uniconnect/shared';
+import { StudentService, StudentPIIService, db } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 
 const EDIT_ROLES = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR'];
+const PII_FIELDS = ['date_of_birth', 'gender', 'blood_group', 'father_name', 'mother_name'];
 
 export const GET: RequestHandler = async ({ params, locals }) => {
     if (!locals.user) throw error(401);
@@ -39,9 +40,21 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
         const body = await request.json();
         let changed = false;
 
-        // Update student_profiles columns (plain fields)
+        // Route PII fields through encrypted PII service
+        const piiData: Record<string, string> = {};
+        for (const key of PII_FIELDS) {
+            if (body[key] !== undefined && body[key] !== null && body[key] !== '') {
+                piiData[key] = String(body[key]);
+            }
+        }
+        if (Object.keys(piiData).length > 0) {
+            await StudentPIIService.encryptAndStorePII(params.id, piiData as any, locals.user.id);
+            changed = true;
+        }
+
+        // Update student_profiles columns (non-PII plain fields only)
         const profileFields: Record<string, any> = {};
-        for (const key of ['niat_id', 'phone', 'father_name', 'mother_name', 'date_of_birth', 'gender', 'blood_group', 'admission_date', 'roll_number']) {
+        for (const key of ['niat_id', 'phone', 'admission_date', 'roll_number']) {
             if (body[key] !== undefined) profileFields[key] = body[key];
         }
         if (Object.keys(profileFields).length > 0) {

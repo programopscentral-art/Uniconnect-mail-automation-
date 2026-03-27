@@ -1,5 +1,6 @@
 import { db } from '../db/client';
 import { encryptString, decryptString } from '../crypto';
+import { AccessAlertService } from './access-alert.service';
 import crypto from 'crypto';
 
 export interface StudentDocument {
@@ -19,7 +20,21 @@ export interface StudentDocument {
     metadata_json: any;
 }
 
-// Roles that can access student documents
+// Granular document permission levels
+type DocPermission = 'VIEW_METADATA' | 'DOWNLOAD' | 'UPLOAD' | 'DELETE';
+
+const DOC_ACCESS_MATRIX: Record<string, DocPermission[]> = {
+    ADMIN: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD', 'DELETE'],
+    PROGRAM_OPS: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD', 'DELETE'],
+    UNIVERSITY_OPERATOR: ['VIEW_METADATA', 'DOWNLOAD', 'UPLOAD'],
+    COS: ['VIEW_METADATA', 'DOWNLOAD'],
+    PM: ['VIEW_METADATA', 'DOWNLOAD'],
+    PMA: ['VIEW_METADATA'],
+    BOA: ['VIEW_METADATA'],
+    CMA: ['VIEW_METADATA'],
+    CMA_MANAGER: ['VIEW_METADATA', 'DOWNLOAD'],
+};
+
 const FULL_ACCESS_ROLES = ['ADMIN', 'PROGRAM_OPS'];
 const READ_ACCESS_ROLES = ['UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'CMA', 'CMA_MANAGER', 'BOA'];
 
@@ -138,8 +153,8 @@ export class StudentDocumentService {
         ipAddress?: string,
         userAgent?: string
     ): Promise<{ content: string; fileName: string; isEncrypted: boolean; integrityVerified: boolean }> {
-        if (!this.canAccessDocuments(accessorRole)) {
-            throw new Error('Insufficient permissions to access this document');
+        if (!this.hasDocPermission(accessorRole, 'DOWNLOAD')) {
+            throw new Error('Insufficient permissions to download this document');
         }
 
         const result = await db.query(
@@ -168,6 +183,27 @@ export class StudentDocumentService {
                 [documentId]
             )
         ]);
+
+        // Fire-and-forget: alert admins about document access
+        (async () => {
+            try {
+                const accessorRes = await db.query('SELECT name, email FROM users WHERE id = $1', [accessorUserId]);
+                const studentRes = await db.query(
+                    "SELECT u.name FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE sp.id::text = $1",
+                    [doc.owner_entity_id]
+                );
+                await AccessAlertService.sendAccessAlert({
+                    accessorId: accessorUserId,
+                    accessorName: accessorRes.rows[0]?.name || 'Unknown',
+                    accessorEmail: accessorRes.rows[0]?.email || '',
+                    studentProfileId: doc.owner_entity_id,
+                    studentName: studentRes.rows[0]?.name || 'Unknown Student',
+                    accessType: 'DOCUMENT_DOWNLOAD',
+                    details: `Document: ${doc.file_name} (${doc.document_type})`,
+                    ipAddress
+                });
+            } catch {}
+        })();
 
         // Decrypt if needed
         let content = doc.file_content;
@@ -215,8 +251,8 @@ export class StudentDocumentService {
         ipAddress?: string,
         userAgent?: string
     ) {
-        if (!FULL_ACCESS_ROLES.includes(actorRole)) {
-            throw new Error('Only admins can delete student documents');
+        if (!this.hasDocPermission(actorRole, 'DELETE')) {
+            throw new Error('Insufficient permissions to delete student documents');
         }
 
         await db.query(
@@ -296,10 +332,14 @@ export class StudentDocumentService {
         return result.rows;
     }
 
-    // ─── Private helpers ───
+    // ─── Permission helpers ───
+
+    static hasDocPermission(role: string, permission: DocPermission): boolean {
+        return (DOC_ACCESS_MATRIX[role] || []).includes(permission);
+    }
 
     private static canAccessDocuments(role: string): boolean {
-        return FULL_ACCESS_ROLES.includes(role) || READ_ACCESS_ROLES.includes(role);
+        return this.hasDocPermission(role, 'VIEW_METADATA');
     }
 
     private static async logAccess(params: {

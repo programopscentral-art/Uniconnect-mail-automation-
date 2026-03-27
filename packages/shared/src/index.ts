@@ -74,5 +74,8 @@ export * from './services/classroom.service';
 export * from './services/admission.service';
 export * from './services/student-document.service';
 export * from './services/student-pii.service';
+export * from './services/document-token.service';
+export * from './services/security-pin.service';
+export * from './services/access-alert.service';
 export * from './db/ops';
 // Ensure all assessment functions including createUniversityAsset are exported
