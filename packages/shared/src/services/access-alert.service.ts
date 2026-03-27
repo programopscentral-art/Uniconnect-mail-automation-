@@ -31,29 +31,35 @@ export class AccessAlertService {
         accessorEmail: string;
         studentProfileId: string;
         studentName: string;
-        accessType: 'PII_ACCESS' | 'DOCUMENT_DOWNLOAD' | 'DOCUMENT_DELETE';
+        accessType: 'PII_ACCESS' | 'DOCUMENT_DOWNLOAD' | 'DOCUMENT_DELETE' | 'SCREENSHOT_ATTEMPT';
         details?: string;
         ipAddress?: string;
     }): Promise<void> {
         try {
-            // Check throttle
-            const throttleCheck = await db.query(
-                `SELECT last_alerted_at FROM access_alert_throttle
-                 WHERE accessor_id = $1 AND student_profile_id = $2
-                 AND last_alerted_at > NOW() - INTERVAL '15 minutes'`,
-                [params.accessorId, params.studentProfileId]
-            );
+            // Only throttle if we have a valid student profile ID (not placeholder)
+            const hasValidStudent = params.studentProfileId &&
+                params.studentProfileId !== '00000000-0000-0000-0000-000000000000';
 
-            if (throttleCheck.rows.length > 0) return; // Throttled
+            if (hasValidStudent) {
+                // Check throttle
+                const throttleCheck = await db.query(
+                    `SELECT last_alerted_at FROM access_alert_throttle
+                     WHERE accessor_id = $1 AND student_profile_id = $2
+                     AND last_alerted_at > NOW() - INTERVAL '15 minutes'`,
+                    [params.accessorId, params.studentProfileId]
+                );
 
-            // Upsert throttle entry
-            await db.query(
-                `INSERT INTO access_alert_throttle (accessor_id, student_profile_id, last_alerted_at)
-                 VALUES ($1, $2, NOW())
-                 ON CONFLICT (accessor_id, student_profile_id)
-                 DO UPDATE SET last_alerted_at = NOW()`,
-                [params.accessorId, params.studentProfileId]
-            );
+                if (throttleCheck.rows.length > 0) return; // Throttled
+
+                // Upsert throttle entry
+                await db.query(
+                    `INSERT INTO access_alert_throttle (accessor_id, student_profile_id, last_alerted_at)
+                     VALUES ($1, $2, NOW())
+                     ON CONFLICT (accessor_id, student_profile_id)
+                     DO UPDATE SET last_alerted_at = NOW()`,
+                    [params.accessorId, params.studentProfileId]
+                );
+            }
 
             // Get all admin users to notify
             const admins = await db.query(
@@ -65,7 +71,8 @@ export class AccessAlertService {
             const accessTypeLabel = {
                 PII_ACCESS: 'viewed PII data',
                 DOCUMENT_DOWNLOAD: 'downloaded a document',
-                DOCUMENT_DELETE: 'deleted a document'
+                DOCUMENT_DELETE: 'deleted a document',
+                SCREENSHOT_ATTEMPT: 'attempted a screenshot'
             }[params.accessType];
 
             const message = `${params.accessorName} (${params.accessorEmail}) ${accessTypeLabel} for student ${params.studentName}${params.details ? ` — ${params.details}` : ''}${params.ipAddress ? ` [IP: ${params.ipAddress}]` : ''}`;

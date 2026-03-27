@@ -686,10 +686,9 @@
   <!-- Document Preview Modal -->
   {#if previewDoc}
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade>
-    <SecureViewer watermarkText="{user.name} | {user.email} | {new Date().toLocaleString()}" enabled={true} studentId={student.id} studentName={student.student_name || student.name || ''}>
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
-      <!-- Header -->
-      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
+      <!-- Header — always visible, outside SecureViewer -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
         <div>
           <h3 class="text-sm font-black text-gray-900 dark:text-white">{previewDoc.file_name}</h3>
           <p class="text-[10px] text-gray-400 font-medium mt-0.5">
@@ -713,7 +712,8 @@
           </button>
         </div>
       </div>
-      <!-- Preview Content -->
+      <!-- Preview Content — wrapped in SecureViewer (black overlay + tap to view) -->
+      <SecureViewer watermarkText="" enabled={true} studentId={student.id} studentName={student.student_name || student.name || ''}>
       <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-2 min-h-[500px]">
         {#if !previewTokenUrl}
           <div class="flex items-center justify-center h-full py-16">
@@ -742,8 +742,8 @@
           </div>
         {/if}
       </div>
+      </SecureViewer>
     </div>
-    </SecureViewer>
   </div>
   {/if}
   {/if}

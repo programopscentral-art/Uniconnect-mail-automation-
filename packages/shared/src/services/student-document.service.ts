@@ -168,8 +168,8 @@ export class StudentDocumentService {
         if (!result.rows[0]) throw new Error('Document not found');
         const doc = result.rows[0];
 
-        // Log access and increment counter
-        await Promise.all([
+        // Fire-and-forget: log access, update counter, alert admins (don't block response)
+        Promise.all([
             this.logAccess({
                 documentId,
                 studentProfileId: doc.owner_entity_id,
@@ -181,29 +181,23 @@ export class StudentDocumentService {
             db.query(
                 'UPDATE documents SET last_accessed_at = NOW(), access_count = COALESCE(access_count, 0) + 1 WHERE id = $1::uuid',
                 [documentId]
+            ),
+            // Alert admins
+            db.query('SELECT name, email FROM users WHERE id = $1', [accessorUserId]).then(accessorRes =>
+                db.query("SELECT u.name FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE sp.id = $1::uuid", [doc.owner_entity_id]).then(studentRes =>
+                    AccessAlertService.sendAccessAlert({
+                        accessorId: accessorUserId,
+                        accessorName: accessorRes.rows[0]?.name || 'Unknown',
+                        accessorEmail: accessorRes.rows[0]?.email || '',
+                        studentProfileId: doc.owner_entity_id,
+                        studentName: studentRes.rows[0]?.name || 'Unknown Student',
+                        accessType: 'DOCUMENT_DOWNLOAD',
+                        details: `Document: ${doc.file_name} (${doc.document_type})`,
+                        ipAddress
+                    })
+                )
             )
-        ]);
-
-        // Fire-and-forget: alert admins about document access
-        (async () => {
-            try {
-                const accessorRes = await db.query('SELECT name, email FROM users WHERE id = $1', [accessorUserId]);
-                const studentRes = await db.query(
-                    "SELECT u.name FROM student_profiles sp JOIN users u ON sp.user_id = u.id WHERE sp.id = $1::uuid",
-                    [doc.owner_entity_id]
-                );
-                await AccessAlertService.sendAccessAlert({
-                    accessorId: accessorUserId,
-                    accessorName: accessorRes.rows[0]?.name || 'Unknown',
-                    accessorEmail: accessorRes.rows[0]?.email || '',
-                    studentProfileId: doc.owner_entity_id,
-                    studentName: studentRes.rows[0]?.name || 'Unknown Student',
-                    accessType: 'DOCUMENT_DOWNLOAD',
-                    details: `Document: ${doc.file_name} (${doc.document_type})`,
-                    ipAddress
-                });
-            } catch {}
-        })();
+        ]).catch(() => {});
 
         // Decrypt if needed
         let content = doc.file_content;

@@ -21,8 +21,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         accessorEmail: locals.user.email as string || '',
         studentProfileId: context?.studentId || '00000000-0000-0000-0000-000000000000',
         studentName: context?.studentName || 'N/A',
-        accessType: 'PII_ACCESS',
-        details: `SCREENSHOT ATTEMPT detected while viewing ${context?.page || 'sensitive content'}`,
+        accessType: 'SCREENSHOT_ATTEMPT',
+        details: `Screenshot attempt detected while viewing ${context?.page || 'sensitive content'}`,
         ipAddress: ip
     }).catch(() => {});
 
