@@ -9,6 +9,8 @@
 
   let isBlurred = $state(false);
   let screenshotDetected = $state(false);
+  // Hold-to-view: content is BLACK by default, only visible while holding the button
+  let isHolding = $state(false);
 
   function reportScreenshotAttempt() {
     screenshotDetected = true;
@@ -23,12 +25,21 @@
     }).catch(() => {});
   }
 
+  function startHold() {
+    isHolding = true;
+  }
+
+  function endHold() {
+    isHolding = false;
+  }
+
   $effect(() => {
     if (!enabled) return;
 
     function handleVisibilityChange() {
       if (document.hidden) {
         isBlurred = true;
+        isHolding = false; // Force release on tab switch
       } else {
         setTimeout(() => isBlurred = false, 800);
       }
@@ -37,23 +48,40 @@
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'PrintScreen') {
         e.preventDefault();
+        isHolding = false;
         isBlurred = true;
         reportScreenshotAttempt();
         setTimeout(() => isBlurred = false, 4000);
       }
       if (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key)) {
         e.preventDefault();
+        isHolding = false;
         isBlurred = true;
         reportScreenshotAttempt();
         setTimeout(() => isBlurred = false, 4000);
       }
       if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
         e.preventDefault();
+        isHolding = false;
         reportScreenshotAttempt();
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 's') e.preventDefault();
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') e.preventDefault();
       if (e.key === 'F12') e.preventDefault();
+      // Release hold on ANY meta/cmd key press (screenshot combos)
+      if (e.metaKey || e.ctrlKey) {
+        isHolding = false;
+      }
+    }
+
+    // Release hold if mouse leaves the window entirely
+    function handleMouseLeave() {
+      isHolding = false;
+    }
+
+    // Release hold on any mouse up anywhere
+    function handleGlobalMouseUp() {
+      isHolding = false;
     }
 
     function detectScreenCapture() {
@@ -62,6 +90,7 @@
         if (orig) {
           (navigator.mediaDevices as any).getDisplayMedia = function(...args: any[]) {
             reportScreenshotAttempt();
+            isHolding = false;
             isBlurred = true;
             return orig.apply(navigator.mediaDevices, args);
           };
@@ -71,11 +100,17 @@
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    document.addEventListener('touchend', handleGlobalMouseUp);
     detectScreenCapture();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchend', handleGlobalMouseUp);
     };
   });
 </script>
@@ -85,19 +120,38 @@
   oncontextmenu={(e) => { if (enabled) e.preventDefault(); }}
   style={enabled ? 'user-select: none; -webkit-user-select: none; -webkit-user-drag: none;' : ''}
 >
-  {#if isBlurred && enabled}
+  <!-- SOLID BLACK OVERLAY — always on top unless user is holding the view button -->
+  {#if enabled && !isHolding}
     <div class="absolute inset-0 z-[60] bg-black flex items-center justify-center rounded-2xl">
       <div class="text-center">
-        <svg class="w-16 h-16 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
-        </svg>
-        <p class="text-lg font-black text-red-400">SCREENSHOTS NOT ALLOWED</p>
-        <p class="text-sm text-red-300 mt-2 font-bold">This attempt has been reported to administration</p>
-        <p class="text-xs text-gray-500 mt-3">Content will reappear shortly</p>
+        <div class="w-20 h-20 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+          </svg>
+        </div>
+        <p class="text-lg font-black text-red-400 mb-1">PROTECTED CONTENT</p>
+        <p class="text-sm text-gray-400 mb-6">Screenshots are not allowed. Content is hidden by default.</p>
+
+        <!-- Hold to view button -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="inline-flex items-center gap-2 px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-black text-sm rounded-2xl cursor-pointer select-none transition-all active:scale-95"
+          onmousedown={startHold}
+          ontouchstart={startHold}
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+          HOLD TO VIEW
+        </div>
+        <p class="text-[10px] text-gray-600 mt-3">Press and hold the button to reveal. Releasing hides content instantly.</p>
+        <p class="text-[10px] text-red-400/60 mt-1">All access is monitored and logged</p>
       </div>
     </div>
   {/if}
 
+  <!-- Screenshot detection full-screen alert -->
   {#if screenshotDetected && enabled}
     <div class="fixed inset-0 z-[200] bg-black flex items-center justify-center">
       <div class="text-center">
@@ -113,57 +167,24 @@
     </div>
   {/if}
 
-  <!-- LAYER 1: Massive diagonal watermark grid — very dense -->
-  {#if enabled && watermarkText}
-    <div class="absolute inset-0 z-40 pointer-events-none overflow-hidden select-none" aria-hidden="true">
-      <div class="wm-layer-1 w-[300%] h-[300%] -translate-x-1/3 -translate-y-1/3">
-        {#each Array(120) as _, i}
-          <span class="wm-text-heavy">{watermarkText}</span>
+  <!-- Watermark layer — visible even while holding (traces any screen recording) -->
+  {#if enabled && watermarkText && isHolding}
+    <div class="absolute inset-0 z-50 pointer-events-none overflow-hidden select-none" aria-hidden="true">
+      <div class="wm-layer w-[300%] h-[300%] -translate-x-1/3 -translate-y-1/3">
+        {#each Array(100) as _, i}
+          <span class="wm-text">{watermarkText}</span>
         {/each}
       </div>
     </div>
   {/if}
 
-  <!-- LAYER 2: Large CONFIDENTIAL stamps -->
-  {#if enabled && watermarkText}
-    <div class="absolute inset-0 z-41 pointer-events-none overflow-hidden select-none" aria-hidden="true">
-      <div class="wm-layer-2 w-[250%] h-[250%] -translate-x-1/4 -translate-y-1/4">
-        {#each Array(30) as _, i}
-          <span class="wm-text-stamp">CONFIDENTIAL</span>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  <!-- LAYER 3: Horizontal banding lines -->
-  {#if enabled}
-    <div class="absolute inset-0 z-42 pointer-events-none select-none" aria-hidden="true">
-      <div class="wm-bands">
-        {#each Array(20) as _, i}
-          <div class="wm-band"></div>
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  <!-- LAYER 4: Border frame warning -->
-  {#if enabled}
-    <div class="absolute inset-0 z-43 pointer-events-none select-none border-[6px] border-red-500/40 rounded-2xl" aria-hidden="true">
-      <div class="absolute top-0 left-0 right-0 bg-red-600/30 text-center py-1">
-        <span class="text-[9px] font-black text-red-800 tracking-[0.3em] uppercase">PROTECTED DOCUMENT — UNAUTHORIZED REPRODUCTION PROHIBITED</span>
-      </div>
-      <div class="absolute bottom-0 left-0 right-0 bg-red-600/30 text-center py-1">
-        <span class="text-[9px] font-black text-red-800 tracking-[0.3em] uppercase">PROTECTED DOCUMENT — UNAUTHORIZED REPRODUCTION PROHIBITED</span>
-      </div>
-    </div>
-  {/if}
-
+  <!-- Actual content underneath -->
   <div class="relative z-10">
     {@render children()}
   </div>
 </div>
 
-<!-- Print protection placeholder -->
+<!-- Print protection -->
 <div class="secure-print-placeholder hidden">
   <div class="flex items-center justify-center h-48 bg-black rounded-2xl">
     <div class="text-center">
@@ -174,69 +195,24 @@
 </div>
 
 <style>
-  /* Layer 1: Dense diagonal watermark */
-  .wm-layer-1 {
+  .wm-layer {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 15px;
+    gap: 20px;
     transform: rotate(-30deg);
-    opacity: 0.35;
+    opacity: 0.30;
   }
 
-  .wm-text-heavy {
-    font-size: 14px;
+  .wm-text {
+    font-size: 13px;
     font-weight: 900;
     white-space: nowrap;
     color: #dc2626;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    text-shadow: 0 0 4px rgba(220,38,38,0.6), 0 0 8px rgba(220,38,38,0.3);
-  }
-
-  /* Layer 2: Large CONFIDENTIAL stamps */
-  .wm-layer-2 {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 60px;
-    transform: rotate(-45deg);
-    opacity: 0.25;
-  }
-
-  .wm-text-stamp {
-    font-size: 32px;
-    font-weight: 900;
-    white-space: nowrap;
-    color: #991b1b;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    text-shadow: 0 0 6px rgba(153,27,27,0.5);
-    border: 3px solid rgba(153,27,27,0.4);
-    padding: 4px 16px;
-    border-radius: 8px;
-  }
-
-  /* Layer 3: Horizontal interference bands */
-  .wm-bands {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    justify-content: space-between;
-    opacity: 0.08;
-  }
-
-  .wm-band {
-    height: 2px;
-    background: repeating-linear-gradient(
-      90deg,
-      #dc2626 0px,
-      #dc2626 4px,
-      transparent 4px,
-      transparent 8px
-    );
+    text-shadow: 0 0 4px rgba(220,38,38,0.5);
   }
 
   @media print {
