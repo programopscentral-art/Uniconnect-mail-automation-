@@ -44,6 +44,11 @@
         allRecipients = await res.json();
       }
 
+      if (allRecipients.length === 0) {
+        alert('No recipient records found for this campaign. This can happen if a Master Reset was performed after completion — recipient data was cleared from the database.');
+        return;
+      }
+
       // Build CSV
       const headers = ['S.No', 'Student Name', 'Email', 'External ID', 'Status', 'Error/Skip Reason', 'Sent At', 'Opened At', 'Acknowledged At'];
       const rows = allRecipients.map((r: any, idx: number) => [
@@ -922,12 +927,19 @@
                     </td>
                   </tr>
                 {/each}
-                {#if recipients.length === 0}
+                {#if filteredRecipients.length === 0}
                   <tr
                     ><td
                       colspan="4"
-                      class="p-4 text-center text-gray-500 font-medium"
-                      >No recipients found.</td
+                      class="p-8 text-center"
+                    >
+                      {#if recipients.length === 0}
+                        <p class="text-gray-500 font-bold">No recipient records found.</p>
+                        <p class="text-xs text-gray-400 mt-1">Recipient data may have been cleared by a Master Reset.</p>
+                      {:else}
+                        <p class="text-gray-500 font-medium">No recipients match the current filter.</p>
+                      {/if}
+                    </td
                     ></tr
                   >
                 {/if}
