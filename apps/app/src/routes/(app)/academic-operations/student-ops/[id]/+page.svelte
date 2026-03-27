@@ -288,6 +288,12 @@
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
+
+  // Strip duplicate extensions like CERTIFICATE_10TH.jpg.jpg → CERTIFICATE_10TH.jpg
+  function cleanFileName(name: string) {
+    if (!name) return name;
+    return name.replace(/(\.(pdf|jpg|jpeg|png|webp))\1+$/i, '$1');
+  }
 </script>
 
 {#if !student}
@@ -689,8 +695,8 @@
     <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-6xl max-h-[95vh] flex flex-col overflow-hidden mx-4" in:fly={{ y: 20 }}>
       <!-- Header — always visible, outside SecureViewer -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800 shrink-0">
-        <div>
-          <h3 class="text-sm font-black text-gray-900 dark:text-white">{previewDoc.file_name}</h3>
+        <div class="min-w-0 flex-1 mr-3">
+          <h3 class="text-sm font-black text-gray-900 dark:text-white truncate">{cleanFileName(previewDoc.file_name)}</h3>
           <p class="text-[10px] text-gray-400 font-medium mt-0.5">
             {previewDoc.type_label || previewDoc.document_type} &bull; {fmtSize(previewDoc.file_size_bytes)} &bull; {fmtDate(previewDoc.uploaded_at)}
             {#if previewDoc.is_encrypted}
@@ -713,36 +719,38 @@
         </div>
       </div>
       <!-- Preview Content — wrapped in SecureViewer (black overlay + tap to view) -->
-      <SecureViewer watermarkText="" enabled={true} studentId={student.id} studentName={student.student_name || student.name || ''}>
-      <div class="flex-1 overflow-auto bg-gray-100 dark:bg-slate-950 p-2 min-h-[500px]">
-        {#if !previewTokenUrl}
-          <div class="flex items-center justify-center h-full py-16">
-            <div class="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
-            <p class="ml-3 text-sm text-gray-500 font-bold">Generating secure link...</p>
-          </div>
-        {:else if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
-          <iframe
-            src="{previewTokenUrl}#view=FitH&toolbar=1&navpanes=0"
-            class="w-full h-full min-h-[80vh] rounded-xl border-0"
-            title="Document preview"
-          ></iframe>
-        {:else if ['jpg', 'jpeg', 'png', 'webp'].includes((previewDoc.file_name || '').split('.').pop()?.toLowerCase() || '')}
-          <div class="flex items-center justify-center h-full">
-            <img
-              src={previewTokenUrl}
-              alt={previewDoc.file_name}
-              class="max-w-full max-h-[70vh] rounded-xl shadow-lg object-contain"
-            />
-          </div>
-        {:else}
-          <div class="flex flex-col items-center justify-center h-full py-16">
-            <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            <p class="text-sm font-bold text-gray-400">Preview not available for this file type</p>
-            <a href={previewTokenUrl} target="_blank" class="mt-3 text-sm text-indigo-600 font-bold hover:underline">Open in new tab</a>
-          </div>
-        {/if}
+      <div class="flex-1 overflow-hidden relative">
+        <SecureViewer watermarkText="" enabled={true} studentId={student.id} studentName={student.student_name || student.name || ''}>
+        <div class="h-full overflow-auto bg-gray-100 dark:bg-slate-950 p-2">
+          {#if !previewTokenUrl}
+            <div class="flex items-center justify-center h-full py-16">
+              <div class="animate-spin w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full"></div>
+              <p class="ml-3 text-sm text-gray-500 font-bold">Generating secure link...</p>
+            </div>
+          {:else if (previewDoc.file_name || '').split('.').pop()?.toLowerCase() === 'pdf'}
+            <iframe
+              src="{previewTokenUrl}#view=FitH&toolbar=1&navpanes=0"
+              class="w-full h-full min-h-[80vh] rounded-xl border-0"
+              title="Document preview"
+            ></iframe>
+          {:else if ['jpg', 'jpeg', 'png', 'webp'].includes((previewDoc.file_name || '').split('.').pop()?.toLowerCase() || '')}
+            <div class="flex items-center justify-center h-full p-4">
+              <img
+                src={previewTokenUrl}
+                alt={cleanFileName(previewDoc.file_name)}
+                class="max-w-full max-h-[80vh] rounded-xl shadow-lg object-contain mx-auto"
+              />
+            </div>
+          {:else}
+            <div class="flex flex-col items-center justify-center h-full py-16">
+              <svg class="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <p class="text-sm font-bold text-gray-400">Preview not available for this file type</p>
+              <a href={previewTokenUrl} target="_blank" class="mt-3 text-sm text-indigo-600 font-bold hover:underline">Open in new tab</a>
+            </div>
+          {/if}
+        </div>
+        </SecureViewer>
       </div>
-      </SecureViewer>
     </div>
   </div>
   {/if}

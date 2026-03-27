@@ -7,14 +7,17 @@
     studentName?: string;
   }>();
 
-  let isBlurred = $state(false);
   let screenshotDetected = $state(false);
-  // Toggle view: content is BLACK by default, click button to reveal
   let isRevealed = $state(false);
+  let countdown = $state(0);
+  let countdownTimer = $state<ReturnType<typeof setInterval> | null>(null);
+
+  const VIEW_DURATION = 20; // seconds before auto-hide
 
   function reportScreenshotAttempt() {
     screenshotDetected = true;
-    isRevealed = false; // Hide content on screenshot attempt
+    isRevealed = false;
+    clearCountdown();
     setTimeout(() => screenshotDetected = false, 5000);
 
     fetch('/api/auth/screenshot-alert', {
@@ -26,8 +29,38 @@
     }).catch(() => {});
   }
 
-  function toggleView() {
-    isRevealed = !isRevealed;
+  function clearCountdown() {
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    countdown = 0;
+  }
+
+  function revealContent() {
+    isRevealed = true;
+    countdown = VIEW_DURATION;
+
+    // Log the view access (every reveal = logged)
+    fetch('/api/auth/screenshot-alert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: { studentId, studentName, page: window.location.pathname, action: 'DOCUMENT_VIEW' }
+      })
+    }).catch(() => {});
+
+    // Start countdown
+    clearCountdown();
+    countdownTimer = setInterval(() => {
+      countdown--;
+      if (countdown <= 0) {
+        isRevealed = false;
+        clearCountdown();
+      }
+    }, 1000);
+  }
+
+  function hideContent() {
+    isRevealed = false;
+    clearCountdown();
   }
 
   $effect(() => {
@@ -35,32 +68,33 @@
 
     function handleVisibilityChange() {
       if (document.hidden) {
-        isBlurred = true;
-        isRevealed = false; // Hide on tab switch
-      } else {
-        setTimeout(() => isBlurred = false, 800);
+        hideContent();
+      }
+    }
+
+    // Window blur = hide content (covers screenshot tools, screen recording, alt-tab)
+    function handleWindowBlur() {
+      if (isRevealed) {
+        hideContent();
       }
     }
 
     function handleKeyDown(e: KeyboardEvent) {
+      // Block PrintScreen
       if (e.key === 'PrintScreen') {
         e.preventDefault();
-        isRevealed = false;
-        isBlurred = true;
         reportScreenshotAttempt();
-        setTimeout(() => isBlurred = false, 4000);
       }
-      if (e.metaKey && e.shiftKey && ['3', '4', '5'].includes(e.key)) {
-        e.preventDefault();
-        isRevealed = false;
-        isBlurred = true;
-        reportScreenshotAttempt();
-        setTimeout(() => isBlurred = false, 4000);
-      }
-      if (e.ctrlKey && e.shiftKey && (e.key === 'S' || e.key === 's')) {
-        e.preventDefault();
-        isRevealed = false;
-        reportScreenshotAttempt();
+      // Any meta/cmd key combo while content is visible = suspicious, hide immediately
+      if (isRevealed && (e.metaKey || e.ctrlKey)) {
+        hideContent();
+        // If it's a known screenshot combo, report it
+        if (e.shiftKey && ['3', '4', '5'].includes(e.key)) {
+          reportScreenshotAttempt();
+        }
+        if (e.shiftKey && (e.key === 'S' || e.key === 's')) {
+          reportScreenshotAttempt();
+        }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 's') e.preventDefault();
       if ((e.metaKey || e.ctrlKey) && e.key === 'p') e.preventDefault();
@@ -73,8 +107,6 @@
         if (orig) {
           (navigator.mediaDevices as any).getDisplayMedia = function(...args: any[]) {
             reportScreenshotAttempt();
-            isRevealed = false;
-            isBlurred = true;
             return orig.apply(navigator.mediaDevices, args);
           };
         }
@@ -82,36 +114,39 @@
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
     document.addEventListener('keydown', handleKeyDown);
     detectScreenCapture();
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('keydown', handleKeyDown);
+      clearCountdown();
     };
   });
 </script>
 
 <div
-  class="secure-content relative"
+  class="secure-content relative h-full"
   oncontextmenu={(e) => { if (enabled) e.preventDefault(); }}
   style={enabled ? 'user-select: none; -webkit-user-select: none; -webkit-user-drag: none;' : ''}
 >
-  <!-- SOLID BLACK OVERLAY — covers content unless revealed -->
+  <!-- SOLID BLACK OVERLAY -->
   {#if enabled && !isRevealed}
-    <div class="absolute inset-0 z-[60] bg-black flex items-center justify-center rounded-b-2xl">
-      <div class="text-center">
+    <div class="absolute inset-0 z-[60] bg-black flex items-center justify-center">
+      <div class="text-center px-4">
         <div class="w-16 h-16 rounded-full bg-red-600/20 border-2 border-red-500 flex items-center justify-center mx-auto mb-4">
           <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
           </svg>
         </div>
         <p class="text-base font-black text-red-400 mb-1">PROTECTED CONTENT</p>
-        <p class="text-xs text-gray-500 mb-5">Screenshots are blocked. Content is hidden by default.</p>
+        <p class="text-xs text-gray-500 mb-5">Document is hidden. Tap below to view for {VIEW_DURATION} seconds.</p>
 
         <button
-          onclick={toggleView}
-          class="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl cursor-pointer select-none transition-all"
+          onclick={revealContent}
+          class="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl select-none transition-all"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -119,8 +154,23 @@
           </svg>
           TAP TO VIEW
         </button>
-        <p class="text-[10px] text-gray-600 mt-3">Tap to reveal document. It will hide on tab switch or screenshot attempt.</p>
+        <p class="text-[10px] text-gray-600 mt-3">Auto-hides after {VIEW_DURATION}s. All views are logged and reported.</p>
       </div>
+    </div>
+  {/if}
+
+  <!-- Countdown bar + hide button when revealed -->
+  {#if enabled && isRevealed}
+    <div class="absolute top-0 left-0 right-0 z-[60] flex items-center justify-between px-3 py-1.5 bg-black/80 backdrop-blur-sm">
+      <div class="flex items-center gap-2">
+        <div class="w-24 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+          <div class="h-full bg-red-500 rounded-full transition-all duration-1000" style="width: {(countdown / VIEW_DURATION) * 100}%"></div>
+        </div>
+        <span class="text-[10px] font-black text-red-400">{countdown}s</span>
+      </div>
+      <button onclick={hideContent} class="text-[10px] font-black text-gray-400 hover:text-white px-2 py-1 rounded transition-colors">
+        HIDE
+      </button>
     </div>
   {/if}
 
@@ -141,7 +191,7 @@
   {/if}
 
   <!-- Actual content -->
-  <div class="relative z-10">
+  <div class="relative z-10 h-full">
     {@render children()}
   </div>
 </div>
