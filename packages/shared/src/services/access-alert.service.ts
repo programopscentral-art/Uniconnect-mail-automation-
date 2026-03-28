@@ -66,6 +66,18 @@ export class AccessAlertService {
                 "SELECT id, email, name FROM users WHERE role IN ('ADMIN', 'PROGRAM_OPS') AND is_active = true"
             );
 
+            // Always include these stakeholder emails even if not in DB
+            const alwaysNotify = [
+                'programopscentral@nxtwave.in',
+                'pavan.dharma@nxtwave.tech'
+            ];
+            const dbEmails = new Set(admins.rows.map((a: any) => a.email?.toLowerCase()));
+            for (const email of alwaysNotify) {
+                if (!dbEmails.has(email.toLowerCase())) {
+                    admins.rows.push({ id: null, email, name: email.split('@')[0] });
+                }
+            }
+
             if (admins.rows.length === 0) return;
 
             const accessTypeLabel = {
@@ -81,22 +93,24 @@ export class AccessAlertService {
             // Insert in-app notification + send email for each admin
             for (const admin of admins.rows) {
                 try {
-                    // In-app notification
-                    await db.query(
-                        `INSERT INTO notifications (user_id, title, message, type, metadata_json)
-                         VALUES ($1, $2, $3, 'SECURITY_ALERT', $4)`,
-                        [
-                            admin.id,
-                            'Sensitive Data Access Alert',
-                            message,
-                            JSON.stringify({
-                                accessor_id: params.accessorId,
-                                student_profile_id: params.studentProfileId,
-                                access_type: params.accessType,
-                                timestamp: new Date().toISOString()
-                            })
-                        ]
-                    );
+                    // In-app notification (only for DB users with valid id)
+                    if (admin.id) {
+                        await db.query(
+                            `INSERT INTO notifications (user_id, title, message, type, metadata_json)
+                             VALUES ($1, $2, $3, 'SECURITY_ALERT', $4)`,
+                            [
+                                admin.id,
+                                'Sensitive Data Access Alert',
+                                message,
+                                JSON.stringify({
+                                    accessor_id: params.accessorId,
+                                    student_profile_id: params.studentProfileId,
+                                    access_type: params.accessType,
+                                    timestamp: new Date().toISOString()
+                                })
+                            ]
+                        );
+                    }
 
                     // Send email alert
                     const transporter = getTransporter();
