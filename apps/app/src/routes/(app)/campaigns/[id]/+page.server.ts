@@ -1,4 +1,4 @@
-import { getCampaignById } from '@uniconnect/shared';
+import { getCampaignById, getStudentsCount } from '@uniconnect/shared';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -12,5 +12,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
         throw error(403);
     }
 
-    return { campaign };
+    // Get available student count for this university (shown before campaign starts)
+    const availableStudents = await getStudentsCount(campaign.university_id);
+
+    return { campaign, availableStudents };
 };
