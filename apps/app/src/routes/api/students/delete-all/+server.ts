@@ -16,7 +16,7 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
     }
 
     try {
-        await deleteAllStudents(universityId, locals.user.id);
+        await deleteAllStudents(universityId);
         return json({ success: true });
     } catch (err: any) {
         console.error('Delete All Students Error:', err);
