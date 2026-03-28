@@ -12,13 +12,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     if (!universityId) throw error(400, 'University ID required');
 
-    // For admins/ops, scan all students by university (not just their own uploads)
-    // so email metadata keys are always detected regardless of who uploaded students
-    const isAdmin = ['ADMIN', 'PROGRAM_OPS', 'CENTRAL_TEAM'].includes(locals.user.role || '');
     const [templates, mailboxes, students] = await Promise.all([
         getTemplates(universityId),
         getMailboxes(universityId),
-        getStudents({ universityId: universityId || undefined, userId: isAdmin ? undefined : locals.user.id, limit: 100 })
+        getStudents({ universityId: universityId || undefined, limit: 100 })
     ]);
 
     const keys = new Set<string>();

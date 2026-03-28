@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     }
 
     const [totalCount, dailySentCount] = await Promise.all([
-        getStudentsCount(universityId, locals.user.id),
+        getStudentsCount(universityId),
         getDailySentCount(universityId)
     ]);
 

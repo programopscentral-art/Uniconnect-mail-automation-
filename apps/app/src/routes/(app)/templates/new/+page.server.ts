@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     }
 
     const metadataKeys = await getMetadataKeys(universityId);
-    const sampleStudents = await getStudents(universityId, 1);
+    const sampleStudents = await getStudents({ universityId, limit: 1 });
 
     return {
         universityId,

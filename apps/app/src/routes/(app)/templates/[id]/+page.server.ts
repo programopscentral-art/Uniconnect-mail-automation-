@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 
     if (universityId) {
         metadataKeys = await getMetadataKeys(universityId);
-        const students = await getStudents(universityId, 1);
+        const students = await getStudents({ universityId, limit: 1 });
         sampleStudent = students[0] || null;
     }
 

@@ -110,8 +110,8 @@ export async function createRecipients(campaignId: string, students: any[], reci
                     if (custom && typeof custom === 'string' && custom.trim().includes('@')) {
                         email = custom.toLowerCase().trim();
                     } else {
-                        skippedStudents.push({ id: s.id, name: s.name || 'N/A', email: s.email || '', external_id: s.external_id || '', reason: `Missing custom email field: ${recipientEmailKey}` });
-                        continue;
+                        // Fallback to primary email instead of skipping
+                        console.log(`[RECIPIENTS] Student ${s.name || s.id}: custom field "${recipientEmailKey}" missing/invalid, falling back to primary email: ${email}`);
                     }
                 }
 

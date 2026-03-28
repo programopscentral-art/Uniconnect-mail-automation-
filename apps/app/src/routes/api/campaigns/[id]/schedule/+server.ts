@@ -66,9 +66,21 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
         // 5. Create recipients if not already created
         const recipientResult = await createRecipients(campaignId, students, campaign.recipient_email_key);
+        console.log(`[CAMPAIGN_START] createRecipients result: total=${recipientResult?.total}, skipped=${recipientResult?.skipped}`);
         if (recipientResult?.skipped > 0) {
             console.log(`[CAMPAIGN_START] ${recipientResult.skipped} students skipped during recipient creation`);
         }
+
+        // CRITICAL: Validate we have valid recipients before starting
+        if (!recipientResult || recipientResult.total === 0) {
+            const skipMsg = recipientResult?.skipped > 0
+                ? `All ${recipientResult.skipped} students were skipped (missing email or custom email field "${campaign.recipient_email_key}"). Check that students have valid email addresses.`
+                : 'No valid recipients could be created. Please check student data.';
+            console.error(`[CAMPAIGN_START] ABORT — 0 valid recipients. ${skipMsg}`);
+            await db.query(`UPDATE campaigns SET status = 'DRAFT', updated_at = NOW() WHERE id = $1`, [campaignId]);
+            return json({ success: false, message: skipMsg }, { status: 400 });
+        }
+
         const recipients = await getCampaignRecipients(campaignId);
 
         // 6. Update campaign status to indicate it has started
