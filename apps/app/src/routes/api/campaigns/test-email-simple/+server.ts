@@ -121,7 +121,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         logMailboxDebug('Rendering template...');
 
         // Fetch a sample student for this university to get real data
-        const students = await getStudents(universityId, 1);
+        const students = await getStudents({ universityId, limit: 1 });
         const sampleStudent = students[0];
 
         const mockVariables = {

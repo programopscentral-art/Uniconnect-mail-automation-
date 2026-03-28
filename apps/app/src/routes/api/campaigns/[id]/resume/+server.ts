@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ params, locals }) => {
     }
 
     // 1. Fetch all students for metadata mapping
-    const students = await getStudents(campaign.university_id, 10000);
+    const students = await getStudents({ universityId: campaign.university_id, limit: 10000 });
 
     // 2. Fetch recipients that need sending
     // We resume anything that is NOT SENT and NOT FAILED

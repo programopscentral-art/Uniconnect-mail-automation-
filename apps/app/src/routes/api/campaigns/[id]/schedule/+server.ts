@@ -55,10 +55,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
         const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
-        // 4. Get all students for THIS user in THIS university
-        const students = await getStudents({ universityId: campaign.university_id, userId: locals.user.id, limit: 10000 });
+        // 4. Get all students in THIS university (not filtered by user — campaign sends to all loaded students)
+        const students = await getStudents({ universityId: campaign.university_id, limit: 10000 });
+        console.log(`[CAMPAIGN_START] getStudents query: universityId=${campaign.university_id}, found=${students.length}`);
         if (students.length === 0) {
-            return json({ success: false, message: 'No recipients found in your personal load list. Please upload students first.' }, { status: 400 });
+            return json({ success: false, message: 'No recipients found for this university. Please upload students first.' }, { status: 400 });
         }
 
         console.log(`[CAMPAIGN_START] Found ${students.length} students`);
@@ -112,17 +113,24 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
         });
 
     } catch (err: any) {
-        console.error(`[CAMPAIGN_ERROR] Failed for campaign ${campaignId}:`, err);
+        const errMsg = err.message || 'Internal server error while starting campaign';
+        console.error(`[CAMPAIGN_ERROR] Failed for campaign ${campaignId}: ${errMsg}`, err);
 
-        // Mark campaign as failed
+        // Mark campaign as failed with error details
         await db.query(
-            `UPDATE campaigns SET status = 'FAILED' WHERE id = $1`,
+            `UPDATE campaigns SET status = 'FAILED', updated_at = NOW() WHERE id = $1`,
             [campaignId]
         ).catch(console.error);
 
+        // Provide actionable error message
+        let userMessage = errMsg;
+        if (errMsg.includes('invalid_grant') || errMsg.includes('Token has been expired') || errMsg.includes('Token has been revoked')) {
+            userMessage = 'Gmail authentication expired. Please DELETE and RE-CONNECT the mailbox, then try again.';
+        }
+
         return json({
             success: false,
-            message: err.message || 'Internal server error while starting campaign'
+            message: userMessage
         }, { status: 500 });
     }
 };
