@@ -186,19 +186,16 @@
   }
 
   async function disconnectAccount() {
-    if (!connections[0]) return;
     if (!confirm('Disconnect Google account? You can reconnect with updated permissions afterward.')) return;
     try {
-      const connId = connections[0].id;
-      const res = await fetch(`/api/meetings/connections?id=${connId}`, {
-        method: 'DELETE'
-      });
+      // Delete ALL connections for this user (no ID needed)
+      const res = await fetch('/api/meetings/connections', { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         alert('Google account disconnected successfully.');
         window.location.reload();
       } else {
-        const err = await res.json().catch(() => ({ message: 'Unknown error' }));
-        alert('Failed to disconnect: ' + (err.message || 'Server error'));
+        alert('Failed to disconnect: ' + (data.message || `Status ${res.status}`));
       }
     } catch (e: any) {
       alert('Failed to disconnect: ' + e.message);

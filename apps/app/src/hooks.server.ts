@@ -7,7 +7,7 @@ import { validateSession, getRolePermissions, ensureCorePermissions } from '@uni
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 console.log("-----------------------------------------");
-console.log("!!! UNICONNECT BOOTING VERSION 2.0.9 !!!");
+console.log("!!! UNICONNECT BOOTING VERSION 2.1.0 — MEETING FIX !!!");
 console.log("-----------------------------------------");
 console.log("[HOOKS] Attempting to initialize Firebase Admin...");
 import '$lib/server/firebase-admin';
