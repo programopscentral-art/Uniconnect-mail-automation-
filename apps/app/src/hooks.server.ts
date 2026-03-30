@@ -60,7 +60,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     const path = event.url.pathname;
-    const isPublic = path.startsWith('/api/auth') || path === '/login' || path.startsWith('/track') || path.startsWith('/ack') || path.startsWith('/api/documents/serve');
+    const isPublic = path.startsWith('/api/auth') || path === '/login' || path.startsWith('/track') || path.startsWith('/ack') || path.startsWith('/api/documents/serve') || path === '/api/health';
 
     if (!isPublic && !event.locals.user) {
         return new Response(null, {
