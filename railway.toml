@@ -1,5 +1,5 @@
 # Trigger V47: Absolute SSL Bypass (2026-02-04 13:24)
-buildCommand = "pnpm install && PGSSLMODE=no-verify NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm -F @uniconnect/shared migrate && pnpm -F app build"
+buildCommand = "pnpm install && PGSSLMODE=no-verify NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm -F @uniconnect/shared migrate && pnpm -F app build && pnpm -F worker build"
 
 [services.app]
 # UniConnect Main SvelteKit Application

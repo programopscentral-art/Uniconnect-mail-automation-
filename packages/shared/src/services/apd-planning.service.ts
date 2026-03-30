@@ -1,25 +1,18 @@
 import { db } from '../db/client';
 
-// Dynamic import for xlsx to avoid CJS/ESM issues in bundled environments
+// Dynamic import for xlsx to avoid CJS/ESM issues in bundled environments (worker bundles as CJS)
 let xlsxRead: any;
 let xlsxUtils: any;
 let _xlsxLoaded = false;
 
 async function loadXlsx() {
     if (_xlsxLoaded) return;
-    try {
-        const xlsx = await import('xlsx');
-        xlsxRead = xlsx.read || xlsx.default?.read;
-        xlsxUtils = xlsx.utils || xlsx.default?.utils;
-    } catch {
-        // Fallback: try createRequire for environments where dynamic import fails
-        const { createRequire } = await import('module');
-        const { fileURLToPath } = await import('url');
-        const metaUrl = import.meta.url || `file://${process.cwd()}/dummy.js`;
-        const req = createRequire(metaUrl);
-        const xlsx = req('xlsx');
-        xlsxRead = xlsx.read;
-        xlsxUtils = xlsx.utils;
+    const xlsx = await import('xlsx');
+    const mod = xlsx.default || xlsx;
+    xlsxRead = mod.read;
+    xlsxUtils = mod.utils;
+    if (!xlsxRead || !xlsxUtils) {
+        throw new Error('Failed to load xlsx module — read or utils not found');
     }
     _xlsxLoaded = true;
 }
