@@ -15,19 +15,57 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     ]);
 
     // Build attendance: cross-reference invitees with participants
-    const participantEmails = new Set(participants.map(p => p.email?.toLowerCase()).filter(Boolean));
-    const inviteeEmails = new Set(invitees.map(i => i.email.toLowerCase()));
+    // Match by email first, then by name (transcript participants often have no email)
+    function findParticipant(inv: any) {
+        // 1. Exact email match
+        if (inv.email) {
+            const byEmail = participants.find(p => p.email?.toLowerCase() === inv.email.toLowerCase());
+            if (byEmail) return byEmail;
+        }
+        // 2. Match participant name against invitee name
+        if (inv.name) {
+            const invName = inv.name.toLowerCase().trim();
+            const byName = participants.find(p => p.name.toLowerCase().trim() === invName);
+            if (byName) return byName;
+        }
+        // 3. Match participant name against email prefix (e.g. "john.doe" from "john.doe@company.com")
+        if (inv.email) {
+            const emailPrefix = inv.email.split('@')[0].toLowerCase().replace(/[._-]/g, ' ');
+            const byPrefix = participants.find(p => {
+                const pName = p.name.toLowerCase().replace(/[._-]/g, ' ');
+                // Check if name contains email prefix or vice versa
+                return pName.includes(emailPrefix) || emailPrefix.includes(pName) ||
+                    // Also check first+last name match (e.g. "John Doe" matches "john.doe")
+                    emailPrefix.split(' ').every((part: string) => pName.includes(part));
+            });
+            if (byPrefix) return byPrefix;
+        }
+        // 4. Partial name match — invitee display name contains participant name or vice versa
+        if (inv.name) {
+            const invName = inv.name.toLowerCase().trim();
+            const byPartial = participants.find(p => {
+                const pName = p.name.toLowerCase().trim();
+                return (pName.length > 2 && invName.includes(pName)) ||
+                       (invName.length > 2 && pName.includes(invName));
+            });
+            if (byPartial) return byPartial;
+        }
+        return null;
+    }
 
-    const attendance = invitees.map(inv => ({
-        ...inv,
-        attended: participantEmails.has(inv.email.toLowerCase()),
-        participant: participants.find(p => p.email?.toLowerCase() === inv.email.toLowerCase()) || null
-    }));
+    const matchedParticipantIds = new Set<string>();
+    const attendance = invitees.map(inv => {
+        const participant = findParticipant(inv);
+        if (participant) matchedParticipantIds.add(participant.id);
+        return {
+            ...inv,
+            attended: !!participant,
+            participant
+        };
+    });
 
-    // Uninvited participants: people who joined but weren't on the invite list
-    const uninvitedParticipants = participants.filter(p =>
-        !p.email || !inviteeEmails.has(p.email.toLowerCase())
-    );
+    // Uninvited participants: those not matched to any invitee
+    const uninvitedParticipants = participants.filter(p => !matchedParticipantIds.has(p.id));
 
     const attendedCount = attendance.filter(a => a.attended).length + uninvitedParticipants.length;
     const totalParticipants = attendedCount;
