@@ -140,6 +140,21 @@
     window.location.href = '/api/meetings/google/start';
   }
 
+  async function disconnectAccount() {
+    if (!connections[0]) return;
+    if (!confirm('Disconnect Google account? You can reconnect with updated permissions afterward.')) return;
+    try {
+      await fetch('/api/meetings/connections', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: connections[0].id })
+      });
+      connections = [];
+    } catch (e) {
+      alert('Failed to disconnect');
+    }
+  }
+
   function formatDate(d: any) {
     if (!d) return '-';
     return new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -186,11 +201,21 @@
 
     <!-- Connection Status -->
     {#if connections.length > 0}
-      <div class="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-4 flex items-center gap-3">
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span class="text-sm text-green-700 dark:text-green-400 font-medium">
-          Connected: <span class="font-bold">{connections[0].email}</span>
-        </span>
+      <div class="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          <span class="text-sm text-green-700 dark:text-green-400 font-medium">
+            Connected: <span class="font-bold">{connections[0].email}</span>
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick={connectAccount} class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
+            Reconnect (Update Permissions)
+          </button>
+          <button onclick={disconnectAccount} class="text-xs text-red-500 hover:underline font-medium">
+            Disconnect
+          </button>
+        </div>
       </div>
     {/if}
 
@@ -330,9 +355,9 @@
                       <button onclick={() => goto(`/meetings/${meeting.id}`)} class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
                         View
                       </button>
-                      {#if meeting.status === 'DISCOVERED' || meeting.status === 'FAILED'}
+                      {#if meeting.status !== 'PROCESSING'}
                         <button onclick={async () => { await fetch(`/api/meetings/${meeting.id}/process`, { method: 'POST' }); loadData(); }} class="text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
-                          Process
+                          {meeting.status === 'DISCOVERED' || meeting.status === 'FAILED' || meeting.status === 'NO_DATA' ? 'Process' : 'Re-process'}
                         </button>
                       {/if}
                       <button onclick={() => deleteMeeting(meeting.id)} class="text-xs text-red-500 hover:underline font-medium">

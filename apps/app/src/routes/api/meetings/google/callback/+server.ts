@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             user_id: userId,
             email,
             refresh_token_enc: encryptedToken,
-            scopes: 'calendar.readonly,drive.meet.readonly,documents.readonly',
+            scopes: 'calendar.readonly,drive.readonly,documents.readonly,userinfo.email',
             connected_by: locals.user.id
         });
 
