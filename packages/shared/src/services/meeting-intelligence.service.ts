@@ -283,7 +283,23 @@ const KNOWN_HEADINGS = new Set([
     'follow up', 'follow-up', 'next steps', 'discussion', 'decisions',
     'attendees', 'participants', 'meeting notes', 'transcript', 'recording',
     'meeting details', 'meeting summary', 'meeting agenda', 'references',
-    'links', 'resources', 'questions', 'answers', 'feedback', 'conclusion'
+    'links', 'resources', 'questions', 'answers', 'feedback', 'conclusion',
+    'final confirmation', 'immediate action items', 'meeting commencement',
+    'platform walkthrough', 'platform legacy', 'external success story',
+    'key takeaways', 'introduction', 'closing remarks', 'wrap up', 'wrap-up'
+]);
+
+// Words that never appear in real person names — used to reject topic headings
+const NON_NAME_WORDS = new Set([
+    'action', 'items', 'confirmation', 'commencement', 'walkthrough', 'legacy',
+    'platform', 'external', 'success', 'story', 'immediate', 'final', 'overview',
+    'introduction', 'discussion', 'session', 'update', 'updates', 'review',
+    'strategy', 'planning', 'analysis', 'report', 'status', 'progress',
+    'agenda', 'timeline', 'roadmap', 'milestone', 'objective', 'initiative',
+    'implementation', 'integration', 'deployment', 'migration', 'configuration',
+    'demonstration', 'presentation', 'workshop', 'training', 'onboarding',
+    'feedback', 'retrospective', 'standup', 'sync', 'kickoff', 'wrap',
+    'closing', 'opening', 'remarks', 'takeaways', 'highlights', 'blockers'
 ]);
 
 function isLikelyPersonName(text: string): boolean {
@@ -298,8 +314,18 @@ function isLikelyPersonName(text: string): boolean {
     // Skip if it's a single word that's too generic
     const words = cleaned.split(/\s+/);
     if (words.length === 1 && cleaned.length < 4) return false;
-    // A person name typically has 2-4 words, all starting with uppercase or all lowercase
-    if (words.length >= 2 && words.length <= 5) {
+    // Skip if ANY word is a known non-name word (topic/heading vocabulary)
+    const lowerWords = words.map((w: string) => w.toLowerCase());
+    if (lowerWords.some((w: string) => NON_NAME_WORDS.has(w))) return false;
+    // Skip if 3+ words (most Indian/person names are 2-3 words, topic titles often 3+)
+    // Only allow 3+ word names if they look like "First Middle Last" pattern
+    if (words.length >= 3) {
+        // Each word should be short (typical name words are 3-10 chars)
+        const allShortWords = words.every((w: string) => w.length <= 12);
+        if (!allShortWords) return false;
+    }
+    // A person name typically has 2-4 words, all starting with uppercase
+    if (words.length >= 2 && words.length <= 4) {
         const allCapitalized = words.every((w: string) => /^[A-Z]/.test(w));
         if (allCapitalized) return true;
     }

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1 { font-size: 15px; font-weight: 700; color: white; }
+    .header p { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+    .logo { width: 32px; height: 32px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+    .section { padding: 14px 16px; border-bottom: 1px solid #1e293b; }
+    .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; font-weight: 600; }
+
+    .status-card {
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.active { background: #22c55e; animation: pulse 2s infinite; }
+    .status-dot.inactive { background: #64748b; }
+    .status-text { font-size: 13px; font-weight: 500; }
+    .status-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { background: #1e293b; border-radius: 8px; padding: 10px; text-align: center; }
+    .stat-value { font-size: 20px; font-weight: 800; color: #818cf8; }
+    .stat-label { font-size: 10px; color: #64748b; margin-top: 2px; text-transform: uppercase; }
+
+    .input-group { margin-bottom: 10px; }
+    .input-group label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px; font-weight: 500; }
+    .input-group input {
+      width: 100%; padding: 8px 10px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 12px; outline: none;
+    }
+    .input-group input:focus { border-color: #6366f1; }
+    .input-group .hint { font-size: 10px; color: #64748b; margin-top: 3px; }
+
+    .btn {
+      width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-success { background: #16a34a; color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn + .btn { margin-top: 8px; }
+
+    .error { background: #451a1a; border: 1px solid #dc2626; border-radius: 8px; padding: 8px 10px; font-size: 11px; color: #fca5a5; margin-top: 8px; }
+    .success { background: #14352a; border: 1px solid #22c55e; border-radius: 8px; padding: 8px 10px; font-size: 11px; color: #86efac; margin-top: 8px; }
+
+    .participants-list { max-height: 150px; overflow-y: auto; }
+    .participant { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #1e293b; }
+    .participant:last-child { border-bottom: none; }
+    .participant .avatar { width: 24px; height: 24px; border-radius: 50%; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #818cf8; flex-shrink: 0; }
+    .participant .name { font-size: 12px; }
+    .participant .meta { font-size: 10px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">📹</div>
+    <div>
+      <h1>UniConnect Meeting Tracker</h1>
+      <p>Live attendance tracking for Google Meet</p>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="section">
+    <div class="status-card">
+      <div class="status-dot" id="statusDot"></div>
+      <div>
+        <div class="status-text" id="statusText">Not in a meeting</div>
+        <div class="status-sub" id="statusSub">Open a Google Meet to start tracking</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats (shown when tracking) -->
+  <div class="section" id="statsSection" style="display:none">
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-value" id="participantCount">0</div>
+        <div class="stat-label">Participants</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="captionCount">0</div>
+        <div class="stat-label">Captions</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Participants list (when tracking) -->
+  <div class="section" id="participantsSection" style="display:none">
+    <div class="section-title">Live Participants</div>
+    <div class="participants-list" id="participantsList"></div>
+  </div>
+
+  <!-- Actions (when tracking) -->
+  <div class="section" id="actionsSection" style="display:none">
+    <button class="btn btn-success" id="sendNowBtn">Send Report Now</button>
+    <button class="btn btn-danger" id="stopBtn">Stop Tracking</button>
+  </div>
+
+  <!-- Settings -->
+  <div class="section">
+    <div class="section-title">Settings</div>
+    <div class="input-group">
+      <label>UniConnect Server URL</label>
+      <input type="url" id="serverUrl" placeholder="https://uniconnect-app.up.railway.app">
+      <div class="hint">Your UniConnect deployment URL</div>
+    </div>
+    <div class="input-group">
+      <label>Auth Token (Session Cookie)</label>
+      <input type="password" id="authToken" placeholder="Paste your session token">
+      <div class="hint">Copy from browser cookies (uniconnect_session)</div>
+    </div>
+    <button class="btn btn-primary" id="saveBtn">Save Settings</button>
+    <div id="settingsMsg"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
