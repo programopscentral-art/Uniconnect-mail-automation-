@@ -154,43 +154,72 @@ export async function scanDriveForMeetArtifacts(
     const meetCode = meeting.google_meet_code;
     const meetTitle = meeting.title;
 
-    // Search for transcript (Google Docs)
+    // Search for transcript (Google Docs) — Google names these like "Meeting Title - Date - Notes by Gemini"
+    // Also check for "transcript" in name as fallback
+    const escapedTitle = meetTitle.replace(/'/g, "\\'");
     try {
-        const transcriptSearch = await drive.files.list({
-            q: `mimeType='application/vnd.google-apps.document' AND (name contains '${meetTitle}' OR ${meetCode ? `name contains '${meetCode}'` : 'name contains "transcript"'}) AND name contains 'transcript'`,
-            fields: 'files(id, name, webViewLink, modifiedTime)',
-            orderBy: 'modifiedTime desc',
-            pageSize: 5
-        });
+        // Try multiple search strategies
+        const searches = [
+            // Strategy 1: Docs matching meeting title (covers "Notes by Gemini" format)
+            `mimeType='application/vnd.google-apps.document' AND name contains '${escapedTitle}'`,
+            // Strategy 2: Docs with "transcript" in name
+            `mimeType='application/vnd.google-apps.document' AND name contains 'transcript'`,
+        ];
+        if (meetCode) {
+            // Strategy 3: Docs matching meet code
+            searches.push(`mimeType='application/vnd.google-apps.document' AND name contains '${meetCode}'`);
+        }
 
-        const transcriptFile = transcriptSearch.data.files?.[0];
-        if (transcriptFile) {
-            await updateMeeting(meetingId, {
-                transcript_doc_id: transcriptFile.id,
-                transcript_doc_url: transcriptFile.webViewLink
+        for (const query of searches) {
+            const transcriptSearch = await drive.files.list({
+                q: query,
+                fields: 'files(id, name, webViewLink, modifiedTime)',
+                orderBy: 'modifiedTime desc',
+                pageSize: 5
             });
-            result.transcript = true;
+
+            const transcriptFile = transcriptSearch.data.files?.[0];
+            if (transcriptFile) {
+                console.log(`[MEETING] Found transcript: ${transcriptFile.name}`);
+                await updateMeeting(meetingId, {
+                    transcript_doc_id: transcriptFile.id,
+                    transcript_doc_url: transcriptFile.webViewLink
+                });
+                result.transcript = true;
+                break;
+            }
         }
     } catch (e: any) {
         console.error(`[MEETING] Failed to search for transcript:`, e);
     }
 
-    // Search for recording (video files)
+    // Search for recording (video files and Meet recordings)
     try {
-        const recordingSearch = await drive.files.list({
-            q: `(mimeType contains 'video/' OR name contains 'Recording') AND (name contains '${meetTitle}' OR ${meetCode ? `name contains '${meetCode}'` : '1=1'})`,
-            fields: 'files(id, name, webViewLink, modifiedTime)',
-            orderBy: 'modifiedTime desc',
-            pageSize: 5
-        });
+        const recordingQueries = [
+            `(mimeType contains 'video/' OR name contains 'Recording') AND name contains '${escapedTitle}'`,
+        ];
+        if (meetCode) {
+            recordingQueries.push(`(mimeType contains 'video/' OR name contains 'Recording') AND name contains '${meetCode}'`);
+        }
 
-        const recordingFile = recordingSearch.data.files?.[0];
-        if (recordingFile) {
-            await updateMeeting(meetingId, {
-                recording_file_id: recordingFile.id,
-                recording_url: recordingFile.webViewLink
+        for (const query of recordingQueries) {
+            const recordingSearch = await drive.files.list({
+                q: query,
+                fields: 'files(id, name, webViewLink, modifiedTime)',
+                orderBy: 'modifiedTime desc',
+                pageSize: 5
             });
-            result.recording = true;
+
+            const recordingFile = recordingSearch.data.files?.[0];
+            if (recordingFile) {
+                console.log(`[MEETING] Found recording: ${recordingFile.name}`);
+                await updateMeeting(meetingId, {
+                    recording_file_id: recordingFile.id,
+                    recording_url: recordingFile.webViewLink
+                });
+                result.recording = true;
+                break;
+            }
         }
     } catch (e: any) {
         console.error(`[MEETING] Failed to search for recording:`, e);
