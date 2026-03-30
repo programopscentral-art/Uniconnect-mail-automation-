@@ -17,6 +17,9 @@
 
   // Manual meeting form
   let showAddForm = $state(false);
+  let extensionToken = $state('');
+  let showTokenModal = $state(false);
+  let isGeneratingToken = $state(false);
   let manualTitle = $state('');
   let manualMeetLink = $state('');
   let manualOrganizer = $state('');
@@ -185,6 +188,40 @@
     window.location.href = '/api/meetings/google/start';
   }
 
+  async function generateExtensionToken() {
+    isGeneratingToken = true;
+    try {
+      const res = await fetch('/api/auth/extension-token', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        extensionToken = data.token;
+        showTokenModal = true;
+      } else {
+        alert('Failed to generate token');
+      }
+    } catch (e) {
+      alert('Failed to generate token');
+    } finally {
+      isGeneratingToken = false;
+    }
+  }
+
+  async function copyToken() {
+    try {
+      await navigator.clipboard.writeText(extensionToken);
+      alert('Token copied to clipboard! Paste it in the Chrome extension settings.');
+    } catch {
+      // Fallback for non-HTTPS
+      const textarea = document.createElement('textarea');
+      textarea.value = extensionToken;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('Token copied! Paste it in the Chrome extension settings.');
+    }
+  }
+
   async function disconnectAccount() {
     if (!confirm('Disconnect Google account? You can reconnect with updated permissions afterward.')) return;
     try {
@@ -246,6 +283,9 @@
             Disconnect
           </button>
         {/if}
+        <button onclick={generateExtensionToken} disabled={isGeneratingToken} class="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-all">
+          {isGeneratingToken ? 'Generating...' : 'Extension Token'}
+        </button>
         <button onclick={() => showAddForm = !showAddForm} class="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
           + Add Meeting
         </button>
@@ -449,4 +489,34 @@
       </div>
     {/if}
   </div>
+
+  <!-- Extension Token Modal -->
+  {#if showTokenModal}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onclick={() => showTokenModal = false}>
+      <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-lg w-full space-y-4 border border-gray-200 dark:border-slate-700" onclick={(e) => e.stopPropagation()}>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Chrome Extension Auth Token</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Copy this token and paste it into the UniConnect Meeting Tracker extension's "Auth Token" field. This token is valid for 7 days.
+        </p>
+        <div class="relative">
+          <input type="text" readonly value={extensionToken} class="w-full px-3 py-3 pr-20 border border-gray-200 dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-800 text-xs font-mono text-gray-900 dark:text-white" />
+          <button onclick={copyToken} class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700">
+            Copy
+          </button>
+        </div>
+        <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-xl p-3">
+          <p class="text-xs text-amber-700 dark:text-amber-400 font-medium">Steps:</p>
+          <ol class="text-xs text-amber-600 dark:text-amber-400/80 mt-1 space-y-1 list-decimal list-inside">
+            <li>Click "Copy" above</li>
+            <li>Click the UniConnect extension icon in Chrome</li>
+            <li>Paste the token in the "Auth Token" field</li>
+            <li>Enter your server URL and click "Save Settings"</li>
+          </ol>
+        </div>
+        <button onclick={() => showTokenModal = false} class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-slate-700">
+          Close
+        </button>
+      </div>
+    </div>
+  {/if}
 </div>
