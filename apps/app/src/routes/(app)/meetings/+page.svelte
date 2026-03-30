@@ -189,14 +189,20 @@
     if (!connections[0]) return;
     if (!confirm('Disconnect Google account? You can reconnect with updated permissions afterward.')) return;
     try {
-      await fetch('/api/meetings/connections', {
+      const res = await fetch('/api/meetings/connections', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: connections[0].id })
       });
-      connections = [];
-    } catch (e) {
-      alert('Failed to disconnect');
+      if (res.ok) {
+        alert('Google account disconnected successfully.');
+        window.location.reload();
+      } else {
+        const err = await res.json().catch(() => ({ message: 'Unknown error' }));
+        alert('Failed to disconnect: ' + (err.message || 'Server error'));
+      }
+    } catch (e: any) {
+      alert('Failed to disconnect: ' + e.message);
     }
   }
 
