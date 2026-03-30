@@ -93,9 +93,9 @@ export async function addMeetingProcessJob(data: {
 
 export async function addMeetingSyncJob(data: {
     connectionId: string;
-    universityId: string;
+    userId: string;
 }) {
-    console.log(`[QUEUE] Syncing calendar for university ${data.universityId}`);
+    console.log(`[QUEUE] Syncing calendar for user ${data.userId}`);
     await meetingQueue.add('sync-calendar', data, {
         attempts: 2,
         removeOnComplete: true

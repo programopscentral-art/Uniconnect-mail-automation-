@@ -10,10 +10,15 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401, 'Please log in again');
 
     const code = url.searchParams.get('code');
-    const universityId = url.searchParams.get('state');
+    const userId = url.searchParams.get('state');
 
-    if (!code || !universityId) {
+    if (!code || !userId) {
         throw error(400, 'Missing code or state');
+    }
+
+    // Verify the state matches the logged-in user
+    if (userId !== locals.user.id) {
+        throw error(403, 'State mismatch');
     }
 
     try {
@@ -28,18 +33,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         const encryptedToken = encryptString(tokens.refresh_token);
 
         await createMeetingConnection({
-            university_id: universityId,
+            user_id: userId,
             email,
             refresh_token_enc: encryptedToken,
             scopes: 'calendar.readonly,drive.meet.readonly,documents.readonly',
             connected_by: locals.user.id
         });
 
-        console.log(`[MEETING_CALLBACK] Connected meeting bot: ${email} for university ${universityId}`);
+        console.log(`[MEETING_CALLBACK] Connected meeting account: ${email} for user ${userId}`);
         throw redirect(302, '/meetings');
     } catch (err: any) {
         if (err.status && err.status >= 300 && err.status < 500) throw err;
         console.error('[MEETING_CALLBACK] Error:', err.message);
-        throw error(500, `Failed to connect meeting bot: ${err.message}`);
+        throw error(500, `Failed to connect meeting account: ${err.message}`);
     }
 };

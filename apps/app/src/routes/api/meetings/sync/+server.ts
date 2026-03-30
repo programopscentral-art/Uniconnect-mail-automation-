@@ -3,21 +3,18 @@ import { syncCalendarMeetings } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-// POST: Sync meetings from Google Calendar
+// POST: Sync meetings from Google Calendar for current user
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
 
     const body = await request.json().catch(() => ({}));
-    const universityId = body.universityId || locals.user.university_id;
 
-    if (!universityId) throw error(400, 'University ID required');
-
-    const connection = await getActiveMeetingConnection(universityId);
+    const connection = await getActiveMeetingConnection(locals.user.id);
     if (!connection) {
-        throw error(400, 'No meeting bot connected for this university. Please connect a Google account first.');
+        throw error(400, 'No Google account connected. Please connect your Google account first.');
     }
 
-    const result = await syncCalendarMeetings(connection.id, universityId, {
+    const result = await syncCalendarMeetings(connection.id, locals.user.id, {
         timeMin: body.timeMin,
         timeMax: body.timeMax
     });

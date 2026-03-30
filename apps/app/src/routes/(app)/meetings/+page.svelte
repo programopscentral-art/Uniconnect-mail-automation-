@@ -23,11 +23,9 @@
 
   async function loadData() {
     try {
-      const univId = data.user?.university_id || '';
-      const qs = univId ? `?universityId=${univId}&stats=true` : '?stats=true';
       const [meetingsRes, connRes] = await Promise.all([
-        fetch(`/api/meetings${qs}`).then(r => r.ok ? r.json() : { meetings: [], total: 0 }),
-        fetch(`/api/meetings/connections${univId ? `?universityId=${univId}` : ''}`).then(r => r.ok ? r.json() : { connections: [] })
+        fetch('/api/meetings?stats=true').then(r => r.ok ? r.json() : { meetings: [], total: 0 }),
+        fetch('/api/meetings/connections').then(r => r.ok ? r.json() : { connections: [] })
       ]);
       meetings = meetingsRes.meetings || [];
       stats = meetingsRes.stats || null;
@@ -59,27 +57,13 @@
     return result;
   });
 
-  async function getUniversityId() {
-    if (data.user?.university_id) return data.user.university_id;
-    // Admin with "ALL TEAMS" — get first university
-    try {
-      const res = await fetch('/api/universities');
-      if (res.ok) {
-        const universities = await res.json();
-        if (universities.length > 0) return universities[0].id;
-      }
-    } catch {}
-    return null;
-  }
-
   async function syncCalendar() {
     isSyncing = true;
     try {
-      const universityId = await getUniversityId();
       const res = await fetch('/api/meetings/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ universityId })
+        body: JSON.stringify({})
       });
       const result = await res.json();
       if (res.ok) {
@@ -126,8 +110,7 @@
           meetLink: manualMeetLink,
           organizerEmail: manualOrganizer,
           scheduledStart: manualStart || undefined,
-          scheduledEnd: manualEnd || undefined,
-          universityId: await getUniversityId()
+          scheduledEnd: manualEnd || undefined
         })
       });
       if (res.ok) {
@@ -153,22 +136,8 @@
     }
   }
 
-  async function connectBot() {
-    let univId = data.user?.university_id;
-    if (!univId) {
-      // Admin with "ALL TEAMS" — fetch first university to use as anchor
-      try {
-        const res = await fetch('/api/universities');
-        if (res.ok) {
-          const universities = await res.json();
-          if (universities.length > 0) {
-            univId = universities[0].id;
-          }
-        }
-      } catch {}
-    }
-    if (!univId) { alert('No universities found. Please create a university first.'); return; }
-    window.location.href = `/api/meetings/google/start?universityId=${univId}`;
+  function connectAccount() {
+    window.location.href = '/api/meetings/google/start';
   }
 
   function formatDate(d: any) {
@@ -201,7 +170,7 @@
       </div>
       <div class="flex gap-3">
         {#if connections.length === 0}
-          <button onclick={connectBot} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all">
+          <button onclick={connectAccount} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all">
             Connect Google Account
           </button>
         {:else}
@@ -220,7 +189,7 @@
       <div class="bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20 rounded-2xl p-4 flex items-center gap-3">
         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
         <span class="text-sm text-green-700 dark:text-green-400 font-medium">
-          Bot connected: <span class="font-bold">{connections[0].email}</span>
+          Connected: <span class="font-bold">{connections[0].email}</span>
         </span>
       </div>
     {/if}
@@ -306,7 +275,7 @@
         <h3 class="text-lg font-bold text-gray-900 dark:text-white">No meetings found</h3>
         <p class="text-sm text-gray-500 mt-2">
           {#if connections.length === 0}
-            Connect a Google account to start syncing meetings from Calendar.
+            Connect your Google account to start syncing meetings from Calendar.
           {:else}
             Click "Sync Calendar" to fetch meetings, or add one manually.
           {/if}

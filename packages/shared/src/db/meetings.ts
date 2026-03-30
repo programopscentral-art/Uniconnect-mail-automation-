@@ -4,7 +4,7 @@ import { db } from './client';
 
 export interface MeetingConnection {
     id: string;
-    university_id: string;
+    user_id: string;
     email: string;
     status: 'ACTIVE' | 'REVOKED';
     scopes: string;
@@ -15,7 +15,7 @@ export interface MeetingConnection {
 
 export interface OrgMeeting {
     id: string;
-    university_id: string;
+    user_id: string;
     meeting_connection_id: string | null;
     google_event_id: string | null;
     google_meet_code: string | null;
@@ -79,50 +79,49 @@ export interface MeetingParticipant {
 
 // ─── Meeting Connections ─────────────────────────────────────────────
 
-export async function getMeetingConnections(universityId?: string): Promise<MeetingConnection[]> {
-    if (universityId) {
+export async function getMeetingConnections(userId?: string): Promise<MeetingConnection[]> {
+    if (userId) {
         const result = await db.query(
-            `SELECT id, university_id, email, status, scopes, connected_by, created_at, updated_at
-             FROM meeting_connections WHERE university_id = $1 ORDER BY created_at DESC`,
-            [universityId]
+            `SELECT id, user_id, email, status, scopes, connected_by, created_at, updated_at
+             FROM meeting_connections WHERE user_id = $1 ORDER BY created_at DESC`,
+            [userId]
         );
         return result.rows;
     }
     const result = await db.query(
-        `SELECT id, university_id, email, status, scopes, connected_by, created_at, updated_at
+        `SELECT id, user_id, email, status, scopes, connected_by, created_at, updated_at
          FROM meeting_connections ORDER BY created_at DESC`
     );
     return result.rows;
 }
 
-export async function getActiveMeetingConnection(universityId?: string): Promise<MeetingConnection | null> {
-    const query = universityId
-        ? `SELECT * FROM meeting_connections WHERE university_id = $1 AND status = 'ACTIVE' LIMIT 1`
+export async function getActiveMeetingConnection(userId?: string): Promise<MeetingConnection | null> {
+    const query = userId
+        ? `SELECT * FROM meeting_connections WHERE user_id = $1 AND status = 'ACTIVE' LIMIT 1`
         : `SELECT * FROM meeting_connections WHERE status = 'ACTIVE' LIMIT 1`;
-    const params = universityId ? [universityId] : [];
+    const params = userId ? [userId] : [];
     const result = await db.query(query, params);
     return result.rows[0] || null;
 }
 
 export async function createMeetingConnection(data: {
-    university_id: string;
+    user_id: string;
     email: string;
     refresh_token_enc: string;
     scopes: string;
     connected_by: string;
 }): Promise<MeetingConnection> {
     const result = await db.query(
-        `INSERT INTO meeting_connections (university_id, email, refresh_token_enc, scopes, connected_by, status)
+        `INSERT INTO meeting_connections (user_id, email, refresh_token_enc, scopes, connected_by, status)
          VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
-         ON CONFLICT (email) DO UPDATE SET
-            university_id = EXCLUDED.university_id,
+         ON CONFLICT (user_id, email) DO UPDATE SET
             refresh_token_enc = EXCLUDED.refresh_token_enc,
             scopes = EXCLUDED.scopes,
             connected_by = EXCLUDED.connected_by,
             status = 'ACTIVE',
             updated_at = NOW()
-         RETURNING id, university_id, email, status, scopes, connected_by, created_at, updated_at`,
-        [data.university_id, data.email, data.refresh_token_enc, data.scopes, data.connected_by]
+         RETURNING id, user_id, email, status, scopes, connected_by, created_at, updated_at`,
+        [data.user_id, data.email, data.refresh_token_enc, data.scopes, data.connected_by]
     );
     return result.rows[0];
 }
@@ -139,7 +138,7 @@ export async function deleteMeetingConnection(id: string) {
 // ─── Meetings CRUD ───────────────────────────────────────────────────
 
 export async function getMeetings(options: {
-    universityId?: string;
+    userId?: string;
     status?: string;
     organizerEmail?: string;
     startDate?: string;
@@ -151,9 +150,9 @@ export async function getMeetings(options: {
     const params: any[] = [];
     let paramIdx = 1;
 
-    if (options.universityId) {
-        conditions.push(`m.university_id = $${paramIdx++}`);
-        params.push(options.universityId);
+    if (options.userId) {
+        conditions.push(`m.user_id = $${paramIdx++}`);
+        params.push(options.userId);
     }
     if (options.status) {
         conditions.push(`m.status = $${paramIdx++}`);
@@ -226,13 +225,13 @@ export async function getMeetingByMeetCode(meetCode: string): Promise<OrgMeeting
 export async function createMeeting(data: Partial<OrgMeeting>): Promise<OrgMeeting> {
     const result = await db.query(
         `INSERT INTO org_meetings (
-            university_id, meeting_connection_id, google_event_id, google_meet_code,
+            user_id, meeting_connection_id, google_event_id, google_meet_code,
             google_calendar_id, title, description, organizer_email, organizer_name,
             meet_link, scheduled_start, scheduled_end, source, status
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
-            data.university_id, data.meeting_connection_id, data.google_event_id,
+            data.user_id, data.meeting_connection_id, data.google_event_id,
             data.google_meet_code, data.google_calendar_id || 'primary',
             data.title, data.description, data.organizer_email, data.organizer_name,
             data.meet_link, data.scheduled_start, data.scheduled_end,
@@ -316,8 +315,6 @@ export async function upsertMeetingParticipant(data: {
     speaking_segments?: number;
     source?: string;
 }): Promise<MeetingParticipant> {
-    const uniqueKey = data.email || data.name;
-
     // Try to find existing by email first, then by name
     const existing = data.email
         ? await db.query(`SELECT id FROM org_meeting_participants WHERE meeting_id = $1 AND email = $2`, [data.meeting_id, data.email])
@@ -353,9 +350,9 @@ export async function upsertMeetingParticipant(data: {
 
 // ─── Stats ───────────────────────────────────────────────────────────
 
-export async function getMeetingStats(universityId?: string) {
-    const where = universityId ? `WHERE university_id = $1` : '';
-    const params = universityId ? [universityId] : [];
+export async function getMeetingStats(userId?: string) {
+    const where = userId ? `WHERE user_id = $1` : '';
+    const params = userId ? [userId] : [];
 
     const result = await db.query(
         `SELECT

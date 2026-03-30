@@ -12,12 +12,11 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
     const connectionId = meeting.meeting_connection_id;
     if (!connectionId) {
-        // Try to find an active connection for this university
-        const connection = await getActiveMeetingConnection(meeting.university_id);
+        // Try to find an active connection for this user
+        const connection = await getActiveMeetingConnection(locals.user.id);
         if (!connection) {
-            throw error(400, 'No meeting bot connected. Please connect a Google account first.');
+            throw error(400, 'No Google account connected. Please connect your Google account first.');
         }
-        // Use this connection
         await processMeeting(connection.id, params.id);
     } else {
         await processMeeting(connectionId, params.id);

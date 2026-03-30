@@ -432,11 +432,11 @@ const meetingWorker = new Worker('meeting-processing', async (job) => {
 
     console.log(`[MEETING-WORKER] Meeting ${meetingId} processed.`);
   } else if (job.name === 'sync-calendar') {
-    const { connectionId, universityId } = job.data;
-    console.log(`[MEETING-WORKER] Syncing calendar for university ${universityId}...`);
+    const { connectionId, userId } = job.data;
+    console.log(`[MEETING-WORKER] Syncing calendar for user ${userId}...`);
 
     const { syncCalendarMeetings } = await import('@uniconnect/shared');
-    const result = await syncCalendarMeetings(connectionId, universityId);
+    const result = await syncCalendarMeetings(connectionId, userId);
 
     console.log(`[MEETING-WORKER] Calendar sync done. Synced: ${result.synced}, Skipped: ${result.skipped}`);
   }

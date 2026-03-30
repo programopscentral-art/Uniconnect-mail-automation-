@@ -13,7 +13,7 @@ function getMeetingClient() {
     );
 }
 
-export function getMeetingAuthUrl(universityId: string) {
+export function getMeetingAuthUrl(userId: string) {
     const client = getMeetingClient();
     const redirectUri = env.GOOGLE_MEETING_REDIRECT_URI || env.GOOGLE_GMAIL_REDIRECT_URI?.replace('mailboxes', 'meetings') || 'http://localhost:3001/api/meetings/google/callback';
 
@@ -26,11 +26,11 @@ export function getMeetingAuthUrl(universityId: string) {
             'https://www.googleapis.com/auth/userinfo.email'
         ],
         prompt: 'consent',
-        state: universityId,
+        state: userId,
         redirect_uri: redirectUri
     });
 
-    console.log('[MEETING_AUTH] Generated auth URL for university:', universityId);
+    console.log('[MEETING_AUTH] Generated auth URL for user:', userId);
     return url;
 }
 

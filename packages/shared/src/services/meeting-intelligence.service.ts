@@ -49,7 +49,7 @@ async function getAuthClient(connectionId: string) {
 
 export async function syncCalendarMeetings(
     connectionId: string,
-    universityId: string,
+    userId: string,
     options: { timeMin?: string; timeMax?: string } = {}
 ): Promise<{ synced: number; skipped: number }> {
     const google = await loadGoogle();
@@ -100,7 +100,7 @@ export async function syncCalendarMeetings(
             }
 
             const meeting = await createMeeting({
-                university_id: universityId,
+                user_id: userId,
                 meeting_connection_id: connectionId,
                 google_event_id: event.id || undefined,
                 google_meet_code: meetCode || undefined,

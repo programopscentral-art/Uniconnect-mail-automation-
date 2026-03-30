@@ -11,23 +11,19 @@ import { json, error } from '@sveltejs/kit';
 export const POST: RequestHandler = async ({ request, locals }) => {
     // Auth: either via session cookie or Bearer token
     let userId: string | null = null;
-    let universityId: string | null = null;
 
     if (locals.user) {
         userId = locals.user.id;
-        universityId = locals.user.university_id;
     } else {
         // Try Bearer token auth (for extension)
         const authHeader = request.headers.get('Authorization');
         if (authHeader?.startsWith('Bearer ')) {
             const token = authHeader.slice(7);
-            // Validate session token
             try {
                 const { validateSession } = await import('@uniconnect/shared');
                 const user = await validateSession(token);
                 if (user) {
                     userId = user.id;
-                    universityId = user.university_id;
                 }
             } catch {
                 // Invalid token
@@ -51,10 +47,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         if (!meeting) {
             // Create new meeting from extension data
-            const connection = universityId ? await getActiveMeetingConnection(universityId) : null;
+            const connection = userId ? await getActiveMeetingConnection(userId) : null;
 
             meeting = await createMeeting({
-                university_id: universityId || null,
+                user_id: userId,
                 meeting_connection_id: connection?.id || null,
                 google_meet_code: report.meetCode || null,
                 title: report.title || `Meeting ${report.meetCode}`,
