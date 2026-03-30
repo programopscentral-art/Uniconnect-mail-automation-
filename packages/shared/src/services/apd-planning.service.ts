@@ -1,9 +1,28 @@
 import { db } from '../db/client';
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const xlsx = require('xlsx');
-const xlsxRead = xlsx.read;
-const xlsxUtils = xlsx.utils;
+
+// Dynamic import for xlsx to avoid CJS/ESM issues in bundled environments
+let xlsxRead: any;
+let xlsxUtils: any;
+let _xlsxLoaded = false;
+
+async function loadXlsx() {
+    if (_xlsxLoaded) return;
+    try {
+        const xlsx = await import('xlsx');
+        xlsxRead = xlsx.read || xlsx.default?.read;
+        xlsxUtils = xlsx.utils || xlsx.default?.utils;
+    } catch {
+        // Fallback: try createRequire for environments where dynamic import fails
+        const { createRequire } = await import('module');
+        const { fileURLToPath } = await import('url');
+        const metaUrl = import.meta.url || `file://${process.cwd()}/dummy.js`;
+        const req = createRequire(metaUrl);
+        const xlsx = req('xlsx');
+        xlsxRead = xlsx.read;
+        xlsxUtils = xlsx.utils;
+    }
+    _xlsxLoaded = true;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -270,6 +289,7 @@ async function ensureAPDTables() {
  * Also supports a separate "Subjects" sheet for backwards compatibility.
  */
 export async function parseAPDExcel(buffer: Buffer): Promise<APDParseResult> {
+    await loadXlsx();
     const workbook = xlsxRead(buffer, { type: 'buffer', cellDates: true });
     const result: APDParseResult = { plans: [], errors: [], warnings: [], totalRows: 0 };
 
