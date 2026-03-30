@@ -150,22 +150,26 @@
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             {#if meeting.recording_url}
-              <a href={meeting.recording_url} target="_blank" class="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-sm font-semibold hover:bg-red-500/20 transition-all flex items-center gap-1.5">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <a href={meeting.recording_url} target="_blank" class="px-4 py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl text-sm font-semibold hover:bg-emerald-500/20 transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 Recording
               </a>
             {/if}
             {#if meeting.transcript_doc_url}
               <a href={meeting.transcript_doc_url} target="_blank" class="px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl text-sm font-semibold hover:bg-blue-500/20 transition-all flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                Transcript Doc
+                Meeting Notes
               </a>
             {/if}
-            {#if meeting.status === 'DISCOVERED' || meeting.status === 'FAILED' || meeting.status === 'NO_DATA'}
-              <button onclick={processMeeting} disabled={isProcessing} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all">
-                {isProcessing ? 'Processing...' : 'Process Meeting'}
-              </button>
-            {/if}
+            <button onclick={processMeeting} disabled={isProcessing} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-1.5">
+              {#if isProcessing}
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Processing...
+              {:else}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                {meeting.status === 'DISCOVERED' || meeting.status === 'NO_DATA' ? 'Process Meeting' : 'Re-process'}
+              {/if}
+            </button>
           </div>
         </div>
         {#if meeting.processing_error}
@@ -392,7 +396,15 @@
             </div>
           {/if}
 
-          {#if attendance.length === 0 && participants.length === 0}
+          {#if attendance.length > 0 && participants.length === 0}
+            <div class="bg-amber-500/5 border border-amber-500/20 rounded-2xl p-5 text-center">
+              <p class="text-sm text-amber-400 font-semibold mb-2">No participant data found</p>
+              <p class="text-xs text-gray-500 mb-3">Invitees are loaded from Calendar, but actual participants need to be extracted from the meeting transcript or attendance CSV. Click "Re-process" to scan Google Drive for meeting artifacts.</p>
+              <button onclick={processMeeting} disabled={isProcessing} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                {isProcessing ? 'Processing...' : 'Re-process Meeting'}
+              </button>
+            </div>
+          {:else if attendance.length === 0 && participants.length === 0}
             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-10 text-center text-gray-500 text-sm">
               No attendance data yet. Process the meeting or use the Chrome extension to capture participant data.
             </div>
@@ -451,7 +463,7 @@
             {#if meeting.transcript_doc_url}
               <a href={meeting.transcript_doc_url} target="_blank" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                Open in Google Docs
+                Open Meeting Notes
               </a>
             {/if}
           </div>
@@ -474,11 +486,9 @@
                   No transcript found in Drive. Use the Chrome extension to capture live captions.
                 {/if}
               </p>
-              {#if meeting.status === 'DISCOVERED' || meeting.status === 'NO_DATA'}
-                <button onclick={processMeeting} disabled={isProcessing} class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
-                  {isProcessing ? 'Processing...' : 'Process Meeting'}
-                </button>
-              {/if}
+              <button onclick={processMeeting} disabled={isProcessing} class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+                {isProcessing ? 'Processing...' : 'Process Meeting'}
+              </button>
             </div>
           {/if}
         </div>
@@ -575,11 +585,9 @@
                   A transcript is needed first. Process the meeting to extract it from Google Docs, or use the Chrome extension to capture live captions.
                 {/if}
               </p>
-              {#if meeting.raw_transcript || meeting.status === 'DISCOVERED' || meeting.status === 'NO_DATA'}
-                <button onclick={processMeeting} disabled={isProcessing} class="mt-4 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 shadow-lg shadow-indigo-500/20 transition-all">
-                  {isProcessing ? 'Processing...' : meeting.raw_transcript ? 'Generate AI Report' : 'Process Meeting'}
-                </button>
-              {/if}
+              <button onclick={processMeeting} disabled={isProcessing} class="mt-4 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 shadow-lg shadow-indigo-500/20 transition-all">
+                {isProcessing ? 'Processing...' : meeting.raw_transcript ? 'Generate AI Report' : 'Process Meeting'}
+              </button>
             </div>
           {/if}
         </div>

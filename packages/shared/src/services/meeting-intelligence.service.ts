@@ -17,6 +17,7 @@ import {
     updateMeeting,
     upsertMeetingInvitee,
     upsertMeetingParticipant,
+    clearMeetingParticipants,
     type OrgMeeting
 } from '../db/meetings';
 
@@ -155,38 +156,63 @@ export async function scanDriveForMeetArtifacts(
     const meetTitle = meeting.title;
 
     // Search for transcript (Google Docs) — Google names these like "Meeting Title - Date - Notes by Gemini"
-    // Also check for "transcript" in name as fallback
     const escapedTitle = meetTitle.replace(/'/g, "\\'");
+    // Use shorter title keywords if title is long (Drive search works better with fewer words)
+    const titleWords = meetTitle.split(/\s+/).filter((w: string) => w.length > 2).slice(0, 4);
+    const shortTitle = titleWords.join(' ').replace(/'/g, "\\'");
     try {
-        // Try multiple search strategies
+        // Try multiple search strategies — Google Meet creates "Notes by Gemini" docs
         const searches = [
-            // Strategy 1: Docs matching meeting title (covers "Notes by Gemini" format)
+            // Strategy 1: Docs matching full meeting title
             `mimeType='application/vnd.google-apps.document' AND name contains '${escapedTitle}'`,
-            // Strategy 2: Docs with "transcript" in name
+            // Strategy 2: Docs with "Notes by Gemini" (Google's default name format)
+            `mimeType='application/vnd.google-apps.document' AND name contains 'Notes by Gemini'`,
+            // Strategy 3: Docs with "Notes" containing short title keywords
+            `mimeType='application/vnd.google-apps.document' AND name contains 'Notes' AND name contains '${shortTitle}'`,
+            // Strategy 4: Docs with "transcript" in name
             `mimeType='application/vnd.google-apps.document' AND name contains 'transcript'`,
         ];
         if (meetCode) {
-            // Strategy 3: Docs matching meet code
+            // Strategy 5: Docs matching meet code
             searches.push(`mimeType='application/vnd.google-apps.document' AND name contains '${meetCode}'`);
         }
 
         for (const query of searches) {
-            const transcriptSearch = await drive.files.list({
-                q: query,
-                fields: 'files(id, name, webViewLink, modifiedTime)',
-                orderBy: 'modifiedTime desc',
-                pageSize: 5
-            });
-
-            const transcriptFile = transcriptSearch.data.files?.[0];
-            if (transcriptFile) {
-                console.log(`[MEETING] Found transcript: ${transcriptFile.name}`);
-                await updateMeeting(meetingId, {
-                    transcript_doc_id: transcriptFile.id,
-                    transcript_doc_url: transcriptFile.webViewLink
+            try {
+                console.log(`[MEETING] Transcript search: ${query}`);
+                const transcriptSearch = await drive.files.list({
+                    q: query,
+                    fields: 'files(id, name, webViewLink, modifiedTime)',
+                    orderBy: 'modifiedTime desc',
+                    pageSize: 5
                 });
-                result.transcript = true;
-                break;
+
+                const files = transcriptSearch.data.files || [];
+                console.log(`[MEETING] Found ${files.length} docs for query`);
+
+                // Prefer file closest to meeting date
+                let transcriptFile = files[0];
+                if (files.length > 1 && meeting.scheduled_start) {
+                    const meetTime = new Date(meeting.scheduled_start).getTime();
+                    transcriptFile = files.reduce((best: any, f: any) => {
+                        const fDiff = Math.abs(new Date(f.modifiedTime).getTime() - meetTime);
+                        const bDiff = Math.abs(new Date(best.modifiedTime).getTime() - meetTime);
+                        return fDiff < bDiff ? f : best;
+                    });
+                }
+
+                if (transcriptFile) {
+                    console.log(`[MEETING] Found transcript: "${transcriptFile.name}" (${transcriptFile.id})`);
+                    await updateMeeting(meetingId, {
+                        transcript_doc_id: transcriptFile.id,
+                        transcript_doc_url: transcriptFile.webViewLink
+                    });
+                    result.transcript = true;
+                    break;
+                }
+            } catch (searchErr: any) {
+                console.warn(`[MEETING] Search query failed: ${searchErr.message}`);
+                continue;
             }
         }
     } catch (e: any) {
@@ -495,7 +521,10 @@ export async function processMeeting(connectionId: string, meetingId: string): P
     console.log(`[MEETING] Processing meeting ${meetingId}...`);
 
     try {
-        await updateMeeting(meetingId, { status: 'PROCESSING' });
+        await updateMeeting(meetingId, { status: 'PROCESSING', processing_error: null });
+
+        // Clear old participant data before re-processing
+        await clearMeetingParticipants(meetingId);
 
         console.log(`[MEETING] Step 1: Scanning Drive for artifacts...`);
         const artifacts = await scanDriveForMeetArtifacts(connectionId, meetingId);

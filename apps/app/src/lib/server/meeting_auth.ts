@@ -21,7 +21,7 @@ export function getMeetingAuthUrl(userId: string) {
         access_type: 'offline',
         scope: [
             'https://www.googleapis.com/auth/calendar.readonly',
-            'https://www.googleapis.com/auth/drive.meet.readonly',
+            'https://www.googleapis.com/auth/drive.readonly',
             'https://www.googleapis.com/auth/documents.readonly',
             'https://www.googleapis.com/auth/userinfo.email'
         ],

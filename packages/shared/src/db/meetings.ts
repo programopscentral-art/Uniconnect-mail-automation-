@@ -264,6 +264,10 @@ export async function deleteMeeting(id: string) {
     await db.query(`DELETE FROM org_meetings WHERE id = $1`, [id]);
 }
 
+export async function clearMeetingParticipants(meetingId: string) {
+    await db.query(`DELETE FROM org_meeting_participants WHERE meeting_id = $1`, [meetingId]);
+}
+
 // ─── Invitees ────────────────────────────────────────────────────────
 
 export async function getMeetingInvitees(meetingId: string): Promise<MeetingInvitee[]> {
