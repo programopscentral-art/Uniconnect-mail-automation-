@@ -192,6 +192,12 @@
           <button onclick={syncCalendar} disabled={isSyncing} class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all disabled:opacity-50">
             {isSyncing ? 'Syncing...' : 'Sync Calendar'}
           </button>
+          <button onclick={connectAccount} class="px-4 py-2 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition-all">
+            Reconnect Google
+          </button>
+          <button onclick={disconnectAccount} class="px-4 py-2 bg-red-600/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 rounded-xl text-sm font-semibold hover:bg-red-600/20 transition-all">
+            Disconnect
+          </button>
         {/if}
         <button onclick={() => showAddForm = !showAddForm} class="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-slate-700 transition-all">
           + Add Meeting
