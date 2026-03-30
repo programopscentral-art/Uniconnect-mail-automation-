@@ -59,13 +59,27 @@
     return result;
   });
 
+  async function getUniversityId() {
+    if (data.user?.university_id) return data.user.university_id;
+    // Admin with "ALL TEAMS" — get first university
+    try {
+      const res = await fetch('/api/universities');
+      if (res.ok) {
+        const universities = await res.json();
+        if (universities.length > 0) return universities[0].id;
+      }
+    } catch {}
+    return null;
+  }
+
   async function syncCalendar() {
     isSyncing = true;
     try {
+      const universityId = await getUniversityId();
       const res = await fetch('/api/meetings/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ universityId: data.user?.university_id })
+        body: JSON.stringify({ universityId })
       });
       const result = await res.json();
       if (res.ok) {
@@ -113,7 +127,7 @@
           organizerEmail: manualOrganizer,
           scheduledStart: manualStart || undefined,
           scheduledEnd: manualEnd || undefined,
-          universityId: data.user?.university_id
+          universityId: await getUniversityId()
         })
       });
       if (res.ok) {
@@ -139,9 +153,21 @@
     }
   }
 
-  function connectBot() {
-    const univId = data.user?.university_id;
-    if (!univId) { alert('No university selected'); return; }
+  async function connectBot() {
+    let univId = data.user?.university_id;
+    if (!univId) {
+      // Admin with "ALL TEAMS" — fetch first university to use as anchor
+      try {
+        const res = await fetch('/api/universities');
+        if (res.ok) {
+          const universities = await res.json();
+          if (universities.length > 0) {
+            univId = universities[0].id;
+          }
+        }
+      } catch {}
+    }
+    if (!univId) { alert('No universities found. Please create a university first.'); return; }
     window.location.href = `/api/meetings/google/start?universityId=${univId}`;
   }
 
