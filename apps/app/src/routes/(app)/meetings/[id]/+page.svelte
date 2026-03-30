@@ -5,7 +5,7 @@
   let meetingData = $state<any>(null);
   let isLoading = $state(true);
   let isProcessing = $state(false);
-  let activeTab = $state<'overview' | 'attendance' | 'transcript' | 'ai-report'>('overview');
+  let activeTab = $state<'overview' | 'attendance' | 'notes' | 'ai-report'>('overview');
 
   const meetingId = $derived($page.params.id);
 
@@ -207,7 +207,7 @@
 
       <!-- Tabs -->
       <div class="flex gap-1 bg-gray-100 dark:bg-slate-800 rounded-xl p-1 w-fit">
-        {#each [['overview', 'Overview'], ['attendance', 'Attendance'], ['transcript', 'Transcript'], ['ai-report', 'AI Report']] as [tab, label]}
+        {#each [['overview', 'Overview'], ['attendance', 'Attendance'], ['notes', 'Meeting Notes'], ['ai-report', 'AI Report']] as [tab, label]}
           <button onclick={() => activeTab = tab as any} class="px-4 py-2 rounded-lg text-sm font-semibold transition-all {activeTab === tab ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}">
             {label}
           </button>
@@ -410,8 +410,8 @@
             </div>
           {/if}
 
-          <!-- Standalone participants when no invitee data -->
-          {#if participants.length > 0 && attendance.length === 0}
+          <!-- Standalone participants when no invitee data and no uninvited section -->
+          {#if participants.length > 0 && attendance.length === 0 && uninvitedParticipants.length === 0}
             <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div class="p-5 border-b border-gray-100 dark:border-slate-800">
                 <h3 class="font-bold text-gray-900 dark:text-white">All Participants</h3>
@@ -455,35 +455,35 @@
           {/if}
         </div>
 
-      <!-- TRANSCRIPT TAB -->
-      {:else if activeTab === 'transcript'}
+      <!-- MEETING NOTES TAB -->
+      {:else if activeTab === 'notes'}
         <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-6">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="font-bold text-gray-900 dark:text-white">Transcript</h3>
+            <h3 class="font-bold text-gray-900 dark:text-white">Meeting Notes</h3>
             {#if meeting.transcript_doc_url}
               <a href={meeting.transcript_doc_url} target="_blank" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                Open Meeting Notes
+                Open in Google Docs
               </a>
             {/if}
           </div>
           {#if meeting.raw_transcript}
             <div class="bg-gray-50 dark:bg-slate-800 rounded-xl p-5 max-h-[600px] overflow-y-auto">
-              <pre class="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300 font-sans leading-relaxed">{meeting.raw_transcript}</pre>
+              <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">{meeting.raw_transcript}</div>
             </div>
           {:else}
             <div class="text-center py-16">
               <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center">
                 <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               </div>
-              <h4 class="font-bold text-gray-900 dark:text-white mb-1">No Transcript Available</h4>
+              <h4 class="font-bold text-gray-900 dark:text-white mb-1">No Meeting Notes Available</h4>
               <p class="text-sm text-gray-500 max-w-md mx-auto">
                 {#if meeting.status === 'DISCOVERED'}
-                  Click "Process Meeting" to scan Google Drive for the transcript.
+                  Click "Process Meeting" to scan Google Drive for meeting notes.
                 {:else if meeting.transcript_doc_url}
-                  A transcript document was found but text extraction failed. <a href={meeting.transcript_doc_url} target="_blank" class="text-indigo-500 hover:underline">View it in Google Docs</a>.
+                  A notes document was found but text extraction failed. <a href={meeting.transcript_doc_url} target="_blank" class="text-indigo-500 hover:underline">View in Google Docs</a>.
                 {:else}
-                  No transcript found in Drive. Use the Chrome extension to capture live captions.
+                  No meeting notes found in Drive. Use the Chrome extension to capture live captions, or enable "Notes by Gemini" in Google Meet.
                 {/if}
               </p>
               <button onclick={processMeeting} disabled={isProcessing} class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">

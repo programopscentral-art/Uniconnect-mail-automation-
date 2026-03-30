@@ -274,7 +274,37 @@ export async function scanDriveForMeetArtifacts(
     return result;
 }
 
-// ─── Transcript Extraction ───────────────────────────────────────────
+// ─── Transcript / Notes Extraction ──────────────────────────────────
+
+// Known section headings in "Notes by Gemini" that should NOT be treated as speaker names
+const KNOWN_HEADINGS = new Set([
+    'attachments', 'details', 'meeting records', 'summary', 'suggested next steps',
+    'action items', 'key decisions', 'notes', 'agenda', 'topics', 'overview',
+    'follow up', 'follow-up', 'next steps', 'discussion', 'decisions',
+    'attendees', 'participants', 'meeting notes', 'transcript', 'recording',
+    'meeting details', 'meeting summary', 'meeting agenda', 'references',
+    'links', 'resources', 'questions', 'answers', 'feedback', 'conclusion'
+]);
+
+function isLikelyPersonName(text: string): boolean {
+    const cleaned = text.trim();
+    if (cleaned.length < 3 || cleaned.length > 60) return false;
+    // Skip known headings
+    if (KNOWN_HEADINGS.has(cleaned.toLowerCase())) return false;
+    // Skip if it contains special chars that names don't have
+    if (/[{}[\]<>|@#$%^&*()+=]/.test(cleaned)) return false;
+    // Skip if it looks like a URL or timestamp
+    if (/^https?:|^\d{2}:\d{2}|^\(\d/.test(cleaned)) return false;
+    // Skip if it's a single word that's too generic
+    const words = cleaned.split(/\s+/);
+    if (words.length === 1 && cleaned.length < 4) return false;
+    // A person name typically has 2-4 words, all starting with uppercase or all lowercase
+    if (words.length >= 2 && words.length <= 5) {
+        const allCapitalized = words.every((w: string) => /^[A-Z]/.test(w));
+        if (allCapitalized) return true;
+    }
+    return false;
+}
 
 export async function extractTranscript(
     connectionId: string,
@@ -291,28 +321,63 @@ export async function extractTranscript(
     try {
         const doc = await docs.documents.get({ documentId: meeting.transcript_doc_id });
         const content = doc.data.body?.content || [];
-        let transcript = '';
+        const docTitle = (doc.data.title || '').toLowerCase();
+        const isGeminiNotes = docTitle.includes('notes by gemini') || docTitle.includes('notes');
+        let fullText = '';
+        const headings: string[] = [];
         const speakers = new Map<string, number>();
 
+        // First pass: extract all text and identify headings vs body
         for (const element of content) {
             if (element.paragraph) {
                 const text = element.paragraph.elements
                     ?.map((e: any) => e.textRun?.content || '')
                     .join('') || '';
 
-                if (text.trim()) {
-                    transcript += text;
+                if (!text.trim()) continue;
+                fullText += text;
 
-                    const speakerMatch = text.match(/^([A-Za-z\s.]+?)(?:\n|$)/);
-                    if (speakerMatch && speakerMatch[1].trim().length > 1 && speakerMatch[1].trim().length < 50) {
+                // Check if this paragraph is a heading (Google Docs style)
+                const style = element.paragraph.paragraphStyle?.namedStyleType || '';
+                if (style.startsWith('HEADING')) {
+                    headings.push(text.trim());
+                    continue; // Don't treat headings as speaker lines
+                }
+
+                // For "Notes by Gemini" format: extract person names mentioned in text
+                // Pattern: "Speaker Name said/mentioned/asked/noted/shared/discussed/explained..."
+                // Or: "Speaker Name: ..." (actual transcript format)
+                if (isGeminiNotes) {
+                    // Extract names from patterns like "Yash kanaboina mentioned..."
+                    const namePatterns = [
+                        /([A-Z][a-z]+(?:\s+[A-Za-z][a-z]+){1,3})\s+(?:said|mentioned|asked|noted|shared|discussed|explained|outlined|suggested|proposed|thanked|granted|explored|concluded|introduced|transitioned|shifted|focused|examined|determined|referenced|acknowledged)/g,
+                        /([A-Z][a-z]+(?:\s+[A-Za-z][a-z]+){1,3})\s+(?:and\s+[A-Z][a-z]+(?:\s+[A-Za-z][a-z]+){1,3})/g,
+                    ];
+                    for (const pattern of namePatterns) {
+                        let match;
+                        while ((match = pattern.exec(text)) !== null) {
+                            const name = match[1].trim();
+                            if (isLikelyPersonName(name)) {
+                                speakers.set(name, (speakers.get(name) || 0) + 1);
+                            }
+                        }
+                    }
+                } else {
+                    // Standard transcript format: "Speaker Name: text" or "Speaker Name\n"
+                    const speakerMatch = text.match(/^([A-Za-z][A-Za-z\s.]{1,50}?)(?::\s|\n)/);
+                    if (speakerMatch) {
                         const speaker = speakerMatch[1].trim();
-                        speakers.set(speaker, (speakers.get(speaker) || 0) + 1);
+                        if (isLikelyPersonName(speaker)) {
+                            speakers.set(speaker, (speakers.get(speaker) || 0) + 1);
+                        }
                     }
                 }
             }
         }
 
-        await updateMeeting(meetingId, { raw_transcript: transcript });
+        console.log(`[MEETING] Extracted ${speakers.size} speakers from ${isGeminiNotes ? 'Gemini notes' : 'transcript'}: ${[...speakers.keys()].join(', ')}`);
+
+        await updateMeeting(meetingId, { raw_transcript: fullText });
 
         for (const [name, segments] of speakers) {
             await upsertMeetingParticipant({
@@ -325,7 +390,7 @@ export async function extractTranscript(
         }
 
         await updateMeeting(meetingId, { participant_count: speakers.size });
-        return transcript;
+        return fullText;
     } catch (e: any) {
         console.error(`[MEETING] Failed to extract transcript:`, e);
         return null;
@@ -459,13 +524,13 @@ function buildAiPrompt(meeting: OrgMeeting): string {
         ? transcript.substring(0, maxChars) + '\n\n[TRANSCRIPT TRUNCATED]'
         : transcript;
 
-    return `You are analyzing a meeting transcript. Provide a structured analysis in the exact JSON format specified below.
+    return `You are analyzing meeting notes/transcript. The content may be a "Notes by Gemini" summary or a raw transcript. Extract the key information and provide a structured analysis in the exact JSON format specified below.
 
 Meeting Title: ${meeting.title}
 Date: ${meeting.scheduled_start ? new Date(meeting.scheduled_start).toLocaleDateString() : 'Unknown'}
 Organizer: ${meeting.organizer_name || meeting.organizer_email}
 
-TRANSCRIPT:
+MEETING NOTES/TRANSCRIPT:
 ${truncatedTranscript}
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
@@ -521,7 +586,21 @@ export async function processMeeting(connectionId: string, meetingId: string): P
     console.log(`[MEETING] Processing meeting ${meetingId}...`);
 
     try {
-        await updateMeeting(meetingId, { status: 'PROCESSING', processing_error: null });
+        await updateMeeting(meetingId, {
+            status: 'PROCESSING',
+            processing_error: null,
+            // Clear old data before re-processing
+            raw_transcript: null,
+            ai_summary: null,
+            ai_action_items: null,
+            ai_key_decisions: null,
+            ai_topics: null,
+            ai_sentiment: null,
+            ai_processed_at: null,
+            transcript_doc_id: null,
+            transcript_doc_url: null,
+            participant_count: 0
+        });
 
         // Clear old participant data before re-processing
         await clearMeetingParticipants(meetingId);
