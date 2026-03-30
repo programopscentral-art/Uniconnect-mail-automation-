@@ -264,18 +264,9 @@
           </svg>
         </div>
         <h4 class="font-black text-gray-900 dark:text-white">Student Ops</h4>
-        <p class="text-xs text-gray-500 mt-2">Attendance, onboarding, support tickets.</p>
+        <p class="text-xs text-gray-500 mt-2">Attendance, onboarding, student profiles.</p>
       </a>
 
-      <a href="/academic-operations/support-escalations" class="p-8 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-        <div class="p-4 bg-rose-50 dark:bg-rose-500/10 text-rose-600 rounded-3xl w-fit mb-6 group-hover:bg-rose-600 group-hover:text-white transition-all">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
-          </svg>
-        </div>
-        <h4 class="font-black text-gray-900 dark:text-white">Escalation Center</h4>
-        <p class="text-xs text-gray-500 mt-2">Tickets, SLA compliance, issue routing.</p>
-      </a>
     </div>
   </div>
 </div>
