@@ -189,10 +189,9 @@
     if (!connections[0]) return;
     if (!confirm('Disconnect Google account? You can reconnect with updated permissions afterward.')) return;
     try {
-      const res = await fetch('/api/meetings/connections', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: connections[0].id })
+      const connId = connections[0].id;
+      const res = await fetch(`/api/meetings/connections?id=${connId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         alert('Google account disconnected successfully.');

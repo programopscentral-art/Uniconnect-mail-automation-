@@ -11,12 +11,23 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 // DELETE: Remove a meeting connection
-export const DELETE: RequestHandler = async ({ request, locals }) => {
+export const DELETE: RequestHandler = async ({ request, url, locals }) => {
     if (!locals.user) throw error(401);
 
-    const { id } = await request.json();
+    // Support both query param and JSON body for the connection ID
+    let id = url.searchParams.get('id');
+    if (!id) {
+        try {
+            const body = await request.json();
+            id = body.id;
+        } catch {
+            // Body might be empty or not JSON
+        }
+    }
     if (!id) throw error(400, 'Connection ID required');
 
+    console.log(`[MEETINGS] Disconnecting connection ${id} for user ${locals.user.id}`);
     await deleteMeetingConnection(id);
+    console.log(`[MEETINGS] Connection ${id} deleted successfully`);
     return json({ success: true });
 };
