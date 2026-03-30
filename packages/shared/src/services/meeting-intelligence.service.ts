@@ -328,38 +328,56 @@ export async function generateAiReport(meetingId: string): Promise<boolean> {
         return false;
     }
 
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicApiKey) {
-        console.error('[MEETING_AI] ANTHROPIC_API_KEY not set');
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
+        console.error('[MEETING_AI] GEMINI_API_KEY not set');
         return false;
     }
 
     try {
         const prompt = buildAiPrompt(meeting);
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': anthropicApiKey,
-                'anthropic-version': '2023-06-01'
-            },
-            body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 4096,
-                messages: [{ role: 'user', content: prompt }]
-            })
-        });
+        // Try Gemini models in priority order
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+        let aiText: string | null = null;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`[MEETING_AI] Claude API error: ${response.status} ${errorText}`);
-            return false;
+        for (const model of modelsToTry) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${geminiApiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            maxOutputTokens: 4096,
+                            temperature: 0.3
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.warn(`[MEETING_AI] Gemini ${model} failed: ${response.status} ${errorText}`);
+                    continue;
+                }
+
+                const data = await response.json();
+                aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (aiText) {
+                    console.log(`[MEETING_AI] Successfully used model: ${model}`);
+                    break;
+                }
+            } catch (e: any) {
+                console.warn(`[MEETING_AI] Gemini ${model} error:`, e.message);
+                continue;
+            }
         }
 
-        const data = await response.json();
-        const aiText = data.content?.[0]?.text;
-        if (!aiText) return false;
+        if (!aiText) {
+            console.error('[MEETING_AI] All Gemini models failed');
+            return false;
+        }
 
         const parsed = parseAiResponse(aiText);
 
