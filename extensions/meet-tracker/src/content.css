@@ -1,0 +1,47 @@
+/* UniConnect Meet Tracker — Status Badge */
+#uniconnect-tracker-badge {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 999999;
+  font-family: 'Google Sans', 'Segoe UI', Arial, sans-serif;
+  pointer-events: none;
+  animation: uc-fade-in 0.3s ease-out;
+}
+
+.uc-badge-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.uc-badge-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: uc-pulse 2s ease-in-out infinite;
+}
+
+.uc-badge-text {
+  color: #e0e0e0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+@keyframes uc-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+@keyframes uc-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

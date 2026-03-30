@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 360px;
+      font-family: 'Segoe UI', -apple-system, sans-serif;
+      background: #0f0f23;
+      color: #e0e0e0;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.3px;
+    }
+
+    .header p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      margin-top: 4px;
+    }
+
+    .status-card {
+      margin: 16px;
+      padding: 16px;
+      background: #1a1a2e;
+      border-radius: 12px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.active { background: #22c55e; animation: pulse 2s infinite; }
+    .status-dot.inactive { background: #64748b; }
+    .status-dot.error { background: #ef4444; }
+
+    .status-text {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .status-sub {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 8px;
+    }
+
+    .section {
+      margin: 0 16px 16px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      background: #1a1a2e;
+      border-radius: 10px;
+      border: 1px solid #2a2a4a;
+      margin-bottom: 8px;
+    }
+
+    .toggle-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .toggle {
+      width: 40px;
+      height: 22px;
+      background: #374151;
+      border-radius: 11px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle.on { background: #4f46e5; }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+
+    .toggle.on::after { transform: translateX(18px); }
+
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 12px;
+      margin-bottom: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: #4f46e5;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: #4338ca; }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #2a2a4a;
+      color: #94a3b8;
+    }
+
+    .btn-outline:hover { background: #1a1a2e; color: white; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat-card {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #2a2a4a;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: #818cf8;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #64748b;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .saved-msg {
+      text-align: center;
+      font-size: 11px;
+      color: #22c55e;
+      padding: 6px;
+      display: none;
+    }
+
+    .saved-msg.show { display: block; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .footer {
+      text-align: center;
+      padding: 12px;
+      font-size: 10px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>UniConnect Meet Tracker</h1>
+    <p>Automatic meeting intelligence</p>
+  </div>
+
+  <!-- Status -->
+  <div class="status-card" id="statusCard">
+    <div class="status-row">
+      <div class="status-dot inactive" id="statusDot"></div>
+      <span class="status-text" id="statusText">No active meeting</span>
+    </div>
+    <div class="status-sub" id="statusSub">Open a Google Meet to start tracking</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="section">
+    <div class="section-title">Session Stats</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="totalMeetings">0</div>
+        <div class="stat-label">Meetings Tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalReports">0</div>
+        <div class="stat-label">Reports Sent</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toggle -->
+  <div class="section">
+    <div class="section-title">Settings</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Enable Tracking</span>
+      <div class="toggle on" id="enableToggle"></div>
+    </div>
+  </div>
+
+  <!-- API Config -->
+  <div class="section">
+    <div class="section-title">UniConnect Server</div>
+    <input type="text" id="apiEndpoint" placeholder="https://uniconnect-app.up.railway.app" />
+    <input type="password" id="authToken" placeholder="Auth token (from UniConnect settings)" />
+    <button class="btn" id="saveBtn">Save Configuration</button>
+    <div class="saved-msg" id="savedMsg">Settings saved!</div>
+  </div>
+
+  <!-- Manual Upload -->
+  <div class="section">
+    <button class="btn btn-outline" id="uploadBtn">Upload Pending Reports</button>
+  </div>
+
+  <div class="footer">
+    UniConnect Meeting Intelligence v1.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

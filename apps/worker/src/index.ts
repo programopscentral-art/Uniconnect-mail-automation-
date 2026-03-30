@@ -419,4 +419,31 @@ systemNotificationWorker.on('failed', (job, err) => {
   console.error(`[SYSTEM-NOTIF] ❌ Job ${job?.id} failed:`, err);
 });
 
-console.log('✅ Worker with robust notifications and BullMQ sync started.');
+// ─── Meeting Intelligence Worker ─────────────────────────────────────
+
+const meetingWorker = new Worker('meeting-processing', async (job) => {
+  if (job.name === 'process-meeting') {
+    const { meetingId, connectionId } = job.data;
+    console.log(`[MEETING-WORKER] Processing meeting ${meetingId}...`);
+
+    // Dynamic import to avoid loading googleapis at startup if not needed
+    const { processMeeting } = await import('@uniconnect/shared');
+    await processMeeting(connectionId, meetingId);
+
+    console.log(`[MEETING-WORKER] Meeting ${meetingId} processed.`);
+  } else if (job.name === 'sync-calendar') {
+    const { connectionId, universityId } = job.data;
+    console.log(`[MEETING-WORKER] Syncing calendar for university ${universityId}...`);
+
+    const { syncCalendarMeetings } = await import('@uniconnect/shared');
+    const result = await syncCalendarMeetings(connectionId, universityId);
+
+    console.log(`[MEETING-WORKER] Calendar sync done. Synced: ${result.synced}, Skipped: ${result.skipped}`);
+  }
+}, { connection });
+
+meetingWorker.on('failed', (job, err) => {
+  console.error(`[MEETING-WORKER] ❌ Job ${job?.id} failed:`, err);
+});
+
+console.log('✅ Worker with robust notifications, BullMQ sync, and meeting intelligence started.');

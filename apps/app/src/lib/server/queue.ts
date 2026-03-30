@@ -73,3 +73,31 @@ export async function triggerCommTaskCheck() {
         removeOnComplete: true
     });
 }
+
+// Meeting Intelligence Queue
+export const meetingQueue = new Queue('meeting-processing', { connection });
+console.log('[QUEUE_INIT] Meeting queue created for: meeting-processing');
+
+export async function addMeetingProcessJob(data: {
+    meetingId: string;
+    connectionId: string;
+}) {
+    console.log(`[QUEUE] Processing meeting ${data.meetingId}`);
+    await meetingQueue.add('process-meeting', data, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: 5000
+    });
+}
+
+export async function addMeetingSyncJob(data: {
+    connectionId: string;
+    universityId: string;
+}) {
+    console.log(`[QUEUE] Syncing calendar for university ${data.universityId}`);
+    await meetingQueue.add('sync-calendar', data, {
+        attempts: 2,
+        removeOnComplete: true
+    });
+}

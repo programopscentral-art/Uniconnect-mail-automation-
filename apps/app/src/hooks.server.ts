@@ -98,6 +98,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/communication-tasks': 'communication-tasks',
             '/budget-proposals': 'budget-proposals',
             '/academic-operations': 'academic-operations',
+            '/meetings': 'meetings',
             '/ops-dashboard': 'analytics',
             // Faculty portal: accessible to FACULTY role and ADMIN/PROGRAM_OPS (handled by isPrivileged)
             // FACULTY role bypass is handled below
