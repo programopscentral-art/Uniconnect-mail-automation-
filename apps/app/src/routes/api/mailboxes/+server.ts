@@ -1,4 +1,4 @@
-import { getMailboxes } from '@uniconnect/shared';
+import { getMailboxes, getAllMailboxes } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
@@ -10,7 +10,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         universityId = locals.user.university_id;
     }
 
-    if (!universityId) throw error(400, 'University ID required');
+    // ADMIN/PROGRAM_OPS can view all mailboxes when no university selected
+    if (!universityId) {
+        if (locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS') {
+            const mailboxes = await getAllMailboxes();
+            return json(mailboxes);
+        }
+        throw error(400, 'University ID required');
+    }
 
     const mailboxes = await getMailboxes(universityId);
     return json(mailboxes);

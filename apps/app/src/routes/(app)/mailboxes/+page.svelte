@@ -14,11 +14,12 @@
     const univId = selectedUniversityId || data.userUniversityId || '';
     try {
       const fetches: Promise<any>[] = [];
+      // Fetch mailboxes — admins can fetch all (no univId), others need a univId
+      const mailboxUrl = univId ? `/api/mailboxes?universityId=${univId}` : '/api/mailboxes';
+      fetches.push(fetch(mailboxUrl).then(r => r.ok ? r.json() : []));
       if (univId) {
-        fetches.push(fetch(`/api/mailboxes?universityId=${univId}`).then(r => r.ok ? r.json() : []));
         fetches.push(fetch(`/api/mailboxes/permissions?universityId=${univId}`).then(r => r.ok ? r.json() : []));
       } else {
-        fetches.push(Promise.resolve([]));
         fetches.push(Promise.resolve([]));
       }
       if (isAdmin) {
@@ -43,10 +44,10 @@
   });
 
   async function loadMailboxes() {
-      if (!selectedUniversityId) return;
       isLoading = true;
       try {
-          const res = await fetch(`/api/mailboxes?universityId=${selectedUniversityId}`);
+          const url = selectedUniversityId ? `/api/mailboxes?universityId=${selectedUniversityId}` : '/api/mailboxes';
+          const res = await fetch(url);
           if (res.ok) {
               mailboxes = await res.json();
           }
@@ -109,7 +110,7 @@
     </div>
     <button 
       onclick={connectMailbox}
-      disabled={!selectedUniversityId && data.userRole === 'ADMIN'}
+      disabled={!selectedUniversityId && (data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS')}
       class="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[12px] font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-indigo-500/20 transition-all active:scale-95 disabled:opacity-30 disabled:grayscale animate-premium-slide"
       style="animation-delay: 100ms;"
     >
@@ -121,12 +122,12 @@
     </button>
   </div>
   
-  {#if data.userRole === 'ADMIN'}
+  {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
     <div class="glass p-6 rounded-[2.5rem] flex items-center gap-6 animate-premium-slide" style="animation-delay: 200ms;">
         <label for="univ-select" class="text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Institutional Node:</label>
-        <select 
-            id="univ-select" 
-            bind:value={selectedUniversityId} 
+        <select
+            id="univ-select"
+            bind:value={selectedUniversityId}
             onchange={loadMailboxes}
             class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
