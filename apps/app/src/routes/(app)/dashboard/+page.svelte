@@ -563,13 +563,31 @@
     if (!eventForm.title) return alert('Title is required.');
     isSaving = true;
     try {
+      // Build timezone-aware dates (datetime-local inputs have no timezone)
+      const tzOffset = new Date().getTimezoneOffset();
+      const tzSign = tzOffset <= 0 ? '+' : '-';
+      const tzHours = String(Math.floor(Math.abs(tzOffset) / 60)).padStart(2, '0');
+      const tzMins = String(Math.abs(tzOffset) % 60).padStart(2, '0');
+      const tzStr = `${tzSign}${tzHours}:${tzMins}`;
+
+      let startDate = eventForm.start_date || `${createEventDate}T${createEventStartTime}:00`;
+      let dueDate = eventForm.due_date || `${createEventDate}T${createEventEndTime}:00`;
+
+      // Append timezone offset so DB stores correct UTC
+      if (startDate && !startDate.includes('+') && !startDate.includes('Z')) {
+        startDate = `${startDate}${tzStr}`;
+      }
+      if (dueDate && !dueDate.includes('+') && !dueDate.includes('Z')) {
+        dueDate = `${dueDate}${tzStr}`;
+      }
+
       const res = await fetch('/api/schedule-events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...eventForm,
-          start_date: eventForm.start_date || `${createEventDate}T${createEventStartTime}:00`,
-          due_date: eventForm.due_date || `${createEventDate}T${createEventEndTime}:00`,
+          start_date: startDate,
+          due_date: dueDate,
           university_id: eventForm.university_id || data.selectedUniversityId || data.defaultUniversityId
         })
       });
