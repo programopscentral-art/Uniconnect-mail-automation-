@@ -13,6 +13,7 @@
     let selectedDate = $state(new Date().toISOString().split('T')[0]);
     let selectedUniversity = $state('');
     let selectedRole = $state('All roles');
+    let expandedSessionRow = $state<string | null>(null);
     let dateRange = $state('today');
     let allUniversities = $state<string[]>([]);
     let isDownloading = $state(false);
@@ -738,13 +739,19 @@
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">CANCELLED</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">DEVIATION</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">STATUS</th>
-                        <th class="text-left px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">REASON</th>
                     </tr></thead>
                     <tbody>
                         {#each (viewData.todayByUniversity || []) as row}
                             {@const devPct = parseInt(row.sessions_planned) ? Math.round(((parseInt(row.sessions_planned) - parseInt(row.sessions_completed)) / parseInt(row.sessions_planned)) * 100) : 0}
-                            <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
-                                <td class="px-4 py-3 text-white">{row.university_name}</td>
+                            {@const isExpanded = expandedSessionRow === row.university_name}
+                            <tr
+                                class="border-b border-gray-800/50 hover:bg-gray-800/30 cursor-pointer {isExpanded ? 'bg-gray-800/40' : ''}"
+                                onclick={() => expandedSessionRow = isExpanded ? null : row.university_name}
+                            >
+                                <td class="px-4 py-3 text-white flex items-center gap-2">
+                                    <span class="text-gray-500 text-xs">{isExpanded ? '▼' : '▶'}</span>
+                                    {row.university_name}
+                                </td>
                                 <td class="px-4 py-3 text-center text-gray-300">{row.sessions_planned}</td>
                                 <td class="px-4 py-3 text-center text-green-400">{row.sessions_completed}</td>
                                 <td class="px-4 py-3 text-center text-red-400">{row.sessions_cancelled}</td>
@@ -752,8 +759,15 @@
                                 <td class="px-4 py-3 text-center">
                                     <span class="text-xs px-2 py-0.5 rounded {devPct > 10 ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}">{statusBadge(devPct)}</span>
                                 </td>
-                                <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px]">{row.cancellation_reason || '—'}</td>
                             </tr>
+                            {#if isExpanded}
+                                <tr class="bg-gray-800/20">
+                                    <td colspan="6" class="px-6 py-4">
+                                        <div class="text-xs text-gray-500 font-semibold tracking-wider mb-1">CANCELLATION REASON</div>
+                                        <div class="text-sm text-gray-300">{row.cancellation_reason || 'No reason provided'}</div>
+                                    </td>
+                                </tr>
+                            {/if}
                         {/each}
                     </tbody>
                 </table>
