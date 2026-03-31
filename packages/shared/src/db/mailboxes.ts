@@ -61,5 +61,7 @@ export async function getMailboxCredentials(id: string) {
     return result.rows[0];
 }
 export async function deleteMailbox(id: string) {
-    await db.query(`DELETE FROM mailbox_connections WHERE id = $1`, [id]);
+    // We use soft delete because campaigns and logs reference mailbox_id 
+    // without CASCADE to preserve communication history.
+    await db.query(`UPDATE mailbox_connections SET status = 'REVOKED', updated_at = NOW() WHERE id = $1`, [id]);
 }
