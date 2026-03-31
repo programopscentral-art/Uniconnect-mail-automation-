@@ -10,17 +10,26 @@ export interface MailboxConnection {
 
 export async function getMailboxes(universityId: string) {
     const result = await db.query(
-        `SELECT id, university_id, email, status, created_at FROM mailbox_connections WHERE university_id = $1 ORDER BY created_at DESC`,
+        `SELECT mc.id, mc.university_id, mc.email, mc.status, mc.created_at,
+                u.name as university_name
+         FROM mailbox_connections mc
+         LEFT JOIN universities u ON u.id = mc.university_id
+         WHERE mc.university_id = $1
+         ORDER BY mc.created_at DESC`,
         [universityId]
     );
-    return result.rows as MailboxConnection[];
+    return result.rows;
 }
 
 export async function getAllMailboxes() {
     const result = await db.query(
-        `SELECT id, university_id, email, status, created_at FROM mailbox_connections ORDER BY created_at DESC`
+        `SELECT mc.id, mc.university_id, mc.email, mc.status, mc.created_at,
+                u.name as university_name
+         FROM mailbox_connections mc
+         LEFT JOIN universities u ON u.id = mc.university_id
+         ORDER BY mc.created_at DESC`
     );
-    return result.rows as MailboxConnection[];
+    return result.rows;
 }
 
 export async function createMailbox(data: {

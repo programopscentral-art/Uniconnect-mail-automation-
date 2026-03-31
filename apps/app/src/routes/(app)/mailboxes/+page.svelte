@@ -145,6 +145,7 @@
           <thead class="bg-gray-50/50 dark:bg-slate-800/50">
               <tr>
                   <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Mailbox Identity</th>
+                  <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">University</th>
                   <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Operational Status</th>
                   <th class="px-3 sm:px-8 py-3 sm:py-5 text-left text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Integration Date</th>
                   <th class="px-3 sm:px-8 py-3 sm:py-5 text-right text-[10px] font-black text-gray-400 dark:text-slate-400 uppercase tracking-widest">Authority Control</th>
@@ -155,6 +156,9 @@
                   <tr class="group hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                       <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                         <div class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{box.email}</div>
+                      </td>
+                      <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
+                        <div class="text-xs font-bold text-gray-500 dark:text-slate-400">{box.university_name || '—'}</div>
                       </td>
                       <td class="px-3 sm:px-8 py-3 sm:py-6 whitespace-nowrap">
                           <span class="px-3 py-1 text-[9px] font-black uppercase tracking-widest rounded-full {box.status === 'ACTIVE' ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}">
@@ -201,7 +205,7 @@
               {/each}
               {#if mailboxes.length === 0}
                   <tr>
-                      <td colspan="4" class="px-8 py-20 text-center">
+                      <td colspan="5" class="px-8 py-20 text-center">
                           <div class="flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 space-y-4">
                               <div class="w-16 h-16 rounded-3xl bg-gray-50 dark:bg-slate-800/50 flex items-center justify-center">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
