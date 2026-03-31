@@ -3,7 +3,7 @@
   // @ts-ignore
   let { data } = $props();
 
-  let selectedUniversityId = $state('');
+  let selectedUniversityId = $state(data.userUniversityId || '');
   let isLoading = $state(true);
   let mailboxes = $state<any[]>([]);
   let universitiesList = $state<any[]>([]);
@@ -12,49 +12,51 @@
   async function loadMailboxesData() {
     const isAdmin = data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS';
     const univId = selectedUniversityId || data.userUniversityId || '';
+    
     try {
       const fetches: Promise<any>[] = [];
       // Fetch mailboxes — admins can fetch all (no univId), others need a univId
       const mailboxUrl = univId ? `/api/mailboxes?universityId=${univId}` : '/api/mailboxes';
       fetches.push(fetch(mailboxUrl).then(r => r.ok ? r.json() : []));
+      
       if (univId) {
         fetches.push(fetch(`/api/mailboxes/permissions?universityId=${univId}`).then(r => r.ok ? r.json() : []));
       } else {
         fetches.push(Promise.resolve([]));
       }
-      if (isAdmin) {
+      
+      // Only fetch universities if we are admin and haven't fetched them yet
+      if (isAdmin && universitiesList.length === 0) {
         fetches.push(fetch('/api/universities').then(r => r.ok ? r.json() : []));
       } else {
-        fetches.push(Promise.resolve([]));
+        fetches.push(Promise.resolve(universitiesList));
       }
+      
       const [m, p, u] = await Promise.all(fetches);
       mailboxes = m || [];
       permissionsList = p || [];
-      universitiesList = u || [];
+      if (isAdmin && universitiesList.length === 0) {
+        universitiesList = u || [];
+      }
     } catch (e) {
-      console.error('[MAILBOXES] Client-side load error:', e);
+      console.error('[MAILBOXES] Load error:', e);
     } finally {
       isLoading = false;
     }
   }
 
+  // Reactive load whenever selection changes
+  import { untrack } from 'svelte';
   $effect(() => {
-    selectedUniversityId = data.userUniversityId || '';
-    loadMailboxesData();
+    // Track selectedUniversityId
+    const id = selectedUniversityId;
+    // Track data.userRole in case permissions change
+    const role = data.userRole;
+    
+    untrack(() => {
+      loadMailboxesData();
+    });
   });
-
-  async function loadMailboxes() {
-      isLoading = true;
-      try {
-          const url = selectedUniversityId ? `/api/mailboxes?universityId=${selectedUniversityId}` : '/api/mailboxes';
-          const res = await fetch(url);
-          if (res.ok) {
-              mailboxes = await res.json();
-          }
-      } finally {
-          isLoading = false;
-      }
-  }
 
   function connectMailbox() {
       if (!selectedUniversityId) return;
@@ -128,7 +130,6 @@
         <select
             id="univ-select"
             bind:value={selectedUniversityId}
-            onchange={loadMailboxes}
             class="flex-1 max-w-md bg-white/50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 rounded-2xl px-5 py-3 text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all text-gray-900 dark:text-white"
         >
             <option value="">Global Hierarchy (All)</option>
