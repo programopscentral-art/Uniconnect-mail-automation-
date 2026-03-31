@@ -52,12 +52,13 @@ export async function upsertOpsDailyData(rows: any[]) {
                     instructor_report, coach_report, ops_report,
                     instructors_active, coaches_active, program_ops_active,
                     total_calls_made, tickets_resolved, clicks_shares_sent,
-                    avg_hours_instructors, avg_hours_coaches, avg_hours_program_ops
+                    avg_hours_instructors, avg_hours_coaches, avg_hours_program_ops,
+                    cancellation_reason
                 ) VALUES (
                     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                     $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                     $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31,
-                    $32, $33, $34
+                    $32, $33, $34, $35
                 )
                 ON CONFLICT (date, university_name)
                 DO UPDATE SET
@@ -92,7 +93,8 @@ export async function upsertOpsDailyData(rows: any[]) {
                     clicks_shares_sent = EXCLUDED.clicks_shares_sent,
                     avg_hours_instructors = EXCLUDED.avg_hours_instructors,
                     avg_hours_coaches = EXCLUDED.avg_hours_coaches,
-                    avg_hours_program_ops = EXCLUDED.avg_hours_program_ops`,
+                    avg_hours_program_ops = EXCLUDED.avg_hours_program_ops,
+                    cancellation_reason = COALESCE(EXCLUDED.cancellation_reason, ops_daily_data.cancellation_reason)`,
                 [
                     r.date, r.university_name,
                     r.sessions_planned || 0, r.sessions_completed || 0, r.sessions_cancelled || 0,
@@ -108,7 +110,8 @@ export async function upsertOpsDailyData(rows: any[]) {
                     r.instructor_report || 'Missing', r.coach_report || 'Missing', r.ops_report || 'Missing',
                     r.instructors_active || 0, r.coaches_active || 0, r.program_ops_active || 0,
                     r.total_calls_made || 0, r.tickets_resolved || 0, r.clicks_shares_sent || 0,
-                    r.avg_hours_instructors || 0, r.avg_hours_coaches || 0, r.avg_hours_program_ops || 0
+                    r.avg_hours_instructors || 0, r.avg_hours_coaches || 0, r.avg_hours_program_ops || 0,
+                    r.cancellation_reason || null
                 ]
             );
         }
@@ -476,6 +479,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: parseFloat(row.avg_hours_instructors) || 0,
                 avg_hours_coaches: parseFloat(row.avg_hours_coaches) || 0,
                 avg_hours_program_ops: parseFloat(row.avg_hours_program_ops) || 0,
+                cancellation_reason: row.cancellation_reason || row.cancel_reason || row.reason || null,
             });
         }
     }

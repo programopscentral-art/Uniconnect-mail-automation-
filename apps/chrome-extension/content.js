@@ -25,41 +25,125 @@
   }
 
   // ─── Find participant list in the DOM ─────────────────────────────
+  // Known Google Meet UI strings that are NOT participant names
+  const MEET_UI_STRINGS = new Set([
+    'reframe', 'backgrounds and effects', 'background and effects',
+    'you', 'presentation', 'pin', 'mute', 'remove', 'more options',
+    'turn on captions', 'turn off captions', 'raise hand', 'lower hand',
+    'present now', 'recording', 'screen sharing', 'chat', 'people',
+    'activities', 'host controls', 'meeting details', 'apply visual effects',
+    'blur your background', 'settings', 'report a problem', 'help',
+    'leave call', 'end call', 'admit', 'deny', 'cancel',
+    'send a message to everyone', 'meeting is ready',
+    'ready to join?', 'ready to join', 'joining...', 'asking to join',
+    'microphone not found', 'camera not found', 'check your audio and video',
+    'this call is open to anyone', 'no one else is here',
+    'got it', 'learn more', 'dismiss', 'close',
+  ]);
+
+  function isValidParticipantName(name) {
+    if (!name || name.length < 2 || name.length > 50) return false;
+
+    const lower = name.toLowerCase();
+
+    // Reject known UI strings
+    if (MEET_UI_STRINGS.has(lower)) return false;
+
+    // Reject if it looks like a meet code (xxx-xxxx-xxx)
+    if (/^[a-z]{3}-[a-z]{4}-[a-z]{3}$/.test(lower)) return false;
+
+    // Reject strings with too many spaces (UI labels tend to be long phrases)
+    if (name.split(' ').length > 4) return false;
+
+    // Reject if it contains common UI keywords
+    const uiKeywords = /\b(effect|background|reframe|caption|recording|screen|share|setting|option|control|detail|activity|layout|report|problem|shortcut|noise|cancel|apply|visual|blur|admit|deny|host)\b/i;
+    if (uiKeywords.test(name)) return false;
+
+    // Reject timestamps like "17:56"
+    if (/^\d{1,2}:\d{2}/.test(name)) return false;
+
+    // Reject strings ending with ? or ! (UI prompts, not names)
+    if (/[?!]$/.test(name)) return false;
+
+    // Reject strings that look like sentences (contain common verbs/articles)
+    if (/\b(is |are |the |this |your |not |can |to |for |in |has |have |make |sure |found|plugged)\b/i.test(name)) return false;
+
+    // Reject if it's all lowercase single word (UI labels) — real names have capitals
+    if (name.split(' ').length === 1 && name === name.toLowerCase() && name.length > 3) return false;
+
+    return true;
+  }
+
   function getParticipantNames() {
     const names = new Set();
 
-    // Strategy 1: Participant panel (when open)
-    // Google Meet uses various selectors; try multiple
-    const selectors = [
-      '[data-participant-id] [data-self-name]',
-      '[data-participant-id]',
-      '.zWGUib',  // participant name in sidebar
-      '.cS7aqe.NkoVdd', // participant list item
-      '[jsname="r4nke"]', // participant name text
-    ];
-
-    for (const sel of selectors) {
-      document.querySelectorAll(sel).forEach(el => {
-        const name = el.textContent?.trim() || el.getAttribute('data-self-name') || '';
-        if (name && name.length > 1 && name.length < 60) {
-          names.add(name);
-        }
-      });
-      if (names.size > 0) break;
-    }
-
-    // Strategy 2: Video tiles (always visible)
-    // Names shown on video feed tiles
+    // Strategy 1: data-self-name attribute (most reliable when available)
     document.querySelectorAll('[data-self-name]').forEach(el => {
       const name = el.getAttribute('data-self-name');
-      if (name && name.length > 1) names.add(name);
+      if (isValidParticipantName(name)) names.add(name);
     });
+    if (names.size > 0) return names;
 
-    // Strategy 3: Name labels on video tiles
-    document.querySelectorAll('.KV1GEc, .ZjFb7c, .EY8ABd-OWXEXe-TAWMXe').forEach(el => {
-      const name = el.textContent?.trim();
-      if (name && name.length > 1 && name.length < 60 && !name.includes(':')) {
-        names.add(name);
+    // Strategy 2: Video tile name labels
+    // Google Meet shows participant names as small text overlays on video tiles.
+    // These are typically short, leaf-level DOM elements with just the name text.
+    // We look for elements whose DIRECT text is short and name-like.
+    const candidateSelectors = [
+      '.KV1GEc',    // name label on video tile
+      '.ZjFb7c',    // another name label variant
+      '.cS7aqe',    // participant list name
+      '.zWGUib',    // sidebar participant name
+      '.XEazBc',    // bottom bar name
+      '.EY8ABd-OWXEXe-TAWMXe', // name overlay
+    ];
+
+    for (const sel of candidateSelectors) {
+      document.querySelectorAll(sel).forEach(el => {
+        // Only use the element's OWN direct text, not all descendant text
+        // This prevents grabbing "NameButtonsMenuItems" concatenated junk
+        let name = '';
+        for (const child of el.childNodes) {
+          if (child.nodeType === Node.TEXT_NODE) {
+            name += child.textContent;
+          }
+        }
+        name = name.trim();
+
+        // If no direct text, try textContent but ONLY if element has no child elements
+        // (i.e., it's a pure text leaf node)
+        if (!name && el.children.length === 0) {
+          name = el.textContent?.trim() || '';
+        }
+
+        if (isValidParticipantName(name)) names.add(name);
+      });
+    }
+    if (names.size > 0) return names;
+
+    // Strategy 3: Broadest fallback — scan all elements with short, name-like text
+    // Only use leaf elements (no children) to avoid container text concatenation
+    document.querySelectorAll('[data-participant-id]').forEach(el => {
+      // Walk through child elements to find the one that contains just the name
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT, {
+        acceptNode: (node) => {
+          // Accept leaf elements (no element children) with short text
+          if (node.children.length === 0) {
+            const text = node.textContent?.trim();
+            if (text && text.length >= 2 && text.length <= 40) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          }
+          return NodeFilter.FILTER_SKIP;
+        }
+      });
+
+      let node;
+      while ((node = walker.nextNode())) {
+        const text = node.textContent?.trim();
+        if (isValidParticipantName(text)) {
+          names.add(text);
+          break; // First valid name in this participant element is the actual name
+        }
       }
     });
 
@@ -68,19 +152,31 @@
 
   // ─── Get meeting title ────────────────────────────────────────────
   function getMeetTitle() {
-    // Try different selectors for meeting title
-    const selectors = [
-      '[data-meeting-title]',
-      '.u6vdEc',
-      '.roSPhc',
-    ];
+    // Try data attribute first (clean, no child text issues)
+    const titleAttr = document.querySelector('[data-meeting-title]');
+    if (titleAttr) {
+      const title = titleAttr.getAttribute('data-meeting-title');
+      if (title && title.length > 0 && title.length < 100) return title;
+    }
+
+    // Try specific title selectors — use only DIRECT text content
+    const selectors = ['.u6vdEc', '.roSPhc'];
     for (const sel of selectors) {
       const el = document.querySelector(sel);
       if (el) {
-        const title = el.textContent?.trim() || el.getAttribute('data-meeting-title');
-        if (title && title.length > 0) return title;
+        // Get only direct text nodes, not all descendant text
+        let title = '';
+        for (const child of el.childNodes) {
+          if (child.nodeType === Node.TEXT_NODE) {
+            title += child.textContent;
+          }
+        }
+        title = title.trim();
+        if (title && title.length > 0 && title.length < 100) return title;
       }
     }
+
+    // Fallback: just use the meet code as title
     return null;
   }
 
@@ -147,26 +243,54 @@
   }
 
   // ─── Caption tracking ─────────────────────────────────────────────
+  // Known caption container selectors in Google Meet
+  const CAPTION_CONTAINER_SELECTORS = '.a4cQT, .iOzk7, [jsname="dsyhDe"], [jsname="YPqjbf"]';
+  // Known caption text selectors
+  const CAPTION_TEXT_SELECTORS = '.iTTPOb, .bj4p3b, [jsname="YS0Rig"], [jsname="tgaKEf"]';
+  // Known speaker name selectors in captions
+  const CAPTION_SPEAKER_SELECTORS = '.zs7s8d, .TBMuR, [jsname="tgaKEf"]';
+
+  function isCaptionElement(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    // Check if the node or its parent is inside a caption container
+    let el = node;
+    for (let i = 0; i < 5; i++) {
+      if (!el) break;
+      if (el.matches && el.matches(CAPTION_CONTAINER_SELECTORS)) return true;
+      el = el.parentElement;
+    }
+    return false;
+  }
+
+  function extractCaptionData(node) {
+    // Look for speaker and text within this node
+    const speakerEl = node.querySelector?.(CAPTION_SPEAKER_SELECTORS);
+    const textEl = node.querySelector?.(CAPTION_TEXT_SELECTORS);
+
+    const speaker = speakerEl?.textContent?.trim() || null;
+    // Only use text from caption-specific elements, NOT generic textContent
+    const text = textEl?.textContent?.trim() || null;
+
+    return { speaker, text };
+  }
+
   function setupCaptionObserver() {
-    // Observe caption container for new captions
-    const observer = new MutationObserver((mutations) => {
+    let captionContainerFound = false;
+
+    // The main caption observer — only processes nodes inside caption containers
+    const captionObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          // Captions typically have a speaker name and text
-          const speakerEl = node.querySelector('.zs7s8d, .TBMuR, [jsname="tgaKEf"]');
-          const textEl = node.querySelector('.iTTPOb, .bj4p3b, [jsname="YS0Rig"]');
 
-          let speaker = speakerEl?.textContent?.trim();
-          const text = textEl?.textContent?.trim() || node.textContent?.trim();
+          const { speaker, text } = extractCaptionData(node);
 
-          if (text && text.length > 0) {
+          // Only record if we found actual caption text (not random DOM updates)
+          if (text && text.length > 1) {
             if (speaker) {
               state.captionSpeakers.set(speaker, (state.captionSpeakers.get(speaker) || 0) + 1);
-              // Update participant speaking data
               if (state.participants.has(speaker)) {
-                const p = state.participants.get(speaker);
-                p.spokeInCaptions = true;
+                state.participants.get(speaker).spokeInCaptions = true;
               }
             }
             state.captions.push({
@@ -179,16 +303,58 @@
       }
     });
 
-    // Try to find the caption container
-    const captionContainers = document.querySelectorAll('.a4cQT, .iOzk7, [jsname="dsyhDe"]');
-    captionContainers.forEach(container => {
-      observer.observe(container, { childList: true, subtree: true });
-    });
+    // Try to find existing caption containers and observe them directly
+    function findAndObserveCaptions() {
+      const containers = document.querySelectorAll(CAPTION_CONTAINER_SELECTORS);
+      if (containers.length > 0) {
+        containers.forEach(container => {
+          captionObserver.observe(container, { childList: true, subtree: true });
+        });
+        captionContainerFound = true;
+        console.log(`[UniConnect] Found ${containers.length} caption container(s)`);
+        return true;
+      }
+      return false;
+    }
 
-    // Also observe body for caption container being added
-    observer.observe(document.body, { childList: true, subtree: true });
+    // If caption containers exist already, observe them
+    if (!findAndObserveCaptions()) {
+      // Otherwise, use a lightweight body observer that ONLY watches for caption containers appearing
+      const bodyWatcher = new MutationObserver((mutations) => {
+        if (captionContainerFound) return;
+        // Check if any caption containers were added
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node.nodeType !== Node.ELEMENT_NODE) continue;
+            // Check if this node IS a caption container or CONTAINS one
+            if (node.matches?.(CAPTION_CONTAINER_SELECTORS) ||
+                node.querySelector?.(CAPTION_CONTAINER_SELECTORS)) {
+              if (findAndObserveCaptions()) {
+                bodyWatcher.disconnect(); // Stop watching body once we found captions
+                console.log('[UniConnect] Caption container detected, switched to targeted observer');
+                return;
+              }
+            }
+          }
+        }
+      });
 
-    state.captionObserver = observer;
+      bodyWatcher.observe(document.body, { childList: true, subtree: true });
+
+      // Also periodically check (captions might be enabled later)
+      const captionCheckInterval = setInterval(() => {
+        if (findAndObserveCaptions()) {
+          bodyWatcher.disconnect();
+          clearInterval(captionCheckInterval);
+        }
+      }, 10000);
+
+      // Store for cleanup
+      state._bodyWatcher = bodyWatcher;
+      state._captionCheckInterval = captionCheckInterval;
+    }
+
+    state.captionObserver = captionObserver;
   }
 
   // ─── Send data to background script ───────────────────────────────
@@ -307,6 +473,14 @@
       state.captionObserver.disconnect();
       state.captionObserver = null;
     }
+    if (state._bodyWatcher) {
+      state._bodyWatcher.disconnect();
+      state._bodyWatcher = null;
+    }
+    if (state._captionCheckInterval) {
+      clearInterval(state._captionCheckInterval);
+      state._captionCheckInterval = null;
+    }
 
     state.isTracking = false;
     const report = buildReport();
@@ -335,21 +509,34 @@
     check();
   }
 
+  // ─── Cache settings for use during page unload ───────────────────
+  // Pre-load settings so we don't need async chrome.storage during beforeunload
+  let cachedSettings = { serverUrl: null, authToken: null };
+  try {
+    chrome.storage.sync.get(['serverUrl', 'authToken'], (settings) => {
+      if (settings) cachedSettings = settings;
+    });
+  } catch (e) {}
+
   // ─── Detect meeting end ───────────────────────────────────────────
   // When user leaves or meeting ends, auto-send report
   window.addEventListener('beforeunload', () => {
     if (state.isTracking) {
-      const report = buildReport();
-      // Send via beacon (survives page unload)
-      chrome.storage.sync.get(['serverUrl', 'authToken'], (settings) => {
-        if (settings.serverUrl && settings.authToken) {
-          const url = `${settings.serverUrl}/api/meetings/extension-report`;
+      try {
+        const report = buildReport();
+        // Send via beacon using cached settings (no async needed)
+        if (cachedSettings.serverUrl && cachedSettings.authToken) {
+          const url = `${cachedSettings.serverUrl}/api/meetings/extension-report`;
           navigator.sendBeacon(url, JSON.stringify(report));
         }
-      });
-      // Also save to storage for background script
-      chrome.storage.local.set({ pendingReport: report });
-      notifyBackground('meeting_ended', { report });
+        // Also save to storage for background script retry
+        try {
+          chrome.storage.local.set({ pendingReport: report });
+        } catch (e) {}
+        notifyBackground('meeting_ended', { report });
+      } catch (e) {
+        // Extension context may be invalidated during unload
+      }
     }
   });
 

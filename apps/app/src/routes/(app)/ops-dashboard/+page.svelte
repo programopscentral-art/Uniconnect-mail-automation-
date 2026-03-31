@@ -7,7 +7,6 @@
     let syncDate = $state('');
     let isLoading = $state(true);
     let isSyncing = $state(false);
-    let sampleLoaded = $state(false);
     let syncError = $state('');
     let syncSuccess = $state('');
     let viewData = $state<any>(null);
@@ -79,7 +78,6 @@
             });
             const result = await res.json();
             if (result.success) {
-                sampleLoaded = false;
                 syncError = '';
                 const dateInfo = result.dates?.length ? ` → date(s): ${result.dates.join(', ')}` : '';
                 syncSuccess = `Synced ${result.rowsProcessed} rows (${result.universityCount} universities)${dateInfo}`;
@@ -97,7 +95,9 @@
         }
     }
 
-    async function loadSampleData() {
+
+    async function bulkSyncSheet() {
+        if (!sheetUrl) return;
         isSyncing = true;
         syncError = '';
         syncSuccess = '';
@@ -105,20 +105,22 @@
             const res = await fetch('/api/ops', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'load-sample' })
+                body: JSON.stringify({ action: 'sync-sheet-tabs', sheetUrl })
             });
             const result = await res.json();
             if (result.success) {
-                sampleLoaded = true;
                 syncError = '';
-                syncSuccess = `Sample data loaded: ${result.rowsProcessed} daily rows, ${result.instructorRows} instructor rows`;
+                syncSuccess = result.message || `Bulk synced ${result.rowsProcessed} rows across ${result.dates?.length || 0} date(s)`;
+                if (result.errors?.length) {
+                    syncError = `Warnings: ${result.errors.join('; ')}`;
+                }
                 await loadViewData();
             } else {
-                syncError = result.error || 'Failed to load sample data';
+                syncError = result.error || 'Failed to bulk sync';
             }
         } catch (e: any) {
-            syncError = e.message || 'Network error';
-            console.error('Sample load failed:', e);
+            syncError = e.message || 'Network error during bulk sync';
+            console.error('Bulk sync failed:', e);
         } finally {
             isSyncing = false;
         }
@@ -424,11 +426,12 @@
                     {isSyncing ? 'Syncing...' : 'Load data'}
                 </button>
                 <button
-                    onclick={loadSampleData}
-                    disabled={isSyncing}
-                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm font-mono rounded transition-colors"
+                    onclick={bulkSyncSheet}
+                    disabled={isSyncing || !sheetUrl}
+                    class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
+                    title="Bulk load from multi-tab sheet — each tab name should be a date (YYYY-MM-DD)"
                 >
-                    Use sample data
+                    {isSyncing ? 'Syncing...' : 'Bulk Load (Multi-tab)'}
                 </button>
                 <div class="flex items-center gap-1 ml-2">
                     <button
@@ -512,7 +515,7 @@
         {:else if !viewData}
             <div class="text-center py-20 text-gray-500">
                 <p class="text-lg mb-2">No data loaded</p>
-                <p class="text-sm">Paste a Google Sheet CSV URL and click "Load data", or click "Use sample data" to see a demo.</p>
+                <p class="text-sm">Paste a Google Sheet CSV URL and click "Load data" for a single sheet, or "Bulk Load (Multi-tab)" for sheets with date-named tabs (YYYY-MM-DD).</p>
             </div>
 
         <!-- ─── OVERVIEW ──────────────────────────────────────────── -->
@@ -550,6 +553,7 @@
                     <button onclick={() => navigateTo('attendance')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-yellow-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">COACH CALLS TODAY</p>
                         <p class="text-3xl font-bold text-yellow-400 mt-1">{fmt(t.coach_calls)}</p>
+                        <p class="text-xs text-gray-500">of {fmt((parseInt(t.enrolled) || 0) - (parseInt(t.attended) || 0))} absent students</p>
                     </button>
                     <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-red-500/50 transition-colors cursor-pointer">
                         <p class="text-[10px] text-gray-500 font-semibold tracking-wider">AT-RISK STUDENTS</p>
@@ -559,14 +563,15 @@
                 </div>
             </div>
             <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
-                <div class="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-blue-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">PARENT CALLS TODAY</p>
                     <p class="text-3xl font-bold text-blue-400 mt-1">{fmt(t.parent_calls)}</p>
-                </div>
+                    <p class="text-xs text-gray-500">of {fmt(t.at_risk_total)} at-risk students</p>
+                </button>
                 <button onclick={() => navigateTo('at-risk')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-green-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">ACKNOWLEDGMENTS</p>
                     <p class="text-3xl font-bold text-green-400 mt-1">{fmt(t.acknowledgments)}</p>
-                    <p class="text-xs text-gray-500">{pct(t.acknowledgments, t.at_risk_total)} ack rate</p>
+                    <p class="text-xs text-gray-500">of {fmt(t.at_risk_total)} at-risk · {pct(t.acknowledgments, t.at_risk_total)} ack rate</p>
                 </button>
                 <button onclick={() => navigateTo('instructors')} class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-left hover:border-orange-500/50 transition-colors cursor-pointer">
                     <p class="text-[10px] text-gray-500 font-semibold tracking-wider">INSTRUCTORS ON LEAVE</p>
@@ -733,6 +738,7 @@
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">CANCELLED</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">DEVIATION</th>
                         <th class="text-center px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">STATUS</th>
+                        <th class="text-left px-4 py-3 text-[10px] text-gray-500 font-semibold tracking-wider">REASON</th>
                     </tr></thead>
                     <tbody>
                         {#each (viewData.todayByUniversity || []) as row}
@@ -746,6 +752,7 @@
                                 <td class="px-4 py-3 text-center">
                                     <span class="text-xs px-2 py-0.5 rounded {devPct > 10 ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}">{statusBadge(devPct)}</span>
                                 </td>
+                                <td class="px-4 py-3 text-gray-400 text-xs max-w-[200px]">{row.cancellation_reason || '—'}</td>
                             </tr>
                         {/each}
                     </tbody>

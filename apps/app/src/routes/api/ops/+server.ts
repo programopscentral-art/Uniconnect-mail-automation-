@@ -8,7 +8,7 @@ import {
     getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport,
     upsertOpsDailyData, upsertOpsInstructorDaily,
     getOpsSheetConfig, upsertOpsSheetConfig, updateSheetLastSynced,
-    parseOpsCSV, generateOpsSampleData,
+    parseOpsCSV,
     clearOpsData
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
@@ -270,20 +270,146 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
-        case 'load-sample': {
+        case 'sync-sheet-tabs': {
+            // Bulk upload: Google Sheet with multiple tabs, each tab name is a date (YYYY-MM-DD)
+            const baseUrl = body.sheetUrl;
+            if (!baseUrl) throw error(400, 'Sheet URL required');
+
             try {
-                const { dailyData, instructorData } = generateOpsSampleData();
-                await upsertOpsDailyData(dailyData);
-                await upsertOpsInstructorDaily(instructorData);
+                // Extract sheet ID from URL
+                const sheetIdMatch = baseUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+                if (!sheetIdMatch) {
+                    return json({ success: false, error: 'Could not extract Google Sheet ID from URL. Use a standard Google Sheets URL.' }, { status: 400 });
+                }
+                const sheetId = sheetIdMatch[1];
+
+                // Save config
+                const config = await upsertOpsSheetConfig(baseUrl, locals.user.id);
+
+                // Fetch the spreadsheet HTML to discover sheet tabs
+                // Try pubhtml first (works for published sheets), fall back to edit URL
+                let html = '';
+                for (const urlSuffix of ['/pubhtml', '/edit']) {
+                    const htmlResp = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}${urlSuffix}`, { redirect: 'follow' });
+                    if (htmlResp.ok) {
+                        html = await htmlResp.text();
+                        if (html.length > 100) break;
+                    }
+                }
+                if (!html) {
+                    return json({ success: false, error: 'Could not access spreadsheet. Make sure it is published to the web.' }, { status: 400 });
+                }
+
+                // Extract sheet names and gids from HTML — Google embeds this in JS
+                // Pattern: {"sheetId":0,"title":"2025-03-14"} or similar in the page source
+                const tabMatches = [...html.matchAll(/"title"\s*:\s*"([^"]+)"[^}]*"sheetId"\s*:\s*(\d+)/g)];
+                const tabMatchesAlt = [...html.matchAll(/"sheetId"\s*:\s*(\d+)[^}]*"title"\s*:\s*"([^"]+)"/g)];
+
+                // Also try regex for sheet tab buttons in the HTML
+                const tabButtonMatches = [...html.matchAll(/data-sheet-id="(\d+)"[^>]*>([^<]+)</g)];
+
+                // Build tabs list from all patterns
+                const tabs: { name: string; gid: string }[] = [];
+                const seenGids = new Set<string>();
+
+                for (const m of tabMatches) {
+                    const name = m[1], gid = m[2];
+                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                }
+                for (const m of tabMatchesAlt) {
+                    const gid = m[1], name = m[2];
+                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                }
+                for (const m of tabButtonMatches) {
+                    const gid = m[1], name = m[2].trim();
+                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                }
+
+                if (!tabs.length) {
+                    return json({ success: false, error: 'Could not discover sheet tabs. Make sure the spreadsheet is published to the web (File → Share → Publish to web).' }, { status: 400 });
+                }
+
+                // Filter tabs that look like dates (YYYY-MM-DD or DD-MM-YYYY or similar)
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+                const dateTabsRaw = tabs.filter(t => dateRegex.test(t.name.trim()));
+
+                // Also try DD/MM/YYYY, DD-MM-YYYY, etc.
+                const altDateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
+                const altDateTabs = tabs.filter(t => !dateRegex.test(t.name.trim()) && altDateRegex.test(t.name.trim()));
+                for (const t of altDateTabs) {
+                    const m = t.name.trim().match(altDateRegex);
+                    if (m) {
+                        // Assume DD-MM-YYYY
+                        const isoDate = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+                        dateTabsRaw.push({ name: isoDate, gid: t.gid });
+                    }
+                }
+
+                if (!dateTabsRaw.length) {
+                    return json({
+                        success: false,
+                        error: `Found ${tabs.length} tab(s) but none have date names (YYYY-MM-DD). Tab names found: ${tabs.map(t => t.name).join(', ')}`,
+                    }, { status: 400 });
+                }
+
+                // Fetch CSV for each date tab and parse
+                let totalRows = 0;
+                let totalInstructorRows = 0;
+                const processedDates: string[] = [];
+                const errors: string[] = [];
+
+                for (const tab of dateTabsRaw) {
+                    try {
+                        // Try both export URL patterns — /export works for shared sheets, /pub works for published
+                        let csvText = '';
+                        for (const csvUrl of [
+                            `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${tab.gid}`,
+                            `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=csv&gid=${tab.gid}`
+                        ]) {
+                            const csvResp = await fetch(csvUrl, { redirect: 'follow' });
+                            if (csvResp.ok) {
+                                csvText = await csvResp.text();
+                                if (csvText && csvText.length > 10) break;
+                            }
+                        }
+                        if (!csvText || csvText.length < 10) {
+                            errors.push(`Tab "${tab.name}": could not fetch CSV or empty content`);
+                            continue;
+                        }
+
+                        const { dailyData, instructorData } = parseOpsCSV(csvText, tab.name);
+                        if (dailyData.length) {
+                            await upsertOpsDailyData(dailyData);
+                            totalRows += dailyData.length;
+                        }
+                        if (instructorData.length) {
+                            await upsertOpsInstructorDaily(instructorData);
+                            totalInstructorRows += instructorData.length;
+                        }
+                        processedDates.push(tab.name);
+                        console.log(`[OPS] Tab "${tab.name}": ${dailyData.length} rows, ${instructorData.length} instructor rows`);
+                    } catch (tabErr: any) {
+                        errors.push(`Tab "${tab.name}": ${tabErr.message}`);
+                    }
+                }
+
+                if (config?.id) await updateSheetLastSynced(config.id);
+
                 return json({
-                    success: true,
-                    rowsProcessed: dailyData.length,
-                    instructorRows: instructorData.length,
-                    message: 'Sample data loaded'
+                    success: totalRows > 0,
+                    rowsProcessed: totalRows,
+                    instructorRows: totalInstructorRows,
+                    dates: processedDates,
+                    tabsFound: tabs.length,
+                    dateTabsProcessed: dateTabsRaw.length,
+                    errors: errors.length ? errors : undefined,
+                    message: totalRows > 0
+                        ? `Bulk synced ${totalRows} rows across ${processedDates.length} date(s): ${processedDates.join(', ')}`
+                        : 'No data rows were parsed from any tab'
                 });
             } catch (e: any) {
-                console.error('[OPS] Sample data error:', e);
-                return json({ success: false, error: e.message || 'Failed to load sample data. Has the migration been run?' }, { status: 500 });
+                console.error('[OPS] Bulk sync error:', e);
+                return json({ success: false, error: e.message || 'Unknown error during bulk sync' }, { status: 500 });
             }
         }
 
