@@ -1,30 +1,19 @@
-import { getDayPlanReport, getWeeklyReport, getAllUniversities } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) throw error(401);
 
-    const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
-    const universityId = url.searchParams.get('universityId') || locals.user.university_id || undefined;
-
-    // Reuse the logic from reports/day-plan since user says "it should show entire report"
-    const report = await getDayPlanReport(date, universityId === 'ALL' ? undefined : universityId);
-
     const isGlobalOps = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user.role as string);
-    const universities = isGlobalOps ? await getAllUniversities() : [];
-    const targetUnivId = universityId === 'ALL' ? undefined : universityId;
-    const weeklyReport = await getWeeklyReport(isGlobalOps ? undefined : locals.user.id, targetUnivId);
-    // If universityId is set and we are global ops, we might want to filter weekly report too, 
-    // but getWeeklyReport currently only takes userId. 
-    // Let's improve getWeeklyReport to take universityId as well.
 
     return {
-        report,
-        weeklyReport,
-        universities: universities.status !== 'error' ? (universities as any) : [],
-        selectedDate: date,
-        selectedUniversity: universityId || 'ALL',
-        role: locals.user.role
+        user: {
+            id: locals.user.id,
+            name: locals.user.name,
+            email: locals.user.email,
+            role: locals.user.role,
+            university_id: locals.user.university_id,
+        },
+        isGlobalOps,
     };
 };

@@ -78,6 +78,7 @@ export * from './services/document-token.service';
 export * from './services/security-pin.service';
 export * from './services/access-alert.service';
 export * from './services/number-challenge.service';
+export * from './db/analytics';
 export * from './db/ops';
 export * from './db/meetings';
 export * from './services/meeting-intelligence.service';
