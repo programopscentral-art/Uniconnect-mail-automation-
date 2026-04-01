@@ -81,51 +81,62 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
         throw error(400, 'Invalid analytics data');
     }
 
-    // Call Gemini API — try multiple models and API versions
+    // Call Gemini API — all models use v1beta
     const modelsToTry = [
-        { model: 'gemini-2.0-flash-001', version: 'v1beta' },
-        { model: 'gemini-2.0-flash', version: 'v1beta' },
-        { model: 'gemini-1.5-flash', version: 'v1beta' },
-        { model: 'gemini-1.5-flash', version: 'v1' },
-        { model: 'gemini-pro', version: 'v1' },
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-flash-latest',
     ];
     let aiText: string | null = null;
     let lastError = '';
 
-    for (const { model, version } of modelsToTry) {
-        try {
-            const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        maxOutputTokens: 2048,
-                        temperature: 0.4,
-                    },
-                }),
-            });
+    for (const model of modelsToTry) {
+        // Retry up to 2 times per model (handles 429 rate limits)
+        for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            maxOutputTokens: 2048,
+                            temperature: 0.4,
+                        },
+                    }),
+                });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                lastError = `${model}(${version}): ${response.status} - ${errText.slice(0, 200)}`;
+                if (response.status === 429) {
+                    // Rate limited — wait and retry
+                    lastError = `${model}: rate limited (429)`;
+                    console.warn(`[ANALYTICS_AI] ${lastError}, waiting 5s...`);
+                    await new Promise(r => setTimeout(r, 5000));
+                    continue;
+                }
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    lastError = `${model}: ${response.status} - ${errText.slice(0, 200)}`;
+                    console.warn(`[ANALYTICS_AI] ${lastError}`);
+                    break; // try next model
+                }
+
+                const data = await response.json();
+                aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+                if (aiText) break;
+            } catch (e: any) {
+                lastError = `${model}: ${e.message}`;
                 console.warn(`[ANALYTICS_AI] ${lastError}`);
-                continue;
+                break; // try next model
             }
-
-            const data = await response.json();
-            aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-            if (aiText) break;
-        } catch (e: any) {
-            lastError = `${model}(${version}): ${e.message}`;
-            console.warn(`[ANALYTICS_AI] ${lastError}`);
-            continue;
         }
+        if (aiText) break;
     }
 
     if (!aiText) {
-        return json({ insights: `AI report generation failed. Last error: ${lastError}. The API key may need to be regenerated in Google AI Studio.` });
+        return json({ insights: `AI report generation failed: ${lastError}. Please wait a minute and try again (free tier has rate limits).` });
     }
 
     return json({ insights: aiText });
