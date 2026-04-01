@@ -72,12 +72,11 @@
     }
   }
 
-  // Reactive load
+  // Reactive load — watch computed dateFrom/dateTo directly for instant reload
   $effect(() => {
     const _u = selectedUniversityId;
-    const _d = dateRange;
-    const _cf = customFrom;
-    const _ct = customTo;
+    const _df = dateFrom;
+    const _dt = dateTo;
     untrack(() => { loadTeam(); });
   });
 
@@ -145,6 +144,154 @@
     if (index === 1) return { emoji: '2nd', bg: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' };
     if (index === 2) return { emoji: '3rd', bg: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300' };
     return null;
+  }
+
+  // --- Smart Insights (computed from data) ---
+  let teamInsights = $derived.by(() => {
+    if (!teamData.length) return [];
+    const insights: { icon: string; title: string; detail: string; type: 'success' | 'warning' | 'info' | 'tip' }[] = [];
+
+    // Top performer
+    const topPerformer = teamData.reduce((best, m) => {
+      const pct = parseInt(m.total_assigned) > 0 ? parseInt(m.total_completed) / parseInt(m.total_assigned) : 0;
+      const bestPct = parseInt(best.total_assigned) > 0 ? parseInt(best.total_completed) / parseInt(best.total_assigned) : 0;
+      return pct > bestPct ? m : best;
+    }, teamData[0]);
+    if (topPerformer && parseInt(topPerformer.total_completed) > 0) {
+      const pct = Math.round((parseInt(topPerformer.total_completed) / parseInt(topPerformer.total_assigned)) * 100);
+      insights.push({ icon: 'trophy', title: 'Top Performer', detail: `${topPerformer.name} leads with ${pct}% completion rate (${topPerformer.total_completed} tasks done)`, type: 'success' });
+    }
+
+    // Fastest worker
+    const fastest = teamData.filter(m => parseFloat(m.avg_completion_hours) > 0).sort((a, b) => parseFloat(a.avg_completion_hours) - parseFloat(b.avg_completion_hours))[0];
+    if (fastest) {
+      insights.push({ icon: 'bolt', title: 'Speed Champion', detail: `${fastest.name} has the fastest avg completion time of ${formatHours(parseFloat(fastest.avg_completion_hours))}`, type: 'info' });
+    }
+
+    // Overdue alert
+    if (totalOverdue > 0) {
+      const overdueMembers = teamData.filter(m => parseInt(m.total_overdue) > 0).map(m => m.name).slice(0, 3);
+      insights.push({ icon: 'alert', title: 'Overdue Tasks Alert', detail: `${totalOverdue} tasks are overdue. Affected: ${overdueMembers.join(', ')}${teamData.filter(m => parseInt(m.total_overdue) > 0).length > 3 ? '...' : ''}`, type: 'warning' });
+    }
+
+    // Workload imbalance
+    const assignments = teamData.map(m => parseInt(m.total_assigned) || 0);
+    const maxLoad = Math.max(...assignments);
+    const minLoad = Math.min(...assignments);
+    if (maxLoad > 0 && minLoad >= 0 && (maxLoad - minLoad) > maxLoad * 0.5 && teamData.length > 1) {
+      const overloaded = teamData.find(m => parseInt(m.total_assigned) === maxLoad);
+      const underloaded = teamData.find(m => parseInt(m.total_assigned) === minLoad);
+      insights.push({ icon: 'balance', title: 'Workload Imbalance', detail: `${overloaded?.name} has ${maxLoad} tasks while ${underloaded?.name} has ${minLoad}. Consider redistributing.`, type: 'tip' });
+    }
+
+    // Team efficiency insight
+    if (teamEfficiency >= 80) {
+      insights.push({ icon: 'star', title: 'Great Team Performance', detail: `Team efficiency is at ${teamEfficiency}%. The team is performing above expectations.`, type: 'success' });
+    } else if (teamEfficiency < 50 && totalAssigned > 0) {
+      insights.push({ icon: 'trending-down', title: 'Efficiency Below Target', detail: `Team efficiency is at ${teamEfficiency}%. Consider reviewing task priorities and blockers.`, type: 'warning' });
+    }
+
+    // Streak highlight
+    const streakLeader = teamData.filter(m => parseInt(m.current_streak) > 0).sort((a, b) => parseInt(b.current_streak) - parseInt(a.current_streak))[0];
+    if (streakLeader && parseInt(streakLeader.current_streak) >= 3) {
+      insights.push({ icon: 'fire', title: 'Hot Streak', detail: `${streakLeader.name} is on a ${streakLeader.current_streak}-day completion streak!`, type: 'success' });
+    }
+
+    return insights;
+  });
+
+  let userInsights = $derived.by(() => {
+    if (!userDetail) return [];
+    const s = userDetail.stats;
+    const insights: { icon: string; title: string; detail: string; type: 'success' | 'warning' | 'info' | 'tip' }[] = [];
+
+    const eff = s.total_assigned > 0 ? Math.round((s.total_completed / s.total_assigned) * 100) : 0;
+
+    // Performance summary
+    if (eff >= 90) {
+      insights.push({ icon: 'star', title: 'Outstanding Performance', detail: `${eff}% completion rate. Keep up the excellent work!`, type: 'success' });
+    } else if (eff >= 70) {
+      insights.push({ icon: 'thumbs-up', title: 'Good Progress', detail: `${eff}% completion rate. ${s.total_assigned - s.total_completed} tasks remaining to reach full completion.`, type: 'info' });
+    } else if (s.total_assigned > 0) {
+      insights.push({ icon: 'alert', title: 'Needs Attention', detail: `Only ${eff}% completion rate. ${s.total_in_progress} tasks in progress, ${s.total_pending} pending.`, type: 'warning' });
+    }
+
+    // Speed analysis
+    if (s.avg_completion_hours > 0 && s.avg_completion_hours < 24) {
+      insights.push({ icon: 'bolt', title: 'Quick Turnaround', detail: `Average task completion in ${formatHours(s.avg_completion_hours)}. Fastest was ${formatHours(s.fastest_completion_hours)}.`, type: 'success' });
+    } else if (s.avg_completion_hours >= 72) {
+      insights.push({ icon: 'clock', title: 'Slow Completion Time', detail: `Avg ${formatHours(s.avg_completion_hours)} per task. Consider breaking large tasks into smaller ones.`, type: 'tip' });
+    }
+
+    // On-time analysis
+    if (s.on_time + s.late > 0) {
+      const otPct = Math.round((s.on_time / (s.on_time + s.late)) * 100);
+      if (otPct >= 90) {
+        insights.push({ icon: 'clock-check', title: 'Excellent Timeliness', detail: `${otPct}% of tasks completed on time (${s.on_time} on time, ${s.late} late).`, type: 'success' });
+      } else if (otPct < 60) {
+        insights.push({ icon: 'alert', title: 'Timeliness Concern', detail: `Only ${otPct}% on time. ${s.late} tasks completed late. Review due dates and prioritization.`, type: 'warning' });
+      }
+    }
+
+    // Task type insight
+    const tt = userDetail.task_types;
+    if (tt.recurring + tt.unique > 0) {
+      const recurPct = Math.round((tt.recurring / (tt.recurring + tt.unique)) * 100);
+      if (recurPct > 70) {
+        insights.push({ icon: 'repeat', title: 'Mostly Recurring Work', detail: `${recurPct}% of tasks are recurring. Consider automating repetitive workflows.`, type: 'tip' });
+      } else if (recurPct < 30 && tt.recurring + tt.unique > 5) {
+        insights.push({ icon: 'sparkle', title: 'Diverse Task Portfolio', detail: `${100 - recurPct}% unique tasks — handling a wide variety of work.`, type: 'info' });
+      }
+    }
+
+    // Most active day from daily activity
+    if (userDetail.daily_activity?.length > 0) {
+      const bestDay = userDetail.daily_activity.reduce((best: any, d: any) => d.completed > (best?.completed || 0) ? d : best, null);
+      if (bestDay && bestDay.completed > 0) {
+        const dayName = new Date(bestDay.day).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+        insights.push({ icon: 'calendar', title: 'Most Productive Day', detail: `${dayName} with ${bestDay.completed} tasks completed.`, type: 'info' });
+      }
+    }
+
+    // Weekly trend direction
+    if (userDetail.weekly_trend?.length >= 2) {
+      const recent = userDetail.weekly_trend.slice(-2);
+      const trend = recent[1].completed - recent[0].completed;
+      if (trend > 0) {
+        insights.push({ icon: 'trending-up', title: 'Upward Trend', detail: `Completed ${recent[1].completed} tasks this week vs ${recent[0].completed} last week. Momentum is building!`, type: 'success' });
+      } else if (trend < 0 && recent[0].completed > 0) {
+        insights.push({ icon: 'trending-down', title: 'Declining Activity', detail: `Down from ${recent[0].completed} to ${recent[1].completed} tasks. Check for blockers or bandwidth issues.`, type: 'warning' });
+      }
+    }
+
+    return insights;
+  });
+
+  function insightIcon(icon: string) {
+    const icons: Record<string, string> = {
+      'trophy': 'M5 3h14l-1.5 8H6.5L5 3zm3 8v4a2 2 0 002 2h4a2 2 0 002-2v-4M12 17v4M8 21h8',
+      'bolt': 'M13 2L3 14h9l-1 8 10-12h-9l1-8',
+      'alert': 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.07 16.5c-.77.833.192 2.5 1.732 2.5z',
+      'balance': 'M3 6l9-4 9 4M3 6v14h18V6M12 2v20',
+      'star': 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+      'fire': 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z',
+      'thumbs-up': 'M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14zM7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3',
+      'clock': 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+      'clock-check': 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+      'repeat': 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+      'sparkle': 'M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z',
+      'calendar': 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+      'trending-up': 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+      'trending-down': 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6',
+    };
+    return icons[icon] || icons['star'];
+  }
+
+  function insightColor(type: string) {
+    if (type === 'success') return { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', icon: 'text-emerald-500', text: 'text-emerald-700 dark:text-emerald-300' };
+    if (type === 'warning') return { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', icon: 'text-amber-500', text: 'text-amber-700 dark:text-amber-300' };
+    if (type === 'tip') return { bg: 'bg-violet-50 dark:bg-violet-900/20', border: 'border-violet-200 dark:border-violet-800', icon: 'text-violet-500', text: 'text-violet-700 dark:text-violet-300' };
+    return { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', icon: 'text-blue-500', text: 'text-blue-700 dark:text-blue-300' };
   }
 
   // SVG donut helper
@@ -248,7 +395,7 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-indigo-500" stroke-dasharray={donutDash(efficiency, 50)} stroke-dashoffset="0"
             style="transition: stroke-dasharray 1s ease" />
         </svg>
@@ -260,7 +407,7 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="{onTimePct >= 80 ? 'text-emerald-500' : onTimePct >= 50 ? 'text-amber-500' : 'text-red-500'}"
             stroke-dasharray={donutDash(onTimePct, 50)} stroke-dashoffset="0"
             style="transition: stroke-dasharray 1s ease" />
@@ -273,9 +420,9 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(s.total_completed, s.total_assigned), C50)} stroke-dashoffset="0" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10"
             class="text-blue-500" stroke-dasharray={dashSeg(pctOf(s.total_in_progress, s.total_assigned), C50)} stroke-dashoffset={dashOff(pctOf(s.total_completed, s.total_assigned), C50)} />
         </svg>
         <div class="text-lg font-black text-gray-900 dark:text-white -mt-1">{s.total_assigned}</div>
@@ -291,7 +438,7 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-violet-500" stroke-dasharray={donutDash(speedGauge(s.avg_completion_hours), 50)} stroke-dashoffset="0"
             style="transition: stroke-dasharray 1s ease" />
         </svg>
@@ -304,6 +451,28 @@
       </div>
     </div>
 
+    <!-- Smart Insights -->
+    {#if userInsights.length > 0}
+      <div class="glass p-6 rounded-[2rem]">
+        <div class="flex items-center gap-2 mb-4">
+          <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Smart Insights</h3>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {#each userInsights as insight}
+            {@const c = insightColor(insight.type)}
+            <div class="flex items-start gap-3 p-3 rounded-xl border {c.bg} {c.border}">
+              <svg class="w-5 h-5 flex-shrink-0 mt-0.5 {c.icon}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={insightIcon(insight.icon)} /></svg>
+              <div>
+                <div class="text-xs font-black {c.text}">{insight.title}</div>
+                <div class="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5 leading-relaxed">{insight.detail}</div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
     <!-- Task Categories + Priority -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Task Categories with pie-style -->
@@ -312,9 +481,9 @@
         <div class="flex items-center gap-6">
           <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90 flex-shrink-0">
             <circle cx="60" cy="60" r="45" fill="none" stroke="currentColor" stroke-width="14" class="text-gray-100 dark:text-slate-800" />
-            <circle cx="60" cy="60" r="45" fill="none" stroke-width="14" stroke-linecap="round"
+            <circle cx="60" cy="60" r="45" fill="none" stroke="currentColor" stroke-width="14" stroke-linecap="round"
               class="text-indigo-500" stroke-dasharray={dashSeg(pctOf(userDetail.task_types.recurring, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} stroke-dashoffset="0" />
-            <circle cx="60" cy="60" r="45" fill="none" stroke-width="14"
+            <circle cx="60" cy="60" r="45" fill="none" stroke="currentColor" stroke-width="14"
               class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(userDetail.task_types.unique, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} stroke-dashoffset={dashOff(pctOf(userDetail.task_types.recurring, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} />
           </svg>
           <div class="flex-1 space-y-3">
@@ -481,7 +650,7 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-indigo-500" stroke-dasharray={donutDash(teamEfficiency, 50)} stroke-dashoffset="0"
             style="transition: stroke-dasharray 1s ease" />
         </svg>
@@ -493,9 +662,9 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(totalCompleted, totalAssigned), C50)} stroke-dashoffset="0" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10"
             class="text-blue-500" stroke-dasharray={dashSeg(pctOf(totalInProgress, totalAssigned), C50)} stroke-dashoffset={dashOff(pctOf(totalCompleted, totalAssigned), C50)} />
         </svg>
         <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 -mt-2">{totalCompleted}</div>
@@ -510,7 +679,7 @@
       <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
         <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
           <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
-          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round"
             class="text-violet-500" stroke-dasharray={donutDash(speedGauge(avgSpeed), 50)} stroke-dashoffset="0"
             style="transition: stroke-dasharray 1s ease" />
         </svg>
@@ -536,6 +705,28 @@
         </div>
       </div>
     </div>
+
+    <!-- Smart Insights -->
+    {#if teamInsights.length > 0}
+      <div class="glass p-6 rounded-[2rem]">
+        <div class="flex items-center gap-2 mb-4">
+          <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Smart Insights</h3>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {#each teamInsights as insight}
+            {@const c = insightColor(insight.type)}
+            <div class="flex items-start gap-3 p-3 rounded-xl border {c.bg} {c.border}">
+              <svg class="w-5 h-5 flex-shrink-0 mt-0.5 {c.icon}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={insightIcon(insight.icon)} /></svg>
+              <div>
+                <div class="text-xs font-black {c.text}">{insight.title}</div>
+                <div class="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5 leading-relaxed">{insight.detail}</div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
 
     <!-- Leaderboard / Team Table -->
     <div class="glass rounded-[2rem] overflow-hidden">
