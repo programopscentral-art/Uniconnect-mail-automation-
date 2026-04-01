@@ -143,6 +143,22 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     }
     console.log(`[SOP_UPLOAD] Messages extracted: ${generatedMessages.length}`);
 
+    // Log section distribution
+    const sectionCounts: Record<string, number> = {};
+    for (const item of checklistItems) {
+        const s = item.section || '(no section)';
+        sectionCounts[s] = (sectionCounts[s] || 0) + 1;
+    }
+    console.log(`[SOP_UPLOAD] Checklist sections:`, JSON.stringify(sectionCounts));
+
+    const msgSectionCounts: Record<string, number> = {};
+    for (const msg of messages) {
+        const s = msg.section || '(no section)';
+        msgSectionCounts[s] = (msgSectionCounts[s] || 0) + 1;
+    }
+    console.log(`[SOP_UPLOAD] Message sections:`, JSON.stringify(msgSectionCounts));
+    console.log(`[SOP_UPLOAD] Message channels:`, messages.map(m => m.channel || '?').join(', '));
+
     console.log(`[SOP_UPLOAD] Mode: ${mode}, File: ${filename}, ${contentText.length} chars, ${generatedItems.length} checklist items, ${generatedMessages.length} messages`);
 
     // Auto-create tasks from checklist items if event has assignees
@@ -166,11 +182,13 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         mode,
         checklist: {
             generated: generatedItems.length,
-            items: generatedItems
+            items: generatedItems,
+            sections: sectionCounts
         },
         messages: {
             generated: generatedMessages.length,
-            items: generatedMessages
+            items: generatedMessages,
+            sections: msgSectionCounts
         },
         tasks: {
             generated: autoTasks.length,
@@ -248,26 +266,23 @@ const PURE_HEADER_WORDS = new Set([
     'sub-tasks (micro level)', 'owner', 'timeline'
 ]);
 
-/** Detect if a heading is a Google Doc tab-level heading (primary section).
- *  Only matches actual tab names like "Pre-event tasks", "Day 1 Messages", etc.
- *  Sub-headings like "DAY 1", "POST-EVENT ELP" do NOT match. */
-function isTabLevelHeading(text: string): boolean {
-    const cleaned = text.replace(/^\d+\.\s*/, '').trim();
-    // Must contain "tasks" or "messages" to be a tab-level heading
-    return /^pre[- _]?event\s+tasks?/i.test(cleaned)
-        || /^during[- _]?event\s+tasks?/i.test(cleaned)
-        || /^post[- _]?event\s+tasks?/i.test(cleaned)
-        || /^day\s*\d+\s*messages?/i.test(cleaned)
-        || /^over[_ ]?night\s*messages?/i.test(cleaned)
-        || /^submission\s+phase/i.test(cleaned);
-}
-
 /** Detect if text refers to a message section */
 function isMessageSection(text: string): boolean {
     return MESSAGE_SECTION_PATTERN.test(text);
 }
 
 const MESSAGE_SECTION_PATTERN = /\bmessage|communication|day\s*\d+\s*message|over.?night\s*message/i;
+
+/** Check if text looks like a meaningful section heading (not a table cell or noise) */
+function isSectionHeading(text: string): boolean {
+    const cleaned = text.replace(/^\d+\.\s*/, '').trim();
+    if (cleaned.length < 3 || cleaned.length > 120) return false;
+    // Must look like a section name, not a data value
+    if (PURE_HEADER_WORDS.has(cleaned.toLowerCase())) return false;
+    // Common section patterns: contains keywords like task, event, message, phase, day, etc.
+    return /task|event|message|phase|day|night|submission|checklist|pre[- ]|post[- ]|during|communication/i.test(cleaned)
+        || /^[A-Z][A-Z\s\-_]+$/.test(cleaned); // ALL CAPS headings
+}
 
 /** Detect table type by column headers AND first-row content: 'task' | 'message' | 'unknown' */
 function detectTableType(header: string[], dataRows?: string[][]): 'task' | 'message' | 'unknown' {
@@ -362,8 +377,8 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 
         if (isTableHeaderWord(line)) { i++; continue; }
 
-        // Check for tab-level headings first
-        if (isTabLevelHeading(line)) {
+        // Check for section headings
+        if (isSectionHeading(line)) {
             const sectionName = line.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
             if (isMessageSection(line)) {
                 inMessageSection = true;
@@ -374,7 +389,7 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
             i++; continue;
         }
 
-        // Non-tab headings that are message sections
+        // Non-section headings that are message sections
         if (line.length < 60 && isMessageSection(line)) {
             inMessageSection = true;
             i++; continue;
@@ -393,7 +408,7 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 
         const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
         const nextIsHeader = nextLine ? isTableHeaderWord(nextLine) : true;
-        const nextIsTab = nextLine ? isTabLevelHeading(nextLine) : true;
+        const nextIsTab = nextLine ? isSectionHeading(nextLine) : true;
 
         if (line.length < 80 && nextLine && !nextIsHeader && !nextIsTab
             && nextLine.length > line.length && nextLine.length > 15
@@ -420,47 +435,49 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 
 function parseHTMLTables(html: string): { title: string; section: string; owner: string }[] {
     const items: { title: string; section: string; owner: string }[] = [];
-    let currentTabSection = '';
-    let hasTabHeadings = false;
+    let currentSection = '';
 
-    // Pre-scan: check if any heading matches tab-level pattern
-    const allHeadings = [...html.matchAll(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi)];
-    for (const h of allHeadings) {
-        if (isTabLevelHeading(stripHTML(h[1]).trim())) { hasTabHeadings = true; break; }
-    }
-
-    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/gi);
+    // Split HTML into headings, bold paragraphs, and tables
+    // Also capture <p> containing <strong> as potential section markers
+    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<p[^>]*>\s*<strong>[\s\S]*?<\/strong>\s*<\/p>)/gi);
 
     for (const part of parts) {
         const trimmed = part.trim();
         if (!trimmed) continue;
 
-        // Track headings
-        const headingMatch = trimmed.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h[1-6]>/i);
+        // Track headings (any level)
+        const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
         if (headingMatch) {
-            const level = parseInt(headingMatch[1]);
-            const text = stripHTML(headingMatch[2]).trim();
-
-            if (isTabLevelHeading(text)) {
+            const text = stripHTML(headingMatch[1]).trim();
+            if (text.length > 2 && text.length < 120) {
                 if (isMessageSection(text)) {
-                    currentTabSection = '__messages__';
-                } else {
-                    currentTabSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
-                }
-            } else if (!hasTabHeadings && level <= 2 && text.length > 2) {
-                // No tab headings in doc — use any h1/h2 as section
-                if (isMessageSection(text)) {
-                    currentTabSection = '__messages__';
-                } else {
-                    currentTabSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                    currentSection = '__messages__';
+                } else if (isSectionHeading(text)) {
+                    currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                    console.log(`[SOP_PARSER] Section from heading: "${currentSection}"`);
                 }
             }
-            // Sub-headings (h3+) within tabs do NOT change currentTabSection
             continue;
         }
 
-        // Skip tables in message tab sections
-        if (currentTabSection === '__messages__') continue;
+        // Track bold paragraphs as section markers (mammoth often renders Google Doc tab names as <p><strong>)
+        const boldPMatch = trimmed.match(/<p[^>]*>\s*<strong>([\s\S]*?)<\/strong>\s*<\/p>/i);
+        if (boldPMatch && !/<table/i.test(trimmed)) {
+            const text = stripHTML(boldPMatch[1]).trim();
+            if (text.length > 2 && text.length < 120) {
+                if (isMessageSection(text)) {
+                    currentSection = '__messages__';
+                    console.log(`[SOP_PARSER] Message section from bold: "${text}"`);
+                } else if (isSectionHeading(text)) {
+                    currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                    console.log(`[SOP_PARSER] Section from bold: "${currentSection}"`);
+                }
+            }
+            continue;
+        }
+
+        // Skip tables in message sections
+        if (currentSection === '__messages__') continue;
 
         if (/<table/i.test(trimmed)) {
             const rows = extractTableRows(trimmed);
@@ -472,12 +489,12 @@ function parseHTMLTables(html: string): { title: string; section: string; owner:
 
             // Skip message tables — the message parser handles them
             if (tableType === 'message') {
-                console.log(`[SOP_PARSER] Skipping message table in section "${currentTabSection}" (headers: ${header.join(', ')})`);
+                console.log(`[SOP_PARSER] Skipping message table in section "${currentSection}" (headers: ${header.join(', ')})`);
                 continue;
             }
 
             // Parse as task/checklist table
-            const tableItems = parseTaskTable(rows, currentTabSection);
+            const tableItems = parseTaskTable(rows, currentSection);
             items.push(...tableItems);
         }
     }
@@ -596,7 +613,8 @@ function parseMessagesFromHTML(html: string): ParsedMessage[] {
     const messages: ParsedMessage[] = [];
     let currentSection = '';
 
-    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<p[^>]*>[\s\S]*?<\/p>)/gi);
+    // Split on headings, bold paragraphs, tables, and regular paragraphs
+    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<p[^>]*>\s*<strong>[\s\S]*?<\/strong>\s*<\/p>|<p[^>]*>[\s\S]*?<\/p>)/gi);
 
     let inMessageSection = false;
     let currentSubHeading = '';
@@ -605,21 +623,40 @@ function parseMessagesFromHTML(html: string): ParsedMessage[] {
         const trimmed = part.trim();
         if (!trimmed) continue;
 
+        // Headings
         const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
         if (headingMatch) {
             const text = stripHTML(headingMatch[1]).trim();
-            if (isTabLevelHeading(text)) {
+            if (isMessageSection(text)) {
                 currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
-                inMessageSection = isMessageSection(text);
-                currentSubHeading = '';
-            } else if (isMessageSection(text)) {
-                currentSection = text.replace(/^\d+\.\s*/, '').trim();
                 inMessageSection = true;
+                currentSubHeading = '';
+                console.log(`[SOP_MSG_PARSER] Entered message section (heading): "${currentSection}"`);
+            } else if (isSectionHeading(text)) {
+                currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                inMessageSection = false;
                 currentSubHeading = '';
             } else if (inMessageSection && text.length > 2) {
                 currentSubHeading = text;
-            } else if (text.length > 2) {
-                inMessageSection = false;
+            }
+            continue;
+        }
+
+        // Bold paragraphs as section markers
+        const boldPMatch = trimmed.match(/<p[^>]*>\s*<strong>([\s\S]*?)<\/strong>\s*<\/p>/i);
+        if (boldPMatch && !/<table/i.test(trimmed)) {
+            const text = stripHTML(boldPMatch[1]).trim();
+            if (text.length > 2 && text.length < 120) {
+                if (isMessageSection(text)) {
+                    currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                    inMessageSection = true;
+                    currentSubHeading = '';
+                    console.log(`[SOP_MSG_PARSER] Entered message section (bold): "${currentSection}"`);
+                } else if (isSectionHeading(text)) {
+                    currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                    inMessageSection = false;
+                    currentSubHeading = '';
+                }
             }
             continue;
         }
@@ -708,7 +745,7 @@ function parseMessageTableFromRows(rows: string[][], rawRows: string[][], sectio
     let typeCol = -1, contentCol = -1, timeCol = -1, channelCol = -1, audienceCol = -1;
     for (let c = 0; c < header.length; c++) {
         const h = header[c];
-        if (timeCol === -1 && /^time$|^scheduled|^when|timing/i.test(h)) timeCol = c;
+        if (timeCol === -1 && /^time$|time.*send|^scheduled|^when|timing|send.*time/i.test(h)) timeCol = c;
         else if (channelCol === -1 && /channel|platform|medium/i.test(h)) channelCol = c;
         else if (audienceCol === -1 && /audience|target|recipient|to\b|sent?\s*to/i.test(h)) audienceCol = c;
         else if (typeCol === -1 && /type|heading|category|subject/i.test(h) && !/content|body|text|draft/i.test(h)) typeCol = c;
@@ -752,13 +789,19 @@ function parseMessageTableFromRows(rows: string[][], rawRows: string[][], sectio
 
         const typeValue = typeCol >= 0 && row.length > typeCol ? row[typeCol]?.trim() || '' : '';
         const audience = audienceCol >= 0 && row.length > audienceCol ? row[audienceCol]?.trim() || '' : '';
-        const title = typeValue || (audience ? `${sectionHeading} — ${audience}` : sectionHeading) || 'Message';
         const content = raw && raw.length > contentCol ? raw[contentCol]?.trim() || '' : '';
         const time = timeCol >= 0 && row.length > timeCol ? row[timeCol]?.trim() || '' : '';
         const channelValue = channelCol >= 0 && row.length > channelCol ? row[channelCol]?.trim() || '' : '';
 
         // Resolve channel: from column data, or detect from text
         let channel = channelValue || detectChannel(typeValue + ' ' + sectionHeading);
+
+        // Build a meaningful title: use type value, or audience, or channel+time combo
+        let title = typeValue;
+        if (!title && audience) title = audience;
+        if (!title && channel && time) title = `${channel} — ${time}`;
+        if (!title && channel) title = channel;
+        if (!title) title = sectionHeading || 'Message';
 
         if (content.length > 5) {
             const timeMatch = (time || title).match(/(\d{1,2}[:.]\d{2}\s*(?:AM|PM)?)/i);
@@ -823,7 +866,7 @@ function parseMessagesFromText(text: string): ParsedMessage[] {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        if (isTabLevelHeading(line) || (line.length < 60 && isMessageSection(line))) {
+        if (isSectionHeading(line) || (line.length < 60 && isMessageSection(line))) {
             if (isMessageSection(line)) {
                 inMessageSection = true;
                 flushMessage();

@@ -2554,7 +2554,7 @@
             </div>
           {/if}
           <!-- Section Tabs -->
-          {#if getChecklistSections(eventChecklistItems).length > 1}
+          {#if getChecklistSections(eventChecklistItems).length >= 1}
             <div class="flex flex-wrap gap-1.5 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
               <button onclick={() => selectedChecklistSection = 'all'}
                 class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors
@@ -2711,7 +2711,7 @@
           </h4>
           {#if eventMessages.length > 0}
             <!-- Message Section Tabs -->
-            {#if getMessageSections(eventMessages).length > 1}
+            {#if getMessageSections(eventMessages).length >= 1}
               <div class="flex flex-wrap gap-1.5 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
                 <button onclick={() => selectedMessageSection = 'all'}
                   class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors
@@ -2747,7 +2747,7 @@
                 <tbody>
                   {#each groupMessages(eventMessages) as group}
                     {#if selectedMessageSection === 'all' || group.section === selectedMessageSection}
-                      {#if selectedMessageSection === 'all' && getMessageSections(eventMessages).length > 1}
+                      {#if selectedMessageSection === 'all' && getMessageSections(eventMessages).length >= 1}
                         <tr>
                           <td colspan="5" class="pt-3 pb-1 px-2">
                             <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">{group.section}</span>
