@@ -271,7 +271,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         }
 
         case 'sync-sheet-tabs': {
-            // Bulk upload: Google Sheet with multiple tabs, each tab name is a date (YYYY-MM-DD)
+            // Bulk upload: Google Sheet with multiple tabs, each tab name is a date
             const baseUrl = body.sheetUrl;
             if (!baseUrl) throw error(400, 'Sheet URL required');
 
@@ -286,47 +286,96 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 // Save config
                 const config = await upsertOpsSheetConfig(baseUrl, locals.user.id);
 
-                // Fetch the spreadsheet HTML to discover sheet tabs
-                // Try pubhtml first (works for published sheets), fall back to edit URL
+                // Discover sheet tabs — try multiple methods for shared (not published) sheets
                 let html = '';
-                for (const urlSuffix of ['/pubhtml', '/edit']) {
-                    const htmlResp = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}${urlSuffix}`, { redirect: 'follow' });
-                    if (htmlResp.ok) {
-                        html = await htmlResp.text();
-                        if (html.length > 100) break;
-                    }
+                const urlsToTry = [
+                    `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+                    `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`,
+                    `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+                    `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=0&tq=SELECT%20*%20LIMIT%200`,
+                ];
+                for (const tryUrl of urlsToTry) {
+                    try {
+                        const htmlResp = await fetch(tryUrl, {
+                            redirect: 'follow',
+                            headers: { 'Accept': 'text/html,*/*' }
+                        });
+                        if (htmlResp.ok) {
+                            const text = await htmlResp.text();
+                            // Check if this response has tab info
+                            if (text.length > 200 && (text.includes('sheetId') || text.includes('sheet-id') || text.includes('gid='))) {
+                                html = text;
+                                break;
+                            }
+                            if (!html && text.length > 200) html = text;
+                        }
+                    } catch { /* try next */ }
                 }
-                if (!html) {
-                    return json({ success: false, error: 'Could not access spreadsheet. Make sure it is published to the web.' }, { status: 400 });
-                }
 
-                // Extract sheet names and gids from HTML — Google embeds this in JS
-                // Pattern: {"sheetId":0,"title":"2025-03-14"} or similar in the page source
-                const tabMatches = [...html.matchAll(/"title"\s*:\s*"([^"]+)"[^}]*"sheetId"\s*:\s*(\d+)/g)];
-                const tabMatchesAlt = [...html.matchAll(/"sheetId"\s*:\s*(\d+)[^}]*"title"\s*:\s*"([^"]+)"/g)];
-
-                // Also try regex for sheet tab buttons in the HTML
-                const tabButtonMatches = [...html.matchAll(/data-sheet-id="(\d+)"[^>]*>([^<]+)</g)];
-
-                // Build tabs list from all patterns
+                // Build tabs list from all patterns found in the HTML
                 const tabs: { name: string; gid: string }[] = [];
                 const seenGids = new Set<string>();
 
-                for (const m of tabMatches) {
-                    const name = m[1], gid = m[2];
-                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                if (html) {
+                    // Pattern 1: JSON-style {"sheetId":123,"title":"28th March"}
+                    for (const m of html.matchAll(/"title"\s*:\s*"([^"]+)"[^}]*?"sheetId"\s*:\s*(\d+)/g)) {
+                        const [, name, gid] = m;
+                        if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                    }
+                    // Pattern 2: reverse order {"sheetId":123,"title":"..."}
+                    for (const m of html.matchAll(/"sheetId"\s*:\s*(\d+)[^}]*?"title"\s*:\s*"([^"]+)"/g)) {
+                        const [, gid, name] = m;
+                        if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+                    }
+                    // Pattern 3: HTML tab buttons
+                    for (const m of html.matchAll(/data-sheet-id="(\d+)"[^>]*>([^<]+)</g)) {
+                        const [, gid, name] = m;
+                        if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name: name.trim(), gid }); }
+                    }
+                    // Pattern 4: sheet-button class elements
+                    for (const m of html.matchAll(/id="sheet-button-(\d+)"[^>]*>([^<]+)</g)) {
+                        const [, gid, name] = m;
+                        if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name: name.trim(), gid }); }
+                    }
+                    // Pattern 5: gid= in links with sheet names
+                    for (const m of html.matchAll(/gid=(\d+)[^"]*"[^>]*>\s*([^<]+)</g)) {
+                        const [, gid, name] = m;
+                        const cleanName = name.trim();
+                        if (cleanName && !seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name: cleanName, gid }); }
+                    }
                 }
-                for (const m of tabMatchesAlt) {
-                    const gid = m[1], name = m[2];
-                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
-                }
-                for (const m of tabButtonMatches) {
-                    const gid = m[1], name = m[2].trim();
-                    if (!seenGids.has(gid)) { seenGids.add(gid); tabs.push({ name, gid }); }
+
+                // If we still couldn't discover tabs, try fetching the first sheet CSV
+                // and check if the URL has a gid parameter — at minimum load that one tab
+                if (!tabs.length) {
+                    // Extract gid from original URL if present
+                    const gidMatch = baseUrl.match(/gid=(\d+)/);
+                    // Try to fetch the overview tab (gid=0) CSV as a sanity check
+                    const testUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+                    try {
+                        const testResp = await fetch(testUrl, { redirect: 'follow' });
+                        if (testResp.ok) {
+                            const csvText = await testResp.text();
+                            if (csvText && csvText.length > 10) {
+                                // Sheet is accessible but we can't discover tabs
+                                // Fall back: use gids from the sheet URL, or try known tab names from the body
+                                if (body.tabGids && Array.isArray(body.tabGids)) {
+                                    for (const t of body.tabGids) {
+                                        tabs.push({ name: t.name, gid: String(t.gid) });
+                                    }
+                                } else if (gidMatch) {
+                                    tabs.push({ name: 'current', gid: gidMatch[1] });
+                                }
+                            }
+                        }
+                    } catch { /* ignore */ }
                 }
 
                 if (!tabs.length) {
-                    return json({ success: false, error: 'Could not discover sheet tabs. Make sure the spreadsheet is published to the web (File → Share → Publish to web).' }, { status: 400 });
+                    return json({
+                        success: false,
+                        error: 'Could not discover sheet tabs. The sheet must be shared as "Anyone with the link" and either: (1) Published to web (File → Share → Publish to web), OR (2) Share the link with viewer access. If the issue persists, try using "Load data" for individual tabs instead.'
+                    }, { status: 400 });
                 }
 
                 // Parse tab names as dates — supports many formats

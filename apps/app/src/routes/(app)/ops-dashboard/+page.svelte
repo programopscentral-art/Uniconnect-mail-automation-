@@ -516,7 +516,7 @@
         {:else if !viewData}
             <div class="text-center py-20 text-gray-500">
                 <p class="text-lg mb-2">No data loaded</p>
-                <p class="text-sm">Paste a Google Sheet CSV URL and click "Load data" for a single sheet, or "Bulk Load (Multi-tab)" for sheets with date-named tabs (YYYY-MM-DD).</p>
+                <p class="text-sm">Paste a Google Sheet URL and click "Load data" for a single tab, or "Bulk Load (Multi-tab)" for sheets with date-named tabs (e.g. "28th March", "1st April", "2026-03-28"). Sheet must be shared as "Anyone with the link".</p>
             </div>
 
         <!-- ─── OVERVIEW ──────────────────────────────────────────── -->
