@@ -108,6 +108,59 @@ async function ensureEventSchema() {
             )
         `);
         await db.query(`CREATE INDEX IF NOT EXISTS idx_calendar_freeze_univ ON calendar_freezes(university_id)`);
+
+        // ─── Phase 2 migrations: section columns, status, reports, event_id on tasks ───
+        await db.query(`ALTER TABLE event_checklist_items ADD COLUMN IF NOT EXISTS section TEXT DEFAULT ''`);
+        await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS section TEXT DEFAULT ''`);
+        await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS channel TEXT DEFAULT ''`);
+        await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS scheduled_time TEXT DEFAULT ''`);
+        await db.query(`ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'ACTIVE'`);
+        // Link tasks to events
+        await db.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS event_id UUID`).catch(() => {});
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_tasks_event ON tasks(event_id)`).catch(() => {});
+        // Event reports table
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS event_reports (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                event_id UUID NOT NULL REFERENCES schedule_events(id) ON DELETE CASCADE,
+                university_id UUID NOT NULL,
+                event_start_date DATE,
+                event_end_date DATE,
+                campus_name TEXT,
+                conducted_by TEXT,
+                cma_assigned TEXT,
+                event_category TEXT,
+                event_subcategory TEXT,
+                event_title TEXT,
+                event_duration_days INTEGER DEFAULT 1,
+                event_mode TEXT DEFAULT 'Offline',
+                event_description TEXT,
+                num_registrations INTEGER DEFAULT 0,
+                num_participants INTEGER DEFAULT 0,
+                feedback_response_rate TEXT,
+                avg_feedback_rating NUMERIC(3,2) DEFAULT 0,
+                event_feedback TEXT,
+                highlights TEXT,
+                suggested_improvements TEXT,
+                event_photos_link TEXT,
+                registration_form_link TEXT,
+                feedback_form_link TEXT,
+                event_recording_link TEXT,
+                loaded_to_zoho BOOLEAN DEFAULT FALSE,
+                submitted_by UUID REFERENCES users(id),
+                submitted_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(event_id)
+            )
+        `);
+        // Backfill: extract [Section] prefix from checklist title into section column
+        await db.query(`
+            UPDATE event_checklist_items
+            SET section = substring(title from '\\[([^\\]]+)\\]'),
+                title = trim(regexp_replace(title, '^\\[[^\\]]+\\]\\s*', ''))
+            WHERE title ~ '^\\[' AND (section IS NULL OR section = '')
+        `).catch(() => {});
+
         _eventMigrated = true;
     } catch (e: any) {
         console.error('[ensureEventSchema]', e.message);
@@ -243,18 +296,18 @@ export async function addEventChecklistItem(eventId: string, title: string, sort
     return res.rows[0];
 }
 
-export async function addEventChecklistItemsBulk(eventId: string, items: string[]) {
+export async function addEventChecklistItemsBulk(eventId: string, items: (string | { title: string; section?: string })[]) {
     await ensureEventSchema();
     if (items.length === 0) return [];
-    // Batch insert in a single query for performance
     const values: string[] = [];
     const params: any[] = [eventId];
     for (let i = 0; i < items.length; i++) {
-        params.push(items[i], i + 1);
-        values.push(`($1, $${params.length - 1}, $${params.length})`);
+        const item = typeof items[i] === 'string' ? { title: items[i] as string, section: '' } : items[i] as { title: string; section?: string };
+        params.push(item.title, item.section || '', i + 1);
+        values.push(`($1, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
     }
     const res = await db.query(
-        `INSERT INTO event_checklist_items (event_id, title, sort_order)
+        `INSERT INTO event_checklist_items (event_id, title, section, sort_order)
          VALUES ${values.join(', ')} RETURNING *`,
         params
     );
@@ -393,17 +446,18 @@ export async function addEventMessage(eventId: string, title: string, content: s
     return res.rows[0];
 }
 
-export async function addEventMessagesBulk(eventId: string, messages: { title: string; content: string }[]) {
+export async function addEventMessagesBulk(eventId: string, messages: { title: string; content: string; section?: string; channel?: string; scheduled_time?: string }[]) {
     await ensureEventSchema();
     if (messages.length === 0) return [];
     const values: string[] = [];
     const params: any[] = [eventId];
     for (let i = 0; i < messages.length; i++) {
-        params.push(messages[i].title, messages[i].content, i + 1);
-        values.push(`($1, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
+        const m = messages[i];
+        params.push(m.title, m.content, m.section || '', m.channel || '', m.scheduled_time || '', i + 1);
+        values.push(`($1, $${params.length - 5}, $${params.length - 4}, $${params.length - 3}, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
     }
     const res = await db.query(
-        `INSERT INTO event_messages (event_id, title, content, sort_order)
+        `INSERT INTO event_messages (event_id, title, content, section, channel, scheduled_time, sort_order)
          VALUES ${values.join(', ')} RETURNING *`,
         params
     );
@@ -481,4 +535,170 @@ export async function getCalendarFreezesForDateRange(startDate: string, endDate:
     query += ` ORDER BY cf.freeze_date ASC`;
     const res = await db.query(query, params);
     return res.rows;
+}
+
+// ─── Section-level Checklist Progress ────────────────────────────────────
+
+export async function getEventChecklistProgressBySection(eventId: string) {
+    await ensureEventSchema();
+    const res = await db.query(
+        `SELECT COALESCE(section, '') as section,
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE is_completed) as completed
+         FROM event_checklist_items
+         WHERE event_id = $1
+         GROUP BY COALESCE(section, '')
+         ORDER BY MIN(sort_order)`,
+        [eventId]
+    );
+    return res.rows.map((r: any) => ({
+        section: r.section || 'General',
+        total: parseInt(r.total),
+        completed: parseInt(r.completed),
+    }));
+}
+
+// ─── Event Completion ────────────────────────────────────────────────────
+
+export async function updateEventStatus(eventId: string, status: string) {
+    await ensureEventSchema();
+    await db.query(`UPDATE schedule_events SET status = $2 WHERE id = $1`, [eventId, status]);
+}
+
+export async function checkAndCompleteEvent(eventId: string): Promise<boolean> {
+    await ensureEventSchema();
+    const progress = await getEventChecklistProgress(eventId);
+    if (progress.total > 0 && progress.completed === progress.total) {
+        const current = await db.query(`SELECT status FROM schedule_events WHERE id = $1`, [eventId]);
+        if (current.rows[0]?.status !== 'COMPLETED') {
+            await updateEventStatus(eventId, 'COMPLETED');
+            return true; // just transitioned to completed
+        }
+    } else {
+        // If items were unchecked, revert to ACTIVE
+        const current = await db.query(`SELECT status FROM schedule_events WHERE id = $1`, [eventId]);
+        if (current.rows[0]?.status === 'COMPLETED') {
+            await updateEventStatus(eventId, 'ACTIVE');
+        }
+    }
+    return false;
+}
+
+// ─── Event Reports ───────────────────────────────────────────────────────
+
+export async function createEventReport(data: any) {
+    await ensureEventSchema();
+    const res = await db.query(
+        `INSERT INTO event_reports (
+            event_id, university_id, event_start_date, event_end_date,
+            campus_name, conducted_by, cma_assigned, event_category, event_subcategory,
+            event_title, event_duration_days, event_mode, event_description,
+            num_registrations, num_participants, feedback_response_rate, avg_feedback_rating,
+            event_feedback, highlights, suggested_improvements,
+            event_photos_link, registration_form_link, feedback_form_link, event_recording_link,
+            loaded_to_zoho, submitted_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26)
+        ON CONFLICT (event_id) DO UPDATE SET
+            event_start_date = EXCLUDED.event_start_date, event_end_date = EXCLUDED.event_end_date,
+            campus_name = EXCLUDED.campus_name, conducted_by = EXCLUDED.conducted_by,
+            cma_assigned = EXCLUDED.cma_assigned, event_category = EXCLUDED.event_category,
+            event_subcategory = EXCLUDED.event_subcategory, event_title = EXCLUDED.event_title,
+            event_duration_days = EXCLUDED.event_duration_days, event_mode = EXCLUDED.event_mode,
+            event_description = EXCLUDED.event_description, num_registrations = EXCLUDED.num_registrations,
+            num_participants = EXCLUDED.num_participants, feedback_response_rate = EXCLUDED.feedback_response_rate,
+            avg_feedback_rating = EXCLUDED.avg_feedback_rating, event_feedback = EXCLUDED.event_feedback,
+            highlights = EXCLUDED.highlights, suggested_improvements = EXCLUDED.suggested_improvements,
+            event_photos_link = EXCLUDED.event_photos_link, registration_form_link = EXCLUDED.registration_form_link,
+            feedback_form_link = EXCLUDED.feedback_form_link, event_recording_link = EXCLUDED.event_recording_link,
+            loaded_to_zoho = EXCLUDED.loaded_to_zoho, updated_at = NOW()
+        RETURNING *`,
+        [
+            data.event_id, data.university_id, data.event_start_date || null, data.event_end_date || null,
+            data.campus_name || null, data.conducted_by || null, data.cma_assigned || null,
+            data.event_category || null, data.event_subcategory || null, data.event_title || null,
+            data.event_duration_days || 1, data.event_mode || 'Offline', data.event_description || null,
+            data.num_registrations || 0, data.num_participants || 0,
+            data.feedback_response_rate || null, data.avg_feedback_rating || 0,
+            data.event_feedback || null, data.highlights || null, data.suggested_improvements || null,
+            data.event_photos_link || null, data.registration_form_link || null,
+            data.feedback_form_link || null, data.event_recording_link || null,
+            data.loaded_to_zoho || false, data.submitted_by || null
+        ]
+    );
+    return res.rows[0];
+}
+
+export async function getEventReport(eventId: string) {
+    await ensureEventSchema();
+    const res = await db.query(
+        `SELECT er.*, u.name as submitted_by_name
+         FROM event_reports er
+         LEFT JOIN users u ON er.submitted_by = u.id
+         WHERE er.event_id = $1`,
+        [eventId]
+    );
+    return res.rows[0] || null;
+}
+
+export async function getEventReports(universityId?: string) {
+    await ensureEventSchema();
+    const where = universityId ? `WHERE er.university_id = $1` : '';
+    const params = universityId ? [universityId] : [];
+    const res = await db.query(
+        `SELECT er.*, u.name as submitted_by_name, se.title as event_name
+         FROM event_reports er
+         LEFT JOIN users u ON er.submitted_by = u.id
+         LEFT JOIN schedule_events se ON er.event_id = se.id
+         ${where}
+         ORDER BY er.submitted_at DESC`,
+        params
+    );
+    return res.rows;
+}
+
+// ─── Auto-Task Creation from Event Checklists ────────────────────────────
+
+export async function createTasksFromEventChecklist(eventId: string, assigneeIds: string[], createdBy: string) {
+    await ensureEventSchema();
+    const event = await getScheduleEventById(eventId);
+    if (!event) throw new Error('Event not found');
+
+    const items = await getEventChecklistItems(eventId);
+    if (items.length === 0) return [];
+
+    // Group by section
+    const sections = new Map<string, any[]>();
+    for (const item of items) {
+        const sec = item.section || 'General';
+        if (!sections.has(sec)) sections.set(sec, []);
+        sections.get(sec)!.push(item);
+    }
+
+    const createdTasks: any[] = [];
+    for (const [section, sectionItems] of sections) {
+        const description = sectionItems.map((it: any) => `- ${it.title}`).join('\n');
+        const taskResult = await db.query(
+            `INSERT INTO tasks (title, description, priority, status, due_date, assigned_by, university_id, event_id)
+             VALUES ($1, $2, $3, 'PENDING', $4, $5, $6, $7) RETURNING *`,
+            [
+                `${event.title} — ${section}`,
+                description,
+                event.priority || 'MEDIUM',
+                event.due_date,
+                createdBy,
+                event.university_id,
+                eventId
+            ]
+        );
+        const task = taskResult.rows[0];
+        // Assign to all event assignees
+        for (const uid of assigneeIds) {
+            await db.query(
+                `INSERT INTO task_assignees (task_id, user_id, status) VALUES ($1, $2, 'PENDING') ON CONFLICT DO NOTHING`,
+                [task.id, uid]
+            ).catch(() => {});
+        }
+        createdTasks.push(task);
+    }
+    return createdTasks;
 }

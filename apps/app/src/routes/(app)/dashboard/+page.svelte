@@ -88,6 +88,22 @@
   let viewingSOPDoc = $state<any | null>(null);
   let eventMessages = $state<any[]>([]);
   let viewingMessage = $state<any | null>(null);
+  let eventSectionProgress = $state<any[]>([]);
+  let selectedChecklistSection = $state('all');
+  let selectedMessageSection = $state('all');
+  let eventReport = $state<any>(null);
+  let showReportForm = $state(false);
+  let reportSaving = $state(false);
+  let generatingTasks = $state(false);
+  let reportForm = $state({
+    event_title: '', campus_name: '', conducted_by: '', cma_assigned: '',
+    event_category: '', event_subcategory: '', event_duration_days: '',
+    event_mode: '', event_description: '', num_registrations: '',
+    num_participants: '', feedback_response_rate: '', avg_feedback_rating: '',
+    event_feedback: '', highlights: '', suggested_improvements: '',
+    event_photos_link: '', registration_form_link: '', feedback_form_link: '',
+    event_recording_link: '', loaded_to_zoho: 'No'
+  });
 
   // ─── Calendar Freeze State ─────────────────────────────────────────────
   let freezeDates = $state<string[]>([]);
@@ -883,9 +899,14 @@
     eventViewStartTime = Date.now();
     eventChecklistItems = [];
     eventChecklistProgress = { total: 0, completed: 0, percent: 0 };
+    eventSectionProgress = [];
+    selectedChecklistSection = 'all';
+    selectedMessageSection = 'all';
     eventViewStats = [];
     eventSOPDocs = [];
     eventMessages = [];
+    eventReport = null;
+    showReportForm = false;
     newEventChecklistTitle = '';
 
     // Load checklist
@@ -895,6 +916,7 @@
         const d = await res.json();
         eventChecklistItems = d.items || [];
         eventChecklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+        eventSectionProgress = d.sectionProgress || [];
       }
     } catch {}
     // Log view
@@ -920,6 +942,8 @@
       if (sopRes.ok) eventSOPDocs = await sopRes.json();
       if (msgRes.ok) eventMessages = await msgRes.json();
     } catch {}
+    // Load event report
+    loadEventReport();
   }
 
   function closeEventDetail() {
@@ -949,6 +973,7 @@
         const d = await r.json();
         eventChecklistItems = d.items || [];
         eventChecklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+        eventSectionProgress = d.sectionProgress || [];
       }
     }
   }
@@ -966,46 +991,77 @@
       const d = await r.json();
       eventChecklistItems = d.items || [];
       eventChecklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+      eventSectionProgress = d.sectionProgress || [];
     }
   }
 
-  // Group checklist items by [Section] prefix for structured display
+  // Group checklist items by section column (from DB) for structured display
   function groupChecklistItems(items: any[]): { section: string; items: any[] }[] {
-    const groups: { section: string; items: any[] }[] = [];
-    let currentSection = '';
-    let currentGroup: any[] = [];
+    const sectionMap = new Map<string, any[]>();
 
     for (const item of items) {
       const title = item.title || '';
-      // Parse "[Section] Task — Description" format
-      const sectionMatch = title.match(/^\[([^\]]+)\]\s*(.*)$/);
-      const section = sectionMatch ? sectionMatch[1].trim() : '';
-      const remainder = sectionMatch ? sectionMatch[2].trim() : title;
+      // Use section from DB, fallback to parsing [Section] prefix
+      let section = (item.section || '').trim();
+      let displayTitle = title;
+      if (!section) {
+        const sectionMatch = title.match(/^\[([^\]]+)\]\s*(.*)$/);
+        if (sectionMatch) {
+          section = sectionMatch[1].trim();
+          displayTitle = sectionMatch[2].trim();
+        }
+      }
 
-      // Parse "Task — Description" within the remainder
-      const dashMatch = remainder.match(/^(.+?)\s*—\s*(.+)$/);
+      // Parse "Task — Description" within the title
+      const dashMatch = displayTitle.match(/^(.+?)\s*[—–-]\s*(.+)$/);
       const enrichedItem = {
         ...item,
         _section: section,
         _taskName: dashMatch ? dashMatch[1].trim() : '',
         _taskDesc: dashMatch ? dashMatch[2].trim() : '',
-        _displayTitle: remainder
+        _displayTitle: displayTitle
       };
 
-      if (section !== currentSection) {
-        if (currentGroup.length > 0) {
-          groups.push({ section: currentSection, items: currentGroup });
-        }
-        currentSection = section;
-        currentGroup = [enrichedItem];
-      } else {
-        currentGroup.push(enrichedItem);
+      if (!sectionMap.has(section)) sectionMap.set(section, []);
+      sectionMap.get(section)!.push(enrichedItem);
+    }
+
+    return Array.from(sectionMap.entries()).map(([section, items]) => ({ section, items }));
+  }
+
+  // Group messages by section for tabbed display
+  function groupMessages(messages: any[]): { section: string; messages: any[] }[] {
+    const sectionMap = new Map<string, any[]>();
+    for (const msg of messages) {
+      const section = (msg.section || '').trim() || 'General';
+      if (!sectionMap.has(section)) sectionMap.set(section, []);
+      sectionMap.get(section)!.push(msg);
+    }
+    return Array.from(sectionMap.entries()).map(([section, messages]) => ({ section, messages }));
+  }
+
+  // Get unique sections from checklist items
+  function getChecklistSections(items: any[]): string[] {
+    const sections = new Set<string>();
+    for (const item of items) {
+      const section = (item.section || '').trim();
+      if (section) sections.add(section);
+      else {
+        const m = (item.title || '').match(/^\[([^\]]+)\]/);
+        if (m) sections.add(m[1].trim());
       }
     }
-    if (currentGroup.length > 0) {
-      groups.push({ section: currentSection, items: currentGroup });
+    return Array.from(sections);
+  }
+
+  // Get unique sections from messages
+  function getMessageSections(messages: any[]): string[] {
+    const sections = new Set<string>();
+    for (const msg of messages) {
+      const section = (msg.section || '').trim();
+      if (section) sections.add(section);
     }
-    return groups;
+    return Array.from(sections);
   }
 
   async function deleteEventChecklistItemUI(itemId: string) {
@@ -1015,6 +1071,7 @@
       const d = await r.json();
       eventChecklistItems = d.items || [];
       eventChecklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+      eventSectionProgress = d.sectionProgress || [];
     }
   }
 
@@ -1051,6 +1108,84 @@
       document.body.removeChild(textarea);
       alert('Message copied to clipboard!');
     }
+  }
+
+  // ─── Event Report ──────────────────────────────────────────────────────
+  async function loadEventReport() {
+    if (!selectedEvent) return;
+    try {
+      const res = await fetch(`/api/schedule-events/${selectedEvent.id}/report`);
+      if (res.ok) {
+        const d = await res.json();
+        eventReport = d.report || null;
+      }
+    } catch {}
+  }
+
+  async function submitEventReport() {
+    if (!selectedEvent) return;
+    reportSaving = true;
+    try {
+      const res = await fetch(`/api/schedule-events/${selectedEvent.id}/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...reportForm, event_title: reportForm.event_title || selectedEvent.title })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        eventReport = d.report;
+        showReportForm = false;
+        alert('Event report submitted successfully!');
+      } else {
+        const err = await res.json().catch(() => ({ message: 'Submit failed' }));
+        alert(`Failed: ${err.message}`);
+      }
+    } catch { alert('Failed to submit report.'); }
+    reportSaving = false;
+  }
+
+  function downloadReportCSV() {
+    if (!eventReport) return;
+    const headers = ['Event Title','Campus Name','Conducted By','CMA Assigned','Event Category','Event Subcategory','Duration (Days)','Event Mode','Description','Registrations','Participants','Feedback Response Rate','Avg Feedback Rating','Event Feedback','Highlights','Suggested Improvements','Photos Link','Registration Form Link','Feedback Form Link','Recording Link','Loaded to Zoho','Submitted By','Submitted At'];
+    const values = [
+      eventReport.event_title, eventReport.campus_name, eventReport.conducted_by, eventReport.cma_assigned,
+      eventReport.event_category, eventReport.event_subcategory, eventReport.event_duration_days, eventReport.event_mode,
+      eventReport.event_description, eventReport.num_registrations, eventReport.num_participants,
+      eventReport.feedback_response_rate, eventReport.avg_feedback_rating, eventReport.event_feedback,
+      eventReport.highlights, eventReport.suggested_improvements, eventReport.event_photos_link,
+      eventReport.registration_form_link, eventReport.feedback_form_link, eventReport.event_recording_link,
+      eventReport.loaded_to_zoho, eventReport.submitted_by_name || '', eventReport.submitted_at || ''
+    ];
+    const escape = (v: any) => `"${String(v || '').replace(/"/g, '""')}"`;
+    const csv = headers.map(escape).join(',') + '\n' + values.map(escape).join(',');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `event-report-${selectedEvent?.title || 'report'}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ─── Auto-Task Generation ─────────────────────────────────────────────
+  async function generateTasksFromEvent() {
+    if (!selectedEvent) return;
+    if (!confirm('Generate tasks from checklist items for all assigned team members?')) return;
+    generatingTasks = true;
+    try {
+      const res = await fetch(`/api/schedule-events/${selectedEvent.id}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        alert(`Created ${d.count} tasks for assigned team members!`);
+        await loadDashboardData();
+      } else {
+        const err = await res.json().catch(() => ({ message: 'Failed' }));
+        alert(`Failed: ${err.message}`);
+      }
+    } catch { alert('Failed to generate tasks.'); }
+    generatingTasks = false;
   }
 
   function downloadSOPDoc(doc: any) {
@@ -1129,6 +1264,7 @@
           const d = await clRes.json();
           eventChecklistItems = d.items || [];
           eventChecklistProgress = d.progress || { total: 0, completed: 0, percent: 0 };
+          eventSectionProgress = d.sectionProgress || [];
         }
       } else {
         const err = await res.json().catch(() => ({ message: 'Upload failed' }));
@@ -2403,53 +2539,85 @@
                 <span class="text-[10px] font-normal text-gray-400">{eventChecklistProgress.completed}/{eventChecklistProgress.total} ({eventChecklistProgress.percent}%)</span>
               {/if}
             </h4>
+            {#if eventChecklistProgress.percent === 100 && eventChecklistProgress.total > 0}
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold">Event Complete</span>
+            {/if}
           </div>
           {#if eventChecklistProgress.total > 0}
             <div class="w-full h-2 bg-gray-100 dark:bg-slate-800 rounded-full mb-3 overflow-hidden">
               <div class="h-full bg-emerald-500 rounded-full transition-all" style="width: {eventChecklistProgress.percent}%"></div>
             </div>
           {/if}
+          <!-- Section Tabs -->
+          {#if getChecklistSections(eventChecklistItems).length > 1}
+            <div class="flex flex-wrap gap-1.5 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
+              <button onclick={() => selectedChecklistSection = 'all'}
+                class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors
+                  {selectedChecklistSection === 'all' ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                All ({eventChecklistProgress.completed}/{eventChecklistProgress.total})
+              </button>
+              {#each getChecklistSections(eventChecklistItems) as section}
+                {@const sp = eventSectionProgress.find((s: any) => s.section === section)}
+                {@const sCompleted = sp ? sp.completed : 0}
+                {@const sTotal = sp ? sp.total : 0}
+                {@const sectionDone = sTotal > 0 && sCompleted === sTotal}
+                <button onclick={() => selectedChecklistSection = section}
+                  class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1
+                    {selectedChecklistSection === section ? 'bg-indigo-600 text-white' : sectionDone ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                  {#if sectionDone}
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                  {/if}
+                  {section} ({sCompleted}/{sTotal})
+                </button>
+              {/each}
+            </div>
+          {/if}
           <div class="space-y-1 max-h-[400px] overflow-y-auto pr-1">
             {#each groupChecklistItems(eventChecklistItems) as group}
-              {#if group.section}
-                <div class="flex items-center gap-2 pt-3 pb-1 px-1 first:pt-0">
-                  <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{group.section}</span>
-                  <div class="flex-1 h-px bg-indigo-100 dark:bg-indigo-900/30"></div>
-                  <span class="text-[9px] text-gray-400">{group.items.filter((i: any) => i.is_completed).length}/{group.items.length}</span>
-                </div>
-              {/if}
-              {#each group.items as item}
-                <div class="flex items-start gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50 group hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
-                  <button onclick={() => toggleEventChecklistItem(item.id)}
-                    class="w-5 h-5 mt-0.5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-colors
-                      {item.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-slate-600 hover:border-emerald-400'}">
-                    {#if item.is_completed}
-                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                    {/if}
-                  </button>
-                  <div class="flex-1 min-w-0">
-                    {#if item._taskName && item._taskDesc}
-                      <p class="text-sm font-medium {item.is_completed ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}">{item._taskName}</p>
-                      <p class="text-xs {item.is_completed ? 'line-through text-gray-300' : 'text-gray-500 dark:text-gray-400'} mt-0.5">{item._taskDesc}</p>
-                    {:else}
-                      <p class="text-sm {item.is_completed ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'}">{item._displayTitle}</p>
-                    {/if}
-                    {#if item.completed_by_name || item.completed_at}
-                      <div class="flex items-center gap-2 mt-1">
-                        {#if item.completed_by_name}
-                          <span class="text-[9px] text-gray-400">{item.completed_by_name}</span>
-                        {/if}
-                        {#if item.completed_at}
-                          <span class="text-[9px] text-emerald-500">{new Date(item.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                        {/if}
-                      </div>
-                    {/if}
+              {#if selectedChecklistSection === 'all' || group.section === selectedChecklistSection || (!group.section && selectedChecklistSection === 'all')}
+                {#if group.section && selectedChecklistSection === 'all'}
+                  <div class="flex items-center gap-2 pt-3 pb-1 px-1 first:pt-0">
+                    <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{group.section}</span>
+                    <div class="flex-1 h-px bg-indigo-100 dark:bg-indigo-900/30"></div>
+                    <span class="text-[9px] text-gray-400">{group.items.filter((i: any) => i.is_completed).length}/{group.items.length}</span>
                   </div>
-                  <button onclick={() => deleteEventChecklistItemUI(item.id)} class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity mt-0.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                  </button>
-                </div>
-              {/each}
+                {/if}
+                {#each group.items as item}
+                  <div class="flex items-start gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50 group hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                    <button onclick={() => toggleEventChecklistItem(item.id)}
+                      class="w-5 h-5 mt-0.5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-colors
+                        {item.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-slate-600 hover:border-emerald-400'}">
+                      {#if item.is_completed}
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                      {/if}
+                    </button>
+                    <div class="flex-1 min-w-0">
+                      {#if item._taskName && item._taskDesc}
+                        <p class="text-sm font-medium {item.is_completed ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}">{item._taskName}</p>
+                        <p class="text-xs {item.is_completed ? 'line-through text-gray-300' : 'text-gray-500 dark:text-gray-400'} mt-0.5">{item._taskDesc}</p>
+                      {:else}
+                        <p class="text-sm {item.is_completed ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300'}">{item._displayTitle}</p>
+                      {/if}
+                      {#if item.completed_by_name || item.completed_at}
+                        <div class="flex items-center gap-2 mt-1">
+                          {#if item.completed_by_name}
+                            <span class="inline-flex items-center gap-1 text-[9px] text-gray-400">
+                              <span class="w-3.5 h-3.5 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center text-[7px] font-bold text-emerald-700 dark:text-emerald-300">{item.completed_by_name[0]?.toUpperCase()}</span>
+                              {item.completed_by_name}
+                            </span>
+                          {/if}
+                          {#if item.completed_at}
+                            <span class="text-[9px] text-emerald-500">{new Date(item.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                          {/if}
+                        </div>
+                      {/if}
+                    </div>
+                    <button onclick={() => deleteEventChecklistItemUI(item.id)} class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity mt-0.5">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                {/each}
+              {/if}
             {/each}
           </div>
           <div class="flex gap-2 mt-2">
@@ -2531,48 +2699,245 @@
             {/if}
           </h4>
           {#if eventMessages.length > 0}
-            <div class="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-              {#each eventMessages as msg}
-                <div class="rounded-xl border {msg.is_sent ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800/50'} overflow-hidden">
-                  <div class="flex items-center gap-2 px-3 py-2">
-                    <button onclick={() => toggleMessageSent(msg.id)}
-                      class="w-5 h-5 rounded-md border-2 flex-shrink-0 flex items-center justify-center transition-all {msg.is_sent ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-slate-600 hover:border-emerald-400'}">
-                      {#if msg.is_sent}
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            <!-- Message Section Tabs -->
+            {#if getMessageSections(eventMessages).length > 1}
+              <div class="flex flex-wrap gap-1.5 mb-3 pb-2 border-b border-gray-100 dark:border-slate-800">
+                <button onclick={() => selectedMessageSection = 'all'}
+                  class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors
+                    {selectedMessageSection === 'all' ? 'bg-amber-600 text-white' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                  All ({eventMessages.length})
+                </button>
+                {#each getMessageSections(eventMessages) as section}
+                  {@const sectionMsgs = eventMessages.filter((m: any) => (m.section || '').trim() === section)}
+                  {@const sentCount = sectionMsgs.filter((m: any) => m.is_sent).length}
+                  <button onclick={() => selectedMessageSection = section}
+                    class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1
+                      {selectedMessageSection === section ? 'bg-amber-600 text-white' : sentCount === sectionMsgs.length && sectionMsgs.length > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'}">
+                    {#if sentCount === sectionMsgs.length && sectionMsgs.length > 0}
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    {/if}
+                    {section} ({sentCount}/{sectionMsgs.length})
+                  </button>
+                {/each}
+              </div>
+            {/if}
+            <!-- Messages Table -->
+            <div class="max-h-[400px] overflow-y-auto pr-1">
+              <table class="w-full text-xs">
+                <thead class="sticky top-0 bg-white dark:bg-slate-900 z-10">
+                  <tr class="border-b border-gray-200 dark:border-slate-700">
+                    <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-8">Sent</th>
+                    <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-16">Time</th>
+                    <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-20">Channel</th>
+                    <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Message</th>
+                    <th class="text-right py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-16">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each groupMessages(eventMessages) as group}
+                    {#if selectedMessageSection === 'all' || group.section === selectedMessageSection}
+                      {#if selectedMessageSection === 'all' && getMessageSections(eventMessages).length > 1}
+                        <tr>
+                          <td colspan="5" class="pt-3 pb-1 px-2">
+                            <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">{group.section}</span>
+                          </td>
+                        </tr>
                       {/if}
-                    </button>
-                    <span class="flex-1 text-xs font-semibold {msg.is_sent ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-gray-800 dark:text-gray-200'}">{msg.title}</span>
-                    <button onclick={() => { viewingMessage = viewingMessage?.id === msg.id ? null : msg; }}
-                      class="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors" title="Expand">
-                      <svg class="w-3.5 h-3.5 text-gray-400 transition-transform {viewingMessage?.id === msg.id ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <button onclick={() => copyMessageContent(msg.content)} title="Copy message"
-                      class="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors">
-                      <svg class="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                    </button>
-                    <button onclick={() => deleteMessageUI(msg.id)} title="Delete"
-                      class="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100">
-                      <svg class="w-3.5 h-3.5 text-gray-400 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
-                  </div>
-                  {#if msg.is_sent && (msg.sent_by_name || msg.sent_at)}
-                    <div class="px-3 pb-1">
-                      <span class="text-[9px] text-emerald-600 dark:text-emerald-400">
-                        Sent {msg.sent_by_name ? `by ${msg.sent_by_name}` : ''}
-                        {msg.sent_at ? ` · ${new Date(msg.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
-                      </span>
-                    </div>
-                  {/if}
-                  {#if viewingMessage?.id === msg.id}
-                    <div class="px-3 py-2 border-t border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-900/50">
-                      <pre class="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-sans leading-relaxed">{msg.content}</pre>
-                    </div>
-                  {/if}
-                </div>
-              {/each}
+                      {#each group.messages as msg}
+                        <tr class="border-b border-gray-50 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+                          <td class="py-2 px-2">
+                            <button onclick={() => toggleMessageSent(msg.id)}
+                              class="w-4.5 h-4.5 rounded border-2 flex items-center justify-center transition-all {msg.is_sent ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-slate-600 hover:border-emerald-400'}">
+                              {#if msg.is_sent}
+                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                              {/if}
+                            </button>
+                          </td>
+                          <td class="py-2 px-2 text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{msg.scheduled_time || '—'}</td>
+                          <td class="py-2 px-2">
+                            {#if msg.channel}
+                              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold
+                                {msg.channel === 'WhatsApp' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                                 msg.channel === 'Email' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                                 msg.channel === 'SMS' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' :
+                                 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}">
+                                {msg.channel}
+                              </span>
+                            {:else}
+                              <span class="text-[10px] text-gray-400">—</span>
+                            {/if}
+                          </td>
+                          <td class="py-2 px-2">
+                            <button onclick={() => { viewingMessage = viewingMessage?.id === msg.id ? null : msg; }}
+                              class="text-left w-full">
+                              <p class="text-xs font-medium truncate max-w-[200px] {msg.is_sent ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-gray-800 dark:text-gray-200'}">{msg.title}</p>
+                            </button>
+                            {#if viewingMessage?.id === msg.id}
+                              <div class="mt-1.5 p-2 rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700">
+                                <pre class="text-[11px] text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-sans leading-relaxed">{msg.content}</pre>
+                              </div>
+                            {/if}
+                            {#if msg.is_sent && (msg.sent_by_name || msg.sent_at)}
+                              <span class="text-[9px] text-emerald-600 dark:text-emerald-400">
+                                Sent {msg.sent_by_name ? `by ${msg.sent_by_name}` : ''}
+                                {msg.sent_at ? ` · ${new Date(msg.sent_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
+                              </span>
+                            {/if}
+                          </td>
+                          <td class="py-2 px-2 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                              <button onclick={() => copyMessageContent(msg.content)} title="Copy message"
+                                class="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors">
+                                <svg class="w-3.5 h-3.5 text-gray-400 hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                              </button>
+                              <button onclick={() => deleteMessageUI(msg.id)} title="Delete"
+                                class="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors opacity-0 group-hover:opacity-100">
+                                <svg class="w-3.5 h-3.5 text-gray-400 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      {/each}
+                    {/if}
+                  {/each}
+                </tbody>
+              </table>
             </div>
           {:else}
             <p class="text-xs text-gray-400 italic">No messages yet. Upload an SOP with a "Messages" section to auto-extract them.</p>
+          {/if}
+        </div>
+
+        <!-- Generate Tasks Button -->
+        {#if eventChecklistItems.length > 0 && selectedEvent?.assignees?.length > 0}
+          <div class="border-t border-gray-100 dark:border-slate-800 pt-4">
+            <button onclick={generateTasksFromEvent} disabled={generatingTasks}
+              class="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-violet-600 text-white text-xs font-bold rounded-xl hover:bg-violet-700 disabled:opacity-50 transition-colors">
+              {#if generatingTasks}
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Generating Tasks...
+              {:else}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                Generate Tasks from Checklist
+              {/if}
+            </button>
+            <p class="text-[9px] text-gray-400 mt-1 text-center">Creates tasks grouped by section for {selectedEvent.assignees?.length} assigned member{selectedEvent.assignees?.length > 1 ? 's' : ''}</p>
+          </div>
+        {/if}
+
+        <!-- Event Report -->
+        <div class="border-t border-gray-100 dark:border-slate-800 pt-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Event Report
+            </h4>
+            {#if eventReport}
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold">Submitted</span>
+                <button onclick={downloadReportCSV} class="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">Download CSV</button>
+              </div>
+            {/if}
+          </div>
+
+          {#if eventReport && !showReportForm}
+            <!-- View Submitted Report -->
+            <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+              {#each [
+                ['Campus', eventReport.campus_name], ['Conducted By', eventReport.conducted_by],
+                ['CMA Assigned', eventReport.cma_assigned], ['Category', eventReport.event_category],
+                ['Subcategory', eventReport.event_subcategory], ['Duration', eventReport.event_duration_days ? `${eventReport.event_duration_days} day(s)` : ''],
+                ['Mode', eventReport.event_mode], ['Registrations', eventReport.num_registrations],
+                ['Participants', eventReport.num_participants], ['Feedback Rate', eventReport.feedback_response_rate],
+                ['Avg Rating', eventReport.avg_feedback_rating], ['Loaded to Zoho', eventReport.loaded_to_zoho]
+              ] as [label, value]}
+                {#if value}
+                  <div>
+                    <span class="text-[10px] font-bold text-gray-400 uppercase">{label}</span>
+                    <p class="text-gray-700 dark:text-gray-300">{value}</p>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+            {#if eventReport.event_description}
+              <div class="mt-2"><span class="text-[10px] font-bold text-gray-400 uppercase">Description</span><p class="text-xs text-gray-600 dark:text-gray-400">{eventReport.event_description}</p></div>
+            {/if}
+            {#if eventReport.highlights}
+              <div class="mt-2"><span class="text-[10px] font-bold text-gray-400 uppercase">Highlights</span><p class="text-xs text-gray-600 dark:text-gray-400">{eventReport.highlights}</p></div>
+            {/if}
+            {#if eventReport.event_feedback}
+              <div class="mt-2"><span class="text-[10px] font-bold text-gray-400 uppercase">Feedback</span><p class="text-xs text-gray-600 dark:text-gray-400">{eventReport.event_feedback}</p></div>
+            {/if}
+            {#if eventReport.suggested_improvements}
+              <div class="mt-2"><span class="text-[10px] font-bold text-gray-400 uppercase">Suggested Improvements</span><p class="text-xs text-gray-600 dark:text-gray-400">{eventReport.suggested_improvements}</p></div>
+            {/if}
+            <div class="flex flex-wrap gap-2 mt-3">
+              {#each [['Photos', eventReport.event_photos_link], ['Registration', eventReport.registration_form_link], ['Feedback Form', eventReport.feedback_form_link], ['Recording', eventReport.event_recording_link]] as [label, link]}
+                {#if link}
+                  <a href={link} target="_blank" rel="noopener" class="text-[10px] px-2 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:underline">{label}</a>
+                {/if}
+              {/each}
+            </div>
+            <button onclick={() => showReportForm = true} class="mt-3 text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline">Edit Report</button>
+          {:else}
+            <!-- Report Form -->
+            <button onclick={() => { showReportForm = !showReportForm; if (!reportForm.event_title && selectedEvent) reportForm.event_title = selectedEvent.title; }}
+              class="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline mb-2">
+              {showReportForm ? 'Cancel' : (eventReport ? 'Edit Report' : 'Submit Event Report')}
+            </button>
+            {#if showReportForm}
+              <div class="grid grid-cols-2 gap-3 mt-2">
+                {#each [
+                  ['event_title', 'Event Title *', 'text'], ['campus_name', 'Campus Name *', 'text'],
+                  ['conducted_by', 'Conducted By', 'text'], ['cma_assigned', 'CMA Assigned', 'text'],
+                  ['event_category', 'Event Category *', 'text'], ['event_subcategory', 'Subcategory', 'text'],
+                  ['event_duration_days', 'Duration (Days)', 'number'], ['event_mode', 'Mode (Online/Offline/Hybrid)', 'text'],
+                  ['num_registrations', 'Registrations', 'number'], ['num_participants', 'Participants', 'number'],
+                  ['feedback_response_rate', 'Feedback Rate (%)', 'text'], ['avg_feedback_rating', 'Avg Rating', 'text']
+                ] as [key, label, type]}
+                  <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
+                    <input type={type} bind:value={reportForm[key as keyof typeof reportForm]}
+                      class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                  </div>
+                {/each}
+              </div>
+              <div class="space-y-3 mt-3">
+                {#each [
+                  ['event_description', 'Event Description'], ['event_feedback', 'Event Feedback'],
+                  ['highlights', 'Highlights'], ['suggested_improvements', 'Suggested Improvements']
+                ] as [key, label]}
+                  <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
+                    <textarea bind:value={reportForm[key as keyof typeof reportForm]} rows="2"
+                      class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white resize-none"></textarea>
+                  </div>
+                {/each}
+              </div>
+              <div class="grid grid-cols-2 gap-3 mt-3">
+                {#each [
+                  ['event_photos_link', 'Photos Link'], ['registration_form_link', 'Registration Form Link'],
+                  ['feedback_form_link', 'Feedback Form Link'], ['event_recording_link', 'Recording Link']
+                ] as [key, label]}
+                  <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
+                    <input bind:value={reportForm[key as keyof typeof reportForm]} placeholder="https://..."
+                      class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                  </div>
+                {/each}
+              </div>
+              <div class="mt-3">
+                <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Loaded to Zoho?</label>
+                <select bind:value={reportForm.loaded_to_zoho} class="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
+              <button onclick={submitEventReport} disabled={reportSaving}
+                class="mt-3 w-full px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                {reportSaving ? 'Submitting...' : 'Submit Report'}
+              </button>
+            {/if}
           {/if}
         </div>
 
