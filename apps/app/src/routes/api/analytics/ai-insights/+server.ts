@@ -83,11 +83,11 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
 
     // Call Gemini API — try multiple models and API versions
     const modelsToTry = [
-        { model: 'gemini-2.5-flash', version: 'v1beta' },
-        { model: 'gemini-2.5-flash', version: 'v1' },
+        { model: 'gemini-2.0-flash-001', version: 'v1beta' },
         { model: 'gemini-2.0-flash', version: 'v1beta' },
-        { model: 'gemini-2.0-flash', version: 'v1' },
-        { model: 'gemini-1.5-flash-latest', version: 'v1' },
+        { model: 'gemini-1.5-flash', version: 'v1beta' },
+        { model: 'gemini-1.5-flash', version: 'v1' },
+        { model: 'gemini-pro', version: 'v1' },
     ];
     let aiText: string | null = null;
     let lastError = '';
