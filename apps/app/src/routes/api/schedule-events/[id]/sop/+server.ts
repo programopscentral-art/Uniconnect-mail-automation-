@@ -191,13 +191,23 @@ const PURE_HEADER_WORDS = new Set([
 ]);
 
 function isSectionHeader(line: string): boolean {
-    // "1. Pre-Event Tasks (Preparation Phase)" or "Pre-Event Tasks" etc.
-    return /^(\d+\.\s+)?[\w\s/\-]+(tasks?|phase|checklist|timeline)\s*(\(.*\))?$/i.test(line);
+    // "1. Pre-Event Tasks (Preparation Phase)" or "Pre-Event Tasks" or "Pre- event tasks" or "During - event tasks"
+    // Also "Day 1 Messages", "Overnight Messages", "Branding team plan", "Instructors note..."
+    return /^(\d+\.\s+)?[\w\s/\-]+(tasks?|phase|checklist|timeline|plan|overview|structure)\s*(\(.*\))?$/i.test(line)
+        || /^(pre|during|post|day\s*\d|overnight|over.?night|submission)/i.test(line);
 }
 
 function isTableHeader(line: string): boolean {
     const l = line.toLowerCase().trim();
     return PURE_HEADER_WORDS.has(l) || /^task\s+category$/i.test(l);
+}
+
+function isMessageLikeLine(line: string): boolean {
+    const l = line.toLowerCase();
+    return /^whatsapp\b/i.test(line) || /^email\b/i.test(line) || /^sms\b/i.test(line)
+        || /^social\b/i.test(line) || /^(morning|evening|overnight)\s+(briefing|message)/i.test(line)
+        || (l.includes('whatsapp') && /\d{1,2}[:.]\d{2}\s*(am|pm)/i.test(l))
+        || /^(ops|logistics|branding)/i.test(line) && /\d{1,2}[:.]\d{2}/i.test(line);
 }
 
 function parseRawTextToChecklist(text: string): { title: string; section: string }[] {
@@ -209,6 +219,7 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 
     const items: { title: string; section: string }[] = [];
     let currentSection = '';
+    let inMessageSection = false;
     let i = 0;
 
     while (i < lines.length) {
@@ -218,14 +229,27 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
         if (isTableHeader(line)) { i++; continue; }
 
         // Detect section headers
-        if (isSectionHeader(line)) {
-            currentSection = line.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+        if (isSectionHeader(line) || (line.length < 60 && isMessageSection(line))) {
+            const sectionName = line.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+            // If this is a message section, skip all items until next non-message section
+            if (isMessageSection(line)) {
+                inMessageSection = true;
+                i++;
+                continue;
+            }
+            inMessageSection = false;
+            currentSection = sectionName;
             i++;
             continue;
         }
 
+        // Skip everything inside message sections
+        if (inMessageSection) { i++; continue; }
+
         if (line.length < 4) { i++; continue; }
         if (/^(task\s+category|simple\s+operations|phase\s+focus)$/i.test(line)) { i++; continue; }
+        // Skip message-like lines that leaked outside message sections
+        if (isMessageLikeLine(line)) { i++; continue; }
 
         const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
         const nextIsTableHeader = nextLine ? isTableHeader(nextLine) : true;
@@ -233,7 +257,7 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 
         if (line.length < 80 && nextLine && !nextIsTableHeader && !nextIsSection
             && nextLine.length > line.length && nextLine.length > 15
-            && !isTableHeader(line)) {
+            && !isTableHeader(line) && !isMessageLikeLine(nextLine)) {
             items.push({ title: `${line} — ${nextLine}`, section: currentSection });
             i += 2;
             continue;
@@ -257,6 +281,7 @@ function parseRawTextToChecklist(text: string): { title: string; section: string
 function parseHTMLTables(html: string): { title: string; section: string }[] {
     const items: { title: string; section: string }[] = [];
     let currentSection = '';
+    let inMessageSection = false;
 
     const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/gi);
 
@@ -267,11 +292,20 @@ function parseHTMLTables(html: string): { title: string; section: string }[] {
         const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
         if (headingMatch) {
             const text = stripHTML(headingMatch[1]).trim();
-            if (text.length > 2 && isSectionHeader(text)) {
+            // Skip message sections — those are for the message parser
+            if (isMessageSection(text)) {
+                inMessageSection = true;
+                continue;
+            }
+            if (text.length > 2 && (isSectionHeader(text) || text.length < 80)) {
+                inMessageSection = false;
                 currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
             }
             continue;
         }
+
+        // Don't extract checklist items from message section tables
+        if (inMessageSection) continue;
 
         if (/<table/i.test(trimmed)) {
             const tableItems = parseOneTable(trimmed, currentSection);
@@ -383,7 +417,7 @@ function stripHTMLPreserveFormat(html: string): string {
 // Extracts message blocks with title + content for communication tasks.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const MESSAGE_SECTION_PATTERN = /message|communication|email|whatsapp|sms|notification|announce|broadcast|template/i;
+const MESSAGE_SECTION_PATTERN = /message|communication|email|whatsapp|sms|notification|announce|broadcast|template|day\s*\d+\s*message|over.?night\s*message/i;
 
 function isMessageSection(text: string): boolean {
     return MESSAGE_SECTION_PATTERN.test(text);
@@ -457,12 +491,26 @@ function parseMessagesFromHTML(html: string): ParsedMessage[] {
                 const hPos = h.index || 0;
                 if (hPos < tablePos) nearestHeading = stripHTML(h[1]).trim();
             }
-            const tableMessages = parseMessageTable(table, nearestHeading);
-            messages.push(...tableMessages);
+            // Only parse tables that are likely message tables (near message headings)
+            if (isMessageSection(nearestHeading)) {
+                const tableMessages = parseMessageTable(table, nearestHeading);
+                messages.push(...tableMessages);
+            }
         }
     }
 
-    return messages.slice(0, 100);
+    // Deduplicate messages by content
+    const seen = new Set<string>();
+    const unique: ParsedMessage[] = [];
+    for (const msg of messages) {
+        const key = `${msg.title}||${msg.content.slice(0, 100)}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            unique.push(msg);
+        }
+    }
+
+    return unique.slice(0, 100);
 }
 
 function detectChannel(text: string): string {
@@ -495,13 +543,25 @@ function parseMessageTable(tableHtml: string, sectionHeading: string): ParsedMes
 
     const header = rows[0].map(h => h.toLowerCase().trim());
 
-    let typeCol = -1, contentCol = -1, timeCol = -1, channelCol = -1;
+    let typeCol = -1, contentCol = -1, timeCol = -1, channelCol = -1, audienceCol = -1;
     for (let c = 0; c < header.length; c++) {
         const h = header[c];
-        if (timeCol === -1 && /^time$|^scheduled|^when/i.test(h)) timeCol = c;
+        if (timeCol === -1 && /^time$|^scheduled|^when|timing/i.test(h)) timeCol = c;
         else if (channelCol === -1 && /channel|platform|medium/i.test(h)) channelCol = c;
+        else if (audienceCol === -1 && /audience|target|recipient|to\b|sent?\s*to/i.test(h)) audienceCol = c;
         else if (typeCol === -1 && /type|heading|category|subject/i.test(h) && !/content|body|text|draft/i.test(h)) typeCol = c;
         else if (contentCol === -1 && /message|content|body|text|template|draft/i.test(h)) contentCol = c;
+    }
+    // If no content column found but there's a very wide last column, assume it's content
+    if (contentCol === -1 && rows.length > 1) {
+        const dataRow = rows[1];
+        let maxLen = 0, maxIdx = -1;
+        for (let c = 0; c < dataRow.length; c++) {
+            if (dataRow[c].length > maxLen) { maxLen = dataRow[c].length; maxIdx = c; }
+        }
+        if (maxLen > 50 && maxIdx !== typeCol && maxIdx !== timeCol && maxIdx !== channelCol) {
+            contentCol = maxIdx;
+        }
     }
 
     if (contentCol >= 0) {
