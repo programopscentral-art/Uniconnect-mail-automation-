@@ -96,32 +96,27 @@
 
   function selectUser(userId: string) {
     if (selectedUserId === userId) {
-      // If admin, clicking again closes the panel
-      if (data.isGlobalOps) {
-        selectedUserId = null;
-        userDetail = null;
-      }
+      if (data.isGlobalOps) { selectedUserId = null; userDetail = null; }
     } else {
       selectedUserId = userId;
     }
   }
 
-  function goBack() {
-    selectedUserId = null;
-    userDetail = null;
-  }
+  function goBack() { selectedUserId = null; userDetail = null; }
 
   // --- Computed ---
   let totalCompleted = $derived(teamData.reduce((s, u) => s + parseInt(u.total_completed || 0), 0));
   let totalAssigned = $derived(teamData.reduce((s, u) => s + parseInt(u.total_assigned || 0), 0));
   let totalOverdue = $derived(teamData.reduce((s, u) => s + parseInt(u.total_overdue || 0), 0));
+  let totalInProgress = $derived(teamData.reduce((s, u) => s + parseInt(u.total_in_progress || 0), 0));
   let avgSpeed = $derived.by(() => {
     const withSpeed = teamData.filter(u => parseFloat(u.avg_completion_hours) > 0);
     if (!withSpeed.length) return 0;
     return withSpeed.reduce((s, u) => s + parseFloat(u.avg_completion_hours), 0) / withSpeed.length;
   });
+  let teamEfficiency = $derived(totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0);
 
-  // Rating helper
+  // Helpers
   function getRating(completed: number, total: number) {
     if (total === 0) return { letter: '-', color: 'from-gray-400 to-gray-500', ring: 'ring-gray-200 dark:ring-gray-700' };
     const pct = (completed / total) * 100;
@@ -151,6 +146,21 @@
     if (index === 2) return { emoji: '3rd', bg: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300' };
     return null;
   }
+
+  // SVG donut helper
+  function donutDash(pct: number, radius: number) {
+    const circ = 2 * Math.PI * radius;
+    const filled = (pct / 100) * circ;
+    return `${filled} ${circ - filled}`;
+  }
+  const C50 = 2 * Math.PI * 50; // circumference for r=50
+  const C45 = 2 * Math.PI * 45; // circumference for r=45
+
+  // Inline calc helpers to avoid @const in div
+  function pctOf(val: number, total: number) { return total > 0 ? (val / total) * 100 : 0; }
+  function dashSeg(pct: number, circ: number) { return `${(pct / 100) * circ} ${circ}`; }
+  function dashOff(pct: number, circ: number) { return `-${(pct / 100) * circ}`; }
+  function speedGauge(avgH: number) { return avgH > 0 ? Math.min((24 / avgH) * 20, 100) : 0; }
 </script>
 
 <!-- MAIN LAYOUT -->
@@ -227,147 +237,174 @@
         <h2 class="text-lg font-black text-gray-900 dark:text-white">{userDetail.user.name}</h2>
         <p class="text-xs text-gray-500 dark:text-gray-400">{userDetail.user.email} &middot; {userDetail.user.role} &middot; {userDetail.user.university_name || 'No University'}</p>
       </div>
-      <div class="flex items-center gap-4">
-        <div class="text-center">
-          <div class="text-2xl font-black text-indigo-600 dark:text-indigo-400">{efficiency}%</div>
-          <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Efficiency</div>
-        </div>
-        <div class="w-12 h-12 rounded-full bg-gradient-to-br {rating.color} ring-2 {rating.ring} ring-offset-2 dark:ring-offset-slate-900 flex items-center justify-center text-white font-black text-lg shadow-lg">
-          {rating.letter}
-        </div>
+      <div class="w-14 h-14 rounded-full bg-gradient-to-br {rating.color} ring-2 {rating.ring} ring-offset-2 dark:ring-offset-slate-900 flex items-center justify-center text-white font-black text-xl shadow-lg">
+        {rating.letter}
       </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-gray-900 dark:text-white">{s.total_assigned}</div>
-        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Tasks</div>
+    <!-- Circular Charts Row -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <!-- Efficiency Circle -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-indigo-500" stroke-dasharray={donutDash(efficiency, 50)} stroke-dashoffset="0"
+            style="transition: stroke-dasharray 1s ease" />
+        </svg>
+        <div class="text-2xl font-black text-indigo-600 dark:text-indigo-400 -mt-1">{efficiency}%</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Efficiency</div>
       </div>
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{s.total_completed}</div>
-        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Completed</div>
-      </div>
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-blue-600 dark:text-blue-400">{s.total_in_progress}</div>
-        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">In Progress</div>
-      </div>
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-amber-600 dark:text-amber-400">{s.total_pending}</div>
-        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Pending</div>
-      </div>
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-red-600 dark:text-red-400">{s.total_overdue}</div>
-        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Overdue</div>
-      </div>
-      <div class="glass p-4 rounded-2xl text-center">
-        <div class="text-2xl font-black text-indigo-600 dark:text-indigo-400">{onTimePct}%</div>
+
+      <!-- On Time Circle -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="{onTimePct >= 80 ? 'text-emerald-500' : onTimePct >= 50 ? 'text-amber-500' : 'text-red-500'}"
+            stroke-dasharray={donutDash(onTimePct, 50)} stroke-dashoffset="0"
+            style="transition: stroke-dasharray 1s ease" />
+        </svg>
+        <div class="text-2xl font-black {onTimePct >= 80 ? 'text-emerald-600 dark:text-emerald-400' : onTimePct >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} -mt-1">{onTimePct}%</div>
         <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">On Time</div>
       </div>
+
+      <!-- Task Status Donut -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(s.total_completed, s.total_assigned), C50)} stroke-dashoffset="0" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10"
+            class="text-blue-500" stroke-dasharray={dashSeg(pctOf(s.total_in_progress, s.total_assigned), C50)} stroke-dashoffset={dashOff(pctOf(s.total_completed, s.total_assigned), C50)} />
+        </svg>
+        <div class="text-lg font-black text-gray-900 dark:text-white -mt-1">{s.total_assigned}</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Tasks</div>
+        <div class="flex gap-2 mt-2">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[8px] font-bold text-gray-400">{s.total_completed}</span></span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="text-[8px] font-bold text-gray-400">{s.total_in_progress}</span></span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="text-[8px] font-bold text-gray-400">{s.total_pending}</span></span>
+        </div>
+      </div>
+
+      <!-- Speed Gauge -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-24 h-24 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-violet-500" stroke-dasharray={donutDash(speedGauge(s.avg_completion_hours), 50)} stroke-dashoffset="0"
+            style="transition: stroke-dasharray 1s ease" />
+        </svg>
+        <div class="text-xl font-black text-violet-600 dark:text-violet-400 -mt-1">{formatHours(s.avg_completion_hours)}</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Avg Speed</div>
+        <div class="flex gap-3 mt-2 text-[8px] font-bold text-gray-400">
+          <span>Fast: {formatHours(s.fastest_completion_hours)}</span>
+          <span>Slow: {formatHours(s.slowest_completion_hours)}</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Speed Metrics + Task Types -->
+    <!-- Task Categories + Priority -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <!-- Speed Metrics -->
+      <!-- Task Categories with pie-style -->
       <div class="glass p-6 rounded-[2rem]">
-        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Speed Metrics</h3>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-500">Avg Completion Time</span>
-            <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">{formatHours(s.avg_completion_hours)}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-500">Fastest Task</span>
-            <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatHours(s.fastest_completion_hours)}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-500">Slowest Task</span>
-            <span class="text-lg font-black text-red-600 dark:text-red-400">{formatHours(s.slowest_completion_hours)}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-gray-500">Communication Tasks</span>
-            <span class="text-sm font-black text-gray-900 dark:text-white">{userDetail.communication_tasks.completed} / {userDetail.communication_tasks.total}</span>
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-5">Task Categories</h3>
+        <div class="flex items-center gap-6">
+          <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90 flex-shrink-0">
+            <circle cx="60" cy="60" r="45" fill="none" stroke="currentColor" stroke-width="14" class="text-gray-100 dark:text-slate-800" />
+            <circle cx="60" cy="60" r="45" fill="none" stroke-width="14" stroke-linecap="round"
+              class="text-indigo-500" stroke-dasharray={dashSeg(pctOf(userDetail.task_types.recurring, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} stroke-dashoffset="0" />
+            <circle cx="60" cy="60" r="45" fill="none" stroke-width="14"
+              class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(userDetail.task_types.unique, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} stroke-dashoffset={dashOff(pctOf(userDetail.task_types.recurring, userDetail.task_types.recurring + userDetail.task_types.unique), C45)} />
+          </svg>
+          <div class="flex-1 space-y-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-3 h-3 rounded-full bg-indigo-500"></span>
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Recurring</span>
+              </div>
+              <div class="text-sm font-black text-gray-900 dark:text-white">{userDetail.task_types.recurring_completed}/{userDetail.task_types.recurring} done &middot; {formatHours(userDetail.task_types.recurring_avg_hours)} avg</div>
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Unique</span>
+              </div>
+              <div class="text-sm font-black text-gray-900 dark:text-white">{userDetail.task_types.unique_completed}/{userDetail.task_types.unique} done &middot; {formatHours(userDetail.task_types.unique_avg_hours)} avg</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Task Types: Recurring vs Unique -->
+      <!-- Priority Breakdown with visual bars -->
       <div class="glass p-6 rounded-[2rem]">
-        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Task Categories</h3>
-        <div class="space-y-4">
-          <div>
-            <div class="flex justify-between mb-1">
-              <span class="text-xs font-bold text-gray-500">Recurring Tasks</span>
-              <span class="text-xs font-black text-gray-900 dark:text-white">{userDetail.task_types.recurring_completed}/{userDetail.task_types.recurring} &middot; {formatHours(userDetail.task_types.recurring_avg_hours)} avg</span>
-            </div>
-            <div class="h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full transition-all" style="width: {userDetail.task_types.recurring > 0 ? (userDetail.task_types.recurring_completed / userDetail.task_types.recurring) * 100 : 0}%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between mb-1">
-              <span class="text-xs font-bold text-gray-500">Unique Tasks</span>
-              <span class="text-xs font-black text-gray-900 dark:text-white">{userDetail.task_types.unique_completed}/{userDetail.task_types.unique} &middot; {formatHours(userDetail.task_types.unique_avg_hours)} avg</span>
-            </div>
-            <div class="h-2 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full transition-all" style="width: {userDetail.task_types.unique > 0 ? (userDetail.task_types.unique_completed / userDetail.task_types.unique) * 100 : 0}%"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Priority Breakdown -->
-        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mt-6 mb-3">By Priority</h3>
-        <div class="grid grid-cols-2 gap-2">
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-5">By Priority</h3>
+        <div class="space-y-3">
           {#each userDetail.priority_breakdown as pb}
-            {@const pColor = pb.priority === 'URGENT' ? 'text-red-600 dark:text-red-400' : pb.priority === 'HIGH' ? 'text-orange-600 dark:text-orange-400' : pb.priority === 'MEDIUM' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}
-            <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-slate-800/50 rounded-xl">
-              <span class="text-[10px] font-black uppercase tracking-wider {pColor}">{pb.priority}</span>
-              <span class="text-xs font-bold text-gray-900 dark:text-white">{pb.completed}/{pb.total}</span>
+            {@const barPct = pb.total > 0 ? (pb.completed / pb.total) * 100 : 0}
+            {@const barColor = pb.priority === 'URGENT' ? 'from-red-400 to-red-600' : pb.priority === 'HIGH' ? 'from-orange-400 to-orange-600' : pb.priority === 'MEDIUM' ? 'from-blue-400 to-blue-600' : 'from-gray-400 to-gray-500'}
+            {@const textColor = pb.priority === 'URGENT' ? 'text-red-600 dark:text-red-400' : pb.priority === 'HIGH' ? 'text-orange-600 dark:text-orange-400' : pb.priority === 'MEDIUM' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'}
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-black uppercase tracking-wider {textColor}">{pb.priority}</span>
+                <span class="text-xs font-bold text-gray-900 dark:text-white">{pb.completed}/{pb.total} &middot; {formatHours(pb.avg_hours)}</span>
+              </div>
+              <div class="h-3 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r {barColor} rounded-full transition-all duration-700" style="width: {barPct}%"></div>
+              </div>
             </div>
           {/each}
+          {#if userDetail.priority_breakdown.length === 0}
+            <p class="text-xs text-gray-400 text-center py-4">No priority data</p>
+          {/if}
+        </div>
+        <!-- Communication tasks -->
+        <div class="mt-5 pt-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+          <span class="text-xs font-bold text-gray-500">Communication Tasks</span>
+          <span class="text-sm font-black text-gray-900 dark:text-white">{userDetail.communication_tasks.completed} / {userDetail.communication_tasks.total}</span>
         </div>
       </div>
     </div>
 
-    <!-- Weekly Trend Chart -->
+    <!-- Weekly Trend Chart — FIXED with pixel heights -->
     {#if userDetail.weekly_trend.length > 0}
+      {@const maxWeekly = Math.max(...userDetail.weekly_trend.map((w: any) => w.completed), 1)}
       <div class="glass p-6 rounded-[2rem]">
-        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Weekly Trend (8 weeks)</h3>
-        <div class="flex items-end gap-2 h-40">
+        <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Weekly Trend</h3>
+        <div class="flex items-end gap-3" style="height: 180px;">
           {#each userDetail.weekly_trend as week}
-            {@const maxWeekly = Math.max(...userDetail.weekly_trend.map((w: any) => w.completed), 1)}
-            {@const pct = (week.completed / maxWeekly) * 100}
-            <div class="flex-1 flex flex-col items-center group">
+            {@const barH = Math.max((week.completed / maxWeekly) * 150, 6)}
+            <div class="flex-1 flex flex-col items-center justify-end group" style="height: 100%;">
               <span class="text-[10px] font-black text-indigo-600 dark:text-indigo-400 mb-1 opacity-0 group-hover:opacity-100 transition-opacity">{week.completed}</span>
-              <div class="w-full bg-gray-100 dark:bg-slate-800 rounded-t-lg relative overflow-hidden transition-all" style="height: {Math.max(pct, 4)}%">
-                <div class="absolute inset-0 bg-gradient-to-t from-indigo-600 via-indigo-500 to-blue-400"></div>
-              </div>
-              <span class="text-[8px] font-bold text-gray-400 mt-1">W{new Date(week.week_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+              <div class="w-full max-w-[40px] rounded-t-xl bg-gradient-to-t from-indigo-600 via-indigo-500 to-blue-400 shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all" style="height: {barH}px;"></div>
+              <span class="text-[9px] font-bold text-gray-400 dark:text-gray-500 mt-2 whitespace-nowrap">{new Date(week.week_start).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
             </div>
           {/each}
         </div>
       </div>
     {/if}
 
-    <!-- Daily Activity (30 days) -->
+    <!-- Daily Activity (30 days) heatmap -->
     {#if userDetail.daily_activity.length > 0}
+      {@const maxDaily = Math.max(...userDetail.daily_activity.map((a: any) => a.completed), 1)}
       <div class="glass p-6 rounded-[2rem]">
         <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest mb-4">Daily Activity (Last 30 Days)</h3>
-        <div class="flex flex-wrap gap-1">
+        <div class="flex flex-wrap gap-1.5">
           {#each Array.from({ length: 30 }, (_, idx) => {
             const d = new Date();
             d.setDate(d.getDate() - (29 - idx));
             const dateStr = d.toISOString().split('T')[0];
             const dayData = userDetail.daily_activity.find((a: any) => new Date(a.day).toISOString().split('T')[0] === dateStr);
-            return { date: dateStr, count: dayData?.completed || 0, label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) };
+            return { date: dateStr, count: dayData?.completed || 0, label: d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' }) };
           }) as cell}
-            {@const maxDaily = Math.max(...userDetail.daily_activity.map((a: any) => a.completed), 1)}
-            {@const intensity = cell.count > 0 ? Math.max(0.2, cell.count / maxDaily) : 0}
+            {@const intensity = cell.count > 0 ? Math.max(0.25, cell.count / maxDaily) : 0}
             <div
-              class="w-6 h-6 rounded-md transition-all cursor-default {cell.count === 0 ? 'bg-gray-100 dark:bg-slate-800' : ''}"
+              class="w-7 h-7 rounded-lg transition-all cursor-default flex items-center justify-center text-[8px] font-bold {cell.count === 0 ? 'bg-gray-100 dark:bg-slate-800 text-gray-300 dark:text-gray-600' : 'text-white'}"
               style={cell.count > 0 ? `background-color: rgba(99, 102, 241, ${intensity})` : ''}
               title="{cell.label}: {cell.count} tasks"
-            ></div>
+            >
+              {cell.count > 0 ? cell.count : ''}
+            </div>
           {/each}
         </div>
         <div class="flex items-center gap-2 mt-3 text-[9px] font-bold text-gray-400">
@@ -438,25 +475,65 @@
   <!-- ============= TEAM OVERVIEW ============= -->
   {:else}
 
-    <!-- Summary Cards -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Team Size</div>
-        <div class="text-3xl font-black text-gray-900 dark:text-white">{teamData.length}</div>
+    <!-- Top Summary with Circular Charts -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Team Efficiency Donut -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-indigo-500" stroke-dasharray={donutDash(teamEfficiency, 50)} stroke-dashoffset="0"
+            style="transition: stroke-dasharray 1s ease" />
+        </svg>
+        <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400 -mt-2">{teamEfficiency}%</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Team Efficiency</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Tasks Completed</div>
-        <div class="text-3xl font-black text-emerald-600 dark:text-emerald-400">{totalCompleted}</div>
-        <div class="text-[10px] text-gray-400 font-bold">of {totalAssigned} assigned</div>
+
+      <!-- Task Distribution Donut -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-emerald-500" stroke-dasharray={dashSeg(pctOf(totalCompleted, totalAssigned), C50)} stroke-dashoffset="0" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10"
+            class="text-blue-500" stroke-dasharray={dashSeg(pctOf(totalInProgress, totalAssigned), C50)} stroke-dashoffset={dashOff(pctOf(totalCompleted, totalAssigned), C50)} />
+        </svg>
+        <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400 -mt-2">{totalCompleted}</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Completed</div>
+        <div class="flex gap-3 mt-2">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-[8px] font-bold text-gray-400">{totalCompleted} done</span></span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="text-[8px] font-bold text-gray-400">{totalInProgress} active</span></span>
+        </div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Avg Speed</div>
-        <div class="text-3xl font-black text-indigo-600 dark:text-indigo-400">{formatHours(avgSpeed)}</div>
-        <div class="text-[10px] text-gray-400 font-bold">per task</div>
+
+      <!-- Avg Speed -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center">
+        <svg viewBox="0 0 120 120" class="w-28 h-28 -rotate-90">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="10" class="text-gray-100 dark:text-slate-800" />
+          <circle cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round"
+            class="text-violet-500" stroke-dasharray={donutDash(speedGauge(avgSpeed), 50)} stroke-dashoffset="0"
+            style="transition: stroke-dasharray 1s ease" />
+        </svg>
+        <div class="text-3xl font-black text-violet-600 dark:text-violet-400 -mt-2">{formatHours(avgSpeed)}</div>
+        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Avg Speed</div>
       </div>
-      <div class="glass p-5 rounded-2xl">
-        <div class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Overdue</div>
-        <div class="text-3xl font-black {totalOverdue > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'}">{totalOverdue}</div>
+
+      <!-- Overdue / Team Size -->
+      <div class="glass p-5 rounded-[2rem] flex flex-col items-center justify-center">
+        <div class="grid grid-cols-2 gap-4 w-full">
+          <div class="text-center">
+            <div class="text-3xl font-black text-gray-900 dark:text-white">{teamData.length}</div>
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Members</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-black {totalOverdue > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'}">{totalOverdue}</div>
+            <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Overdue</div>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 w-full text-center">
+          <div class="text-lg font-black text-gray-900 dark:text-white">{totalAssigned}</div>
+          <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Total Tasks</div>
+        </div>
       </div>
     </div>
 
