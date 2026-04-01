@@ -21,12 +21,12 @@ export async function getTeamAnalytics(options: {
 
     let dateFilter = '';
     if (options.dateFrom) {
-        dateFilter += ` AND ta.completed_at >= $${i}::date`;
+        dateFilter += ` AND ta2.completed_at >= $${i}::date`;
         params.push(options.dateFrom);
         i++;
     }
     if (options.dateTo) {
-        dateFilter += ` AND ta.completed_at <= ($${i}::date + INTERVAL '1 day')`;
+        dateFilter += ` AND ta2.completed_at <= ($${i}::date + INTERVAL '1 day')`;
         params.push(options.dateTo);
         i++;
     }

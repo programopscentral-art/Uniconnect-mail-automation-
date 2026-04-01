@@ -111,7 +111,10 @@
       });
       if (res.ok) {
         const result = await res.json();
-        aiInsights = result.insights || '';
+        aiInsights = result.insights || 'No insights generated.';
+      } else {
+        const errData = await res.json().catch(() => null);
+        aiInsights = `Error: ${errData?.message || res.statusText || 'Failed to generate report'}. Please try again.`;
       }
     } catch (e) {
       console.error('[ANALYTICS] AI error:', e);
