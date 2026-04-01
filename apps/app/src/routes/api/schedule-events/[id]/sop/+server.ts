@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
     let contentText = '';
     let contentHtml = '';
-    let checklistItems: { title: string; section: string }[] = [];
+    let checklistItems: { title: string; section: string; owner: string }[] = [];
     let filename = 'document.txt';
 
     const contentType = request.headers.get('content-type') || '';
@@ -179,147 +179,53 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// RAW TEXT PARSER — works for mammoth raw text, PDF text, plain text
-// Mammoth raw text from tables: each cell becomes its own line.
-// Strategy: detect section headers, then pair task lines with description lines.
+// SHARED HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const PURE_HEADER_WORDS = new Set([
     'task', 'task category', 'description', 'phase', 'focus', 'sr no', 's no',
     'sl no', 'serial', 'status', 'priority', 'assignee', 'deadline', 'date',
-    'time', 'remarks', 'comments', 'notes', '#'
+    'time', 'remarks', 'comments', 'notes', '#', 'objective', 'sub-tasks',
+    'sub-tasks (micro level)', 'owner', 'timeline'
 ]);
 
-function isSectionHeader(line: string): boolean {
-    // "1. Pre-Event Tasks (Preparation Phase)" or "Pre-Event Tasks" or "Pre- event tasks" or "During - event tasks"
-    // Also "Day 1 Messages", "Overnight Messages", "Branding team plan", "Instructors note..."
-    return /^(\d+\.\s+)?[\w\s/\-]+(tasks?|phase|checklist|timeline|plan|overview|structure)\s*(\(.*\))?$/i.test(line)
-        || /^(pre|during|post|day\s*\d|overnight|over.?night|submission)/i.test(line);
+/** Detect if a heading is a Google Doc tab-level heading (primary section) */
+function isTabLevelHeading(text: string): boolean {
+    const cleaned = text.replace(/^\d+\.\s*/, '').trim();
+    return /^(pre[- _]?event|during[- _]?event|post[- _]?event|day\s*\d|over[_ ]?night|submission)/i.test(cleaned);
 }
 
-function isTableHeader(line: string): boolean {
-    const l = line.toLowerCase().trim();
-    return PURE_HEADER_WORDS.has(l) || /^task\s+category$/i.test(l);
+/** Detect if text refers to a message section */
+function isMessageSection(text: string): boolean {
+    return MESSAGE_SECTION_PATTERN.test(text);
 }
 
-function isMessageLikeLine(line: string): boolean {
-    const l = line.toLowerCase();
-    return /^whatsapp\b/i.test(line) || /^email\b/i.test(line) || /^sms\b/i.test(line)
-        || /^social\b/i.test(line) || /^(morning|evening|overnight)\s+(briefing|message)/i.test(line)
-        || (l.includes('whatsapp') && /\d{1,2}[:.]\d{2}\s*(am|pm)/i.test(l))
-        || /^(ops|logistics|branding)/i.test(line) && /\d{1,2}[:.]\d{2}/i.test(line);
+const MESSAGE_SECTION_PATTERN = /\bmessage|communication|day\s*\d+\s*message|over.?night\s*message/i;
+
+/** Detect table type by column headers: 'task' | 'message' | 'unknown' */
+function detectTableType(header: string[]): 'task' | 'message' | 'unknown' {
+    const hasChannel = header.some(c => /channel|platform|medium/i.test(c));
+    const hasMessageContent = header.some(c => /^message|message\s*content|content|body|text|template|draft/i.test(c));
+    const hasAudience = header.some(c => /audience|target|recipient/i.test(c));
+    const hasTask = header.some(c => /^task$|task\s*name|task\s*category/i.test(c));
+    const hasObjective = header.some(c => /objective/i.test(c));
+    const hasSubTasks = header.some(c => /sub.?task/i.test(c));
+    const hasOwner = header.some(c => /^owner$/i.test(c));
+    const hasTimeline = header.some(c => /^timeline$/i.test(c));
+
+    const messageScore = (hasChannel ? 3 : 0) + (hasMessageContent ? 2 : 0) + (hasAudience ? 2 : 0);
+    const taskScore = (hasTask ? 2 : 0) + (hasObjective ? 2 : 0) + (hasSubTasks ? 3 : 0) + (hasOwner ? 1 : 0) + (hasTimeline ? 1 : 0);
+
+    if (messageScore >= 4) return 'message';
+    if (taskScore >= 3) return 'task';
+    if (messageScore > taskScore && messageScore >= 2) return 'message';
+    if (taskScore > messageScore) return 'task';
+    return 'unknown';
 }
 
-function parseRawTextToChecklist(text: string): { title: string; section: string }[] {
-    if (!text || text.trim().length < 5) return [];
-
-    const lines = text.split(/\n/)
-        .map(l => l.trim())
-        .filter(l => l.length > 0);
-
-    const items: { title: string; section: string }[] = [];
-    let currentSection = '';
-    let inMessageSection = false;
-    let i = 0;
-
-    while (i < lines.length) {
-        const line = lines[i];
-
-        // Skip pure table header words
-        if (isTableHeader(line)) { i++; continue; }
-
-        // Detect section headers
-        if (isSectionHeader(line) || (line.length < 60 && isMessageSection(line))) {
-            const sectionName = line.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
-            // If this is a message section, skip all items until next non-message section
-            if (isMessageSection(line)) {
-                inMessageSection = true;
-                i++;
-                continue;
-            }
-            inMessageSection = false;
-            currentSection = sectionName;
-            i++;
-            continue;
-        }
-
-        // Skip everything inside message sections
-        if (inMessageSection) { i++; continue; }
-
-        if (line.length < 4) { i++; continue; }
-        if (/^(task\s+category|simple\s+operations|phase\s+focus)$/i.test(line)) { i++; continue; }
-        // Skip message-like lines that leaked outside message sections
-        if (isMessageLikeLine(line)) { i++; continue; }
-
-        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
-        const nextIsTableHeader = nextLine ? isTableHeader(nextLine) : true;
-        const nextIsSection = nextLine ? isSectionHeader(nextLine) : true;
-
-        if (line.length < 80 && nextLine && !nextIsTableHeader && !nextIsSection
-            && nextLine.length > line.length && nextLine.length > 15
-            && !isTableHeader(line) && !isMessageLikeLine(nextLine)) {
-            items.push({ title: `${line} — ${nextLine}`, section: currentSection });
-            i += 2;
-            continue;
-        }
-
-        if (line.length >= 5 && !isTableHeader(line)) {
-            items.push({ title: line, section: currentSection });
-        }
-
-        i++;
-    }
-
-    return items.slice(0, 200);
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// HTML TABLE PARSER — works when mammoth preserves table structure
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function parseHTMLTables(html: string): { title: string; section: string }[] {
-    const items: { title: string; section: string }[] = [];
-    let currentSection = '';
-    let inMessageSection = false;
-
-    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/gi);
-
-    for (const part of parts) {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-
-        const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
-        if (headingMatch) {
-            const text = stripHTML(headingMatch[1]).trim();
-            // Skip message sections — those are for the message parser
-            if (isMessageSection(text)) {
-                inMessageSection = true;
-                continue;
-            }
-            if (text.length > 2 && (isSectionHeader(text) || text.length < 80)) {
-                inMessageSection = false;
-                currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
-            }
-            continue;
-        }
-
-        // Don't extract checklist items from message section tables
-        if (inMessageSection) continue;
-
-        if (/<table/i.test(trimmed)) {
-            const tableItems = parseOneTable(trimmed, currentSection);
-            items.push(...tableItems);
-        }
-    }
-
-    return items;
-}
-
-function parseOneTable(tableHtml: string, section: string): { title: string; section: string }[] {
-    const items: { title: string; section: string }[] = [];
+/** Extract rows from an HTML table as plain text cells */
+function extractTableRows(tableHtml: string): string[][] {
     const rows: string[][] = [];
-
     const rowMatches = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
     for (const row of rowMatches) {
         const cells: string[] = [];
@@ -329,27 +235,177 @@ function parseOneTable(tableHtml: string, section: string): { title: string; sec
         }
         if (cells.length > 0) rows.push(cells);
     }
+    return rows;
+}
 
-    if (rows.length < 2) return items;
+/** Extract rows from an HTML table preserving formatting (for message content) */
+function extractTableRowsRaw(tableHtml: string): string[][] {
+    const rows: string[][] = [];
+    const rowMatches = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+    for (const row of rowMatches) {
+        const cells: string[] = [];
+        const cellMatches = row.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
+        for (const cell of cellMatches) {
+            cells.push(stripHTMLPreserveFormat(cell).trim());
+        }
+        if (cells.length > 0) rows.push(cells);
+    }
+    return rows;
+}
 
-    const header = rows[0].map(h => h.toLowerCase().trim());
+function isTableHeaderWord(line: string): boolean {
+    const l = line.toLowerCase().trim();
+    return PURE_HEADER_WORDS.has(l) || /^task\s+category$/i.test(l);
+}
 
-    let taskCol = -1, descCol = -1, catCol = -1;
-    for (let c = 0; c < header.length; c++) {
-        const h = header[c];
-        if (/^task$/i.test(h) || /task\s*name/i.test(h)) taskCol = c;
-        else if (/description|detail|explanation|objective|sub.?tasks?/i.test(h)) descCol = c;
-        else if (/category|type|phase|group/i.test(h)) catCol = c;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RAW TEXT PARSER — fallback for when HTML tables aren't available
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseRawTextToChecklist(text: string): { title: string; section: string; owner: string }[] {
+    if (!text || text.trim().length < 5) return [];
+
+    const lines = text.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
+    const items: { title: string; section: string; owner: string }[] = [];
+    let currentTabSection = '';
+    let inMessageSection = false;
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        if (isTableHeaderWord(line)) { i++; continue; }
+
+        // Check for tab-level headings first
+        if (isTabLevelHeading(line)) {
+            const sectionName = line.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+            if (isMessageSection(line)) {
+                inMessageSection = true;
+            } else {
+                inMessageSection = false;
+                currentTabSection = sectionName;
+            }
+            i++; continue;
+        }
+
+        // Non-tab headings that are message sections
+        if (line.length < 60 && isMessageSection(line)) {
+            inMessageSection = true;
+            i++; continue;
+        }
+
+        if (inMessageSection) { i++; continue; }
+        if (line.length < 4) { i++; continue; }
+        if (/^(task\s+category|simple\s+operations|phase\s+focus)$/i.test(line)) { i++; continue; }
+
+        // Skip message-like content lines
+        const ll = line.toLowerCase();
+        if (/^whatsapp\b/i.test(line) || /^email\b/i.test(line) || /^sms\b/i.test(line)
+            || /^social\b/i.test(line) || (ll.includes('whatsapp') && /\d{1,2}[:.]\d{2}\s*(am|pm)/i.test(ll))) {
+            i++; continue;
+        }
+
+        const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
+        const nextIsHeader = nextLine ? isTableHeaderWord(nextLine) : true;
+        const nextIsTab = nextLine ? isTabLevelHeading(nextLine) : true;
+
+        if (line.length < 80 && nextLine && !nextIsHeader && !nextIsTab
+            && nextLine.length > line.length && nextLine.length > 15
+            && !isTableHeaderWord(line)) {
+            items.push({ title: `${line} — ${nextLine}`, section: currentTabSection, owner: '' });
+            i += 2;
+            continue;
+        }
+
+        if (line.length >= 5 && !isTableHeaderWord(line)) {
+            items.push({ title: line, section: currentTabSection, owner: '' });
+        }
+        i++;
     }
 
+    return items.slice(0, 200);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HTML TABLE PARSER — uses column headers to detect task vs message tables
+// Only extracts TASK tables as checklist items. Message tables are skipped.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseHTMLTables(html: string): { title: string; section: string; owner: string }[] {
+    const items: { title: string; section: string; owner: string }[] = [];
+    let currentTabSection = '';
+
+    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>)/gi);
+
+    for (const part of parts) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+
+        // Track headings — only tab-level headings become sections
+        const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+        if (headingMatch) {
+            const text = stripHTML(headingMatch[1]).trim();
+            if (isTabLevelHeading(text)) {
+                if (isMessageSection(text)) {
+                    currentTabSection = '__messages__';
+                } else {
+                    currentTabSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                }
+            }
+            // Sub-headings within tabs do NOT change currentTabSection
+            continue;
+        }
+
+        // Skip tables in message tab sections
+        if (currentTabSection === '__messages__') continue;
+
+        if (/<table/i.test(trimmed)) {
+            const rows = extractTableRows(trimmed);
+            if (rows.length < 2) continue;
+
+            const header = rows[0].map(h => h.toLowerCase().trim());
+            const tableType = detectTableType(header);
+
+            // Skip message tables — the message parser handles them
+            if (tableType === 'message') {
+                console.log(`[SOP_PARSER] Skipping message table in section "${currentTabSection}" (headers: ${header.join(', ')})`);
+                continue;
+            }
+
+            // Parse as task/checklist table
+            const tableItems = parseTaskTable(rows, currentTabSection);
+            items.push(...tableItems);
+        }
+    }
+
+    return items;
+}
+
+/** Parse a task table into checklist items with section and owner */
+function parseTaskTable(rows: string[][], section: string): { title: string; section: string; owner: string }[] {
+    const items: { title: string; section: string; owner: string }[] = [];
+    const header = rows[0].map(h => h.toLowerCase().trim());
+
+    let taskCol = -1, descCol = -1, subTasksCol = -1, ownerCol = -1, catCol = -1;
+    for (let c = 0; c < header.length; c++) {
+        const h = header[c];
+        if (taskCol === -1 && (/^task$/i.test(h) || /task\s*name/i.test(h))) taskCol = c;
+        else if (descCol === -1 && /objective|description|detail|explanation/i.test(h)) descCol = c;
+        else if (subTasksCol === -1 && /sub.?task/i.test(h)) subTasksCol = c;
+        else if (ownerCol === -1 && /^owner$|responsible|assigned\s*to/i.test(h)) ownerCol = c;
+        else if (catCol === -1 && /category|type|phase|group/i.test(h)) catCol = c;
+    }
+
+    // Fallback column detection if no explicit task column
     if (taskCol === -1) {
         if (header.length >= 3) {
             catCol = catCol === -1 ? 0 : catCol;
             taskCol = 1;
             descCol = descCol === -1 ? 2 : descCol;
         } else if (header.length === 2) {
-            taskCol = 0;
-            descCol = 1;
+            taskCol = 0; descCol = 1;
         } else {
             taskCol = 0;
         }
@@ -361,19 +417,24 @@ function parseOneTable(tableHtml: string, section: string): { title: string; sec
         if (row.length <= taskCol) continue;
 
         const taskName = row[taskCol]?.trim() || '';
-        const taskDesc = descCol >= 0 && row.length > descCol ? row[descCol]?.trim() || '' : '';
-        const category = catCol >= 0 && row.length > catCol ? row[catCol]?.trim() || '' : '';
-
         if (!taskName || taskName.length < 2) continue;
         if (PURE_HEADER_WORDS.has(taskName.toLowerCase())) continue;
 
+        const desc = descCol >= 0 && row.length > descCol ? row[descCol]?.trim() || '' : '';
+        const subTasks = subTasksCol >= 0 && row.length > subTasksCol ? row[subTasksCol]?.trim() || '' : '';
+        const owner = ownerCol >= 0 && row.length > ownerCol ? row[ownerCol]?.trim() || '' : '';
+        const category = catCol >= 0 && row.length > catCol ? row[catCol]?.trim() || '' : '';
+
         if (category && category.length > 1) lastCategory = category;
-
         const sectionLabel = section || lastCategory;
-        let title = taskName;
-        if (taskDesc && taskDesc.length > 2) title += ` — ${taskDesc}`;
 
-        if (title.length > 3) items.push({ title: title.trim(), section: sectionLabel });
+        let title = taskName;
+        if (desc && desc.length > 2) title += ` — ${desc}`;
+        if (subTasks && subTasks.length > 2 && subTasks !== desc) title += ` [${subTasks}]`;
+
+        if (title.length > 3) {
+            items.push({ title: title.trim(), section: sectionLabel, owner });
+        }
     }
 
     return items;
@@ -413,105 +474,11 @@ function stripHTMLPreserveFormat(html: string): string {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MESSAGE PARSER — detects sections titled "Messages", "Communication", etc.
-// Extracts message blocks with title + content for communication tasks.
+// MESSAGE PARSER — detects message tables by column headers (not just headings)
+// This ensures message tables are found even under non-message headings.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const MESSAGE_SECTION_PATTERN = /message|communication|email|whatsapp|sms|notification|announce|broadcast|template|day\s*\d+\s*message|over.?night\s*message/i;
-
-function isMessageSection(text: string): boolean {
-    return MESSAGE_SECTION_PATTERN.test(text);
-}
-
 type ParsedMessage = { title: string; content: string; section: string; channel: string; scheduled_time: string };
-
-function parseMessagesFromHTML(html: string): ParsedMessage[] {
-    const messages: ParsedMessage[] = [];
-    let inMessageSection = false;
-    let sectionHeading = '';
-    let currentSubHeading = '';
-
-    const headings = [...html.matchAll(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi)];
-    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<p[^>]*>[\s\S]*?<\/p>)/gi);
-
-    for (const part of parts) {
-        const trimmed = part.trim();
-        if (!trimmed) continue;
-
-        const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
-        if (headingMatch) {
-            const text = stripHTML(headingMatch[1]).trim();
-            if (isMessageSection(text)) {
-                inMessageSection = true;
-                sectionHeading = text;
-                currentSubHeading = '';
-                continue;
-            } else if (inMessageSection && text.length > 2) {
-                currentSubHeading = text;
-                continue;
-            }
-            if (!isMessageSection(text) && text.length > 2) {
-                inMessageSection = false;
-            }
-            continue;
-        }
-
-        if (!inMessageSection) continue;
-
-        const pMatch = trimmed.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-        if (pMatch) {
-            const text = stripHTMLPreserveFormat(pMatch[1]).trim();
-            if (text.length > 10) {
-                const title = currentSubHeading || sectionHeading || 'Message';
-                // Try to extract time from title like "8:00 AM — Morning briefing"
-                const timeMatch = title.match(/(\d{1,2}[:.]\d{2}\s*(?:AM|PM)?)/i);
-                messages.push({
-                    title, content: text,
-                    section: sectionHeading,
-                    channel: detectChannel(sectionHeading + ' ' + title),
-                    scheduled_time: timeMatch?.[1] || ''
-                });
-            }
-            continue;
-        }
-
-        if (/<table/i.test(trimmed)) {
-            const tableMessages = parseMessageTable(trimmed, sectionHeading);
-            messages.push(...tableMessages);
-        }
-    }
-
-    if (messages.length === 0) {
-        const allTables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
-        for (let t = 0; t < allTables.length; t++) {
-            const table = allTables[t];
-            let nearestHeading = '';
-            const tablePos = html.indexOf(table);
-            for (const h of headings) {
-                const hPos = h.index || 0;
-                if (hPos < tablePos) nearestHeading = stripHTML(h[1]).trim();
-            }
-            // Only parse tables that are likely message tables (near message headings)
-            if (isMessageSection(nearestHeading)) {
-                const tableMessages = parseMessageTable(table, nearestHeading);
-                messages.push(...tableMessages);
-            }
-        }
-    }
-
-    // Deduplicate messages by content
-    const seen = new Set<string>();
-    const unique: ParsedMessage[] = [];
-    for (const msg of messages) {
-        const key = `${msg.title}||${msg.content.slice(0, 100)}`;
-        if (!seen.has(key)) {
-            seen.add(key);
-            unique.push(msg);
-        }
-    }
-
-    return unique.slice(0, 100);
-}
 
 function detectChannel(text: string): string {
     const t = text.toLowerCase();
@@ -523,24 +490,115 @@ function detectChannel(text: string): string {
     return '';
 }
 
-function parseMessageTable(tableHtml: string, sectionHeading: string): ParsedMessage[] {
+function parseMessagesFromHTML(html: string): ParsedMessage[] {
     const messages: ParsedMessage[] = [];
-    const rows: string[][] = [];
-    const rawCells: string[][] = [];
-    const rowMatches = tableHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-    for (const row of rowMatches) {
-        const cells: string[] = [];
-        const cellsRaw: string[] = [];
-        const cellMatches = row.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [];
-        for (const cell of cellMatches) {
-            cells.push(stripHTML(cell).trim());
-            cellsRaw.push(stripHTMLPreserveFormat(cell).trim());
+    let currentSection = '';
+
+    const parts = html.split(/(<table[\s\S]*?<\/table>|<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>|<p[^>]*>[\s\S]*?<\/p>)/gi);
+
+    let inMessageSection = false;
+    let currentSubHeading = '';
+
+    for (const part of parts) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+
+        const headingMatch = trimmed.match(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/i);
+        if (headingMatch) {
+            const text = stripHTML(headingMatch[1]).trim();
+            if (isTabLevelHeading(text)) {
+                currentSection = text.replace(/^\d+\.\s*/, '').replace(/\s*\(.*?\)\s*$/, '').trim();
+                inMessageSection = isMessageSection(text);
+                currentSubHeading = '';
+            } else if (isMessageSection(text)) {
+                currentSection = text.replace(/^\d+\.\s*/, '').trim();
+                inMessageSection = true;
+                currentSubHeading = '';
+            } else if (inMessageSection && text.length > 2) {
+                currentSubHeading = text;
+            } else if (text.length > 2) {
+                inMessageSection = false;
+            }
+            continue;
         }
-        if (cells.length > 0) { rows.push(cells); rawCells.push(cellsRaw); }
+
+        // Paragraph content inside message sections
+        if (inMessageSection) {
+            const pMatch = trimmed.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+            if (pMatch) {
+                const text = stripHTMLPreserveFormat(pMatch[1]).trim();
+                if (text.length > 10) {
+                    const title = currentSubHeading || currentSection || 'Message';
+                    const timeMatch = title.match(/(\d{1,2}[:.]\d{2}\s*(?:AM|PM)?)/i);
+                    messages.push({
+                        title, content: text,
+                        section: currentSection,
+                        channel: detectChannel(currentSection + ' ' + title),
+                        scheduled_time: timeMatch?.[1] || ''
+                    });
+                }
+                continue;
+            }
+        }
+
+        // For tables: detect type by column headers regardless of section context
+        if (/<table/i.test(trimmed)) {
+            const rows = extractTableRows(trimmed);
+            const rawRows = extractTableRowsRaw(trimmed);
+            if (rows.length < 2) continue;
+
+            const header = rows[0].map(h => h.toLowerCase().trim());
+            const tableType = detectTableType(header);
+
+            if (tableType === 'message' || (inMessageSection && tableType !== 'task')) {
+                const sectionForMessages = currentSection || 'Messages';
+                const tableMessages = parseMessageTableFromRows(rows, rawRows, sectionForMessages);
+                console.log(`[SOP_PARSER] Found message table in "${currentSection}" → ${tableMessages.length} messages (headers: ${header.join(', ')})`);
+                messages.push(...tableMessages);
+            }
+        }
     }
 
-    if (rows.length < 2) return messages;
+    // Fallback: scan ALL tables for message-type tables (if nothing found via heading context)
+    if (messages.length === 0) {
+        console.log(`[SOP_PARSER] No messages found via headings, scanning all tables by column headers...`);
+        const allTables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+        const headings = [...html.matchAll(/<h[1-6][^>]*>([\s\S]*?)<\/h[1-6]>/gi)];
 
+        for (const table of allTables) {
+            const rows = extractTableRows(table);
+            const rawRows = extractTableRowsRaw(table);
+            if (rows.length < 2) continue;
+
+            const header = rows[0].map(h => h.toLowerCase().trim());
+            if (detectTableType(header) === 'message') {
+                // Find nearest heading for section name
+                let nearestHeading = 'Messages';
+                const tablePos = html.indexOf(table);
+                for (const h of headings) {
+                    if ((h.index || 0) < tablePos) nearestHeading = stripHTML(h[1]).trim();
+                }
+                const tableMessages = parseMessageTableFromRows(rows, rawRows, nearestHeading);
+                messages.push(...tableMessages);
+            }
+        }
+    }
+
+    // Deduplicate
+    const seen = new Set<string>();
+    const unique: ParsedMessage[] = [];
+    for (const msg of messages) {
+        const key = `${msg.title}||${msg.content.slice(0, 100)}`;
+        if (!seen.has(key)) { seen.add(key); unique.push(msg); }
+    }
+
+    console.log(`[SOP_PARSER] Total unique messages: ${unique.length}`);
+    return unique.slice(0, 100);
+}
+
+/** Parse a message table from pre-extracted rows */
+function parseMessageTableFromRows(rows: string[][], rawRows: string[][], sectionHeading: string): ParsedMessage[] {
+    const messages: ParsedMessage[] = [];
     const header = rows[0].map(h => h.toLowerCase().trim());
 
     let typeCol = -1, contentCol = -1, timeCol = -1, channelCol = -1, audienceCol = -1;
@@ -552,51 +610,53 @@ function parseMessageTable(tableHtml: string, sectionHeading: string): ParsedMes
         else if (typeCol === -1 && /type|heading|category|subject/i.test(h) && !/content|body|text|draft/i.test(h)) typeCol = c;
         else if (contentCol === -1 && /message|content|body|text|template|draft/i.test(h)) contentCol = c;
     }
-    // If no content column found but there's a very wide last column, assume it's content
+
+    // Auto-detect content column as widest if not found by header
     if (contentCol === -1 && rows.length > 1) {
         const dataRow = rows[1];
         let maxLen = 0, maxIdx = -1;
         for (let c = 0; c < dataRow.length; c++) {
+            if (c === typeCol || c === timeCol || c === channelCol || c === audienceCol) continue;
             if (dataRow[c].length > maxLen) { maxLen = dataRow[c].length; maxIdx = c; }
         }
-        if (maxLen > 50 && maxIdx !== typeCol && maxIdx !== timeCol && maxIdx !== channelCol) {
-            contentCol = maxIdx;
+        if (maxLen > 30 && maxIdx >= 0) contentCol = maxIdx;
+    }
+
+    if (contentCol < 0) return messages;
+
+    for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const raw = rawRows[r];
+
+        const typeValue = typeCol >= 0 && row.length > typeCol ? row[typeCol]?.trim() || '' : '';
+        const title = typeValue || sectionHeading || 'Message';
+        const content = raw && raw.length > contentCol ? raw[contentCol]?.trim() || '' : '';
+        const time = timeCol >= 0 && row.length > timeCol ? row[timeCol]?.trim() || '' : '';
+        const channel = channelCol >= 0 && row.length > channelCol ? row[channelCol]?.trim() || '' : '';
+
+        if (content.length > 5) {
+            const timeMatch = (time || title).match(/(\d{1,2}[:.]\d{2}\s*(?:AM|PM)?)/i);
+            messages.push({
+                title, content,
+                section: sectionHeading,
+                channel: channel || detectChannel(sectionHeading + ' ' + title),
+                scheduled_time: timeMatch?.[1] || time || ''
+            });
         }
     }
 
-    if (contentCol >= 0) {
-        for (let r = 1; r < rows.length; r++) {
-            const row = rows[r];
-            const raw = rawCells[r];
-            const typeValue = typeCol >= 0 && row.length > typeCol ? row[typeCol]?.trim() || '' : '';
-            const title = typeValue || sectionHeading || 'Message';
-            const content = raw && raw.length > contentCol ? raw[contentCol]?.trim() || '' : '';
-            const time = timeCol >= 0 && row.length > timeCol ? row[timeCol]?.trim() || '' : '';
-            const channel = channelCol >= 0 && row.length > channelCol ? row[channelCol]?.trim() || '' : '';
-            if (content.length > 5) {
-                const timeMatch = (time || title).match(/(\d{1,2}[:.]\d{2}\s*(?:AM|PM)?)/i);
-                messages.push({
-                    title, content,
-                    section: sectionHeading,
-                    channel: channel || detectChannel(sectionHeading + ' ' + title),
-                    scheduled_time: timeMatch?.[1] || time || ''
-                });
-            }
-        }
-    }
-
-    // Heuristic fallback
+    // Heuristic fallback for tables without clear content column
     if (contentCol === -1 && messages.length === 0) {
-        const MESSAGE_CONTENT_PATTERN = /\b(hi |hello |dear |greetings|thank you|thanks|regards|sincerely|best wishes|cheers|warm regards|kindly|please find|we are pleased|we would like|invitation|congratulations|welcome)\b/i;
+        const MSG_PATTERN = /\b(hi |hello |dear |greetings|thank you|regards|sincerely|kindly|welcome|invitation|congratulations)\b/i;
         for (let r = 1; r < rows.length; r++) {
-            const raw = rawCells[r];
+            const raw = rawRows[r];
             const row = rows[r];
             if (!raw || raw.length === 0) continue;
             let longestIdx = 0, longestLen = 0;
             for (let c = 0; c < raw.length; c++) {
                 if (raw[c].length > longestLen) { longestLen = raw[c].length; longestIdx = c; }
             }
-            if (longestLen > 50 && MESSAGE_CONTENT_PATTERN.test(raw[longestIdx])) {
+            if (longestLen > 50 && MSG_PATTERN.test(raw[longestIdx])) {
                 let title = '';
                 for (let c = 0; c < row.length; c++) {
                     if (c !== longestIdx && row[c].length > 1 && row[c].length < 100) { title = row[c]; break; }
@@ -637,22 +697,21 @@ function parseMessagesFromText(text: string): ParsedMessage[] {
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
 
-        if (isMessageSection(line) && (isSectionHeader(line) || line.length < 60)) {
-            inMessageSection = true;
-            flushMessage();
-            sectionHeading = line.replace(/^\d+\.\s*/, '').trim();
-            currentSubHeading = '';
-            continue;
-        }
-
-        if (isSectionHeader(line) && !isMessageSection(line)) {
-            if (inMessageSection) flushMessage();
-            inMessageSection = false;
+        if (isTabLevelHeading(line) || (line.length < 60 && isMessageSection(line))) {
+            if (isMessageSection(line)) {
+                inMessageSection = true;
+                flushMessage();
+                sectionHeading = line.replace(/^\d+\.\s*/, '').trim();
+                currentSubHeading = '';
+            } else {
+                if (inMessageSection) flushMessage();
+                inMessageSection = false;
+            }
             continue;
         }
 
         if (!inMessageSection) continue;
-        if (isTableHeader(line)) continue;
+        if (isTableHeaderWord(line)) continue;
 
         if (line.length > 5) {
             const nextLine = i + 1 < lines.length ? lines[i + 1] : '';

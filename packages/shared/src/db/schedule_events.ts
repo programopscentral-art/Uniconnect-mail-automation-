@@ -111,6 +111,7 @@ async function ensureEventSchema() {
 
         // ─── Phase 2 migrations: section columns, status, reports, event_id on tasks ───
         await db.query(`ALTER TABLE event_checklist_items ADD COLUMN IF NOT EXISTS section TEXT DEFAULT ''`);
+        await db.query(`ALTER TABLE event_checklist_items ADD COLUMN IF NOT EXISTS owner TEXT DEFAULT ''`);
         await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS section TEXT DEFAULT ''`);
         await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS channel TEXT DEFAULT ''`);
         await db.query(`ALTER TABLE event_messages ADD COLUMN IF NOT EXISTS scheduled_time TEXT DEFAULT ''`);
@@ -296,18 +297,18 @@ export async function addEventChecklistItem(eventId: string, title: string, sort
     return res.rows[0];
 }
 
-export async function addEventChecklistItemsBulk(eventId: string, items: (string | { title: string; section?: string })[]) {
+export async function addEventChecklistItemsBulk(eventId: string, items: (string | { title: string; section?: string; owner?: string })[]) {
     await ensureEventSchema();
     if (items.length === 0) return [];
     const values: string[] = [];
     const params: any[] = [eventId];
     for (let i = 0; i < items.length; i++) {
-        const item = typeof items[i] === 'string' ? { title: items[i] as string, section: '' } : items[i] as { title: string; section?: string };
-        params.push(item.title, item.section || '', i + 1);
-        values.push(`($1, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
+        const item = typeof items[i] === 'string' ? { title: items[i] as string, section: '', owner: '' } : items[i] as { title: string; section?: string; owner?: string };
+        params.push(item.title, item.section || '', item.owner || '', i + 1);
+        values.push(`($1, $${params.length - 3}, $${params.length - 2}, $${params.length - 1}, $${params.length})`);
     }
     const res = await db.query(
-        `INSERT INTO event_checklist_items (event_id, title, section, sort_order)
+        `INSERT INTO event_checklist_items (event_id, title, section, owner, sort_order)
          VALUES ${values.join(', ')} RETURNING *`,
         params
     );
@@ -676,7 +677,10 @@ export async function createTasksFromEventChecklist(eventId: string, assigneeIds
 
     const createdTasks: any[] = [];
     for (const [section, sectionItems] of sections) {
-        const description = sectionItems.map((it: any) => `- ${it.title}`).join('\n');
+        const description = sectionItems.map((it: any) => {
+            const ownerStr = it.owner ? ` (Owner: ${it.owner})` : '';
+            return `- ${it.title}${ownerStr}`;
+        }).join('\n');
         const taskResult = await db.query(
             `INSERT INTO tasks (title, description, priority, status, due_date, assigned_by, university_id, event_id)
              VALUES ($1, $2, $3, 'PENDING', $4, $5, $6, $7) RETURNING *`,
