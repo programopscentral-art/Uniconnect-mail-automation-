@@ -41,6 +41,7 @@
   let editingTask = $state<any>(null);
   let isSubmitting = $state(false);
   let updatingTaskId = $state<string | null>(null);
+  let viewingTask = $state<any>(null);
 
   // Bulk selection
   let selectedTasks = $state<Set<string>>(new Set());
@@ -686,11 +687,12 @@
         <div class="p-6 flex-1 space-y-4">
           <div class="flex justify-between items-start gap-3">
             <div class="space-y-1">
-              <h3
-                class="text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight"
+              <button
+                onclick={() => viewingTask = task}
+                class="text-left text-lg font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors leading-tight hover:underline cursor-pointer"
               >
                 {task.title}
-              </h3>
+              </button>
               {#if task.university_name}
                 <div
                   class="flex items-center text-xs font-semibold text-indigo-500 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full"
@@ -1286,6 +1288,126 @@
               ? "Update Task"
               : "Create Task"}
         </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Task Detail View Modal -->
+{#if viewingTask}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => viewingTask = null} role="dialog" transition:fade={{ duration: 150 }}>
+    <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[85vh] overflow-y-auto"
+      onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
+
+      <!-- Header -->
+      <div class="sticky top-0 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-6 py-4 flex items-start justify-between z-10">
+        <div class="flex-1 min-w-0 pr-4">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black uppercase {priorityColors[viewingTask.priority] || priorityColors.MEDIUM}">{viewingTask.priority}</span>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-bold {statusColors[viewingTask.status] || statusColors.PENDING}">{statusLabels[viewingTask.status] || viewingTask.status}</span>
+          </div>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white leading-tight">{viewingTask.title}</h2>
+          {#if viewingTask.university_name}
+            <span class="text-xs text-indigo-500 dark:text-indigo-400 font-medium">{viewingTask.university_short_name || viewingTask.university_name}</span>
+          {/if}
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <button onclick={() => { openEdit(viewingTask); viewingTask = null; }} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+          </button>
+          <button onclick={() => viewingTask = null} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="px-6 py-4 space-y-4">
+        <!-- Description -->
+        {#if viewingTask.description}
+          <div>
+            <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Description</h4>
+            <pre class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">{viewingTask.description}</pre>
+          </div>
+        {/if}
+
+        <!-- Meta Info -->
+        <div class="grid grid-cols-2 gap-3">
+          {#if viewingTask.due_date}
+            <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Due Date</span>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">{new Date(viewingTask.due_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+          {/if}
+          {#if viewingTask.estimated_time || viewingTask.assignees?.[0]?.estimated_time}
+            <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Estimated Time</span>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">{viewingTask.estimated_time || viewingTask.assignees?.[0]?.estimated_time}</p>
+            </div>
+          {/if}
+          {#if viewingTask.assigned_by_name}
+            <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Assigned By</span>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">{viewingTask.assigned_by_name}</p>
+            </div>
+          {/if}
+          {#if viewingTask.created_at}
+            <div class="bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">
+              <span class="text-[10px] font-bold text-gray-400 uppercase">Created</span>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-200">{new Date(viewingTask.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Assignees -->
+        {#if viewingTask.assignees?.length > 0}
+          <div>
+            <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Assigned To</h4>
+            <div class="space-y-2">
+              {#each viewingTask.assignees as a}
+                <div class="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/50">
+                  <div class="w-8 h-8 rounded-full {a.status === 'COMPLETED' ? 'bg-emerald-200 dark:bg-emerald-900/50' : 'bg-indigo-200 dark:bg-indigo-900/50'} flex items-center justify-center text-xs font-bold {a.status === 'COMPLETED' ? 'text-emerald-700' : 'text-indigo-700 dark:text-indigo-300'}">
+                    {a.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{a.name || a.email}</p>
+                    <p class="text-[10px] text-gray-400">{a.email}</p>
+                  </div>
+                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {a.status === 'COMPLETED' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400' : a.status === 'IN_PROGRESS' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}">
+                    {a.status || 'PENDING'}
+                  </span>
+                  {#if a.completed_at}
+                    <span class="text-[9px] text-emerald-500">{new Date(a.completed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  {/if}
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- Notes -->
+        {#if viewingTask.notes}
+          <div>
+            <h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Notes</h4>
+            <pre class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-sans leading-relaxed bg-gray-50 dark:bg-slate-800/50 rounded-xl p-3">{viewingTask.notes}</pre>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Actions Footer -->
+      <div class="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          {#if viewingTask.status !== 'IN_PROGRESS' && viewingTask.status !== 'COMPLETED'}
+            <button onclick={() => { updateStatus(viewingTask, 'IN_PROGRESS'); viewingTask = { ...viewingTask, status: 'IN_PROGRESS' }; }}
+              class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors">Start Work</button>
+          {/if}
+          {#if viewingTask.status !== 'COMPLETED'}
+            <button onclick={() => { updateStatus(viewingTask, 'COMPLETED'); viewingTask = { ...viewingTask, status: 'COMPLETED' }; }}
+              class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors">Mark Done</button>
+          {/if}
+        </div>
+        <button onclick={() => { openEdit(viewingTask); viewingTask = null; }}
+          class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors">Edit Task</button>
       </div>
     </div>
   </div>
