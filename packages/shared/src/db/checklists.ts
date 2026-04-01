@@ -28,6 +28,7 @@ async function ensureChecklistTables() {
                 session_id TEXT
             )
         `);
+        await db.query(`ALTER TABLE task_checklist_items ADD COLUMN IF NOT EXISTS event_checklist_item_id UUID`).catch(() => {});
         await db.query(`CREATE INDEX IF NOT EXISTS idx_checklist_task ON task_checklist_items(task_id)`);
         await db.query(`CREATE INDEX IF NOT EXISTS idx_view_log_task ON task_view_logs(task_id)`);
         await db.query(`CREATE INDEX IF NOT EXISTS idx_view_log_user ON task_view_logs(user_id)`);
@@ -84,9 +85,10 @@ export async function addChecklistItemsBulk(taskId: string, items: string[]) {
 
 export async function toggleChecklistItem(itemId: string, userId: string) {
     await ensureChecklistTables();
-    const current = await db.query(`SELECT is_completed FROM task_checklist_items WHERE id = $1`, [itemId]);
+    const current = await db.query(`SELECT is_completed, event_checklist_item_id FROM task_checklist_items WHERE id = $1`, [itemId]);
     if (!current.rows[0]) return null;
     const wasCompleted = current.rows[0].is_completed;
+    const eventChecklistItemId = current.rows[0].event_checklist_item_id;
     const res = await db.query(
         `UPDATE task_checklist_items SET
             is_completed = $2,
@@ -96,6 +98,20 @@ export async function toggleChecklistItem(itemId: string, userId: string) {
          WHERE id = $1 RETURNING *`,
         [itemId, !wasCompleted, userId]
     );
+
+    // Sync to linked event checklist item
+    if (eventChecklistItemId) {
+        await db.query(
+            `UPDATE event_checklist_items SET
+                is_completed = $2,
+                completed_by = CASE WHEN $2 THEN $3::uuid ELSE NULL END,
+                completed_at = CASE WHEN $2 THEN NOW() ELSE NULL END,
+                updated_at = NOW()
+             WHERE id = $1`,
+            [eventChecklistItemId, !wasCompleted, userId]
+        ).catch(() => {});
+    }
+
     return res.rows[0];
 }
 

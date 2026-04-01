@@ -329,12 +329,29 @@ export async function toggleEventChecklistItem(itemId: string, userId: string) {
          WHERE id = $1 RETURNING *`,
         [itemId, !wasCompleted, userId]
     );
+
+    // Sync to linked task checklist items
+    await db.query(
+        `UPDATE task_checklist_items SET
+            is_completed = $2,
+            completed_by = CASE WHEN $2 THEN $3::uuid ELSE NULL END,
+            completed_at = CASE WHEN $2 THEN NOW() ELSE NULL END,
+            updated_at = NOW()
+         WHERE event_checklist_item_id = $1`,
+        [itemId, !wasCompleted, userId]
+    ).catch(() => {});
+
     return res.rows[0];
 }
 
 export async function deleteEventChecklistItem(itemId: string) {
     await ensureEventSchema();
     await db.query(`DELETE FROM event_checklist_items WHERE id = $1`, [itemId]);
+}
+
+export async function deleteEventChecklistItemsByEvent(eventId: string) {
+    await ensureEventSchema();
+    await db.query(`DELETE FROM event_checklist_items WHERE event_id = $1`, [eventId]);
 }
 
 export async function getEventChecklistProgress(eventId: string) {
@@ -484,6 +501,11 @@ export async function toggleEventMessageSent(messageId: string, userId: string) 
 export async function deleteEventMessage(messageId: string) {
     await ensureEventSchema();
     await db.query(`DELETE FROM event_messages WHERE id = $1`, [messageId]);
+}
+
+export async function deleteEventMessagesByEvent(eventId: string) {
+    await ensureEventSchema();
+    await db.query(`DELETE FROM event_messages WHERE event_id = $1`, [eventId]);
 }
 
 // ─── Calendar Freeze ──────────────────────────────────────────────────────
@@ -667,6 +689,9 @@ export async function createTasksFromEventChecklist(eventId: string, assigneeIds
     const items = await getEventChecklistItems(eventId);
     if (items.length === 0) return [];
 
+    // Delete existing event-linked tasks first (re-generation)
+    await db.query(`DELETE FROM tasks WHERE event_id = $1`, [eventId]);
+
     // Group by section
     const sections = new Map<string, any[]>();
     for (const item of items) {
@@ -685,7 +710,7 @@ export async function createTasksFromEventChecklist(eventId: string, assigneeIds
             `INSERT INTO tasks (title, description, priority, status, due_date, assigned_by, university_id, event_id)
              VALUES ($1, $2, $3, 'PENDING', $4, $5, $6, $7) RETURNING *`,
             [
-                `${event.title} — ${section}`,
+                `${event.title} — ${section || 'Tasks'}`,
                 description,
                 event.priority || 'MEDIUM',
                 event.due_date,
@@ -695,6 +720,7 @@ export async function createTasksFromEventChecklist(eventId: string, assigneeIds
             ]
         );
         const task = taskResult.rows[0];
+
         // Assign to all event assignees
         for (const uid of assigneeIds) {
             await db.query(
@@ -702,6 +728,17 @@ export async function createTasksFromEventChecklist(eventId: string, assigneeIds
                 [task.id, uid]
             ).catch(() => {});
         }
+
+        // Create task checklist items linked to event checklist items
+        for (let i = 0; i < sectionItems.length; i++) {
+            const it = sectionItems[i];
+            await db.query(
+                `INSERT INTO task_checklist_items (task_id, title, sort_order, event_checklist_item_id)
+                 VALUES ($1, $2, $3, $4)`,
+                [task.id, it.title, i + 1, it.id || null]
+            ).catch(() => {});
+        }
+
         createdTasks.push(task);
     }
     return createdTasks;
