@@ -29,6 +29,10 @@
   });
   let dateTo = $derived(dateRange === 'custom' ? customTo : new Date().toISOString().split('T')[0]);
 
+  // Gemini AI insights
+  let aiInsights = $state<string>('');
+  let isLoadingAI = $state(false);
+
   // --- Load team data ---
   async function loadTeam() {
     isLoading = true;
@@ -42,7 +46,7 @@
       if (res.ok) {
         const result = await res.json();
         teamData = result.team || [];
-        if (result.universities?.length && universities.length === 0) {
+        if (result.universities?.length) {
           universities = result.universities;
         }
       }
@@ -72,25 +76,69 @@
     }
   }
 
-  // Reactive load — watch computed dateFrom/dateTo directly for instant reload
-  $effect(() => {
-    const _u = selectedUniversityId;
-    const _df = dateFrom;
-    const _dt = dateTo;
-    untrack(() => { loadTeam(); });
-  });
+  // --- Load Gemini AI insights ---
+  async function loadAIInsights() {
+    if (isLoadingAI) return;
+    isLoadingAI = true;
+    aiInsights = '';
+    try {
+      const payload: any = {};
+      if (selectedUserId && userDetail) {
+        payload.mode = 'user';
+        payload.user = userDetail.user;
+        payload.stats = userDetail.stats;
+        payload.task_types = userDetail.task_types;
+        payload.priority_breakdown = userDetail.priority_breakdown;
+        payload.weekly_trend = userDetail.weekly_trend;
+        payload.communication_tasks = userDetail.communication_tasks;
+      } else {
+        payload.mode = 'team';
+        payload.team = teamData.map(m => ({
+          name: m.name, role: m.role, university_name: m.university_name,
+          total_assigned: m.total_assigned, total_completed: m.total_completed,
+          total_in_progress: m.total_in_progress, total_overdue: m.total_overdue,
+          avg_completion_hours: m.avg_completion_hours, current_streak: m.current_streak,
+          tasks_completed_on_time: m.tasks_completed_on_time, tasks_completed_late: m.tasks_completed_late,
+        }));
+      }
+      payload.dateRange = dateRange;
+      payload.universityFilter = selectedUniversityId;
 
-  // Auto-load for non-admins (self view)
-  $effect(() => {
-    if (!data.isGlobalOps && !selectedUserId) {
-      selectedUserId = data.user.id;
+      const res = await fetch('/api/analytics/ai-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        aiInsights = result.insights || '';
+      }
+    } catch (e) {
+      console.error('[ANALYTICS] AI error:', e);
+      aiInsights = 'Failed to load AI insights. Please try again.';
+    } finally {
+      isLoadingAI = false;
     }
-  });
+  }
 
-  $effect(() => {
+  // --- Reload everything (called on filter change) ---
+  function reloadAll() {
+    loadTeam();
     if (selectedUserId) {
-      untrack(() => { loadUserDetail(selectedUserId!); });
+      loadUserDetail(selectedUserId);
     }
+    aiInsights = ''; // clear stale AI insights
+  }
+
+  // Initial load on mount
+  $effect(() => {
+    untrack(() => {
+      loadTeam();
+      if (!data.isGlobalOps) {
+        selectedUserId = data.user.id;
+        loadUserDetail(data.user.id);
+      }
+    });
   });
 
   function selectUser(userId: string) {
@@ -332,7 +380,7 @@
 
     <!-- Filters -->
     <div class="flex flex-wrap items-center gap-2">
-      <select bind:value={dateRange} class="px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm text-gray-900 dark:text-white">
+      <select bind:value={dateRange} onchange={() => { setTimeout(() => { if (dateRange !== 'custom') reloadAll(); }, 0); }} class="px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm text-gray-900 dark:text-white">
         <option value="7d">Last 7 Days</option>
         <option value="30d">Last 30 Days</option>
         <option value="90d">Last 90 Days</option>
@@ -340,11 +388,11 @@
         <option value="custom">Custom Range</option>
       </select>
       {#if dateRange === 'custom'}
-        <input type="date" bind:value={customFrom} class="px-2 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white" />
-        <input type="date" bind:value={customTo} class="px-2 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white" />
+        <input type="date" bind:value={customFrom} onchange={() => setTimeout(reloadAll, 0)} class="px-2 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white" />
+        <input type="date" bind:value={customTo} onchange={() => setTimeout(reloadAll, 0)} class="px-2 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-gray-900 dark:text-white" />
       {/if}
-      {#if data.isGlobalOps && !selectedUserId}
-        <select bind:value={selectedUniversityId} class="px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm text-gray-900 dark:text-white">
+      {#if data.isGlobalOps}
+        <select bind:value={selectedUniversityId} onchange={() => setTimeout(reloadAll, 0)} class="px-3 py-2 text-xs font-bold bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm text-gray-900 dark:text-white">
           <option value="ALL">All Teams</option>
           {#each universities as univ}
             <option value={univ.id}>{univ.name}</option>
@@ -472,6 +520,37 @@
         </div>
       </div>
     {/if}
+
+    <!-- Gemini AI Analysis -->
+    <div class="glass p-6 rounded-[2rem]">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Gemini AI Analysis</h3>
+          <span class="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">AI</span>
+        </div>
+        <button
+          onclick={loadAIInsights}
+          disabled={isLoadingAI}
+          class="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {#if isLoadingAI}
+            <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            Analyzing...
+          {:else}
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate AI Report
+          {/if}
+        </button>
+      </div>
+      {#if aiInsights}
+        <div class="prose prose-sm dark:prose-invert max-w-none text-[12px] leading-relaxed text-gray-700 dark:text-gray-300 space-y-2 whitespace-pre-line bg-purple-50/50 dark:bg-purple-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30">
+          {aiInsights}
+        </div>
+      {:else if !isLoadingAI}
+        <p class="text-xs text-gray-400 dark:text-gray-500 text-center py-4">Click "Generate AI Report" for a detailed analysis powered by Gemini AI — includes work distribution, task recommendations, performance patterns, and actionable suggestions.</p>
+      {/if}
+    </div>
 
     <!-- Task Categories + Priority -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -727,6 +806,37 @@
         </div>
       </div>
     {/if}
+
+    <!-- Gemini AI Analysis (Team) -->
+    <div class="glass p-6 rounded-[2rem]">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Gemini AI Analysis</h3>
+          <span class="px-2 py-0.5 text-[8px] font-black uppercase tracking-wider rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">AI</span>
+        </div>
+        <button
+          onclick={loadAIInsights}
+          disabled={isLoadingAI}
+          class="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {#if isLoadingAI}
+            <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            Analyzing...
+          {:else}
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Generate AI Report
+          {/if}
+        </button>
+      </div>
+      {#if aiInsights}
+        <div class="prose prose-sm dark:prose-invert max-w-none text-[12px] leading-relaxed text-gray-700 dark:text-gray-300 space-y-2 whitespace-pre-line bg-purple-50/50 dark:bg-purple-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30">
+          {aiInsights}
+        </div>
+      {:else if !isLoadingAI}
+        <p class="text-xs text-gray-400 dark:text-gray-500 text-center py-4">Click "Generate AI Report" for a detailed team analysis — work distribution, bottleneck detection, task recommendations, and actionable suggestions powered by Gemini AI.</p>
+      {/if}
+    </div>
 
     <!-- Leaderboard / Team Table -->
     <div class="glass rounded-[2rem] overflow-hidden">
