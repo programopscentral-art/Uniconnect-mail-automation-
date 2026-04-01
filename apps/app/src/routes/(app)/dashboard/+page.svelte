@@ -1218,9 +1218,11 @@
       if (res.ok) {
         const result = await res.json();
         const msgCount = result.messages?.generated || 0;
-        const msg = msgCount > 0
-          ? `SOP document "${sopFile.name}" uploaded! ${msgCount} messages extracted.`
-          : `SOP document "${sopFile.name}" uploaded successfully! Click on it to view the content.`;
+        const taskCount = result.tasks?.generated || 0;
+        let msg = `SOP document "${sopFile.name}" uploaded!`;
+        if (msgCount > 0) msg += ` ${msgCount} messages extracted.`;
+        if (taskCount > 0) msg += ` ${taskCount} tasks auto-created in Task Center.`;
+        if (!msgCount && !taskCount) msg += ' Click on it to view the content.';
         alert(msg);
         sopFile = null;
         // Reload SOP docs and messages (messages are auto-extracted from view uploads)
@@ -1249,7 +1251,10 @@
       if (res.ok) {
         const result = await res.json();
         if (result.checklist?.generated > 0) {
-          alert(`Generated ${result.checklist.generated} checklist items from "${sopTaskFile.name}"`);
+          const taskCount = result.tasks?.generated || 0;
+          let msg = `Generated ${result.checklist.generated} checklist items from "${sopTaskFile.name}"`;
+          if (taskCount > 0) msg += ` and ${taskCount} tasks in Task Center.`;
+          alert(msg);
         } else {
           alert('Document uploaded but no checklist items could be extracted. Try a different format.');
         }

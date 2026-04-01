@@ -135,6 +135,22 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
     console.log(`[SOP_UPLOAD] Mode: ${mode}, File: ${filename}, ${contentText.length} chars, ${generatedItems.length} checklist items, ${generatedMessages.length} messages`);
 
+    // Auto-create tasks from checklist items if event has assignees
+    let autoTasks: any[] = [];
+    if (generatedItems.length > 0) {
+        try {
+            const { getScheduleEventById, createTasksFromEventChecklist } = await import('@uniconnect/shared');
+            const event = await getScheduleEventById(params.id);
+            const assigneeIds = (event?.assignees || []).map((a: any) => a.id).filter(Boolean);
+            if (assigneeIds.length > 0) {
+                autoTasks = await createTasksFromEventChecklist(params.id, assigneeIds, locals.user.id);
+                console.log(`[SOP_UPLOAD] Auto-created ${autoTasks.length} tasks for ${assigneeIds.length} assignees`);
+            }
+        } catch (e) {
+            console.warn('[SOP_UPLOAD] Auto-task creation failed (non-fatal):', e);
+        }
+    }
+
     return json({
         document: doc,
         mode,
@@ -145,6 +161,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         messages: {
             generated: generatedMessages.length,
             items: generatedMessages
+        },
+        tasks: {
+            generated: autoTasks.length,
+            items: autoTasks
         }
     });
 };
