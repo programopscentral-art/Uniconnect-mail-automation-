@@ -27,7 +27,7 @@ export class LayoutReconstructor {
      * The primary entry point for reconstruction. 
      */
     static async reconstruct(file: File, name: string, examType: string, universityId?: string): Promise<LayoutSchema> {
-        const GEMINI_KEY = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI').trim();
+        const GEMINI_KEY = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '').trim();
 
         if (!GEMINI_KEY || GEMINI_KEY.length < 10) {
             console.error('[RECONSTRUCTOR] ❌ Critical: No valid Gemini API Key found.');

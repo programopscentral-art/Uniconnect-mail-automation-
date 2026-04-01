@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-const GEMINI_KEY = () => (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || 'AIzaSyApoCTpsyCHOlejZ6DDN5wkxVnH11orvxI').trim();
+const GEMINI_KEY = () => (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '').trim();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
