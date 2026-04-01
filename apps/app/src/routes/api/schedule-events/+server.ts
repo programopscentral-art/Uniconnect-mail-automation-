@@ -7,6 +7,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401);
 
     const university_id = url.searchParams.get('university_id') || locals.user.university_id;
+    const adminRoles = ['ADMIN', 'PROGRAM_OPS', 'COS'];
+
+    // Admins with no specific university selected get ALL events
+    if (!university_id && adminRoles.includes(locals.user.role)) {
+        const events = await getScheduleEvents();
+        return json(events);
+    }
+
     if (!university_id) {
         return json([]);
     }
