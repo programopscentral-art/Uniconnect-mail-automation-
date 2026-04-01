@@ -81,13 +81,20 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
         throw error(400, 'Invalid analytics data');
     }
 
-    // Call Gemini API
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+    // Call Gemini API — try multiple models and API versions
+    const modelsToTry = [
+        { model: 'gemini-2.5-flash', version: 'v1beta' },
+        { model: 'gemini-2.5-flash', version: 'v1' },
+        { model: 'gemini-2.0-flash', version: 'v1beta' },
+        { model: 'gemini-2.0-flash', version: 'v1' },
+        { model: 'gemini-1.5-flash-latest', version: 'v1' },
+    ];
     let aiText: string | null = null;
+    let lastError = '';
 
-    for (const model of modelsToTry) {
+    for (const { model, version } of modelsToTry) {
         try {
-            const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/${version}/models/${model}:generateContent?key=${apiKey}`;
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -102,21 +109,23 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
 
             if (!response.ok) {
                 const errText = await response.text();
-                console.warn(`[ANALYTICS_AI] Gemini ${model} failed: ${response.status} ${errText}`);
+                lastError = `${model}(${version}): ${response.status} - ${errText.slice(0, 200)}`;
+                console.warn(`[ANALYTICS_AI] ${lastError}`);
                 continue;
             }
 
             const data = await response.json();
             aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
             if (aiText) break;
-        } catch (e) {
-            console.warn(`[ANALYTICS_AI] Gemini ${model} error:`, e);
+        } catch (e: any) {
+            lastError = `${model}(${version}): ${e.message}`;
+            console.warn(`[ANALYTICS_AI] ${lastError}`);
             continue;
         }
     }
 
     if (!aiText) {
-        throw error(502, 'Failed to get AI response from Gemini');
+        return json({ insights: `AI report generation failed. Last error: ${lastError}. The API key may need to be regenerated in Google AI Studio.` });
     }
 
     return json({ insights: aiText });
