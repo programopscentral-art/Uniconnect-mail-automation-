@@ -245,7 +245,8 @@ export async function getOpsComplianceData(startDate: string, endDate: string) {
 export async function getOpsSessionsByUniversity(date: string) {
     const res = await db.query(
         `SELECT university_name,
-            sessions_planned, sessions_completed, sessions_cancelled
+            sessions_planned, sessions_completed, sessions_cancelled,
+            cancellation_reason
         FROM ops_daily_data WHERE date = $1 ORDER BY university_name`,
         [date]
     );
@@ -479,7 +480,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: parseFloat(row.avg_hours_instructors) || 0,
                 avg_hours_coaches: parseFloat(row.avg_hours_coaches) || 0,
                 avg_hours_program_ops: parseFloat(row.avg_hours_program_ops) || 0,
-                cancellation_reason: row.cancellation_reason || row.cancel_reason || row.reason || null,
+                cancellation_reason: row.cancellation_reason || row.cancel_reason || row.reason || row.remarks || row.Remarks || null,
             });
         }
     }

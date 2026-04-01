@@ -329,26 +329,55 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     return json({ success: false, error: 'Could not discover sheet tabs. Make sure the spreadsheet is published to the web (File → Share → Publish to web).' }, { status: 400 });
                 }
 
-                // Filter tabs that look like dates (YYYY-MM-DD or DD-MM-YYYY or similar)
-                const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-                const dateTabsRaw = tabs.filter(t => dateRegex.test(t.name.trim()));
+                // Parse tab names as dates — supports many formats
+                const monthNames: Record<string, string> = {
+                    jan: '01', january: '01', feb: '02', february: '02', mar: '03', march: '03',
+                    apr: '04', april: '04', may: '05', jun: '06', june: '06',
+                    jul: '07', july: '07', aug: '08', august: '08', sep: '09', september: '09',
+                    oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12'
+                };
 
-                // Also try DD/MM/YYYY, DD-MM-YYYY, etc.
-                const altDateRegex = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/;
-                const altDateTabs = tabs.filter(t => !dateRegex.test(t.name.trim()) && altDateRegex.test(t.name.trim()));
-                for (const t of altDateTabs) {
-                    const m = t.name.trim().match(altDateRegex);
-                    if (m) {
-                        // Assume DD-MM-YYYY
-                        const isoDate = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+                function parseTabDate(name: string): string | null {
+                    const s = name.trim();
+                    // YYYY-MM-DD
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+                    // DD-MM-YYYY or DD/MM/YYYY
+                    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                    if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+                    // "28th March", "1st April", "3 Mar", "March 28" etc.
+                    const nlDate = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([a-zA-Z]+)(?:\s+(\d{4}))?$/i);
+                    if (nlDate) {
+                        const day = nlDate[1].padStart(2, '0');
+                        const mon = monthNames[nlDate[2].toLowerCase()];
+                        const year = nlDate[3] || new Date().getFullYear().toString();
+                        if (mon) return `${year}-${mon}-${day}`;
+                    }
+                    // "March 28th", "April 1" etc.
+                    const nlDate2 = s.match(/^([a-zA-Z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/i);
+                    if (nlDate2) {
+                        const day = nlDate2[2].padStart(2, '0');
+                        const mon = monthNames[nlDate2[1].toLowerCase()];
+                        const year = nlDate2[3] || new Date().getFullYear().toString();
+                        if (mon) return `${year}-${mon}-${day}`;
+                    }
+                    return null;
+                }
+
+                const dateTabsRaw: { name: string; gid: string }[] = [];
+                const skippedTabs: string[] = [];
+                for (const t of tabs) {
+                    const isoDate = parseTabDate(t.name);
+                    if (isoDate) {
                         dateTabsRaw.push({ name: isoDate, gid: t.gid });
+                    } else {
+                        skippedTabs.push(t.name);
                     }
                 }
 
                 if (!dateTabsRaw.length) {
                     return json({
                         success: false,
-                        error: `Found ${tabs.length} tab(s) but none have date names (YYYY-MM-DD). Tab names found: ${tabs.map(t => t.name).join(', ')}`,
+                        error: `Found ${tabs.length} tab(s) but none have recognizable date names. Tab names found: ${tabs.map(t => t.name).join(', ')}. Use formats like "28th March", "2026-03-28", or "28-03-2026".`,
                     }, { status: 400 });
                 }
 
