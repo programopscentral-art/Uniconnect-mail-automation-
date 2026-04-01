@@ -48,6 +48,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
                 console.log(`[SOP_UPLOAD] Mammoth HTML length: ${contentHtml.length}, text length: ${contentText.length}`);
 
+                // Debug: dump document structure
+                debugDocStructure(contentHtml);
+
                 if (mode === 'generate') {
                     // Try HTML table parsing first
                     checklistItems = parseHTMLTables(contentHtml);
@@ -184,6 +187,55 @@ export const DELETE: RequestHandler = async ({ url, locals }) => {
     return json({ success: true });
 };
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DEBUG: Dump document structure to understand mammoth output
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function debugDocStructure(html: string) {
+    // Extract all headings with their levels
+    const headings = [...html.matchAll(/<h([1-6])[^>]*>([\s\S]*?)<\/h[1-6]>/gi)];
+    console.log(`[DOC_STRUCTURE] Found ${headings.length} headings:`);
+    for (const h of headings) {
+        const level = h[1];
+        const text = h[2].replace(/<[^>]+>/g, '').trim();
+        console.log(`  H${level}: "${text}"`);
+    }
+
+    // Extract all tables with their headers and first row
+    const tables = html.match(/<table[\s\S]*?<\/table>/gi) || [];
+    console.log(`[DOC_STRUCTURE] Found ${tables.length} tables:`);
+    for (let t = 0; t < tables.length; t++) {
+        const rows = tables[t].match(/<tr[\s\S]*?<\/tr>/gi) || [];
+        if (rows.length > 0) {
+            const headerCells = (rows[0].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [])
+                .map(c => c.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim());
+            const firstDataCells = rows.length > 1
+                ? (rows[1].match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || [])
+                    .map(c => c.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim().substring(0, 50))
+                : [];
+            // Find nearest heading before this table
+            let nearestH = '(none)';
+            const tablePos = html.indexOf(tables[t]);
+            for (const h of headings) {
+                if ((h.index || 0) < tablePos) nearestH = `H${h[1]}: ${h[2].replace(/<[^>]+>/g, '').trim()}`;
+            }
+            console.log(`  Table ${t + 1} (${rows.length} rows) under ${nearestH}:`);
+            console.log(`    Headers: [${headerCells.join(' | ')}]`);
+            console.log(`    Row 1:   [${firstDataCells.join(' | ')}]`);
+        }
+    }
+
+    // Also show <p> and <strong> near tables to catch non-heading section markers
+    const strongMatches = [...html.matchAll(/<(?:p|strong)[^>]*>([\s\S]*?)<\/(?:p|strong)>/gi)];
+    const sectionLikeP = strongMatches
+        .map(m => m[1].replace(/<[^>]+>/g, '').trim())
+        .filter(t => t.length > 3 && t.length < 80 && /task|message|event|day|night|phase|checklist/i.test(t));
+    if (sectionLikeP.length > 0) {
+        console.log(`[DOC_STRUCTURE] Section-like <p>/<strong> elements:`);
+        for (const p of sectionLikeP.slice(0, 20)) console.log(`  "${p}"`);
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SHARED HELPERS
