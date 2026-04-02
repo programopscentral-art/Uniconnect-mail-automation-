@@ -413,7 +413,37 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
     const lines = cleanText.trim().split('\n');
     if (lines.length < 2) return { dailyData: [], instructorData: [] };
 
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    // CRITICAL: Use parseCSVLine for headers too (headers with commas in quoted fields break split)
+    const rawHeaders = parseCSVLine(lines[0]);
+    const headers = rawHeaders.map(h => h.trim().toLowerCase().replace(/[^\w]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, ''));
+
+    console.log('[OPS_CSV] Headers found:', headers.join(' | '));
+
+    // Build a flexible column lookup — map each header to its column index
+    const colIdx: Record<string, number> = {};
+    headers.forEach((h, i) => { colIdx[h] = i; });
+
+    // Flexible column finder: try multiple aliases for a field
+    function getVal(values: string[], ...aliases: string[]): string {
+        for (const alias of aliases) {
+            // Exact match
+            if (colIdx[alias] !== undefined && values[colIdx[alias]]) return values[colIdx[alias]].trim();
+            // Partial match (header contains alias)
+            for (const [h, idx] of Object.entries(colIdx)) {
+                if (h.includes(alias) && values[idx]) return values[idx].trim();
+            }
+        }
+        return '';
+    }
+    function getNum(values: string[], ...aliases: string[]): number {
+        const v = getVal(values, ...aliases);
+        return parseInt(v) || 0;
+    }
+    function getFloat(values: string[], ...aliases: string[]): number {
+        const v = getVal(values, ...aliases);
+        return parseFloat(v) || 0;
+    }
+
     const dailyData: any[] = [];
     const instructorData: any[] = [];
 
@@ -421,72 +451,74 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
         const values = parseCSVLine(lines[i]);
         if (values.length < 3) continue;
 
-        const row: any = {};
-        headers.forEach((h, idx) => {
-            row[h] = values[idx]?.trim() || '';
-        });
-
-        // Detect if this is instructor-level data (has instructor_name column)
-        if (row.instructor_name) {
+        // Detect if this is instructor-level data
+        const instrName = getVal(values, 'instructor_name', 'instructor');
+        if (instrName) {
             instructorData.push({
-                date: row.date,
-                university_name: row.university_name || row.university,
-                instructor_name: row.instructor_name,
-                role: row.role || 'Instructor',
-                teach_sessions_planned: parseInt(row.teach_sessions_planned) || 0,
-                teach_sessions_done: parseInt(row.teach_sessions_done) || 0,
-                practice_sessions_planned: parseInt(row.practice_sessions_planned) || 0,
-                practice_sessions_done: parseInt(row.practice_sessions_done) || 0,
-                hours_logged: parseFloat(row.hours_logged) || 0,
-                calls_made: parseInt(row.calls_made) || 0,
-                tickets_resolved: parseInt(row.tickets_resolved) || 0,
-                clicks_shares_sent: parseInt(row.clicks_shares_sent) || 0,
+                date: getVal(values, 'date') || dateOverride || new Date().toISOString().split('T')[0],
+                university_name: getVal(values, 'university_name', 'university'),
+                instructor_name: instrName,
+                role: getVal(values, 'role') || 'Instructor',
+                teach_sessions_planned: getNum(values, 'teach_sessions_planned'),
+                teach_sessions_done: getNum(values, 'teach_sessions_done'),
+                practice_sessions_planned: getNum(values, 'practice_sessions_planned'),
+                practice_sessions_done: getNum(values, 'practice_sessions_done'),
+                hours_logged: getFloat(values, 'hours_logged'),
+                calls_made: getNum(values, 'calls_made'),
+                tickets_resolved: getNum(values, 'tickets_resolved'),
+                clicks_shares_sent: getNum(values, 'clicks_shares_sent'),
             });
         } else {
-            // dateOverride ALWAYS wins if provided; otherwise use CSV date or today
-            const rowDate = dateOverride || row.date || new Date().toISOString().split('T')[0];
-            const uniName = (row.university_name || row.university || '').trim();
-            if (!uniName) continue; // skip rows without university name
+            const rowDate = dateOverride || getVal(values, 'date') || new Date().toISOString().split('T')[0];
+            const uniName = getVal(values, 'university_name', 'university');
+            if (!uniName) continue;
 
             dailyData.push({
                 date: rowDate,
                 university_name: uniName,
-                sessions_planned: parseInt(row.sessions_planned) || 0,
-                sessions_completed: parseInt(row.sessions_completed) || 0,
-                sessions_cancelled: parseInt(row.sessions_cancelled) || 0,
-                enrolled: parseInt(row.enrolled) || 0,
-                attended: parseInt(row.attended) || 0,
-                coach_calls: parseInt(row.coach_calls) || 0,
-                parent_calls: parseInt(row.parent_calls) || 0,
-                instructors_total: parseInt(row.instructors_total) || 0,
-                instructors_on_leave: parseInt(row.instructors_on_leave || row.leave_today) || 0,
-                events_planned: parseInt(row.events_planned) || 0,
-                events_executed: parseInt(row.events_executed) || 0,
-                events_cancelled: parseInt(row.events_cancelled) || 0,
-                exams_planned: parseInt(row.exams_planned) || 0,
-                exams_completed: parseInt(row.exams_completed || row.exams_executed) || 0,
-                post_exam_comms_sent: parseInt(row.post_exam_comms_sent || row.email_sent) || 0,
-                at_risk_total: parseInt(row.at_risk_total || row.at_risk) || 0,
-                at_risk_informed: parseInt(row.at_risk_informed || row.risk_informed || row.fail_risk_informed) || 0,
-                acknowledgments: parseInt(row.acknowledgments || row.acks || row.parent_acks_comms) || 0,
-                report_submitted_by: row.report_submitted_by || null,
-                report_submitted_at: row.report_submitted_at || (row.reports_uploaded ? '18:00' : null),
-                instructor_report: row.instructor_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
-                coach_report: row.coach_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
-                ops_report: row.ops_report || (row.reports_uploaded ? 'Filed' : 'Missing'),
-                instructors_active: parseInt(row.instructors_active || row.instructors_total) || 0,
-                coaches_active: parseInt(row.coaches_active) || 0,
-                program_ops_active: parseInt(row.program_ops_active) || 0,
-                total_calls_made: parseInt(row.total_calls_made || row.coach_calls) || 0,
-                tickets_resolved: parseInt(row.tickets_resolved) || 0,
-                clicks_shares_sent: parseInt(row.clicks_shares_sent || row.wa_sent) || 0,
-                avg_hours_instructors: parseFloat(row.avg_hours_instructors) || 0,
-                avg_hours_coaches: parseFloat(row.avg_hours_coaches) || 0,
-                avg_hours_program_ops: parseFloat(row.avg_hours_program_ops) || 0,
-                cancellation_reason: row.cancellation_reason || row.cancel_reason || row.reason || row.remarks || row.Remarks || null,
+                sessions_planned: getNum(values, 'sessions_planned', 'planned'),
+                sessions_completed: getNum(values, 'sessions_completed', 'ssions_completed', 'completed', 'done'),
+                sessions_cancelled: getNum(values, 'sessions_cancelled', 'ssions_cancelled', 'cancelled'),
+                enrolled: getNum(values, 'enrolled', 'total_enrolled', 'students_enrolled'),
+                attended: getNum(values, 'attended', 'total_attended', 'students_attended'),
+                coach_calls: getNum(values, 'coach_calls', 'coach_call'),
+                parent_calls: getNum(values, 'parent_calls', 'parent_call'),
+                instructors_total: getNum(values, 'instructors_total', 'total_instructors', 'instructors'),
+                instructors_on_leave: getNum(values, 'instructors_on_leave', 'leave_today', 'on_leave'),
+                events_planned: getNum(values, 'events_planned'),
+                events_executed: getNum(values, 'events_executed', 'events_done', 'events_completed'),
+                events_cancelled: getNum(values, 'events_cancelled'),
+                exams_planned: getNum(values, 'exams_planned'),
+                exams_completed: getNum(values, 'exams_completed', 'exams_executed', 'exams_done'),
+                post_exam_comms_sent: getNum(values, 'post_exam_comms_sent', 'post_exam', 'email_sent'),
+                at_risk_total: getNum(values, 'at_risk_total', 'at_risk', 'risk_total'),
+                at_risk_informed: getNum(values, 'at_risk_informed', 'risk_informed', 'fail_risk_informed'),
+                acknowledgments: getNum(values, 'acknowledgments', 'acks', 'parent_acks', 'parent_acks_comms'),
+                report_submitted_by: getVal(values, 'report_submitted_by') || null,
+                report_submitted_at: getVal(values, 'report_submitted_at') || (getVal(values, 'reports_uploaded') ? '18:00' : null),
+                instructor_report: getVal(values, 'instructor_report') || (getVal(values, 'reports_uploaded') ? 'Filed' : 'Missing'),
+                coach_report: getVal(values, 'coach_report') || (getVal(values, 'reports_uploaded') ? 'Filed' : 'Missing'),
+                ops_report: getVal(values, 'ops_report') || (getVal(values, 'reports_uploaded') ? 'Filed' : 'Missing'),
+                instructors_active: getNum(values, 'instructors_active') || getNum(values, 'instructors_total', 'instructors'),
+                coaches_active: getNum(values, 'coaches_active'),
+                program_ops_active: getNum(values, 'program_ops_active'),
+                total_calls_made: getNum(values, 'total_calls_made') || getNum(values, 'coach_calls', 'coach_call'),
+                tickets_resolved: getNum(values, 'tickets_resolved'),
+                clicks_shares_sent: getNum(values, 'clicks_shares_sent', 'wa_sent'),
+                avg_hours_instructors: getFloat(values, 'avg_hours_instructors'),
+                avg_hours_coaches: getFloat(values, 'avg_hours_coaches'),
+                avg_hours_program_ops: getFloat(values, 'avg_hours_program_ops'),
+                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason', 'reason', 'remarks') || null,
             });
         }
     }
+
+    // Log first row for debugging
+    if (dailyData.length > 0) {
+        const first = dailyData[0];
+        console.log(`[OPS_CSV] First row: ${first.university_name} — planned=${first.sessions_planned} completed=${first.sessions_completed} enrolled=${first.enrolled} attended=${first.attended} coach_calls=${first.coach_calls} at_risk=${first.at_risk_total}`);
+    }
+
     return { dailyData, instructorData };
 }
 

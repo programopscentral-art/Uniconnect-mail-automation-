@@ -17,6 +17,8 @@
     let dateRange = $state('today');
     let allUniversities = $state<string[]>([]);
     let isDownloading = $state(false);
+    let bulkDates = $state<string[]>([]);
+    let showBulkPicker = $state(false);
 
     const views = [
         { id: 'overview', label: 'Overview', icon: 'grid' },
@@ -97,34 +99,116 @@
     }
 
 
-    async function bulkSyncSheet() {
-        if (!sheetUrl) return;
+    async function bulkSyncByDates() {
+        if (!sheetUrl || !bulkDates.length) { syncError = 'Select at least one date'; return; }
         isSyncing = true;
         syncError = '';
         syncSuccess = '';
+        let totalRows = 0;
+        const processed: string[] = [];
+        const errors: string[] = [];
+
+        // Extract sheet ID from URL
+        const sheetIdMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        if (!sheetIdMatch) {
+            syncError = 'Could not extract Google Sheet ID from URL';
+            isSyncing = false;
+            return;
+        }
+        const sheetId = sheetIdMatch[1];
+
+        // First discover tab GIDs from the sheet
+        let tabs: { name: string; gid: string }[] = [];
         try {
-            const res = await fetch('/api/ops', {
+            const discoverRes = await fetch('/api/ops', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'sync-sheet-tabs', sheetUrl })
+                body: JSON.stringify({ action: 'discover-tabs', sheetUrl })
             });
-            const result = await res.json();
-            if (result.success) {
-                syncError = '';
-                syncSuccess = result.message || `Bulk synced ${result.rowsProcessed} rows across ${result.dates?.length || 0} date(s)`;
-                if (result.errors?.length) {
-                    syncError = `Warnings: ${result.errors.join('; ')}`;
+            const discoverResult = await discoverRes.json();
+            if (discoverResult.tabs) tabs = discoverResult.tabs;
+        } catch {}
+
+        for (const dateStr of bulkDates) {
+            try {
+                // Try to find the tab for this date — match by tab name
+                const d = new Date(dateStr);
+                const day = d.getDate();
+                const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                const monthShort = monthNames[d.getMonth()].slice(0, 3);
+                const monthFull = monthNames[d.getMonth()];
+                const suffixes: Record<number, string> = { 1: 'st', 2: 'nd', 3: 'rd', 21: 'st', 22: 'nd', 23: 'rd', 31: 'st' };
+                const suffix = suffixes[day] || 'th';
+
+                // Generate possible tab name formats
+                const possibleNames = [
+                    `${day}${suffix} ${monthFull}`,     // "31st March"
+                    `${day}${suffix} ${monthShort}`,     // "31st Mar"
+                    `${day} ${monthFull}`,               // "31 March"
+                    `${day} ${monthShort}`,               // "31 Mar"
+                    dateStr,                              // "2026-03-31"
+                    `${String(day).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`, // "31-03-2026"
+                    `${String(day).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`, // "31/03/2026"
+                ];
+
+                // Find matching tab
+                let tabGid: string | null = null;
+                if (tabs.length > 0) {
+                    for (const pn of possibleNames) {
+                        const match = tabs.find(t => t.name.trim().toLowerCase() === pn.toLowerCase());
+                        if (match) { tabGid = match.gid; break; }
+                    }
                 }
-                await loadViewData();
-            } else {
-                syncError = result.error || 'Failed to bulk sync';
+
+                // Build CSV URL — if we have a GID use it, otherwise try the date as tab name via export
+                let csvUrl: string;
+                if (tabGid) {
+                    csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${tabGid}`;
+                } else {
+                    // Try fetching with each possible name as a sheet query parameter
+                    // Fallback: use the direct single-date sync
+                    const payload: any = { action: 'sync-sheet', sheetUrl, syncDate: dateStr };
+                    const res = await fetch('/api/ops', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        totalRows += result.rowsProcessed || 0;
+                        processed.push(dateStr);
+                    } else {
+                        errors.push(`${dateStr}: ${result.error || 'Failed'}`);
+                    }
+                    continue;
+                }
+
+                // Fetch CSV from discovered tab
+                const csvResp = await fetch('/api/ops', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'sync-sheet', sheetUrl: csvUrl, syncDate: dateStr })
+                });
+                const csvResult = await csvResp.json();
+                if (csvResult.success) {
+                    totalRows += csvResult.rowsProcessed || 0;
+                    processed.push(dateStr);
+                } else {
+                    errors.push(`${dateStr}: ${csvResult.error || 'Failed'}`);
+                }
+            } catch (e: any) {
+                errors.push(`${dateStr}: ${e.message}`);
             }
-        } catch (e: any) {
-            syncError = e.message || 'Network error during bulk sync';
-            console.error('Bulk sync failed:', e);
-        } finally {
-            isSyncing = false;
         }
+
+        if (processed.length > 0) {
+            syncSuccess = `Loaded ${totalRows} rows for ${processed.length} date(s): ${processed.join(', ')}`;
+            await loadViewData();
+        }
+        if (errors.length > 0) {
+            syncError = errors.join('; ');
+        }
+        isSyncing = false;
     }
 
     function navigateTo(view: string) {
@@ -545,8 +629,6 @@
         <h1>UniOps — ${title}</h1>
         <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard${selectedUniversity ? ` | ${selectedUniversity}` : ''} | ${byUniv.length} universit${byUniv.length === 1 ? 'y' : 'ies'}</p>
 
-        ${aiSection}
-
         <h2 style="margin-top:24px">Performance Overview</h2>
         <div class="kpi-grid">
             <div class="kpi kpi-highlight">
@@ -625,6 +707,8 @@
         ${teamSection}
         ${complianceSection}
         ${dailySection}
+
+        ${aiSection}
 
         <div class="footer">Auto-generated by UniConnect Ops Dashboard | ${new Date().toLocaleString('en-IN')} | Comprehensive Operations Report</div>
         </body></html>`;
@@ -717,12 +801,12 @@
                     {isSyncing ? 'Syncing...' : 'Load data'}
                 </button>
                 <button
-                    onclick={bulkSyncSheet}
+                    onclick={() => showBulkPicker = !showBulkPicker}
                     disabled={isSyncing || !sheetUrl}
                     class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
-                    title="Bulk load from multi-tab sheet — each tab name should be a date (YYYY-MM-DD)"
+                    title="Load data for multiple dates at once"
                 >
-                    {isSyncing ? 'Syncing...' : 'Bulk Load (Multi-tab)'}
+                    Multi-date Load
                 </button>
                 <div class="flex items-center gap-1 ml-2">
                     <button
@@ -748,6 +832,51 @@
             {/if}
             {#if syncSuccess}
                 <p class="text-sm font-mono text-green-400 mt-2">{syncSuccess}</p>
+            {/if}
+            {#if showBulkPicker}
+                <div class="mt-3 p-3 bg-gray-800 border border-gray-700 rounded-lg">
+                    <p class="text-xs text-gray-400 mb-2">Select dates to load (each date loads from the corresponding tab in your Google Sheet):</p>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <input type="date" id="bulk-date-input"
+                            class="bg-gray-700 border border-gray-600 text-white text-sm rounded px-2 py-1.5 focus:outline-none focus:border-blue-500"
+                            onkeydown={(e) => { if (e.key === 'Enter') { const inp = e.currentTarget as HTMLInputElement; if (inp.value && !bulkDates.includes(inp.value)) { bulkDates = [...bulkDates, inp.value]; inp.value = ''; } }}}
+                        />
+                        <button onclick={() => { const inp = document.getElementById('bulk-date-input') as HTMLInputElement; if (inp?.value && !bulkDates.includes(inp.value)) { bulkDates = [...bulkDates, inp.value]; inp.value = ''; } }}
+                            class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded">Add Date</button>
+                        <button onclick={() => {
+                            // Quick add: last 7 days
+                            const dates: string[] = [];
+                            for (let i = 0; i < 7; i++) {
+                                const d = new Date(); d.setDate(d.getDate() - i);
+                                dates.push(d.toISOString().split('T')[0]);
+                            }
+                            bulkDates = [...new Set([...bulkDates, ...dates])].sort();
+                        }} class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded">Last 7 days</button>
+                        <button onclick={() => {
+                            const dates: string[] = [];
+                            for (let i = 0; i < 30; i++) {
+                                const d = new Date(); d.setDate(d.getDate() - i);
+                                dates.push(d.toISOString().split('T')[0]);
+                            }
+                            bulkDates = [...new Set([...bulkDates, ...dates])].sort();
+                        }} class="px-3 py-1.5 bg-gray-600 hover:bg-gray-500 text-white text-xs rounded">Last 30 days</button>
+                        <button onclick={() => bulkDates = []} class="px-3 py-1.5 bg-red-800 hover:bg-red-700 text-white text-xs rounded">Clear</button>
+                    </div>
+                    {#if bulkDates.length > 0}
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            {#each bulkDates.sort() as d}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-900/50 text-purple-300 text-xs rounded-full border border-purple-700">
+                                    {d}
+                                    <button onclick={() => bulkDates = bulkDates.filter(x => x !== d)} class="text-purple-400 hover:text-white ml-0.5">&times;</button>
+                                </span>
+                            {/each}
+                        </div>
+                        <button onclick={bulkSyncByDates} disabled={isSyncing}
+                            class="mt-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors">
+                            {isSyncing ? 'Loading...' : `Load ${bulkDates.length} date(s)`}
+                        </button>
+                    {/if}
+                </div>
             {/if}
         </div>
 

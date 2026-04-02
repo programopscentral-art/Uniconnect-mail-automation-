@@ -491,6 +491,49 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
         }
 
+        case 'discover-tabs': {
+            const sheetUrl = body.sheetUrl;
+            if (!sheetUrl) throw error(400, 'Sheet URL required');
+            const sheetIdMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+            if (!sheetIdMatch) return json({ tabs: [] });
+            const sheetId = sheetIdMatch[1];
+
+            const tabs: { name: string; gid: string }[] = [];
+            const seenGids = new Set<string>();
+            let html = '';
+
+            for (const tryUrl of [
+                `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+                `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`,
+                `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+            ]) {
+                try {
+                    const resp = await fetch(tryUrl, { redirect: 'follow', headers: { 'Accept': 'text/html,*/*' } });
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        if (text.length > 200 && (text.includes('sheetId') || text.includes('gid='))) { html = text; break; }
+                        if (!html && text.length > 200) html = text;
+                    }
+                } catch {}
+            }
+
+            if (html) {
+                for (const m of html.matchAll(/"title"\s*:\s*"([^"]+)"[^}]*?"sheetId"\s*:\s*(\d+)/g)) {
+                    if (!seenGids.has(m[2])) { seenGids.add(m[2]); tabs.push({ name: m[1], gid: m[2] }); }
+                }
+                for (const m of html.matchAll(/"sheetId"\s*:\s*(\d+)[^}]*?"title"\s*:\s*"([^"]+)"/g)) {
+                    if (!seenGids.has(m[1])) { seenGids.add(m[1]); tabs.push({ name: m[2], gid: m[1] }); }
+                }
+                for (const m of html.matchAll(/data-sheet-id="(\d+)"[^>]*>([^<]+)</g)) {
+                    if (!seenGids.has(m[1])) { seenGids.add(m[1]); tabs.push({ name: m[2].trim(), gid: m[1] }); }
+                }
+                for (const m of html.matchAll(/id="sheet-button-(\d+)"[^>]*>([^<]+)</g)) {
+                    if (!seenGids.has(m[1])) { seenGids.add(m[1]); tabs.push({ name: m[2].trim(), gid: m[1] }); }
+                }
+            }
+            return json({ tabs });
+        }
+
         case 'clear-data': {
             try {
                 const clearDate = body.date; // optional: clear only a specific date
