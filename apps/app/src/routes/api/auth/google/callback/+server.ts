@@ -90,8 +90,8 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                     // No university matches domain
                     const genericDomains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', 'icloud.com', 'aol.com', 'live.com'];
                     if (genericDomains.includes(domain)) {
-                        console.log(`[OAUTH] Generic domain detected, blocking: ${domain}`);
-                        throw error(403, 'Please use your official Nxtwave or University email.');
+                        console.error(`[OAUTH] Generic domain blocked: ${email} (domain: ${domain}). Google returned this email. If user expected nxtwave/university email, they may have selected wrong Google account.`);
+                        throw error(403, `Please use your official Nxtwave or University email. You are currently signed in as ${email}.`);
                     }
 
                     // Allow login but with no university assigned - will redirect to /request-access
