@@ -410,7 +410,8 @@ export async function getOpsMonthlyReport(year: number, month: number) {
 export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData: any[]; instructorData: any[] } {
     // Strip BOM and normalize line endings
     const cleanText = csvText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const lines = cleanText.trim().split('\n');
+    // Split into logical CSV rows (handles newlines inside quoted fields like Remarks)
+    const lines = splitCSVRows(cleanText.trim());
     if (lines.length < 2) return { dailyData: [], instructorData: [] };
 
     // CRITICAL: Use parseCSVLine for headers too (headers with commas in quoted fields break split)
@@ -520,6 +521,40 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
     }
 
     return { dailyData, instructorData };
+}
+
+// Split CSV text into logical rows, handling newlines inside quoted fields
+function splitCSVRows(text: string): string[] {
+    const rows: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (inQuotes) {
+            if (ch === '"' && text[i + 1] === '"') {
+                current += '""';
+                i++;
+            } else if (ch === '"') {
+                inQuotes = false;
+                current += ch;
+            } else {
+                // Replace newlines inside quotes with space (flatten multi-line cells)
+                current += (ch === '\n') ? ' ' : ch;
+            }
+        } else {
+            if (ch === '"') {
+                inQuotes = true;
+                current += ch;
+            } else if (ch === '\n') {
+                if (current.trim()) rows.push(current);
+                current = '';
+            } else {
+                current += ch;
+            }
+        }
+    }
+    if (current.trim()) rows.push(current);
+    return rows;
 }
 
 function parseCSVLine(line: string): string[] {

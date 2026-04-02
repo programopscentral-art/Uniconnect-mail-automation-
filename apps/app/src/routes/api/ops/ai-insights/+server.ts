@@ -107,7 +107,7 @@ Be data-driven, reference specific universities and numbers. Be direct and hones
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
-                            maxOutputTokens: 3000,
+                            maxOutputTokens: 8192,
                             temperature: 0.3,
                         },
                     }),
