@@ -710,11 +710,18 @@
               {@const isLate = task.assignee_status === 'COMPLETED' && task.due_date && new Date(task.completed_at) > new Date(task.due_date)}
               {@const taskEff = (() => {
                 if (task.assignee_status !== 'COMPLETED') return null;
-                if (task.estimated_time && task.hours_taken && task.hours_taken > 0) {
-                  return Math.min(Math.round((task.estimated_time / task.hours_taken) * 100), 100);
+                const est = parseFloat(task.estimated_time);
+                const actual = parseFloat(task.hours_taken);
+                if (est > 0 && actual > 0) {
+                  return Math.min(Math.round((est / actual) * 100), 100);
                 }
                 if (task.due_date && task.completed_at) {
-                  return new Date(task.completed_at) <= new Date(task.due_date) ? 100 : Math.max(0, Math.round(100 - ((new Date(task.completed_at).getTime() - new Date(task.due_date).getTime()) / (1000 * 60 * 60 * 24)) * 10));
+                  const due = new Date(task.due_date).getTime();
+                  const done = new Date(task.completed_at).getTime();
+                  if (isNaN(due) || isNaN(done)) return null;
+                  if (done <= due) return 100;
+                  const daysLate = (done - due) / (1000 * 60 * 60 * 24);
+                  return Math.max(0, Math.round(100 - daysLate * 10));
                 }
                 return null;
               })()}
