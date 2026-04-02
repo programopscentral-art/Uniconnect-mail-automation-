@@ -260,83 +260,164 @@
         const byUniv = report.byUniversity || [];
         const daily = report.dailyBreakdown || [];
 
-        let univRows = byUniv.map((r: any) => `<tr>
-            <td style="padding:8px;border-bottom:1px solid #eee">${r.university_name}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.sessions_planned || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.sessions_completed || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.enrolled || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.attended || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.coach_calls || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.at_risk_total || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.events_planned || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.events_executed || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.exams_planned || 0}</td>
-            <td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${r.exams_completed || 0}</td>
-        </tr>`).join('');
+        const n = (v: any) => parseInt(v) || 0;
+        const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
+        const sessRate = n(s.sessions_planned) > 0 ? Math.round((n(s.sessions_completed) / n(s.sessions_planned)) * 100) : 0;
+        const coachRate = n(s.enrolled) - n(s.attended) > 0 ? Math.round((n(s.coach_calls) / (n(s.enrolled) - n(s.attended))) * 100) : 0;
+        const rateColor = (v: number) => v >= 80 ? '#16a34a' : v >= 50 ? '#ca8a04' : '#dc2626';
+
+        const univRows = byUniv.map((r: any) => {
+            const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
+            const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+            return `<tr>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:600">${r.university_name}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.sessions_planned)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600;color:${rateColor(uSess)}">${n(r.sessions_completed)} <span style="font-size:10px;color:#999">(${uSess}%)</span></td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.enrolled)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600;color:${rateColor(uAtt)}">${n(r.attended)} <span style="font-size:10px;color:#999">(${uAtt}%)</span></td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coach_calls)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:${n(r.at_risk_total) > 0 ? '#dc2626' : '#16a34a'};font-weight:600">${n(r.at_risk_total)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.events_executed)}/${n(r.events_planned)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.exams_completed)}/${n(r.exams_planned)}</td>
+            </tr>`;
+        }).join('');
+
+        // Summary row for university table
+        const totalRow = byUniv.length > 1 ? `<tr style="background:#f0f4ff;font-weight:700">
+            <td style="padding:10px 12px;border-top:2px solid #6366f1">TOTAL</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.sessions_planned)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:${rateColor(sessRate)}">${n(s.sessions_completed)} (${sessRate}%)</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.enrolled)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:${rateColor(attRate)}">${n(s.attended)} (${attRate}%)</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.coach_calls)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:#dc2626">${n(s.at_risk_total)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.events_executed)}/${n(s.events_planned)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.exams_completed)}/${n(s.exams_planned)}</td>
+        </tr>` : '';
 
         let dailyRows = '';
         if (daily.length && type !== 'daily') {
-            dailyRows = `<h2 style="margin-top:24px;color:#333">Daily Breakdown</h2>
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead><tr style="background:#f5f5f5">
-                <th style="padding:8px;text-align:left;border-bottom:2px solid #ddd">Date</th>
-                <th style="padding:8px;text-align:left;border-bottom:2px solid #ddd">University</th>
-                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Sessions</th>
-                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Attended</th>
-                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Enrolled</th>
-                <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Coach Calls</th>
+            dailyRows = `<h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Daily Breakdown</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:12px">
+            <thead><tr style="background:#f1f5f9">
+                <th style="padding:10px 8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Date</th>
+                <th style="padding:10px 8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">University</th>
+                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Attended</th>
+                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Enrolled</th>
+                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Att. Rate</th>
+                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Coach Calls</th>
             </tr></thead><tbody>` +
-            daily.map((r: any) => `<tr>
-                <td style="padding:6px;border-bottom:1px solid #eee">${r.date}</td>
-                <td style="padding:6px;border-bottom:1px solid #eee">${r.university_name}</td>
-                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.sessions_completed}/${r.sessions_planned}</td>
-                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.attended}</td>
-                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.enrolled}</td>
-                <td style="padding:6px;border-bottom:1px solid #eee;text-align:center">${r.coach_calls}</td>
-            </tr>`).join('') +
+            daily.map((r: any) => {
+                const dAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
+                return `<tr>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b">${r.date}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:500">${r.university_name}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.sessions_completed)}/${n(r.sessions_planned)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:500">${n(r.attended)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.enrolled)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:600;color:${rateColor(dAtt)}">${dAtt}%</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.coach_calls)}</td>
+                </tr>`;
+            }).join('') +
             `</tbody></table>`;
         }
 
-        return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
-        <style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:0 auto;padding:24px;color:#333}
-        h1{color:#1a1a2e;border-bottom:3px solid #1a1a2e;padding-bottom:8px}
-        .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
-        .card{background:#f8f9fa;border:1px solid #e0e0e0;border-radius:8px;padding:16px;text-align:center}
-        .card .label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px}
-        .card .value{font-size:28px;font-weight:bold;margin-top:4px}
-        .green{color:#16a34a}.red{color:#dc2626}.blue{color:#2563eb}.yellow{color:#ca8a04}
-        table{width:100%;border-collapse:collapse}th{text-align:left;background:#f5f5f5}
-        @media print{body{padding:0}.card{break-inside:avoid}}</style></head><body>
+        return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>UniOps — ${title}</title>
+        <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 32px; color: #1e293b; background: #fff; }
+        h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
+        h2 { font-size: 18px; font-weight: 700; color: #1e293b; margin-top: 32px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+        .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: 24px 0; }
+        .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
+        .kpi .label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; }
+        .kpi .value { font-size: 36px; font-weight: 800; margin-top: 8px; line-height: 1; }
+        .kpi .sub { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+        .kpi-highlight { background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-color: #c7d2fe; }
+        .green { color: #16a34a; } .red { color: #dc2626; } .blue { color: #2563eb; } .amber { color: #d97706; } .purple { color: #7c3aed; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+        thead tr { background: #f1f5f9; }
+        th { padding: 10px 8px; text-align: center; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; }
+        th:first-child { text-align: left; }
+        td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #e5e7eb; }
+        td:first-child { text-align: left; }
+        .divider { border: none; border-top: 2px solid #e2e8f0; margin: 32px 0; }
+        .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+        @media print { body { padding: 16px; } .kpi { break-inside: avoid; } }
+        </style></head><body>
         <h1>UniOps — ${title}</h1>
-        <p style="color:#666">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard</p>
-        <div class="summary-grid">
-            <div class="card"><div class="label">Sessions Planned</div><div class="value">${s.sessions_planned || 0}</div></div>
-            <div class="card"><div class="label">Sessions Completed</div><div class="value green">${s.sessions_completed || 0}</div></div>
-            <div class="card"><div class="label">Students Enrolled</div><div class="value blue">${s.enrolled || 0}</div></div>
-            <div class="card"><div class="label">Students Attended</div><div class="value green">${s.attended || 0}</div></div>
-            <div class="card"><div class="label">Attendance Rate</div><div class="value">${parseInt(s.enrolled) ? Math.round((parseInt(s.attended) / parseInt(s.enrolled)) * 100) : 0}%</div></div>
-            <div class="card"><div class="label">Coach Calls</div><div class="value yellow">${s.coach_calls || 0}</div></div>
-            <div class="card"><div class="label">At-Risk Students</div><div class="value red">${s.at_risk_total || 0}</div></div>
-            <div class="card"><div class="label">Events Executed</div><div class="value">${s.events_executed || 0} / ${s.events_planned || 0}</div></div>
-            <div class="card"><div class="label">Exams Completed</div><div class="value">${s.exams_completed || 0} / ${s.exams_planned || 0}</div></div>
-            <div class="card"><div class="label">Post-Exam Comms</div><div class="value">${s.post_exam_comms_sent || 0}</div></div>
+        <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard${selectedUniversity ? ` | ${selectedUniversity}` : ''}</p>
+
+        <div class="kpi-grid">
+            <div class="kpi kpi-highlight">
+                <div class="label">Session Completion</div>
+                <div class="value" style="color:${rateColor(sessRate)}">${sessRate}%</div>
+                <div class="sub">${n(s.sessions_completed)} of ${n(s.sessions_planned)} sessions</div>
+            </div>
+            <div class="kpi kpi-highlight">
+                <div class="label">Attendance Rate</div>
+                <div class="value" style="color:${rateColor(attRate)}">${attRate}%</div>
+                <div class="sub">${n(s.attended)} of ${n(s.enrolled)} students</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Coach Call Rate</div>
+                <div class="value" style="color:${rateColor(coachRate)}">${coachRate}%</div>
+                <div class="sub">${n(s.coach_calls)} calls for ${n(s.enrolled) - n(s.attended)} absent</div>
+            </div>
+            <div class="kpi">
+                <div class="label">At-Risk Students</div>
+                <div class="value ${n(s.at_risk_total) > 0 ? 'red' : 'green'}">${n(s.at_risk_total)}</div>
+                <div class="sub">${n(s.at_risk_informed)} informed · ${n(s.acknowledgments)} acknowledged</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Events</div>
+                <div class="value blue">${n(s.events_executed)}/${n(s.events_planned)}</div>
+                <div class="sub">${n(s.events_cancelled)} cancelled</div>
+            </div>
         </div>
-        <h2 style="margin-top:24px;color:#333">By University</h2>
-        <table style="font-size:13px"><thead><tr style="background:#f5f5f5">
-            <th style="padding:8px;border-bottom:2px solid #ddd">University</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Sessions Planned</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Completed</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Enrolled</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Attended</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Coach Calls</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">At-Risk</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Events Planned</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Events Done</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Exams Planned</th>
-            <th style="padding:8px;text-align:center;border-bottom:2px solid #ddd">Exams Done</th>
-        </tr></thead><tbody>${univRows}</tbody></table>
+
+        <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
+            <div class="kpi">
+                <div class="label">Sessions Planned</div>
+                <div class="value">${n(s.sessions_planned)}</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Sessions Completed</div>
+                <div class="value green">${n(s.sessions_completed)}</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Sessions Cancelled</div>
+                <div class="value red">${n(s.sessions_cancelled)}</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Exams Done</div>
+                <div class="value purple">${n(s.exams_completed)}/${n(s.exams_planned)}</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Post-Exam Comms</div>
+                <div class="value purple">${n(s.post_exam_comms_sent)}</div>
+            </div>
+        </div>
+
+        <h2>University-wise Breakdown</h2>
+        <table>
+            <thead><tr>
+                <th style="text-align:left">University</th>
+                <th>Sessions Planned</th>
+                <th>Completed</th>
+                <th>Enrolled</th>
+                <th>Attended</th>
+                <th>Coach Calls</th>
+                <th>At-Risk</th>
+                <th>Events</th>
+                <th>Exams</th>
+            </tr></thead>
+            <tbody>${univRows}${totalRow}</tbody>
+        </table>
         ${dailyRows}
-        <hr style="margin-top:32px"><p style="color:#999;font-size:12px;text-align:center">This report was auto-generated by UniConnect Ops Dashboard</p>
+        <div class="footer">Auto-generated by UniConnect Ops Dashboard | ${new Date().getFullYear()}</div>
         </body></html>`;
     }
 </script>

@@ -199,10 +199,26 @@ export async function createScheduleEvent(data: {
     return event;
 }
 
-export async function getScheduleEvents(universityId?: string) {
+export async function getScheduleEvents(universityId?: string, userId?: string) {
     await ensureEventSchema();
-    const whereClause = universityId ? `WHERE se.university_id = $1` : ``;
-    const params = universityId ? [universityId] : [];
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (universityId) {
+        // Show events for this university OR events where this user is assigned
+        if (userId) {
+            conditions.push(`(se.university_id = $${idx} OR se.id IN (SELECT event_id FROM event_assignees WHERE user_id = $${idx + 1}))`);
+            params.push(universityId, userId);
+            idx += 2;
+        } else {
+            conditions.push(`se.university_id = $${idx}`);
+            params.push(universityId);
+            idx++;
+        }
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await db.query(
         `SELECT se.*,
             COALESCE(

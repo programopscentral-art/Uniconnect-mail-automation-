@@ -16,10 +16,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     }
 
     if (!university_id) {
-        return json([]);
+        // Even without a university, show events where user is assigned
+        const events = await getScheduleEvents(undefined, locals.user.id);
+        return json(events);
     }
 
-    const events = await getScheduleEvents(university_id);
+    // Show events for user's university + events they're assigned to
+    const events = await getScheduleEvents(university_id, locals.user.id);
     return json(events);
 };
 
