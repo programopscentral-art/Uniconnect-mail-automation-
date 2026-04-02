@@ -160,9 +160,10 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
         updates.assignee_id = locals.user!.id;
         updates.assignee_status = updates.status;
 
-        // Non-admins/non-assigners can't directly force the global status
-        // shared/updateTask will auto-promote it to COMPLETED if all assignees are done
-        if (!isGlobalAdmin && !isAssigner) {
+        // For multi-assignee tasks: don't force global status — let auto-promotion handle it
+        // Only force global status if the user is the sole assignee, or is admin/assigner on a single-assignee task
+        const multiAssignee = (task.assignee_ids?.length || 0) > 1;
+        if (multiAssignee || (!isGlobalAdmin && !isAssigner)) {
             delete (updates as any).status;
         }
     }

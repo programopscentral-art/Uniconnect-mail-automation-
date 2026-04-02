@@ -100,7 +100,13 @@
 
   let filteredTasks = $derived(
     taskList.filter((t: any) => {
-      if (filterStatus && t.status !== filterStatus) return false;
+      if (filterStatus) {
+        // Use the current user's own assignee status if they're an assignee,
+        // otherwise use the global task status
+        const myAssignee = t.assignees?.find((a: any) => a.id === data.user.id);
+        const effectiveStatus = myAssignee ? myAssignee.status : t.status;
+        if (effectiveStatus !== filterStatus) return false;
+      }
       if (filterUniversity && t.university_id !== filterUniversity)
         return false;
       if (filterAssignedTo && !t.assignee_ids.includes(filterAssignedTo))
@@ -1395,20 +1401,36 @@
       </div>
 
       <!-- Actions Footer -->
+      {#if viewingTask}
+      {@const vtMyStatus = viewingTask.assignees?.find((a: any) => a.id === data.user.id)?.status || 'PENDING'}
+      {@const vtIsAssigned = viewingTask.assignee_ids?.includes(data.user.id)}
       <div class="sticky bottom-0 bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 px-6 py-3 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          {#if viewingTask.status !== 'IN_PROGRESS' && viewingTask.status !== 'COMPLETED'}
-            <button onclick={() => { updateStatus(viewingTask, 'IN_PROGRESS'); viewingTask = { ...viewingTask, status: 'IN_PROGRESS' }; }}
-              class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors">Start Work</button>
-          {/if}
-          {#if viewingTask.status !== 'COMPLETED'}
-            <button onclick={() => { updateStatus(viewingTask, 'COMPLETED'); viewingTask = { ...viewingTask, status: 'COMPLETED' }; }}
-              class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors">Mark Done</button>
+          {#if vtIsAssigned}
+            {#if vtMyStatus === 'PENDING'}
+              <button onclick={() => { updateStatus(viewingTask, 'IN_PROGRESS'); const a = viewingTask.assignees?.find((x: any) => x.id === data.user.id); if (a) a.status = 'IN_PROGRESS'; viewingTask = { ...viewingTask }; }}
+                class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors">Start Work</button>
+            {:else if vtMyStatus === 'IN_PROGRESS'}
+              <button onclick={() => { updateStatus(viewingTask, 'COMPLETED'); const a = viewingTask.assignees?.find((x: any) => x.id === data.user.id); if (a) a.status = 'COMPLETED'; viewingTask = { ...viewingTask }; }}
+                class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors">Mark Done</button>
+            {:else if vtMyStatus === 'COMPLETED'}
+              <span class="px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">You've completed this task</span>
+            {/if}
+          {:else}
+            {#if viewingTask.status !== 'IN_PROGRESS' && viewingTask.status !== 'COMPLETED'}
+              <button onclick={() => { updateStatus(viewingTask, 'IN_PROGRESS'); viewingTask = { ...viewingTask, status: 'IN_PROGRESS' }; }}
+                class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 transition-colors">Start Work</button>
+            {/if}
+            {#if viewingTask.status !== 'COMPLETED'}
+              <button onclick={() => { updateStatus(viewingTask, 'COMPLETED'); viewingTask = { ...viewingTask, status: 'COMPLETED' }; }}
+                class="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors">Mark Done</button>
+            {/if}
           {/if}
         </div>
         <button onclick={() => { openEdit(viewingTask); viewingTask = null; }}
           class="px-4 py-2 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors">Edit Task</button>
       </div>
+      {/if}
     </div>
   </div>
 {/if}
