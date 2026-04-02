@@ -2738,6 +2738,7 @@
                 <thead class="sticky top-0 bg-white dark:bg-slate-900 z-10">
                   <tr class="border-b border-gray-200 dark:border-slate-700">
                     <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-8">Sent</th>
+                    <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-28">Type</th>
                     <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-16">Time</th>
                     <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase w-20">Channel</th>
                     <th class="text-left py-1.5 px-2 text-[10px] font-bold text-gray-400 uppercase">Message</th>
@@ -2749,7 +2750,7 @@
                     {#if selectedMessageSection === 'all' || group.section === selectedMessageSection}
                       {#if selectedMessageSection === 'all' && getMessageSections(eventMessages).length >= 1}
                         <tr>
-                          <td colspan="5" class="pt-3 pb-1 px-2">
+                          <td colspan="6" class="pt-3 pb-1 px-2">
                             <span class="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">{group.section}</span>
                           </td>
                         </tr>
@@ -2763,6 +2764,9 @@
                                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                               {/if}
                             </button>
+                          </td>
+                          <td class="py-2 px-2">
+                            <span class="text-[10px] font-semibold text-gray-700 dark:text-gray-300 truncate max-w-[120px] block">{msg.title || '—'}</span>
                           </td>
                           <td class="py-2 px-2 text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{msg.scheduled_time || '—'}</td>
                           <td class="py-2 px-2">
@@ -2781,7 +2785,7 @@
                           <td class="py-2 px-2">
                             <button onclick={() => { viewingMessage = viewingMessage?.id === msg.id ? null : msg; }}
                               class="text-left w-full">
-                              <p class="text-xs font-medium truncate max-w-[200px] {msg.is_sent ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-gray-800 dark:text-gray-200'}">{msg.title}</p>
+                              <p class="text-xs font-medium truncate max-w-[200px] {msg.is_sent ? 'text-emerald-700 dark:text-emerald-400 line-through' : 'text-gray-800 dark:text-gray-200'}">{msg.content ? msg.content.substring(0, 80) + (msg.content.length > 80 ? '...' : '') : msg.title}</p>
                             </button>
                             {#if viewingMessage?.id === msg.id}
                               <div class="mt-1.5 p-2 rounded-lg bg-gray-50 dark:bg-slate-900/50 border border-gray-100 dark:border-slate-700">

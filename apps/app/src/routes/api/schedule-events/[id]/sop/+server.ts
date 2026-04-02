@@ -752,7 +752,9 @@ function parseMessageTable(rows: string[][], rawRows: string[][], sectionHeading
         // Skip empty/malformed rows
         if (!content || content.length < 5) continue;
 
+        // Detect channel: from explicit column, then from type/section text, then from content
         let channel = channelValue || detectChannel(typeValue + ' ' + sectionHeading);
+        if (!channel) channel = detectChannel(content);
 
         // Build title: prefer type, then audience, then channel+time
         let title = typeValue;
