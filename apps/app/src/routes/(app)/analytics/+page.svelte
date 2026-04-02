@@ -177,7 +177,8 @@
     if (!withSpeed.length) return 0;
     return withSpeed.reduce((s, u) => s + parseFloat(u.avg_completion_hours), 0) / withSpeed.length;
   });
-  let teamEfficiency = $derived(totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0);
+  let totalOnTime = $derived(teamData.reduce((s, u) => s + parseInt(u.tasks_completed_on_time || 0), 0));
+  let teamEfficiency = $derived(totalAssigned > 0 ? Math.round((totalOnTime / totalAssigned) * 100) : 0);
 
   // Helpers
   function getRating(completed: number, total: number) {
@@ -426,7 +427,7 @@
   <!-- ============= USER DETAIL VIEW ============= -->
   {:else if selectedUserId && userDetail}
     {@const s = userDetail.stats}
-    {@const efficiency = s.total_assigned > 0 ? Math.round((s.total_completed / s.total_assigned) * 100) : 0}
+    {@const efficiency = s.total_assigned > 0 ? Math.round((s.on_time / s.total_assigned) * 100) : 0}
     {@const onTimePct = (s.on_time + s.late) > 0 ? Math.round((s.on_time / (s.on_time + s.late)) * 100) : 100}
     {@const rating = getRating(s.total_completed, s.total_assigned)}
 
@@ -695,7 +696,10 @@
               <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Task</th>
               <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Priority</th>
               <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+              <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Started At</th>
+              <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Finished At</th>
               <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Time Taken</th>
+              <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Efficiency</th>
               <th class="px-4 py-3 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Assigned By</th>
             </tr>
           </thead>
@@ -704,6 +708,17 @@
               {@const pColor = task.priority === 'URGENT' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300' : task.priority === 'HIGH' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300' : task.priority === 'MEDIUM' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}
               {@const sColor = task.assignee_status === 'COMPLETED' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : task.assignee_status === 'IN_PROGRESS' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}
               {@const isLate = task.assignee_status === 'COMPLETED' && task.due_date && new Date(task.completed_at) > new Date(task.due_date)}
+              {@const taskEff = (() => {
+                if (task.assignee_status !== 'COMPLETED') return null;
+                if (task.estimated_time && task.hours_taken && task.hours_taken > 0) {
+                  return Math.min(Math.round((task.estimated_time / task.hours_taken) * 100), 100);
+                }
+                if (task.due_date && task.completed_at) {
+                  return new Date(task.completed_at) <= new Date(task.due_date) ? 100 : Math.max(0, Math.round(100 - ((new Date(task.completed_at).getTime() - new Date(task.due_date).getTime()) / (1000 * 60 * 60 * 24)) * 10));
+                }
+                return null;
+              })()}
+              {@const effColor = taskEff === null ? '' : taskEff >= 80 ? 'text-emerald-600 dark:text-emerald-400' : taskEff >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}
               <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors">
                 <td class="px-4 py-3">
                   <div class="text-sm font-bold text-gray-900 dark:text-white truncate max-w-[200px] sm:max-w-xs">{task.title}</div>
@@ -720,14 +735,23 @@
                     <span class="ml-1 text-[9px] font-bold text-red-500">LATE</span>
                   {/if}
                 </td>
+                <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
+                  {task.started_at ? new Date(task.started_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                </td>
+                <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap tabular-nums">
+                  {task.completed_at ? new Date(task.completed_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                </td>
                 <td class="px-4 py-3 text-sm font-bold text-gray-600 dark:text-gray-300 tabular-nums">
                   {task.hours_taken ? formatHours(task.hours_taken) : '-'}
+                </td>
+                <td class="px-4 py-3 text-sm font-bold tabular-nums {effColor}">
+                  {taskEff !== null ? `${taskEff}%` : '-'}
                 </td>
                 <td class="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">{task.assigned_by_name || '-'}</td>
               </tr>
             {:else}
               <tr>
-                <td colspan="5" class="px-4 py-12 text-center text-gray-400 text-sm">No tasks found</td>
+                <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">No tasks found</td>
               </tr>
             {/each}
           </tbody>
