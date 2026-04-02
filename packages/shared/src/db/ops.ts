@@ -451,8 +451,8 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
         const values = parseCSVLine(lines[i]);
         if (values.length < 3) continue;
 
-        // Detect if this is instructor-level data
-        const instrName = getVal(values, 'instructor_name', 'instructor');
+        // Detect if this is instructor-level data (exact match only — 'instructor' partial would match 'instructors_total')
+        const instrName = (colIdx['instructor_name'] !== undefined && values[colIdx['instructor_name']]?.trim()) || '';
         if (instrName) {
             instructorData.push({
                 date: getVal(values, 'date') || dateOverride || new Date().toISOString().split('T')[0],
@@ -492,7 +492,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 exams_completed: getNum(values, 'exams_completed', 'exams_executed', 'exams_done'),
                 post_exam_comms_sent: getNum(values, 'post_exam_comms_sent', 'post_exam', 'email_sent'),
                 at_risk_total: getNum(values, 'at_risk_total', 'at_risk', 'risk_total'),
-                at_risk_informed: getNum(values, 'at_risk_informed', 'risk_informed', 'fail_risk_informed'),
+                at_risk_informed: getNum(values, 'at_risk_informed', 'risk_informed', 'fail_risk_informed', 'fall_risk_informed'),
                 acknowledgments: getNum(values, 'acknowledgments', 'acks', 'parent_acks', 'parent_acks_comms'),
                 report_submitted_by: getVal(values, 'report_submitted_by') || null,
                 report_submitted_at: getVal(values, 'report_submitted_at') || (getVal(values, 'reports_uploaded') ? '18:00' : null),
@@ -508,7 +508,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: getFloat(values, 'avg_hours_instructors'),
                 avg_hours_coaches: getFloat(values, 'avg_hours_coaches'),
                 avg_hours_program_ops: getFloat(values, 'avg_hours_program_ops'),
-                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason', 'reason', 'remarks') || null,
+                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason') || null,
             });
         }
     }
