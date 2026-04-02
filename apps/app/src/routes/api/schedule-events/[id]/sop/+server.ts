@@ -447,12 +447,24 @@ function detectTableType(header: string[], dataRows?: string[][]): 'task' | 'mes
 }
 
 function detectChannel(text: string): string {
-    const t = text.toLowerCase();
-    if (t.includes('whatsapp') || t.includes('wa ')) return 'WhatsApp';
-    if (t.includes('email') || t.includes('mail')) return 'Email';
-    if (t.includes('sms')) return 'SMS';
-    if (t.includes('app') && t.includes('notification')) return 'App Notification';
-    if (t.includes('social') || t.includes('instagram') || t.includes('linkedin')) return 'Social Media';
+    const t = text.toLowerCase().trim();
+    if (t.includes('whatsapp') || /\bwa\b/.test(t) || t.includes('wa group')) return 'WhatsApp';
+    if (t.includes('email') || t.includes('e-mail') || t.includes('mail')) return 'Email';
+    if (t.includes('sms') || t.includes('text message')) return 'SMS';
+    if (t.includes('app notification') || t.includes('push notification') || t.includes('in-app')) return 'App Notification';
+    if (t.includes('social') || t.includes('instagram') || t.includes('linkedin') || t.includes('facebook') || t.includes('twitter')) return 'Social Media';
+    if (t.includes('telegram')) return 'Telegram';
+    if (t.includes('call') || t.includes('phone')) return 'Phone';
+    return '';
+}
+
+/** Try to normalize a raw channel cell value into a standard channel name */
+function normalizeChannel(raw: string): string {
+    const detected = detectChannel(raw);
+    if (detected) return detected;
+    // If the raw value is short and not detected, return it as-is if it looks like a channel name
+    const trimmed = raw.trim();
+    if (trimmed.length > 0 && trimmed.length < 30) return trimmed;
     return '';
 }
 
@@ -699,10 +711,16 @@ function parseMessageTable(rows: string[][], rawRows: string[][], sectionHeading
     for (let c = 0; c < header.length; c++) {
         const h = header[c];
         if (timeCol === -1 && /^time$|time.*send|^scheduled|^when|timing|send.*time/i.test(h)) timeCol = c;
-        else if (channelCol === -1 && /channel|platform|medium/i.test(h)) channelCol = c;
+        else if (channelCol === -1 && /channel|platform|medium|mode\b|^via$/i.test(h)) channelCol = c;
         else if (audienceCol === -1 && /audience|target|recipient|to\b|sent?\s*to/i.test(h)) audienceCol = c;
         else if (typeCol === -1 && /type|heading|category|subject/i.test(h) && !/content|body|text|draft/i.test(h)) typeCol = c;
         else if (contentCol === -1 && /message|content|body|text|template|draft/i.test(h)) contentCol = c;
+    }
+
+    // Log raw header + first data row for debugging
+    console.log(`[SOP] Message table headers: [${header.join(' | ')}]`);
+    if (rows.length > 1) {
+        console.log(`[SOP] Message table row 1: [${rows[1].map(c => c.substring(0, 40)).join(' | ')}]`);
     }
 
     // Reclassify: if typeCol actually contains channel names (WhatsApp, Email...), treat as channelCol
@@ -718,6 +736,26 @@ function parseMessageTable(rows: string[][], rawRows: string[][], sectionHeading
             channelCol = typeCol;
             typeCol = -1;
             console.log(`[SOP] Reclassified type→channel column ${channelCol} (contains channel names)`);
+        }
+    }
+
+    // Content-based channel column scan: check ALL unassigned columns for channel-like values
+    if (channelCol === -1 && rows.length > 1) {
+        for (let c = 0; c < header.length; c++) {
+            if (c === typeCol || c === timeCol || c === contentCol || c === audienceCol) continue;
+            let channelCount = 0;
+            for (let r = 1; r < Math.min(6, rows.length); r++) {
+                const val = (rows[r]?.[c] || '').toLowerCase().trim();
+                if (CHANNEL_NAMES.has(val) || val.startsWith('whatsapp') || val.startsWith('email')
+                    || val.startsWith('sms') || /^wa\b/i.test(val) || /^app\s/i.test(val)) {
+                    channelCount++;
+                }
+            }
+            if (channelCount >= 2) {
+                channelCol = c;
+                console.log(`[SOP] Auto-detected channel column ${c} from data values ("${header[c]}")`);
+                break;
+            }
         }
     }
 
@@ -753,7 +791,7 @@ function parseMessageTable(rows: string[][], rawRows: string[][], sectionHeading
         if (!content || content.length < 5) continue;
 
         // Detect channel: from explicit column, then from type/section text, then from content
-        let channel = channelValue || detectChannel(typeValue + ' ' + sectionHeading);
+        let channel = channelValue ? normalizeChannel(channelValue) : detectChannel(typeValue + ' ' + sectionHeading);
         if (!channel) channel = detectChannel(content);
 
         // Build title: prefer type, then audience, then channel+time
