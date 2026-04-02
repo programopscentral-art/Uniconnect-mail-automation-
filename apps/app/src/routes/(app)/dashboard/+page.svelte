@@ -97,12 +97,14 @@
   let generatingTasks = $state(false);
   let reportForm = $state({
     event_title: '', campus_name: '', conducted_by: '', cma_assigned: '',
-    event_category: '', event_subcategory: '', event_duration_days: '',
+    event_category: '', event_subcategory: '', event_subcategory_other: '',
+    event_duration_days: '',
     event_mode: '', event_description: '', num_registrations: '',
     num_participants: '', feedback_response_rate: '', avg_feedback_rating: '',
     event_feedback: '', highlights: '', suggested_improvements: '',
     event_photos_link: '', registration_form_link: '', feedback_form_link: '',
-    event_recording_link: '', loaded_to_zoho: 'No'
+    event_recording_link: '', loaded_to_zoho: 'No',
+    event_start_date: '', event_end_date: ''
   });
 
   // ─── Calendar Freeze State ─────────────────────────────────────────────
@@ -1126,10 +1128,16 @@
     if (!selectedEvent) return;
     reportSaving = true;
     try {
+      const formData = {
+        ...reportForm,
+        event_title: reportForm.event_title || selectedEvent.title,
+        event_subcategory: reportForm.event_subcategory === 'Other' ? (reportForm.event_subcategory_other || 'Other') : reportForm.event_subcategory
+      };
+      delete (formData as any).event_subcategory_other;
       const res = await fetch(`/api/schedule-events/${selectedEvent.id}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...reportForm, event_title: reportForm.event_title || selectedEvent.title })
+        body: JSON.stringify(formData)
       });
       if (res.ok) {
         const d = await res.json();
@@ -2862,9 +2870,14 @@
                 ['Campus', eventReport.campus_name], ['Conducted By', eventReport.conducted_by],
                 ['CMA Assigned', eventReport.cma_assigned], ['Category', eventReport.event_category],
                 ['Subcategory', eventReport.event_subcategory], ['Duration', eventReport.event_duration_days ? `${eventReport.event_duration_days} day(s)` : ''],
-                ['Mode', eventReport.event_mode], ['Registrations', eventReport.num_registrations],
+                ['Mode', eventReport.event_mode],
+                ['Start Date', eventReport.event_start_date ? new Date(eventReport.event_start_date).toLocaleDateString() : ''],
+                ['End Date', eventReport.event_end_date ? new Date(eventReport.event_end_date).toLocaleDateString() : ''],
+                ['Registrations', eventReport.num_registrations],
                 ['Participants', eventReport.num_participants], ['Feedback Rate', eventReport.feedback_response_rate],
-                ['Avg Rating', eventReport.avg_feedback_rating], ['Loaded to Zoho', eventReport.loaded_to_zoho]
+                ['Avg Rating', eventReport.avg_feedback_rating], ['Loaded to Zoho', eventReport.loaded_to_zoho ? 'Yes' : 'No'],
+                ['Submitted By', eventReport.submitted_by_name],
+                ['Submitted At', eventReport.submitted_at ? new Date(eventReport.submitted_at).toLocaleString() : '']
               ] as [label, value]}
                 {#if value}
                   <div>
@@ -2893,7 +2906,44 @@
                 {/if}
               {/each}
             </div>
-            <button onclick={() => showReportForm = true} class="mt-3 text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline">Edit Report</button>
+            <div class="flex gap-3 mt-3">
+              <button onclick={() => {
+                showReportForm = true;
+                if (eventReport) {
+                  reportForm.event_title = eventReport.event_title || '';
+                  reportForm.campus_name = eventReport.campus_name || '';
+                  reportForm.conducted_by = eventReport.conducted_by || '';
+                  reportForm.cma_assigned = eventReport.cma_assigned || '';
+                  reportForm.event_category = eventReport.event_category || '';
+                  const knownSubs = ['Workshop','Podcast','Individual Club Activities','Hackathon'];
+                  if (eventReport.event_subcategory && !knownSubs.includes(eventReport.event_subcategory)) {
+                    reportForm.event_subcategory = 'Other';
+                    reportForm.event_subcategory_other = eventReport.event_subcategory;
+                  } else {
+                    reportForm.event_subcategory = eventReport.event_subcategory || '';
+                    reportForm.event_subcategory_other = '';
+                  }
+                  reportForm.event_duration_days = eventReport.event_duration_days || '';
+                  reportForm.event_mode = eventReport.event_mode || '';
+                  reportForm.event_start_date = eventReport.event_start_date ? eventReport.event_start_date.split('T')[0] : '';
+                  reportForm.event_end_date = eventReport.event_end_date ? eventReport.event_end_date.split('T')[0] : '';
+                  reportForm.num_registrations = eventReport.num_registrations || '';
+                  reportForm.num_participants = eventReport.num_participants || '';
+                  reportForm.feedback_response_rate = eventReport.feedback_response_rate || '';
+                  reportForm.avg_feedback_rating = eventReport.avg_feedback_rating || '';
+                  reportForm.event_description = eventReport.event_description || '';
+                  reportForm.event_feedback = eventReport.event_feedback || '';
+                  reportForm.highlights = eventReport.highlights || '';
+                  reportForm.suggested_improvements = eventReport.suggested_improvements || '';
+                  reportForm.event_photos_link = eventReport.event_photos_link || '';
+                  reportForm.registration_form_link = eventReport.registration_form_link || '';
+                  reportForm.feedback_form_link = eventReport.feedback_form_link || '';
+                  reportForm.event_recording_link = eventReport.event_recording_link || '';
+                  reportForm.loaded_to_zoho = eventReport.loaded_to_zoho ? 'Yes' : 'No';
+                }
+              }} class="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline">Edit Report</button>
+              <button onclick={downloadReportCSV} class="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline">Download CSV</button>
+            </div>
           {:else}
             <!-- Report Form -->
             <button onclick={() => { showReportForm = !showReportForm; if (!reportForm.event_title && selectedEvent) reportForm.event_title = selectedEvent.title; }}
@@ -2902,20 +2952,117 @@
             </button>
             {#if showReportForm}
               <div class="grid grid-cols-2 gap-3 mt-2">
-                {#each [
-                  ['event_title', 'Event Title *', 'text'], ['campus_name', 'Campus Name *', 'text'],
-                  ['conducted_by', 'Conducted By', 'text'], ['cma_assigned', 'CMA Assigned', 'text'],
-                  ['event_category', 'Event Category *', 'text'], ['event_subcategory', 'Subcategory', 'text'],
-                  ['event_duration_days', 'Duration (Days)', 'number'], ['event_mode', 'Mode (Online/Offline/Hybrid)', 'text'],
-                  ['num_registrations', 'Registrations', 'number'], ['num_participants', 'Participants', 'number'],
-                  ['feedback_response_rate', 'Feedback Rate (%)', 'text'], ['avg_feedback_rating', 'Avg Rating', 'text']
-                ] as [key, label, type]}
-                  <div>
-                    <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
-                    <input type={type} bind:value={reportForm[key as keyof typeof reportForm]}
-                      class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
-                  </div>
-                {/each}
+                <!-- Event Title -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Title *</label>
+                  <input type="text" bind:value={reportForm.event_title}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Campus Name -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Campus Name *</label>
+                  <input type="text" bind:value={reportForm.campus_name}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Conducted By -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Conducted By</label>
+                  <input type="text" bind:value={reportForm.conducted_by}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- CMA Assigned — Dropdown -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">CMA Assigned</label>
+                  <select bind:value={reportForm.cma_assigned}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select CMA</option>
+                    <option value="Lingisetty Zoya">Lingisetty Zoya</option>
+                    <option value="Bogada Chandrakanth">Bogada Chandrakanth</option>
+                    <option value="Jalasutram Sanjeevkumar">Jalasutram Sanjeevkumar</option>
+                  </select>
+                </div>
+                <!-- Event Category — Dropdown -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Category *</label>
+                  <select bind:value={reportForm.event_category}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select Category</option>
+                    <option value="Extra Curricular">Extra Curricular</option>
+                    <option value="Club Activities">Club Activities</option>
+                    <option value="Cultural Activities">Cultural Activities</option>
+                    <option value="Co Curricular">Co Curricular</option>
+                  </select>
+                </div>
+                <!-- Event Subcategory — Dropdown with Other -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Subcategory</label>
+                  <select bind:value={reportForm.event_subcategory}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select Subcategory</option>
+                    <option value="Workshop">Workshop</option>
+                    <option value="Podcast">Podcast</option>
+                    <option value="Individual Club Activities">Individual Club Activities</option>
+                    <option value="Hackathon">Hackathon</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  {#if reportForm.event_subcategory === 'Other'}
+                    <input type="text" bind:value={reportForm.event_subcategory_other} placeholder="Specify subcategory..."
+                      class="w-full mt-1 px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                  {/if}
+                </div>
+                <!-- Duration -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Duration (Days)</label>
+                  <input type="number" bind:value={reportForm.event_duration_days}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Event Mode — Dropdown -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Mode</label>
+                  <select bind:value={reportForm.event_mode}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
+                    <option value="">Select Mode</option>
+                    <option value="Offline">Offline</option>
+                    <option value="Online">Online</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <!-- Start Date -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Start Date</label>
+                  <input type="date" bind:value={reportForm.event_start_date}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- End Date -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event End Date</label>
+                  <input type="date" bind:value={reportForm.event_end_date}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Registrations -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Registrations</label>
+                  <input type="number" bind:value={reportForm.num_registrations}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Participants -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Participants</label>
+                  <input type="number" bind:value={reportForm.num_participants}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Feedback Rate -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Feedback Rate (%)</label>
+                  <input type="text" bind:value={reportForm.feedback_response_rate}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
+                <!-- Avg Rating -->
+                <div>
+                  <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Avg Rating</label>
+                  <input type="text" bind:value={reportForm.avg_feedback_rating}
+                    class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
+                </div>
               </div>
               <div class="space-y-3 mt-3">
                 {#each [

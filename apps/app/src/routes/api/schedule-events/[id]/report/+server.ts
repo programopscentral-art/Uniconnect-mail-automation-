@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     const report = await createEventReport({
         ...body,
         event_id: params.id,
-        university_id: event.university_id,
+        university_id: event.university_id || locals.user.university_id || null,
         submitted_by: locals.user.id,
     });
 

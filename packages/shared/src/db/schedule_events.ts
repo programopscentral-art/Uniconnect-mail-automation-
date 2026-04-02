@@ -124,7 +124,7 @@ async function ensureEventSchema() {
             CREATE TABLE IF NOT EXISTS event_reports (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 event_id UUID NOT NULL REFERENCES schedule_events(id) ON DELETE CASCADE,
-                university_id UUID NOT NULL,
+                university_id UUID,
                 event_start_date DATE,
                 event_end_date DATE,
                 campus_name TEXT,
@@ -154,6 +154,8 @@ async function ensureEventSchema() {
                 UNIQUE(event_id)
             )
         `);
+        // Fix: allow null university_id on event_reports (events created by global admins may not have one)
+        await db.query(`ALTER TABLE event_reports ALTER COLUMN university_id DROP NOT NULL`).catch(() => {});
         // Backfill: extract [Section] prefix from checklist title into section column
         await db.query(`
             UPDATE event_checklist_items
