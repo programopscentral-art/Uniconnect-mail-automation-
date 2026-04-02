@@ -41,15 +41,31 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         if (!user) {
             console.log(`[OAUTH] User doesn't exist, attempting auto-provisioning`);
             if (invitation) {
+                // Fetch multi-university IDs from invitation_universities junction table
+                let univIds: string[] = [];
+                try {
+                    const iuResult = await db.query(
+                        `SELECT university_id FROM invitation_universities WHERE invitation_id = $1`,
+                        [invitation.id]
+                    );
+                    univIds = iuResult.rows.map((r: any) => r.university_id);
+                } catch (e) {
+                    // Table might not exist yet — fall back to single university_id
+                }
+                if (univIds.length === 0 && invitation.university_id) {
+                    univIds = [invitation.university_id];
+                }
+
                 user = await createUser({
                     email: email,
                     name: googleUser.name || 'User',
                     role: invitation.role,
-                    university_id: invitation.university_id
+                    university_id: invitation.university_id,
+                    university_ids: univIds
                 });
                 await deleteInvitation(invitation.id);
                 cookies.delete('invitation_token', { path: '/' });
-                console.log(`[OAUTH] User created via invitation for ${email}`);
+                console.log(`[OAUTH] User created via invitation for ${email} with ${univIds.length} universities`);
             }
             // ADMIN Check
             else if (email === 'karthikeya.a054@gmail.com' || email === env.ADMIN_EMAIL) {
@@ -83,7 +99,8 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
                         email: email,
                         name: googleUser.name || 'University Member',
                         role: 'UNIVERSITY_OPERATOR',
-                        university_id: matchedUniv.id
+                        university_id: matchedUniv.id,
+                        university_ids: [matchedUniv.id]
                     });
                     console.log(`[OAUTH] User created for matched university ${matchedUniv.name}: ${email}`);
                 } else {
@@ -119,10 +136,34 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
 
             // User exists - check if they were accepting an invitation to update their role/university
             if (invitation) {
+                // Fetch multi-university IDs from invitation
+                let univIds: string[] = [];
+                try {
+                    const iuResult = await db.query(
+                        `SELECT university_id FROM invitation_universities WHERE invitation_id = $1`,
+                        [invitation.id]
+                    );
+                    univIds = iuResult.rows.map((r: any) => r.university_id);
+                } catch (e) { /* table might not exist */ }
+                if (univIds.length === 0 && invitation.university_id) {
+                    univIds = [invitation.university_id];
+                }
+
                 await db.query(
                     `UPDATE users SET role = $1, university_id = $2, is_active = true, updated_at = NOW() WHERE id = $3`,
-                    [invitation.role, invitation.university_id, user.id]
+                    [invitation.role, univIds[0] || invitation.university_id, user.id]
                 );
+
+                // Sync user_universities junction table
+                if (univIds.length > 0) {
+                    await db.query(`DELETE FROM user_universities WHERE user_id = $1`, [user.id]);
+                    const values = univIds.map((_, idx) => `($1, $${idx + 2})`).join(', ');
+                    await db.query(
+                        `INSERT INTO user_universities (user_id, university_id) VALUES ${values} ON CONFLICT DO NOTHING`,
+                        [user.id, ...univIds]
+                    );
+                }
+
                 await deleteInvitation(invitation.id);
                 cookies.delete('invitation_token', { path: '/' });
                 console.log(`[OAUTH] Existing user ${email} updated and reactivated via invitation`);
