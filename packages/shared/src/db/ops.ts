@@ -372,34 +372,37 @@ export async function getOpsInstructorActivity(date: string, universityName?: st
 // ─── Reports: Daily/Weekly/Monthly ───────────────────────────────────
 
 export async function getOpsDailyReport(date: string) {
-    const [todaySummary, byUniv, compliance] = await Promise.all([
+    const [todaySummary, byUniv, compliance, teamActivity] = await Promise.all([
         getOpsTodaySummary(date),
         getOpsDailyByDate(date),
-        getOpsComplianceData(date, date)
+        getOpsComplianceData(date, date),
+        getOpsTeamActivity(date)
     ]);
-    return { date, summary: todaySummary, byUniversity: byUniv, compliance };
+    return { date, summary: todaySummary, byUniversity: byUniv, compliance, teamActivity };
 }
 
 export async function getOpsWeeklyReport(weekStart: string, weekEnd: string) {
-    const [summary, byUniv, dailyData, compliance] = await Promise.all([
+    const [summary, byUniv, dailyData, compliance, teamActivity] = await Promise.all([
         getOpsWeekSummary(weekStart, weekEnd),
         getOpsWeekByUniversity(weekStart, weekEnd),
         getOpsDataRange(weekStart, weekEnd),
-        getOpsComplianceData(weekStart, weekEnd)
+        getOpsComplianceData(weekStart, weekEnd),
+        getOpsTeamActivity(weekEnd)
     ]);
-    return { weekStart, weekEnd, summary, byUniversity: byUniv, dailyBreakdown: dailyData, compliance };
+    return { weekStart, weekEnd, summary, byUniversity: byUniv, dailyBreakdown: dailyData, compliance, teamActivity };
 }
 
 export async function getOpsMonthlyReport(year: number, month: number) {
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-    const [summary, byUniv, dailyData, compliance] = await Promise.all([
+    const [summary, byUniv, dailyData, compliance, teamActivity] = await Promise.all([
         getOpsWeekSummary(startDate, endDate),
         getOpsWeekByUniversity(startDate, endDate),
         getOpsDataRange(startDate, endDate),
-        getOpsComplianceData(startDate, endDate)
+        getOpsComplianceData(startDate, endDate),
+        getOpsTeamActivity(endDate)
     ]);
-    return { year, month, startDate, endDate, summary, byUniversity: byUniv, dailyBreakdown: dailyData, compliance };
+    return { year, month, startDate, endDate, summary, byUniversity: byUniv, dailyBreakdown: dailyData, compliance, teamActivity };
 }
 
 // ─── CSV Parsing ─────────────────────────────────────────────────────

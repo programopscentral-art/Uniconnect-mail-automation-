@@ -237,7 +237,22 @@
             const res = await fetch(`/api/ops?${params}`);
             if (!res.ok) return;
             const report = await res.json();
-            const content = generateReportHTML(report, type);
+
+            // Fetch AI insights in parallel (non-blocking — report downloads even if AI fails)
+            let aiInsights = '';
+            try {
+                const aiRes = await fetch('/api/ops/ai-insights', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ report, type })
+                });
+                if (aiRes.ok) {
+                    const aiData = await aiRes.json();
+                    aiInsights = aiData.insights || '';
+                }
+            } catch { /* AI is optional */ }
+
+            const content = generateReportHTML(report, type, aiInsights);
             const blob = new Blob([content], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -252,61 +267,178 @@
         }
     }
 
-    function generateReportHTML(report: any, type: string) {
-        const title = type === 'daily' ? `Daily Report — ${report.date}` :
-            type === 'weekly' ? `Weekly Report — ${report.weekStart} to ${report.weekEnd}` :
-            `Monthly Report — ${report.year}-${String(report.month).padStart(2, '0')}`;
+    function generateReportHTML(report: any, type: string, aiInsights: string = '') {
+        const title = type === 'daily' ? `Daily Operations Report — ${report.date}` :
+            type === 'weekly' ? `Weekly Operations Report — ${report.weekStart} to ${report.weekEnd}` :
+            `Monthly Operations Report — ${report.year}-${String(report.month).padStart(2, '0')}`;
         const s = report.summary || {};
         const byUniv = report.byUniversity || [];
         const daily = report.dailyBreakdown || [];
+        const compliance = report.compliance || [];
+        const teamActivity = report.teamActivity || [];
 
         const n = (v: any) => parseInt(v) || 0;
+        const f = (v: any) => parseFloat(v) || 0;
         const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
         const sessRate = n(s.sessions_planned) > 0 ? Math.round((n(s.sessions_completed) / n(s.sessions_planned)) * 100) : 0;
         const coachRate = n(s.enrolled) - n(s.attended) > 0 ? Math.round((n(s.coach_calls) / (n(s.enrolled) - n(s.attended))) * 100) : 0;
+        const parentRate = n(s.enrolled) - n(s.attended) > 0 ? Math.round((n(s.parent_calls) / (n(s.enrolled) - n(s.attended))) * 100) : 0;
+        const eventExecRate = n(s.events_planned) > 0 ? Math.round((n(s.events_executed) / n(s.events_planned)) * 100) : 0;
+        const examRate = n(s.exams_planned) > 0 ? Math.round((n(s.exams_completed) / n(s.exams_planned)) * 100) : 0;
+        const atRiskInformedRate = n(s.at_risk_total) > 0 ? Math.round((n(s.at_risk_informed) / n(s.at_risk_total)) * 100) : 0;
         const rateColor = (v: number) => v >= 80 ? '#16a34a' : v >= 50 ? '#ca8a04' : '#dc2626';
+        const statusBadge = (status: string) => {
+            const colors: Record<string, string> = { 'Filed': '#16a34a', 'Submitted': '#16a34a', 'Missing': '#dc2626', 'Late': '#ca8a04', 'On time': '#16a34a', 'Complete': '#16a34a', 'Partial': '#ca8a04' };
+            const bg: Record<string, string> = { 'Filed': '#f0fdf4', 'Submitted': '#f0fdf4', 'Missing': '#fef2f2', 'Late': '#fefce8', 'On time': '#f0fdf4', 'Complete': '#f0fdf4', 'Partial': '#fefce8' };
+            return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;color:${colors[status] || '#64748b'};background:${bg[status] || '#f1f5f9'}">${status}</span>`;
+        };
 
+        // ── University Breakdown Table (comprehensive) ──
         const univRows = byUniv.map((r: any) => {
             const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
             const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+            const uAbsent = n(r.enrolled) - n(r.attended);
+            const uCoachRate = uAbsent > 0 ? Math.round((n(r.coach_calls) / uAbsent) * 100) : 0;
             return `<tr>
                 <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:600">${r.university_name}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.sessions_planned)}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600;color:${rateColor(uSess)}">${n(r.sessions_completed)} <span style="font-size:10px;color:#999">(${uSess}%)</span></td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626">${n(r.sessions_cancelled)}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.enrolled)}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600;color:${rateColor(uAtt)}">${n(r.attended)} <span style="font-size:10px;color:#999">(${uAtt}%)</span></td>
-                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coach_calls)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#64748b">${uAbsent}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:${rateColor(uCoachRate)}">${n(r.coach_calls)} <span style="font-size:10px;color:#999">(${uCoachRate}%)</span></td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.parent_calls)}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:${n(r.at_risk_total) > 0 ? '#dc2626' : '#16a34a'};font-weight:600">${n(r.at_risk_total)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.at_risk_informed)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.instructors_total)} <span style="font-size:10px;color:#dc2626">(${n(r.instructors_on_leave)} leave)</span></td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.events_executed)}/${n(r.events_planned)}</td>
                 <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.exams_completed)}/${n(r.exams_planned)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.post_exam_comms_sent)}</td>
             </tr>`;
         }).join('');
 
-        // Summary row for university table
         const totalRow = byUniv.length > 1 ? `<tr style="background:#f0f4ff;font-weight:700">
-            <td style="padding:10px 12px;border-top:2px solid #6366f1">TOTAL</td>
+            <td style="padding:10px 12px;border-top:2px solid #6366f1">TOTAL (${byUniv.length} universities)</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.sessions_planned)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:${rateColor(sessRate)}">${n(s.sessions_completed)} (${sessRate}%)</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:#dc2626">${n(s.sessions_cancelled)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.enrolled)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:${rateColor(attRate)}">${n(s.attended)} (${attRate}%)</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.enrolled) - n(s.attended)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.coach_calls)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.parent_calls)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center;color:#dc2626">${n(s.at_risk_total)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.at_risk_informed)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.instructors_total)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.events_executed)}/${n(s.events_planned)}</td>
             <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.exams_completed)}/${n(s.exams_planned)}</td>
+            <td style="padding:10px 8px;border-top:2px solid #6366f1;text-align:center">${n(s.post_exam_comms_sent)}</td>
         </tr>` : '';
 
-        let dailyRows = '';
+        // ── Team Activity Section ──
+        let teamSection = '';
+        if (teamActivity.length > 0) {
+            const totalInstructorsActive = teamActivity.reduce((s: number, r: any) => s + n(r.instructors_active), 0);
+            const totalCoachesActive = teamActivity.reduce((s: number, r: any) => s + n(r.coaches_active), 0);
+            const totalOpsActive = teamActivity.reduce((s: number, r: any) => s + n(r.program_ops_active), 0);
+            const totalCalls = teamActivity.reduce((s: number, r: any) => s + n(r.total_calls_made), 0);
+            const totalTickets = teamActivity.reduce((s: number, r: any) => s + n(r.tickets_resolved), 0);
+            const totalClicks = teamActivity.reduce((s: number, r: any) => s + n(r.clicks_shares_sent), 0);
+            const avgInstrHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_instructors), 0) / teamActivity.length).toFixed(1) : '0';
+            const avgCoachHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_coaches), 0) / teamActivity.length).toFixed(1) : '0';
+            const avgOpsHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_program_ops), 0) / teamActivity.length).toFixed(1) : '0';
+
+            teamSection = `
+            <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Team Activity &amp; Productivity</h2>
+            <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr);margin-top:16px">
+                <div class="kpi"><div class="label">Instructors Active</div><div class="value blue">${totalInstructorsActive}</div><div class="sub">Avg ${avgInstrHrs}h/day</div></div>
+                <div class="kpi"><div class="label">Coaches Active</div><div class="value purple">${totalCoachesActive}</div><div class="sub">Avg ${avgCoachHrs}h/day</div></div>
+                <div class="kpi"><div class="label">Program Ops Active</div><div class="value" style="color:#0891b2">${totalOpsActive}</div><div class="sub">Avg ${avgOpsHrs}h/day</div></div>
+                <div class="kpi"><div class="label">Total Calls Made</div><div class="value">${totalCalls}</div></div>
+                <div class="kpi"><div class="label">Tickets Resolved</div><div class="value green">${totalTickets}</div></div>
+                <div class="kpi"><div class="label">Clicks/Shares Sent</div><div class="value">${totalClicks}</div></div>
+            </div>
+            <table>
+                <thead><tr>
+                    <th style="text-align:left">University</th>
+                    <th>Instructors</th><th>Coaches</th><th>Prog. Ops</th>
+                    <th>Calls Made</th><th>Tickets</th><th>Clicks/Shares</th>
+                    <th>Instr. Hrs</th><th>Coach Hrs</th><th>Ops Hrs</th>
+                </tr></thead><tbody>` +
+            teamActivity.map((r: any) => `<tr>
+                <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:600">${r.university_name}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.instructors_active)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coaches_active)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.program_ops_active)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600">${n(r.total_calls_made)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#16a34a;font-weight:600">${n(r.tickets_resolved)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.clicks_shares_sent)}</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_instructors).toFixed(1)}h</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_coaches).toFixed(1)}h</td>
+                <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_program_ops).toFixed(1)}h</td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        }
+
+        // ── Compliance Section ──
+        let complianceSection = '';
+        if (compliance.length > 0) {
+            const totalReports = compliance.length;
+            const completeReports = compliance.filter((r: any) => {
+                const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
+                return filed === 3;
+            }).length;
+            const partialReports = compliance.filter((r: any) => {
+                const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
+                return filed > 0 && filed < 3;
+            }).length;
+            const missingReports = totalReports - completeReports - partialReports;
+            const complianceRate = totalReports > 0 ? Math.round((completeReports / totalReports) * 100) : 0;
+
+            complianceSection = `
+            <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Report Compliance</h2>
+            <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
+                <div class="kpi kpi-highlight"><div class="label">Compliance Rate</div><div class="value" style="color:${rateColor(complianceRate)}">${complianceRate}%</div><div class="sub">${completeReports} of ${totalReports} complete</div></div>
+                <div class="kpi"><div class="label">Complete Reports</div><div class="value green">${completeReports}</div></div>
+                <div class="kpi"><div class="label">Partial Reports</div><div class="value amber">${partialReports}</div></div>
+                <div class="kpi"><div class="label">Missing Reports</div><div class="value red">${missingReports}</div></div>
+            </div>
+            <table>
+                <thead><tr>
+                    <th style="text-align:left">Date</th>
+                    <th style="text-align:left">University</th>
+                    <th>Instructor Report</th><th>Coach Report</th><th>Ops Report</th>
+                    <th>Submitted By</th><th>Submitted At</th><th>Status</th>
+                </tr></thead><tbody>` +
+            compliance.map((r: any) => {
+                const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
+                const overallStatus = filed === 3 ? 'Complete' : filed > 0 ? 'Partial' : 'Missing';
+                return `<tr>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-size:12px;color:#64748b">${r.date}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${statusBadge(r.instructor_report || 'Missing')}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${statusBadge(r.coach_report || 'Missing')}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${statusBadge(r.ops_report || 'Missing')}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${r.report_submitted_by || '—'}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${r.report_submitted_at || '—'}</td>
+                    <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${statusBadge(overallStatus)}</td>
+                </tr>`;
+            }).join('') +
+            `</tbody></table>`;
+        }
+
+        // ── Daily Breakdown (for weekly/monthly reports) ──
+        let dailySection = '';
         if (daily.length && type !== 'daily') {
-            dailyRows = `<h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Daily Breakdown</h2>
-            <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:12px">
-            <thead><tr style="background:#f1f5f9">
-                <th style="padding:10px 8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Date</th>
-                <th style="padding:10px 8px;text-align:left;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">University</th>
-                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Sessions</th>
-                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Attended</th>
-                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Enrolled</th>
-                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Att. Rate</th>
-                <th style="padding:10px 8px;text-align:center;border-bottom:2px solid #cbd5e1;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#64748b">Coach Calls</th>
+            dailySection = `<h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Daily Breakdown</h2>
+            <table>
+            <thead><tr>
+                <th style="text-align:left">Date</th>
+                <th style="text-align:left">University</th>
+                <th>Sessions</th><th>Enrolled</th><th>Attended</th><th>Att. Rate</th>
+                <th>Coach Calls</th><th>Parent Calls</th><th>At-Risk</th>
+                <th>Events</th><th>Exams</th>
             </tr></thead><tbody>` +
             daily.map((r: any) => {
                 const dAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
@@ -314,13 +446,76 @@
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px;color:#64748b">${r.date}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:500">${r.university_name}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.sessions_completed)}/${n(r.sessions_planned)}</td>
-                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:500">${n(r.attended)}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.enrolled)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:500">${n(r.attended)}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:600;color:${rateColor(dAtt)}">${dAtt}%</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.coach_calls)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.parent_calls)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;color:${n(r.at_risk_total) > 0 ? '#dc2626' : '#16a34a'}">${n(r.at_risk_total)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.events_executed)}/${n(r.events_planned)}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${n(r.exams_completed)}/${n(r.exams_planned)}</td>
                 </tr>`;
             }).join('') +
             `</tbody></table>`;
+        }
+
+        // ── Cancellation Reasons ──
+        let cancellationSection = '';
+        const cancellations = byUniv.filter((r: any) => r.cancellation_reason && n(r.sessions_cancelled) > 0);
+        if (cancellations.length > 0) {
+            cancellationSection = `
+            <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Session Cancellation Details</h2>
+            <table><thead><tr>
+                <th style="text-align:left">University</th><th style="text-align:center">Cancelled</th><th style="text-align:left">Reason</th>
+            </tr></thead><tbody>` +
+            cancellations.map((r: any) => `<tr>
+                <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
+                <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626;font-weight:600">${n(r.sessions_cancelled)}</td>
+                <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-size:12px">${r.cancellation_reason}</td>
+            </tr>`).join('') +
+            `</tbody></table>`;
+        }
+
+        // ── AI Insights Section ──
+        let aiSection = '';
+        if (aiInsights) {
+            const formattedInsights = aiInsights.replace(/\n/g, '<br>');
+            aiSection = `
+            <div style="margin-top:32px;background:linear-gradient(135deg,#f0f4ff,#faf5ff);border:1px solid #c7d2fe;border-radius:12px;padding:24px">
+                <h2 style="color:#4338ca;font-size:18px;margin:0 0 16px 0;border:none;padding:0">AI-Generated Executive Summary</h2>
+                <div style="color:#1e293b;font-size:13px;line-height:1.8">${formattedInsights}</div>
+                <p style="color:#94a3b8;font-size:10px;margin-top:16px;font-style:italic">Generated by Gemini AI based on operational data</p>
+            </div>`;
+        }
+
+        // ── Key Observations (auto-generated from data) ──
+        const observations: string[] = [];
+        if (sessRate < 80) observations.push(`Session completion rate is ${sessRate}% — below the 80% target. ${n(s.sessions_cancelled)} sessions were cancelled.`);
+        if (attRate < 70) observations.push(`Attendance rate is critically low at ${attRate}%. ${n(s.enrolled) - n(s.attended)} students absent out of ${n(s.enrolled)} enrolled.`);
+        else if (attRate >= 90) observations.push(`Excellent attendance rate of ${attRate}% across all campuses.`);
+        if (coachRate < 50) observations.push(`Coach call coverage is only ${coachRate}% — many absent students are not being followed up.`);
+        if (n(s.at_risk_total) > 0 && atRiskInformedRate < 80) observations.push(`Only ${atRiskInformedRate}% of at-risk students (${n(s.at_risk_informed)}/${n(s.at_risk_total)}) have been informed. Immediate action needed.`);
+        if (n(s.events_cancelled) > 0) observations.push(`${n(s.events_cancelled)} event(s) cancelled out of ${n(s.events_planned)} planned.`);
+
+        // Find best and worst performing universities
+        if (byUniv.length > 1) {
+            const univWithAtt = byUniv.filter((r: any) => n(r.enrolled) > 0).map((r: any) => ({ name: r.university_name, rate: Math.round((n(r.attended) / n(r.enrolled)) * 100) }));
+            if (univWithAtt.length > 1) {
+                const best = univWithAtt.reduce((a: any, b: any) => a.rate > b.rate ? a : b);
+                const worst = univWithAtt.reduce((a: any, b: any) => a.rate < b.rate ? a : b);
+                if (best.rate !== worst.rate) {
+                    observations.push(`Best attendance: ${best.name} (${best.rate}%). Needs attention: ${worst.name} (${worst.rate}%).`);
+                }
+            }
+        }
+
+        let observationsSection = '';
+        if (observations.length > 0) {
+            observationsSection = `
+            <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Key Observations</h2>
+            <div style="margin-top:12px;display:grid;gap:8px">` +
+            observations.map((obs, i) => `<div style="padding:12px 16px;background:${i % 2 === 0 ? '#fefce8' : '#fff7ed'};border-left:4px solid ${i % 2 === 0 ? '#ca8a04' : '#ea580c'};border-radius:0 8px 8px 0;font-size:13px;color:#1e293b">${obs}</div>`).join('') +
+            `</div>`;
         }
 
         return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>UniOps — ${title}</title>
@@ -345,16 +540,19 @@
         td:first-child { text-align: left; }
         .divider { border: none; border-top: 2px solid #e2e8f0; margin: 32px 0; }
         .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
-        @media print { body { padding: 16px; } .kpi { break-inside: avoid; } }
+        @media print { body { padding: 16px; } .kpi { break-inside: avoid; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } }
         </style></head><body>
         <h1>UniOps — ${title}</h1>
-        <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard${selectedUniversity ? ` | ${selectedUniversity}` : ''}</p>
+        <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard${selectedUniversity ? ` | ${selectedUniversity}` : ''} | ${byUniv.length} universit${byUniv.length === 1 ? 'y' : 'ies'}</p>
 
+        ${aiSection}
+
+        <h2 style="margin-top:24px">Performance Overview</h2>
         <div class="kpi-grid">
             <div class="kpi kpi-highlight">
                 <div class="label">Session Completion</div>
                 <div class="value" style="color:${rateColor(sessRate)}">${sessRate}%</div>
-                <div class="sub">${n(s.sessions_completed)} of ${n(s.sessions_planned)} sessions</div>
+                <div class="sub">${n(s.sessions_completed)} of ${n(s.sessions_planned)} sessions · ${n(s.sessions_cancelled)} cancelled</div>
             </div>
             <div class="kpi kpi-highlight">
                 <div class="label">Attendance Rate</div>
@@ -362,62 +560,73 @@
                 <div class="sub">${n(s.attended)} of ${n(s.enrolled)} students</div>
             </div>
             <div class="kpi">
-                <div class="label">Coach Call Rate</div>
+                <div class="label">Coach Call Coverage</div>
                 <div class="value" style="color:${rateColor(coachRate)}">${coachRate}%</div>
                 <div class="sub">${n(s.coach_calls)} calls for ${n(s.enrolled) - n(s.attended)} absent</div>
             </div>
             <div class="kpi">
-                <div class="label">At-Risk Students</div>
-                <div class="value ${n(s.at_risk_total) > 0 ? 'red' : 'green'}">${n(s.at_risk_total)}</div>
-                <div class="sub">${n(s.at_risk_informed)} informed · ${n(s.acknowledgments)} acknowledged</div>
+                <div class="label">Parent Call Coverage</div>
+                <div class="value" style="color:${rateColor(parentRate)}">${parentRate}%</div>
+                <div class="sub">${n(s.parent_calls)} parent calls</div>
             </div>
             <div class="kpi">
-                <div class="label">Events</div>
-                <div class="value blue">${n(s.events_executed)}/${n(s.events_planned)}</div>
-                <div class="sub">${n(s.events_cancelled)} cancelled</div>
+                <div class="label">At-Risk Students</div>
+                <div class="value ${n(s.at_risk_total) > 0 ? 'red' : 'green'}">${n(s.at_risk_total)}</div>
+                <div class="sub">${n(s.at_risk_informed)} informed (${atRiskInformedRate}%) · ${n(s.acknowledgments)} ack'd</div>
             </div>
         </div>
 
         <div class="kpi-grid" style="grid-template-columns:repeat(5,1fr)">
             <div class="kpi">
-                <div class="label">Sessions Planned</div>
-                <div class="value">${n(s.sessions_planned)}</div>
+                <div class="label">Event Execution</div>
+                <div class="value" style="color:${rateColor(eventExecRate)}">${eventExecRate}%</div>
+                <div class="sub">${n(s.events_executed)} of ${n(s.events_planned)} · ${n(s.events_cancelled)} cancelled</div>
             </div>
             <div class="kpi">
-                <div class="label">Sessions Completed</div>
-                <div class="value green">${n(s.sessions_completed)}</div>
-            </div>
-            <div class="kpi">
-                <div class="label">Sessions Cancelled</div>
-                <div class="value red">${n(s.sessions_cancelled)}</div>
-            </div>
-            <div class="kpi">
-                <div class="label">Exams Done</div>
-                <div class="value purple">${n(s.exams_completed)}/${n(s.exams_planned)}</div>
+                <div class="label">Exam Completion</div>
+                <div class="value" style="color:${rateColor(examRate)}">${examRate}%</div>
+                <div class="sub">${n(s.exams_completed)} of ${n(s.exams_planned)} exams</div>
             </div>
             <div class="kpi">
                 <div class="label">Post-Exam Comms</div>
                 <div class="value purple">${n(s.post_exam_comms_sent)}</div>
             </div>
+            <div class="kpi">
+                <div class="label">Total Instructors</div>
+                <div class="value blue">${n(s.instructors_total)}</div>
+                <div class="sub">${n(s.instructors_on_leave)} on leave</div>
+            </div>
+            <div class="kpi">
+                <div class="label">Universities</div>
+                <div class="value">${n(s.university_count) || byUniv.length}</div>
+                <div class="sub">reporting ${type === 'daily' ? 'today' : 'this period'}</div>
+            </div>
         </div>
 
-        <h2>University-wise Breakdown</h2>
+        ${observationsSection}
+
+        <h2>University-wise Comprehensive Breakdown</h2>
+        <div style="overflow-x:auto">
         <table>
             <thead><tr>
                 <th style="text-align:left">University</th>
-                <th>Sessions Planned</th>
-                <th>Completed</th>
-                <th>Enrolled</th>
-                <th>Attended</th>
-                <th>Coach Calls</th>
-                <th>At-Risk</th>
-                <th>Events</th>
-                <th>Exams</th>
+                <th>Planned</th><th>Done</th><th>Canc.</th>
+                <th>Enrolled</th><th>Attended</th><th>Absent</th>
+                <th>Coach Calls</th><th>Parent Calls</th>
+                <th>At-Risk</th><th>Informed</th>
+                <th>Instructors</th>
+                <th>Events</th><th>Exams</th><th>Post-Exam</th>
             </tr></thead>
             <tbody>${univRows}${totalRow}</tbody>
         </table>
-        ${dailyRows}
-        <div class="footer">Auto-generated by UniConnect Ops Dashboard | ${new Date().getFullYear()}</div>
+        </div>
+
+        ${cancellationSection}
+        ${teamSection}
+        ${complianceSection}
+        ${dailySection}
+
+        <div class="footer">Auto-generated by UniConnect Ops Dashboard | ${new Date().toLocaleString('en-IN')} | Comprehensive Operations Report</div>
         </body></html>`;
     }
 </script>

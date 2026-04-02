@@ -210,6 +210,27 @@ export async function updateTask(id: string, data: { status?: TaskStatus; priori
         const stats = rows[0];
         if (parseInt(stats.total) > 0 && parseInt(stats.total) === parseInt(stats.completed)) {
             updateData.status = 'COMPLETED';
+
+            // Sync: when task completes, mark all linked event checklist items as completed
+            try {
+                const taskRow = await db.query(`SELECT event_id FROM tasks WHERE id = $1`, [id]);
+                if (taskRow.rows[0]?.event_id) {
+                    await db.query(
+                        `UPDATE event_checklist_items SET
+                            is_completed = true,
+                            completed_by = $2::uuid,
+                            completed_at = COALESCE(completed_at, NOW()),
+                            updated_at = NOW()
+                         WHERE id IN (
+                            SELECT event_checklist_item_id FROM task_checklist_items
+                            WHERE task_id = $1 AND event_checklist_item_id IS NOT NULL
+                         ) AND is_completed = false`,
+                        [id, assignee_id]
+                    );
+                }
+            } catch (e: any) {
+                console.error('[TASKS] Event checklist sync error:', e.message);
+            }
         } else if (assignee_status === 'IN_PROGRESS' || assignee_status === 'PENDING') {
             // If someone moved back to pending/processing, the main task can't be 'COMPLETED'
             // We only downgrade from COMPLETED to IN_PROGRESS if it was COMPLETED
