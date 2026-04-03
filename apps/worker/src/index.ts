@@ -4,6 +4,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 import { db, getCommunicationTasksForReminders, getUserFcmTokens, updateCommunicationTaskStatus, type CommunicationTask } from '@uniconnect/shared';
 import * as admin from 'firebase-admin';
 import { processBudgetProposalsWorker } from './budget_proposals';
+import { processOpsAutomation } from './ops_automation';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -298,6 +299,7 @@ async function processCommunicationTasks() {
 
     await processBudgetProposalsWorker();
     await processWeeklyReports();
+    await processOpsAutomation();
   } catch (err) {
     console.error('[WORKER] Error in main cycle:', err);
   } finally {

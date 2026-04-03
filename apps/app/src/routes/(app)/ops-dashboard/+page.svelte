@@ -17,6 +17,8 @@
     let dateRange = $state('today');
     let allUniversities = $state<string[]>([]);
     let isDownloading = $state(false);
+    let isSendingReport = $state(false);
+    let sendReportMsg = $state('');
     let bulkDates = $state<string[]>([]);
     let showBulkPicker = $state(false);
 
@@ -426,6 +428,29 @@
             console.error('Download failed:', e);
         } finally {
             isDownloading = false;
+        }
+    }
+
+    async function sendReportEmail() {
+        isSendingReport = true;
+        sendReportMsg = '';
+        try {
+            const res = await fetch('/api/ops/send-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: selectedDate })
+            });
+            const data = await res.json();
+            if (data.success) {
+                sendReportMsg = `Report email sent to ${data.recipients?.length || 0} admin(s)`;
+                setTimeout(() => { sendReportMsg = ''; }, 5000);
+            } else {
+                sendReportMsg = `Failed: ${data.error || 'Unknown error'}`;
+            }
+        } catch (e: any) {
+            sendReportMsg = `Error: ${e.message}`;
+        } finally {
+            isSendingReport = false;
         }
     }
 
@@ -1001,6 +1026,14 @@
                         Monthly
                     </button>
                     <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="mx-1 text-gray-600">|</span>
+                    <button onclick={sendReportEmail} disabled={isSendingReport} class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs rounded transition-colors flex items-center gap-1" title="Email daily report to all admins">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        {isSendingReport ? 'Sending...' : 'Email Report'}
+                    </button>
+                    {#if sendReportMsg}
+                        <span class="text-xs {sendReportMsg.startsWith('Report') ? 'text-green-400' : 'text-red-400'} ml-1">{sendReportMsg}</span>
+                    {/if}
                 </div>
             </div>
         </div>

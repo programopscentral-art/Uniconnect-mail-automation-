@@ -8,3 +8,4 @@ build
 !.env.example
 *.log
 package-lock.json
+.turbo
