@@ -177,7 +177,7 @@
         if (!sheetUrl) return '';
         // Ensure it ends with /edit for full editor mode
         const base = sheetUrl.replace(/\/edit.*$/, '').replace(/\/$/, '');
-        return base + '/edit?rm=minimal';
+        return base + '/edit';
     }
 
     function formatDate(d: string) {
