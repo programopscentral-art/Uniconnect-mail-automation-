@@ -81,5 +81,6 @@ export * from './services/number-challenge.service';
 export * from './db/analytics';
 export * from './db/ops';
 export * from './db/meetings';
+export * from './db/sheets';
 export * from './services/meeting-intelligence.service';
 // Ensure all assessment functions including createUniversityAsset are exported
