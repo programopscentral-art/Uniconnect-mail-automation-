@@ -66,6 +66,9 @@ export async function ensureSheetSchema() {
         CREATE INDEX IF NOT EXISTS idx_sheet_connections_university ON sheet_connections(university_id);
         CREATE INDEX IF NOT EXISTS idx_sheet_sync_data_connection ON sheet_sync_data(sheet_connection_id);
         CREATE INDEX IF NOT EXISTS idx_sheet_sync_data_synced ON sheet_sync_data(synced_at DESC);
+
+        -- Add tabs column if not exists
+        ALTER TABLE sheet_connections ADD COLUMN IF NOT EXISTS tabs JSONB DEFAULT '[]';
     `);
 }
 
@@ -125,16 +128,29 @@ export async function getSheetConnectionCredentials(id: string) {
     return result.rows[0] || null;
 }
 
-export async function updateSheetSyncStatus(id: string, status: 'ACTIVE' | 'ERROR', error?: string) {
-    await db.query(
-        `UPDATE sheet_connections SET
-            status = $2,
-            sync_error = $3,
-            last_synced_at = CASE WHEN $2 = 'ACTIVE' THEN NOW() ELSE last_synced_at END,
-            updated_at = NOW()
-         WHERE id = $1`,
-        [id, status, error || null]
-    );
+export async function updateSheetSyncStatus(id: string, status: 'ACTIVE' | 'ERROR', error?: string, tabs?: string[]) {
+    if (tabs) {
+        await db.query(
+            `UPDATE sheet_connections SET
+                status = $2,
+                sync_error = $3,
+                tabs = $4,
+                last_synced_at = CASE WHEN $2 = 'ACTIVE' THEN NOW() ELSE last_synced_at END,
+                updated_at = NOW()
+             WHERE id = $1`,
+            [id, status, error || null, JSON.stringify(tabs)]
+        );
+    } else {
+        await db.query(
+            `UPDATE sheet_connections SET
+                status = $2,
+                sync_error = $3,
+                last_synced_at = CASE WHEN $2 = 'ACTIVE' THEN NOW() ELSE last_synced_at END,
+                updated_at = NOW()
+             WHERE id = $1`,
+            [id, status, error || null]
+        );
+    }
 }
 
 export async function deleteSheetConnection(id: string, userId: string) {

@@ -101,6 +101,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const sheetsApi = getSheetsApiClient(refreshToken);
             const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId });
             const title = sheetName || metadata.data.properties?.title || 'Untitled Sheet';
+            const sheetTabs = (metadata.data.sheets || []).map((s: any) => s.properties?.title || 'Sheet1');
 
             // Create the real sheet connection
             const connection = await createSheetConnection({
@@ -114,8 +115,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 scopes: creds.scopes
             });
 
-            console.log(`[SHEETS] Linked sheet: ${title} (${spreadsheetId}) for user ${locals.user.id}`);
-            return json({ connection, sheetTitle: title });
+            // Save tabs to connection
+            if (sheetTabs.length > 0) {
+                await updateSheetSyncStatus(connection.id, 'ACTIVE', undefined, sheetTabs);
+            }
+
+            console.log(`[SHEETS] Linked sheet: ${title} (${spreadsheetId}) with ${sheetTabs.length} tabs for user ${locals.user.id}`);
+            return json({ connection: { ...connection, tabs: sheetTabs }, sheetTitle: title, tabs: sheetTabs });
         } catch (err: any) {
             console.error('[SHEETS] Failed to access sheet:', err.message);
             throw error(400, `Cannot access this sheet. Make sure it's shared with ${creds.google_email}. Error: ${err.message}`);
@@ -157,10 +163,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 rows
             });
 
-            await updateSheetSyncStatus(sheetId, 'ACTIVE');
-
-            // Return tab list too
+            // Save tab list to DB so sidebar can show without syncing
             const tabList = sheets.map(s => s.properties?.title || 'Sheet1');
+            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList);
 
             console.log(`[SHEETS] Synced ${rows.length} rows from ${tabName} for sheet ${sheetId}`);
             return json({ syncData, tabs: tabList, rowCount: rows.length, headers });
@@ -230,6 +235,182 @@ Keep it concise and actionable. Use bullet points.`;
         } catch (err: any) {
             console.error('[SHEETS_AI] Analysis failed:', err.message);
             throw error(500, `AI analysis failed: ${err.message}`);
+        }
+    }
+
+    // Generate a proper AI report from sheet data
+    if (action === 'ai-report') {
+        const { sheetId, tab, reportType } = body;
+        if (!sheetId) throw error(400, 'Missing sheetId');
+
+        const syncDataResult = await getLatestSheetSyncData(sheetId, tab);
+        if (!syncDataResult) throw error(404, 'No synced data found. Sync the sheet first.');
+
+        const headers = syncDataResult.headers;
+        const rows = syncDataResult.rows;
+
+        const reportPrompts: Record<string, string> = {
+            summary: `Generate a comprehensive EXECUTIVE SUMMARY REPORT from this spreadsheet data.
+
+The sheet has ${rows.length} rows and columns: ${JSON.stringify(headers)}
+
+Full data (up to 50 rows):
+${rows.slice(0, 50).map((r: any[], i: number) => `Row ${i + 1}: ${JSON.stringify(r)}`).join('\n')}
+
+Generate a professional report with these sections:
+## Executive Summary
+Brief overview of what this data represents and key findings.
+
+## Key Metrics
+Important numbers, totals, averages extracted from the data. Present as a clean table.
+
+## Trends & Patterns
+What patterns or trends are visible in this data?
+
+## Areas of Concern
+Any red flags, missing data, anomalies, or issues.
+
+## Recommendations
+Actionable suggestions based on the data.
+
+Format it cleanly with markdown. Include actual numbers from the data.`,
+
+            comparison: `Generate a COMPARISON REPORT analyzing differences and variations in this data.
+
+The sheet has ${rows.length} rows and columns: ${JSON.stringify(headers)}
+
+Data (up to 50 rows):
+${rows.slice(0, 50).map((r: any[], i: number) => `Row ${i + 1}: ${JSON.stringify(r)}`).join('\n')}
+
+Generate:
+## Comparison Overview
+What entities/items are being compared?
+
+## Side-by-Side Comparison Table
+Create a comparison table of key metrics.
+
+## Top Performers
+Who/what is performing best and on which metrics?
+
+## Gaps & Disparities
+Where are the biggest differences?
+
+## Action Items
+What should be done based on these comparisons?
+
+Format cleanly with markdown tables.`,
+
+            detailed: `Generate a DETAILED DATA REPORT with thorough analysis.
+
+The sheet has ${rows.length} rows and columns: ${JSON.stringify(headers)}
+
+Data (up to 50 rows):
+${rows.slice(0, 50).map((r: any[], i: number) => `Row ${i + 1}: ${JSON.stringify(r)}`).join('\n')}
+
+Generate:
+## Data Overview
+Complete description of dataset — what each column represents, data types, date range if applicable.
+
+## Column-by-Column Analysis
+For each important column: min, max, average, mode, distribution notes.
+
+## Data Quality Report
+- Missing values per column
+- Potential duplicates
+- Inconsistent formatting
+- Outliers
+
+## Cross-Column Correlations
+Any relationships between columns worth noting.
+
+## Summary Table
+A clean summary table of all key statistics.
+
+## Conclusions
+Key takeaways from this data.
+
+Format with markdown tables and bullet points.`
+        };
+
+        const prompt = reportPrompts[reportType || 'summary'] || reportPrompts.summary;
+
+        try {
+            const geminiKey = env.GEMINI_API_KEY;
+            if (!geminiKey) throw error(500, 'Gemini API key not configured');
+
+            const geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            maxOutputTokens: 8192,
+                            temperature: 0.2
+                        }
+                    })
+                }
+            );
+
+            if (!geminiResponse.ok) {
+                const errText = await geminiResponse.text();
+                throw new Error(`Gemini API error: ${errText}`);
+            }
+
+            const geminiData = await geminiResponse.json();
+            const report = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || 'No report generated.';
+
+            return json({ report, reportType: reportType || 'summary', rowCount: rows.length });
+        } catch (err: any) {
+            console.error('[SHEETS_AI] Report generation failed:', err.message);
+            throw error(500, `Report generation failed: ${err.message}`);
+        }
+    }
+
+    // Sync all tabs at once
+    if (action === 'sync-all') {
+        const { sheetId } = body;
+        if (!sheetId) throw error(400, 'Missing sheetId');
+
+        const creds = await getSheetConnectionCredentials(sheetId);
+        if (!creds) throw error(404, 'Sheet connection not found');
+
+        try {
+            const refreshToken = decryptString(creds.refresh_token_enc);
+            const sheetsApi = getSheetsApiClient(refreshToken);
+
+            const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId: creds.spreadsheet_id });
+            const sheetsList = metadata.data.sheets || [];
+            const tabList = sheetsList.map(s => s.properties?.title || 'Sheet1');
+
+            // Sync each tab
+            const results = [];
+            for (const tabName of tabList) {
+                const response = await sheetsApi.spreadsheets.values.get({
+                    spreadsheetId: creds.spreadsheet_id,
+                    range: `'${tabName}'`
+                });
+                const values = response.data.values || [];
+                const headers = values.length > 0 ? values[0] : [];
+                const rowData = values.length > 1 ? values.slice(1) : [];
+
+                await saveSheetSyncData({
+                    sheet_connection_id: sheetId,
+                    sheet_tab: tabName,
+                    headers,
+                    rows: rowData
+                });
+                results.push({ tab: tabName, rows: rowData.length, cols: headers.length });
+            }
+
+            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList);
+
+            console.log(`[SHEETS] Synced all ${tabList.length} tabs for sheet ${sheetId}`);
+            return json({ tabs: tabList, results, totalTabs: tabList.length });
+        } catch (err: any) {
+            await updateSheetSyncStatus(sheetId, 'ERROR', err.message);
+            throw error(500, `Sync all failed: ${err.message}`);
         }
     }
 
