@@ -9,9 +9,31 @@
 
     // Selections
     let selectedUniversities: string[] = $state([]);
-    let roleIntent = $state<'FACULTY' | 'STAFF' | ''>('');
+    let roleIntent = $state('');
     let selectedSubjectIds: string[] = $state([]);
     let selectedSubjectNames: string[] = $state([]);
+
+    const roleOptions = [
+        { id: 'FACULTY', label: 'Faculty / Instructor', desc: 'I teach courses and manage student assessments', icon: 'book', needsSubjects: true },
+        { id: 'CMA', label: 'CMA (Campus Manager Associate)', desc: 'I manage campus operations and coordinate activities', icon: 'campus' },
+        { id: 'CMA_MANAGER', label: 'CMA Manager', desc: 'I oversee CMA teams across campuses', icon: 'campus' },
+        { id: 'COS', label: 'COS (Chief of Staff)', desc: 'I lead operational strategy and execution', icon: 'lead' },
+        { id: 'PM', label: 'PM (Program Manager)', desc: 'I manage program delivery and outcomes', icon: 'manage' },
+        { id: 'PMA', label: 'PMA (Program Manager Associate)', desc: 'I assist in program delivery and coordination', icon: 'manage' },
+        { id: 'BOA', label: 'BOA (Business Operations Associate)', desc: 'I handle business operations and analytics', icon: 'analytics' },
+        { id: 'PROGRAM_OPS', label: 'Program Operations', desc: 'I handle day-to-day program operations', icon: 'ops' },
+        { id: 'UNIVERSITY_OPERATOR', label: 'University Operator', desc: 'I manage university-level operations', icon: 'campus' },
+        { id: 'SET_REVIEWER', label: 'SET Reviewer', desc: 'I review student evaluation and assessments', icon: 'review' },
+        { id: 'PROPOSER', label: 'Proposer', desc: 'I create and submit budget proposals', icon: 'budget' },
+        { id: 'STAKEHOLDER', label: 'Stakeholder', desc: 'I need view access for monitoring and oversight', icon: 'view' },
+    ];
+
+    const selectedRoleNeedsSubjects = $derived(roleOptions.find(r => r.id === roleIntent)?.needsSubjects ?? false);
+
+    const stepList = $derived(selectedRoleNeedsSubjects
+        ? [{ n: 1, label: 'Institution', display: 1 }, { n: 2, label: 'Role', display: 2 }, { n: 3, label: 'Subjects', display: 3 }, { n: 4, label: 'Confirm', display: 4 }]
+        : [{ n: 1, label: 'Institution', display: 1 }, { n: 2, label: 'Role', display: 2 }, { n: 4, label: 'Confirm', display: 3 }]
+    );
 
     // Subjects for selected universities
     let availableSubjects: any[] = $state([]);
@@ -96,7 +118,7 @@
 
     async function nextFromRole() {
         if (!roleIntent) return;
-        if (roleIntent === 'FACULTY') {
+        if (selectedRoleNeedsSubjects) {
             await loadSubjects();
             step = 3;
         } else {
@@ -106,6 +128,14 @@
 
     function nextFromSubjects() {
         step = 4;
+    }
+
+    // Total steps depends on whether subjects step is needed
+    const totalSteps = $derived(selectedRoleNeedsSubjects ? 4 : 3);
+    // Map logical step to display step number (for non-faculty, step 4 becomes step 3)
+    function displayStep(s: number) {
+        if (!selectedRoleNeedsSubjects && s === 4) return 3;
+        return s;
     }
 
     async function handleSubmit() {
@@ -168,14 +198,9 @@
 
             <!-- Step Indicators -->
             <div class="flex items-center gap-2 mt-4">
-                {#each [
-                    { n: 1, label: 'Institution' },
-                    { n: 2, label: 'Role' },
-                    { n: roleIntent === 'FACULTY' ? 3 : 99, label: 'Subjects' },
-                    { n: 4, label: 'Confirm' }
-                ].filter(s => s.n !== 99 || roleIntent === 'FACULTY') as s, i}
+                {#each stepList as s, i}
                     {#if i > 0}
-                        <div class="flex-1 h-0.5 {step > s.n - 1 ? 'bg-indigo-400' : 'bg-slate-200'} rounded-full"></div>
+                        <div class="flex-1 h-0.5 {step >= s.n ? 'bg-indigo-400' : 'bg-slate-200'} rounded-full"></div>
                     {/if}
                     <div class="flex items-center gap-1.5 shrink-0">
                         <div class="w-7 h-7 rounded-full text-xs font-black flex items-center justify-center transition-all
@@ -186,7 +211,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                                 </svg>
                             {:else}
-                                {s.n}
+                                {s.display}
                             {/if}
                         </div>
                         <span class="text-[10px] font-black uppercase tracking-widest hidden sm:block
@@ -251,67 +276,63 @@
                             ← Back
                         </button>
                         <h2 class="font-black text-slate-900">What's your role?</h2>
-                        <p class="text-xs text-slate-500 mt-1">Tell us how you'll be using the platform</p>
+                        <p class="text-xs text-slate-500 mt-1">Select the role that best describes how you'll use the platform</p>
                     </div>
-                    <div class="p-6 space-y-3">
-                        <!-- Faculty Card -->
-                        <button
-                            onclick={() => { roleIntent = 'FACULTY'; }}
-                            class="w-full p-5 rounded-2xl border-2 text-left transition-all duration-200
-                                {roleIntent === 'FACULTY' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300 bg-white'}"
-                        >
-                            <div class="flex items-start gap-4">
-                                <div class="w-10 h-10 rounded-xl {roleIntent === 'FACULTY' ? 'bg-indigo-500' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0 transition-colors">
-                                    <svg class="w-5 h-5 {roleIntent === 'FACULTY' ? 'text-white' : 'text-slate-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div class="font-black text-sm {roleIntent === 'FACULTY' ? 'text-indigo-700' : 'text-slate-800'}">Faculty / Instructor</div>
-                                    <div class="text-xs text-slate-500 mt-1">I teach courses and manage student assessments</div>
-                                </div>
-                                {#if roleIntent === 'FACULTY'}
-                                    <div class="ml-auto w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                        </svg>
+                    <div class="p-6">
+                        <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                            {#each roleOptions as role}
+                                {@const selected = roleIntent === role.id}
+                                <button
+                                    onclick={() => { roleIntent = role.id; }}
+                                    class="w-full p-4 rounded-2xl border-2 text-left transition-all duration-200
+                                        {selected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300 bg-white'}"
+                                >
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl {selected ? 'bg-indigo-500' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0 transition-colors">
+                                            <svg class="w-4.5 h-4.5 {selected ? 'text-white' : 'text-slate-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                {#if role.icon === 'book'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                                                {:else if role.icon === 'campus'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                                {:else if role.icon === 'lead'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                                {:else if role.icon === 'manage'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                                {:else if role.icon === 'analytics'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                                {:else if role.icon === 'ops'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                {:else if role.icon === 'review'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                {:else if role.icon === 'budget'}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                {:else}
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                {/if}
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="font-bold text-sm {selected ? 'text-indigo-700' : 'text-slate-800'}">{role.label}</div>
+                                            <div class="text-xs text-slate-500 mt-0.5">{role.desc}</div>
+                                        </div>
+                                        {#if selected}
+                                            <div class="w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            </div>
+                                        {/if}
                                     </div>
-                                {/if}
-                            </div>
-                        </button>
-
-                        <!-- Staff Card -->
-                        <button
-                            onclick={() => { roleIntent = 'STAFF'; }}
-                            class="w-full p-5 rounded-2xl border-2 text-left transition-all duration-200
-                                {roleIntent === 'STAFF' ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300 bg-white'}"
-                        >
-                            <div class="flex items-start gap-4">
-                                <div class="w-10 h-10 rounded-xl {roleIntent === 'STAFF' ? 'bg-indigo-500' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0 transition-colors">
-                                    <svg class="w-5 h-5 {roleIntent === 'STAFF' ? 'text-white' : 'text-slate-500'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div class="font-black text-sm {roleIntent === 'STAFF' ? 'text-indigo-700' : 'text-slate-800'}">Staff / Administration</div>
-                                    <div class="text-xs text-slate-500 mt-1">I handle administrative and operational tasks</div>
-                                </div>
-                                {#if roleIntent === 'STAFF'}
-                                    <div class="ml-auto w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center text-white flex-shrink-0">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                                        </svg>
-                                    </div>
-                                {/if}
-                            </div>
-                        </button>
+                                </button>
+                            {/each}
+                        </div>
 
                         <button
                             onclick={nextFromRole}
                             disabled={!roleIntent}
-                            class="w-full py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black tracking-wide hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-100 mt-2"
+                            class="w-full py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black tracking-wide hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-lg shadow-indigo-100 mt-4"
                         >
-                            {roleIntent === 'FACULTY' ? 'Continue — Select Subjects →' : 'Continue →'}
+                            {selectedRoleNeedsSubjects ? 'Continue — Select Subjects →' : 'Continue →'}
                         </button>
                     </div>
                 </div>
@@ -406,7 +427,7 @@
             {:else if step === 4}
                 <div in:slide>
                     <div class="p-6 border-b border-slate-100">
-                        <button onclick={() => goToStep(roleIntent === 'FACULTY' ? 3 : 2)} class="text-xs font-bold text-slate-400 hover:text-slate-600 mb-3 flex items-center gap-1">
+                        <button onclick={() => goToStep(selectedRoleNeedsSubjects ? 3 : 2)} class="text-xs font-bold text-slate-400 hover:text-slate-600 mb-3 flex items-center gap-1">
                             ← Back
                         </button>
                         <h2 class="font-black text-slate-900">Review Your Request</h2>
@@ -431,24 +452,18 @@
                                 <div>
                                     <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Role</div>
                                     <div class="text-sm font-bold text-slate-800">
-                                        {roleIntent === 'FACULTY' ? 'Faculty / Instructor' : 'Staff / Administration'}
+                                        {roleOptions.find(r => r.id === roleIntent)?.label || roleIntent}
                                     </div>
                                 </div>
-                                <div class="w-8 h-8 {roleIntent === 'FACULTY' ? 'bg-indigo-100' : 'bg-amber-100'} rounded-xl flex items-center justify-center">
-                                    {#if roleIntent === 'FACULTY'}
-                                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                        </svg>
-                                    {:else}
-                                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
-                                        </svg>
-                                    {/if}
+                                <div class="w-8 h-8 bg-indigo-100 rounded-xl flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                    </svg>
                                 </div>
                             </div>
 
                             <!-- Subjects (Faculty only) -->
-                            {#if roleIntent === 'FACULTY'}
+                            {#if selectedRoleNeedsSubjects}
                                 <div class="p-4 bg-slate-50 rounded-2xl">
                                     <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Subjects to Teach</div>
                                     {#if selectedSubjectNames.length}
