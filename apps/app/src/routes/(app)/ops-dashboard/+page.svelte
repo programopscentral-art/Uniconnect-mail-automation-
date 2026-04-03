@@ -33,12 +33,90 @@
         { id: 'team-activity', label: 'Team activity', icon: 'activity' },
         { id: 'daily-reports', label: 'Daily reports', icon: 'clipboard' },
         { id: 'compliance', label: 'Report compliance', icon: 'star' },
+        { id: 'daily-form', label: 'Daily Form', icon: 'edit' },
+        { id: 'form-compliance', label: 'Form Status', icon: 'check' },
     ];
 
     const viewGroups: Record<string, string[]> = {
         'VIEWS': ['overview', 'sessions', 'attendance', 'at-risk', 'instructors', 'events', 'exams', 'post-exam', 'per-university'],
-        'TEAM & COMPLIANCE': ['team-activity', 'daily-reports', 'compliance']
+        'TEAM & COMPLIANCE': ['team-activity', 'daily-reports', 'compliance'],
+        'DAILY REPORTING': ['daily-form', 'form-compliance']
     };
+
+    // ─── Daily Form State ───────────────────────────────────────────
+    let dailyFormUniversities = $state<any[]>([]);
+    let dailyFormSelectedUniv = $state('');
+    let dailyFormDate = $state(new Date().toISOString().split('T')[0]);
+    let dailyFormSubmitting = $state(false);
+    let dailyFormSuccess = $state('');
+    let dailyFormError = $state('');
+    let dailyFormData = $state({
+        sessions_planned: 0,
+        sessions_completed: 0,
+        sessions_cancelled: 0,
+        cancellation_reason: '',
+        enrolled: 0,
+        attended: 0,
+        at_risk_total: 0,
+        at_risk_informed: 0,
+        acknowledgments: 0,
+        remarks: ''
+    });
+    let complianceData = $state<any[]>([]);
+    let complianceDate = $state(new Date().toISOString().split('T')[0]);
+    let loadingCompliance = $state(false);
+
+    async function loadUniversitiesForForm() {
+        try {
+            const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-universities' }) });
+            const data = await res.json();
+            if (data.success) dailyFormUniversities = data.universities;
+        } catch (e) { console.error('Failed to load universities:', e); }
+    }
+
+    async function submitDailyForm() {
+        if (!dailyFormSelectedUniv) { dailyFormError = 'Please select a university'; return; }
+        const univ = dailyFormUniversities.find((u: any) => u.id === dailyFormSelectedUniv);
+        if (!univ) return;
+
+        dailyFormSubmitting = true;
+        dailyFormError = '';
+        dailyFormSuccess = '';
+        try {
+            const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'submit-daily-form',
+                    university_id: univ.id,
+                    university_name: univ.short_name || univ.name,
+                    date: dailyFormDate,
+                    ...dailyFormData
+                })
+            });
+            const result = await res.json();
+            if (result.success) {
+                dailyFormSuccess = result.message;
+                dailyFormData = { sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0, cancellation_reason: '', enrolled: 0, attended: 0, at_risk_total: 0, at_risk_informed: 0, acknowledgments: 0, remarks: '' };
+            } else {
+                dailyFormError = result.error || 'Failed to submit';
+            }
+        } catch (e: any) {
+            dailyFormError = e.message;
+        } finally {
+            dailyFormSubmitting = false;
+        }
+    }
+
+    async function loadComplianceStatus() {
+        loadingCompliance = true;
+        try {
+            const res = await fetch('/api/ops', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'get-compliance', date: complianceDate }) });
+            const data = await res.json();
+            if (data.success) complianceData = data.compliance;
+        } catch (e) { console.error(e); }
+        finally { loadingCompliance = false; }
+    }
 
     // ─── Data Fetching ───────────────────────────────────────────
     async function loadViewData() {
@@ -2078,6 +2156,223 @@
                     </div>
                     {/if}
                 </div>
+            </div>
+
+        <!-- ─── DAILY FORM ──────────────────────────────────────────── -->
+        {:else if activeView === 'daily-form'}
+            <div class="max-w-2xl">
+                <h2 class="text-xl font-bold text-white mb-2">Daily Operations Report</h2>
+                <p class="text-sm text-gray-400 mb-6">Submit your university's daily report. Events, tasks, communication data, instructor count, and exams are auto-calculated from UniConnect activity.</p>
+
+                {#if dailyFormSuccess}
+                    <div class="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-4">
+                        <p class="text-green-400 text-sm font-medium">{dailyFormSuccess}</p>
+                    </div>
+                {/if}
+                {#if dailyFormError}
+                    <div class="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-4">
+                        <p class="text-red-400 text-sm font-medium">{dailyFormError}</p>
+                    </div>
+                {/if}
+
+                <div class="bg-gray-900 border border-gray-800 rounded-lg p-6 space-y-6">
+                    <!-- University & Date -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">University *</label>
+                            <select bind:value={dailyFormSelectedUniv} onfocus={() => { if (!dailyFormUniversities.length) loadUniversitiesForForm(); }}
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white">
+                                <option value="">Select university...</option>
+                                {#each dailyFormUniversities as univ}
+                                    <option value={univ.id}>{univ.short_name || univ.name}</option>
+                                {/each}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-400 mb-1">Date *</label>
+                            <input type="date" bind:value={dailyFormDate}
+                                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                        </div>
+                    </div>
+
+                    <!-- Sessions (Manual — from external app) -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            Sessions <span class="text-xs font-normal text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">Manual Input</span>
+                        </h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Planned</label>
+                                <input type="number" bind:value={dailyFormData.sessions_planned} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Completed</label>
+                                <input type="number" bind:value={dailyFormData.sessions_completed} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Cancelled</label>
+                                <input type="number" bind:value={dailyFormData.sessions_cancelled} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                        </div>
+                        {#if dailyFormData.sessions_cancelled > 0}
+                            <div class="mt-2">
+                                <label class="block text-xs text-gray-500 mb-1">Cancellation Reason</label>
+                                <input type="text" bind:value={dailyFormData.cancellation_reason} placeholder="e.g., Instructor leave, power outage..."
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                        {/if}
+                    </div>
+
+                    <!-- Attendance (Manual — from external app) -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            Attendance <span class="text-xs font-normal text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">Manual Input</span>
+                        </h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Students Enrolled</label>
+                                <input type="number" bind:value={dailyFormData.enrolled} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Students Attended</label>
+                                <input type="number" bind:value={dailyFormData.attended} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                        </div>
+                        {#if dailyFormData.enrolled > 0}
+                            <p class="text-xs text-gray-500 mt-1">Attendance rate: <span class="text-white font-medium">{Math.round((dailyFormData.attended / dailyFormData.enrolled) * 100)}%</span></p>
+                        {/if}
+                    </div>
+
+                    <!-- At-Risk Students (Manual — requires judgment) -->
+                    <div>
+                        <h3 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            At-Risk Students <span class="text-xs font-normal text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded">Manual Input</span>
+                        </h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Total At-Risk</label>
+                                <input type="number" bind:value={dailyFormData.at_risk_total} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Informed</label>
+                                <input type="number" bind:value={dailyFormData.at_risk_informed} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Parent Acks</label>
+                                <input type="number" bind:value={dailyFormData.acknowledgments} min="0"
+                                    class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-Calculated Info -->
+                    <div class="bg-gray-800/50 border border-gray-700/50 rounded-lg p-4">
+                        <h3 class="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                            Auto-Calculated <span class="text-xs font-normal text-green-400 bg-green-400/10 px-2 py-0.5 rounded">From UniConnect</span>
+                        </h3>
+                        <p class="text-xs text-gray-400">These fields are automatically pulled from UniConnect activity when you submit:</p>
+                        <div class="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-500">
+                            <span>Events (planned / executed / cancelled)</span>
+                            <span>Instructor count & leave</span>
+                            <span>Coach & parent calls completed</span>
+                            <span>Exams scheduled</span>
+                            <span>Tasks completed by team</span>
+                            <span>Team activity metrics</span>
+                        </div>
+                    </div>
+
+                    <!-- Remarks -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-400 mb-1">Remarks / Observations</label>
+                        <textarea bind:value={dailyFormData.remarks} rows="3" placeholder="Any additional notes about today's operations..."
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white resize-none"></textarea>
+                    </div>
+
+                    <!-- Submit -->
+                    <button onclick={submitDailyForm} disabled={dailyFormSubmitting || !dailyFormSelectedUniv}
+                        class="w-full py-3 rounded-lg font-semibold text-sm transition-all {dailyFormSubmitting || !dailyFormSelectedUniv ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}">
+                        {#if dailyFormSubmitting}
+                            Submitting...
+                        {:else}
+                            Submit Daily Report
+                        {/if}
+                    </button>
+                </div>
+            </div>
+
+        <!-- ─── FORM COMPLIANCE STATUS ───────────────────────────────── -->
+        {:else if activeView === 'form-compliance'}
+            <div class="max-w-3xl">
+                <h2 class="text-xl font-bold text-white mb-2">Daily Form Submission Status</h2>
+                <p class="text-sm text-gray-400 mb-4">Track which universities have submitted their daily operations report.</p>
+
+                <div class="flex items-center gap-3 mb-6">
+                    <input type="date" bind:value={complianceDate}
+                        class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white" />
+                    <button onclick={loadComplianceStatus}
+                        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium">
+                        {loadingCompliance ? 'Loading...' : 'Check Status'}
+                    </button>
+                </div>
+
+                {#if complianceData.length > 0}
+                    {@const submitted = complianceData.filter((c: any) => c.submitted)}
+                    {@const missing = complianceData.filter((c: any) => !c.submitted)}
+                    <div class="grid grid-cols-3 gap-4 mb-6">
+                        <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-white">{complianceData.length}</div>
+                            <div class="text-xs text-gray-500">Total Universities</div>
+                        </div>
+                        <div class="bg-gray-900 border border-green-500/30 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-400">{submitted.length}</div>
+                            <div class="text-xs text-gray-500">Submitted</div>
+                        </div>
+                        <div class="bg-gray-900 border border-red-500/30 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-red-400">{missing.length}</div>
+                            <div class="text-xs text-gray-500">Missing</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-800">
+                                    <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">University</th>
+                                    <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Submitted By</th>
+                                    <th class="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {#each complianceData as row}
+                                    <tr class="border-b border-gray-800/50 hover:bg-gray-800/30">
+                                        <td class="px-4 py-3 text-white font-medium">{row.university_name}</td>
+                                        <td class="px-4 py-3">
+                                            {#if row.submitted}
+                                                <span class="inline-flex items-center gap-1 text-green-400 text-xs font-medium bg-green-400/10 px-2 py-1 rounded-full">Submitted</span>
+                                            {:else}
+                                                <span class="inline-flex items-center gap-1 text-red-400 text-xs font-medium bg-red-400/10 px-2 py-1 rounded-full">Missing</span>
+                                            {/if}
+                                        </td>
+                                        <td class="px-4 py-3 text-gray-400">{row.submitted_by_name || '—'}</td>
+                                        <td class="px-4 py-3 text-gray-400">{row.submitted_at ? new Date(row.submitted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                                    </tr>
+                                {/each}
+                            </tbody>
+                        </table>
+                    </div>
+                {:else if !loadingCompliance}
+                    <div class="text-center py-12 text-gray-500">
+                        <p>Click "Check Status" to see submission data for the selected date.</p>
+                    </div>
+                {/if}
             </div>
 
         <!-- ─── SHEET SETUP ───────────────────────────────────────── -->

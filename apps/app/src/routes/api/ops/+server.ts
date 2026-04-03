@@ -9,7 +9,11 @@ import {
     upsertOpsDailyData, upsertOpsInstructorDaily,
     getOpsSheetConfig, upsertOpsSheetConfig, updateSheetLastSynced,
     parseOpsCSV,
-    clearOpsData
+    clearOpsData,
+    submitDailyForm,
+    getDailyFormComplianceStatus,
+    aggregateAllUniversities,
+    getAllUniversities
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -532,6 +536,74 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
             }
             return json({ tabs });
+        }
+
+        case 'submit-daily-form': {
+            try {
+                const { university_id, university_name, date, sessions_planned, sessions_completed,
+                    sessions_cancelled, cancellation_reason, enrolled, attended,
+                    at_risk_total, at_risk_informed, acknowledgments, remarks } = body;
+
+                if (!university_id || !university_name || !date) {
+                    throw error(400, 'university_id, university_name, and date are required');
+                }
+
+                const result = await submitDailyForm({
+                    university_id,
+                    university_name,
+                    date,
+                    sessions_planned: parseInt(sessions_planned) || 0,
+                    sessions_completed: parseInt(sessions_completed) || 0,
+                    sessions_cancelled: parseInt(sessions_cancelled) || 0,
+                    cancellation_reason: cancellation_reason || undefined,
+                    enrolled: parseInt(enrolled) || 0,
+                    attended: parseInt(attended) || 0,
+                    at_risk_total: parseInt(at_risk_total) || 0,
+                    at_risk_informed: parseInt(at_risk_informed) || 0,
+                    acknowledgments: parseInt(acknowledgments) || 0,
+                    remarks: remarks || undefined,
+                    submitted_by: locals.user.id,
+                    submitted_by_name: locals.user.name || locals.user.email,
+                });
+
+                return json({
+                    success: true,
+                    message: `Daily report for ${university_name} on ${date} submitted successfully`,
+                    data: result
+                });
+            } catch (e: any) {
+                console.error('[OPS] Daily form submit error:', e);
+                return json({ success: false, error: e.message || 'Failed to submit daily form' }, { status: 500 });
+            }
+        }
+
+        case 'get-compliance': {
+            try {
+                const date = body.date || new Date().toISOString().split('T')[0];
+                const compliance = await getDailyFormComplianceStatus(date);
+                return json({ success: true, date, compliance });
+            } catch (e: any) {
+                return json({ success: false, error: e.message }, { status: 500 });
+            }
+        }
+
+        case 'aggregate-all': {
+            try {
+                const date = body.date || new Date().toISOString().split('T')[0];
+                const results = await aggregateAllUniversities(date);
+                return json({ success: true, date, universities: results.length, data: results });
+            } catch (e: any) {
+                return json({ success: false, error: e.message }, { status: 500 });
+            }
+        }
+
+        case 'get-universities': {
+            try {
+                const universities = await getAllUniversities();
+                return json({ success: true, universities: universities.filter(u => !u.is_team) });
+            } catch (e: any) {
+                return json({ success: false, error: e.message }, { status: 500 });
+            }
         }
 
         case 'clear-data': {

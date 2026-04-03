@@ -405,6 +405,267 @@ export async function getOpsMonthlyReport(year: number, month: number) {
     return { year, month, startDate, endDate, summary, byUniversity: byUniv, dailyBreakdown: dailyData, compliance, teamActivity };
 }
 
+// ─── Auto-Aggregation Engine ─────────────────────────────────────────
+// Pulls data from existing UniConnect tables to auto-populate ops_daily_data
+
+export interface DailyFormData {
+    university_id: string;
+    university_name: string;
+    date: string; // YYYY-MM-DD
+    // Fields that can't be auto-calculated (from external sessions app)
+    sessions_planned: number;
+    sessions_completed: number;
+    sessions_cancelled: number;
+    cancellation_reason?: string;
+    enrolled: number;
+    attended: number;
+    // Fields requiring human judgment
+    at_risk_total: number;
+    at_risk_informed: number;
+    acknowledgments: number;
+    remarks?: string;
+    // Submitted by
+    submitted_by: string; // user ID
+    submitted_by_name?: string;
+}
+
+/** Auto-aggregate data from existing app tables for a specific university and date */
+export async function aggregateOpsForUniversity(universityId: string, _universityName: string, date: string) {
+    // Run all queries in parallel for speed
+    const [events, commTasks, users, tasks, exams] = await Promise.all([
+        // 1. Events: count planned/executed/cancelled for this university on this date
+        db.query(`
+            SELECT
+                COUNT(*) FILTER (WHERE status IN ('ACTIVE', 'COMPLETED')) as events_planned,
+                COUNT(*) FILTER (WHERE status = 'COMPLETED') as events_executed,
+                COUNT(*) FILTER (WHERE status = 'CANCELLED') as events_cancelled
+            FROM schedule_events
+            WHERE university_id = $1
+              AND (DATE(start_date) = $2 OR DATE(due_date) = $2)
+        `, [universityId, date]),
+
+        // 2. Communication tasks: count completed by channel for this university
+        db.query(`
+            SELECT
+                COUNT(*) FILTER (WHERE channel ILIKE '%parent%') as parent_calls,
+                COUNT(*) FILTER (WHERE channel ILIKE '%student%' OR channel ILIKE '%coach%') as coach_calls,
+                COUNT(*) as total_calls
+            FROM communication_tasks
+            WHERE status = 'Completed'
+              AND DATE(COALESCE(marked_sent_at, created_at)) = $2
+              AND (
+                  universities @> ARRAY[$1::text]
+                  OR EXISTS (
+                      SELECT 1 FROM universities u
+                      WHERE u.id = $1
+                        AND (u.name = ANY(universities) OR u.short_name = ANY(universities) OR u.id::text = ANY(universities))
+                  )
+              )
+        `, [universityId, date]),
+
+        // 3. Users: count by role for this university
+        db.query(`
+            SELECT
+                COUNT(*) FILTER (WHERE role = 'FACULTY') as instructors_total,
+                COUNT(*) FILTER (WHERE role IN ('CMA', 'CMA_MANAGER')) as coaches_total,
+                COUNT(*) FILTER (WHERE role IN ('PROGRAM_OPS', 'COS', 'PM', 'PMA')) as program_ops_total,
+                COUNT(*) as total_staff
+            FROM users
+            WHERE is_active = true
+              AND (
+                  university_id = $1
+                  OR id IN (SELECT user_id FROM user_universities WHERE university_id = $1)
+              )
+              AND role NOT IN ('STUDENT', 'ADMIN', 'STAKEHOLDER', 'SUPPORT')
+        `, [universityId]),
+
+        // 4. Tasks: count completed today for this university
+        db.query(`
+            SELECT
+                COUNT(DISTINCT t.id) FILTER (WHERE ta.status = 'COMPLETED' AND DATE(ta.completed_at) = $2) as tasks_completed,
+                COUNT(DISTINCT t.id) FILTER (WHERE ta.status = 'IN_PROGRESS') as tasks_in_progress,
+                COUNT(DISTINCT t.id) FILTER (WHERE t.status = 'PENDING' AND t.due_date < NOW()) as tasks_overdue
+            FROM tasks t
+            JOIN task_assignees ta ON t.id = ta.task_id
+            WHERE t.university_id = $1
+        `, [universityId, date]),
+
+        // 5. Exams: count papers/plans for this date
+        db.query(`
+            SELECT
+                COUNT(*) as exams_planned
+            FROM assessment_papers
+            WHERE university_id = $1 AND DATE(paper_date) = $2
+        `, [universityId, date]),
+    ]);
+
+    // Also check faculty leave (may not exist as a table yet, so wrap in try/catch)
+    let instructorsOnLeave = 0;
+    try {
+        const leaveRes = await db.query(`
+            SELECT COUNT(*) as on_leave
+            FROM faculty_leave_requests
+            WHERE university_id = $1
+              AND leave_date = $2
+              AND approval_status = 'APPROVED'
+        `, [universityId, date]);
+        instructorsOnLeave = parseInt(leaveRes.rows[0]?.on_leave) || 0;
+    } catch {
+        // Table may not exist yet — that's fine, default to 0
+    }
+
+    const ev = events.rows[0] || {};
+    const comm = commTasks.rows[0] || {};
+    const usr = users.rows[0] || {};
+    const tsk = tasks.rows[0] || {};
+    const exam = exams.rows[0] || {};
+
+    return {
+        // Auto-aggregated fields
+        events_planned: parseInt(ev.events_planned) || 0,
+        events_executed: parseInt(ev.events_executed) || 0,
+        events_cancelled: parseInt(ev.events_cancelled) || 0,
+        coach_calls: parseInt(comm.coach_calls) || 0,
+        parent_calls: parseInt(comm.parent_calls) || 0,
+        instructors_total: parseInt(usr.instructors_total) || 0,
+        instructors_on_leave: instructorsOnLeave,
+        exams_planned: parseInt(exam.exams_planned) || 0,
+        // Team activity
+        instructors_active: parseInt(usr.instructors_total) || 0,
+        coaches_active: parseInt(usr.coaches_total) || 0,
+        program_ops_active: parseInt(usr.program_ops_total) || 0,
+        total_calls_made: parseInt(comm.total_calls) || 0,
+        tickets_resolved: parseInt(tsk.tasks_completed) || 0,
+    };
+}
+
+/** Merge auto-aggregated data with daily form submission and upsert to ops_daily_data */
+export async function submitDailyForm(form: DailyFormData) {
+    // Get auto-aggregated data
+    const auto = await aggregateOpsForUniversity(form.university_id, form.university_name, form.date);
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    // Merge: form data (manual) + auto-aggregated data
+    const row = {
+        date: form.date,
+        university_name: form.university_name,
+        // Manual fields from form
+        sessions_planned: form.sessions_planned || 0,
+        sessions_completed: form.sessions_completed || 0,
+        sessions_cancelled: form.sessions_cancelled || 0,
+        enrolled: form.enrolled || 0,
+        attended: form.attended || 0,
+        at_risk_total: form.at_risk_total || 0,
+        at_risk_informed: form.at_risk_informed || 0,
+        acknowledgments: form.acknowledgments || 0,
+        cancellation_reason: form.cancellation_reason || form.remarks || null,
+        // Auto-aggregated fields
+        coach_calls: auto.coach_calls,
+        parent_calls: auto.parent_calls,
+        instructors_total: auto.instructors_total,
+        instructors_on_leave: auto.instructors_on_leave,
+        events_planned: auto.events_planned,
+        events_executed: auto.events_executed,
+        events_cancelled: auto.events_cancelled,
+        exams_planned: auto.exams_planned,
+        exams_completed: 0, // Will be tracked when exam execution is implemented
+        post_exam_comms_sent: 0,
+        // Report compliance
+        report_submitted_by: form.submitted_by_name || 'Via Daily Form',
+        report_submitted_at: timeStr,
+        instructor_report: 'Filed',
+        coach_report: 'Filed',
+        ops_report: 'Filed',
+        // Team activity
+        instructors_active: auto.instructors_active,
+        coaches_active: auto.coaches_active,
+        program_ops_active: auto.program_ops_active,
+        total_calls_made: auto.total_calls_made,
+        tickets_resolved: auto.tickets_resolved,
+        clicks_shares_sent: 0,
+        avg_hours_instructors: 0,
+        avg_hours_coaches: 0,
+        avg_hours_program_ops: 0,
+    };
+
+    await upsertOpsDailyData([row]);
+
+    // Also store the form submission record for compliance tracking
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS ops_daily_form_submissions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                date DATE NOT NULL,
+                university_id UUID NOT NULL,
+                university_name TEXT NOT NULL,
+                submitted_by UUID NOT NULL,
+                submitted_by_name TEXT,
+                form_data JSONB,
+                auto_data JSONB,
+                submitted_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(date, university_id)
+            )
+        `);
+        await db.query(`
+            INSERT INTO ops_daily_form_submissions (date, university_id, university_name, submitted_by, submitted_by_name, form_data, auto_data)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (date, university_id) DO UPDATE SET
+                submitted_by = EXCLUDED.submitted_by,
+                submitted_by_name = EXCLUDED.submitted_by_name,
+                form_data = EXCLUDED.form_data,
+                auto_data = EXCLUDED.auto_data,
+                submitted_at = NOW()
+        `, [form.date, form.university_id, form.university_name, form.submitted_by, form.submitted_by_name,
+            JSON.stringify(form), JSON.stringify(auto)]);
+    } catch (e: any) {
+        console.error('[OPS] Form submission tracking error:', e.message);
+    }
+
+    return { row, auto, submitted_at: now.toISOString() };
+}
+
+/** Get daily form submission status for compliance tracking */
+export async function getDailyFormComplianceStatus(date: string) {
+    try {
+        const res = await db.query(`
+            SELECT
+                u.id as university_id,
+                COALESCE(u.short_name, u.name) as university_name,
+                dfs.submitted_by_name,
+                dfs.submitted_at,
+                CASE WHEN dfs.id IS NOT NULL THEN true ELSE false END as submitted
+            FROM universities u
+            LEFT JOIN ops_daily_form_submissions dfs
+                ON u.id = dfs.university_id AND dfs.date = $1
+            WHERE u.is_team = false
+            ORDER BY u.name
+        `, [date]);
+        return res.rows;
+    } catch {
+        // Table may not exist yet
+        return [];
+    }
+}
+
+/** Run aggregation for all universities for a given date (used by worker for end-of-day reports) */
+export async function aggregateAllUniversities(date: string) {
+    const univRes = await db.query(`SELECT id, COALESCE(short_name, name) as name FROM universities WHERE is_team = false ORDER BY name`);
+    const results: any[] = [];
+
+    for (const univ of univRes.rows) {
+        try {
+            const auto = await aggregateOpsForUniversity(univ.id, univ.name, date);
+            results.push({ university_id: univ.id, university_name: univ.name, ...auto });
+        } catch (e: any) {
+            console.error(`[OPS] Aggregation failed for ${univ.name}:`, e.message);
+        }
+    }
+
+    return results;
+}
+
 // ─── CSV Parsing ─────────────────────────────────────────────────────
 
 export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData: any[]; instructorData: any[] } {
