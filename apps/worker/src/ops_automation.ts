@@ -14,6 +14,9 @@ import {
     getDailyFormComplianceStatus,
     getUserFcmTokens,
     createNotification,
+    getOpsUniversityRankings,
+    getOpsTaskPatterns,
+    getOpsPeerComparison,
 } from '@uniconnect/shared';
 import * as admin from 'firebase-admin';
 import { Queue } from 'bullmq';
@@ -652,6 +655,305 @@ function buildDailyReportHTML(date: string, report: any, compliance: any[], aiSu
 </html>`;
 }
 
+// ─── 4. Weekly Analytics Report (Sunday 8 PM IST) ───────────────────
+
+let lastWeeklyAnalyticsDate = '';
+
+export async function processWeeklyAnalyticsReport() {
+    const nowIST = getISTNow();
+    const dayOfWeek = nowIST.getDay(); // 0 = Sunday
+    const hour = nowIST.getHours();
+
+    // Run on Sundays at 8 PM IST (20:00)
+    if (dayOfWeek !== 0 || hour !== 20) return;
+
+    const todayStr = getTodayIST();
+    if (lastWeeklyAnalyticsDate === todayStr) return;
+
+    // Week range: Monday to Sunday
+    const weekEnd = todayStr;
+    const weekStartDate = new Date(nowIST);
+    weekStartDate.setDate(weekStartDate.getDate() - 6);
+    const weekStart = weekStartDate.toISOString().split('T')[0];
+
+    const sourceId = `OPS_WEEKLY_ANALYTICS_${weekEnd}`;
+    const check = await db.query('SELECT 1 FROM notifications WHERE source_id = $1 LIMIT 1', [sourceId]);
+    if (check.rows.length > 0) {
+        lastWeeklyAnalyticsDate = todayStr;
+        return;
+    }
+
+    console.log(`[OPS-AUTO] Generating weekly analytics report for ${weekStart} to ${weekEnd}...`);
+
+    try {
+        // 1. Gather analytics data
+        const [rankings, taskPatterns, peerComparison] = await Promise.all([
+            getOpsUniversityRankings(weekStart, weekEnd),
+            getOpsTaskPatterns(weekStart, weekEnd),
+            getOpsPeerComparison(weekStart, weekEnd),
+        ]);
+
+        // 2. Generate AI summary
+        const aiSummary = await generateWeeklyAnalyticsAI(rankings, taskPatterns, peerComparison);
+
+        // 3. Build HTML email
+        const html = buildWeeklyAnalyticsHTML(weekStart, weekEnd, rankings, taskPatterns, peerComparison, aiSummary);
+
+        // 4. Send to admins
+        const admins = await getAdminUsers();
+        const queue = getEmailQueue();
+
+        for (const adm of admins) {
+            await queue.add('send-notification', {
+                to: adm.email,
+                subject: `UniConnect Weekly Analytics — ${formatDate(weekStart)} to ${formatDate(weekEnd)} | ${rankings.length} Universities Ranked`,
+                html,
+                text: `Weekly Analytics Report for ${weekStart} to ${weekEnd}. ${rankings.length} universities ranked. Check UniConnect for full details.`
+            });
+        }
+
+        // 5. In-app notifications
+        for (const adm of admins) {
+            await createNotification({
+                user_id: adm.id,
+                title: 'Weekly Analytics Report Ready',
+                message: `Analytics for ${formatDate(weekStart)} — ${formatDate(weekEnd)}: ${rankings.length} universities ranked. Top: ${rankings[0]?.university_name || 'N/A'} (${rankings[0]?.score || 0}/100).`,
+                type: 'SYSTEM',
+                link: '/ops-dashboard?view=university-rankings',
+                source_id: sourceId
+            });
+        }
+
+        // 6. Push notification
+        await sendPushToAdmins(
+            admins,
+            'Weekly Analytics Report Ready',
+            `Week ${formatDate(weekStart)} — ${formatDate(weekEnd)}: ${rankings.length} universities ranked`,
+            '/ops-dashboard?view=university-rankings',
+            sourceId
+        );
+
+        lastWeeklyAnalyticsDate = todayStr;
+        console.log(`[OPS-AUTO] Weekly analytics report sent to ${admins.length} admins`);
+    } catch (err: any) {
+        console.error('[OPS-AUTO] Weekly analytics report failed:', err.message);
+    }
+}
+
+async function generateWeeklyAnalyticsAI(rankings: any[], taskPatterns: any, peerComparison: any): Promise<string> {
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey || apiKey.length < 10) {
+        return 'AI summary unavailable — Gemini API key not configured.';
+    }
+
+    const rankingsList = rankings.map((r: any, i: number) =>
+        `#${i + 1} ${r.university_name}: Score ${r.score}/100 (Sessions ${r.sessRate}%, Attendance ${r.attRate}%, Compliance ${r.complianceRate}%)`
+    ).join('\n');
+
+    const topTasks = (taskPatterns?.patterns || []).slice(0, 10).map((p: any) =>
+        `"${p.title}" — ${p.frequency}x, ${p.completed_count} completed, avg ${p.avg_completion_hours || 'N/A'}h`
+    ).join('\n');
+
+    const topPerformers = (peerComparison?.users || []).slice(0, 10).map((u: any) =>
+        `${u.user_name} (${u.university_name}): ${u.completed}/${u.total_tasks} tasks, avg ${u.avg_hours || 'N/A'}h, ${u.on_time_count} on-time`
+    ).join('\n');
+
+    const prompt = `Generate a comprehensive weekly analytics summary (5-7 paragraphs) for UniConnect management.
+
+UNIVERSITY RANKINGS:
+${rankingsList || 'No rankings data'}
+
+TOP TASK PATTERNS:
+${topTasks || 'No task data'}
+
+TOP PERFORMERS:
+${topPerformers || 'No performer data'}
+
+Cover: 1) Executive summary of operational health, 2) Top and bottom university performers, 3) Task efficiency patterns, 4) Team highlights, 5) 3-4 strategic recommendations for management this coming week.
+
+Be data-driven, reference specific names and numbers. Professional tone for senior management. Under 400 words. No markdown — plain text paragraphs only.`;
+
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+    for (const model of models) {
+        try {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { maxOutputTokens: 3072, temperature: 0.2 }
+                })
+            });
+            if (response.status === 429) continue;
+            if (!response.ok) continue;
+            const data = await response.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
+        } catch { continue; }
+    }
+    return 'AI summary could not be generated at this time.';
+}
+
+function buildWeeklyAnalyticsHTML(
+    weekStart: string, weekEnd: string,
+    rankings: any[], taskPatterns: any, peerComparison: any,
+    aiSummary: string
+): string {
+    const kpiColor = (value: number, good: number, warn: number) =>
+        value >= good ? '#10b981' : value >= warn ? '#f59e0b' : '#ef4444';
+
+    const patterns = taskPatterns?.patterns || [];
+    const users = peerComparison?.users || [];
+
+    // Rankings table rows
+    const rankingRows = rankings.map((r: any, i: number) => {
+        const medalColor = i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#6b7280';
+        return `<tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${medalColor}">#${i + 1}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${kpiColor(r.score, 70, 50)}">${r.score}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.sessRate || 0}%</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.attRate || 0}%</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.complianceRate || 0}%</td>
+        </tr>`;
+    }).join('');
+
+    // Task patterns rows (top 8)
+    const taskRows = patterns.slice(0, 8).map((p: any) => `<tr>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb">${p.title}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${p.frequency}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${p.completed_count}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${p.avg_completion_hours || '—'}h</td>
+    </tr>`).join('');
+
+    // Top performers rows (top 8)
+    const performerRows = users.slice(0, 8).map((u: any, i: number) => `<tr>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600">#${i + 1}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${u.user_name}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb">${u.university_name}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.completed}/${u.total_tasks}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.on_time_count}</td>
+        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.avg_hours || '—'}h</td>
+    </tr>`).join('');
+
+    return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<div style="max-width:720px;margin:0 auto;padding:20px">
+
+<!-- Header -->
+<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:12px 12px 0 0;padding:24px 32px;color:white">
+    <h1 style="margin:0;font-size:22px;font-weight:700">Weekly Analytics Report</h1>
+    <p style="margin:8px 0 0;font-size:14px;opacity:0.9">${formatDate(weekStart)} — ${formatDate(weekEnd)}</p>
+    <p style="margin:4px 0 0;font-size:13px;opacity:0.7">Auto-generated | ${rankings.length} universities | ${patterns.length} task patterns | ${users.length} team members</p>
+</div>
+
+<!-- Quick Stats -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Week at a Glance</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="padding:8px;text-align:center;width:33%">
+                <div style="background:#faf5ff;border-radius:8px;padding:12px">
+                    <div style="font-size:24px;font-weight:700;color:#7c3aed">${rankings.length}</div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Universities Ranked</div>
+                </div>
+            </td>
+            <td style="padding:8px;text-align:center;width:33%">
+                <div style="background:#f0fdf4;border-radius:8px;padding:12px">
+                    <div style="font-size:24px;font-weight:700;color:#10b981">${patterns.length}</div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Unique Task Types</div>
+                </div>
+            </td>
+            <td style="padding:8px;text-align:center;width:33%">
+                <div style="background:#f0f9ff;border-radius:8px;padding:12px">
+                    <div style="font-size:24px;font-weight:700;color:#3b82f6">${users.length}</div>
+                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Active Team Members</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- AI Summary -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">AI Executive Summary</h2>
+    <div style="background:#faf5ff;border-left:4px solid #7c3aed;padding:16px;border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;color:#374151">
+        ${aiSummary.split('\n').filter(l => l.trim()).map(p => `<p style="margin:0 0 8px">${p}</p>`).join('')}
+    </div>
+</div>
+
+<!-- University Rankings -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Rankings</h2>
+    <div style="overflow-x:auto">
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
+            <thead>
+                <tr style="background:#f9fafb">
+                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Rank</th>
+                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
+                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Score</th>
+                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
+                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
+                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Compliance</th>
+                </tr>
+            </thead>
+            <tbody>${rankingRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af">No ranking data</td></tr>'}</tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Task Patterns -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Top Task Patterns</h2>
+    <div style="overflow-x:auto">
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
+            <thead>
+                <tr style="background:#f9fafb">
+                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">Task</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Frequency</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Completed</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Avg Time</th>
+                </tr>
+            </thead>
+            <tbody>${taskRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No task data</td></tr>'}</tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Top Performers -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Top Performers</h2>
+    <div style="overflow-x:auto">
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
+            <thead>
+                <tr style="background:#f9fafb">
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">#</th>
+                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">Name</th>
+                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">University</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Tasks</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">On-Time</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Avg Time</th>
+                </tr>
+            </thead>
+            <tbody>${performerRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af">No performer data</td></tr>'}</tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Footer -->
+<div style="background:#1f2937;border-radius:0 0 12px 12px;padding:20px 32px;color:#9ca3af;font-size:12px;text-align:center">
+    <p style="margin:0">This report was automatically generated by UniConnect Ops Automation.</p>
+    <p style="margin:8px 0 0">View full analytics: <a href="https://uniconnect-app.up.railway.app/ops-dashboard?view=university-rankings" style="color:#a78bfa;text-decoration:none">uniconnect-app.up.railway.app/ops-dashboard</a></p>
+</div>
+
+</div>
+</body>
+</html>`;
+}
+
 // ─── Main Entry Point ───────────────────────────────────────────────
 
 export async function processOpsAutomation() {
@@ -660,6 +962,7 @@ export async function processOpsAutomation() {
             processSmartAlerts(),
             processFormReminders(),
             processDailyReport(),
+            processWeeklyAnalyticsReport(),
         ]);
     } catch (err: any) {
         console.error('[OPS-AUTO] Error in ops automation cycle:', err.message);

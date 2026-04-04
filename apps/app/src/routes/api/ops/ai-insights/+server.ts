@@ -13,7 +13,122 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     }
 
     const body = await request.json();
-    const { report, type } = body;
+    const { report, type, data: analyticsData } = body;
+
+    // ─── Event Budget Intelligence Analysis ──────────────────────
+    if (type === 'event-budget') {
+        if (!analyticsData) throw error(400, 'Analytics data required');
+        const { aggregates, events, problemPatterns, byType } = analyticsData;
+        const eventsList = (events || []).slice(0, 30).map((e: any) =>
+            `${e.title} (${e.university_name}): Budget ${e.estimated_total_budget || 'N/A'} → Actual ${e.actual_budget_used || 'N/A'}, Expected ${e.expected_attendance || 'N/A'} → Actual ${e.actual_attendance || 'N/A'} attendees, Cost/person: ${e.cost_per_participant || 'N/A'}, Status: ${e.status}`
+        ).join('\n');
+        const problemsList = (problemPatterns || []).map((p: any) =>
+            `[${p.type}] ${p.event} @ ${p.university}: ${p.value}${p.detail ? ` — ${p.detail}` : ''}`
+        ).join('\n');
+        const typeBreakdown = (byType || []).map((t: any) =>
+            `${t.event_type}: ${t.total_events} events, ${t.completed} completed, avg budget ${t.avg_budget || 'N/A'}, avg attendance ${t.avg_attendance || 'N/A'}, cost/person ${t.avg_cost_pp || 'N/A'}`
+        ).join('\n');
+
+        const eventPrompt = `You are a senior operations analyst for UniConnect. Analyze this event and budget intelligence data and provide actionable insights.
+
+AGGREGATE METRICS:
+- Total Events: ${aggregates?.totalEvents || 0}
+- Events with Reports: ${aggregates?.eventsWithReports || 0}
+- Avg Cost per Participant: ₹${aggregates?.avgCostPerParticipant || 0}
+- Avg Budget Utilization: ${aggregates?.avgBudgetUtilization || 0}%
+- Avg Attendance Accuracy: ${aggregates?.avgAttendanceAccuracy || 0}%
+
+EVENT DETAILS:
+${eventsList || 'No event data available'}
+
+PROBLEM PATTERNS:
+${problemsList || 'No problems detected'}
+
+BY EVENT TYPE:
+${typeBreakdown || 'No type breakdown available'}
+
+Provide analysis in plain text (no markdown) covering:
+1. BUDGET EFFICIENCY — Are events staying within budget? Which types are most cost-effective?
+2. ATTENDANCE ACCURACY — How well are teams predicting attendance? Over/underestimation patterns?
+3. ROI ANALYSIS — Cost per participant trends, which event types deliver best value?
+4. PROBLEM AREAS — Budget overruns, low attendance events, recurring issues
+5. RECOMMENDATIONS — 3-4 specific actions to improve event ROI and planning accuracy
+
+Be data-driven and reference specific events and numbers.`;
+
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        let aiText: string | null = null;
+        for (const model of modelsToTry) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: eventPrompt }] }], generationConfig: { maxOutputTokens: 4096, temperature: 0.3 } }),
+                });
+                if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
+                if (!response.ok) continue;
+                const result = await response.json();
+                aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+                if (aiText) break;
+            } catch { continue; }
+        }
+        return json({ insights: aiText || '' });
+    }
+
+    // ─── Weekly Analytics Report ──────────────────────────────────
+    if (type === 'weekly-analytics') {
+        if (!analyticsData) throw error(400, 'Analytics data required');
+        const { rankings, taskPatterns, peerComparison } = analyticsData;
+        const rankingsList = (rankings || []).map((r: any, i: number) =>
+            `#${i + 1} ${r.university_name}: Score ${r.score}/100 (Sessions ${r.sessRate}%, Attendance ${r.attRate}%, Compliance ${r.complianceRate}%)${r.trend_delta != null ? ` [${r.trend_delta > 0 ? '+' : ''}${r.trend_delta} vs prev]` : ''}`
+        ).join('\n');
+        const topTasks = (taskPatterns?.patterns || []).slice(0, 10).map((p: any) =>
+            `"${p.title}" — ${p.frequency}x, ${p.completed_count} completed, avg ${p.avg_completion_hours || 'N/A'}h`
+        ).join('\n');
+        const topPerformers = (peerComparison?.users || []).slice(0, 10).map((u: any) =>
+            `${u.user_name} (${u.university_name}): ${u.completed}/${u.total_tasks} tasks, avg ${u.avg_hours || 'N/A'}h, ${u.on_time_count} on-time`
+        ).join('\n');
+
+        const analyticsPrompt = `You are a senior operations analyst for UniConnect. Generate a weekly analytics report.
+
+UNIVERSITY RANKINGS:
+${rankingsList || 'No rankings data'}
+
+TOP TASK PATTERNS:
+${topTasks || 'No task data'}
+
+TOP PERFORMERS:
+${topPerformers || 'No performer data'}
+
+Provide a comprehensive weekly analytics summary in plain text (no markdown) covering:
+1. EXECUTIVE SUMMARY — Overall operational health this week
+2. UNIVERSITY PERFORMANCE — Top and bottom performers, trend changes
+3. TASK EFFICIENCY — Common tasks, completion patterns, bottlenecks
+4. TEAM HIGHLIGHTS — Top performers and those needing support
+5. STRATEGIC RECOMMENDATIONS — 4-5 actions for management this coming week
+
+Be direct, data-driven, and reference specific names and numbers.`;
+
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        let aiText: string | null = null;
+        for (const model of modelsToTry) {
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+                const response = await fetch(url, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: analyticsPrompt }] }], generationConfig: { maxOutputTokens: 6144, temperature: 0.3 } }),
+                });
+                if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
+                if (!response.ok) continue;
+                const result = await response.json();
+                aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+                if (aiText) break;
+            } catch { continue; }
+        }
+        return json({ insights: aiText || '' });
+    }
+
+    // ─── Standard Ops Report Analysis ────────────────────────────
     if (!report) throw error(400, 'Report data required');
 
     const s = report.summary || {};

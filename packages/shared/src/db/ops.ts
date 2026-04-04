@@ -962,3 +962,354 @@ export function generateOpsSampleData(): { dailyData: any[]; instructorData: any
     }
     return { dailyData, instructorData };
 }
+
+// ─── Phase 3: Enhanced Analytics ────────────────────────────────────────
+
+/**
+ * Task Pattern Analysis — find recurring tasks, frequency, avg completion time
+ */
+export async function getOpsTaskPatterns(startDate: string, endDate: string, universityId?: string) {
+    const univFilter = universityId ? 'AND t.university_id = $3' : '';
+    const params: any[] = [startDate, endDate];
+    if (universityId) params.push(universityId);
+
+    // Common task patterns grouped by normalized title
+    const patternsRes = await db.query(`
+        SELECT
+            LOWER(TRIM(t.title)) AS normalized_title,
+            MIN(t.title) AS title,
+            COUNT(*)::int AS frequency,
+            COUNT(DISTINCT t.university_id)::int AS universities_seen,
+            COUNT(DISTINCT ta.user_id)::int AS assignee_count,
+            AVG(EXTRACT(EPOCH FROM (ta.completed_at - ta.started_at)) / 3600)::numeric(10,1) AS avg_completion_hours,
+            MIN(t.created_at) AS first_seen,
+            MAX(t.created_at) AS last_seen,
+            SUM(CASE WHEN ta.status = 'COMPLETED' THEN 1 ELSE 0 END)::int AS completed_count,
+            SUM(CASE WHEN t.due_date < NOW() AND ta.status != 'COMPLETED' THEN 1 ELSE 0 END)::int AS overdue_count
+        FROM tasks t
+        LEFT JOIN task_assignees ta ON ta.task_id = t.id
+        WHERE t.created_at >= $1::date AND t.created_at <= ($2::date + interval '1 day')
+        ${univFilter}
+        GROUP BY LOWER(TRIM(t.title))
+        ORDER BY frequency DESC
+        LIMIT 50
+    `, params);
+
+    // Task volume by university per week
+    const byTeamRes = await db.query(`
+        SELECT
+            u.short_name AS university_name,
+            DATE_TRUNC('week', t.created_at)::date AS week_start,
+            COUNT(*)::int AS task_count,
+            SUM(CASE WHEN ta.status = 'COMPLETED' THEN 1 ELSE 0 END)::int AS completed,
+            SUM(CASE WHEN t.due_date < NOW() AND ta.status != 'COMPLETED' THEN 1 ELSE 0 END)::int AS overdue,
+            AVG(EXTRACT(EPOCH FROM (ta.completed_at - ta.started_at)) / 3600)::numeric(10,1) AS avg_hours
+        FROM tasks t
+        LEFT JOIN task_assignees ta ON ta.task_id = t.id
+        LEFT JOIN universities u ON u.id = t.university_id
+        WHERE t.created_at >= $1::date AND t.created_at <= ($2::date + interval '1 day')
+        ${univFilter}
+        GROUP BY u.short_name, DATE_TRUNC('week', t.created_at)
+        ORDER BY week_start, u.short_name
+    `, params);
+
+    return { patterns: patternsRes.rows, byTeam: byTeamRes.rows };
+}
+
+/**
+ * Peer Comparison — per-user task metrics + same-task speed comparison
+ */
+export async function getOpsPeerComparison(startDate: string, endDate: string, universityId?: string) {
+    const univFilter = universityId ? 'AND t.university_id = $3' : '';
+    const params: any[] = [startDate, endDate];
+    if (universityId) params.push(universityId);
+
+    // Per-user metrics
+    const usersRes = await db.query(`
+        SELECT
+            usr.id AS user_id,
+            usr.name AS user_name,
+            u.short_name AS university_name,
+            COUNT(ta.task_id)::int AS total_tasks,
+            SUM(CASE WHEN ta.status = 'COMPLETED' THEN 1 ELSE 0 END)::int AS completed,
+            SUM(CASE WHEN t.due_date < NOW() AND ta.status != 'COMPLETED' THEN 1 ELSE 0 END)::int AS overdue,
+            AVG(CASE WHEN ta.completed_at IS NOT NULL AND ta.started_at IS NOT NULL
+                THEN EXTRACT(EPOCH FROM (ta.completed_at - ta.started_at)) / 3600 END)::numeric(10,1) AS avg_hours,
+            SUM(CASE WHEN ta.status = 'COMPLETED' AND (ta.completed_at IS NULL OR ta.completed_at <= t.due_date) THEN 1 ELSE 0 END)::int AS on_time_count
+        FROM task_assignees ta
+        JOIN tasks t ON t.id = ta.task_id
+        JOIN users usr ON usr.id = ta.user_id
+        LEFT JOIN universities u ON u.id = t.university_id
+        WHERE t.created_at >= $1::date AND t.created_at <= ($2::date + interval '1 day')
+        ${univFilter}
+        GROUP BY usr.id, usr.name, u.short_name
+        HAVING COUNT(ta.task_id) >= 1
+        ORDER BY completed DESC
+    `, params);
+
+    // Same-task comparisons
+    const sameTaskRes = await db.query(`
+        SELECT
+            LOWER(TRIM(t.title)) AS task_key,
+            MIN(t.title) AS task_title,
+            usr.name AS user_name,
+            AVG(EXTRACT(EPOCH FROM (ta.completed_at - ta.started_at)) / 3600)::numeric(10,1) AS avg_hours,
+            COUNT(*)::int AS times_done
+        FROM task_assignees ta
+        JOIN tasks t ON t.id = ta.task_id
+        JOIN users usr ON usr.id = ta.user_id
+        WHERE ta.status = 'COMPLETED'
+            AND ta.completed_at IS NOT NULL AND ta.started_at IS NOT NULL
+            AND t.created_at >= $1::date AND t.created_at <= ($2::date + interval '1 day')
+            ${univFilter}
+        GROUP BY LOWER(TRIM(t.title)), usr.name
+        HAVING COUNT(*) >= 1
+        ORDER BY task_key, avg_hours
+    `, params);
+
+    // Group same-task comparisons
+    const sameTaskMap: Record<string, { taskTitle: string; completions: any[] }> = {};
+    for (const row of sameTaskRes.rows) {
+        if (!sameTaskMap[row.task_key]) {
+            sameTaskMap[row.task_key] = { taskTitle: row.task_title, completions: [] };
+        }
+        sameTaskMap[row.task_key].completions.push({
+            user_name: row.user_name,
+            avg_hours: parseFloat(row.avg_hours) || 0,
+            times_done: row.times_done
+        });
+    }
+    const sameTaskComparisons = Object.values(sameTaskMap).filter(t => t.completions.length > 1);
+
+    return { users: usersRes.rows, sameTaskComparisons };
+}
+
+/**
+ * University Rankings — composite efficiency score with trend
+ */
+export async function getOpsUniversityRankings(startDate: string, endDate: string) {
+    const res = await db.query(`
+        SELECT
+            university_name,
+            SUM(COALESCE(sessions_planned, 0))::int AS sessions_planned,
+            SUM(COALESCE(sessions_completed, 0))::int AS sessions_completed,
+            SUM(COALESCE(enrolled, 0))::int AS enrolled,
+            SUM(COALESCE(attended, 0))::int AS attended,
+            SUM(COALESCE(coach_calls, 0))::int AS coach_calls,
+            SUM(COALESCE(at_risk_total, 0))::int AS at_risk_total,
+            SUM(COALESCE(at_risk_informed, 0))::int AS at_risk_informed,
+            COUNT(CASE WHEN report_submitted_by IS NOT NULL THEN 1 END)::int AS reports_submitted,
+            COUNT(*)::int AS total_days,
+            SUM(COALESCE(events_planned, 0))::int AS events_planned,
+            SUM(COALESCE(events_executed, 0))::int AS events_executed
+        FROM ops_daily_data
+        WHERE date >= $1::date AND date <= $2::date
+        GROUP BY university_name
+        ORDER BY university_name
+    `, [startDate, endDate]);
+
+    const rankings = res.rows.map((r: any) => {
+        const sessRate = r.sessions_planned > 0 ? (r.sessions_completed / r.sessions_planned) * 100 : 0;
+        const attRate = r.enrolled > 0 ? (r.attended / r.enrolled) * 100 : 0;
+        const absent = r.enrolled - r.attended;
+        const coachRate = absent > 0 ? Math.min((r.coach_calls / absent) * 100, 100) : 100;
+        const riskRate = r.at_risk_total > 0 ? (r.at_risk_informed / r.at_risk_total) * 100 : 100;
+        const complianceRate = r.total_days > 0 ? (r.reports_submitted / r.total_days) * 100 : 0;
+        const eventRate = r.events_planned > 0 ? (r.events_executed / r.events_planned) * 100 : 100;
+
+        const score = Math.round(
+            sessRate * 0.25 + attRate * 0.25 + coachRate * 0.15 +
+            riskRate * 0.10 + complianceRate * 0.15 + eventRate * 0.10
+        );
+
+        return {
+            university_name: r.university_name, score,
+            sessRate: Math.round(sessRate), attRate: Math.round(attRate),
+            coachRate: Math.round(coachRate), riskRate: Math.round(riskRate),
+            complianceRate: Math.round(complianceRate), eventRate: Math.round(eventRate),
+            sessions_planned: r.sessions_planned, sessions_completed: r.sessions_completed,
+            enrolled: r.enrolled, attended: r.attended, total_days: r.total_days,
+        };
+    }).sort((a: any, b: any) => b.score - a.score);
+
+    return rankings;
+}
+
+/**
+ * University Trends — weekly scores for sparklines
+ */
+export async function getOpsUniversityTrends(universityName: string, weeks: number = 8) {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - weeks * 7);
+
+    const res = await db.query(`
+        SELECT
+            DATE_TRUNC('week', date)::date AS week_start,
+            SUM(COALESCE(sessions_planned, 0))::int AS sessions_planned,
+            SUM(COALESCE(sessions_completed, 0))::int AS sessions_completed,
+            SUM(COALESCE(enrolled, 0))::int AS enrolled,
+            SUM(COALESCE(attended, 0))::int AS attended,
+            SUM(COALESCE(coach_calls, 0))::int AS coach_calls,
+            SUM(COALESCE(at_risk_total, 0))::int AS at_risk_total,
+            SUM(COALESCE(at_risk_informed, 0))::int AS at_risk_informed,
+            COUNT(CASE WHEN report_submitted_by IS NOT NULL THEN 1 END)::int AS reports_submitted,
+            COUNT(*)::int AS total_days
+        FROM ops_daily_data
+        WHERE university_name = $1 AND date >= $2::date AND date <= $3::date
+        GROUP BY DATE_TRUNC('week', date)
+        ORDER BY week_start
+    `, [universityName, startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]]);
+
+    return res.rows.map((r: any) => {
+        const sessRate = r.sessions_planned > 0 ? (r.sessions_completed / r.sessions_planned) * 100 : 0;
+        const attRate = r.enrolled > 0 ? (r.attended / r.enrolled) * 100 : 0;
+        const absent = r.enrolled - r.attended;
+        const coachRate = absent > 0 ? Math.min((r.coach_calls / absent) * 100, 100) : 100;
+        const riskRate = r.at_risk_total > 0 ? (r.at_risk_informed / r.at_risk_total) * 100 : 100;
+        const complianceRate = r.total_days > 0 ? (r.reports_submitted / r.total_days) * 100 : 0;
+        const score = Math.round(sessRate * 0.25 + attRate * 0.25 + coachRate * 0.15 + riskRate * 0.10 + complianceRate * 0.15);
+        return { week_start: r.week_start, score, sessRate: Math.round(sessRate), attRate: Math.round(attRate) };
+    });
+}
+
+/**
+ * Event + Budget Intelligence — ROI, success metrics, problem patterns
+ */
+export async function getOpsEventBudgetIntelligence(startDate: string, endDate: string, universityId?: string) {
+    const univFilter = universityId ? 'AND bp.university_id = $3' : '';
+    const params: any[] = [startDate, endDate];
+    if (universityId) params.push(universityId);
+
+    const eventsRes = await db.query(`
+        SELECT
+            bp.id, bp.title, bp.event_type,
+            u.short_name AS university_name,
+            bp.expected_attendance, bp.estimated_total_budget,
+            bp.approved_total_budget, bp.status, bp.proposed_date,
+            bpr.actual_attendance, bpr.actual_budget_used,
+            bpr.remaining_budget, bpr.outcomes, bpr.feedback_summary, bpr.issues_faced,
+            CASE WHEN bpr.actual_attendance > 0 AND bpr.actual_budget_used > 0
+                THEN (bpr.actual_budget_used / bpr.actual_attendance)::numeric(10,2) ELSE NULL END AS cost_per_participant,
+            CASE WHEN bp.estimated_total_budget > 0 AND bpr.actual_budget_used IS NOT NULL
+                THEN ((bpr.actual_budget_used / bp.estimated_total_budget) * 100)::numeric(5,1) ELSE NULL END AS budget_utilization,
+            CASE WHEN bp.expected_attendance > 0 AND bpr.actual_attendance IS NOT NULL
+                THEN ((bpr.actual_attendance::numeric / bp.expected_attendance) * 100)::numeric(5,1) ELSE NULL END AS attendance_accuracy
+        FROM budget_proposals bp
+        LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
+        LEFT JOIN universities u ON u.id = bp.university_id
+        WHERE bp.proposed_date >= $1::date AND bp.proposed_date <= ($2::date + interval '1 day')
+        ${univFilter}
+        ORDER BY bp.proposed_date DESC
+    `, params);
+
+    const withReports = eventsRes.rows.filter((r: any) => r.actual_budget_used != null);
+    const avgCostPerParticipant = withReports.filter((r: any) => r.cost_per_participant).length > 0
+        ? withReports.reduce((s: number, r: any) => s + (parseFloat(r.cost_per_participant) || 0), 0) / withReports.filter((r: any) => r.cost_per_participant).length : 0;
+    const avgBudgetUtilization = withReports.filter((r: any) => r.budget_utilization).length > 0
+        ? withReports.reduce((s: number, r: any) => s + (parseFloat(r.budget_utilization) || 0), 0) / withReports.filter((r: any) => r.budget_utilization).length : 0;
+    const avgAttendanceAccuracy = withReports.filter((r: any) => r.attendance_accuracy).length > 0
+        ? withReports.reduce((s: number, r: any) => s + (parseFloat(r.attendance_accuracy) || 0), 0) / withReports.filter((r: any) => r.attendance_accuracy).length : 0;
+
+    const problemPatterns: any[] = [];
+    for (const r of eventsRes.rows) {
+        if (r.budget_utilization && parseFloat(r.budget_utilization) > 130)
+            problemPatterns.push({ type: 'budget_overrun', event: r.title, university: r.university_name, value: `${r.budget_utilization}%`, detail: r.issues_faced });
+        if (r.attendance_accuracy && parseFloat(r.attendance_accuracy) < 50)
+            problemPatterns.push({ type: 'low_attendance', event: r.title, university: r.university_name, value: `${r.attendance_accuracy}%`, detail: r.issues_faced });
+    }
+
+    const byTypeRes = await db.query(`
+        SELECT
+            bp.event_type,
+            COUNT(*)::int AS total_events,
+            SUM(CASE WHEN bp.status IN ('EVENT_COMPLETED', 'REPORT_SUBMITTED', 'CLOSED') THEN 1 ELSE 0 END)::int AS completed,
+            AVG(bpr.actual_budget_used)::numeric(10,2) AS avg_budget,
+            AVG(bpr.actual_attendance)::numeric(10,0) AS avg_attendance,
+            AVG(CASE WHEN bpr.actual_attendance > 0 AND bpr.actual_budget_used > 0
+                THEN bpr.actual_budget_used / bpr.actual_attendance END)::numeric(10,2) AS avg_cost_pp
+        FROM budget_proposals bp
+        LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
+        WHERE bp.proposed_date >= $1::date AND bp.proposed_date <= ($2::date + interval '1 day')
+        ${univFilter}
+        GROUP BY bp.event_type
+        ORDER BY total_events DESC
+    `, params);
+
+    return {
+        events: eventsRes.rows,
+        aggregates: {
+            totalEvents: eventsRes.rows.length,
+            eventsWithReports: withReports.length,
+            avgCostPerParticipant: Math.round(avgCostPerParticipant * 100) / 100,
+            avgBudgetUtilization: Math.round(avgBudgetUtilization),
+            avgAttendanceAccuracy: Math.round(avgAttendanceAccuracy),
+        },
+        problemPatterns,
+        byType: byTypeRes.rows,
+    };
+}
+
+/**
+ * External API data upsert — merge external session/attendance data
+ */
+export async function upsertOpsExternalData(data: {
+    university_name: string; date: string;
+    sessions_planned?: number; sessions_completed?: number; sessions_cancelled?: number;
+    enrolled?: number; attended?: number;
+}) {
+    await db.query(`
+        INSERT INTO ops_daily_data (date, university_name, sessions_planned, sessions_completed, sessions_cancelled, enrolled, attended)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (date, university_name) DO UPDATE SET
+            sessions_planned = COALESCE(EXCLUDED.sessions_planned, ops_daily_data.sessions_planned),
+            sessions_completed = COALESCE(EXCLUDED.sessions_completed, ops_daily_data.sessions_completed),
+            sessions_cancelled = COALESCE(EXCLUDED.sessions_cancelled, ops_daily_data.sessions_cancelled),
+            enrolled = COALESCE(EXCLUDED.enrolled, ops_daily_data.enrolled),
+            attended = COALESCE(EXCLUDED.attended, ops_daily_data.attended)
+    `, [data.date, data.university_name, data.sessions_planned || 0, data.sessions_completed || 0,
+        data.sessions_cancelled || 0, data.enrolled || 0, data.attended || 0]);
+}
+
+/**
+ * NLQ — get table schemas for AI context
+ */
+export function getOpsTableSchemas(): string {
+    return `Available PostgreSQL tables and columns:
+
+TABLE ops_daily_data: date (DATE), university_name (TEXT), sessions_planned (INT), sessions_completed (INT), sessions_cancelled (INT), enrolled (INT), attended (INT), coach_calls (INT), parent_calls (INT), instructors_total (INT), instructors_on_leave (INT), events_planned (INT), events_executed (INT), events_cancelled (INT), exams_planned (INT), exams_completed (INT), post_exam_comms_sent (INT), at_risk_total (INT), at_risk_informed (INT), acknowledgments (INT), report_submitted_by (TEXT). PRIMARY KEY: (date, university_name).
+
+TABLE tasks: id (UUID), title (TEXT), description (TEXT), priority ('URGENT'|'HIGH'|'MEDIUM'|'LOW'), status ('PENDING'|'IN_PROGRESS'|'COMPLETED'|'CANCELLED'), assigned_by (UUID FK users), university_id (UUID FK universities), start_date (TIMESTAMPTZ), due_date (TIMESTAMPTZ), created_at (TIMESTAMPTZ).
+
+TABLE task_assignees: task_id (UUID FK tasks), user_id (UUID FK users), status ('PENDING'|'IN_PROGRESS'|'COMPLETED'), started_at (TIMESTAMPTZ), completed_at (TIMESTAMPTZ). PRIMARY KEY: (task_id, user_id).
+
+TABLE schedule_events: id (UUID), university_id (UUID FK universities), title (TEXT), type ('HOLIDAY'|'EXAM'|'EVENT'|'CURRICULAR'|'CO_CURRICULAR'), description (TEXT), status ('ACTIVE'|'COMPLETED'), start_date (TIMESTAMPTZ), due_date (TIMESTAMPTZ), created_at (TIMESTAMPTZ).
+
+TABLE budget_proposals: id (UUID), university_id (UUID FK universities), title (TEXT), event_type (TEXT), expected_attendance (INT), estimated_total_budget (DECIMAL), approved_total_budget (DECIMAL), status (TEXT), proposed_date (TIMESTAMPTZ).
+
+TABLE budget_proposal_reports: id (UUID), proposal_id (UUID FK budget_proposals), actual_attendance (INT), actual_budget_used (DECIMAL), outcomes (TEXT), issues_faced (TEXT).
+
+TABLE users: id (UUID), name (TEXT), email (TEXT), role (TEXT), university_id (UUID FK universities).
+
+TABLE universities: id (UUID), name (TEXT), short_name (TEXT).`;
+}
+
+/**
+ * NLQ — execute a validated read-only query
+ */
+export async function executeReadOnlyQuery(sql: string): Promise<{ rows: any[]; rowCount: number }> {
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('SET LOCAL statement_timeout = 5000');
+        await client.query('SET TRANSACTION READ ONLY');
+        const result = await client.query(sql);
+        await client.query('COMMIT');
+        return { rows: result.rows.slice(0, 100), rowCount: result.rowCount || 0 };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}

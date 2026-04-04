@@ -13,7 +13,12 @@ import {
     submitDailyForm,
     getDailyFormComplianceStatus,
     aggregateAllUniversities,
-    getAllUniversities
+    getAllUniversities,
+    getOpsTaskPatterns,
+    getOpsPeerComparison,
+    getOpsUniversityRankings,
+    getOpsUniversityTrends,
+    getOpsEventBudgetIntelligence,
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -204,6 +209,53 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         case 'config': {
             const config = await getOpsSheetConfig();
             return json({ config });
+        }
+
+        // ─── Phase 3: Enhanced Analytics ──────────────────────────────
+
+        case 'task-patterns': {
+            const patterns = await getOpsTaskPatterns(monthStart, monthEnd, university);
+            return json({ ...patterns, date, monthStart, monthEnd });
+        }
+
+        case 'peer-comparison': {
+            const comparison = await getOpsPeerComparison(monthStart, monthEnd, university);
+            return json({ ...comparison, date, monthStart, monthEnd });
+        }
+
+        case 'university-rankings': {
+            const rankings = await getOpsUniversityRankings(monthStart, monthEnd);
+            // Also get previous month for trend
+            const prevMonthEnd = new Date(d.getFullYear(), d.getMonth(), 0);
+            const prevMonthStart = `${prevMonthEnd.getFullYear()}-${String(prevMonthEnd.getMonth() + 1).padStart(2, '0')}-01`;
+            const prevEnd = prevMonthEnd.toISOString().split('T')[0];
+            let prevRankings: any[] = [];
+            try { prevRankings = await getOpsUniversityRankings(prevMonthStart, prevEnd); } catch {}
+            // Compute trend deltas
+            const prevMap = new Map(prevRankings.map((r: any) => [r.university_name, r.score]));
+            const withTrend = rankings.map((r: any) => ({
+                ...r,
+                prev_score: prevMap.get(r.university_name) ?? null,
+                trend_delta: prevMap.has(r.university_name) ? r.score - (prevMap.get(r.university_name) || 0) : null,
+            }));
+            return json({ rankings: withTrend, date, monthStart, monthEnd });
+        }
+
+        case 'university-trends': {
+            const univName = university;
+            if (!univName) {
+                const universities = await getOpsUniversities();
+                return json({ universities });
+            }
+            const trends = await getOpsUniversityTrends(univName, 8);
+            return json({ university: univName, trends, date });
+        }
+
+        // ─── Phase 4: Advanced AI ────────────────────────────────────
+
+        case 'event-intelligence': {
+            const intel = await getOpsEventBudgetIntelligence(monthStart, monthEnd, university);
+            return json({ ...intel, date, monthStart, monthEnd });
         }
 
         default:
