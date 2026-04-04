@@ -66,13 +66,16 @@
     analyticsViewLoading = true;
     analyticsViewData = null;
     try {
-      const res = await fetch('/api/ops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: view })
+      const today = new Date().toISOString().split('T')[0];
+      const params = new URLSearchParams({
+        view,
+        date: today,
+        dateRange: '30d'
       });
-      const result = await res.json();
-      if (result.success) analyticsViewData = result;
+      const res = await fetch(`/api/ops?${params}`);
+      if (res.ok) {
+        analyticsViewData = await res.json();
+      }
     } catch (e) {
       console.error('[ANALYTICS] View load error:', e);
     } finally {
