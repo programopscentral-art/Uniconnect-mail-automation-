@@ -33,6 +33,99 @@
   let aiInsights = $state<string>('');
   let isLoadingAI = $state(false);
 
+  // ─── Tab navigation ───────────────────────────────────────────
+  let activeTab = $state('team');
+  const analyticsTabs = [
+    { id: 'team', label: 'Team Overview', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+    { id: 'task-patterns', label: 'Task Patterns', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+    { id: 'peer-comparison', label: 'Peer Compare', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+    { id: 'university-rankings', label: 'Rankings', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z' },
+    { id: 'event-intelligence', label: 'Event Intel', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+    { id: 'ask-ai', label: 'Ask AI', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
+  ];
+
+  // ─── Phase 3/4 State ───────────────────────────────────────────
+  let analyticsViewData = $state<any>(null);
+  let analyticsViewLoading = $state(false);
+
+  // NLQ (Ask AI)
+  let nlqQuestion = $state('');
+  let nlqAnswer = $state('');
+  let nlqQuery = $state('');
+  let nlqData = $state<any[]>([]);
+  let nlqLoading = $state(false);
+  let nlqShowQuery = $state(false);
+
+  // Event Intelligence
+  let eventIntelAI = $state('');
+  let eventIntelAILoading = $state(false);
+
+  // ─── Phase 3/4 Data Loaders ────────────────────────────────────
+  async function loadAnalyticsView(view: string) {
+    if (view === 'team' || view === 'ask-ai') return;
+    analyticsViewLoading = true;
+    analyticsViewData = null;
+    try {
+      const res = await fetch('/api/ops', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: view })
+      });
+      const result = await res.json();
+      if (result.success) analyticsViewData = result;
+    } catch (e) {
+      console.error('[ANALYTICS] View load error:', e);
+    } finally {
+      analyticsViewLoading = false;
+    }
+  }
+
+  async function askAI() {
+    if (!nlqQuestion.trim() || nlqLoading) return;
+    nlqLoading = true;
+    nlqAnswer = '';
+    nlqQuery = '';
+    nlqData = [];
+    try {
+      const res = await fetch('/api/ops/nlq', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: nlqQuestion })
+      });
+      const result = await res.json();
+      nlqAnswer = result.answer || 'No answer available.';
+      nlqQuery = result.query || '';
+      nlqData = result.data || [];
+    } catch (e: any) {
+      nlqAnswer = `Error: ${e.message}`;
+    } finally {
+      nlqLoading = false;
+    }
+  }
+
+  async function loadEventIntelAI() {
+    if (!analyticsViewData || eventIntelAILoading) return;
+    eventIntelAILoading = true;
+    eventIntelAI = '';
+    try {
+      const res = await fetch('/api/ops/ai-insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'event-budget', data: analyticsViewData })
+      });
+      const result = await res.json();
+      eventIntelAI = result.insights || 'No insights available.';
+    } catch { eventIntelAI = 'Failed to load AI insights.'; }
+    finally { eventIntelAILoading = false; }
+  }
+
+  function switchTab(tabId: string) {
+    activeTab = tabId;
+    if (tabId !== 'team' && tabId !== 'ask-ai') {
+      loadAnalyticsView(tabId);
+    }
+  }
+
   // --- Load team data ---
   async function loadTeam() {
     isLoading = true;
@@ -418,6 +511,22 @@
       {/if}
     </div>
   </div>
+
+  <!-- Tab Navigation -->
+  <div class="flex gap-1 overflow-x-auto pb-1 border-b border-gray-200 dark:border-slate-700/50">
+    {#each analyticsTabs as tab}
+      <button
+        onclick={() => switchTab(tab.id)}
+        class="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-t-lg whitespace-nowrap transition-all {activeTab === tab.id ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-500' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800/50'}"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={tab.icon}/></svg>
+        {tab.label}
+      </button>
+    {/each}
+  </div>
+
+  {#if activeTab === 'team'}
+  <!-- ============= TEAM OVERVIEW TAB ============= -->
 
   {#if isLoading && !selectedUserId}
     <div class="flex items-center justify-center py-20">
@@ -1006,5 +1115,475 @@
         </div>
       {/each}
     </div>
+  {/if}
+
+  <!-- ============= END TEAM TAB ============= -->
+
+  {:else if activeTab === 'task-patterns'}
+  <!-- ============= TASK PATTERNS ============= -->
+  {#if analyticsViewLoading}
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    </div>
+  {:else}
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Task Pattern Analysis</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Recurring tasks, frequency, and completion metrics across teams.</p>
+
+      {#if analyticsViewData?.patterns?.length}
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="glass rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-gray-900 dark:text-white">{analyticsViewData.patterns.length}</div>
+            <div class="text-xs font-bold text-gray-500">Unique Task Types</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-emerald-200 dark:border-emerald-800/50">
+            <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{analyticsViewData.patterns.reduce((s: number, p: any) => s + (p.completed_count || 0), 0)}</div>
+            <div class="text-xs font-bold text-gray-500">Total Completed</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-red-200 dark:border-red-800/50">
+            <div class="text-2xl font-black text-red-600 dark:text-red-400">{analyticsViewData.patterns.reduce((s: number, p: any) => s + (p.overdue_count || 0), 0)}</div>
+            <div class="text-xs font-bold text-gray-500">Overdue</div>
+          </div>
+        </div>
+
+        <div class="glass rounded-2xl overflow-hidden">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+              <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Task</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Freq</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Done</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Overdue</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Hours</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Assignees</th>
+              <th class="px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Frequency</th>
+            </tr></thead>
+            <tbody>
+              {#each analyticsViewData.patterns as p}
+                {@const maxFreq = Math.max(...analyticsViewData.patterns.map((x: any) => x.frequency))}
+                <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                  <td class="px-4 py-3 font-bold text-gray-900 dark:text-white max-w-[200px] truncate" title={p.title}>{p.title}</td>
+                  <td class="text-center px-3 py-3 text-indigo-600 dark:text-indigo-400 font-black">{p.frequency}</td>
+                  <td class="text-center px-3 py-3 text-emerald-600 dark:text-emerald-400">{p.completed_count}</td>
+                  <td class="text-center px-3 py-3 {p.overdue_count > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'}">{p.overdue_count}</td>
+                  <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{p.avg_completion_hours ? `${p.avg_completion_hours}h` : '—'}</td>
+                  <td class="text-center px-3 py-3 text-gray-500">{p.assignee_count}</td>
+                  <td class="px-3 py-3">
+                    <div class="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-2">
+                      <div class="bg-indigo-500 h-2 rounded-full" style="width: {Math.round((p.frequency / maxFreq) * 100)}%"></div>
+                    </div>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        {#if analyticsViewData.byTeam?.length}
+          <h3 class="text-lg font-black text-gray-900 dark:text-white mt-8 mb-4">Task Volume by University / Week</h3>
+          <div class="glass rounded-2xl overflow-hidden">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+                <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">University</th>
+                <th class="text-left px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Week</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Tasks</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Done</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Overdue</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Hours</th>
+              </tr></thead>
+              <tbody>
+                {#each analyticsViewData.byTeam as row}
+                  <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                    <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{row.university_name || '—'}</td>
+                    <td class="px-3 py-3 text-gray-500 text-xs">{row.week_start}</td>
+                    <td class="text-center px-3 py-3 text-indigo-600 dark:text-indigo-400">{row.task_count}</td>
+                    <td class="text-center px-3 py-3 text-emerald-600 dark:text-emerald-400">{row.completed}</td>
+                    <td class="text-center px-3 py-3 {row.overdue > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'}">{row.overdue}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{row.avg_hours ? `${row.avg_hours}h` : '—'}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      {:else}
+        <div class="text-center py-16 text-gray-500">
+          <p class="text-lg font-bold mb-2">No task data found</p>
+          <p class="text-sm">Tasks created this month will appear here with pattern analysis.</p>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {:else if activeTab === 'peer-comparison'}
+  <!-- ============= PEER COMPARISON ============= -->
+  {#if analyticsViewLoading}
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    </div>
+  {:else}
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Peer Comparison</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Compare task completion metrics across team members.</p>
+
+      {#if analyticsViewData?.users?.length}
+        <div class="glass rounded-2xl overflow-hidden mb-8">
+          <div class="px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+            <h3 class="text-sm font-black text-gray-900 dark:text-white">Leaderboard — Task Completion</h3>
+          </div>
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest w-12">#</th>
+              <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Name</th>
+              <th class="text-left px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">University</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Tasks</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Done</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">On-time</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Overdue</th>
+              <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Hours</th>
+              <th class="px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Completion</th>
+            </tr></thead>
+            <tbody>
+              {#each analyticsViewData.users as user, i}
+                {@const rate = user.total_tasks > 0 ? Math.round((user.completed / user.total_tasks) * 100) : 0}
+                <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                  <td class="text-center px-3 py-3 {i < 3 ? 'text-amber-500 font-black' : 'text-gray-400'}">{i + 1}</td>
+                  <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{user.user_name}</td>
+                  <td class="px-3 py-3 text-gray-500 text-xs">{user.university_name || '—'}</td>
+                  <td class="text-center px-3 py-3 text-indigo-600 dark:text-indigo-400">{user.total_tasks}</td>
+                  <td class="text-center px-3 py-3 text-emerald-600 dark:text-emerald-400 font-black">{user.completed}</td>
+                  <td class="text-center px-3 py-3 text-emerald-500">{user.on_time_count}</td>
+                  <td class="text-center px-3 py-3 {user.overdue > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'}">{user.overdue}</td>
+                  <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{user.avg_hours ? `${user.avg_hours}h` : '—'}</td>
+                  <td class="px-3 py-3">
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 bg-gray-100 dark:bg-slate-800 rounded-full h-2">
+                        <div class="h-2 rounded-full {rate >= 80 ? 'bg-emerald-500' : rate >= 50 ? 'bg-amber-500' : 'bg-red-500'}" style="width: {rate}%"></div>
+                      </div>
+                      <span class="text-xs font-bold text-gray-400 w-8">{rate}%</span>
+                    </div>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+
+        {#if analyticsViewData.sameTaskComparisons?.length}
+          <h3 class="text-lg font-black text-gray-900 dark:text-white mb-4">Same-Task Speed Comparison</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {#each analyticsViewData.sameTaskComparisons.slice(0, 10) as comp}
+              {@const maxHrs = Math.max(...comp.completions.map((c: any) => c.avg_hours || 1))}
+              <div class="glass rounded-2xl p-4">
+                <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3 truncate" title={comp.taskTitle}>{comp.taskTitle}</h4>
+                {#each comp.completions as c}
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs text-gray-500 w-24 truncate" title={c.user_name}>{c.user_name}</span>
+                    <div class="flex-1 bg-gray-100 dark:bg-slate-800 rounded-full h-3">
+                      <div class="bg-indigo-500 h-3 rounded-full flex items-center justify-end pr-1" style="width: {Math.max(Math.round((c.avg_hours / maxHrs) * 100), 10)}%">
+                        <span class="text-[9px] text-white font-bold">{c.avg_hours}h</span>
+                      </div>
+                    </div>
+                    <span class="text-[10px] text-gray-500 w-8">{c.times_done}x</span>
+                  </div>
+                {/each}
+              </div>
+            {/each}
+          </div>
+        {/if}
+      {:else}
+        <div class="text-center py-16 text-gray-500">
+          <p class="text-lg font-bold mb-2">No comparison data</p>
+          <p class="text-sm">Task data for this month will appear here.</p>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {:else if activeTab === 'university-rankings'}
+  <!-- ============= UNIVERSITY RANKINGS ============= -->
+  {#if analyticsViewLoading}
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    </div>
+  {:else}
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">University Rankings</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Composite efficiency scores: Sessions 25%, Attendance 25%, Coach Coverage 15%, At-Risk Follow-up 10%, Compliance 15%, Events 10%.</p>
+
+      {#if analyticsViewData?.rankings?.length}
+        <div class="space-y-3">
+          {#each analyticsViewData.rankings as uni, i}
+            <div class="glass rounded-2xl p-4 hover:shadow-lg transition-all">
+              <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-black {i === 0 ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400' : i === 1 ? 'bg-gray-100 dark:bg-gray-800 text-gray-500' : i === 2 ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400' : 'bg-gray-50 dark:bg-slate-800 text-gray-400'}">
+                  {i + 1}
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center gap-3 mb-1">
+                    <h3 class="font-black text-gray-900 dark:text-white">{uni.university_name}</h3>
+                    <span class="text-2xl font-black {uni.score >= 80 ? 'text-emerald-600 dark:text-emerald-400' : uni.score >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}">{uni.score}</span>
+                    <span class="text-xs text-gray-400">/100</span>
+                    {#if uni.trend_delta != null}
+                      <span class="text-xs font-bold px-2 py-0.5 rounded {uni.trend_delta > 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : uni.trend_delta < 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}">
+                        {uni.trend_delta > 0 ? '+' : ''}{uni.trend_delta} vs prev
+                      </span>
+                    {/if}
+                  </div>
+                  <div class="flex gap-3 text-xs">
+                    <span class="text-gray-500">Sessions <span class="{uni.sessRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : uni.sessRate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} font-bold">{uni.sessRate}%</span></span>
+                    <span class="text-gray-500">Attendance <span class="{uni.attRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : uni.attRate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} font-bold">{uni.attRate}%</span></span>
+                    <span class="text-gray-500">Coach <span class="{uni.coachRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : uni.coachRate >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} font-bold">{uni.coachRate}%</span></span>
+                    <span class="text-gray-500">Risk F/U <span class="{uni.riskRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-bold">{uni.riskRate}%</span></span>
+                    <span class="text-gray-500">Compliance <span class="{uni.complianceRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : uni.complianceRate >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} font-bold">{uni.complianceRate}%</span></span>
+                    <span class="text-gray-500">Events <span class="text-indigo-600 dark:text-indigo-400 font-bold">{uni.eventRate}%</span></span>
+                  </div>
+                </div>
+                <div class="w-32">
+                  <div class="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-3">
+                    <div class="h-3 rounded-full {uni.score >= 80 ? 'bg-emerald-500' : uni.score >= 60 ? 'bg-amber-500' : 'bg-red-500'}" style="width: {uni.score}%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <div class="text-center py-16 text-gray-500">
+          <p class="text-lg font-bold mb-2">No ranking data</p>
+          <p class="text-sm">Ops daily data for this month is needed to generate rankings.</p>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {:else if activeTab === 'event-intelligence'}
+  <!-- ============= EVENT INTELLIGENCE ============= -->
+  {#if analyticsViewLoading}
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+    </div>
+  {:else}
+    <div>
+      <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Event & Budget Intelligence</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">ROI analysis, budget efficiency, and attendance accuracy for events.</p>
+
+      {#if analyticsViewData?.aggregates}
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div class="glass rounded-2xl p-4 text-center">
+            <div class="text-2xl font-black text-gray-900 dark:text-white">{analyticsViewData.aggregates.totalEvents}</div>
+            <div class="text-xs font-bold text-gray-500">Total Events</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-indigo-200 dark:border-indigo-800/50">
+            <div class="text-2xl font-black text-indigo-600 dark:text-indigo-400">{analyticsViewData.aggregates.eventsWithReports}</div>
+            <div class="text-xs font-bold text-gray-500">With Reports</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-emerald-200 dark:border-emerald-800/50">
+            <div class="text-2xl font-black text-emerald-600 dark:text-emerald-400">{analyticsViewData.aggregates.avgBudgetUtilization}%</div>
+            <div class="text-xs font-bold text-gray-500">Avg Budget Util.</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-violet-200 dark:border-violet-800/50">
+            <div class="text-2xl font-black text-violet-600 dark:text-violet-400">{analyticsViewData.aggregates.avgAttendanceAccuracy}%</div>
+            <div class="text-xs font-bold text-gray-500">Attendance Accuracy</div>
+          </div>
+          <div class="glass rounded-2xl p-4 text-center border border-amber-200 dark:border-amber-800/50">
+            <div class="text-xl font-black text-amber-600 dark:text-amber-400">{analyticsViewData.aggregates.avgCostPerParticipant > 0 ? `₹${analyticsViewData.aggregates.avgCostPerParticipant}` : '—'}</div>
+            <div class="text-xs font-bold text-gray-500">Avg Cost/Person</div>
+          </div>
+        </div>
+
+        <!-- AI Analysis Button -->
+        <div class="mb-6">
+          <button onclick={loadEventIntelAI} disabled={eventIntelAILoading}
+            class="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-md">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            {eventIntelAILoading ? 'Analyzing...' : 'AI Analysis'}
+          </button>
+          {#if eventIntelAI}
+            <div class="mt-4 glass rounded-2xl p-4 border border-violet-200 dark:border-violet-800/50">
+              <h4 class="text-sm font-black text-violet-600 dark:text-violet-400 mb-2">AI Budget & Event Insights</h4>
+              <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">{eventIntelAI}</div>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Problem Patterns -->
+        {#if analyticsViewData.problemPatterns?.length}
+          <div class="mb-6">
+            <h3 class="text-sm font-black text-red-600 dark:text-red-400 mb-3">Problem Patterns</h3>
+            <div class="space-y-2">
+              {#each analyticsViewData.problemPatterns as problem}
+                <div class="glass rounded-xl p-3 flex items-start gap-3 border border-red-200 dark:border-red-800/50">
+                  <span class="text-xs font-bold px-2 py-0.5 rounded {problem.type === 'budget_overrun' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'}">
+                    {problem.type === 'budget_overrun' ? 'OVER BUDGET' : 'LOW ATTENDANCE'}
+                  </span>
+                  <div class="flex-1">
+                    <span class="text-sm font-bold text-gray-900 dark:text-white">{problem.event}</span>
+                    <span class="text-xs text-gray-500 ml-2">@ {problem.university}</span>
+                    <span class="text-xs text-red-600 dark:text-red-400 ml-2 font-bold">{problem.value}</span>
+                    {#if problem.detail}<p class="text-xs text-gray-500 mt-1">{problem.detail}</p>{/if}
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/if}
+
+        <!-- By Event Type -->
+        {#if analyticsViewData.byType?.length}
+          <h3 class="text-sm font-black text-gray-900 dark:text-white mb-3">By Event Type</h3>
+          <div class="glass rounded-2xl overflow-hidden mb-6">
+            <table class="w-full text-sm">
+              <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+                <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Type</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Events</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Done</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Budget</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Avg Attend.</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Cost/Person</th>
+              </tr></thead>
+              <tbody>
+                {#each analyticsViewData.byType as t}
+                  <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                    <td class="px-4 py-3 font-bold text-gray-900 dark:text-white">{t.event_type || '—'}</td>
+                    <td class="text-center px-3 py-3 text-indigo-600 dark:text-indigo-400">{t.total_events}</td>
+                    <td class="text-center px-3 py-3 text-emerald-600 dark:text-emerald-400">{t.completed}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{t.avg_budget ? `₹${Math.round(t.avg_budget)}` : '—'}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{t.avg_attendance || '—'}</td>
+                    <td class="text-center px-3 py-3 text-amber-600 dark:text-amber-400">{t.avg_cost_pp ? `₹${Math.round(t.avg_cost_pp)}` : '—'}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+
+        <!-- Events Table -->
+        {#if analyticsViewData.events?.length}
+          <h3 class="text-sm font-black text-gray-900 dark:text-white mb-3">All Events ({analyticsViewData.events.length})</h3>
+          <div class="glass rounded-2xl overflow-hidden overflow-x-auto">
+            <table class="w-full text-sm min-w-[800px]">
+              <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+                <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Event</th>
+                <th class="text-left px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">University</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Budget Est.</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actual</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Util %</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Exp. Att.</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actual Att.</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Cost/PP</th>
+                <th class="text-center px-3 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</th>
+              </tr></thead>
+              <tbody>
+                {#each analyticsViewData.events.slice(0, 50) as ev}
+                  <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                    <td class="px-4 py-3 font-bold text-gray-900 dark:text-white max-w-[180px] truncate" title={ev.title}>{ev.title}</td>
+                    <td class="px-3 py-3 text-gray-500 text-xs">{ev.university_name || '—'}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{ev.estimated_total_budget ? `₹${Math.round(ev.estimated_total_budget)}` : '—'}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{ev.actual_budget_used ? `₹${Math.round(ev.actual_budget_used)}` : '—'}</td>
+                    <td class="text-center px-3 py-3 {ev.budget_utilization && parseFloat(ev.budget_utilization) > 130 ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-600 dark:text-gray-300'}">{ev.budget_utilization ? `${ev.budget_utilization}%` : '—'}</td>
+                    <td class="text-center px-3 py-3 text-gray-500">{ev.expected_attendance || '—'}</td>
+                    <td class="text-center px-3 py-3 text-gray-600 dark:text-gray-300">{ev.actual_attendance || '—'}</td>
+                    <td class="text-center px-3 py-3 text-amber-600 dark:text-amber-400">{ev.cost_per_participant ? `₹${ev.cost_per_participant}` : '—'}</td>
+                    <td class="text-center px-3 py-3">
+                      <span class="text-xs px-2 py-0.5 rounded-full {ev.status === 'CLOSED' || ev.status === 'REPORT_SUBMITTED' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : ev.status === 'APPROVED' || ev.status === 'EVENT_COMPLETED' ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400' : 'bg-gray-100 dark:bg-slate-800 text-gray-500'}">{ev.status}</span>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      {:else}
+        <div class="text-center py-16 text-gray-500">
+          <p class="text-lg font-bold mb-2">No event data</p>
+          <p class="text-sm">Budget proposals and event reports for this month will be analyzed here.</p>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  {:else if activeTab === 'ask-ai'}
+  <!-- ============= ASK AI / NLQ ============= -->
+  <div class="max-w-4xl">
+    <h2 class="text-xl font-bold text-gray-900 dark:text-white mb-1">Ask AI</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Ask questions about your operations data in natural language. Powered by Gemini AI.</p>
+
+    <div class="flex gap-3 mb-4">
+      <input
+        type="text"
+        bind:value={nlqQuestion}
+        placeholder="Ask anything about operations..."
+        class="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+        onkeydown={(e) => { if (e.key === 'Enter') askAI(); }}
+      />
+      <button onclick={askAI} disabled={nlqLoading || !nlqQuestion.trim()}
+        class="px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-md">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        {nlqLoading ? 'Thinking...' : 'Ask'}
+      </button>
+    </div>
+
+    <!-- Suggested questions -->
+    <div class="flex flex-wrap gap-2 mb-6">
+      {#each ['How did each university perform last week?', 'Which universities have the highest attendance?', 'Show me overdue tasks', 'Compare session rates across universities this month', 'Which university has the most at-risk students?', 'Show instructor leave trends'] as suggestion}
+        <button
+          onclick={() => { nlqQuestion = suggestion; askAI(); }}
+          class="px-3 py-1.5 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700 text-xs text-gray-500 dark:text-gray-400 rounded-full transition-colors"
+        >{suggestion}</button>
+      {/each}
+    </div>
+
+    {#if nlqLoading}
+      <div class="flex items-center gap-3 py-8 justify-center">
+        <div class="w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        <span class="text-gray-500">Analyzing your question...</span>
+      </div>
+    {/if}
+
+    {#if nlqAnswer}
+      <div class="glass rounded-2xl p-5 mb-4 border border-violet-200 dark:border-violet-800/50">
+        <h4 class="text-sm font-black text-violet-600 dark:text-violet-400 mb-2 flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          AI Answer
+        </h4>
+        <div class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">{nlqAnswer}</div>
+      </div>
+
+      {#if nlqQuery}
+        <button onclick={() => nlqShowQuery = !nlqShowQuery} class="text-xs text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 mb-2 flex items-center gap-1">
+          <svg class="w-3 h-3 transition-transform {nlqShowQuery ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          {nlqShowQuery ? 'Hide' : 'Show'} generated SQL
+        </button>
+        {#if nlqShowQuery}
+          <pre class="glass rounded-xl p-3 text-xs text-gray-500 dark:text-gray-400 font-mono overflow-x-auto mb-4 border border-gray-200 dark:border-slate-700">{nlqQuery}</pre>
+        {/if}
+      {/if}
+
+      {#if nlqData?.length}
+        <div class="glass rounded-2xl overflow-hidden overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-200 dark:border-slate-700">
+              {#each Object.keys(nlqData[0]) as col}
+                <th class="text-left px-4 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">{col.replace(/_/g, ' ')}</th>
+              {/each}
+            </tr></thead>
+            <tbody>
+              {#each nlqData.slice(0, 50) as row}
+                <tr class="border-b border-gray-100 dark:border-slate-800/50 hover:bg-gray-50 dark:hover:bg-slate-800/30">
+                  {#each Object.values(row) as val}
+                    <td class="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{val != null ? val : '—'}</td>
+                  {/each}
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        {#if nlqData.length > 50}
+          <p class="text-xs text-gray-500 mt-2">Showing 50 of {nlqData.length} rows</p>
+        {/if}
+      {/if}
+    {/if}
+  </div>
+
   {/if}
 </div>
