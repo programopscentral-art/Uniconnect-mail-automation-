@@ -258,6 +258,13 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             return json({ ...intel, date, monthStart, monthEnd });
         }
 
+        // Views that manage their own data (NLQ uses /api/ops/nlq directly)
+        case 'ask-ai':
+        case 'daily-form':
+        case 'form-compliance':
+        case 'sheet-setup':
+            return json({ ok: true });
+
         default:
             throw error(400, 'Invalid view');
     }

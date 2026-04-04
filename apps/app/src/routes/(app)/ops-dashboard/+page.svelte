@@ -1110,12 +1110,12 @@
             </div>
         </div>
 
-        {#if isLoading}
+        {#if isLoading && !['ask-ai', 'daily-form', 'form-compliance', 'sheet-setup'].includes(activeView)}
             <div class="flex items-center justify-center py-20">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                 <span class="ml-3 text-gray-400">Loading data...</span>
             </div>
-        {:else if !viewData}
+        {:else if !viewData && !['ask-ai', 'daily-form', 'form-compliance', 'sheet-setup', 'task-patterns', 'peer-comparison', 'university-rankings', 'event-intelligence'].includes(activeView)}
             <div class="text-center py-20 text-gray-500">
                 <p class="text-lg mb-2">No data loaded</p>
                 <p class="text-sm">Paste a Google Sheet URL and click "Load data" for a single tab, or "Bulk Load (Multi-tab)" for sheets with date-named tabs (e.g. "28th March", "1st April", "2026-03-28"). Sheet must be shared as "Anyone with the link".</p>
