@@ -13,8 +13,14 @@ import {
     getSheetSyncHistory,
     ensureSheetSchema,
     encryptString,
-    decryptString
+    decryptString,
+    analyzeColumns,
+    importStudentsFromSheet,
+    importEventsFromSheet,
+    importTasksFromSheet,
+    importCustomData
 } from '@uniconnect/shared';
+import type { ColumnMapping, UniConnectTarget } from '@uniconnect/shared';
 import { getSheetsAuthUrl, getSheetsApiClient, extractSpreadsheetId } from '$lib/server/sheets_auth';
 
 process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
@@ -422,6 +428,74 @@ Format with markdown tables and bullet points.`
             await updateSheetSyncStatus(sheetId, 'ERROR', err.message);
             throw error(500, `Sync all failed: ${err.message}`);
         }
+    }
+
+    // Analyze columns — auto-recognize known UniConnect data patterns
+    if (action === 'analyze-columns') {
+        const { sheetId, tab } = body;
+        if (!sheetId) throw error(400, 'Missing sheetId');
+
+        const syncDataResult = await getLatestSheetSyncData(sheetId, tab);
+        if (!syncDataResult) throw error(404, 'No synced data found. Sync the sheet first.');
+
+        const result = analyzeColumns(syncDataResult.headers, syncDataResult.rows);
+        return json(result);
+    }
+
+    // Import mapped data into UniConnect tables
+    if (action === 'import-mapped') {
+        const { sheetId, tab, target, mappings } = body as {
+            sheetId: string;
+            tab?: string;
+            target: UniConnectTarget;
+            mappings: ColumnMapping[];
+        };
+        if (!sheetId || !target || !mappings?.length) throw error(400, 'Missing sheetId, target, or mappings');
+
+        const syncDataResult = await getLatestSheetSyncData(sheetId, tab);
+        if (!syncDataResult) throw error(404, 'No synced data found. Sync the sheet first.');
+
+        const universityId = locals.user.university_id || '';
+        const userId = locals.user.id;
+
+        let result: { imported?: number; stored?: number; skipped?: number; errors?: string[] };
+
+        switch (target) {
+            case 'students':
+                result = await importStudentsFromSheet(syncDataResult.rows, mappings, universityId, userId);
+                break;
+            case 'events':
+                result = await importEventsFromSheet(syncDataResult.rows, mappings, universityId, userId);
+                break;
+            case 'tasks':
+                result = await importTasksFromSheet(syncDataResult.rows, mappings, universityId, userId);
+                break;
+            case 'custom':
+                result = await importCustomData(sheetId, tab || 'Sheet1', syncDataResult.headers, syncDataResult.rows);
+                break;
+            default:
+                // For targets without dedicated import (ops_daily, budget, communication), store as custom
+                result = await importCustomData(sheetId, tab || 'Sheet1', syncDataResult.headers, syncDataResult.rows);
+                break;
+        }
+
+        console.log(`[SHEETS] Imported ${target}: ${JSON.stringify(result)}`);
+        return json({ ok: true, target, ...result });
+    }
+
+    // Update synced data (inline editor save)
+    if (action === 'update-data') {
+        const { sheetId, tab, headers, rows } = body;
+        if (!sheetId || !headers) throw error(400, 'Missing sheetId or headers');
+        await saveSheetSyncData({
+            sheet_connection_id: sheetId,
+            sheet_tab: tab || 'Sheet1',
+            headers,
+            rows: rows || []
+        });
+        await updateSheetSyncStatus(sheetId, 'ACTIVE');
+        console.log(`[SHEETS] Updated data: ${(rows || []).length} rows for tab ${tab} of sheet ${sheetId}`);
+        return json({ ok: true, rowCount: (rows || []).length });
     }
 
     // Rename a sheet connection

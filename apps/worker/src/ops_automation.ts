@@ -504,6 +504,62 @@ Write in a professional tone for senior management. Highlight key wins, concerns
     return 'AI summary could not be generated at this time.';
 }
 
+// ─── SVG Chart Helpers (inline, email-safe) ─────────────────────────
+
+function svgDonut(percent: number, label: string, color: string, size = 100): string {
+    const r = 36;
+    const circ = 2 * Math.PI * r;
+    const offset = circ - (circ * Math.min(percent, 100)) / 100;
+    return `<div style="text-align:center">
+        <svg width="${size}" height="${size}" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="#e5e7eb" stroke-width="10"/>
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="10"
+                stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+                stroke-linecap="round" transform="rotate(-90 50 50)"/>
+            <text x="50" y="46" text-anchor="middle" font-size="18" font-weight="700" fill="${color}">${percent}%</text>
+            <text x="50" y="62" text-anchor="middle" font-size="8" fill="#6b7280">${label}</text>
+        </svg>
+    </div>`;
+}
+
+function svgHorizontalBar(items: { label: string; value: number; max: number; color: string }[]): string {
+    if (!items.length) return '';
+    const maxVal = Math.max(...items.map(i => i.max), 1);
+    const rows = items.map(item => {
+        const pct = Math.round((item.value / maxVal) * 100);
+        return `<tr>
+            <td style="padding:4px 8px;font-size:11px;color:#374151;white-space:nowrap;width:30%">${item.label}</td>
+            <td style="padding:4px 8px;width:60%">
+                <div style="background:#f3f4f6;border-radius:4px;height:18px;width:100%;position:relative">
+                    <div style="background:${item.color};border-radius:4px;height:18px;width:${Math.max(pct, 2)}%"></div>
+                </div>
+            </td>
+            <td style="padding:4px 8px;font-size:11px;font-weight:600;color:${item.color};text-align:right;width:10%">${item.value}</td>
+        </tr>`;
+    }).join('');
+    return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${rows}</table>`;
+}
+
+function svgBarChart(bars: { label: string; value: number; color: string }[], height = 120): string {
+    if (!bars.length) return '';
+    const maxVal = Math.max(...bars.map(b => b.value), 1);
+    const barW = Math.min(Math.floor(500 / bars.length) - 4, 50);
+    const chartW = bars.length * (barW + 8) + 40;
+    const barsSvg = bars.map((b, i) => {
+        const barH = Math.max((b.value / maxVal) * (height - 30), 2);
+        const x = 30 + i * (barW + 8);
+        const y = height - 20 - barH;
+        return `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="${b.color}"/>
+            <text x="${x + barW / 2}" y="${height - 6}" text-anchor="middle" font-size="8" fill="#6b7280">${b.label}</text>
+            <text x="${x + barW / 2}" y="${y - 3}" text-anchor="middle" font-size="8" font-weight="600" fill="${b.color}">${b.value}</text>`;
+    }).join('');
+    return `<svg width="100%" viewBox="0 0 ${chartW} ${height}" xmlns="http://www.w3.org/2000/svg" style="max-width:${chartW}px">
+        <line x1="28" y1="0" x2="28" y2="${height - 20}" stroke="#e5e7eb" stroke-width="1"/>
+        <line x1="28" y1="${height - 20}" x2="${chartW}" y2="${height - 20}" stroke="#e5e7eb" stroke-width="1"/>
+        ${barsSvg}
+    </svg>`;
+}
+
 // ─── HTML Report Builder ────────────────────────────────────────────
 
 function formatDate(dateStr: string): string {
@@ -926,6 +982,34 @@ function buildWeeklyReportHTML(
         <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.on_time_count}</td>
     </tr>`).join('');
 
+    // SVG Charts for weekly report
+    const weekDonutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="text-align:center;width:25%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
+    </tr></table>`;
+
+    // Daily session bar chart
+    const dailySessionBars = Array.from(dailyByDate.entries()).sort().map(([date, d]) => ({
+        label: new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' }),
+        value: d.sessions_completed,
+        color: '#7c3aed'
+    }));
+    const dailyAttBars = Array.from(dailyByDate.entries()).sort().map(([date, d]) => ({
+        label: new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' }),
+        value: d.attended,
+        color: '#3b82f6'
+    }));
+
+    // University horizontal bars for weekly
+    const weekUnivBars = byUniv.slice(0, 10).map((r: any) => ({
+        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
+        value: n(r.sessions_completed),
+        max: n(r.sessions_planned) || n(r.sessions_completed),
+        color: '#7c3aed'
+    }));
+
     return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1003,6 +1087,35 @@ function buildWeeklyReportHTML(
             </td>
         </tr>
     </table>
+</div>
+
+<!-- Visual Charts: Donut Summary -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Performance at a Glance</h2>
+    ${weekDonutCharts}
+</div>
+
+<!-- Visual Charts: Daily Bar Charts -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Daily Trends</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="width:50%;padding-right:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#7c3aed">Sessions Completed</p>
+                ${svgBarChart(dailySessionBars, 110)}
+            </td>
+            <td style="width:50%;padding-left:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Students Attended</p>
+                ${svgBarChart(dailyAttBars, 110)}
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Visual Charts: University Sessions -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Sessions by University</h2>
+    ${svgHorizontalBar(weekUnivBars)}
 </div>
 
 <!-- AI Executive Summary -->
@@ -1336,6 +1449,41 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
         </tr>`;
     }).join('');
 
+    // SVG Charts for monthly report
+    const donutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="text-align:center;width:20%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
+        <td style="text-align:center;width:20%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
+        <td style="text-align:center;width:20%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
+        <td style="text-align:center;width:20%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
+        <td style="text-align:center;width:20%">${svgDonut(examRate, 'Exams', kpiColor(examRate, 80, 60), 90)}</td>
+    </tr></table>`;
+
+    // Bar chart for weekly session trends
+    const weeklyBars = Array.from(weeklyAgg.entries()).map(([label, d]) => ({
+        label: label.replace('Week ', 'W'),
+        value: d.sessions_completed,
+        color: '#059669'
+    }));
+    const weeklyAttBars = Array.from(weeklyAgg.entries()).map(([label, d]) => ({
+        label: label.replace('Week ', 'W'),
+        value: d.attended,
+        color: '#3b82f6'
+    }));
+
+    // Horizontal bar chart for university sessions
+    const univSessionBars = byUniv.slice(0, 10).map((r: any) => ({
+        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
+        value: n(r.sessions_completed),
+        max: n(r.sessions_planned) || n(r.sessions_completed),
+        color: '#059669'
+    }));
+    const univAttBars = byUniv.slice(0, 10).map((r: any) => ({
+        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
+        value: n(r.attended),
+        max: n(r.enrolled) || n(r.attended),
+        color: '#3b82f6'
+    }));
+
     return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -1417,6 +1565,46 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
                     <div style="font-size:20px;font-weight:700;color:#374151">${n(s.post_exam_comms_sent)}</div>
                     <div style="font-size:11px;color:#6b7280">Post-Exam Comms</div>
                 </div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Visual Charts: Donut Summary -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Performance at a Glance</h2>
+    ${donutCharts}
+</div>
+
+<!-- Visual Charts: Weekly Sessions & Attendance Bar Charts -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Weekly Trends</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="width:50%;padding-right:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#059669">Sessions Completed</p>
+                ${svgBarChart(weeklyBars, 110)}
+            </td>
+            <td style="width:50%;padding-left:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Students Attended</p>
+                ${svgBarChart(weeklyAttBars, 110)}
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!-- Visual Charts: University Comparison -->
+<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
+    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Comparison</h2>
+    <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+            <td style="width:50%;padding-right:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#059669">Sessions by University</p>
+                ${svgHorizontalBar(univSessionBars)}
+            </td>
+            <td style="width:50%;padding-left:12px;vertical-align:top">
+                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Attendance by University</p>
+                ${svgHorizontalBar(univAttBars)}
             </td>
         </tr>
     </table>
