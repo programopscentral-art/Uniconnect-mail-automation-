@@ -442,6 +442,13 @@
             </div>
             <div class="flex gap-2">
                 {#if hasAccount}
+                    <button onclick={connectGoogle} disabled={connecting}
+                        class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5" title="Re-authorize Google account with updated permissions">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        {connecting ? 'Reconnecting...' : 'Reconnect'}
+                    </button>
                     <button onclick={() => showLinkModal = true}
                         class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-1.5">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -476,10 +483,19 @@
                     </div>
                     <p class="text-sm text-emerald-800 dark:text-emerald-300"><strong>Connected:</strong> {connectedAccount.google_email}</p>
                 </div>
-                <button onclick={() => showLinkModal = true}
-                    class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all">
-                    Add Sheet URL
-                </button>
+                <div class="flex gap-2">
+                    <button onclick={connectGoogle} disabled={connecting}
+                        class="px-3 py-1.5 bg-white dark:bg-slate-800 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-all flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Reconnect
+                    </button>
+                    <button onclick={() => showLinkModal = true}
+                        class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all">
+                        Add Sheet URL
+                    </button>
+                </div>
             </div>
         {/if}
 
