@@ -735,6 +735,11 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
             const uniName = getVal(values, 'university_name', 'university');
             if (!uniName) continue;
 
+            // Detect "Holiday" — if sessions_planned is non-numeric text like "Holiday"
+            const rawPlanned = getVal(values, 'sessions_planned', 'planned');
+            const isHoliday = rawPlanned && isNaN(parseInt(rawPlanned)) && /holiday/i.test(rawPlanned);
+            const remarkVal = getVal(values, 'cancellation_reason', 'cancel_reason', 'remarks') || null;
+
             dailyData.push({
                 date: rowDate,
                 university_name: uniName,
@@ -770,7 +775,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: getFloat(values, 'avg_hours_instructors'),
                 avg_hours_coaches: getFloat(values, 'avg_hours_coaches'),
                 avg_hours_program_ops: getFloat(values, 'avg_hours_program_ops'),
-                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason', 'remarks') || null,
+                cancellation_reason: isHoliday ? 'Holiday' : remarkVal,
             });
         }
     }

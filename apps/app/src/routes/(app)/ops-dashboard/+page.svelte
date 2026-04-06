@@ -1293,19 +1293,26 @@
                                 <td class="px-4 py-3 text-white flex items-center gap-2">
                                     <span class="text-gray-500 text-xs">{isExpanded ? '▼' : '▶'}</span>
                                     {row.university_name}
+                                    {#if row.cancellation_reason && /holiday/i.test(row.cancellation_reason)}
+                                        <span class="text-[10px] px-2 py-0.5 rounded bg-amber-600/20 text-amber-400 font-bold">HOLIDAY</span>
+                                    {/if}
                                 </td>
                                 <td class="px-4 py-3 text-center text-gray-300">{row.sessions_planned}</td>
                                 <td class="px-4 py-3 text-center text-green-400">{row.sessions_completed}</td>
                                 <td class="px-4 py-3 text-center text-red-400">{row.sessions_cancelled}</td>
                                 <td class="px-4 py-3 text-center text-gray-300">{devPct}%</td>
                                 <td class="px-4 py-3 text-center">
-                                    <span class="text-xs px-2 py-0.5 rounded {devPct > 10 ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}">{statusBadge(devPct)}</span>
+                                    {#if row.cancellation_reason && /holiday/i.test(row.cancellation_reason)}
+                                        <span class="text-xs px-2 py-0.5 rounded bg-amber-600/20 text-amber-400">Holiday</span>
+                                    {:else}
+                                        <span class="text-xs px-2 py-0.5 rounded {devPct > 10 ? 'bg-orange-600/20 text-orange-400' : 'bg-green-600/20 text-green-400'}">{statusBadge(devPct)}</span>
+                                    {/if}
                                 </td>
                             </tr>
                             {#if isExpanded}
                                 <tr class="bg-gray-800/20">
                                     <td colspan="6" class="px-6 py-4">
-                                        <div class="text-xs text-gray-500 font-semibold tracking-wider mb-1">CANCELLATION REASON</div>
+                                        <div class="text-xs text-gray-500 font-semibold tracking-wider mb-1">{row.cancellation_reason && /holiday/i.test(row.cancellation_reason) ? 'STATUS' : 'REMARKS'}</div>
                                         <div class="text-sm text-gray-300">{row.cancellation_reason || 'No reason provided'}</div>
                                     </td>
                                 </tr>
