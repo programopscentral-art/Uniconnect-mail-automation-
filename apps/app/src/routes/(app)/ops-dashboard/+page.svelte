@@ -19,6 +19,74 @@
     let isDownloading = $state(false);
     let isSendingReport = $state(false);
     let sendReportMsg = $state('');
+    let showReportPicker = $state<'weekly' | 'monthly' | null>(null);
+
+    // Generate week options for a given month — proper calendar weeks
+    function getWeekOptions() {
+        const now = new Date();
+        const options: { label: string; start: string; end: string }[] = [];
+        // Go back 3 months for enough week options
+        for (let m = -3; m <= 0; m++) {
+            const refDate = new Date(now.getFullYear(), now.getMonth() + m, 1);
+            const year = refDate.getFullYear();
+            const month = refDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            // Find first Monday on or before the 1st
+            const first = new Date(year, month, 1);
+            let startDay = new Date(first);
+            const dow = startDay.getDay();
+            // Align to Monday: if 1st is not Monday, go back to previous Monday
+            if (dow !== 1) {
+                const diff = dow === 0 ? 6 : dow - 1;
+                startDay.setDate(startDay.getDate() - diff);
+            }
+            // Generate weeks that overlap this month
+            while (startDay.getMonth() <= month || (startDay.getMonth() === 11 && month === 0)) {
+                const endDay = new Date(startDay);
+                endDay.setDate(endDay.getDate() + 5); // Mon-Sat (6 working days)
+                // Only include if the week overlaps with this month
+                if (endDay >= first && startDay.getDate() <= daysInMonth + 7) {
+                    const s = startDay.toISOString().split('T')[0];
+                    const e = endDay.toISOString().split('T')[0];
+                    // Avoid duplicates
+                    if (!options.find(o => o.start === s)) {
+                        const ordinal = (n: number) => {
+                            const s = ['th', 'st', 'nd', 'rd'];
+                            const v = n % 100;
+                            return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                        };
+                        const sLabel = `${ordinal(startDay.getDate())} ${startDay.toLocaleDateString('en-IN', { month: 'short' })}`;
+                        const eLabel = `${ordinal(endDay.getDate())} ${endDay.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}`;
+                        options.push({ label: `${sLabel} — ${eLabel}`, start: s, end: e });
+                    }
+                }
+                startDay.setDate(startDay.getDate() + 7);
+                if (startDay.getMonth() > month && startDay.getFullYear() >= year && m < 0) break;
+                if (startDay > now && m === 0) break;
+            }
+        }
+        // Deduplicate and sort by start date descending (most recent first)
+        const seen = new Set<string>();
+        return options.filter(o => {
+            if (seen.has(o.start)) return false;
+            seen.add(o.start);
+            return true;
+        }).sort((a, b) => b.start.localeCompare(a.start)).slice(0, 16);
+    }
+
+    function getMonthOptions() {
+        const now = new Date();
+        const options: { label: string; year: number; month: number }[] = [];
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            options.push({
+                label: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+                year: d.getFullYear(),
+                month: d.getMonth() + 1
+            });
+        }
+        return options;
+    }
 
     const views = [
         { id: 'overview', label: 'Overview', icon: 'grid' },
@@ -280,10 +348,19 @@
     }
 
     // ─── Download Report ─────────────────────────────────────────
-    async function downloadReport(type: 'daily' | 'weekly' | 'monthly') {
+    async function downloadReport(type: 'daily' | 'weekly' | 'monthly', opts?: { weekStart?: string; weekEnd?: string; year?: number; month?: number }) {
         isDownloading = true;
+        showReportPicker = null;
         try {
             const params = new URLSearchParams({ view: 'report', type, date: selectedDate });
+            if (type === 'weekly' && opts?.weekStart && opts?.weekEnd) {
+                params.set('weekStart', opts.weekStart);
+                params.set('weekEnd', opts.weekEnd);
+            }
+            if (type === 'monthly' && opts?.year && opts?.month) {
+                params.set('year', String(opts.year));
+                params.set('month', String(opts.month));
+            }
             const res = await fetch(`/api/ops?${params}`);
             if (!res.ok) return;
             const report = await res.json();
@@ -307,7 +384,12 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `UniOps_${type}_report_${selectedDate}.html`;
+            const fileName = type === 'weekly' && opts?.weekStart
+                ? `UniOps_weekly_report_${opts.weekStart}_to_${opts.weekEnd}.html`
+                : type === 'monthly' && opts?.year
+                    ? `UniOps_monthly_report_${opts.year}-${String(opts.month).padStart(2, '0')}.html`
+                    : `UniOps_${type}_report_${selectedDate}.html`;
+            a.download = fileName;
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
@@ -860,17 +942,39 @@
                     <span class="text-xs bg-green-600/20 text-green-400 px-2 py-1 rounded">{allUniversities.length} universities</span>
                 {/if}
                 <!-- Download buttons -->
-                <div class="flex items-center gap-1">
+                <div class="flex items-center gap-1 relative">
                     <button onclick={() => downloadReport('daily')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download daily report">
                         Daily
                     </button>
-                    <button onclick={() => downloadReport('weekly')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download weekly report">
+                    <button onclick={() => { showReportPicker = showReportPicker === 'weekly' ? null : 'weekly'; }} disabled={isDownloading} class="px-2 py-1.5 {showReportPicker === 'weekly' ? 'bg-blue-800 ring-1 ring-blue-400' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-50 text-white text-xs rounded transition-colors" title="Pick week for report">
                         Weekly
                     </button>
-                    <button onclick={() => downloadReport('monthly')} disabled={isDownloading} class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded transition-colors" title="Download monthly report">
+                    <button onclick={() => { showReportPicker = showReportPicker === 'monthly' ? null : 'monthly'; }} disabled={isDownloading} class="px-2 py-1.5 {showReportPicker === 'monthly' ? 'bg-blue-800 ring-1 ring-blue-400' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-50 text-white text-xs rounded transition-colors" title="Pick month for report">
                         Monthly
                     </button>
                     <svg class="w-4 h-4 text-gray-500 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <!-- Week picker dropdown -->
+                    {#if showReportPicker === 'weekly'}
+                        <div class="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 w-64 max-h-72 overflow-y-auto">
+                            <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400 font-semibold">Select Week</div>
+                            {#each getWeekOptions() as w}
+                                <button onclick={() => downloadReport('weekly', { weekStart: w.start, weekEnd: w.end })} class="w-full text-left px-3 py-2 text-sm text-white hover:bg-blue-600/30 transition-colors border-b border-gray-700/50">
+                                    {w.label}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
+                    <!-- Month picker dropdown -->
+                    {#if showReportPicker === 'monthly'}
+                        <div class="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 w-56 max-h-72 overflow-y-auto">
+                            <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400 font-semibold">Select Month</div>
+                            {#each getMonthOptions() as m}
+                                <button onclick={() => downloadReport('monthly', { year: m.year, month: m.month })} class="w-full text-left px-3 py-2 text-sm text-white hover:bg-blue-600/30 transition-colors border-b border-gray-700/50">
+                                    {m.label}
+                                </button>
+                            {/each}
+                        </div>
+                    {/if}
                     <span class="mx-1 text-gray-600">|</span>
                     <button onclick={sendReportEmail} disabled={isSendingReport} class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs rounded transition-colors flex items-center gap-1" title="Email daily report to all admins">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>

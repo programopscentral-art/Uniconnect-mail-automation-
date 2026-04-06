@@ -195,10 +195,20 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         case 'report': {
             const reportType = url.searchParams.get('type') || 'daily';
             if (reportType === 'weekly') {
-                const report = await getOpsWeeklyReport(week.start, week.end);
+                // Allow custom week range via weekStart/weekEnd params
+                const customStart = url.searchParams.get('weekStart');
+                const customEnd = url.searchParams.get('weekEnd');
+                const wStart = customStart || week.start;
+                const wEnd = customEnd || week.end;
+                const report = await getOpsWeeklyReport(wStart, wEnd);
                 return json(report);
             } else if (reportType === 'monthly') {
-                const report = await getOpsMonthlyReport(d.getFullYear(), d.getMonth() + 1);
+                // Allow custom year/month params
+                const customYear = url.searchParams.get('year');
+                const customMonth = url.searchParams.get('month');
+                const rYear = customYear ? parseInt(customYear) : d.getFullYear();
+                const rMonth = customMonth ? parseInt(customMonth) : d.getMonth() + 1;
+                const report = await getOpsMonthlyReport(rYear, rMonth);
                 return json(report);
             } else {
                 const report = await getOpsDailyReport(date);
