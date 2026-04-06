@@ -777,12 +777,14 @@
                             </div>
                         {:else}
                             <div class="flex-1">
+                                {#key selectedTab}
                                 <iframe
                                     src={getEditUrl(selectedSheet.sheet_url, selectedTab)}
-                                    title={selectedSheet.sheet_name}
+                                    title="{selectedSheet.sheet_name} - {selectedTab}"
                                     class="w-full h-full border-0"
                                     allow="clipboard-read; clipboard-write"
                                 ></iframe>
+                                {/key}
                             </div>
                         {/if}
                     {:else}
