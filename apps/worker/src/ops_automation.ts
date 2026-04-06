@@ -57,8 +57,8 @@ export async function processDailyReport() {
     const hour = nowIST.getHours();
     const todayStr = getTodayIST();
 
-    // Run at 6 PM IST (18:00), only once per day
-    if (hour !== 18) return;
+    // Run at 8 PM IST (20:00), only once per day
+    if (hour !== 20) return;
     if (lastDailyReportDate === todayStr) return;
 
     // Check dedup via notification source_id
@@ -579,7 +579,7 @@ function buildDailyReportHTML(date: string, report: any, compliance: any[], aiSu
 <div style="background:linear-gradient(135deg,#1e40af,#3b82f6);border-radius:12px 12px 0 0;padding:24px 32px;color:white">
     <h1 style="margin:0;font-size:22px;font-weight:700">UniConnect Daily Ops Report</h1>
     <p style="margin:8px 0 0;font-size:14px;opacity:0.9">${formatDate(date)}</p>
-    <p style="margin:4px 0 0;font-size:13px;opacity:0.7">Auto-generated at 6:00 PM IST</p>
+    <p style="margin:4px 0 0;font-size:13px;opacity:0.7">Auto-generated at 8:00 PM IST</p>
 </div>
 
 <!-- KPI Cards -->
@@ -685,16 +685,18 @@ export async function processWeeklyAnalyticsReport() {
     const dayOfWeek = nowIST.getDay(); // 0 = Sunday
     const hour = nowIST.getHours();
 
-    // Run on Sundays at 8 PM IST (20:00)
-    if (dayOfWeek !== 0 || hour !== 20) return;
+    // Run on Sundays at 12 PM IST (12:00)
+    if (dayOfWeek !== 0 || hour !== 12) return;
 
     const todayStr = getTodayIST();
     if (lastWeeklyAnalyticsDate === todayStr) return;
 
-    // Week range: Monday to Sunday
-    const weekEnd = todayStr;
-    const weekStartDate = new Date(nowIST);
-    weekStartDate.setDate(weekStartDate.getDate() - 6);
+    // Week range: previous Monday to Saturday (full completed week)
+    const weekEndDate = new Date(nowIST);
+    weekEndDate.setDate(weekEndDate.getDate() - 1); // Saturday
+    const weekEnd = weekEndDate.toISOString().split('T')[0];
+    const weekStartDate = new Date(weekEndDate);
+    weekStartDate.setDate(weekStartDate.getDate() - 5); // Monday
     const weekStart = weekStartDate.toISOString().split('T')[0];
 
     const sourceId = `OPS_WEEKLY_REPORT_${weekEnd}`;
@@ -934,7 +936,7 @@ function buildWeeklyReportHTML(
 <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:12px 12px 0 0;padding:28px 32px;color:white">
     <h1 style="margin:0;font-size:24px;font-weight:700">UniConnect Weekly Ops Report</h1>
     <p style="margin:10px 0 0;font-size:16px;opacity:0.95;font-weight:600">${formatDateRange(weekStart, weekEnd)}</p>
-    <p style="margin:6px 0 0;font-size:13px;opacity:0.7">Entire Week Summary | Auto-generated Sunday 8:00 PM IST</p>
+    <p style="margin:6px 0 0;font-size:13px;opacity:0.7">Entire Week Summary | Auto-generated Sunday 12:00 PM IST</p>
 </div>
 
 <!-- KPI Cards — Row 1 -->
@@ -1111,8 +1113,8 @@ export async function processMonthlyReport() {
     const nowIST = getISTNow();
     const hour = nowIST.getHours();
 
-    // Run at 9 PM IST (21:00)
-    if (hour !== 21) return;
+    // Run at 8 PM IST (20:00) on last day of month
+    if (hour !== 20) return;
 
     // Check if today is the last day of the month
     const tomorrow = new Date(nowIST);

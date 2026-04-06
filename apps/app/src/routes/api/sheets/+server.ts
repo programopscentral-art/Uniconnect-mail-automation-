@@ -101,7 +101,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const sheetsApi = getSheetsApiClient(refreshToken);
             const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId });
             const title = sheetName || metadata.data.properties?.title || 'Untitled Sheet';
-            const sheetTabs = (metadata.data.sheets || []).map((s: any) => s.properties?.title || 'Sheet1');
+            const sheetTabs = (metadata.data.sheets || []).map((s: any) => ({
+                name: s.properties?.title || 'Sheet1',
+                gid: s.properties?.sheetId ?? 0
+            }));
 
             // Create the real sheet connection
             const connection = await createSheetConnection({
@@ -163,9 +166,12 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 rows
             });
 
-            // Save tab list to DB so sidebar can show without syncing
-            const tabList = sheets.map(s => s.properties?.title || 'Sheet1');
-            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList);
+            // Save tab list with gid to DB so sidebar can show correct tab + iframe switching works
+            const tabList = sheets.map(s => ({
+                name: s.properties?.title || 'Sheet1',
+                gid: s.properties?.sheetId ?? 0
+            }));
+            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList as any);
 
             console.log(`[SHEETS] Synced ${rows.length} rows from ${tabName} for sheet ${sheetId}`);
             return json({ syncData, tabs: tabList, rowCount: rows.length, headers });
@@ -382,11 +388,15 @@ Format with markdown tables and bullet points.`
 
             const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId: creds.spreadsheet_id });
             const sheetsList = metadata.data.sheets || [];
-            const tabList = sheetsList.map(s => s.properties?.title || 'Sheet1');
+            const tabList = sheetsList.map(s => ({
+                name: s.properties?.title || 'Sheet1',
+                gid: s.properties?.sheetId ?? 0
+            }));
 
             // Sync each tab
             const results = [];
-            for (const tabName of tabList) {
+            for (const tabObj of tabList) {
+                const tabName = tabObj.name;
                 const response = await sheetsApi.spreadsheets.values.get({
                     spreadsheetId: creds.spreadsheet_id,
                     range: `'${tabName}'`
@@ -404,13 +414,52 @@ Format with markdown tables and bullet points.`
                 results.push({ tab: tabName, rows: rowData.length, cols: headers.length });
             }
 
-            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList);
+            await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList as any);
 
             console.log(`[SHEETS] Synced all ${tabList.length} tabs for sheet ${sheetId}`);
             return json({ tabs: tabList, results, totalTabs: tabList.length });
         } catch (err: any) {
             await updateSheetSyncStatus(sheetId, 'ERROR', err.message);
             throw error(500, `Sync all failed: ${err.message}`);
+        }
+    }
+
+    // Rename a sheet connection
+    if (action === 'rename') {
+        const { sheetId, newName } = body;
+        if (!sheetId || !newName?.trim()) throw error(400, 'Missing sheetId or newName');
+        const { db } = await import('@uniconnect/shared');
+        await db.query('UPDATE sheet_connections SET sheet_name = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3', [newName.trim(), sheetId, locals.user.id]);
+        return json({ ok: true });
+    }
+
+    // Get sharing info for a sheet (who it's shared with)
+    if (action === 'sharing-info') {
+        const { sheetId } = body;
+        if (!sheetId) throw error(400, 'Missing sheetId');
+
+        const creds = await getSheetConnectionCredentials(sheetId);
+        if (!creds) throw error(404, 'Sheet connection not found');
+
+        try {
+            const refreshToken = decryptString(creds.refresh_token_enc);
+            const sheetsApi = getSheetsApiClient(refreshToken);
+            // Try to get permissions via Drive API (needs drive.readonly scope — may fail)
+            const { google } = await import('googleapis');
+            const auth = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET
+            );
+            auth.setCredentials({ refresh_token: refreshToken });
+            const drive = google.drive({ version: 'v3', auth });
+            const permsRes = await drive.permissions.list({
+                fileId: creds.spreadsheet_id,
+                fields: 'permissions(id,emailAddress,role,displayName,type)'
+            });
+            return json({ permissions: permsRes.data.permissions || [], connectedAs: creds.google_email });
+        } catch (err: any) {
+            // If scope doesn't allow, return what we know
+            return json({ permissions: [], connectedAs: creds.google_email, error: 'Drive API access not available. Sheet is connected via: ' + creds.google_email });
         }
     }
 

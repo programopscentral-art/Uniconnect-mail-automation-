@@ -28,6 +28,15 @@
     let reportType = $state('summary');
     let generatingReport = $state(false);
 
+    // Rename, sharing, confirm
+    let renamingSheetId = $state<string | null>(null);
+    let renameValue = $state('');
+    let sharingInfo = $state<any>(null);
+    let showSharingFor = $state<string | null>(null);
+    let showSyncConfirm = $state(false);
+    let pendingSyncTab = $state<string | undefined>(undefined);
+    let pendingSyncAll = $state(false);
+
     // Derived
     const sheets = $derived(allConnections.filter((s: any) => !s.spreadsheet_id.startsWith('pending_')));
     const connectedAccount = $derived(allConnections.find((s: any) => s.spreadsheet_id.startsWith('pending_')));
@@ -88,7 +97,8 @@
             await loadSheets();
             if (json.connection) {
                 expandedSheets[json.connection.id] = true;
-                openSheet(json.connection, json.tabs?.[0] || '');
+                const firstTab = json.tabs?.[0];
+                openSheet(json.connection, typeof firstTab === 'string' ? firstTab : firstTab?.name || '');
             }
         } catch (e: any) { linkError = e.message; }
         linkingSheet = false;
@@ -96,22 +106,30 @@
 
     function openSheet(sheet: any, tab?: string) {
         selectedSheet = sheet;
-        selectedTab = tab || getSheetTabs(sheet)[0] || '';
+        selectedTab = tab || getSheetTabs(sheet)[0]?.name || '';
         syncData = null;
         aiContent = '';
         showAiPanel = false;
-        // Auto-sync when opening
-        syncSheet(selectedTab);
     }
 
-    function getSheetTabs(sheet: any): string[] {
+    function getSheetTabs(sheet: any): { name: string; gid: number }[] {
         if (!sheet) return [];
-        if (Array.isArray(sheet.tabs) && sheet.tabs.length > 0) return sheet.tabs;
-        // Try parsing if it's a JSON string
-        if (typeof sheet.tabs === 'string') {
-            try { return JSON.parse(sheet.tabs); } catch { return []; }
+        let tabs: any[] = [];
+        if (Array.isArray(sheet.tabs)) tabs = sheet.tabs;
+        else if (typeof sheet.tabs === 'string') {
+            try { tabs = JSON.parse(sheet.tabs); } catch { return []; }
         }
-        return [];
+        // Normalize: support both old string[] format and new {name, gid}[] format
+        return tabs.map((t: any) => {
+            if (typeof t === 'string') return { name: t, gid: 0 };
+            return { name: t.name || 'Sheet1', gid: t.gid ?? 0 };
+        });
+    }
+
+    function getTabGid(sheet: any, tabName: string): number {
+        const tabs = getSheetTabs(sheet);
+        const found = tabs.find(t => t.name === tabName);
+        return found?.gid ?? 0;
     }
 
     function toggleExpand(sheetId: string) {
@@ -198,7 +216,7 @@
     }
 
     async function disconnectSheet(sheetId: string) {
-        if (!confirm('Remove this sheet from UniConnect?')) return;
+        if (!confirm('Are you sure you want to permanently delete this sheet from UniConnect? All synced data will be removed. This cannot be undone.')) return;
         try {
             await fetch('/api/sheets', {
                 method: 'POST',
@@ -210,11 +228,53 @@
         } catch (e) { console.error('Failed to disconnect:', e); }
     }
 
+    async function renameSheet(sheetId: string) {
+        if (!renameValue.trim()) return;
+        try {
+            await fetch('/api/sheets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'rename', sheetId, newName: renameValue.trim() })
+            });
+            renamingSheetId = null;
+            renameValue = '';
+            await loadSheets();
+        } catch (e) { console.error('Failed to rename:', e); }
+    }
+
+    async function loadSharingInfo(sheetId: string) {
+        showSharingFor = sheetId;
+        sharingInfo = null;
+        try {
+            const res = await fetch('/api/sheets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'sharing-info', sheetId })
+            });
+            sharingInfo = await res.json();
+        } catch { sharingInfo = { error: 'Failed to load sharing info' }; }
+    }
+
+    function confirmSync(tab?: string, all = false) {
+        pendingSyncTab = tab;
+        pendingSyncAll = all;
+        showSyncConfirm = true;
+    }
+
+    async function executeSyncAfterConfirm() {
+        showSyncConfirm = false;
+        if (pendingSyncAll) {
+            await syncAllTabs();
+        } else {
+            await syncSheet(pendingSyncTab);
+        }
+    }
+
     function getEditUrl(sheetUrl: string, tab?: string) {
         if (!sheetUrl) return '';
         const base = sheetUrl.replace(/\/edit.*$/, '').replace(/\/$/, '');
-        // If tab specified, add gid parameter (tab index)
-        return base + '/edit';
+        const gid = tab && selectedSheet ? getTabGid(selectedSheet, tab) : 0;
+        return base + '/edit#gid=' + gid;
     }
 
     function formatDate(d: string) {
@@ -357,39 +417,60 @@
                             {@const isExpanded = expandedSheets[sheet.id]}
                             <!-- Main Sheet -->
                             <div>
-                                <div role="button" tabindex="0" onclick={() => { toggleExpand(sheet.id); if (!isExpanded) openSheet(sheet); }}
-                                    onkeydown={(e) => { if (e.key === 'Enter') { toggleExpand(sheet.id); if (!isExpanded) openSheet(sheet); } }}
-                                    class="w-full text-left px-2.5 py-2 rounded-lg transition-all group cursor-pointer flex items-center gap-2
-                                        {selectedSheet?.id === sheet.id ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}">
-                                    <!-- Expand arrow -->
-                                    <svg class="w-3 h-3 text-slate-400 transition-transform shrink-0 {isExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                                    </svg>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs font-semibold text-slate-900 dark:text-white truncate">{sheet.sheet_name}</p>
-                                        <p class="text-[9px] text-slate-400">{tabs.length} tab{tabs.length !== 1 ? 's' : ''} {#if sheet.last_synced_at}· {formatDate(sheet.last_synced_at)}{/if}</p>
+                                {#if renamingSheetId === sheet.id}
+                                    <div class="px-2 py-1.5 flex items-center gap-1">
+                                        <input type="text" bind:value={renameValue} class="flex-1 px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-emerald-400 rounded text-slate-900 dark:text-white focus:outline-none" onkeydown={(e) => { if (e.key === 'Enter') renameSheet(sheet.id); if (e.key === 'Escape') renamingSheetId = null; }} />
+                                        <button onclick={() => renameSheet(sheet.id)} class="text-emerald-500 hover:text-emerald-600 p-0.5">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                        </button>
+                                        <button onclick={() => renamingSheetId = null} class="text-slate-400 hover:text-slate-500 p-0.5">
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
                                     </div>
-                                    <button onclick={(e) => { e.stopPropagation(); disconnectSheet(sheet.id); }}
-                                        class="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600 transition-all shrink-0">
-                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                {:else}
+                                    <div role="button" tabindex="0" onclick={() => { toggleExpand(sheet.id); if (!isExpanded) openSheet(sheet); }}
+                                        onkeydown={(e) => { if (e.key === 'Enter') { toggleExpand(sheet.id); if (!isExpanded) openSheet(sheet); } }}
+                                        class="w-full text-left px-2.5 py-2 rounded-lg transition-all group cursor-pointer flex items-center gap-2
+                                            {selectedSheet?.id === sheet.id ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}">
+                                        <!-- Expand arrow -->
+                                        <svg class="w-3 h-3 text-slate-400 transition-transform shrink-0 {isExpanded ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                         </svg>
-                                    </button>
-                                </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-xs font-semibold text-slate-900 dark:text-white truncate">{sheet.sheet_name}</p>
+                                            <p class="text-[9px] text-slate-400">{tabs.length} tab{tabs.length !== 1 ? 's' : ''} {#if sheet.last_synced_at}· {formatDate(sheet.last_synced_at)}{/if}</p>
+                                        </div>
+                                        <!-- Action buttons on hover -->
+                                        <div class="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 shrink-0">
+                                            <button onclick={(e) => { e.stopPropagation(); renameValue = sheet.sheet_name; renamingSheetId = sheet.id; }}
+                                                class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-blue-500 transition-all" title="Rename sheet">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                            </button>
+                                            <button onclick={(e) => { e.stopPropagation(); loadSharingInfo(sheet.id); }}
+                                                class="p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-emerald-500 transition-all" title="View sharing info">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                            </button>
+                                            <button onclick={(e) => { e.stopPropagation(); disconnectSheet(sheet.id); }}
+                                                class="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-all" title="Delete sheet">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {/if}
 
                                 <!-- Sub-tabs (expandable) -->
                                 {#if isExpanded && tabs.length > 0}
                                     <div class="ml-5 mt-0.5 space-y-0.5" transition:slide={{ duration: 150 }}>
                                         {#each tabs as tab}
-                                            <button onclick={() => { selectedTab = tab; openSheet(sheet, tab); }}
+                                            <button onclick={() => { selectedTab = tab.name; openSheet(sheet, tab.name); }}
                                                 class="w-full text-left px-2.5 py-1.5 rounded-md text-[11px] transition-all flex items-center gap-1.5
-                                                    {selectedSheet?.id === sheet.id && selectedTab === tab
+                                                    {selectedSheet?.id === sheet.id && selectedTab === tab.name
                                                         ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold'
                                                         : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}">
                                                 <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586"/>
                                                 </svg>
-                                                <span class="truncate">{tab}</span>
+                                                <span class="truncate">{tab.name}</span>
                                             </button>
                                         {/each}
                                     </div>
@@ -420,7 +501,7 @@
                                 {/if}
                             </div>
                             <div class="flex items-center gap-1.5">
-                                <button onclick={() => syncSheet()} disabled={syncing}
+                                <button onclick={() => confirmSync(selectedTab)} disabled={syncing}
                                     class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1 disabled:opacity-50">
                                     {#if syncing}
                                         <div class="w-3 h-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
@@ -431,7 +512,7 @@
                                     {/if}
                                     Sync
                                 </button>
-                                <button onclick={syncAllTabs} disabled={syncing}
+                                <button onclick={() => confirmSync(undefined, true)} disabled={syncing}
                                     class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-[11px] font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all flex items-center gap-1 disabled:opacity-50">
                                     Sync All Tabs
                                 </button>
@@ -615,6 +696,105 @@
                     {/if}
                 </button>
             </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Sync Confirmation Modal -->
+{#if showSyncConfirm}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-700 shadow-xl space-y-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Confirm Data Sync</h3>
+                    <p class="text-sm text-slate-500">Please verify before syncing</p>
+                </div>
+            </div>
+            <div class="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                <p><strong>Before syncing, please check:</strong></p>
+                <ul class="list-disc ml-4 space-y-1 text-xs">
+                    <li>All data in the sheet is correct and up to date</li>
+                    <li>Column headers are properly labeled</li>
+                    <li>No empty or duplicate rows that shouldn't be there</li>
+                    <li>Numbers, dates, and text are formatted correctly</li>
+                </ul>
+            </div>
+            <p class="text-xs text-slate-500">
+                {pendingSyncAll
+                    ? `This will sync ALL tabs of "${selectedSheet?.sheet_name}" to UniConnect.`
+                    : `This will sync the "${pendingSyncTab || selectedTab}" tab to UniConnect.`}
+                Synced data will be stored in the database.
+            </p>
+            <div class="flex gap-2">
+                <button onclick={() => showSyncConfirm = false}
+                    class="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+                    Cancel
+                </button>
+                <button onclick={executeSyncAfterConfirm}
+                    class="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">
+                    Yes, Sync Now
+                </button>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- Sharing Info Modal -->
+{#if showSharingFor}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-700 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Sheet Sharing Info</h3>
+                <button onclick={() => { showSharingFor = null; sharingInfo = null; }}
+                    class="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            {#if !sharingInfo}
+                <div class="flex items-center justify-center py-6">
+                    <div class="w-6 h-6 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+                    <span class="ml-2 text-sm text-slate-500">Loading sharing info...</span>
+                </div>
+            {:else}
+                {#if sharingInfo.connectedAs}
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-3 text-sm">
+                        <p class="text-emerald-800 dark:text-emerald-300"><strong>Connected via:</strong> {sharingInfo.connectedAs}</p>
+                    </div>
+                {/if}
+                {#if sharingInfo.permissions?.length > 0}
+                    <div class="space-y-2">
+                        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Shared With</p>
+                        {#each sharingInfo.permissions as perm}
+                            <div class="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-xs">
+                                    {(perm.displayName || perm.emailAddress || perm.type || '?')[0].toUpperCase()}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{perm.displayName || perm.emailAddress || perm.type}</p>
+                                    {#if perm.emailAddress}<p class="text-xs text-slate-500 truncate">{perm.emailAddress}</p>{/if}
+                                </div>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-semibold
+                                    {perm.role === 'owner' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
+                                     perm.role === 'writer' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                     'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'}">
+                                    {perm.role}
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+                {:else if sharingInfo.error}
+                    <p class="text-sm text-slate-500">{sharingInfo.error}</p>
+                {:else}
+                    <p class="text-sm text-slate-500">No sharing information available. The sheet is accessed via the connected Google account.</p>
+                {/if}
+            {/if}
         </div>
     </div>
 {/if}
