@@ -770,7 +770,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: getFloat(values, 'avg_hours_instructors'),
                 avg_hours_coaches: getFloat(values, 'avg_hours_coaches'),
                 avg_hours_program_ops: getFloat(values, 'avg_hours_program_ops'),
-                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason') || null,
+                cancellation_reason: getVal(values, 'cancellation_reason', 'cancel_reason', 'remarks') || null,
             });
         }
     }
