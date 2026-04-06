@@ -12,10 +12,16 @@ export interface SheetConnection {
     google_email: string;
     scopes: string;
     status: 'ACTIVE' | 'REVOKED' | 'ERROR';
+    visibility: 'private' | 'auto' | 'university';
+    shared_emails: string[];
     last_synced_at: Date | null;
     sync_error: string | null;
     created_at: Date;
     updated_at: Date;
+    // Computed fields from query
+    is_owner?: boolean;
+    owner_name?: string;
+    tabs?: any;
 }
 
 export interface SheetSyncData {
@@ -69,6 +75,10 @@ export async function ensureSheetSchema() {
 
         -- Add tabs column if not exists
         ALTER TABLE sheet_connections ADD COLUMN IF NOT EXISTS tabs JSONB DEFAULT '[]';
+
+        -- Add visibility and shared_emails columns for auto-sharing
+        ALTER TABLE sheet_connections ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'auto' CHECK (visibility IN ('private', 'auto', 'university'));
+        ALTER TABLE sheet_connections ADD COLUMN IF NOT EXISTS shared_emails JSONB DEFAULT '[]';
     `);
 }
 
@@ -103,14 +113,23 @@ export async function createSheetConnection(data: {
     return result.rows[0];
 }
 
-export async function getSheetConnections(userId: string): Promise<SheetConnection[]> {
+export async function getSheetConnections(userId: string, userEmail?: string): Promise<SheetConnection[]> {
+    // Get own sheets + sheets shared with this user's email via Google Sheets
+    const emailLower = (userEmail || '').toLowerCase();
     const result = await db.query(
-        `SELECT sc.*, u.name as university_name
+        `SELECT sc.*, u.name as university_name,
+            CASE WHEN sc.user_id = $1 THEN true ELSE false END as is_owner,
+            (SELECT usr.name FROM users usr WHERE usr.id = sc.user_id LIMIT 1) as owner_name
          FROM sheet_connections sc
          LEFT JOIN universities u ON sc.university_id = u.id
-         WHERE sc.user_id = $1 AND sc.status != 'REVOKED'
+         WHERE sc.status != 'REVOKED'
+           AND (
+               sc.user_id = $1
+               OR (sc.visibility != 'private' AND $2 != '' AND sc.shared_emails ? $2)
+               OR (sc.visibility = 'university' AND sc.university_id = (SELECT university_id FROM users WHERE id = $1))
+           )
          ORDER BY sc.updated_at DESC`,
-        [userId]
+        [userId, emailLower]
     );
     return result.rows;
 }
@@ -157,6 +176,13 @@ export async function deleteSheetConnection(id: string, userId: string) {
     await db.query(
         `UPDATE sheet_connections SET status = 'REVOKED', updated_at = NOW() WHERE id = $1 AND user_id = $2`,
         [id, userId]
+    );
+}
+
+export async function updateSheetSharedEmails(id: string, emails: string[]) {
+    await db.query(
+        `UPDATE sheet_connections SET shared_emails = $2, updated_at = NOW() WHERE id = $1`,
+        [id, JSON.stringify(emails)]
     );
 }
 

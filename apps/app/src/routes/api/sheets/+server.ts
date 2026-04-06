@@ -18,12 +18,41 @@ import {
     importStudentsFromSheet,
     importEventsFromSheet,
     importTasksFromSheet,
-    importCustomData
+    importCustomData,
+    updateSheetSharedEmails
 } from '@uniconnect/shared';
 import type { ColumnMapping, UniConnectTarget } from '@uniconnect/shared';
 import { getSheetsAuthUrl, getSheetsApiClient, extractSpreadsheetId } from '$lib/server/sheets_auth';
 
 process.env.ENCRYPTION_KEY_BASE64 = env.ENCRYPTION_KEY_BASE64;
+
+// Fetch Google Sheet permissions and store shared emails
+async function syncGooglePermissions(refreshToken: string, spreadsheetId: string, connectionId: string) {
+    try {
+        const { google } = await import('googleapis');
+        const auth = new google.auth.OAuth2(
+            env.GOOGLE_CLIENT_ID?.trim(),
+            env.GOOGLE_CLIENT_SECRET?.trim()
+        );
+        auth.setCredentials({ refresh_token: refreshToken });
+        const drive = google.drive({ version: 'v3', auth });
+        const permResp = await drive.permissions.list({
+            fileId: spreadsheetId,
+            fields: 'permissions(emailAddress,role,type,displayName)'
+        });
+        const permissions = permResp.data.permissions || [];
+        const sharedEmails = permissions
+            .filter((p: any) => p.emailAddress && p.type === 'user')
+            .map((p: any) => p.emailAddress.toLowerCase());
+        await updateSheetSharedEmails(connectionId, sharedEmails);
+        console.log(`[SHEETS] Synced ${sharedEmails.length} shared emails for ${connectionId}`);
+        return sharedEmails;
+    } catch (e: any) {
+        // Drive permissions may require drive.readonly scope — gracefully degrade
+        console.warn(`[SHEETS] Failed to sync Google permissions for ${connectionId}: ${e.message}`);
+        return [];
+    }
+}
 
 // Ensure schema on first load
 let schemaReady = false;
@@ -46,9 +75,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         return json({ url: authUrl });
     }
 
-    // List user's connected sheets
+    // List user's connected sheets + sheets shared with them via Google
     if (action === 'list') {
-        const sheets = await getSheetConnections(locals.user.id);
+        const sheets = await getSheetConnections(locals.user.id, locals.user.email);
 
         // Auto-refresh tab gids for sheets that have tabs stored as plain strings (no gid)
         for (const sheet of sheets) {
@@ -118,7 +147,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         if (!spreadsheetId) throw error(400, 'Invalid Google Sheets URL');
 
         // Find the user's active connection to get the refresh token
-        const connections = await getSheetConnections(locals.user.id);
+        const connections = await getSheetConnections(locals.user.id, locals.user.email);
         const pendingConn = connections.find(c => c.spreadsheet_id.startsWith('pending_'));
 
         if (!pendingConn) {
@@ -156,6 +185,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (sheetTabs.length > 0) {
                 await updateSheetSyncStatus(connection.id, 'ACTIVE', undefined, sheetTabs);
             }
+
+            // Sync Google Sheets permissions so shared users auto-see the sheet
+            syncGooglePermissions(refreshToken, spreadsheetId, connection.id);
 
             console.log(`[SHEETS] Linked sheet: ${title} (${spreadsheetId}) with ${sheetTabs.length} tabs for user ${locals.user.id}`);
             return json({ connection: { ...connection, tabs: sheetTabs }, sheetTitle: title, tabs: sheetTabs });
@@ -206,6 +238,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 gid: s.properties?.sheetId ?? 0
             }));
             await updateSheetSyncStatus(sheetId, 'ACTIVE', undefined, tabList as any);
+
+            // Refresh Google permissions in background
+            syncGooglePermissions(refreshToken, creds.spreadsheet_id, sheetId);
 
             console.log(`[SHEETS] Synced ${rows.length} rows from ${tabName} for sheet ${sheetId}`);
             return json({ syncData, tabs: tabList, rowCount: rows.length, headers });
@@ -545,22 +580,22 @@ Format with markdown tables and bullet points.`
 
         try {
             const refreshToken = decryptString(creds.refresh_token_enc);
-            const sheetsApi = getSheetsApiClient(refreshToken);
-            // Try to get permissions via Drive API (needs drive.readonly scope — may fail)
             const { google } = await import('googleapis');
-            const auth = new google.auth.OAuth2(
-                process.env.GOOGLE_CLIENT_ID || env.GOOGLE_CLIENT_ID,
-                process.env.GOOGLE_CLIENT_SECRET || env.GOOGLE_CLIENT_SECRET
-            );
+            const auth = new google.auth.OAuth2(env.GOOGLE_CLIENT_ID?.trim(), env.GOOGLE_CLIENT_SECRET?.trim());
             auth.setCredentials({ refresh_token: refreshToken });
             const drive = google.drive({ version: 'v3', auth });
             const permsRes = await drive.permissions.list({
                 fileId: creds.spreadsheet_id,
                 fields: 'permissions(id,emailAddress,role,displayName,type)'
             });
-            return json({ permissions: permsRes.data.permissions || [], connectedAs: creds.google_email });
+            const permissions = permsRes.data.permissions || [];
+            // Also update shared_emails in background
+            const sharedEmails = permissions
+                .filter((p: any) => p.emailAddress && p.type === 'user')
+                .map((p: any) => p.emailAddress.toLowerCase());
+            updateSheetSharedEmails(sheetId, sharedEmails);
+            return json({ permissions, connectedAs: creds.google_email });
         } catch (err: any) {
-            // If scope doesn't allow, return what we know
             return json({ permissions: [], connectedAs: creds.google_email, error: 'Drive API access not available. Sheet is connected via: ' + creds.google_email });
         }
     }

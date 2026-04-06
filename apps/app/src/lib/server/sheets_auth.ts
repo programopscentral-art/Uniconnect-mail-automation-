@@ -21,7 +21,8 @@ export function getSheetsAuthUrl(userId: string) {
         access_type: 'offline',
         scope: [
             'https://www.googleapis.com/auth/spreadsheets.readonly',
-            'https://www.googleapis.com/auth/userinfo.email'
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/drive.metadata.readonly'
         ],
         prompt: 'consent',
         state: userId,
