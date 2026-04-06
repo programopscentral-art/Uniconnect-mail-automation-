@@ -339,24 +339,56 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!baseUrl) throw error(400, 'Sheet URL required');
 
             try {
-                // Extract sheet ID from URL
-                const sheetIdMatch = baseUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-                if (!sheetIdMatch) {
-                    return json({ success: false, error: 'Could not extract Google Sheet ID from URL. Use a standard Google Sheets URL.' }, { status: 400 });
+                // Extract sheet ID from URL — handle both edit and published URLs
+                // Edit URL: /spreadsheets/d/SHEET_ID/edit
+                // Published URL: /spreadsheets/d/e/PUBLISHED_KEY/pubhtml
+                let sheetId: string;
+                let isPublishedUrl = false;
+                const pubMatch = baseUrl.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+                const editMatch = baseUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+                if (pubMatch) {
+                    // Published URL — try to find the real sheet ID from the published page
+                    isPublishedUrl = true;
+                    sheetId = ''; // will be extracted from pubhtml
+                    try {
+                        const pubHtmlUrl = `https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pubhtml`;
+                        const pubResp = await fetch(pubHtmlUrl, { redirect: 'follow' });
+                        if (pubResp.ok) {
+                            const pubHtml = await pubResp.text();
+                            // Extract real sheet ID from published HTML (look for /spreadsheets/d/REAL_ID/)
+                            const realIdMatch = pubHtml.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]{20,})(?:\/|")/);
+                            if (realIdMatch) {
+                                sheetId = realIdMatch[1];
+                                console.log(`[OPS] Extracted real sheet ID from published URL: ${sheetId}`);
+                            }
+                        }
+                    } catch {}
+                    // Fallback: use the published key (works with /pub?output=csv)
+                    if (!sheetId) sheetId = pubMatch[1];
+                } else if (editMatch && editMatch[1] !== 'e') {
+                    sheetId = editMatch[1];
+                } else {
+                    return json({ success: false, error: 'Could not extract Google Sheet ID from URL. Use the Google Sheets URL from your browser address bar. Example: https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit' }, { status: 400 });
                 }
-                const sheetId = sheetIdMatch[1];
 
                 // Save config
                 const config = await upsertOpsSheetConfig(baseUrl, locals.user.id);
 
-                // Discover sheet tabs — try multiple methods for shared (not published) sheets
+                // Discover sheet tabs — try multiple methods
                 let html = '';
-                const urlsToTry = [
-                    `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
-                    `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`,
-                    `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
-                    `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=0&tq=SELECT%20*%20LIMIT%200`,
-                ];
+                const urlsToTry = isPublishedUrl
+                    ? [
+                        `https://docs.google.com/spreadsheets/d/e/${pubMatch![1]}/pubhtml`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+                    ]
+                    : [
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/pubhtml`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/edit`,
+                        `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=0&tq=SELECT%20*%20LIMIT%200`,
+                    ];
                 for (const tryUrl of urlsToTry) {
                     try {
                         const htmlResp = await fetch(tryUrl, {
@@ -501,12 +533,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                 for (const tab of dateTabsRaw) {
                     try {
-                        // Try both export URL patterns — /export works for shared sheets, /pub works for published
+                        // Try multiple export URL patterns
                         let csvText = '';
-                        for (const csvUrl of [
+                        const csvUrls = [
                             `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${tab.gid}`,
-                            `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=csv&gid=${tab.gid}`
-                        ]) {
+                            `https://docs.google.com/spreadsheets/d/${sheetId}/pub?output=csv&gid=${tab.gid}`,
+                        ];
+                        // For published URLs, also try with the published key
+                        if (isPublishedUrl && pubMatch) {
+                            csvUrls.unshift(`https://docs.google.com/spreadsheets/d/e/${pubMatch[1]}/pub?output=csv&gid=${tab.gid}`);
+                        }
+                        for (const csvUrl of csvUrls) {
                             const csvResp = await fetch(csvUrl, { redirect: 'follow' });
                             if (csvResp.ok) {
                                 csvText = await csvResp.text();

@@ -291,6 +291,43 @@
         isSyncing = false;
     }
 
+    // Bulk load: auto-discover ALL tabs from the sheet, parse date-named tabs, load them all
+    async function bulkLoadAllTabs() {
+        if (!sheetUrl) return;
+        isSyncing = true;
+        syncError = '';
+        syncSuccess = '';
+        try {
+            // Convert published URL (/d/e/...) to edit URL if needed
+            let normalizedUrl = sheetUrl;
+            const pubMatch = sheetUrl.match(/\/spreadsheets\/d\/e\/([a-zA-Z0-9_-]+)/);
+            if (pubMatch) {
+                // Published URL — extract the key differently; try using the URL as-is
+                // The sync-sheet-tabs endpoint will handle extraction
+            }
+
+            const res = await fetch('/api/ops', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'sync-sheet-tabs', sheetUrl: normalizedUrl })
+            });
+            const result = await res.json();
+            if (result.success) {
+                syncSuccess = result.message || `Loaded ${result.rowsProcessed} rows across ${result.dates?.length || 0} date(s)`;
+                if (result.errors?.length) {
+                    syncError = `Some tabs had issues: ${result.errors.join('; ')}`;
+                }
+                await loadViewData();
+            } else {
+                syncError = result.error || 'Bulk load failed';
+            }
+        } catch (e: any) {
+            syncError = e.message || 'Network error during bulk load';
+        } finally {
+            isSyncing = false;
+        }
+    }
+
     function navigateTo(view: string) {
         activeView = view;
     }
@@ -916,12 +953,20 @@
                     {isSyncing ? 'Syncing...' : 'Load data'}
                 </button>
                 <button
-                    onclick={() => showBulkPicker = !showBulkPicker}
+                    onclick={bulkLoadAllTabs}
                     disabled={isSyncing || !sheetUrl}
                     class="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
-                    title="Load data for multiple dates at once"
+                    title="Auto-discover all date tabs from the sheet and load them all at once"
                 >
-                    Multi-date Load
+                    {isSyncing ? 'Loading all tabs...' : 'Bulk Load (All Tabs)'}
+                </button>
+                <button
+                    onclick={() => showBulkPicker = !showBulkPicker}
+                    disabled={isSyncing || !sheetUrl}
+                    class="px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-xs rounded transition-colors"
+                    title="Pick specific dates to load"
+                >
+                    Pick Dates
                 </button>
                 <div class="flex items-center gap-1 ml-2">
                     <button
