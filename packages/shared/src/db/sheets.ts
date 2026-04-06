@@ -128,7 +128,7 @@ export async function getSheetConnectionCredentials(id: string) {
     return result.rows[0] || null;
 }
 
-export async function updateSheetSyncStatus(id: string, status: 'ACTIVE' | 'ERROR', error?: string, tabs?: string[]) {
+export async function updateSheetSyncStatus(id: string, status: 'ACTIVE' | 'ERROR', error?: string, tabs?: Array<string | { name: string; gid: number }>) {
     if (tabs) {
         await db.query(
             `UPDATE sheet_connections SET

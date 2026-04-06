@@ -49,6 +49,34 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     // List user's connected sheets
     if (action === 'list') {
         const sheets = await getSheetConnections(locals.user.id);
+
+        // Auto-refresh tab gids for sheets that have tabs stored as plain strings (no gid)
+        for (const sheet of sheets) {
+            if (sheet.spreadsheet_id?.startsWith('pending_')) continue;
+            let tabs: any[] = [];
+            if (typeof sheet.tabs === 'string') { try { tabs = JSON.parse(sheet.tabs); } catch { tabs = []; } }
+            else if (Array.isArray(sheet.tabs)) tabs = sheet.tabs;
+            const needsGidRefresh = tabs.length > 0 && tabs.some((t: any) => typeof t === 'string' || t.gid === undefined || t.gid === null);
+            if (needsGidRefresh) {
+                try {
+                    const creds = await getSheetConnectionCredentials(sheet.id);
+                    if (creds?.refresh_token_enc) {
+                        const refreshToken = decryptString(creds.refresh_token_enc);
+                        const sheetsApi = getSheetsApiClient(refreshToken);
+                        const metadata = await sheetsApi.spreadsheets.get({ spreadsheetId: creds.spreadsheet_id });
+                        const freshTabs = (metadata.data.sheets || []).map((s: any) => ({
+                            name: s.properties?.title || 'Sheet1',
+                            gid: s.properties?.sheetId ?? 0
+                        }));
+                        await updateSheetSyncStatus(sheet.id, 'ACTIVE', undefined, freshTabs as any);
+                        sheet.tabs = freshTabs;
+                    }
+                } catch (e) {
+                    console.warn(`[SHEETS] Failed to refresh tab gids for ${sheet.id}:`, e);
+                }
+            }
+        }
+
         return json({ sheets });
     }
 
