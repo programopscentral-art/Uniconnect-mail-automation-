@@ -106,6 +106,16 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             }
         }
 
+        // Background: refresh Google Drive permissions for owned sheets so sharing stays current
+        const ownedSheets = sheets.filter(s => s.is_owner !== false && !s.spreadsheet_id?.startsWith('pending_'));
+        for (const sheet of ownedSheets) {
+            const creds = await getSheetConnectionCredentials(sheet.id);
+            if (creds?.refresh_token_enc) {
+                const rt = decryptString(creds.refresh_token_enc);
+                syncGooglePermissions(rt, creds.spreadsheet_id, sheet.id);
+            }
+        }
+
         return json({ sheets });
     }
 
