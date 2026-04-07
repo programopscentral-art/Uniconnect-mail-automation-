@@ -12,11 +12,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
-    // Only load universities list (lightweight) for the filter dropdown
-    const effectiveUniversityId = (universityId && universityId !== '') ? universityId : undefined;
-    const hasMultipleUnivs = (locals.user as any).universities?.length > 1;
+    // Load universities for the filter dropdown
+    const userUnivs: Array<{ id: string; is_team?: boolean }> = (locals.user as any).universities || [];
+    const hasMultipleUnivs = userUnivs.length > 1;
     const canViewUniversities = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS', 'BOA', 'CMA', 'CMA_MANAGER', 'SET_REVIEWER', 'UNIVERSITY_OPERATOR', 'SUPPORT', 'STAKEHOLDER'].includes(locals.user.role as string) || hasMultipleUnivs;
-    const universities = canViewUniversities ? await getAllUniversities(effectiveUniversityId) : [];
+
+    // For the dropdown: use the user's team entry (if any) to resolve visible universities.
+    // getAllUniversities(teamId) finds real universities via team members' junction entries.
+    // Always use team ID (not the currently selected university) so the dropdown stays stable.
+    const teamEntry = userUnivs.find(u => u.is_team);
+    const universities = canViewUniversities ? await getAllUniversities(teamEntry?.id) : [];
 
     return {
         universities,
