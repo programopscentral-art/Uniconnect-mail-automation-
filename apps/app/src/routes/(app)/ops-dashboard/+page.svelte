@@ -19,6 +19,9 @@
     let isDownloading = $state(false);
     let isSendingReport = $state(false);
     let sendReportMsg = $state('');
+    let showEmailPicker = $state<'daily' | 'weekly' | 'monthly' | null>(null);
+    let showEmailWeekPicker = $state(false);
+    let showEmailMonthPicker = $state(false);
     let showReportPicker = $state<'weekly' | 'monthly' | null>(null);
 
     // Generate week options for a given month — proper calendar weeks
@@ -399,18 +402,31 @@
         }
     }
 
-    async function sendReportEmail() {
+    async function sendReportEmail(type: 'daily' | 'weekly' | 'monthly' = 'daily', opts?: { weekStart?: string; weekEnd?: string; year?: number; month?: number }) {
         isSendingReport = true;
         sendReportMsg = '';
+        showEmailPicker = null;
+        showEmailWeekPicker = false;
+        showEmailMonthPicker = false;
         try {
+            const payload: any = { type };
+            if (type === 'daily') {
+                payload.date = selectedDate;
+            } else if (type === 'weekly' && opts?.weekStart && opts?.weekEnd) {
+                payload.weekStart = opts.weekStart;
+                payload.weekEnd = opts.weekEnd;
+            } else if (type === 'monthly' && opts?.year && opts?.month) {
+                payload.year = opts.year;
+                payload.month = opts.month;
+            }
             const res = await fetch('/api/ops/send-report', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ date: selectedDate })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.success) {
-                sendReportMsg = `Report email sent to ${data.recipients?.length || 0} admin(s)`;
+                sendReportMsg = `${type.charAt(0).toUpperCase() + type.slice(1)} report sent to ${data.recipients?.length || 0} admin(s)`;
                 setTimeout(() => { sendReportMsg = ''; }, 5000);
             } else {
                 sendReportMsg = `Failed: ${data.error || 'Unknown error'}`;
@@ -1196,12 +1212,54 @@
                         </div>
                     {/if}
                     <span class="mx-1 text-gray-600">|</span>
-                    <button onclick={sendReportEmail} disabled={isSendingReport} class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs rounded transition-colors flex items-center gap-1" title="Email daily report to all admins">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        {isSendingReport ? 'Sending...' : 'Email Report'}
-                    </button>
+                    <!-- Email Report Dropdown -->
+                    <div class="relative">
+                        <button onclick={() => { showEmailPicker = showEmailPicker ? null : 'daily'; showEmailWeekPicker = false; showEmailMonthPicker = false; }} disabled={isSendingReport} class="px-2 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs rounded transition-colors flex items-center gap-1" title="Email report to all admins">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                            {isSendingReport ? 'Sending...' : 'Email Report'}
+                            <svg class="w-3 h-3 ml-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        {#if showEmailPicker && !isSendingReport}
+                            <div class="absolute top-full right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 w-56 overflow-hidden">
+                                <div class="px-3 py-2 border-b border-gray-700 text-xs text-gray-400 font-semibold">Send Report Email</div>
+                                <!-- Daily -->
+                                <button onclick={() => sendReportEmail('daily')} class="w-full text-left px-3 py-2.5 text-sm text-white hover:bg-emerald-600/30 transition-colors border-b border-gray-700/50 flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                                    Daily Report ({selectedDate})
+                                </button>
+                                <!-- Weekly -->
+                                <button onclick={() => { showEmailWeekPicker = !showEmailWeekPicker; showEmailMonthPicker = false; }} class="w-full text-left px-3 py-2.5 text-sm text-white hover:bg-purple-600/30 transition-colors border-b border-gray-700/50 flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-purple-500"></span> Weekly Report</span>
+                                    <svg class="w-3 h-3 text-gray-500 {showEmailWeekPicker ? 'rotate-180' : ''} transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                {#if showEmailWeekPicker}
+                                    <div class="max-h-40 overflow-y-auto bg-gray-900/50">
+                                        {#each getWeekOptions() as w}
+                                            <button onclick={() => sendReportEmail('weekly', { weekStart: w.start, weekEnd: w.end })} class="w-full text-left px-5 py-2 text-xs text-gray-300 hover:bg-purple-600/20 transition-colors border-b border-gray-700/30">
+                                                {w.label}
+                                            </button>
+                                        {/each}
+                                    </div>
+                                {/if}
+                                <!-- Monthly -->
+                                <button onclick={() => { showEmailMonthPicker = !showEmailMonthPicker; showEmailWeekPicker = false; }} class="w-full text-left px-3 py-2.5 text-sm text-white hover:bg-green-600/30 transition-colors flex items-center justify-between">
+                                    <span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500"></span> Monthly Report</span>
+                                    <svg class="w-3 h-3 text-gray-500 {showEmailMonthPicker ? 'rotate-180' : ''} transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                </button>
+                                {#if showEmailMonthPicker}
+                                    <div class="max-h-40 overflow-y-auto bg-gray-900/50">
+                                        {#each getMonthOptions() as m}
+                                            <button onclick={() => sendReportEmail('monthly', { year: m.year, month: m.month })} class="w-full text-left px-5 py-2 text-xs text-gray-300 hover:bg-green-600/20 transition-colors border-b border-gray-700/30">
+                                                {m.label}
+                                            </button>
+                                        {/each}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
                     {#if sendReportMsg}
-                        <span class="text-xs {sendReportMsg.startsWith('Report') ? 'text-green-400' : 'text-red-400'} ml-1">{sendReportMsg}</span>
+                        <span class="text-xs {sendReportMsg.includes('sent') || sendReportMsg.includes('Report') ? 'text-green-400' : 'text-red-400'} ml-1">{sendReportMsg}</span>
                     {/if}
                 </div>
             </div>

@@ -600,137 +600,113 @@ function buildDailyReportHTML(date: string, report: any, compliance: any[], aiSu
     const kpiColor = (value: number, good: number, warn: number) =>
         value >= good ? '#10b981' : value >= warn ? '#f59e0b' : '#ef4444';
 
-    // University rows for table
+    const cleanAI = aiSummary
+        .replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^[-*]\s+/gm, '')
+        .split('\n').filter(l => l.trim())
+        .map(p => `<p style="margin:0 0 10px;font-size:14px;line-height:1.65;color:#374151">${p.trim()}</p>`)
+        .join('');
+
+    const dashUrl = 'https://uniconnect-app.up.railway.app/ops-dashboard';
+    const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=daily&date=${date}`;
+
     const univRows = byUniv.map((r: any) => {
         const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
         const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
         return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.sessions_completed)}/${n(r.sessions_planned)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uSess, 90, 70)}">${uSess}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.attended)}/${n(r.enrolled)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.at_risk_total)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coach_calls)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.events_executed)}/${n(r.events_planned)}</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${r.university_name}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uSess, 90, 70)}">${uSess}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.sessions_completed)}/${n(r.sessions_planned)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.attended)}/${n(r.enrolled)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${n(r.coach_calls)}</td>
         </tr>`;
     }).join('');
 
-    // Compliance rows
-    const complianceRows = compliance.map((c: any) => `<tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb">${c.university_name}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">
-            <span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:${c.submitted ? '#d1fae5' : '#fee2e2'};color:${c.submitted ? '#065f46' : '#991b1b'}">${c.submitted ? 'Submitted' : 'Missing'}</span>
-        </td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;color:#6b7280">${c.submitted_by_name || '—'}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:13px;color:#6b7280">${c.submitted_at ? new Date(c.submitted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-    </tr>`).join('');
+    const missingNames = missing.slice(0, 5).map((m: any) => m.university_name).join(', ');
+    const compText = missing.length === 0
+        ? `<span style="color:#10b981;font-weight:600">All ${compliance.length} universities submitted</span>`
+        : `<span style="color:#10b981;font-weight:600">${submitted.length} submitted</span> &middot; <span style="color:#ef4444;font-weight:600">${missing.length} missing</span>${missing.length > 0 ? `<br><span style="color:#94a3b8;font-size:12px">${missingNames}</span>` : ''}`;
 
     return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-<div style="max-width:720px;margin:0 auto;padding:20px">
-
-<!-- Header -->
-<div style="background:linear-gradient(135deg,#1e40af,#3b82f6);border-radius:12px 12px 0 0;padding:24px 32px;color:white">
-    <h1 style="margin:0;font-size:22px;font-weight:700">UniConnect Daily Ops Report</h1>
-    <p style="margin:8px 0 0;font-size:14px;opacity:0.9">${formatDate(date)}</p>
-    <p style="margin:4px 0 0;font-size:13px;opacity:0.7">Auto-generated at 8:00 PM IST</p>
-</div>
-
-<!-- KPI Cards -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Performance Overview</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="padding:8px;text-align:center;width:25%">
-                <div style="background:#f0f9ff;border-radius:8px;padding:12px">
-                    <div style="font-size:24px;font-weight:700;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Session Completion</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.sessions_completed)}/${n(s.sessions_planned)}</div>
-                </div>
-            </td>
-            <td style="padding:8px;text-align:center;width:25%">
-                <div style="background:#f0fdf4;border-radius:8px;padding:12px">
-                    <div style="font-size:24px;font-weight:700;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Attendance Rate</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.attended)}/${n(s.enrolled)}</div>
-                </div>
-            </td>
-            <td style="padding:8px;text-align:center;width:25%">
-                <div style="background:#fefce8;border-radius:8px;padding:12px">
-                    <div style="font-size:24px;font-weight:700;color:#d97706">${n(s.at_risk_total)}</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">At-Risk Students</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.at_risk_informed)} informed</div>
-                </div>
-            </td>
-            <td style="padding:8px;text-align:center;width:25%">
-                <div style="background:${missing.length === 0 ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:12px">
-                    <div style="font-size:24px;font-weight:700;color:${missing.length === 0 ? '#10b981' : '#ef4444'}">${submitted.length}/${compliance.length}</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Report Compliance</div>
-                    <div style="font-size:11px;color:#9ca3af">${missing.length === 0 ? 'All submitted' : `${missing.length} missing`}</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-</div>
-
-<!-- AI Summary -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">AI Executive Summary</h2>
-    <div style="background:#f8fafc;border-left:4px solid #3b82f6;padding:16px;border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;color:#374151">
-        ${aiSummary.split('\n').filter(l => l.trim()).map(p => `<p style="margin:0 0 8px">${p}</p>`).join('')}
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9"><tr><td align="center" style="padding:24px 16px">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+<tr><td style="background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:32px 28px 24px">
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#fff">Daily Ops Report</h1>
+    <p style="margin:6px 0 0;font-size:14px;color:rgba(255,255,255,0.8)">${formatDate(date)}</p>
+</td></tr>
+<tr><td style="background:#fff;padding:24px 24px 12px">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="50%" style="padding:0 6px 12px 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#eff6ff;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Sessions</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.sessions_completed)} of ${n(s.sessions_planned)}</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 12px 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f0fdf4;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Attendance</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.attended)} of ${n(s.enrolled)}</div>
+        </td></tr></table></td>
+    </tr><tr>
+        <td width="50%" style="padding:0 6px 0 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#fffbeb;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#d97706">${n(s.at_risk_total)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">At-Risk</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.at_risk_informed)} informed</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:${missing.length === 0 ? '#f0fdf4' : '#fef2f2'};border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${missing.length === 0 ? '#10b981' : '#ef4444'}">${submitted.length}/${compliance.length}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Compliance</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${missing.length === 0 ? 'All done' : missing.length + ' missing'}</div>
+        </td></tr></table></td>
+    </tr></table>
+</td></tr>
+<tr><td style="background:#fff;padding:4px 24px 20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px"><tr>
+        <td style="padding:12px 8px;text-align:center;width:25%"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.coach_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Coach Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.parent_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Parent Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.events_executed)}/${n(s.events_planned)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Events</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.sessions_cancelled)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Cancelled</div></td>
+    </tr></table>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">AI Executive Summary</h2>
+        <div style="background:#f8fafc;border-radius:12px;padding:18px 20px;border-left:4px solid #3b82f6">${cleanAI}</div>
     </div>
-</div>
-
-<!-- University Breakdown Table -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Breakdown</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sess %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">At-Risk</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Coach</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Events</th>
-                </tr>
-            </thead>
-            <tbody>${univRows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">No data available</td></tr>'}</tbody>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">University Performance</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">University</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Attend.</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Calls</th>
+            </tr></thead>
+            <tbody>${univRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No data available</td></tr>'}</tbody>
         </table>
     </div>
-</div>
-
-<!-- Compliance Status -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Report Compliance Status</h2>
-    <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-        <thead>
-            <tr style="background:#f9fafb">
-                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">University</th>
-                <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Status</th>
-                <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Submitted By</th>
-                <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Time</th>
-            </tr>
-        </thead>
-        <tbody>${complianceRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af">No compliance data</td></tr>'}</tbody>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px">
+        <tr><td style="padding:14px 18px">
+            <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Report Compliance</div>
+            <div style="font-size:13px">${compText}</div>
+        </td></tr>
     </table>
-</div>
-
-<!-- Footer -->
-<div style="background:#1f2937;border-radius:0 0 12px 12px;padding:20px 32px;color:#9ca3af;font-size:12px;text-align:center">
-    <p style="margin:0">This report was automatically generated by UniConnect Ops Automation.</p>
-    <p style="margin:8px 0 0">View full dashboard: <a href="https://uniconnect-app.up.railway.app/ops-dashboard" style="color:#60a5fa;text-decoration:none">uniconnect-app.up.railway.app/ops-dashboard</a></p>
-</div>
-
-</div>
-</body>
-</html>`;
+</td></tr>
+<tr><td style="background:#fff;padding:4px 24px 28px" align="center">
+    <table cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#2563eb,#3b82f6);border-radius:10px">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 48px;font-size:14px;font-weight:600;color:#fff;text-decoration:none">Open Full Report</a>
+    </td></tr></table>
+</td></tr>
+<tr><td style="background:#1e293b;padding:20px 24px;text-align:center;border-radius:0 0 16px 16px">
+    <p style="margin:0;font-size:12px;color:#94a3b8">UniConnect Ops Automation</p>
+    <p style="margin:8px 0 0;font-size:12px"><a href="${reportUrl}" style="color:#60a5fa;text-decoration:none">Full Report</a> &nbsp;&middot;&nbsp; <a href="${dashUrl}" style="color:#60a5fa;text-decoration:none">Dashboard</a></p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 // ─── 4. Weekly Analytics Report (Sunday 8 PM IST) ───────────────────
@@ -905,8 +881,6 @@ function buildWeeklyReportHTML(
     const s = weeklyReport.summary || {};
     const byUniv = weeklyReport.byUniversity || [];
     const dailyData = weeklyReport.dailyBreakdown || [];
-    const patterns = taskPatterns?.patterns || [];
-    const users = peerComparison?.users || [];
 
     const sessRate = n(s.sessions_planned) > 0 ? Math.round((n(s.sessions_completed) / n(s.sessions_planned)) * 100) : 0;
     const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
@@ -916,22 +890,25 @@ function buildWeeklyReportHTML(
     const kpiColor = (value: number, good: number, warn: number) =>
         value >= good ? '#10b981' : value >= warn ? '#f59e0b' : '#ef4444';
 
-    // University breakdown rows
-    const univRows = byUniv.map((r: any) => {
-        const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
-        const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
-        return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.sessions_completed)}/${n(r.sessions_planned)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uSess, 90, 70)}">${uSess}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.attended)}/${n(r.enrolled)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coach_calls)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.instructors_on_leave)}</td>
-        </tr>`;
-    }).join('');
+    const cleanAI = aiSummary
+        .replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^[-*]\s+/gm, '')
+        .split('\n').filter((l: string) => l.trim())
+        .map((p: string) => `<p style="margin:0 0 10px;font-size:14px;line-height:1.65;color:#374151">${p.trim()}</p>`)
+        .join('');
 
-    // Daily trend rows (group by date) — show ALL days in range
+    const dashUrl = 'https://uniconnect-app.up.railway.app';
+
+    const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
+
+    // Donut charts
+    const weekDonutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="text-align:center;width:25%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
+    </tr></table>`;
+
+    // Daily aggregation
     const dailyByDate = new Map<string, any>();
     for (const row of dailyData) {
         const d = String(row.date).split('T')[0];
@@ -947,7 +924,7 @@ function buildWeeklyReportHTML(
         agg.events_executed += n(row.events_executed);
         agg.instructors_on_leave += n(row.instructors_on_leave);
     }
-    // Generate all dates in the week range
+
     const allDates: string[] = [];
     const curDate = new Date(weekStart + 'T00:00:00');
     const endDate = new Date(weekEnd + 'T00:00:00');
@@ -955,289 +932,160 @@ function buildWeeklyReportHTML(
         allDates.push(curDate.toISOString().split('T')[0]);
         curDate.setDate(curDate.getDate() + 1);
     }
-    const totalLeave = Array.from(dailyByDate.values()).reduce((s, d) => s + d.instructors_on_leave, 0);
+
     const dailyTrendRows = allDates.map((date) => {
         const d = dailyByDate.get(date);
         const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
         const isSunday = new Date(date + 'T00:00:00').getDay() === 0;
         if (!d) {
-            return `<tr style="background:${isSunday ? '#fef2f2' : '#fefce8'}">
-                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${dayName}</td>
-                <td colspan="7" style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-style:italic">${isSunday ? 'Sunday \u2014 No Operations' : 'No Data (Holiday / Off Day)'}</td>
+            return `<tr style="background:${isSunday ? '#fef2f2' : '#fffbeb'}">
+                <td style="padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500">${dayName}</td>
+                <td colspan="4" style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;font-size:12px;font-style:italic">${isSunday ? 'Sunday' : 'No Data'}</td>
             </tr>`;
         }
         const dSess = d.sessions_planned > 0 ? Math.round((d.sessions_completed / d.sessions_planned) * 100) : 0;
         const dAtt = d.enrolled > 0 ? Math.round((d.attended / d.enrolled) * 100) : 0;
         return `<tr>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${dayName}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.sessions_completed}/${d.sessions_planned}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(dSess, 90, 70)}">${dSess}%</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.attended}/${d.enrolled}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(dAtt, 80, 60)}">${dAtt}%</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.at_risk_total}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${d.instructors_on_leave > 0 ? '#d97706' : '#6b7280'}">${d.instructors_on_leave}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.events_executed}</td>
+            <td style="padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${dayName}</td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(dSess, 90, 70)}">${dSess}%</span><br><span style="color:#94a3b8;font-size:11px">${d.sessions_completed}/${d.sessions_planned}</span></td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(dAtt, 80, 60)}">${dAtt}%</span><br><span style="color:#94a3b8;font-size:11px">${d.attended}/${d.enrolled}</span></td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${d.at_risk_total}</td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${d.events_executed}</td>
         </tr>`;
     }).join('');
 
-    // Rankings rows
-    const rankingRows = rankings.map((r: any, i: number) => {
-        const medalColor = i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#6b7280';
+    // University rows — 4 columns
+    const univRows = byUniv.map((r: any) => {
+        const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+        const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
         return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${medalColor}">#${i + 1}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${kpiColor(r.score, 70, 50)}">${r.score}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.sessRate || 0}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.attRate || 0}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.complianceRate || 0}%</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${r.university_name}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uSess, 90, 70)}">${uSess}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.sessions_completed)}/${n(r.sessions_planned)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.attended)}/${n(r.enrolled)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${n(r.coach_calls)}</td>
         </tr>`;
     }).join('');
 
-    // Top performers rows
-    const performerRows = users.slice(0, 8).map((u: any, i: number) => `<tr>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:600">#${i + 1}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${u.user_name}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb">${u.university_name}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.completed}/${u.total_tasks}</td>
-        <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${u.on_time_count}</td>
-    </tr>`).join('');
-
-    // SVG Charts for weekly report
-    const weekDonutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="text-align:center;width:25%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
-        <td style="text-align:center;width:25%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
-        <td style="text-align:center;width:25%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
-        <td style="text-align:center;width:25%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
-    </tr></table>`;
-
-    // Daily session bar chart
-    const dailySessionBars = Array.from(dailyByDate.entries()).sort().map(([date, d]) => ({
-        label: new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' }),
-        value: d.sessions_completed,
-        color: '#7c3aed'
-    }));
-    const dailyAttBars = Array.from(dailyByDate.entries()).sort().map(([date, d]) => ({
-        label: new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' }),
-        value: d.attended,
-        color: '#3b82f6'
-    }));
-
-    // University horizontal bars for weekly
-    const weekUnivBars = byUniv.slice(0, 10).map((r: any) => ({
-        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
-        value: n(r.sessions_completed),
-        max: n(r.sessions_planned) || n(r.sessions_completed),
-        color: '#7c3aed'
-    }));
+    // Rankings — top 5
+    const rankingRows = rankings.slice(0, 5).map((r: any, i: number) => {
+        const medal = i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : '#64748b';
+        return `<tr>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700;color:${medal};font-size:14px">#${i + 1}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${r.university_name}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700;color:${kpiColor(r.score, 70, 50)};font-size:15px">${r.score}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${r.sessRate || 0}%</td>
+        </tr>`;
+    }).join('');
 
     return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-<div style="max-width:760px;margin:0 auto;padding:20px">
-
-<!-- Header -->
-<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:12px 12px 0 0;padding:28px 32px;color:white">
-    <h1 style="margin:0;font-size:24px;font-weight:700">UniConnect Weekly Ops Report</h1>
-    <p style="margin:10px 0 0;font-size:16px;opacity:0.95;font-weight:600">${formatDateRange(weekStart, weekEnd)}</p>
-    <p style="margin:6px 0 0;font-size:13px;opacity:0.7">Entire Week Summary | Auto-generated Sunday 12:00 PM IST</p>
-</div>
-
-<!-- KPI Cards — Row 1 -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Week Performance Overview</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f0f9ff;border-radius:8px;padding:14px 8px">
-                    <div style="font-size:28px;font-weight:700;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Session Completion</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.sessions_completed)}/${n(s.sessions_planned)} done</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f0fdf4;border-radius:8px;padding:14px 8px">
-                    <div style="font-size:28px;font-weight:700;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Attendance Rate</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.attended)}/${n(s.enrolled)} students</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#fefce8;border-radius:8px;padding:14px 8px">
-                    <div style="font-size:28px;font-weight:700;color:${kpiColor(riskRate, 80, 50)}">${n(s.at_risk_total)}</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">At-Risk Students</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.at_risk_informed)} informed (${riskRate}%)</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#faf5ff;border-radius:8px;padding:14px 8px">
-                    <div style="font-size:28px;font-weight:700;color:${kpiColor(eventRate, 80, 60)}">${n(s.events_executed)}</div>
-                    <div style="font-size:12px;color:#6b7280;margin-top:4px">Events Executed</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.events_planned)} planned${n(s.events_cancelled) > 0 ? `, ${n(s.events_cancelled)} cancelled` : ''}${(n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)) > 0 ? `, ${n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)} pending` : ''}</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-    <!-- Row 2: Additional KPIs -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px">
-        <tr>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.sessions_cancelled)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:2px">Sessions Cancelled</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.coach_calls)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:2px">Coach Calls</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.parent_calls)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:2px">Parent Calls</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 8px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${Math.min(n(s.exams_completed), n(s.exams_planned))}/${n(s.exams_planned)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:2px">Exams Completed</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-</div>
-
-<!-- Visual Charts: Donut Summary -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Performance at a Glance</h2>
-    ${weekDonutCharts}
-</div>
-
-<!-- Visual Charts: Daily Bar Charts -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Daily Trends</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="width:50%;padding-right:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#7c3aed">Sessions Completed</p>
-                ${svgBarChart(dailySessionBars, 110)}
-            </td>
-            <td style="width:50%;padding-left:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Students Attended</p>
-                ${svgBarChart(dailyAttBars, 110)}
-            </td>
-        </tr>
-    </table>
-</div>
-
-<!-- Visual Charts: University Sessions -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Sessions by University</h2>
-    ${svgHorizontalBar(weekUnivBars)}
-</div>
-
-<!-- AI Executive Summary -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">AI Executive Summary</h2>
-    <div style="background:#faf5ff;border-left:4px solid #7c3aed;padding:16px;border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;color:#374151">
-        ${aiSummary.split('\n').filter((l: string) => l.trim()).map((p: string) => `<p style="margin:0 0 8px">${p}</p>`).join('')}
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9"><tr><td align="center" style="padding:24px 16px">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+<tr><td style="background:linear-gradient(135deg,#5b21b6,#7c3aed);padding:32px 28px 24px">
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#fff">Weekly Ops Report</h1>
+    <p style="margin:6px 0 0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:600">${formatDateRange(weekStart, weekEnd)}</p>
+</td></tr>
+<tr><td style="background:#fff;padding:24px 24px 12px">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="50%" style="padding:0 6px 12px 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#eff6ff;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Sessions</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.sessions_completed)} of ${n(s.sessions_planned)}</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 12px 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f0fdf4;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Attendance</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.attended)} of ${n(s.enrolled)}</div>
+        </td></tr></table></td>
+    </tr><tr>
+        <td width="50%" style="padding:0 6px 0 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#fffbeb;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#d97706">${n(s.at_risk_total)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">At-Risk</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.at_risk_informed)} informed (${riskRate}%)</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#faf5ff;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(eventRate, 80, 60)}">${n(s.events_executed)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Events</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.events_planned)} planned${n(s.events_cancelled) > 0 ? `, ${n(s.events_cancelled)} cancelled` : ''}${(n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)) > 0 ? `, ${n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)} pending` : ''}</div>
+        </td></tr></table></td>
+    </tr></table>
+</td></tr>
+<tr><td style="background:#fff;padding:4px 24px 20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px"><tr>
+        <td style="padding:12px 8px;text-align:center;width:25%"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.sessions_cancelled)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Cancelled</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.coach_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Coach Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.parent_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Parent Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${Math.min(n(s.exams_completed), n(s.exams_planned))}/${n(s.exams_planned)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Exams</div></td>
+    </tr></table>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 20px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:20px">
+        <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#1e293b;text-align:center">Performance at a Glance</h2>
+        ${weekDonutCharts}
     </div>
-</div>
-
-<!-- Daily Trend -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 4px;font-size:16px;color:#374151">Day-by-Day Breakdown</h2>
-    <p style="margin:0 0 12px;font-size:12px;color:#9ca3af">All days in the week. Days with no data = holiday/off day. On Leave = instructor leave-days. Total leave this week: ${totalLeave}.</p>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Day</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sess %</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">At-Risk</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Events</th>
-                </tr>
-            </thead>
-            <tbody>${dailyTrendRows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">No daily data</td></tr>'}</tbody>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">AI Executive Summary</h2>
+        <div style="background:#faf5ff;border-radius:12px;padding:18px 20px;border-left:4px solid #7c3aed">${cleanAI}</div>
+    </div>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">Day-by-Day Breakdown</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Day</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Attend.</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Risk</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Events</th>
+            </tr></thead>
+            <tbody>${dailyTrendRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
-
-<!-- University Breakdown -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Breakdown (Week Total)</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sess %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Coach Calls</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
-                </tr>
-            </thead>
-            <tbody>${univRows || '<tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">No data</td></tr>'}</tbody>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">University Performance</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">University</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Attend.</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Calls</th>
+            </tr></thead>
+            <tbody>${univRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
-
-<!-- University Rankings -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Rankings</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Rank</th>
-                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Score</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Compliance</th>
-                </tr>
-            </thead>
-            <tbody>${rankingRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af">No ranking data</td></tr>'}</tbody>
+</td></tr>
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">Top Rankings</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Rank</th>
+                <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">University</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Score</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sess %</th>
+            </tr></thead>
+            <tbody>${rankingRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No ranking data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
-
-<!-- Top Performers -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Top Performers</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">#</th>
-                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">Name</th>
-                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280">University</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">Tasks</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280">On-Time</th>
-                </tr>
-            </thead>
-            <tbody>${performerRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af">No performer data</td></tr>'}</tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Footer -->
-<div style="background:#1f2937;border-radius:0 0 12px 12px;padding:20px 32px;color:#9ca3af;font-size:12px;text-align:center">
-    <p style="margin:0">This report was automatically generated by UniConnect Ops Automation.</p>
-    <p style="margin:8px 0 0">View full analytics: <a href="https://uniconnect-app.up.railway.app/analytics" style="color:#a78bfa;text-decoration:none">uniconnect-app.up.railway.app/analytics</a></p>
-</div>
-
-</div>
-</body>
-</html>`;
+</td></tr>
+<tr><td style="background:#fff;padding:4px 24px 28px" align="center">
+    <table cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#6d28d9,#7c3aed);border-radius:10px">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 48px;font-size:14px;font-weight:600;color:#fff;text-decoration:none">Open Full Report</a>
+    </td></tr></table>
+</td></tr>
+<tr><td style="background:#1e293b;padding:20px 24px;text-align:center;border-radius:0 0 16px 16px">
+    <p style="margin:0;font-size:12px;color:#94a3b8">UniConnect Ops Automation</p>
+    <p style="margin:8px 0 0;font-size:12px"><a href="${reportUrl}" style="color:#a78bfa;text-decoration:none">Full Report</a> &nbsp;&middot;&nbsp; <a href="${dashUrl}/ops-dashboard" style="color:#a78bfa;text-decoration:none">Dashboard</a></p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 // ─── 5. Monthly Report (Last day of month, 9 PM IST) ────────────────
@@ -1406,25 +1254,27 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
     const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
     const riskRate = n(s.at_risk_total) > 0 ? Math.round((n(s.at_risk_informed) / n(s.at_risk_total)) * 100) : 0;
     const eventRate = n(s.events_planned) > 0 ? Math.round((n(s.events_executed) / n(s.events_planned)) * 100) : 0;
-    const examRate = n(s.exams_planned) > 0 ? Math.round((n(s.exams_completed) / n(s.exams_planned)) * 100) : 0;
 
     const kpiColor = (value: number, good: number, warn: number) =>
         value >= good ? '#10b981' : value >= warn ? '#f59e0b' : '#ef4444';
 
-    // University breakdown
-    const univRows = byUniv.map((r: any) => {
-        const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
-        const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
-        return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.sessions_completed)}/${n(r.sessions_planned)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uSess, 90, 70)}">${uSess}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.attended)}/${n(r.enrolled)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.coach_calls)}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${n(r.instructors_on_leave)}</td>
-        </tr>`;
-    }).join('');
+    const cleanAI = aiSummary
+        .replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^[-*]\s+/gm, '')
+        .split('\n').filter((l: string) => l.trim())
+        .map((p: string) => `<p style="margin:0 0 10px;font-size:14px;line-height:1.65;color:#374151">${p.trim()}</p>`)
+        .join('');
+
+    const dashUrl = 'https://uniconnect-app.up.railway.app';
+
+    const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=monthly&year=${monthlyReport.year}&month=${monthlyReport.month}`;
+
+    // Donut charts — 4 compact donuts
+    const donutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="text-align:center;width:25%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
+        <td style="text-align:center;width:25%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
+    </tr></table>`;
 
     // Weekly aggregation from daily data
     const weeklyAgg = new Map<string, any>();
@@ -1433,7 +1283,7 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
         const weekNum = Math.ceil(d.getDate() / 7);
         const weekLabel = `Week ${weekNum}`;
         if (!weeklyAgg.has(weekLabel)) {
-            weeklyAgg.set(weekLabel, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0, instructors_on_leave: 0, days: 0 });
+            weeklyAgg.set(weekLabel, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0, days: 0 });
         }
         const agg = weeklyAgg.get(weekLabel)!;
         agg.sessions_planned += n(row.sessions_planned);
@@ -1442,280 +1292,175 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
         agg.attended += n(row.attended);
         agg.at_risk_total += n(row.at_risk_total);
         agg.events_executed += n(row.events_executed);
-        agg.instructors_on_leave += n(row.instructors_on_leave);
         agg.days++;
     }
-    const totalMonthLeave = Array.from(weeklyAgg.values()).reduce((s, d) => s + d.instructors_on_leave, 0);
+
     const weeklyTrendRows = Array.from(weeklyAgg.entries()).map(([label, d]) => {
         const wSess = d.sessions_planned > 0 ? Math.round((d.sessions_completed / d.sessions_planned) * 100) : 0;
         const wAtt = d.enrolled > 0 ? Math.round((d.attended / d.enrolled) * 100) : 0;
         return `<tr>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${label} (${d.days} days)</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.sessions_completed}/${d.sessions_planned}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(wSess, 90, 70)}">${wSess}%</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.attended}/${d.enrolled}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(wAtt, 80, 60)}">${wAtt}%</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.at_risk_total}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${d.instructors_on_leave > 0 ? '#d97706' : '#6b7280'}">${d.instructors_on_leave}</td>
-            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.events_executed}</td>
+            <td style="padding:8px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${label} <span style="color:#94a3b8;font-size:11px">(${d.days}d)</span></td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(wSess, 90, 70)}">${wSess}%</span><br><span style="color:#94a3b8;font-size:11px">${d.sessions_completed}/${d.sessions_planned}</span></td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(wAtt, 80, 60)}">${wAtt}%</span><br><span style="color:#94a3b8;font-size:11px">${d.attended}/${d.enrolled}</span></td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${d.at_risk_total}</td>
+            <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${d.events_executed}</td>
         </tr>`;
     }).join('');
 
-    // Rankings rows
-    const rankingRows = rankings.map((r: any, i: number) => {
-        const medalColor = i === 0 ? '#f59e0b' : i === 1 ? '#9ca3af' : i === 2 ? '#b45309' : '#6b7280';
+    // University rows — 4 columns
+    const univRows = byUniv.map((r: any) => {
+        const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+        const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
         return `<tr>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${medalColor}">#${i + 1}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${kpiColor(r.score, 70, 50)}">${r.score}</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.sessRate || 0}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.attRate || 0}%</td>
-            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${r.complianceRate || 0}%</td>
+            <td style="padding:10px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${r.university_name}</td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uSess, 90, 70)}">${uSess}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.sessions_completed)}/${n(r.sessions_planned)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px"><span style="font-weight:700;color:${kpiColor(uAtt, 80, 60)}">${uAtt}%</span><br><span style="color:#94a3b8;font-size:11px">${n(r.attended)}/${n(r.enrolled)}</span></td>
+            <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${n(r.coach_calls)}</td>
         </tr>`;
     }).join('');
 
-    // SVG Charts for monthly report
-    const donutCharts = `<table width="100%" cellpadding="0" cellspacing="0"><tr>
-        <td style="text-align:center;width:20%">${svgDonut(sessRate, 'Sessions', kpiColor(sessRate, 90, 70), 90)}</td>
-        <td style="text-align:center;width:20%">${svgDonut(attRate, 'Attendance', kpiColor(attRate, 80, 60), 90)}</td>
-        <td style="text-align:center;width:20%">${svgDonut(riskRate, 'Risk Mgmt', kpiColor(riskRate, 80, 50), 90)}</td>
-        <td style="text-align:center;width:20%">${svgDonut(eventRate, 'Events', kpiColor(eventRate, 80, 60), 90)}</td>
-        <td style="text-align:center;width:20%">${svgDonut(examRate, 'Exams', kpiColor(examRate, 80, 60), 90)}</td>
-    </tr></table>`;
-
-    // Bar chart for weekly session trends
-    const weeklyBars = Array.from(weeklyAgg.entries()).map(([label, d]) => ({
-        label: label.replace('Week ', 'W'),
-        value: d.sessions_completed,
-        color: '#059669'
-    }));
-    const weeklyAttBars = Array.from(weeklyAgg.entries()).map(([label, d]) => ({
-        label: label.replace('Week ', 'W'),
-        value: d.attended,
-        color: '#3b82f6'
-    }));
-
-    // Horizontal bar chart for university sessions
-    const univSessionBars = byUniv.slice(0, 10).map((r: any) => ({
-        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
-        value: n(r.sessions_completed),
-        max: n(r.sessions_planned) || n(r.sessions_completed),
-        color: '#059669'
-    }));
-    const univAttBars = byUniv.slice(0, 10).map((r: any) => ({
-        label: r.university_name?.length > 18 ? r.university_name.substring(0, 18) + '..' : r.university_name,
-        value: n(r.attended),
-        max: n(r.enrolled) || n(r.attended),
-        color: '#3b82f6'
-    }));
+    // Rankings — top 5
+    const rankingRows = rankings.slice(0, 5).map((r: any, i: number) => {
+        const medal = i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : i === 2 ? '#b45309' : '#64748b';
+        return `<tr>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700;color:${medal};font-size:14px">#${i + 1}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:500;color:#1e293b">${r.university_name}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-weight:700;color:${kpiColor(r.score, 70, 50)};font-size:15px">${r.score}</td>
+            <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${r.sessRate || 0}%</td>
+        </tr>`;
+    }).join('');
 
     return `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
-<div style="max-width:760px;margin:0 auto;padding:20px">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9"><tr><td align="center" style="padding:24px 16px">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
 
 <!-- Header -->
-<div style="background:linear-gradient(135deg,#059669,#10b981);border-radius:12px 12px 0 0;padding:28px 32px;color:white">
-    <h1 style="margin:0;font-size:24px;font-weight:700">UniConnect Monthly Ops Report</h1>
-    <p style="margin:10px 0 0;font-size:16px;opacity:0.95;font-weight:600">${monthName}</p>
-    <p style="margin:6px 0 0;font-size:13px;opacity:0.7">${monthlyReport.startDate} to ${monthlyReport.endDate} | Full Month Summary</p>
-</div>
+<tr><td style="background:linear-gradient(135deg,#065f46,#059669);padding:32px 28px 24px">
+    <h1 style="margin:0;font-size:22px;font-weight:700;color:#fff">Monthly Ops Report</h1>
+    <p style="margin:6px 0 0;font-size:15px;color:rgba(255,255,255,0.9);font-weight:600">${monthName}</p>
+    <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.6)">${monthlyReport.startDate} to ${monthlyReport.endDate}</p>
+</td></tr>
 
-<!-- KPI Cards Row 1 -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Month Performance Overview</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="padding:6px;text-align:center;width:20%">
-                <div style="background:#f0f9ff;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px">Session Rate</div>
-                    <div style="font-size:10px;color:#9ca3af">${n(s.sessions_completed)}/${n(s.sessions_planned)}</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:20%">
-                <div style="background:#f0fdf4;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px">Attendance</div>
-                    <div style="font-size:10px;color:#9ca3af">${n(s.attended)}/${n(s.enrolled)}</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:20%">
-                <div style="background:#fefce8;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:#d97706">${n(s.at_risk_total)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px">At-Risk</div>
-                    <div style="font-size:10px;color:#9ca3af">${riskRate}% informed</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:20%">
-                <div style="background:#faf5ff;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:${kpiColor(eventRate, 80, 60)}">${n(s.events_executed)}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px">Events</div>
-                    <div style="font-size:10px;color:#9ca3af">${n(s.events_planned)} planned</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:20%">
-                <div style="background:#fef2f2;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:${kpiColor(examRate, 80, 60)}">${Math.min(n(s.exams_completed), n(s.exams_planned))}</div>
-                    <div style="font-size:11px;color:#6b7280;margin-top:4px">Exams Done</div>
-                    <div style="font-size:10px;color:#9ca3af">${n(s.exams_planned)} planned</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-    <!-- Row 2 -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px">
-        <tr>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 6px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.sessions_cancelled)}</div>
-                    <div style="font-size:11px;color:#6b7280">Sessions Cancelled</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 6px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.coach_calls)}</div>
-                    <div style="font-size:11px;color:#6b7280">Coach Calls</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 6px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.parent_calls)}</div>
-                    <div style="font-size:11px;color:#6b7280">Parent Calls</div>
-                </div>
-            </td>
-            <td style="padding:6px;text-align:center;width:25%">
-                <div style="background:#f8fafc;border-radius:8px;padding:10px 6px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.post_exam_comms_sent)}</div>
-                    <div style="font-size:11px;color:#6b7280">Post-Exam Comms</div>
-                </div>
-            </td>
-        </tr>
-    </table>
-</div>
+<!-- KPI 2x2 Grid -->
+<tr><td style="background:#fff;padding:24px 24px 12px">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="50%" style="padding:0 6px 12px 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#eff6ff;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(sessRate, 90, 70)}">${sessRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Sessions</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.sessions_completed)} of ${n(s.sessions_planned)}</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 12px 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f0fdf4;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(attRate, 80, 60)}">${attRate}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Attendance</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.attended)} of ${n(s.enrolled)}</div>
+        </td></tr></table></td>
+    </tr><tr>
+        <td width="50%" style="padding:0 6px 0 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#fffbeb;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#d97706">${n(s.at_risk_total)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">At-Risk</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.at_risk_informed)} informed (${riskRate}%)</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#ecfdf5;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(eventRate, 80, 60)}">${n(s.events_executed)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Events</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.events_planned)} planned</div>
+        </td></tr></table></td>
+    </tr></table>
+</td></tr>
 
-<!-- Visual Charts: Donut Summary -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 16px;font-size:16px;color:#374151">Performance at a Glance</h2>
-    ${donutCharts}
-</div>
+<!-- Quick Stats -->
+<tr><td style="background:#fff;padding:4px 24px 20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px"><tr>
+        <td style="padding:12px 8px;text-align:center;width:25%"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.sessions_cancelled)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Cancelled</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.coach_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Coach Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.parent_calls)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Parent Calls</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(s.post_exam_comms_sent)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Exam Comms</div></td>
+    </tr></table>
+</td></tr>
 
-<!-- Visual Charts: Weekly Sessions & Attendance Bar Charts -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Weekly Trends</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="width:50%;padding-right:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#059669">Sessions Completed</p>
-                ${svgBarChart(weeklyBars, 110)}
-            </td>
-            <td style="width:50%;padding-left:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Students Attended</p>
-                ${svgBarChart(weeklyAttBars, 110)}
-            </td>
-        </tr>
-    </table>
-</div>
-
-<!-- Visual Charts: University Comparison -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Comparison</h2>
-    <table width="100%" cellpadding="0" cellspacing="0">
-        <tr>
-            <td style="width:50%;padding-right:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#059669">Sessions by University</p>
-                ${svgHorizontalBar(univSessionBars)}
-            </td>
-            <td style="width:50%;padding-left:12px;vertical-align:top">
-                <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#3b82f6">Attendance by University</p>
-                ${svgHorizontalBar(univAttBars)}
-            </td>
-        </tr>
-    </table>
-</div>
+<!-- Donut Charts -->
+<tr><td style="background:#fff;padding:0 24px 20px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:20px">
+        <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#1e293b;text-align:center">Performance at a Glance</h2>
+        ${donutCharts}
+    </div>
+</td></tr>
 
 <!-- AI Summary -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">AI Monthly Summary</h2>
-    <div style="background:#ecfdf5;border-left:4px solid #059669;padding:16px;border-radius:0 8px 8px 0;font-size:14px;line-height:1.6;color:#374151">
-        ${aiSummary.split('\n').filter((l: string) => l.trim()).map((p: string) => `<p style="margin:0 0 8px">${p}</p>`).join('')}
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">AI Monthly Summary</h2>
+        <div style="background:#ecfdf5;border-radius:12px;padding:18px 20px;border-left:4px solid #059669">${cleanAI}</div>
     </div>
-</div>
+</td></tr>
 
-<!-- Weekly Trend -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 4px;font-size:16px;color:#374151">Week-by-Week Trend</h2>
-    <p style="margin:0 0 12px;font-size:12px;color:#9ca3af">Weekly aggregation of daily data. On Leave = total instructor leave-days per week. Total leave this month: ${totalMonthLeave}.</p>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Period</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sess %</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">At-Risk</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
-                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Events</th>
-                </tr>
-            </thead>
-            <tbody>${weeklyTrendRows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">No data</td></tr>'}</tbody>
+<!-- Week-by-Week Trend -->
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">Week-by-Week Trend</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Period</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Attend.</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Risk</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Events</th>
+            </tr></thead>
+            <tbody>${weeklyTrendRows || '<tr><td colspan="5" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
+</td></tr>
 
-<!-- University Breakdown -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Breakdown (Month Total)</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sess %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Coach Calls</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
-                </tr>
-            </thead>
-            <tbody>${univRows || '<tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">No data</td></tr>'}</tbody>
+<!-- University Performance -->
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">University Performance</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">University</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sessions</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Attend.</th>
+                <th style="padding:10px 8px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Calls</th>
+            </tr></thead>
+            <tbody>${univRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
+</td></tr>
 
-<!-- University Rankings -->
-<div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">University Rankings</h2>
-    <div style="overflow-x:auto">
-        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
-            <thead>
-                <tr style="background:#f9fafb">
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Rank</th>
-                    <th style="padding:10px 12px;text-align:left;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">University</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Score</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Sessions</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
-                    <th style="padding:10px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Compliance</th>
-                </tr>
-            </thead>
-            <tbody>${rankingRows || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af">No ranking data</td></tr>'}</tbody>
+<!-- Rankings -->
+<tr><td style="background:#fff;padding:0 24px 24px">
+    <div style="border-top:1px solid #e2e8f0;padding-top:24px">
+        <h2 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e293b">Top Rankings</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">
+            <thead><tr style="background:#f8fafc">
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Rank</th>
+                <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">University</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Score</th>
+                <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0">Sess %</th>
+            </tr></thead>
+            <tbody>${rankingRows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">No ranking data</td></tr>'}</tbody>
         </table>
     </div>
-</div>
+</td></tr>
+
+<!-- CTA -->
+<tr><td style="background:#fff;padding:4px 24px 28px" align="center">
+    <table cellpadding="0" cellspacing="0"><tr><td style="background:linear-gradient(135deg,#065f46,#059669);border-radius:10px">
+        <a href="${reportUrl}" style="display:inline-block;padding:14px 48px;font-size:14px;font-weight:600;color:#fff;text-decoration:none">Open Full Report</a>
+    </td></tr></table>
+</td></tr>
 
 <!-- Footer -->
-<div style="background:#1f2937;border-radius:0 0 12px 12px;padding:20px 32px;color:#9ca3af;font-size:12px;text-align:center">
-    <p style="margin:0">This report was automatically generated by UniConnect Ops Automation.</p>
-    <p style="margin:8px 0 0">View full analytics: <a href="https://uniconnect-app.up.railway.app/analytics" style="color:#6ee7b7;text-decoration:none">uniconnect-app.up.railway.app/analytics</a></p>
-</div>
+<tr><td style="background:#1e293b;padding:20px 24px;text-align:center;border-radius:0 0 16px 16px">
+    <p style="margin:0;font-size:12px;color:#94a3b8">UniConnect Ops Automation</p>
+    <p style="margin:8px 0 0;font-size:12px"><a href="${reportUrl}" style="color:#6ee7b7;text-decoration:none">Full Report</a> &nbsp;&middot;&nbsp; <a href="${dashUrl}/ops-dashboard" style="color:#6ee7b7;text-decoration:none">Dashboard</a></p>
+</td></tr>
 
-</div>
-</body>
-</html>`;
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 // ─── Main Entry Point ───────────────────────────────────────────────
