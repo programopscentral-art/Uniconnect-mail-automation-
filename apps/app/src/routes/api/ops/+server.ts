@@ -19,6 +19,7 @@ import {
     getOpsUniversityRankings,
     getOpsUniversityTrends,
     getOpsEventBudgetIntelligence,
+    normalizeOpsUniversityNames,
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -328,6 +329,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 await upsertOpsDailyData(dailyData);
                 if (instructorData.length) await upsertOpsInstructorDaily(instructorData);
 
+                // Normalize any remaining duplicate university names in background
+                normalizeOpsUniversityNames().catch(() => {});
+
                 if (config?.id) await updateSheetLastSynced(config.id);
 
                 return json({
@@ -582,6 +586,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
 
                 if (config?.id) await updateSheetLastSynced(config.id);
+
+                // Normalize any remaining duplicate university names in background
+                normalizeOpsUniversityNames().catch(() => {});
 
                 return json({
                     success: totalRows > 0,

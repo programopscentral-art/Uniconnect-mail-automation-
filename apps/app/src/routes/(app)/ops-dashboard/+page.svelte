@@ -451,6 +451,8 @@
         const UNIV_ALIASES: Record<string, string> = {
             'chalapathy': 'chalapathi', 'chalapathi': 'chalapathi',
             'cresent': 'crescent', 'crescent': 'crescent',
+            'cietcity': 'cietcity', 'cityciet': 'cietcity',
+            'yenapoya': 'yenapoya',
         };
         function normalizeUnivName(name: string) {
             const lower = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');

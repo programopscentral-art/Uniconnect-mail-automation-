@@ -36,12 +36,16 @@ function sortedNameKey(name: string): string {
 }
 
 // Known aliases for university names that can't be resolved by fuzzy matching
-// Maps normalized key → preferred canonical name
+// Maps normalized key (lowercase, no special chars) → preferred canonical name
+// Add new entries here when new duplicates are discovered
 const UNIVERSITY_ALIASES: Record<string, string> = {
     'chalapathy': 'Chalapathi',
     'chalapathi': 'Chalapathi',
     'cresent': 'Crescent',
     'crescent': 'Crescent',
+    'cietcity': 'CIET/CITY',
+    'cityciet': 'CIET/CITY',
+    'yenapoya': 'Yenapoya',
 };
 
 function resolveAlias(name: string): string | null {
@@ -314,14 +318,12 @@ const UNIV_RESOLVE_CTE = `
                     WHEN 'chalapathi' THEN 'Chalapathi'
                     WHEN 'cresent' THEN 'Crescent'
                     WHEN 'crescent' THEN 'Crescent'
+                    WHEN 'cietcity' THEN 'CIET/CITY'
+                    WHEN 'cityciet' THEN 'CIET/CITY'
+                    WHEN 'yenapoya' THEN 'Yenapoya'
                     ELSE NULL
                 END,
-                INITCAP(LOWER(
-                    CASE WHEN r.raw_name LIKE '%/%' THEN
-                        (SELECT string_agg(part, '/' ORDER BY part) FROM unnest(string_to_array(TRIM(r.raw_name), '/')) AS part)
-                    ELSE TRIM(r.raw_name)
-                    END
-                ))
+                INITCAP(LOWER(TRIM(r.raw_name)))
             ) AS canonical_name,
             r.university_id
         FROM raw_resolve r
