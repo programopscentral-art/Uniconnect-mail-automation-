@@ -689,13 +689,13 @@
 
         // ── Daily Breakdown (aggregated by date for weekly/monthly) ──
         let dailySection = '';
-        if (rawDaily.length && type !== 'daily') {
+        if (type !== 'daily') {
             // Aggregate daily data by date (across all universities)
             const dailyByDate = new Map<string, any>();
             for (const row of rawDaily) {
                 const d = String(row.date).split('T')[0];
                 if (!dailyByDate.has(d)) {
-                    dailyByDate.set(d, { sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0, enrolled: 0, attended: 0, coach_calls: 0, parent_calls: 0, at_risk_total: 0, events_planned: 0, events_executed: 0, exams_planned: 0, exams_completed: 0, univCount: 0 });
+                    dailyByDate.set(d, { sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0, enrolled: 0, attended: 0, coach_calls: 0, parent_calls: 0, at_risk_total: 0, events_planned: 0, events_executed: 0, exams_planned: 0, exams_completed: 0, instructors_on_leave: 0, univCount: 0 });
                 }
                 const agg = dailyByDate.get(d)!;
                 agg.sessions_planned += n(row.sessions_planned);
@@ -710,20 +710,49 @@
                 agg.events_executed += n(row.events_executed);
                 agg.exams_planned += n(row.exams_planned);
                 agg.exams_completed += n(row.exams_completed);
+                agg.instructors_on_leave += n(row.instructors_on_leave);
                 agg.univCount++;
             }
 
+            // Generate ALL dates in range (even if no data — shows as "No Data / Holiday")
+            const rangeStart = type === 'weekly' ? report.weekStart : report.startDate;
+            const rangeEnd = type === 'weekly' ? report.weekEnd : report.endDate;
+            const allDates: string[] = [];
+            if (rangeStart && rangeEnd) {
+                const cur = new Date(rangeStart + 'T00:00:00');
+                const end = new Date(rangeEnd + 'T00:00:00');
+                while (cur <= end) {
+                    allDates.push(cur.toISOString().split('T')[0]);
+                    cur.setDate(cur.getDate() + 1);
+                }
+            } else {
+                allDates.push(...Array.from(dailyByDate.keys()).sort());
+            }
+
+            // Calculate leave totals for the period
+            const totalLeaveInPeriod = Array.from(dailyByDate.values()).reduce((s, d) => s + d.instructors_on_leave, 0);
+
             dailySection = `<h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Day-by-Day Summary</h2>
-            <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Aggregated totals across all universities for each day. Shows how operations performed each day of the ${type === 'weekly' ? 'week' : 'month'}.</p>
+            <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Aggregated totals across all universities for each day. Days with no data may indicate a holiday or weekend. Instructors on leave this ${type === 'weekly' ? 'week' : 'month'}: <strong>${totalLeaveInPeriod}</strong> (total leave-days across all universities).</p>
             <table>
             <thead><tr>
                 <th style="text-align:left">Date</th>
                 <th>Sessions Done/Planned</th><th>Sess %</th>
                 <th>Attended/Enrolled</th><th>Att %</th>
                 <th>Coach Calls</th><th>Parent Calls</th><th>At-Risk</th>
+                <th>On Leave</th>
                 <th>Events</th><th>Exams</th>
             </tr></thead><tbody>` +
-            Array.from(dailyByDate.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([date, d]) => {
+            allDates.map((date) => {
+                const d = dailyByDate.get(date);
+                const dayOfWeek = new Date(date + 'T00:00:00').getDay();
+                const isSunday = dayOfWeek === 0;
+                if (!d) {
+                    return `<tr style="background:${isSunday ? '#fef2f2' : '#fefce8'}">
+                        <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-weight:600">${formatShortDate(date)}</td>
+                        <td colspan="10" style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;color:#94a3b8;font-style:italic">${isSunday ? 'Sunday — No Operations' : 'No Data Reported (Holiday / Off Day)'}</td>
+                    </tr>`;
+                }
                 const dSess = d.sessions_planned > 0 ? Math.round((d.sessions_completed / d.sessions_planned) * 100) : 0;
                 const dAtt = d.enrolled > 0 ? Math.round((d.attended / d.enrolled) * 100) : 0;
                 return `<tr>
@@ -735,6 +764,7 @@
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${d.coach_calls}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${d.parent_calls}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;color:${d.at_risk_total > 0 ? '#dc2626' : '#16a34a'}">${d.at_risk_total}</td>
+                    <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;color:${d.instructors_on_leave > 0 ? '#ca8a04' : '#16a34a'}">${d.instructors_on_leave}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${d.events_executed}/${d.events_planned}</td>
                     <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${Math.min(d.exams_completed, d.exams_planned)}/${d.exams_planned}</td>
                 </tr>`;

@@ -930,12 +930,12 @@ function buildWeeklyReportHTML(
         </tr>`;
     }).join('');
 
-    // Daily trend rows (group by date)
+    // Daily trend rows (group by date) — show ALL days in range
     const dailyByDate = new Map<string, any>();
     for (const row of dailyData) {
         const d = String(row.date).split('T')[0];
         if (!dailyByDate.has(d)) {
-            dailyByDate.set(d, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0 });
+            dailyByDate.set(d, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0, instructors_on_leave: 0 });
         }
         const agg = dailyByDate.get(d)!;
         agg.sessions_planned += n(row.sessions_planned);
@@ -944,11 +944,29 @@ function buildWeeklyReportHTML(
         agg.attended += n(row.attended);
         agg.at_risk_total += n(row.at_risk_total);
         agg.events_executed += n(row.events_executed);
+        agg.instructors_on_leave += n(row.instructors_on_leave);
     }
-    const dailyTrendRows = Array.from(dailyByDate.entries()).sort().map(([date, d]) => {
+    // Generate all dates in the week range
+    const allDates: string[] = [];
+    const curDate = new Date(weekStart + 'T00:00:00');
+    const endDate = new Date(weekEnd + 'T00:00:00');
+    while (curDate <= endDate) {
+        allDates.push(curDate.toISOString().split('T')[0]);
+        curDate.setDate(curDate.getDate() + 1);
+    }
+    const totalLeave = Array.from(dailyByDate.values()).reduce((s, d) => s + d.instructors_on_leave, 0);
+    const dailyTrendRows = allDates.map((date) => {
+        const d = dailyByDate.get(date);
+        const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+        const isSunday = new Date(date + 'T00:00:00').getDay() === 0;
+        if (!d) {
+            return `<tr style="background:${isSunday ? '#fef2f2' : '#fefce8'}">
+                <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${dayName}</td>
+                <td colspan="7" style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:#9ca3af;font-style:italic">${isSunday ? 'Sunday \u2014 No Operations' : 'No Data (Holiday / Off Day)'}</td>
+            </tr>`;
+        }
         const dSess = d.sessions_planned > 0 ? Math.round((d.sessions_completed / d.sessions_planned) * 100) : 0;
         const dAtt = d.enrolled > 0 ? Math.round((d.attended / d.enrolled) * 100) : 0;
-        const dayName = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
         return `<tr>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${dayName}</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.sessions_completed}/${d.sessions_planned}</td>
@@ -956,6 +974,7 @@ function buildWeeklyReportHTML(
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.attended}/${d.enrolled}</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(dAtt, 80, 60)}">${dAtt}%</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.at_risk_total}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${d.instructors_on_leave > 0 ? '#d97706' : '#6b7280'}">${d.instructors_on_leave}</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.events_executed}</td>
         </tr>`;
     }).join('');
@@ -1081,7 +1100,7 @@ function buildWeeklyReportHTML(
             </td>
             <td style="padding:6px;text-align:center;width:25%">
                 <div style="background:#f8fafc;border-radius:8px;padding:10px 8px">
-                    <div style="font-size:20px;font-weight:700;color:#374151">${n(s.exams_completed)}/${n(s.exams_planned)}</div>
+                    <div style="font-size:20px;font-weight:700;color:#374151">${Math.min(n(s.exams_completed), n(s.exams_planned))}/${n(s.exams_planned)}</div>
                     <div style="font-size:11px;color:#6b7280;margin-top:2px">Exams Completed</div>
                 </div>
             </td>
@@ -1128,7 +1147,8 @@ function buildWeeklyReportHTML(
 
 <!-- Daily Trend -->
 <div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Day-by-Day Breakdown</h2>
+    <h2 style="margin:0 0 4px;font-size:16px;color:#374151">Day-by-Day Breakdown</h2>
+    <p style="margin:0 0 12px;font-size:12px;color:#9ca3af">All days in the week. Days with no data = holiday/off day. On Leave = instructor leave-days. Total leave this week: ${totalLeave}.</p>
     <div style="overflow-x:auto">
         <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
             <thead>
@@ -1139,10 +1159,11 @@ function buildWeeklyReportHTML(
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">At-Risk</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Events</th>
                 </tr>
             </thead>
-            <tbody>${dailyTrendRows || '<tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">No daily data</td></tr>'}</tbody>
+            <tbody>${dailyTrendRows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">No daily data</td></tr>'}</tbody>
         </table>
     </div>
 </div>
@@ -1411,7 +1432,7 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
         const weekNum = Math.ceil(d.getDate() / 7);
         const weekLabel = `Week ${weekNum}`;
         if (!weeklyAgg.has(weekLabel)) {
-            weeklyAgg.set(weekLabel, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0, days: 0 });
+            weeklyAgg.set(weekLabel, { sessions_planned: 0, sessions_completed: 0, enrolled: 0, attended: 0, at_risk_total: 0, events_executed: 0, instructors_on_leave: 0, days: 0 });
         }
         const agg = weeklyAgg.get(weekLabel)!;
         agg.sessions_planned += n(row.sessions_planned);
@@ -1420,8 +1441,10 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
         agg.attended += n(row.attended);
         agg.at_risk_total += n(row.at_risk_total);
         agg.events_executed += n(row.events_executed);
+        agg.instructors_on_leave += n(row.instructors_on_leave);
         agg.days++;
     }
+    const totalMonthLeave = Array.from(weeklyAgg.values()).reduce((s, d) => s + d.instructors_on_leave, 0);
     const weeklyTrendRows = Array.from(weeklyAgg.entries()).map(([label, d]) => {
         const wSess = d.sessions_planned > 0 ? Math.round((d.sessions_completed / d.sessions_planned) * 100) : 0;
         const wAtt = d.enrolled > 0 ? Math.round((d.attended / d.enrolled) * 100) : 0;
@@ -1432,6 +1455,7 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.attended}/${d.enrolled}</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${kpiColor(wAtt, 80, 60)}">${wAtt}%</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.at_risk_total}</td>
+            <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center;color:${d.instructors_on_leave > 0 ? '#d97706' : '#6b7280'}">${d.instructors_on_leave}</td>
             <td style="padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center">${d.events_executed}</td>
         </tr>`;
     }).join('');
@@ -1532,7 +1556,7 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
             </td>
             <td style="padding:6px;text-align:center;width:20%">
                 <div style="background:#fef2f2;border-radius:8px;padding:14px 6px">
-                    <div style="font-size:26px;font-weight:700;color:${kpiColor(examRate, 80, 60)}">${n(s.exams_completed)}</div>
+                    <div style="font-size:26px;font-weight:700;color:${kpiColor(examRate, 80, 60)}">${Math.min(n(s.exams_completed), n(s.exams_planned))}</div>
                     <div style="font-size:11px;color:#6b7280;margin-top:4px">Exams Done</div>
                     <div style="font-size:10px;color:#9ca3af">${n(s.exams_planned)} planned</div>
                 </div>
@@ -1620,7 +1644,8 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
 
 <!-- Weekly Trend -->
 <div style="background:white;padding:24px 32px;border-bottom:1px solid #e5e7eb">
-    <h2 style="margin:0 0 12px;font-size:16px;color:#374151">Week-by-Week Trend</h2>
+    <h2 style="margin:0 0 4px;font-size:16px;color:#374151">Week-by-Week Trend</h2>
+    <p style="margin:0 0 12px;font-size:12px;color:#9ca3af">Weekly aggregation of daily data. On Leave = total instructor leave-days per week. Total leave this month: ${totalMonthLeave}.</p>
     <div style="overflow-x:auto">
         <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;border-collapse:collapse">
             <thead>
@@ -1631,10 +1656,11 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Attendance</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Att %</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">At-Risk</th>
+                    <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">On Leave</th>
                     <th style="padding:8px 12px;text-align:center;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600">Events</th>
                 </tr>
             </thead>
-            <tbody>${weeklyTrendRows || '<tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">No data</td></tr>'}</tbody>
+            <tbody>${weeklyTrendRows || '<tr><td colspan="8" style="padding:20px;text-align:center;color:#9ca3af">No data</td></tr>'}</tbody>
         </table>
     </div>
 </div>

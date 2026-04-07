@@ -146,25 +146,62 @@ export async function clearOpsData(date?: string) {
     }
 }
 
+// ─── University Name Normalization ───────────────────────────────────
+// ops_daily_data stores free-text university_name from various sources
+// which often differ: "CHALAPATHI" vs "Chalapathy", "CIET/CITY" vs "CITY/CIET".
+// This CTE resolves each to the canonical name from the universities table.
+
+const UNIV_RESOLVE_CTE = `
+    canonical_names AS (
+        SELECT DISTINCT ON (d.university_name)
+            d.university_name AS raw_name,
+            COALESCE(u.short_name, u.name, d.university_name) AS canonical_name,
+            u.id AS university_id
+        FROM (SELECT DISTINCT university_name FROM ops_daily_data) d
+        LEFT JOIN universities u ON (
+            LOWER(TRIM(d.university_name)) = LOWER(TRIM(u.name))
+            OR LOWER(TRIM(d.university_name)) = LOWER(TRIM(u.short_name))
+            OR LOWER(REPLACE(REPLACE(REPLACE(TRIM(d.university_name), '/', ''), ' ', ''), '-', '')) =
+               LOWER(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(u.short_name, u.name)), '/', ''), ' ', ''), '-', ''))
+            OR LOWER(REPLACE(REPLACE(REPLACE(TRIM(d.university_name), '/', ''), ' ', ''), '-', '')) =
+               LOWER(REPLACE(REPLACE(REPLACE(TRIM(u.name), '/', ''), ' ', ''), '-', ''))
+        )
+        WHERE u.is_team = false OR u.id IS NULL
+        ORDER BY d.university_name, u.id
+    )
+`;
+
 // ─── Query Helpers ───────────────────────────────────────────────────
 
 export async function getOpsDailyByDate(date: string) {
     const res = await db.query(
-        'SELECT * FROM ops_daily_data WHERE date = $1 ORDER BY university_name',
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT d.*, cn.canonical_name as university_name
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date = $1
+        ORDER BY cn.canonical_name`,
         [date]
     );
     return res.rows;
 }
 
 export async function getOpsDataRange(startDate: string, endDate: string, universityName?: string) {
-    let query = 'SELECT * FROM ops_daily_data WHERE date >= $1 AND date <= $2';
+    let filter = '';
     const params: any[] = [startDate, endDate];
     if (universityName) {
-        query += ' AND university_name = $3';
+        filter = ' AND cn.canonical_name = $3';
         params.push(universityName);
     }
-    query += ' ORDER BY date, university_name';
-    const res = await db.query(query, params);
+    const res = await db.query(
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT d.*, cn.canonical_name as university_name
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date >= $1 AND d.date <= $2${filter}
+        ORDER BY d.date, cn.canonical_name`,
+        params
+    );
     return res.rows;
 }
 
@@ -179,21 +216,24 @@ export async function getOpsUniversities() {
 
 export async function getOpsTodaySummary(date: string) {
     const res = await db.query(
-        `SELECT
-            COALESCE(SUM(sessions_planned), 0) as sessions_planned,
-            COALESCE(SUM(sessions_completed), 0) as sessions_completed,
-            COALESCE(SUM(sessions_cancelled), 0) as sessions_cancelled,
-            COALESCE(SUM(enrolled), 0) as enrolled,
-            COALESCE(SUM(attended), 0) as attended,
-            COALESCE(SUM(coach_calls), 0) as coach_calls,
-            COALESCE(SUM(parent_calls), 0) as parent_calls,
-            COALESCE(SUM(instructors_total), 0) as instructors_total,
-            COALESCE(SUM(instructors_on_leave), 0) as instructors_on_leave,
-            COALESCE(SUM(at_risk_total), 0) as at_risk_total,
-            COALESCE(SUM(at_risk_informed), 0) as at_risk_informed,
-            COALESCE(SUM(acknowledgments), 0) as acknowledgments,
-            COUNT(DISTINCT university_name) as university_count
-        FROM ops_daily_data WHERE date = $1`,
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT
+            COALESCE(SUM(d.sessions_planned), 0) as sessions_planned,
+            COALESCE(SUM(d.sessions_completed), 0) as sessions_completed,
+            COALESCE(SUM(d.sessions_cancelled), 0) as sessions_cancelled,
+            COALESCE(SUM(d.enrolled), 0) as enrolled,
+            COALESCE(SUM(d.attended), 0) as attended,
+            COALESCE(SUM(d.coach_calls), 0) as coach_calls,
+            COALESCE(SUM(d.parent_calls), 0) as parent_calls,
+            COALESCE(SUM(d.instructors_total), 0) as instructors_total,
+            COALESCE(SUM(d.instructors_on_leave), 0) as instructors_on_leave,
+            COALESCE(SUM(d.at_risk_total), 0) as at_risk_total,
+            COALESCE(SUM(d.at_risk_informed), 0) as at_risk_informed,
+            COALESCE(SUM(d.acknowledgments), 0) as acknowledgments,
+            COUNT(DISTINCT cn.canonical_name) as university_count
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date = $1`,
         [date]
     );
     return res.rows[0];
@@ -201,23 +241,28 @@ export async function getOpsTodaySummary(date: string) {
 
 export async function getOpsWeekSummary(startDate: string, endDate: string) {
     const res = await db.query(
-        `SELECT
-            COALESCE(SUM(sessions_planned), 0) as sessions_planned,
-            COALESCE(SUM(sessions_completed), 0) as sessions_completed,
-            COALESCE(SUM(sessions_cancelled), 0) as sessions_cancelled,
-            COALESCE(SUM(enrolled), 0) as enrolled,
-            COALESCE(SUM(attended), 0) as attended,
-            COALESCE(SUM(coach_calls), 0) as coach_calls,
-            COALESCE(SUM(parent_calls), 0) as parent_calls,
-            COALESCE(SUM(at_risk_total), 0) as at_risk_total,
-            COALESCE(SUM(at_risk_informed), 0) as at_risk_informed,
-            COALESCE(SUM(events_planned), 0) as events_planned,
-            COALESCE(SUM(events_executed), 0) as events_executed,
-            COALESCE(SUM(events_cancelled), 0) as events_cancelled,
-            COALESCE(SUM(exams_planned), 0) as exams_planned,
-            COALESCE(SUM(exams_completed), 0) as exams_completed,
-            COALESCE(SUM(post_exam_comms_sent), 0) as post_exam_comms_sent
-        FROM ops_daily_data WHERE date >= $1 AND date <= $2`,
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT
+            COALESCE(SUM(d.sessions_planned), 0) as sessions_planned,
+            COALESCE(SUM(d.sessions_completed), 0) as sessions_completed,
+            COALESCE(SUM(d.sessions_cancelled), 0) as sessions_cancelled,
+            COALESCE(SUM(d.enrolled), 0) as enrolled,
+            COALESCE(SUM(d.attended), 0) as attended,
+            COALESCE(SUM(d.coach_calls), 0) as coach_calls,
+            COALESCE(SUM(d.parent_calls), 0) as parent_calls,
+            COALESCE(SUM(d.at_risk_total), 0) as at_risk_total,
+            COALESCE(SUM(d.at_risk_informed), 0) as at_risk_informed,
+            COALESCE(SUM(d.events_planned), 0) as events_planned,
+            COALESCE(SUM(d.events_executed), 0) as events_executed,
+            COALESCE(SUM(d.events_cancelled), 0) as events_cancelled,
+            COALESCE(SUM(d.exams_planned), 0) as exams_planned,
+            COALESCE(LEAST(SUM(d.exams_completed), SUM(d.exams_planned)), 0) as exams_completed,
+            COALESCE(SUM(d.post_exam_comms_sent), 0) as post_exam_comms_sent,
+            COALESCE(SUM(d.instructors_on_leave), 0) as instructors_on_leave,
+            COUNT(DISTINCT cn.canonical_name) as university_count
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date >= $1 AND d.date <= $2`,
         [startDate, endDate]
     );
     return res.rows[0];
@@ -231,12 +276,14 @@ export async function getOpsMonthSummary(year: number, month: number) {
 
 export async function getOpsComplianceData(startDate: string, endDate: string) {
     const res = await db.query(
-        `SELECT date, university_name,
-            report_submitted_by, report_submitted_at,
-            instructor_report, coach_report, ops_report
-        FROM ops_daily_data
-        WHERE date >= $1 AND date <= $2
-        ORDER BY university_name, date`,
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT d.date, cn.canonical_name as university_name,
+            d.report_submitted_by, d.report_submitted_at,
+            d.instructor_report, d.coach_report, d.ops_report
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date >= $1 AND d.date <= $2
+        ORDER BY cn.canonical_name, d.date`,
         [startDate, endDate]
     );
     return res.rows;
@@ -276,36 +323,62 @@ export async function getOpsInstructorsByUniversity(date: string) {
 
 export async function getOpsWeekByUniversity(startDate: string, endDate: string) {
     const res = await db.query(
-        `SELECT university_name,
-            COALESCE(SUM(sessions_planned), 0) as sessions_planned,
-            COALESCE(SUM(sessions_completed), 0) as sessions_completed,
-            COALESCE(SUM(sessions_cancelled), 0) as sessions_cancelled,
-            COALESCE(SUM(enrolled), 0) as enrolled,
-            COALESCE(SUM(attended), 0) as attended,
-            COALESCE(SUM(coach_calls), 0) as coach_calls,
-            COALESCE(SUM(instructors_on_leave), 0) as instructors_on_leave
-        FROM ops_daily_data
-        WHERE date >= $1 AND date <= $2
-        GROUP BY university_name
-        ORDER BY university_name`,
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT cn.canonical_name as university_name,
+            COALESCE(SUM(d.sessions_planned), 0) as sessions_planned,
+            COALESCE(SUM(d.sessions_completed), 0) as sessions_completed,
+            COALESCE(SUM(d.sessions_cancelled), 0) as sessions_cancelled,
+            COALESCE(SUM(d.enrolled), 0) as enrolled,
+            COALESCE(SUM(d.attended), 0) as attended,
+            COALESCE(SUM(d.coach_calls), 0) as coach_calls,
+            COALESCE(SUM(d.parent_calls), 0) as parent_calls,
+            COALESCE(SUM(d.instructors_on_leave), 0) as instructors_on_leave,
+            COALESCE(SUM(d.at_risk_total), 0) as at_risk_total,
+            COALESCE(SUM(d.at_risk_informed), 0) as at_risk_informed,
+            COALESCE(MAX(d.instructors_total), 0) as instructors_total,
+            COALESCE(SUM(d.events_planned), 0) as events_planned,
+            COALESCE(SUM(d.events_executed), 0) as events_executed,
+            COALESCE(SUM(d.events_cancelled), 0) as events_cancelled,
+            COALESCE(SUM(d.exams_planned), 0) as exams_planned,
+            COALESCE(SUM(d.exams_completed), 0) as exams_completed,
+            COALESCE(SUM(d.post_exam_comms_sent), 0) as post_exam_comms_sent,
+            STRING_AGG(DISTINCT d.cancellation_reason, '; ') FILTER (WHERE d.cancellation_reason IS NOT NULL AND d.sessions_cancelled > 0) as cancellation_reason
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date >= $1 AND d.date <= $2
+        GROUP BY cn.canonical_name
+        ORDER BY cn.canonical_name`,
         [startDate, endDate]
     );
     return res.rows;
 }
 
 export async function getOpsTeamActivity(date: string, universityName?: string) {
-    let query = `SELECT university_name,
-        instructors_active, coaches_active, program_ops_active,
-        total_calls_made, tickets_resolved, clicks_shares_sent,
-        avg_hours_instructors, avg_hours_coaches, avg_hours_program_ops
-    FROM ops_daily_data WHERE date = $1`;
+    let filter = '';
     const params: any[] = [date];
     if (universityName) {
-        query += ' AND university_name = $2';
+        filter = ' AND cn.canonical_name = $2';
         params.push(universityName);
     }
-    query += ' ORDER BY university_name';
-    const res = await db.query(query, params);
+    const res = await db.query(
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT cn.canonical_name as university_name,
+            SUM(d.instructors_active)::int as instructors_active,
+            SUM(d.coaches_active)::int as coaches_active,
+            SUM(d.program_ops_active)::int as program_ops_active,
+            SUM(d.total_calls_made)::int as total_calls_made,
+            SUM(d.tickets_resolved)::int as tickets_resolved,
+            SUM(d.clicks_shares_sent)::int as clicks_shares_sent,
+            AVG(d.avg_hours_instructors) as avg_hours_instructors,
+            AVG(d.avg_hours_coaches) as avg_hours_coaches,
+            AVG(d.avg_hours_program_ops) as avg_hours_program_ops
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date = $1${filter}
+        GROUP BY cn.canonical_name
+        ORDER BY cn.canonical_name`,
+        params
+    );
     return res.rows;
 }
 
@@ -1094,23 +1167,25 @@ export async function getOpsPeerComparison(startDate: string, endDate: string, u
  */
 export async function getOpsUniversityRankings(startDate: string, endDate: string) {
     const res = await db.query(`
+        WITH ${UNIV_RESOLVE_CTE}
         SELECT
-            university_name,
-            SUM(COALESCE(sessions_planned, 0))::int AS sessions_planned,
-            SUM(COALESCE(sessions_completed, 0))::int AS sessions_completed,
-            SUM(COALESCE(enrolled, 0))::int AS enrolled,
-            SUM(COALESCE(attended, 0))::int AS attended,
-            SUM(COALESCE(coach_calls, 0))::int AS coach_calls,
-            SUM(COALESCE(at_risk_total, 0))::int AS at_risk_total,
-            SUM(COALESCE(at_risk_informed, 0))::int AS at_risk_informed,
-            COUNT(CASE WHEN report_submitted_by IS NOT NULL THEN 1 END)::int AS reports_submitted,
+            cn.canonical_name as university_name,
+            SUM(COALESCE(d.sessions_planned, 0))::int AS sessions_planned,
+            SUM(COALESCE(d.sessions_completed, 0))::int AS sessions_completed,
+            SUM(COALESCE(d.enrolled, 0))::int AS enrolled,
+            SUM(COALESCE(d.attended, 0))::int AS attended,
+            SUM(COALESCE(d.coach_calls, 0))::int AS coach_calls,
+            SUM(COALESCE(d.at_risk_total, 0))::int AS at_risk_total,
+            SUM(COALESCE(d.at_risk_informed, 0))::int AS at_risk_informed,
+            COUNT(CASE WHEN d.report_submitted_by IS NOT NULL THEN 1 END)::int AS reports_submitted,
             COUNT(*)::int AS total_days,
-            SUM(COALESCE(events_planned, 0))::int AS events_planned,
-            SUM(COALESCE(events_executed, 0))::int AS events_executed
-        FROM ops_daily_data
-        WHERE date >= $1::date AND date <= $2::date
-        GROUP BY university_name
-        ORDER BY university_name
+            SUM(COALESCE(d.events_planned, 0))::int AS events_planned,
+            SUM(COALESCE(d.events_executed, 0))::int AS events_executed
+        FROM ops_daily_data d
+        JOIN canonical_names cn ON cn.raw_name = d.university_name
+        WHERE d.date >= $1::date AND d.date <= $2::date
+        GROUP BY cn.canonical_name
+        ORDER BY cn.canonical_name
     `, [startDate, endDate]);
 
     const rankings = res.rows.map((r: any) => {
