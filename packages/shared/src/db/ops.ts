@@ -30,8 +30,34 @@ export async function updateSheetLastSynced(configId: number) {
 
 // ─── Daily Data CRUD ─────────────────────────────────────────────────
 
+// Sort the words/parts of a name so "CIET/CITY" and "CITY/CIET" become the same key
+function sortedNameKey(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim().split(/\s+/).sort().join(' ');
+}
+
+// Known aliases for university names that can't be resolved by fuzzy matching
+// Maps normalized key → preferred canonical name
+const UNIVERSITY_ALIASES: Record<string, string> = {
+    'chalapathy': 'Chalapathi',
+    'chalapathi': 'Chalapathi',
+    'cresent': 'Crescent',
+    'crescent': 'Crescent',
+};
+
+function resolveAlias(name: string): string | null {
+    const lower = name.toLowerCase().replace(/[^a-z]/g, '');
+    return UNIVERSITY_ALIASES[lower] || null;
+}
+
 async function resolveUniversityName(client: any, rawName: string): Promise<string> {
     if (!rawName) return rawName;
+    const trimmed = rawName.trim();
+
+    // 0. Check hardcoded aliases first (handles known typos like Chalapathi/Chalapathy)
+    const alias = resolveAlias(trimmed);
+    if (alias) return alias;
+
+    // 1. Exact or fuzzy match against universities table
     const res = await client.query(
         `SELECT COALESCE(u.short_name, u.name) AS canonical
          FROM universities u
@@ -44,9 +70,25 @@ async function resolveUniversityName(client: any, rawName: string): Promise<stri
                 LOWER(REPLACE(REPLACE(REPLACE(TRIM(u.name), '/', ''), ' ', ''), '-', ''))
          )
          LIMIT 1`,
-        [rawName]
+        [trimmed]
     );
-    return res.rows.length > 0 ? res.rows[0].canonical : rawName.trim();
+    if (res.rows.length > 0) return res.rows[0].canonical;
+
+    // 2. Try sorted-word match against universities table (handles "CIET/CITY" vs "CITY/CIET")
+    const sortedKey = sortedNameKey(trimmed);
+    const allUnivs = await client.query(
+        `SELECT COALESCE(u.short_name, u.name) AS canonical FROM universities u WHERE u.is_team = false`
+    );
+    for (const u of allUnivs.rows) {
+        if (sortedNameKey(u.canonical) === sortedKey) return u.canonical;
+    }
+
+    // 3. Normalize to title case for consistency across case variants
+    //    "CRESCENT"/"Crescent"/"crescent" all become "Crescent"
+    const titleCase = trimmed.replace(/\w\S*/g, (w: string) =>
+        w.length <= 4 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
+    return titleCase;
 }
 
 export async function upsertOpsDailyData(rows: any[]) {
@@ -245,10 +287,11 @@ export async function normalizeOpsUniversityNames() {
 // This CTE resolves each to the canonical name from the universities table.
 
 const UNIV_RESOLVE_CTE = `
-    canonical_names AS (
+    raw_resolve AS (
         SELECT DISTINCT ON (d.university_name)
             d.university_name AS raw_name,
-            COALESCE(u.short_name, u.name, d.university_name) AS canonical_name,
+            u.short_name AS u_short,
+            u.name AS u_name,
             u.id AS university_id
         FROM (SELECT DISTINCT university_name FROM ops_daily_data) d
         LEFT JOIN universities u ON (
@@ -261,6 +304,20 @@ const UNIV_RESOLVE_CTE = `
         )
         WHERE u.is_team = false OR u.id IS NULL
         ORDER BY d.university_name, u.id
+    ),
+    canonical_names AS (
+        SELECT r.raw_name,
+            COALESCE(
+                r.u_short, r.u_name,
+                INITCAP(LOWER(
+                    CASE WHEN r.raw_name LIKE '%/%' THEN
+                        (SELECT string_agg(part, '/' ORDER BY part) FROM unnest(string_to_array(TRIM(r.raw_name), '/')) AS part)
+                    ELSE TRIM(r.raw_name)
+                    END
+                ))
+            ) AS canonical_name,
+            r.university_id
+        FROM raw_resolve r
     )
 `;
 
@@ -300,7 +357,10 @@ export async function getOpsDataRange(startDate: string, endDate: string, univer
 
 export async function getOpsUniversities() {
     const res = await db.query(
-        'SELECT DISTINCT university_name FROM ops_daily_data ORDER BY university_name'
+        `WITH ${UNIV_RESOLVE_CTE}
+        SELECT DISTINCT cn.canonical_name as university_name
+        FROM canonical_names cn
+        ORDER BY cn.canonical_name`
     );
     return res.rows.map((r: any) => r.university_name);
 }
