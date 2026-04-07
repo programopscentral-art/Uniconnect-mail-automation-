@@ -20,15 +20,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
     let universityId = url.searchParams.get('university_id') || undefined;
     if (!universityId) {
-        // No university requested — default based on role
-        if (isPrivileged && (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA)) {
-            universityId = undefined; // Show all
+        // No university filter requested.
+        // For minimal/assignee requests: return ALL users so pickers show everyone
+        // (COS, PM, PMA, BOA, etc. across all universities).
+        // For full user management (non-minimal): scope to user's university.
+        if (minimal) {
+            universityId = undefined; // All users for assignee pickers
+        } else if (isPrivileged && (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA)) {
+            universityId = undefined;
         } else {
             universityId = locals.user?.university_id || undefined;
         }
     }
     // If a university_id was explicitly requested, use it as-is for any authenticated user.
-    // All users need to see everyone at a university for event assignment, task assignment, etc.
 
     const users = await getAllUsers(universityId || undefined, { minimal });
     return json(users);

@@ -126,8 +126,9 @@
         fetch(`/api/schedule-events${qs}`).then(r => r.ok ? r.json() : []),
         // Calendar Freezes
         fetch(`/api/calendar-freeze${qs}`).then(r => r.ok ? r.json() : []),
-        // Users (minimal)
-        fetch(`/api/users${qs ? qs + '&' : '?'}minimal=true`).then(r => r.ok ? r.json() : []),
+        // Users (minimal) — fetch ALL users without university filter so assignee
+        // pickers show everyone (COS, PM, PMA, BOA, etc.) across all universities
+        fetch(`/api/users?minimal=true`).then(r => r.ok ? r.json() : []),
         // Task Stats
         fetch(`/api/task-stats${qs}`).then(r => r.ok ? r.json() : {}),
       ];
@@ -2005,10 +2006,8 @@
               <select bind:value={assigneeFilterUniv}
                 class="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white min-w-[120px]">
                 <option value="">All Universities</option>
-                {#each usersGroupedByUniv as g}
-                  {#if g.univId !== '__none__'}
-                    <option value={g.univId}>{g.univName}</option>
-                  {/if}
+                {#each data.universities as univ}
+                  <option value={univ.id}>{univ.name}</option>
                 {/each}
               </select>
             </div>
@@ -2172,8 +2171,8 @@
               <select bind:value={eventAssigneeFilterUniv}
                 class="px-2 py-2 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white max-w-[140px]">
                 <option value="">All Univs</option>
-                {#each usersGroupedByUniv as g}
-                  <option value={g.univId}>{g.univName}</option>
+                {#each data.universities as univ}
+                  <option value={univ.id}>{univ.name}</option>
                 {/each}
               </select>
             </div>
