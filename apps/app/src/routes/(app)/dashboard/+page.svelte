@@ -298,11 +298,29 @@
     const users = allUsers;
     const groups: Record<string, { univName: string; univId: string; users: any[] }> = {};
     for (const u of users) {
-      const key = u.university_id || '__none__';
-      if (!groups[key]) {
-        groups[key] = { univId: key, univName: u.university_name || 'No University', users: [] };
+      // Collect all university IDs this user belongs to (primary + secondary)
+      const univSet = new Set<string>();
+      if (u.university_id) univSet.add(u.university_id);
+      if (u.universities?.length) {
+        for (const univ of u.universities) {
+          if (univ.id) univSet.add(univ.id);
+        }
       }
-      groups[key].users.push(u);
+      if (univSet.size === 0) univSet.add('__none__');
+
+      // Add user to each university group they belong to
+      for (const uid of univSet) {
+        if (!groups[uid]) {
+          const univName = uid === '__none__'
+            ? 'No University'
+            : (uid === u.university_id ? u.university_name : u.universities?.find((x: any) => x.id === uid)?.name) || 'Unknown';
+          groups[uid] = { univId: uid, univName, users: [] };
+        }
+        // Avoid duplicates (shouldn't happen, but safety check)
+        if (!groups[uid].users.some((existing: any) => existing.id === u.id)) {
+          groups[uid].users.push(u);
+        }
+      }
     }
     // Sort: universities with names first, "No University" last
     return Object.values(groups).sort((a, b) => {
