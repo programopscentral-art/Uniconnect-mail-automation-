@@ -230,53 +230,78 @@ export async function normalizeOpsUniversityNames() {
     const client = await db.connect();
     try {
         await client.query('BEGIN');
-        // 1. Get all distinct raw names and resolve them
+
+        // 1. Build rename map: old_name → canonical_name
         const rawNames = await client.query('SELECT DISTINCT university_name FROM ops_daily_data');
-        let updated = 0;
+        const renameMap = new Map<string, string>();
         for (const row of rawNames.rows) {
             const canonical = await resolveUniversityName(client, row.university_name);
             if (canonical !== row.university_name) {
-                // Check if a row already exists for this date+canonical — if so, merge by summing
-                await client.query(`
-                    UPDATE ops_daily_data dst SET
-                        sessions_planned = dst.sessions_planned + src.sessions_planned,
-                        sessions_completed = dst.sessions_completed + src.sessions_completed,
-                        sessions_cancelled = dst.sessions_cancelled + src.sessions_cancelled,
-                        enrolled = dst.enrolled + src.enrolled,
-                        attended = dst.attended + src.attended,
-                        coach_calls = dst.coach_calls + src.coach_calls,
-                        parent_calls = dst.parent_calls + src.parent_calls,
-                        instructors_on_leave = dst.instructors_on_leave + src.instructors_on_leave,
-                        at_risk_total = dst.at_risk_total + src.at_risk_total,
-                        at_risk_informed = dst.at_risk_informed + src.at_risk_informed,
-                        events_planned = dst.events_planned + src.events_planned,
-                        events_executed = dst.events_executed + src.events_executed,
-                        events_cancelled = dst.events_cancelled + src.events_cancelled,
-                        exams_planned = dst.exams_planned + src.exams_planned,
-                        exams_completed = dst.exams_completed + src.exams_completed,
-                        post_exam_comms_sent = dst.post_exam_comms_sent + src.post_exam_comms_sent
-                    FROM ops_daily_data src
-                    WHERE src.university_name = $1
-                      AND dst.university_name = $2
-                      AND dst.date = src.date
-                `, [row.university_name, canonical]);
-                // Delete old rows that were merged
-                await client.query(`
-                    DELETE FROM ops_daily_data
-                    WHERE university_name = $1
-                      AND date IN (SELECT date FROM ops_daily_data WHERE university_name = $2)
-                `, [row.university_name, canonical]);
-                // Rename remaining rows that didn't have a conflict
-                const res = await client.query(
-                    'UPDATE ops_daily_data SET university_name = $1 WHERE university_name = $2',
-                    [canonical, row.university_name]
-                );
-                updated += res.rowCount || 0;
+                renameMap.set(row.university_name, canonical);
             }
         }
+
+        if (renameMap.size === 0) {
+            await client.query('COMMIT');
+            console.log('[OPS] No university names to normalize');
+            return 0;
+        }
+
+        console.log(`[OPS] Normalizing ${renameMap.size} university names:`, Object.fromEntries(renameMap));
+
+        let totalUpdated = 0;
+        for (const [oldName, canonical] of renameMap) {
+            // For each date where BOTH old and canonical exist, merge by summing into canonical and deleting old
+            const overlapping = await client.query(
+                `SELECT old.date FROM ops_daily_data old
+                 INNER JOIN ops_daily_data canon ON canon.date = old.date AND canon.university_name = $2
+                 WHERE old.university_name = $1`,
+                [oldName, canonical]
+            );
+
+            for (const dateRow of overlapping.rows) {
+                // Add old values into canonical row for this specific date
+                await client.query(`
+                    UPDATE ops_daily_data SET
+                        sessions_planned = ops_daily_data.sessions_planned + old.sessions_planned,
+                        sessions_completed = ops_daily_data.sessions_completed + old.sessions_completed,
+                        sessions_cancelled = ops_daily_data.sessions_cancelled + old.sessions_cancelled,
+                        enrolled = ops_daily_data.enrolled + old.enrolled,
+                        attended = ops_daily_data.attended + old.attended,
+                        coach_calls = ops_daily_data.coach_calls + old.coach_calls,
+                        parent_calls = ops_daily_data.parent_calls + old.parent_calls,
+                        instructors_on_leave = ops_daily_data.instructors_on_leave + old.instructors_on_leave,
+                        at_risk_total = ops_daily_data.at_risk_total + old.at_risk_total,
+                        at_risk_informed = ops_daily_data.at_risk_informed + old.at_risk_informed,
+                        events_planned = ops_daily_data.events_planned + old.events_planned,
+                        events_executed = ops_daily_data.events_executed + old.events_executed,
+                        events_cancelled = ops_daily_data.events_cancelled + old.events_cancelled,
+                        exams_planned = ops_daily_data.exams_planned + old.exams_planned,
+                        exams_completed = ops_daily_data.exams_completed + old.exams_completed,
+                        post_exam_comms_sent = ops_daily_data.post_exam_comms_sent + old.post_exam_comms_sent
+                    FROM ops_daily_data old
+                    WHERE old.university_name = $1 AND old.date = $3
+                      AND ops_daily_data.university_name = $2 AND ops_daily_data.date = $3
+                `, [oldName, canonical, dateRow.date]);
+
+                // Delete the old row for this date
+                await client.query(
+                    'DELETE FROM ops_daily_data WHERE university_name = $1 AND date = $2',
+                    [oldName, dateRow.date]
+                );
+            }
+
+            // Rename any remaining old rows (dates where canonical didn't exist) directly
+            const renamed = await client.query(
+                'UPDATE ops_daily_data SET university_name = $1 WHERE university_name = $2',
+                [canonical, oldName]
+            );
+            totalUpdated += (renamed.rowCount || 0) + overlapping.rows.length;
+        }
+
         await client.query('COMMIT');
-        console.log(`[OPS] Normalized university names: ${updated} rows updated`);
-        return updated;
+        console.log(`[OPS] Normalized university names: ${totalUpdated} rows updated/merged`);
+        return totalUpdated;
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;
