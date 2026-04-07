@@ -48,6 +48,21 @@ const UNIVERSITY_ALIASES: Record<string, string> = {
     'yenapoya': 'Yenapoya',
 };
 
+// Quick sync canonical name resolver — no DB needed, just alias map + normalization
+export function canonicalUnivName(name: string): string {
+    if (!name) return name;
+    const trimmed = name.trim();
+    const lower = trimmed.toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (UNIVERSITY_ALIASES[lower]) return UNIVERSITY_ALIASES[lower];
+    // Sort /-separated parts: "CITY/CIET" → "CIET/CITY"
+    if (trimmed.includes('/')) {
+        const sorted = trimmed.split('/').map(s => s.trim()).sort().join('/');
+        const sortedKey = sorted.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (UNIVERSITY_ALIASES[sortedKey]) return UNIVERSITY_ALIASES[sortedKey];
+    }
+    return trimmed;
+}
+
 function resolveAlias(name: string): string | null {
     const lower = name.toLowerCase().replace(/[^a-z]/g, '');
     return UNIVERSITY_ALIASES[lower] || null;
@@ -355,6 +370,14 @@ const UNIV_RESOLVE_CTE = `
     )
 `;
 
+// Apply JS alias map to all rows that have university_name
+function applyCanonicalNames(rows: any[]): any[] {
+    for (const r of rows) {
+        if (r.university_name) r.university_name = canonicalUnivName(r.university_name);
+    }
+    return rows;
+}
+
 // ─── Query Helpers ───────────────────────────────────────────────────
 
 export async function getOpsDailyByDate(date: string) {
@@ -367,7 +390,7 @@ export async function getOpsDailyByDate(date: string) {
         ORDER BY cn.canonical_name`,
         [date]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsDataRange(startDate: string, endDate: string, universityName?: string) {
@@ -386,17 +409,22 @@ export async function getOpsDataRange(startDate: string, endDate: string, univer
         ORDER BY d.date, cn.canonical_name`,
         params
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsUniversities() {
-    const res = await db.query(
-        `WITH ${UNIV_RESOLVE_CTE}
-        SELECT DISTINCT cn.canonical_name as university_name
-        FROM canonical_names cn
-        ORDER BY cn.canonical_name`
-    );
-    return res.rows.map((r: any) => r.university_name);
+    const res = await db.query('SELECT DISTINCT university_name FROM ops_daily_data ORDER BY university_name');
+    // Deduplicate via JS alias map — guaranteed single entry per university
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const r of res.rows) {
+        const canonical = canonicalUnivName(r.university_name);
+        if (!seen.has(canonical)) {
+            seen.add(canonical);
+            result.push(canonical);
+        }
+    }
+    return result.sort();
 }
 
 // ─── Aggregation Queries ─────────────────────────────────────────────
@@ -473,7 +501,7 @@ export async function getOpsComplianceData(startDate: string, endDate: string) {
         ORDER BY cn.canonical_name, d.date`,
         [startDate, endDate]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsSessionsByUniversity(date: string) {
@@ -484,7 +512,7 @@ export async function getOpsSessionsByUniversity(date: string) {
         FROM ops_daily_data WHERE date = $1 ORDER BY university_name`,
         [date]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsAttendanceByUniversity(date: string) {
@@ -495,7 +523,7 @@ export async function getOpsAttendanceByUniversity(date: string) {
         FROM ops_daily_data WHERE date = $1 ORDER BY university_name`,
         [date]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsInstructorsByUniversity(date: string) {
@@ -505,7 +533,7 @@ export async function getOpsInstructorsByUniversity(date: string) {
         FROM ops_daily_data WHERE date = $1 ORDER BY university_name`,
         [date]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsWeekByUniversity(startDate: string, endDate: string) {
@@ -537,7 +565,7 @@ export async function getOpsWeekByUniversity(startDate: string, endDate: string)
         ORDER BY cn.canonical_name`,
         [startDate, endDate]
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 export async function getOpsTeamActivity(date: string, universityName?: string) {
@@ -566,7 +594,7 @@ export async function getOpsTeamActivity(date: string, universityName?: string) 
         ORDER BY cn.canonical_name`,
         params
     );
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 // ─── Instructor Daily Activity ───────────────────────────────────────
@@ -626,7 +654,7 @@ export async function getOpsInstructorActivity(date: string, universityName?: st
     }
     query += ' ORDER BY university_name, instructor_name';
     const res = await db.query(query, params);
-    return res.rows;
+    return applyCanonicalNames(res.rows);
 }
 
 // ─── Reports: Daily/Weekly/Monthly ───────────────────────────────────
@@ -1390,7 +1418,7 @@ export async function getOpsUniversityRankings(startDate: string, endDate: strin
         );
 
         return {
-            university_name: r.university_name, score,
+            university_name: canonicalUnivName(r.university_name), score,
             sessRate: Math.round(sessRate), attRate: Math.round(attRate),
             coachRate: Math.round(coachRate), riskRate: Math.round(riskRate),
             complianceRate: Math.round(complianceRate), eventRate: Math.round(eventRate),
