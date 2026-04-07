@@ -447,8 +447,18 @@
         const f = (v: any) => parseFloat(v) || 0;
 
         // ── DEDUPLICATE universities by normalizing names ──
-        // Different data sources may store "CHALAPATHI" vs "Chalapathy", "Cresent" vs "Crescent"
-        function normalizeUnivName(name: string) { return (name || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+        // Handles typos, casing, reversed word order: "CHALAPATHI"/"Chalapathy", "CIET/CITY"/"CITY/CIET"
+        const UNIV_ALIASES: Record<string, string> = {
+            'chalapathy': 'chalapathi', 'chalapathi': 'chalapathi',
+            'cresent': 'crescent', 'crescent': 'crescent',
+        };
+        function normalizeUnivName(name: string) {
+            const lower = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (UNIV_ALIASES[lower]) return UNIV_ALIASES[lower];
+            // Sort /-separated parts so "CIET/CITY" and "CITY/CIET" match
+            const sorted = (name || '').trim().toLowerCase().split(/[\/\-\s]+/).filter(Boolean).sort().join('');
+            return sorted || lower;
+        }
         function mergeUnivRows(rows: any[]) {
             const merged = new Map<string, any>();
             for (const r of rows) {
