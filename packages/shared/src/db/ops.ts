@@ -309,6 +309,13 @@ const UNIV_RESOLVE_CTE = `
         SELECT r.raw_name,
             COALESCE(
                 r.u_short, r.u_name,
+                CASE LOWER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(r.raw_name), '/', ''), ' ', ''), '-', ''), '''', ''))
+                    WHEN 'chalapathy' THEN 'Chalapathi'
+                    WHEN 'chalapathi' THEN 'Chalapathi'
+                    WHEN 'cresent' THEN 'Crescent'
+                    WHEN 'crescent' THEN 'Crescent'
+                    ELSE NULL
+                END,
                 INITCAP(LOWER(
                     CASE WHEN r.raw_name LIKE '%/%' THEN
                         (SELECT string_agg(part, '/' ORDER BY part) FROM unnest(string_to_array(TRIM(r.raw_name), '/')) AS part)
