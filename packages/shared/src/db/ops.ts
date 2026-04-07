@@ -30,12 +30,42 @@ export async function updateSheetLastSynced(configId: number) {
 
 // ─── Daily Data CRUD ─────────────────────────────────────────────────
 
+async function resolveUniversityName(client: any, rawName: string): Promise<string> {
+    if (!rawName) return rawName;
+    const res = await client.query(
+        `SELECT COALESCE(u.short_name, u.name) AS canonical
+         FROM universities u
+         WHERE u.is_team = false AND (
+             LOWER(TRIM($1)) = LOWER(TRIM(u.name))
+             OR LOWER(TRIM($1)) = LOWER(TRIM(u.short_name))
+             OR LOWER(REPLACE(REPLACE(REPLACE(TRIM($1), '/', ''), ' ', ''), '-', '')) =
+                LOWER(REPLACE(REPLACE(REPLACE(TRIM(COALESCE(u.short_name, u.name)), '/', ''), ' ', ''), '-', ''))
+             OR LOWER(REPLACE(REPLACE(REPLACE(TRIM($1), '/', ''), ' ', ''), '-', '')) =
+                LOWER(REPLACE(REPLACE(REPLACE(TRIM(u.name), '/', ''), ' ', ''), '-', ''))
+         )
+         LIMIT 1`,
+        [rawName]
+    );
+    return res.rows.length > 0 ? res.rows[0].canonical : rawName.trim();
+}
+
 export async function upsertOpsDailyData(rows: any[]) {
     if (!rows.length) return;
     const client = await db.connect();
     try {
         await client.query('BEGIN');
+
+        // Pre-resolve all university names to canonical form
+        const nameCache = new Map<string, string>();
         for (const r of rows) {
+            const raw = (r.university_name || '').trim();
+            if (raw && !nameCache.has(raw)) {
+                nameCache.set(raw, await resolveUniversityName(client, raw));
+            }
+        }
+
+        for (const r of rows) {
+            r.university_name = nameCache.get((r.university_name || '').trim()) || r.university_name;
             await client.query(
                 `INSERT INTO ops_daily_data (
                     date, university_name,
@@ -138,6 +168,69 @@ export async function clearOpsData(date?: string) {
             await client.query('DELETE FROM ops_daily_data');
         }
         await client.query('COMMIT');
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
+// ─── Normalize existing ops_daily_data university names ─────────────
+// Fixes historical data: resolves free-text names to canonical names
+// and merges duplicate rows (same date + canonical name) by summing values.
+
+export async function normalizeOpsUniversityNames() {
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+        // 1. Get all distinct raw names and resolve them
+        const rawNames = await client.query('SELECT DISTINCT university_name FROM ops_daily_data');
+        let updated = 0;
+        for (const row of rawNames.rows) {
+            const canonical = await resolveUniversityName(client, row.university_name);
+            if (canonical !== row.university_name) {
+                // Check if a row already exists for this date+canonical — if so, merge by summing
+                await client.query(`
+                    UPDATE ops_daily_data dst SET
+                        sessions_planned = dst.sessions_planned + src.sessions_planned,
+                        sessions_completed = dst.sessions_completed + src.sessions_completed,
+                        sessions_cancelled = dst.sessions_cancelled + src.sessions_cancelled,
+                        enrolled = dst.enrolled + src.enrolled,
+                        attended = dst.attended + src.attended,
+                        coach_calls = dst.coach_calls + src.coach_calls,
+                        parent_calls = dst.parent_calls + src.parent_calls,
+                        instructors_on_leave = dst.instructors_on_leave + src.instructors_on_leave,
+                        at_risk_total = dst.at_risk_total + src.at_risk_total,
+                        at_risk_informed = dst.at_risk_informed + src.at_risk_informed,
+                        events_planned = dst.events_planned + src.events_planned,
+                        events_executed = dst.events_executed + src.events_executed,
+                        events_cancelled = dst.events_cancelled + src.events_cancelled,
+                        exams_planned = dst.exams_planned + src.exams_planned,
+                        exams_completed = dst.exams_completed + src.exams_completed,
+                        post_exam_comms_sent = dst.post_exam_comms_sent + src.post_exam_comms_sent
+                    FROM ops_daily_data src
+                    WHERE src.university_name = $1
+                      AND dst.university_name = $2
+                      AND dst.date = src.date
+                `, [row.university_name, canonical]);
+                // Delete old rows that were merged
+                await client.query(`
+                    DELETE FROM ops_daily_data
+                    WHERE university_name = $1
+                      AND date IN (SELECT date FROM ops_daily_data WHERE university_name = $2)
+                `, [row.university_name, canonical]);
+                // Rename remaining rows that didn't have a conflict
+                const res = await client.query(
+                    'UPDATE ops_daily_data SET university_name = $1 WHERE university_name = $2',
+                    [canonical, row.university_name]
+                );
+                updated += res.rowCount || 0;
+            }
+        }
+        await client.query('COMMIT');
+        console.log(`[OPS] Normalized university names: ${updated} rows updated`);
+        return updated;
     } catch (e) {
         await client.query('ROLLBACK');
         throw e;

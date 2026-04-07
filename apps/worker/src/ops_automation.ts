@@ -19,6 +19,7 @@ import {
     getOpsUniversityRankings,
     getOpsTaskPatterns,
     getOpsPeerComparison,
+    normalizeOpsUniversityNames,
 } from '@uniconnect/shared';
 import * as admin from 'firebase-admin';
 import { Queue } from 'bullmq';
@@ -1719,8 +1720,20 @@ function buildMonthlyReportHTML(monthlyReport: any, rankings: any[], aiSummary: 
 
 // ─── Main Entry Point ───────────────────────────────────────────────
 
+let hasNormalizedNames = false;
+
 export async function processOpsAutomation() {
     try {
+        // One-time cleanup: normalize existing university names in ops_daily_data
+        if (!hasNormalizedNames) {
+            try {
+                await normalizeOpsUniversityNames();
+                hasNormalizedNames = true;
+            } catch (e: any) {
+                console.warn('[OPS-AUTO] Name normalization failed (will retry):', e.message);
+            }
+        }
+
         await Promise.all([
             processSmartAlerts(),
             processFormReminders(),
