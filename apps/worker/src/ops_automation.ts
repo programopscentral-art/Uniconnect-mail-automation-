@@ -1073,7 +1073,7 @@ function buildWeeklyReportHTML(
                 <div style="background:#faf5ff;border-radius:8px;padding:14px 8px">
                     <div style="font-size:28px;font-weight:700;color:${kpiColor(eventRate, 80, 60)}">${n(s.events_executed)}</div>
                     <div style="font-size:12px;color:#6b7280;margin-top:4px">Events Executed</div>
-                    <div style="font-size:11px;color:#9ca3af">${n(s.events_planned)} planned, ${n(s.events_cancelled)} cancelled</div>
+                    <div style="font-size:11px;color:#9ca3af">${n(s.events_planned)} planned${n(s.events_cancelled) > 0 ? `, ${n(s.events_cancelled)} cancelled` : ''}${(n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)) > 0 ? `, ${n(s.events_planned) - n(s.events_executed) - n(s.events_cancelled)} pending` : ''}</div>
                 </div>
             </td>
         </tr>

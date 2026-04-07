@@ -954,7 +954,7 @@
             <div class="kpi">
                 <div class="label">Event Execution</div>
                 <div class="value" style="color:${rateColor(eventExecRate)}">${eventExecRate}%</div>
-                <div class="sub">${totalEventsExecuted} of ${totalEventsPlanned} · ${totalEventsCancelled} cancelled</div>
+                <div class="sub">${totalEventsExecuted} of ${totalEventsPlanned}${totalEventsCancelled > 0 ? ` · ${totalEventsCancelled} cancelled` : ''}${(totalEventsPlanned - totalEventsExecuted - totalEventsCancelled) > 0 ? ` · ${totalEventsPlanned - totalEventsExecuted - totalEventsCancelled} pending` : ''}</div>
             </div>
             <div class="kpi">
                 <div class="label">Exam Completion</div>
