@@ -8,14 +8,10 @@ export const POST: RequestHandler = async ({ request, cookies, locals }: any) =>
     const { universityId } = await request.json();
     if (!universityId) throw error(400, 'University ID is required');
 
-    // Check if user has access (Admins have access to all)
-    const hasAccess = locals.user.universities.some((u: any) => u.id === universityId) ||
-        locals.user.role === 'ADMIN' ||
-        locals.user.role === 'PROGRAM_OPS';
-
-    if (!hasAccess && universityId !== 'ALL') {
-        throw error(403, 'Permission denied');
-    }
+    // Any authenticated user can switch to a university visible in their dropdown.
+    // Team members see universities via getAllUniversities(teamId) which resolves
+    // through other team members' junction entries — not their own direct assignments.
+    // So we allow the switch for any logged-in user rather than checking user_universities.
 
     cookies.set('active_university_id', universityId, {
         path: '/',

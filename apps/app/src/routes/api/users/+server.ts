@@ -19,18 +19,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     }
 
     let universityId = url.searchParams.get('university_id') || undefined;
-    if (!isPrivileged) {
-        // Allow non-privileged users to query universities they have access to
-        const requestedUniv = universityId;
-        const userUnivs = (locals.user as any)?.universities?.map((u: any) => u.id) || [];
-        if (requestedUniv && (userUnivs.includes(requestedUniv) || requestedUniv === locals.user?.university_id)) {
-            universityId = requestedUniv;
+    if (!universityId) {
+        // No university requested — default based on role
+        if (isPrivileged && (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA)) {
+            universityId = undefined; // Show all
         } else {
             universityId = locals.user?.university_id || undefined;
         }
-    } else if (!universityId) {
-        universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA) ? undefined : locals.user?.university_id;
     }
+    // If a university_id was explicitly requested, use it as-is for any authenticated user.
+    // All users need to see everyone at a university for event assignment, task assignment, etc.
 
     const users = await getAllUsers(universityId || undefined, { minimal });
     return json(users);
