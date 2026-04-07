@@ -14,7 +14,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     // Only load universities list (lightweight) for the filter dropdown
     const effectiveUniversityId = (universityId && universityId !== '') ? universityId : undefined;
-    const canViewUniversities = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS'].includes(locals.user.role as string);
+    const hasMultipleUnivs = (locals.user as any).universities?.length > 1;
+    const canViewUniversities = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS', 'BOA', 'CMA', 'CMA_MANAGER', 'SET_REVIEWER', 'UNIVERSITY_OPERATOR', 'SUPPORT', 'STAKEHOLDER'].includes(locals.user.role as string) || hasMultipleUnivs;
     const universities = canViewUniversities ? await getAllUniversities(effectiveUniversityId) : [];
 
     return {

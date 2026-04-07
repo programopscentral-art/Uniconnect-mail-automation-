@@ -20,7 +20,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
     let universityId = url.searchParams.get('university_id') || undefined;
     if (!isPrivileged) {
-        universityId = locals.user?.university_id || undefined;
+        // Allow non-privileged users to query universities they have access to
+        const requestedUniv = universityId;
+        const userUnivs = (locals.user as any)?.universities?.map((u: any) => u.id) || [];
+        if (requestedUniv && (userUnivs.includes(requestedUniv) || requestedUniv === locals.user?.university_id)) {
+            universityId = requestedUniv;
+        } else {
+            universityId = locals.user?.university_id || undefined;
+        }
     } else if (!universityId) {
         universityId = (userRole === 'ADMIN' || userRole === 'PROGRAM_OPS' || isCentralBOA) ? undefined : locals.user?.university_id;
     }

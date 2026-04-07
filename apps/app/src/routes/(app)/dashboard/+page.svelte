@@ -515,8 +515,16 @@
   }
 
   // ─── University Change ────────────────────────────────────────────────────
-  function onUnivChange(e: Event) {
+  async function onUnivChange(e: Event) {
     const val = (e.target as HTMLSelectElement).value;
+    // Update the active_university_id cookie so API calls respect the selection
+    if (val) {
+      await fetch('/api/auth/active-university', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ universityId: val })
+      });
+    }
     const url = new URL(window.location.href);
     if (val) url.searchParams.set('universityId', val);
     else url.searchParams.delete('universityId');
