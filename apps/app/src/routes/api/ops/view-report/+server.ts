@@ -235,7 +235,7 @@ function generateReportHTML(report: any, type: string): string {
             <div class="kpi"><div class="label">Coaches (CMAs)</div><div class="value purple">${totalCoachesActive}</div><div class="sub">Avg ${avgCoachHrs}h/day</div></div>
             <div class="kpi"><div class="label">Program Ops</div><div class="value" style="color:#0891b2">${totalOpsActive}</div><div class="sub">Avg ${avgOpsHrs}h/day</div></div>
         </div>
-        <table>
+        <div class="table-wrap"><table>
             <thead><tr>
                 <th style="text-align:left">University</th>
                 <th>Instructors</th><th>Coaches</th><th>Prog. Ops</th>
@@ -254,7 +254,7 @@ function generateReportHTML(report: any, type: string): string {
             <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_coaches).toFixed(1)}h</td>
             <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_program_ops).toFixed(1)}h</td>
         </tr>`).join('') +
-        `</tbody></table>`;
+        `</tbody></table></div>`;
     }
 
     // ── Compliance Section ──
@@ -288,7 +288,7 @@ function generateReportHTML(report: any, type: string): string {
                 if (!univGroups.has(key)) univGroups.set(key, []);
                 univGroups.get(key)!.push(r);
             }
-            return `<table>
+            return `<div class="table-wrap"><table>
             <thead><tr>
                 <th style="text-align:left">University</th>
                 <th style="text-align:left">Date</th>
@@ -311,7 +311,7 @@ function generateReportHTML(report: any, type: string): string {
                     </tr>`;
                 }).join('')
             ).join('') +
-            `</tbody></table>`;
+            `</tbody></table></div>`;
         })();
     }
 
@@ -359,7 +359,7 @@ function generateReportHTML(report: any, type: string): string {
 
         dailySection = `<h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Day-by-Day Summary</h2>
         <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Aggregated totals across all universities for each day. Instructors on leave this ${type === 'weekly' ? 'week' : 'month'}: <strong>${totalLeaveInPeriod}</strong>.</p>
-        <table>
+        <div class="table-wrap"><table>
         <thead><tr>
             <th style="text-align:left">Date</th>
             <th>Sessions Done/Planned</th><th>Sess %</th>
@@ -394,7 +394,7 @@ function generateReportHTML(report: any, type: string): string {
                 <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${Math.min(d.exams_completed, d.exams_planned)}/${d.exams_planned}</td>
             </tr>`;
         }).join('') +
-        `</tbody></table>`;
+        `</tbody></table></div>`;
     }
 
     // ── Cancellation Reasons ──
@@ -403,7 +403,7 @@ function generateReportHTML(report: any, type: string): string {
     if (cancellations.length > 0) {
         cancellationSection = `
         <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Session Cancellation Reasons</h2>
-        <table><thead><tr>
+        <div class="table-wrap"><table><thead><tr>
             <th style="text-align:left">University</th><th style="text-align:center">Cancelled</th><th style="text-align:left">Reason</th>
         </tr></thead><tbody>` +
         cancellations.map((r: any) => `<tr>
@@ -411,7 +411,7 @@ function generateReportHTML(report: any, type: string): string {
             <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;color:#dc2626;font-weight:600">${n(r.sessions_cancelled)}</td>
             <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-size:12px">${r.cancellation_reason}</td>
         </tr>`).join('') +
-        `</tbody></table>`;
+        `</tbody></table></div>`;
     }
 
     // ── Key Observations (auto-generated) ──
@@ -469,13 +469,13 @@ function generateReportHTML(report: any, type: string): string {
 
         chartsSection = `
         <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Visual Summary</h2>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;text-align:center;margin-bottom:24px;margin-top:16px">
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);text-align:center;margin-bottom:24px;margin-top:16px">
             ${svgDonut(sessRate, 'Sessions', rateColor(sessRate), 100)}
             ${svgDonut(attRate, 'Attendance', rateColor(attRate), 100)}
             ${svgDonut(coachRate, 'Coach Calls', rateColor(coachRate), 100)}
             ${svgDonut(eventExecRate, 'Events', rateColor(eventExecRate), 100)}
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:16px">
+        <div class="kpi-grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
             <div>
                 <p style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:8px">Sessions Completed per Day</p>
                 ${svgBar(sessionBars, 130)}
@@ -491,13 +491,13 @@ function generateReportHTML(report: any, type: string): string {
         </div>` : ''}`;
     }
 
-    return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>UniOps — ${title}</title>
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>UniOps — ${title}</title>
     <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 32px; color: #1e293b; background: #fff; }
     h1 { font-size: 28px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
     h2 { font-size: 18px; font-weight: 700; color: #1e293b; margin-top: 32px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
-    .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; }
+    .subtitle { color: #64748b; font-size: 13px; margin-bottom: 24px; word-break: break-word; }
     .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin: 24px 0; }
     .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
     .kpi .label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; }
@@ -505,13 +505,33 @@ function generateReportHTML(report: any, type: string): string {
     .kpi .sub { font-size: 11px; color: #94a3b8; margin-top: 6px; }
     .kpi-highlight { background: linear-gradient(135deg, #f0f4ff, #e0e7ff); border-color: #c7d2fe; }
     .green { color: #16a34a; } .red { color: #dc2626; } .blue { color: #2563eb; } .amber { color: #d97706; } .purple { color: #7c3aed; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 12px -16px 0; padding: 0 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; min-width: 700px; }
     thead tr { background: #f1f5f9; }
-    th { padding: 10px 8px; text-align: center; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; }
+    th { padding: 10px 8px; text-align: center; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; white-space: nowrap; }
     th:first-child { text-align: left; }
     td { padding: 10px 8px; text-align: center; border-bottom: 1px solid #e5e7eb; }
     td:first-child { text-align: left; }
     .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    @media (max-width: 768px) {
+        body { padding: 16px 12px; }
+        h1 { font-size: 20px; }
+        h2 { font-size: 16px; }
+        .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
+        .kpi { padding: 14px 10px; }
+        .kpi .value { font-size: 26px; }
+        .kpi .label { font-size: 9px; letter-spacing: 1px; }
+        table { font-size: 11px; }
+        th, td { padding: 6px 4px; }
+    }
+    @media (max-width: 480px) {
+        body { padding: 12px 8px; }
+        h1 { font-size: 18px; }
+        .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+        .kpi .value { font-size: 22px; }
+        .kpi { padding: 12px 8px; }
+        table { font-size: 10px; }
+    }
     @media print { body { padding: 16px; } .kpi { break-inside: avoid; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } }
     </style></head><body>
     <h1>UniOps — ${title}</h1>
@@ -576,7 +596,7 @@ function generateReportHTML(report: any, type: string): string {
 
     <h2 style="margin-top:32px">University-wise Breakdown</h2>
     <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Detailed numbers for each university.</p>
-    <div style="overflow-x:auto">
+    <div class="table-wrap">
     <table>
         <thead><tr>
             <th style="text-align:left">University</th>
