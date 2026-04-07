@@ -13,15 +13,21 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }
 
     // Load universities for the filter dropdown
-    const userUnivs: Array<{ id: string; is_team?: boolean }> = (locals.user as any).universities || [];
-    const hasMultipleUnivs = userUnivs.length > 1;
-    const canViewUniversities = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS', 'BOA', 'CMA', 'CMA_MANAGER', 'SET_REVIEWER', 'UNIVERSITY_OPERATOR', 'SUPPORT', 'STAKEHOLDER'].includes(locals.user.role as string) || hasMultipleUnivs;
-
-    // For the dropdown: use the user's team entry (if any) to resolve visible universities.
-    // getAllUniversities(teamId) finds real universities via team members' junction entries.
-    // Always use team ID (not the currently selected university) so the dropdown stays stable.
+    const userUnivs: Array<{ id: string; name?: string; is_team?: boolean }> = (locals.user as any).universities || [];
+    const isGlobalRole = ['ADMIN', 'PROGRAM_OPS'].includes(locals.user.role as string);
     const teamEntry = userUnivs.find(u => u.is_team);
-    const universities = canViewUniversities ? await getAllUniversities(teamEntry?.id) : [];
+
+    let universities: any[] = [];
+    if (isGlobalRole) {
+        // Admins see all universities
+        universities = await getAllUniversities();
+    } else if (teamEntry) {
+        // Team members: resolve universities via team membership
+        universities = await getAllUniversities(teamEntry.id);
+    } else if (userUnivs.length > 0) {
+        // Users directly assigned to universities: show only their assigned ones
+        universities = userUnivs.filter(u => !u.is_team).map(u => ({ id: u.id, name: u.name }));
+    }
 
     return {
         universities,
