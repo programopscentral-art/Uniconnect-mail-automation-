@@ -1,3 +1,4 @@
+import { db, decryptString, upsertMeetingInvitee, upsertMeetingParticipant, updateMeeting } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -10,8 +11,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!meetingId) throw error(400, 'meetingId required');
 
     try {
-        const { db } = await import('@uniconnect/shared/db/client');
-
         // Get the meeting
         const meetingRes = await db.query('SELECT * FROM org_meetings WHERE id = $1', [meetingId]);
         const meeting = meetingRes.rows[0];
@@ -24,9 +23,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const connRes = await db.query("SELECT * FROM meeting_connections WHERE status = 'ACTIVE' LIMIT 1");
         const conn = connRes.rows[0];
         if (!conn) throw error(400, 'No active Google connection');
-
-        // Decrypt refresh token and create OAuth client
-        const { decryptString } = await import('@uniconnect/shared/crypto');
         const refreshToken = decryptString(conn.refresh_token_enc);
 
         const { google } = await import('googleapis');
@@ -78,8 +74,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         // If calendar event found, import attendees
         if (foundEvent && foundEvent.attendees) {
-            const { upsertMeetingInvitee, updateMeeting } = await import('@uniconnect/shared');
-
             // Update meeting title from calendar
             await updateMeeting(meetingId, {
                 google_event_id: foundEvent.id,
@@ -154,8 +148,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                             const durationIdx = header.findIndex((h: string) => h.includes('duration'));
                             const joinIdx = header.findIndex((h: string) => h.includes('join') || h.includes('start'));
                             const leaveIdx = header.findIndex((h: string) => h.includes('leave') || h.includes('end') || h.includes('exit'));
-
-                            const { upsertMeetingParticipant, updateMeeting } = await import('@uniconnect/shared');
 
                             for (let i = 1; i < lines.length; i++) {
                                 const cols = lines[i].split(',').map((c: string) => c.trim().replace(/"/g, ''));
