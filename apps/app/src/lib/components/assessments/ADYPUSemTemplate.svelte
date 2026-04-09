@@ -333,11 +333,12 @@
       </table>
 
       <!-- ═══ INSTRUCTIONS ═══ -->
+      {@const defaultInstructions = "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated."}
       <div class="border border-black p-2 mb-4 text-[9.5pt]">
         <div class="font-bold mb-1">Instructions to Students:</div>
         <div class="pl-4">
           <AssessmentEditable
-            value={paperMeta.instructions || "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated."}
+            value={paperMeta.instructions || defaultInstructions}
             onUpdate={(v: string) => updateText(v, "META", "instructions")}
             multiline={true}
             class="whitespace-pre-line"
@@ -363,10 +364,17 @@
 
             {#if sectionQuestions.length > 0 || mode === "preview"}
               <!-- Section Header: "Attempt any one" / "Attempt any Two" -->
+              {@const sectionTitle = section.title && !section.title.match(/^SECTION\s/i)
+                ? section.title
+                : (section.answered_count === 1 ? "Attempt any one"
+                  : section.answered_count === 2 ? "Attempt any Two"
+                  : section.answered_count
+                    ? `Attempt any ${section.answered_count}`
+                    : section.title || "Attempt all")}
               <tr>
                 <td colspan="6" class="border border-black p-1.5 text-center font-bold text-[10pt]">
                   <AssessmentEditable
-                    value={section.title || `Attempt any ${section.answered_count || "all"}`}
+                    value={sectionTitle}
                     onUpdate={(v: string) => {
                       section.title = v;
                       paperStructure = [...paperStructure];
