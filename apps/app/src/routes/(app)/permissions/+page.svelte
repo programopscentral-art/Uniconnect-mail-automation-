@@ -65,6 +65,26 @@
       desc: "System-wide mail tracking",
     },
     {
+      id: "meetings",
+      label: "Meeting Intel",
+      desc: "Google Meet tracking, attendance, and AI reports",
+    },
+    {
+      id: "sheets",
+      label: "Smart Sheets",
+      desc: "Spreadsheet data management and operations",
+    },
+    {
+      id: "academic-operations",
+      label: "Operations Hub",
+      desc: "Academic operations scheduling and planning",
+    },
+    {
+      id: "ops-dashboard",
+      label: "Ops Dashboard",
+      desc: "Operational metrics and monitoring overview",
+    },
+    {
       id: "permissions",
       label: "Permissions",
       desc: "Feature management configuration",
@@ -413,12 +433,12 @@
                 <thead>
                   <tr class="border-b border-indigo-800">
                     <th
-                      class="pb-4 font-black uppercase tracking-widest text-indigo-300"
+                      class="pb-4 pr-4 font-black uppercase tracking-widest text-indigo-300 whitespace-nowrap sticky left-0 bg-indigo-900 z-10"
                       >Role</th
                     >
-                    {#each features.slice(0, 6) as f}
+                    {#each features as f}
                       <th
-                        class="pb-4 font-black uppercase tracking-widest text-indigo-300"
+                        class="pb-4 px-2 font-black uppercase tracking-widest text-indigo-300 text-center whitespace-nowrap text-[9px]"
                         >{f.label}</th
                       >
                     {/each}
@@ -428,18 +448,18 @@
                   {#each roles as role}
                     <tr class="hover:bg-white/5 transition-colors">
                       <td
-                        class="py-4 font-black uppercase tracking-tight text-white"
+                        class="py-4 pr-4 font-black uppercase tracking-tight text-white whitespace-nowrap sticky left-0 bg-indigo-900 z-10"
                         >{role}</td
                       >
-                      {#each features.slice(0, 6) as f}
-                        <td class="py-4">
+                      {#each features as f}
+                        <td class="py-4 px-2 text-center">
                           {#if getFeatureStatus(role, f.id)}
                             <div
-                              class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50"
+                              class="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 mx-auto"
                             ></div>
                           {:else}
                             <div
-                              class="w-2 h-2 rounded-full bg-indigo-800"
+                              class="w-2 h-2 rounded-full bg-indigo-800 mx-auto"
                             ></div>
                           {/if}
                         </td>
