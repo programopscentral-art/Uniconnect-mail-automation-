@@ -175,14 +175,14 @@
 
       <!-- Week Navigation -->
       <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl p-1 shadow-sm">
-        <button onclick={() => changeWeek(-1)} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all">
+        <button onclick={() => changeWeek(-1)} aria-label="Previous week" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
         </button>
         <div class="px-3 text-center min-w-[160px]">
           <p class="text-xs font-black text-gray-900 dark:text-white">{formatDate(weekStart)} — {formatDate(weekEnd)}</p>
           <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Week View</p>
         </div>
-        <button onclick={() => changeWeek(1)} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all">
+        <button onclick={() => changeWeek(1)} aria-label="Next week" class="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl transition-all">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
         </button>
       </div>

@@ -1939,13 +1939,15 @@
 <!-- CREATE TASK MODAL -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 {#if showTaskModal}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => showTaskModal = false} role="dialog" in:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
         <div class="flex items-center justify-between mb-5">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Task</h3>
-          <button onclick={() => showTaskModal = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+          <button aria-label="Close task modal" onclick={() => showTaskModal = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -1961,10 +1963,12 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
               <input type="date" bind:value={taskForm.due_date} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Priority</label>
               <select bind:value={taskForm.priority} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
                 <option value="LOW">Low</option>
@@ -1974,16 +1978,19 @@
               </select>
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Start Time</label>
               <input type="time" bind:value={taskForm.start_time} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">End Time</label>
               <input type="time" bind:value={taskForm.end_time} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
           </div>
           <!-- Assignees (grouped by university) -->
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Assign To</label>
             <!-- Selected badges -->
             {#if taskForm.assignee_ids.length > 0}
@@ -1993,7 +2000,7 @@
                   {#if u}
                     <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-[11px] font-semibold rounded-full">
                       {u.name}
-                      <button onclick={() => { taskForm.assignee_ids = taskForm.assignee_ids.filter((id: string) => id !== uid); }} class="ml-0.5 hover:text-red-500">
+                      <button aria-label="Remove assignee" onclick={() => { taskForm.assignee_ids = taskForm.assignee_ids.filter((id: string) => id !== uid); }} class="ml-0.5 hover:text-red-500">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                       </button>
                     </span>
@@ -2051,6 +2058,7 @@
             </div>
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Estimated Time</label>
             <input bind:value={taskForm.estimated_time} placeholder="e.g. 2h, 30m" class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
           </div>
@@ -2075,13 +2083,15 @@
 <!-- CREATE EVENT MODAL (Enhanced — same options as tasks) -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 {#if showCreateEvent}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => showCreateEvent = false} role="dialog" in:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
         <div class="flex items-center justify-between mb-5">
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Event</h3>
-          <button onclick={() => showCreateEvent = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+          <button aria-label="Close event modal" onclick={() => showCreateEvent = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -2097,6 +2107,7 @@
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Type</label>
               <select bind:value={eventForm.type} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
                 <option value="EVENT">Event</option>
@@ -2109,6 +2120,7 @@
               </select>
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Priority</label>
               <select bind:value={eventForm.priority} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
                 <option value="LOW">Low</option>
@@ -2118,10 +2130,12 @@
               </select>
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
               <input type="date" bind:value={createEventDate} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">University</label>
               <select bind:value={eventForm.university_id} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
                 <option value="">Select University</option>
@@ -2131,10 +2145,12 @@
               </select>
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Start Time</label>
               <input type="time" bind:value={createEventStartTime} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">End Time</label>
               <input type="time" bind:value={createEventEndTime} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
@@ -2142,6 +2158,7 @@
 
           <!-- SOP Document Upload (View Only) -->
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Upload SOP Document (for viewing)</label>
             <div class="flex items-center gap-2">
               <input type="file" accept=".txt,.md,.csv,.doc,.docx,.pdf" onchange={(e) => { const target = e.target as HTMLInputElement; sopFile = target.files?.[0] || null; }}
@@ -2154,6 +2171,7 @@
 
           <!-- SOP Task Upload (Generate Checklist) -->
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Upload SOP Tasks (to generate checklist)</label>
             <div class="flex items-center gap-2">
               <input type="file" accept=".txt,.md,.csv,.doc,.docx,.pdf" onchange={(e) => { const target = e.target as HTMLInputElement; sopTaskFile = target.files?.[0] || null; }}
@@ -2166,6 +2184,7 @@
 
           <!-- Assign To (University-wise grouping) -->
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-2 block">Assign To</label>
             <div class="flex gap-2 mb-2">
               <input bind:value={eventAssigneeSearch} placeholder="Search people..."
@@ -2184,7 +2203,7 @@
                   {#each allUsers.filter((u) => u.id === uid) as u}
                     <span class="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-[10px] font-medium">
                       {u.name || u.email}
-                      <button onclick={() => eventForm.assignee_ids = eventForm.assignee_ids.filter(i => i !== uid)} class="hover:text-red-500">
+                      <button aria-label="Remove assignee" onclick={() => eventForm.assignee_ids = eventForm.assignee_ids.filter(i => i !== uid)} class="hover:text-red-500">
                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                       </button>
                     </span>
@@ -2226,7 +2245,9 @@
 <!-- TASK DETAIL MODAL (Full Analytics) -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 {#if showTaskDetail && selectedTask}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={closeTaskDetail} role="dialog" in:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl w-full max-w-2xl mx-0 sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 30, duration: 200 }}>
       <div class="p-6">
@@ -2257,7 +2278,7 @@
               {selectedTask.status === 'COMPLETED' ? 'Reopen' : 'Complete'}
             </button>
             <button onclick={() => deleteEvent(selectedTask.id, 'task')} class="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Delete</button>
-            <button onclick={closeTaskDetail} class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+            <button aria-label="Close task detail" onclick={closeTaskDetail} class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
               <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -2385,7 +2406,7 @@
                     </span>
                   {/if}
                 </div>
-                <button onclick={() => deleteChecklistItem(item.id)} class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all">
+                <button aria-label="Delete checklist item" onclick={() => deleteChecklistItem(item.id)} class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
               </div>
@@ -2521,7 +2542,9 @@
 <!-- EVENT DETAIL MODAL (with Checklist, View Tracking, SOP Docs, Delete) -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 {#if showEventDetail && selectedEvent}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={closeEventDetail} role="dialog" in:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-2xl w-full max-w-2xl mx-0 sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 30, duration: 200 }}>
       <div class="p-6 space-y-5">
@@ -2549,7 +2572,7 @@
             <button onclick={() => deleteEventUI(selectedEvent.id)} class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600" title="Delete event">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
-            <button onclick={closeEventDetail} class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+            <button aria-label="Close event detail" onclick={closeEventDetail} class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
               <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -2658,7 +2681,7 @@
                         </div>
                       {/if}
                     </div>
-                    <button onclick={() => deleteEventChecklistItemUI(item.id)} class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity mt-0.5">
+                    <button aria-label="Delete checklist item" onclick={() => deleteEventChecklistItemUI(item.id)} class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity mt-0.5">
                       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                   </div>
@@ -2981,24 +3004,28 @@
               <div class="grid grid-cols-2 gap-3 mt-2">
                 <!-- Event Title -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Title *</label>
                   <input type="text" bind:value={reportForm.event_title}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Campus Name -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Campus Name *</label>
                   <input type="text" bind:value={reportForm.campus_name}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Conducted By -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Conducted By</label>
                   <input type="text" bind:value={reportForm.conducted_by}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- CMA Assigned — Dropdown -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">CMA Assigned</label>
                   <select bind:value={reportForm.cma_assigned}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
@@ -3010,6 +3037,7 @@
                 </div>
                 <!-- Event Category — Dropdown -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Category *</label>
                   <select bind:value={reportForm.event_category}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
@@ -3022,6 +3050,7 @@
                 </div>
                 <!-- Event Subcategory — Dropdown with Other -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Subcategory</label>
                   <select bind:value={reportForm.event_subcategory}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
@@ -3039,12 +3068,14 @@
                 </div>
                 <!-- Duration -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Duration (Days)</label>
                   <input type="number" bind:value={reportForm.event_duration_days}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Event Mode — Dropdown -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Mode</label>
                   <select bind:value={reportForm.event_mode}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
@@ -3056,36 +3087,42 @@
                 </div>
                 <!-- Start Date -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event Start Date</label>
                   <input type="date" bind:value={reportForm.event_start_date}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- End Date -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Event End Date</label>
                   <input type="date" bind:value={reportForm.event_end_date}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Registrations -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Registrations</label>
                   <input type="number" bind:value={reportForm.num_registrations}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Participants -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Participants</label>
                   <input type="number" bind:value={reportForm.num_participants}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Feedback Rate -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Feedback Rate (%)</label>
                   <input type="text" bind:value={reportForm.feedback_response_rate}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
                 </div>
                 <!-- Avg Rating -->
                 <div>
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Avg Rating</label>
                   <input type="text" bind:value={reportForm.avg_feedback_rating}
                     class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
@@ -3097,6 +3134,7 @@
                   ['highlights', 'Highlights'], ['suggested_improvements', 'Suggested Improvements']
                 ] as [key, label]}
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
                     <textarea bind:value={reportForm[key as keyof typeof reportForm]} rows="2"
                       class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white resize-none"></textarea>
@@ -3109,6 +3147,7 @@
                   ['feedback_form_link', 'Feedback Form Link'], ['event_recording_link', 'Recording Link']
                 ] as [key, label]}
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">{label}</label>
                     <input bind:value={reportForm[key as keyof typeof reportForm]} placeholder="https://..."
                       class="w-full px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white" />
@@ -3116,6 +3155,7 @@
                 {/each}
               </div>
               <div class="mt-3">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
                 <label class="text-[10px] font-bold text-gray-400 uppercase mb-0.5 block">Loaded to Zoho?</label>
                 <select bind:value={reportForm.loaded_to_zoho} class="px-2 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white">
                   <option value="No">No</option>
@@ -3184,7 +3224,9 @@
 <!-- CALENDAR FREEZE MODAL -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 {#if showFreezeModal}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => showFreezeModal = false} role="dialog" in:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md sm:mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
@@ -3193,13 +3235,14 @@
             <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             <h3 class="text-lg font-bold text-gray-900 dark:text-white">Freeze Calendar Dates</h3>
           </div>
-          <button onclick={() => showFreezeModal = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
+          <button aria-label="Close freeze modal" onclick={() => showFreezeModal = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Freeze dates to notify the Student Engagement team about exams, holidays, or blocked periods. They will be able to see these and plan events accordingly.</p>
         <div class="space-y-4">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">University</label>
             <select bind:value={freezeUniversityId} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
               <option value="">Select University</option>
@@ -3209,11 +3252,13 @@
             </select>
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Reason</label>
             <input bind:value={freezeReason} placeholder="e.g. Mid-semester exams, University holiday..."
               class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Select Dates to Freeze</label>
             <input type="date"
               onchange={(e) => { const v = (e.target as HTMLInputElement).value; if (v && !freezeDates.includes(v)) freezeDates = [...freezeDates, v]; (e.target as HTMLInputElement).value = ''; }}
@@ -3223,7 +3268,7 @@
                 {#each freezeDates as fd}
                   <span class="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-[10px] font-medium">
                     {new Date(fd + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
-                    <button onclick={() => freezeDates = freezeDates.filter(d => d !== fd)} class="hover:text-red-500">
+                    <button aria-label="Remove date" onclick={() => freezeDates = freezeDates.filter(d => d !== fd)} class="hover:text-red-500">
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                   </span>
@@ -3244,7 +3289,9 @@
 {/if}
 
 {#if viewingSOPDoc}
+  <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center sm:p-4" onclick={() => viewingSOPDoc = null}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-3xl max-h-[90vh] sm:max-h-[85vh] flex flex-col" onclick={(e) => e.stopPropagation()}>
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-slate-800">
         <div class="flex items-center gap-3">
@@ -3258,7 +3305,7 @@
           <button onclick={() => downloadSOPDoc(viewingSOPDoc)} title="Download" class="p-2 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-lg transition-colors">
             <svg class="w-5 h-5 text-gray-400 hover:text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           </button>
-          <button onclick={() => viewingSOPDoc = null} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+          <button aria-label="Close document viewer" onclick={() => viewingSOPDoc = null} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>

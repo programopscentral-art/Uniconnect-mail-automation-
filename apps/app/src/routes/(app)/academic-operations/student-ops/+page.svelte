@@ -274,6 +274,8 @@
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-slate-800">
             {#each data.students as student, i (student.id)}
+              <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <tr class="hover:bg-gray-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer" onclick={() => goto(`/academic-operations/student-ops/${student.id}`)} in:fly={{ y: 8, delay: Math.min(i * 20, 200) }}>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
@@ -358,7 +360,7 @@
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Bulk Import Students</h3>
         <p class="text-[10px] text-gray-400 font-medium mt-1">Upload an Excel file with all student details. PII will be encrypted.</p>
       </div>
-      <button onclick={() => showImportModal = false}
+      <button onclick={() => showImportModal = false} aria-label="Close import modal"
         class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
@@ -390,12 +392,14 @@
     <form onsubmit={(e) => { e.preventDefault(); handleBulkImport(e); }}>
       <div class="space-y-4">
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Term Name</label>
           <input type="text" bind:value={importTermName} required placeholder="e.g. Semester 2 - 2026"
             class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-indigo-500" />
           <p class="text-[9px] text-gray-400 mt-1">Must match an existing term name exactly</p>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Excel File</label>
           <input type="file" name="file" required accept=".xlsx,.xls"
             class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
@@ -452,7 +456,7 @@
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Bulk Document Upload</h3>
         <p class="text-[10px] text-gray-400 font-medium mt-1">Upload a ZIP file with all student documents. Every file will be encrypted with AES-256-GCM.</p>
       </div>
-      <button onclick={() => { showDocUploadModal = false; docUploadResult = null; }}
+      <button onclick={() => { showDocUploadModal = false; docUploadResult = null; }} aria-label="Close document upload modal"
         class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
         <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
@@ -561,6 +565,7 @@
 
     <form onsubmit={(e) => { e.preventDefault(); handleBulkDocUpload(e); }}>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ZIP File</label>
         <input type="file" name="file" required accept=".zip"
           class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100" />

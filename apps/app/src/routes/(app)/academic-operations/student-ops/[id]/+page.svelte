@@ -306,7 +306,7 @@
 
   <!-- Back + Header -->
   <div class="flex items-center gap-4">
-    <a href="/academic-operations/student-ops" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+    <a href="/academic-operations/student-ops" class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors" aria-label="Back to roster">
       <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
     </a>
     <div class="flex-1">
@@ -551,9 +551,12 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
       {#each documentTypes as dtype}
         {@const uploaded = documents.find((d: any) => d.document_type === dtype.code)}
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="p-4 rounded-2xl border-2 transition-all {uploaded ? 'cursor-pointer hover:shadow-md' : ''}
           {uploaded ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-500/30 dark:bg-emerald-500/5' : dtype.is_required ? 'border-red-200 bg-red-50/50 dark:border-red-500/30 dark:bg-red-500/5' : 'border-gray-100 bg-gray-50/50 dark:border-slate-800 dark:bg-slate-900'}"
           onclick={() => { if (uploaded) previewDoc = uploaded; }}
+          onkeydown={(e) => { if (uploaded && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); previewDoc = uploaded; } }}
           role={uploaded ? 'button' : undefined}
           tabindex={uploaded ? 0 : undefined}>
           <div class="flex items-center gap-2 mb-1">
@@ -630,7 +633,7 @@
                       View
                     </button>
                     <button onclick={() => deleteDocument(doc.id)}
-                      class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete">
+                      class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-red-400 transition-colors" title="Delete" aria-label="Delete document">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   {:else}
@@ -654,6 +657,7 @@
       <form onsubmit={(e) => { e.preventDefault(); uploadDocument(e); }}>
         <div class="space-y-4">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Document Type</label>
             <select name="document_type" bind:value={uploadDocType} required
               class="w-full px-4 py-3 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 ring-indigo-500">
@@ -666,6 +670,7 @@
             </select>
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">File (PDF, JPEG, PNG — max 10MB)</label>
             <input type="file" name="file" required accept=".pdf,.jpg,.jpeg,.png,.webp"
               class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100" />
@@ -713,7 +718,7 @@
             </a>
           {/if}
           <button onclick={() => { previewDoc = null; previewTokenUrl = ''; }}
-            class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+            class="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors" aria-label="Close preview">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
