@@ -18,6 +18,7 @@ import {
     upsertMeetingInvitee,
     upsertMeetingParticipant,
     clearMeetingParticipants,
+    clearTranscriptParticipants,
     type OrgMeeting
 } from '../db/meetings';
 
@@ -90,37 +91,55 @@ export async function syncCalendarMeetings(
 
             const meetCode = extractMeetCode(meetLink || event.hangoutLink || '');
 
+            // Check if meeting already exists (by google event ID or meet code)
+            let existingMeeting: OrgMeeting | null = null;
             if (event.id) {
-                const existing = await getMeetingByGoogleEventId(event.id);
-                if (existing) { skipped++; continue; }
+                existingMeeting = await getMeetingByGoogleEventId(event.id);
+            }
+            if (!existingMeeting && meetCode) {
+                existingMeeting = await getMeetingByMeetCode(meetCode);
             }
 
-            if (meetCode) {
-                const existing = await getMeetingByMeetCode(meetCode);
-                if (existing) { skipped++; continue; }
+            let meetingId: string;
+
+            if (existingMeeting) {
+                meetingId = existingMeeting.id;
+                // Update existing meeting with calendar data (fills in google_event_id for manual meetings, updates title etc.)
+                await updateMeeting(existingMeeting.id, {
+                    google_event_id: event.id || existingMeeting.google_event_id,
+                    title: event.summary || existingMeeting.title,
+                    description: event.description || existingMeeting.description,
+                    organizer_email: event.organizer?.email || existingMeeting.organizer_email,
+                    organizer_name: event.organizer?.displayName || existingMeeting.organizer_name,
+                    scheduled_start: event.start?.dateTime ? new Date(event.start.dateTime) : existingMeeting.scheduled_start,
+                    scheduled_end: event.end?.dateTime ? new Date(event.end.dateTime) : existingMeeting.scheduled_end,
+                });
+            } else {
+                const meeting = await createMeeting({
+                    user_id: userId,
+                    meeting_connection_id: connectionId,
+                    google_event_id: event.id || undefined,
+                    google_meet_code: meetCode || undefined,
+                    title: event.summary || 'Untitled Meeting',
+                    description: event.description || undefined,
+                    organizer_email: event.organizer?.email || '',
+                    organizer_name: event.organizer?.displayName || undefined,
+                    meet_link: meetLink || event.hangoutLink || undefined,
+                    scheduled_start: event.start?.dateTime ? new Date(event.start.dateTime) : undefined,
+                    scheduled_end: event.end?.dateTime ? new Date(event.end.dateTime) : undefined,
+                    source: 'CALENDAR',
+                    status: 'DISCOVERED'
+                } as any);
+                meetingId = meeting.id;
+                synced++;
             }
 
-            const meeting = await createMeeting({
-                user_id: userId,
-                meeting_connection_id: connectionId,
-                google_event_id: event.id || undefined,
-                google_meet_code: meetCode || undefined,
-                title: event.summary || 'Untitled Meeting',
-                description: event.description || undefined,
-                organizer_email: event.organizer?.email || '',
-                organizer_name: event.organizer?.displayName || undefined,
-                meet_link: meetLink || event.hangoutLink || undefined,
-                scheduled_start: event.start?.dateTime ? new Date(event.start.dateTime) : undefined,
-                scheduled_end: event.end?.dateTime ? new Date(event.end.dateTime) : undefined,
-                source: 'CALENDAR',
-                status: 'DISCOVERED'
-            } as any);
-
+            // Always sync attendees (upsert is safe for existing invitees)
             if (event.attendees) {
                 for (const attendee of event.attendees) {
                     if (!attendee.email) continue;
                     await upsertMeetingInvitee({
-                        meeting_id: meeting.id,
+                        meeting_id: meetingId,
                         email: attendee.email,
                         name: attendee.displayName || undefined,
                         response_status: attendee.responseStatus || 'needsAction',
@@ -129,7 +148,9 @@ export async function syncCalendarMeetings(
                 }
             }
 
-            synced++;
+            if (existingMeeting) {
+                skipped++;
+            }
         }
 
         pageToken = response.data.nextPageToken || undefined;
@@ -615,7 +636,7 @@ export async function processMeeting(connectionId: string, meetingId: string): P
         await updateMeeting(meetingId, {
             status: 'PROCESSING',
             processing_error: null,
-            // Clear old data before re-processing
+            // Clear AI-generated data before re-processing (but NOT participants/invitees)
             raw_transcript: null,
             ai_summary: null,
             ai_action_items: null,
@@ -625,11 +646,12 @@ export async function processMeeting(connectionId: string, meetingId: string): P
             ai_processed_at: null,
             transcript_doc_id: null,
             transcript_doc_url: null,
-            participant_count: 0
         });
 
-        // Clear old participant data before re-processing
-        await clearMeetingParticipants(meetingId);
+        // NOTE: We intentionally do NOT clear participants here.
+        // Participants from calendar invitees or attendance CSVs are preserved.
+        // Only transcript-sourced participants are cleared and re-extracted.
+        await clearTranscriptParticipants(meetingId);
 
         console.log(`[MEETING] Step 1: Scanning Drive for artifacts...`);
         const artifacts = await scanDriveForMeetArtifacts(connectionId, meetingId);
