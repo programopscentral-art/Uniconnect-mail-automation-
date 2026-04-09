@@ -417,6 +417,18 @@
       }
     });
 
+    // Build participant list for report
+    const participantList = Array.from(state.participants.values()).map(p => ({
+      name: p.name,
+      firstSeen: p.firstSeen,
+      lastSeen: p.lastSeen,
+      joinEvents: p.joinEvents,
+      leaveEvents: p.leaveEvents,
+      totalDurationMinutes: Math.round(p.totalDurationMs / 60000),
+      spokeInCaptions: p.spokeInCaptions,
+      speakingSegments: p.speakingSegments
+    }));
+
     // Build report
     const report = {
       meetCode: state.meetCode,
@@ -424,25 +436,19 @@
       startTime: state.joinedAt?.toISOString(),
       endTime: endTime.toISOString(),
       durationMinutes: Math.round((endTime.getTime() - (state.joinedAt?.getTime() || 0)) / 60000),
-      participants: Array.from(state.participants.values()).map(p => ({
-        name: p.name,
-        firstSeen: p.firstSeen,
-        lastSeen: p.lastSeen,
-        joinEvents: p.joinEvents,
-        leaveEvents: p.leaveEvents,
-        totalDurationMinutes: Math.round(p.totalDurationMs / 60000),
-        spokeInCaptions: p.spokeInCaptions,
-        speakingSegments: p.speakingSegments
-      })),
+      participants: participantList,
       captions: state.captions,
       captionTranscript: state.captions.map(c =>
         `${c.speaker ? c.speaker + ': ' : ''}${c.text}`
       ).join('\n'),
-      trackerVersion: '1.0.0',
+      trackerVersion: '1.1.0',
       collectedBy: 'chrome-extension'
     };
 
     console.log('[UniConnect Meet Tracker] Report:', report);
+
+    // AUTO-DOWNLOAD CSV of attendees before anything else
+    downloadAttendanceCSV(participantList, report);
 
     // Send to background for API submission
     chrome.runtime.sendMessage({
@@ -459,6 +465,94 @@
     clearInterval(state.pollInterval);
     state.captionObserver?.disconnect();
     updateBadge('Done');
+
+    // Show confirmation toast
+    showEndToast(participantList.length);
+  }
+
+  // ─── Auto-Download Attendance CSV ──────────────────────────────────
+  function downloadAttendanceCSV(participants, report) {
+    if (!participants || participants.length === 0) return;
+
+    try {
+      // Build CSV content
+      const headers = ['Name', 'First Seen', 'Last Seen', 'Join Time', 'Leave Time', 'Duration (min)', 'Spoke', 'Speaking Segments'];
+      const rows = participants.map(p => [
+        p.name,
+        p.firstSeen ? new Date(p.firstSeen).toLocaleString() : '',
+        p.lastSeen ? new Date(p.lastSeen).toLocaleString() : '',
+        p.joinEvents?.[0] ? new Date(p.joinEvents[0]).toLocaleString() : '',
+        p.leaveEvents?.length > 0 ? new Date(p.leaveEvents[p.leaveEvents.length - 1]).toLocaleString() : '',
+        p.totalDurationMinutes || 0,
+        p.spokeInCaptions ? 'Yes' : 'No',
+        p.speakingSegments || 0
+      ]);
+
+      const csvContent = [
+        `Meeting: ${report.title || report.meetCode}`,
+        `Meet Code: ${report.meetCode}`,
+        `Date: ${new Date(report.startTime).toLocaleDateString()}`,
+        `Start: ${new Date(report.startTime).toLocaleTimeString()}`,
+        `End: ${new Date(report.endTime).toLocaleTimeString()}`,
+        `Duration: ${report.durationMinutes} minutes`,
+        `Total Participants: ${participants.length}`,
+        '',
+        headers.join(','),
+        ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      ].join('\n');
+
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `attendance_${report.meetCode}_${dateStr}.csv`;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      console.log(`[UniConnect Meet Tracker] CSV downloaded: ${participants.length} participants`);
+    } catch (err) {
+      console.error('[UniConnect Meet Tracker] CSV download failed:', err);
+    }
+  }
+
+  // ─── End-of-Meeting Toast ──────────────────────────────────────────
+  function showEndToast(count) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 80px; right: 24px; z-index: 99999;
+      background: #1a1a2e; color: #e0e0e0; border: 1px solid #4f46e5;
+      border-radius: 12px; padding: 16px 20px; max-width: 320px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4); font-family: 'Segoe UI', sans-serif;
+      animation: uc-slide-in 0.3s ease-out;
+    `;
+    toast.innerHTML = `
+      <div style="font-weight:700; font-size:14px; margin-bottom:6px; color:#818cf8;">
+        Meeting Report Saved
+      </div>
+      <div style="font-size:12px; color:#94a3b8; line-height:1.4;">
+        ${count} participants tracked. Attendance CSV downloaded.
+        Report sent to UniConnect.
+      </div>
+    `;
+
+    // Add animation keyframes
+    const style = document.createElement('style');
+    style.textContent = `@keyframes uc-slide-in { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }`;
+    document.head.appendChild(style);
+
+    document.body.appendChild(toast);
+
+    // Auto-remove after 8 seconds
+    setTimeout(() => {
+      toast.style.transition = 'opacity 0.3s';
+      toast.style.opacity = '0';
+      setTimeout(() => { toast.remove(); style.remove(); }, 300);
+    }, 8000);
   }
 
   // ─── Status Badge UI ────────────────────────────────────────────────

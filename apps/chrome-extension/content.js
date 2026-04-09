@@ -486,6 +486,44 @@
     const report = buildReport();
 
     console.log('[UniConnect] Tracking stopped. Report:', report);
+
+    // Auto-download attendance CSV
+    if (report && report.participants && report.participants.length > 0) {
+      try {
+        const headers = ['Name', 'Join Time', 'Leave Time', 'Duration (min)', 'Spoke', 'Speaking Segments'];
+        const rows = report.participants.map(p => [
+          p.name,
+          p.joinEvents?.[0] ? new Date(p.joinEvents[0]).toLocaleString() : '',
+          p.leaveEvents?.length > 0 ? new Date(p.leaveEvents[p.leaveEvents.length - 1]).toLocaleString() : '',
+          p.totalDurationMinutes || 0,
+          p.spokeInCaptions ? 'Yes' : 'No',
+          p.speakingSegments || 0
+        ]);
+        const csvContent = [
+          `Meeting: ${report.title || report.meetCode}`,
+          `Meet Code: ${report.meetCode}`,
+          `Date: ${new Date(report.startTime).toLocaleDateString()}`,
+          `Total Participants: ${report.participants.length}`,
+          '',
+          headers.join(','),
+          ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        ].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `attendance_${report.meetCode}_${new Date().toISOString().slice(0,10)}.csv`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        console.log('[UniConnect] Attendance CSV auto-downloaded');
+      } catch (e) {
+        console.error('[UniConnect] CSV download failed:', e);
+      }
+    }
+
     notifyBackground('tracking_stopped', { report });
 
     return report;

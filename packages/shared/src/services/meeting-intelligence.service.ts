@@ -662,10 +662,11 @@ export async function processMeeting(connectionId: string, meetingId: string): P
             transcript_doc_url: null,
         });
 
-        // NOTE: We intentionally do NOT clear participants here.
-        // Participants from calendar invitees or attendance CSVs are preserved.
-        // Only transcript-sourced participants are cleared and re-extracted.
+        // SAFETY: Only clear TRANSCRIPT-sourced participants.
+        // MANUAL (from extension) and ATTENDANCE_CSV participants are NEVER deleted.
+        // This prevents loss of extension-captured attendance data when re-processing.
         await clearTranscriptParticipants(meetingId);
+        console.log(`[MEETING] Cleared transcript-only participants. Manual/CSV participants preserved.`);
 
         console.log(`[MEETING] Step 1: Scanning Drive for artifacts...`);
         const artifacts = await scanDriveForMeetArtifacts(connectionId, meetingId);

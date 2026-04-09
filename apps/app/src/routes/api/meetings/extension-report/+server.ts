@@ -73,7 +73,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             status: 'PROCESSING'
         });
 
-        // Upsert participants
+        // Upsert participants — this is the primary attendance data source
+        console.log(`[EXTENSION_REPORT] Saving ${report.participants?.length || 0} participants for meeting ${meeting.id} (${meeting.google_meet_code})`);
         if (report.participants && Array.isArray(report.participants)) {
             for (const p of report.participants) {
                 await upsertMeetingParticipant({
