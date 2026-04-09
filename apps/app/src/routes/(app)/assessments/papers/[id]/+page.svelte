@@ -10,6 +10,7 @@
   import MallareddyTemplate from "$lib/components/assessments/MallareddyTemplate.svelte";
   import TakshashilaTemplate from "$lib/components/assessments/TakshashilaTemplate.svelte";
   import ADYPUTemplate from "$lib/components/assessments/ADYPUTemplate.svelte";
+  import ADYPUSemTemplate from "$lib/components/assessments/ADYPUSemTemplate.svelte";
   import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
   import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
   import NRITemplate from "$lib/components/assessments/NRITemplate.svelte";
@@ -516,7 +517,8 @@
       document.getElementById("svyasa-paper-actual") ||
       document.getElementById("amet-paper-actual") ||
       document.getElementById("annamacharya-paper-actual") ||
-      document.getElementById("cdu-paper-actual");
+      document.getElementById("cdu-paper-actual") ||
+      document.getElementById("adypu-sem-paper-actual");
 
     if (!el) {
       const content = document.getElementById("paper-content")?.innerHTML;
@@ -571,7 +573,7 @@
                                 justify-content: center !important;
                                 align-items: flex-start !important;
                             }
-                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, .paper-container { 
+                            #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, .paper-container {
                                 width: 210mm !important; 
                                 margin: 0 !important; 
                                 border: none !important; 
@@ -593,7 +595,7 @@
                             justify-content: center;
                             padding: 20px;
                         }
-                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, .paper-container { 
+                        #vgu-mid-paper-actual, #crescent-paper-actual, #generic-paper-actual, #svyasa-paper-actual, #cdu-paper-actual, #annamacharya-paper-actual, #adypu-sem-paper-actual, .paper-container {
                             background: white; 
                             width: 210mm; 
                             min-height: 297mm;
@@ -1429,16 +1431,29 @@
             onSwap={handleSetUpdate}
           />
         {:else if selectedTemplate === "adypu"}
-          <ADYPUTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
+          {#if paperMeta.exam_type === "SEMESTER" || paperMeta.exam_type === "END_SEM" || paperMeta.exam_title?.toLowerCase().includes("sem") || paperMeta.exam_title?.toLowerCase().includes("end term") || (paperMeta.exam_type !== "MID1" && paperMeta.exam_type !== "MID2" && paperMeta.exam_type !== "UNIT" && paperMeta.exam_title && !paperMeta.exam_title.toLowerCase().includes("unit"))}
+            <ADYPUSemTemplate
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              bind:paperStructure={paperMeta.template_config}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {:else}
+            <ADYPUTemplate
+              bind:paperMeta
+              bind:currentSetData={editableSets[activeSet]}
+              bind:paperStructure={paperMeta.template_config}
+              {activeSet}
+              courseOutcomes={data.courseOutcomes}
+              questionPool={data.questionPool}
+              mode="edit"
+              onSwap={handleSetUpdate}
+            />
+          {/if}
         {:else if selectedTemplate === "svyasa"}
           <SVYASATemplate
             bind:paperMeta
