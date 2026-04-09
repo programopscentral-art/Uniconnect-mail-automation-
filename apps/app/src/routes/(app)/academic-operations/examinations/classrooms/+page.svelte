@@ -294,7 +294,9 @@
     <!-- Classroom Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
       {#each filtered as room, i}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
         <div class="bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl overflow-hidden hover:shadow-lg transition-all group cursor-pointer"
+          role="button" tabindex="0"
           in:fly={{ y: 20, delay: i * 50 }}
           onclick={() => showLayout = room}>
           <!-- Room Header -->
@@ -403,8 +405,10 @@
 
 <!-- BookMyShow Layout Modal -->
 {#if showLayout}
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => { showLayout = null; zoomLevel = 1; }} transition:fade>
-    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl" onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="button" tabindex="0" onclick={() => { showLayout = null; zoomLevel = 1; }} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl" role="document" onclick={(e) => e.stopPropagation()}>
       <!-- Modal Header -->
       <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <div>
@@ -437,7 +441,7 @@
             <span class="text-[10px] font-bold text-gray-500 w-10 text-center">{Math.round(zoomLevel * 100)}%</span>
             <button onclick={() => zoomLevel = Math.min(2, zoomLevel + 0.1)} class="p-1.5 hover:bg-white rounded-lg text-xs font-black">+</button>
           </div>
-          <button onclick={() => { showLayout = null; zoomLevel = 1; }} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all">
+          <button onclick={() => { showLayout = null; zoomLevel = 1; }} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-all" aria-label="Close">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -553,10 +557,10 @@
 
 <!-- Create Classroom Modal -->
 {#if showCreate}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showCreate = false} transition:fade>
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-3xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="button" tabindex="0" onclick={() => showCreate = false} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-3xl max-h-[90vh] overflow-auto shadow-2xl" role="document" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Create Classroom</h3>
         <button onclick={() => showCreate = false} class="p-2 hover:bg-gray-100 rounded-xl" aria-label="Close">
@@ -667,10 +671,10 @@
 
 <!-- Edit Classroom Modal -->
 {#if editingRoom}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => editingRoom = null} transition:fade>
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="button" tabindex="0" onclick={() => editingRoom = null} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-xl max-h-[90vh] overflow-auto shadow-2xl" role="document" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Edit Classroom</h3>
         <button onclick={() => editingRoom = null} class="p-2 hover:bg-gray-100 rounded-xl" aria-label="Close">
@@ -761,10 +765,10 @@
 
 <!-- Import from Sheet Modal -->
 {#if showImport}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => { showImport = false; importResult = null; importError = ''; importFile = null; }} transition:fade>
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" role="button" tabindex="0" onclick={() => { showImport = false; importResult = null; importError = ''; importFile = null; }} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl" role="document" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Import Classrooms from Excel</h3>
         <p class="text-xs text-gray-500 mt-1">Upload your "Exam Detail Required" sheet — it auto-detects all classrooms, benches, capacity, and invigilators</p>

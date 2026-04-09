@@ -238,8 +238,8 @@
 
 <!-- Substitute Assignment Panel (Central approval only) -->
 {#if showSubPanel && subPanelReq}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" transition:fade={{ duration: 150 }} onclick={() => showSubPanel = false}></div>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" role="button" tabindex="0" transition:fade={{ duration: 150 }} onclick={() => showSubPanel = false}></div>
   <div class="fixed inset-0 z-50 flex items-center justify-center p-6" transition:fade={{ duration: 150 }}>
     <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-lg p-8" transition:fly={{ y: 20, duration: 250 }}>
       <div class="flex items-center justify-between mb-6">

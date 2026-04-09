@@ -665,10 +665,10 @@
 
 <!-- Delete confirmation dialog -->
 {#if deleteConfirm}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center" transition:fade={{ duration: 100 }} onclick={() => deleteConfirm = null}>
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center" role="button" tabindex="0" transition:fade={{ duration: 100 }} onclick={() => deleteConfirm = null}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" role="document" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
       <div class="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
         <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
       </div>
@@ -684,10 +684,10 @@
 
 <!-- Add New Instructor modal -->
 {#if showAddModal}
-  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center" transition:fade={{ duration: 100 }} onclick={() => showAddModal = false}>
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-    <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center" role="button" tabindex="0" transition:fade={{ duration: 100 }} onclick={() => showAddModal = false}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" role="document" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
       <h3 class="text-base font-black text-gray-900 dark:text-white mb-1">Add New Instructor</h3>
       <p class="text-xs text-gray-400 font-medium mb-5">Create a new faculty profile manually.</p>
 
