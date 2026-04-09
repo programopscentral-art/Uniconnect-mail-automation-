@@ -558,7 +558,7 @@
                                 {#if renamingSheetId === sheet.id}
                                     <div class="px-2 py-1.5 flex items-center gap-1">
                                         <input type="text" bind:value={renameValue} class="flex-1 px-2 py-1 text-xs bg-white dark:bg-slate-800 border border-emerald-400 rounded text-slate-900 dark:text-white focus:outline-none" onkeydown={(e) => { if (e.key === 'Enter') renameSheet(sheet.id); if (e.key === 'Escape') renamingSheetId = null; }} />
-                                        <button onclick={() => renameSheet(sheet.id)} class="text-emerald-500 hover:text-emerald-600 p-0.5">
+                                        <button aria-label="Confirm rename" onclick={() => renameSheet(sheet.id)} class="text-emerald-500 hover:text-emerald-600 p-0.5">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                         </button>
                                         <button onclick={() => renamingSheetId = null} class="text-slate-400 hover:text-slate-500 p-0.5">
