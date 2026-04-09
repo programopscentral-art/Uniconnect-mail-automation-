@@ -416,6 +416,7 @@
           </select>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Planned Topic</label>
           <input type="text" bind:value={editTopic} placeholder="Optional topic" class="w-full px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>

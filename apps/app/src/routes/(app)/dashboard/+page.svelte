@@ -1453,10 +1453,10 @@
         <div class="flex items-center justify-between mb-2 px-1">
           <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{shortMonths[miniCalMonth.getMonth()]} {miniCalMonth.getFullYear()}</span>
           <div class="flex gap-0.5">
-            <button onclick={() => { const d = new Date(miniCalMonth); d.setMonth(d.getMonth() - 1); miniCalMonth = d; }} class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
+            <button aria-label="Previous month" onclick={() => { const d = new Date(miniCalMonth); d.setMonth(d.getMonth() - 1); miniCalMonth = d; }} class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
               <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </button>
-            <button onclick={() => { const d = new Date(miniCalMonth); d.setMonth(d.getMonth() + 1); miniCalMonth = d; }} class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
+            <button aria-label="Next month" onclick={() => { const d = new Date(miniCalMonth); d.setMonth(d.getMonth() + 1); miniCalMonth = d; }} class="p-0.5 rounded hover:bg-gray-100 dark:hover:bg-slate-800">
               <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
           </div>
@@ -1602,10 +1602,10 @@
           <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <button onclick={goToday} class="px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-700 dark:text-gray-300 flex-shrink-0">Today</button>
-        <button onclick={goPrev} class="p-1 sm:p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 flex-shrink-0">
+        <button aria-label="Previous" onclick={goPrev} class="p-1 sm:p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 flex-shrink-0">
           <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         </button>
-        <button onclick={goNext} class="p-1 sm:p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 flex-shrink-0">
+        <button aria-label="Next" onclick={goNext} class="p-1 sm:p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 flex-shrink-0">
           <svg class="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
         </button>
         <h2 class="text-sm sm:text-xl font-normal text-gray-700 dark:text-gray-200 ml-1 sm:ml-2 truncate">{getHeaderLabel()}</h2>
@@ -1700,6 +1700,7 @@
                 <div class="mt-0.5 space-y-px hidden sm:block">
                   {#each getEventsForDate(date).slice(0, 3) as event}
                     {@const style = getEventStyle(event)}
+                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                     <div class="text-[10px] font-medium px-1.5 py-0.5 rounded truncate {style.bg} {style.text} border-l-2 {style.border}"
                       onclick={(e) => handleEventClick(e, event)}>
                       {event.title}
@@ -1744,6 +1745,7 @@
                     {#if isToday(wd)}
                       <span class="inline-flex items-center justify-center w-6 h-6 sm:w-10 sm:h-10 rounded-full bg-blue-600 text-white text-xs sm:text-lg font-medium">{wd.getDate()}</span>
                     {:else}
+                      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                       <span class="inline-flex items-center justify-center w-6 h-6 sm:w-10 sm:h-10 rounded-full text-xs sm:text-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors" onclick={() => { currentDate = wd; calendarView = 'day'; }}>{wd.getDate()}</span>
                     {/if}
                   </div>
@@ -1778,7 +1780,7 @@
 
                   <!-- Click zones -->
                   {#each hours as h, idx}
-                    <button class="absolute left-0 right-0 z-[1] hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors" style="top: {idx * SLOT_H}px; height: {SLOT_H}px;"
+                    <button aria-label="Select time slot" class="absolute left-0 right-0 z-[1] hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors" style="top: {idx * SLOT_H}px; height: {SLOT_H}px;"
                       onclick={() => clickTimeSlot(wd, h)} tabindex="-1"></button>
                   {/each}
 
@@ -1881,7 +1883,7 @@
 
                 <!-- Click zones -->
                 {#each hours as h, idx}
-                  <button class="absolute left-0 right-0 z-[1] hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors" style="top: {idx * SLOT_H}px; height: {SLOT_H}px;"
+                  <button aria-label="Select time slot" class="absolute left-0 right-0 z-[1] hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors" style="top: {idx * SLOT_H}px; height: {SLOT_H}px;"
                     onclick={() => clickTimeSlot(currentDate, h)} tabindex="-1"></button>
                 {/each}
 

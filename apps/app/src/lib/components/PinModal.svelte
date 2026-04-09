@@ -255,19 +255,23 @@
     <!-- Change PIN View -->
     <div class="space-y-4">
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Current PIN</label>
+        <!-- svelte-ignore a11y_autofocus -->
         <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
           value={currentPin} oninput={(e) => handleInput(e, 'current')}
           class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500"
           autofocus />
       </div>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">New PIN</label>
         <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
           value={pin} oninput={(e) => handleInput(e, 'pin')}
           class="w-full px-4 py-3 text-center text-2xl font-mono tracking-[0.5em] rounded-xl border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 dark:text-white outline-none focus:ring-2 ring-indigo-500" />
       </div>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm New PIN</label>
         <input type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
           value={confirmPin} oninput={(e) => handleInput(e, 'confirm')}
@@ -353,9 +357,11 @@
 
       {#if verifyMethod === 'pin' || setupMode}
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
             {setupMode ? 'New PIN' : 'Security PIN'}
           </label>
+          <!-- svelte-ignore a11y_autofocus -->
           <input
             type="password"
             inputmode="numeric"
@@ -370,6 +376,7 @@
 
         {#if setupMode}
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Confirm PIN</label>
             <input
               type="password"

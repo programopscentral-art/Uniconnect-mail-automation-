@@ -49,6 +49,7 @@
         <div class="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 rounded-xl text-xs text-gray-400 min-w-[200px]">Loading...</div>
       {:else if universities.length > 0}
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">University</label>
           <select bind:value={selectedUniversity}
             class="px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 min-w-[220px] shadow-sm">

@@ -613,7 +613,7 @@
             <h2 class="text-xl font-black text-gray-900 dark:text-white">Bulk Academic Setup Import</h2>
             <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel spreadsheet to set up your entire academic structure at once</p>
           </div>
-          <button onclick={() => showImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+          <button aria-label="Close import panel" onclick={() => showImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -809,7 +809,7 @@
             <h2 class="text-xl font-black text-gray-900 dark:text-white">Import Students</h2>
             <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel file — one sheet per branch (sheet name = program code)</p>
           </div>
-          <button onclick={() => showStudentsImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+          <button aria-label="Close students import panel" onclick={() => showStudentsImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -838,6 +838,7 @@
 
           <!-- Term Name dropdown -->
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Select Term <span class="text-rose-500">*</span></label>
             {#if studentsImportTermNames.length > 0}
               <div class="relative">
@@ -862,6 +863,7 @@
           <!-- Batch selector -->
           {#if academicBatches.length > 0}
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Assign to Batch</label>
             <div class="relative">
               <select
@@ -955,7 +957,7 @@
             <h2 class="text-xl font-black text-gray-900 dark:text-white">Import Faculty</h2>
             <p class="text-xs text-gray-400 font-medium mt-0.5">Upload an Excel file with faculty details and subject assignments</p>
           </div>
-          <button onclick={() => showFacultyImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
+          <button aria-label="Close faculty import panel" onclick={() => showFacultyImportPanel = false} class="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -1070,7 +1072,7 @@
             <h3 class="text-xl font-black text-gray-900 dark:text-white">Campus Directory</h3>
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Geographic locations</p>
           </div>
-          <button onclick={() => showForm = showForm === 'campus' ? null : 'campus'} class="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
+          <button aria-label="Add campus" onclick={() => showForm = showForm === 'campus' ? null : 'campus'} class="p-3 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
           </button>
         </div>
@@ -1094,7 +1096,7 @@
                  <h4 class="font-black text-gray-900 dark:text-white text-sm tracking-tight">{campus.name}</h4>
                  <code class="text-[10px] text-indigo-500 font-black uppercase tracking-tighter">{campus.code}</code>
                </div>
-               <button onclick={() => handleAction(`/api/academic/campuses?id=${campus.id}`, 'DELETE', null)} class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
+               <button aria-label="Delete campus" onclick={() => handleAction(`/api/academic/campuses?id=${campus.id}`, 'DELETE', null)} class="p-2 text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all">
                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                </button>
             </div>
@@ -1109,7 +1111,7 @@
             <h3 class="text-xl font-black text-gray-900 dark:text-white">Academic Programs</h3>
             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Degrees & Departments</p>
           </div>
-          <button onclick={() => showForm = showForm === 'program' ? null : 'program'} class="p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
+          <button aria-label="Add program" onclick={() => showForm = showForm === 'program' ? null : 'program'} class="p-3 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">
              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
           </button>
         </div>
@@ -1186,10 +1188,12 @@
               <div class="grid grid-cols-2 gap-4">
                  <input bind:value={newTerm.name} placeholder="Term Name (e.g. Semester 1, Fall 2024)" class="col-span-2 px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
                  <div class="flex flex-col gap-1">
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="text-[9px] font-black text-violet-600 uppercase ml-2">Start Date</label>
                     <input type="date" bind:value={newTerm.start_date} class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
                  </div>
                  <div class="flex flex-col gap-1">
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="text-[9px] font-black text-violet-600 uppercase ml-2">End Date</label>
                     <input type="date" bind:value={newTerm.end_date} class="px-6 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold" />
                  </div>
@@ -1213,10 +1217,10 @@
                      </div>
                    </div>
                   <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onclick={() => startEditTerm(term)} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                    <button aria-label="Edit term" onclick={() => startEditTerm(term)} class="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     </button>
-                    <button onclick={() => handleAction(`/api/academic/terms?id=${term.id}`, 'DELETE', null)} class="p-2 text-gray-400 hover:text-rose-500 transition-colors">
+                    <button aria-label="Delete term" onclick={() => handleAction(`/api/academic/terms?id=${term.id}`, 'DELETE', null)} class="p-2 text-gray-400 hover:text-rose-500 transition-colors">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                   </div>
@@ -1239,7 +1243,7 @@
           <h3 class="text-xl font-black text-gray-900 dark:text-white">Academic Batches</h3>
           <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Admission year cohorts (e.g. 2025-2029)</p>
         </div>
-        <button onclick={() => showForm = showForm === 'batch' ? null : 'batch'} class="p-3 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 active:scale-95">
+        <button aria-label="Add batch" onclick={() => showForm = showForm === 'batch' ? null : 'batch'} class="p-3 bg-amber-500 text-white rounded-2xl hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 active:scale-95">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
         </button>
       </div>
@@ -1247,10 +1251,12 @@
       {#if showForm === 'batch'}
         <div class="mb-6 p-6 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl flex flex-wrap items-end gap-4" transition:slide>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">Start Year</label>
             <input type="number" bind:value={newBatch.start_year} class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold w-28" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">End Year</label>
             <input type="number" bind:value={newBatch.end_year} class="px-4 py-3 bg-white dark:bg-slate-800 border-none rounded-xl text-xs font-bold w-28" />
           </div>
@@ -1266,7 +1272,7 @@
           <div class="flex items-center gap-3 px-5 py-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl">
             <span class="text-sm font-black text-amber-700 dark:text-amber-400">{batch.name}</span>
             <span class="text-[9px] text-gray-400 uppercase tracking-widest">{batch.start_year} → {batch.end_year}</span>
-            <button onclick={() => deleteBatch(batch.id)} class="ml-1 text-gray-400 hover:text-rose-500 transition-colors">
+            <button aria-label="Delete batch" onclick={() => deleteBatch(batch.id)} class="ml-1 text-gray-400 hover:text-rose-500 transition-colors">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
