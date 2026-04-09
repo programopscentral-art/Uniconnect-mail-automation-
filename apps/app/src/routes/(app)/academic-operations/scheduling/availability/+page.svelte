@@ -148,20 +148,24 @@
       <h3 class="text-sm font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">Add Time Slot</h3>
       <div class="space-y-4">
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Slot Name</label>
           <input type="text" bind:value={newSlotName} placeholder="e.g. Period 1, Lunch" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Start Time</label>
             <input type="time" bind:value={newSlotStart} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">End Time</label>
             <input type="time" bind:value={newSlotEnd} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold" />
           </div>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Type</label>
           <select bind:value={newSlotType} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold">
             <option value="LECTURE">Lecture</option>

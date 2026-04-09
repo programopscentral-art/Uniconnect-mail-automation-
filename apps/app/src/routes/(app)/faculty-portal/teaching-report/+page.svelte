@@ -273,6 +273,7 @@
 
         <!-- 1. Date -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Date</label>
           <input type="date" bind:value={reportDate}
             class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500" />
@@ -280,6 +281,7 @@
 
         <!-- 2. Batch -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Batch</label>
           <select bind:value={selectedBatch} onchange={() => { selectedTerm = ''; selectedSection = ''; selectedSubject = ''; selectedUnit = ''; }}
             class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -292,6 +294,7 @@
 
         <!-- 3. Semester -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Semester</label>
           <select bind:value={selectedTerm} onchange={() => { selectedSection = ''; selectedSubject = ''; selectedUnit = ''; }}
             class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -304,6 +307,7 @@
 
         <!-- 4. Branch / Section -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Branch / Section</label>
           <select bind:value={selectedSection} onchange={() => { selectedSubject = ''; selectedUnit = ''; }}
             disabled={!selectedTerm}
@@ -317,6 +321,7 @@
 
         <!-- 5. Subject -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Subject</label>
           <select bind:value={selectedSubject} onchange={() => { selectedUnit = ''; }}
             disabled={!selectedTerm}

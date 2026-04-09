@@ -646,8 +646,9 @@
             <div
               class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-emerald-500 transition-all shadow-sm"
             >
-              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
+                role="button" tabindex="0"
                 class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer relative"
                 onclick={() => openPreview(file)}
               >
@@ -816,8 +817,9 @@
             <div
               class="group relative bg-gray-50 dark:bg-gray-900/50 p-4 rounded-3xl border border-gray-100 dark:border-gray-700 hover:border-blue-500 transition-all shadow-sm"
             >
-              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
               <div
+                role="button" tabindex="0"
                 class="aspect-[4/3] rounded-2xl bg-gray-100 dark:bg-gray-800 mb-4 overflow-hidden flex items-center justify-center cursor-pointer relative"
                 onclick={() => openPreview(file)}
               >
@@ -963,8 +965,9 @@
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1">Event Gallery</p>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {#each proposal.report.photos_urls as photo}
-                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <div
+                      role="button" tabindex="0"
                       class="aspect-square rounded-2xl overflow-hidden cursor-pointer hover:ring-4 ring-indigo-500/20 transition-all group"
                       onclick={() => openPreview({ file_url: photo, file_type: 'image/jpeg' })}
                     >
@@ -1245,8 +1248,9 @@
     class="fixed inset-0 z-50 flex items-center justify-center p-4"
     transition:fade
   >
-    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
+      role="button" tabindex="0"
       class="absolute inset-0 bg-black/60 backdrop-blur-sm"
       onclick={() => (showActionModal = null)}
     ></div>

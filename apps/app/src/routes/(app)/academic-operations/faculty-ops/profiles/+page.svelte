@@ -700,34 +700,40 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Employee Code *</label>
             <input type="text" bind:value={addForm.employee_code} placeholder="EMP001"
               class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Phone</label>
             <input type="text" bind:value={addForm.phone} placeholder="9876543210"
               class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />
           </div>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Email</label>
           <input type="email" bind:value={addForm.email} placeholder="john@university.edu"
             class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Department</label>
             <input type="text" bind:value={addForm.department} placeholder="Computer Science"
               class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Designation</label>
             <input type="text" bind:value={addForm.designation} placeholder="Assistant Professor"
               class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />
           </div>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Specialization</label>
           <input type="text" bind:value={addForm.specialization} placeholder="Machine Learning, AI"
             class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />

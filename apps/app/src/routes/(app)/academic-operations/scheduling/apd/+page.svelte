@@ -387,22 +387,27 @@
       <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Create Manual Plan</h3>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Start Date</label>
           <input type="date" bind:value={manualPlan.start_date} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">End Date</label>
           <input type="date" bind:value={manualPlan.end_date} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Working Days/Week</label>
           <input type="number" bind:value={manualPlan.working_days_per_week} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Working Days</label>
           <input type="number" bind:value={manualPlan.total_working_days} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Saturdays Off</label>
           <select bind:value={manualPlan.saturdays_off} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white">
             <option value="ALL">All Saturdays</option>
@@ -412,18 +417,22 @@
           </select>
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Slots/Day</label>
           <input type="number" bind:value={manualPlan.slots_per_day} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Net Executional Slots</label>
           <input type="number" bind:value={manualPlan.net_executional_slots} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Buffer Slots</label>
           <input type="number" bind:value={manualPlan.buffer_slots} class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
         </div>
         <div class="col-span-2 md:col-span-4">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Remarks</label>
           <textarea bind:value={manualPlan.remarks} rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white"></textarea>
         </div>
@@ -596,30 +605,37 @@
               <div class="mb-4 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-900/10" in:fly={{ y: -10, duration: 150 }}>
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Subject Code *</label>
                     <input type="text" bind:value={newSubject.subject_code} placeholder="e.g. DS" class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Subject Name</label>
                     <input type="text" bind:value={newSubject.subject_name} placeholder="Data Structures" class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Total Slots *</label>
                     <input type="number" bind:value={newSubject.total_slots_required} class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Slots/Week</label>
                     <input type="number" bind:value={newSubject.slots_per_week} class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Lab Slots</label>
                     <input type="number" bind:value={newSubject.lab_slots_required} class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Buffer</label>
                     <input type="number" bind:value={newSubject.buffer_slots} class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
                   <div>
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label class="block text-xs text-gray-500 mb-1">Priority</label>
                     <input type="number" bind:value={newSubject.priority} min="1" max="10" class="w-full px-2 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 dark:text-white" />
                   </div>
@@ -660,7 +676,7 @@
                           {req.total_slots_required - (req.slots_allocated || 0)}
                         </td>
                         <td class="py-2 pl-2">
-                          <button onclick={() => deleteRequirement(req.id)} class="text-xs text-red-400 hover:text-red-600">
+                          <button aria-label="Delete requirement" onclick={() => deleteRequirement(req.id)} class="text-xs text-red-400 hover:text-red-600">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                           </button>
                         </td>

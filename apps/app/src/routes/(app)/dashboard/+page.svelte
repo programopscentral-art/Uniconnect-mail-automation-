@@ -1700,8 +1700,8 @@
                 <div class="mt-0.5 space-y-px hidden sm:block">
                   {#each getEventsForDate(date).slice(0, 3) as event}
                     {@const style = getEventStyle(event)}
-                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                    <div class="text-[10px] font-medium px-1.5 py-0.5 rounded truncate {style.bg} {style.text} border-l-2 {style.border}"
+                    <!-- svelte-ignore a11y_click_events_have_key_events -->
+                    <div role="button" tabindex="0" class="text-[10px] font-medium px-1.5 py-0.5 rounded truncate {style.bg} {style.text} border-l-2 {style.border}"
                       onclick={(e) => handleEventClick(e, event)}>
                       {event.title}
                     </div>
@@ -1745,8 +1745,8 @@
                     {#if isToday(wd)}
                       <span class="inline-flex items-center justify-center w-6 h-6 sm:w-10 sm:h-10 rounded-full bg-blue-600 text-white text-xs sm:text-lg font-medium">{wd.getDate()}</span>
                     {:else}
-                      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                      <span class="inline-flex items-center justify-center w-6 h-6 sm:w-10 sm:h-10 rounded-full text-xs sm:text-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors" onclick={() => { currentDate = wd; calendarView = 'day'; }}>{wd.getDate()}</span>
+                      <!-- svelte-ignore a11y_click_events_have_key_events -->
+                      <span role="button" tabindex="0" class="inline-flex items-center justify-center w-6 h-6 sm:w-10 sm:h-10 rounded-full text-xs sm:text-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors" onclick={() => { currentDate = wd; calendarView = 'day'; }}>{wd.getDate()}</span>
                     {/if}
                   </div>
                 </div>

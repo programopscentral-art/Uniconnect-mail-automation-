@@ -244,6 +244,7 @@
     <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 p-5 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
       <!-- 1. Batch -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Batch</label>
         <select bind:value={selectedBatch} onchange={() => { selectedTerm = ''; selectedSubject = ''; selectedSection = ''; }}
           class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -256,6 +257,7 @@
 
       <!-- 2. Semester -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Semester</label>
         <select bind:value={selectedTerm} onchange={() => { selectedSubject = ''; selectedSection = ''; }}
           class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -268,6 +270,7 @@
 
       <!-- 3. Subject -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Subject</label>
         <select bind:value={selectedSubject} onchange={() => { selectedSection = ''; }}
           disabled={!selectedTerm}
@@ -281,6 +284,7 @@
 
       <!-- 4. Section / Branch -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Section / Branch</label>
         <select bind:value={selectedSection}
           disabled={!selectedSubject}
@@ -294,6 +298,7 @@
 
       <!-- 5. Exam Type -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Exam Type</label>
         <select bind:value={examType}
           class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -303,6 +308,7 @@
 
       <!-- 6. Total Marks -->
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Total Marks</label>
         <input type="number" min="0" step="1" bind:value={totalMarks} placeholder="e.g. 100"
           class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500" />

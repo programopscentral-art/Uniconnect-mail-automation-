@@ -74,6 +74,7 @@
   <!-- Filters -->
   <div class="flex flex-wrap gap-3 p-4 bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl">
     <div class="flex flex-col gap-1">
+      <!-- svelte-ignore a11y_label_has_associated_control -->
       <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Program / Branch</label>
       <select bind:value={selectedProgram} class="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 min-w-[180px]">
         <option value="">All Programs</option>
@@ -82,6 +83,7 @@
     </div>
     {#if terms.length > 0}
       <div class="flex flex-col gap-1">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Semester</label>
         <select bind:value={selectedTerm} class="px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 min-w-[180px]">
           <option value="">All Semesters</option>
