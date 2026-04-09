@@ -333,12 +333,11 @@
       </table>
 
       <!-- ═══ INSTRUCTIONS ═══ -->
-      {@const defaultInstructions = "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated."}
       <div class="border border-black p-2 mb-4 text-[9.5pt]">
         <div class="font-bold mb-1">Instructions to Students:</div>
         <div class="pl-4">
           <AssessmentEditable
-            value={paperMeta.instructions || defaultInstructions}
+            value={paperMeta.instructions || "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated."}
             onUpdate={(v: string) => updateText(v, "META", "instructions")}
             multiline={true}
             class="whitespace-pre-line"
