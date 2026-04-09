@@ -9,6 +9,7 @@
   import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
   import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
+  import ADYPUSemTemplate from "$lib/components/assessments/ADYPUSemTemplate.svelte";
 
   let { data } = $props();
 
@@ -109,13 +110,15 @@
       // Matches the original ADYPU Sem template format exactly:
       // Each Q gets its own "Attempt any one/two" header
       // Q1(a,b), Q2(a,b): 4 marks each sub-q, attempt any one
-      // Q3(a,b,c), Q4(a,b,c): 7 marks each sub-q, attempt any two
+      // Q3(a,b,c), Q4(a,b,c), Q5(a,b,c): 7 marks each sub-q, attempt any two
+      // Q6(a,b): 5 marks each sub-q, attempt any one (long answer)
       // Uses SINGLE + hasSubQuestions so each sub-q is independently picked
       const partA = {
         title: "Attempt any one",
         part: "A",
         answered_count: 1,
         marks_per_q: 4,
+        numSubQuestions: 2,
         co: "CO1",
         slots: [
           {
@@ -129,6 +132,8 @@
             bloom: "ANY",
             hasSubQuestions: true,
             numSubQuestions: 2,
+            marks_a: 4,
+            marks_b: 4,
           },
         ],
       };
@@ -139,6 +144,7 @@
         part: "B",
         answered_count: 1,
         marks_per_q: 4,
+        numSubQuestions: 2,
         co: "CO2",
         slots: [
           {
@@ -152,6 +158,8 @@
             bloom: "ANY",
             hasSubQuestions: true,
             numSubQuestions: 2,
+            marks_a: 4,
+            marks_b: 4,
           },
         ],
       };
@@ -162,6 +170,7 @@
         part: "C",
         answered_count: 2,
         marks_per_q: 7,
+        numSubQuestions: 3,
         co: "CO3",
         slots: [
           {
@@ -175,6 +184,9 @@
             bloom: "ANY",
             hasSubQuestions: true,
             numSubQuestions: 3,
+            marks_a: 7,
+            marks_b: 7,
+            marks_c: 7,
           },
         ],
       };
@@ -185,6 +197,7 @@
         part: "D",
         answered_count: 2,
         marks_per_q: 7,
+        numSubQuestions: 3,
         co: "CO4",
         slots: [
           {
@@ -198,10 +211,66 @@
             bloom: "ANY",
             hasSubQuestions: true,
             numSubQuestions: 3,
+            marks_a: 7,
+            marks_b: 7,
+            marks_c: 7,
           },
         ],
       };
       structure.push(partD);
+
+      const partE = {
+        title: "Attempt any Two",
+        part: "E",
+        answered_count: 2,
+        marks_per_q: 7,
+        numSubQuestions: 3,
+        co: "CO5",
+        slots: [
+          {
+            id: `E-5-${Math.random()}`,
+            label: "5",
+            part: "E",
+            type: "SINGLE",
+            marks: 7,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 3,
+            marks_a: 7,
+            marks_b: 7,
+            marks_c: 7,
+          },
+        ],
+      };
+      structure.push(partE);
+
+      const partF = {
+        title: "Attempt any one",
+        part: "F",
+        answered_count: 1,
+        marks_per_q: 5,
+        numSubQuestions: 2,
+        co: "CO1",
+        slots: [
+          {
+            id: `F-6-${Math.random()}`,
+            label: "6",
+            part: "F",
+            type: "SINGLE",
+            marks: 5,
+            unit: "Auto",
+            qType: "LONG",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 2,
+            marks_a: 5,
+            marks_b: 5,
+          },
+        ],
+      };
+      structure.push(partF);
 
       paperStructure = structure;
       refreshLabels();
@@ -1113,17 +1182,21 @@
   }
 
   function addSingleSlot(section: any) {
+    const numSub = section.numSubQuestions || (isADYPU ? 2 : 0);
+    const m = section.marks_per_q;
     section.slots.push({
       id: Math.random().toString(36).substr(2, 9),
       label: ``, // Will be refreshed
       type: "SINGLE",
-      marks: section.marks_per_q,
+      marks: m,
       unit: "Auto",
       qType: "NORMAL",
       bloom: "ANY",
-      hasSubQuestions: false,
-      marks_a: Number((section.marks_per_q / 2).toFixed(1)),
-      marks_b: Number((section.marks_per_q / 2).toFixed(1)),
+      hasSubQuestions: isADYPU ? true : false,
+      numSubQuestions: numSub || 2,
+      marks_a: isADYPU ? m : Number((m / 2).toFixed(1)),
+      marks_b: isADYPU ? m : Number((m / 2).toFixed(1)),
+      marks_c: numSub >= 3 ? m : undefined,
     });
     refreshLabels();
   }
@@ -1168,14 +1241,44 @@
 
   function addSection() {
     const char = String.fromCharCode(65 + paperStructure.length); // Next char
-    paperStructure.push({
-      title: `SECTION ${char}`,
-      part: char,
-      answered_count: 5,
-      marks_per_q: 2,
-      slots: [],
-    });
+    const nextQNum = paperStructure.length + 1;
+    if (isADYPU) {
+      // ADYPU: default to "Attempt any one" with 2 sub-questions
+      paperStructure.push({
+        title: "Attempt any one",
+        part: char,
+        answered_count: 1,
+        marks_per_q: 4,
+        numSubQuestions: 2,
+        co: `CO${nextQNum}`,
+        slots: [
+          {
+            id: `${char}-${nextQNum}-${Math.random()}`,
+            label: `${nextQNum}`,
+            part: char,
+            type: "SINGLE",
+            marks: 4,
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 2,
+            marks_a: 4,
+            marks_b: 4,
+          },
+        ],
+      });
+    } else {
+      paperStructure.push({
+        title: `SECTION ${char}`,
+        part: char,
+        answered_count: 5,
+        marks_per_q: 2,
+        slots: [],
+      });
+    }
     paperStructure = [...paperStructure];
+    refreshLabels();
   }
 
   // Wizard Navigation
@@ -1359,9 +1462,11 @@
         ? "Crescent"
         : isVGU
           ? "VGU University"
-          : isNRI
-            ? "NRI Institute of Technology"
-            : "University Standard",
+          : isADYPU
+            ? "ADYPU Sem Template"
+            : isNRI
+              ? "NRI Institute of Technology"
+              : "University Standard",
   );
 
   let previewPaperMeta = $state<any>({
@@ -2124,15 +2229,67 @@
           <div class="space-y-12">
             {#each paperStructure as section}
               <div class="space-y-4">
-                <div class="flex items-center justify-between gap-4 px-2">
-                  <h3
-                    class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-4 flex-1"
-                  >
-                    {section.title}
-                    <div
-                      class="h-px flex-1 bg-gray-100 dark:bg-slate-800"
-                    ></div>
-                  </h3>
+                <div class="flex flex-col gap-3 px-2">
+                  <div class="flex items-center justify-between gap-4">
+                    {#if isADYPU}
+                      <div class="flex items-center gap-3 flex-1">
+                        <select
+                          value={section.answered_count === 1 ? "one" : section.answered_count === 2 ? "two" : section.answered_count === 3 ? "three" : "custom"}
+                          onchange={(e) => {
+                            const val = e.currentTarget.value;
+                            if (val === "one") {
+                              section.answered_count = 1;
+                              section.title = "Attempt any one";
+                              section.numSubQuestions = 2;
+                              section.slots.forEach((s) => { s.numSubQuestions = 2; s.hasSubQuestions = true; });
+                            } else if (val === "two") {
+                              section.answered_count = 2;
+                              section.title = "Attempt any Two";
+                              section.numSubQuestions = 3;
+                              section.slots.forEach((s) => {
+                                s.numSubQuestions = 3; s.hasSubQuestions = true;
+                                if (!s.marks_c) s.marks_c = s.marks_a || s.marks;
+                              });
+                            } else if (val === "three") {
+                              section.answered_count = 3;
+                              section.title = "Attempt any Three";
+                              section.numSubQuestions = 4;
+                              section.slots.forEach((s) => {
+                                s.numSubQuestions = 4; s.hasSubQuestions = true;
+                                if (!s.marks_c) s.marks_c = s.marks_a || s.marks;
+                                if (!s.marks_d) s.marks_d = s.marks_a || s.marks;
+                              });
+                            }
+                            paperStructure = [...paperStructure];
+                          }}
+                          class="bg-amber-50 dark:bg-amber-900/30 border-2 border-amber-200 dark:border-amber-800 rounded-xl px-4 py-2 text-xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest focus:ring-2 focus:ring-amber-500/20"
+                        >
+                          <option value="one">Attempt any One (2 sub-Qs: a,b)</option>
+                          <option value="two">Attempt any Two (3 sub-Qs: a,b,c)</option>
+                          <option value="three">Attempt any Three (4 sub-Qs: a,b,c,d)</option>
+                        </select>
+                        <div class="h-px flex-1 bg-amber-100 dark:bg-amber-800/50"></div>
+                      </div>
+                    {:else}
+                      <h3
+                        class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center gap-4 flex-1"
+                      >
+                        {section.title}
+                        <div class="h-px flex-1 bg-gray-100 dark:bg-slate-800"></div>
+                      </h3>
+                    {/if}
+
+                    <button
+                      onclick={() => {
+                        paperStructure = paperStructure.filter((s) => s !== section);
+                        refreshLabels();
+                      }}
+                      class="px-2 py-1.5 bg-red-50 text-red-500 rounded-lg text-[9px] font-black uppercase hover:bg-red-600 hover:text-white transition-all"
+                      title="Remove Section"
+                    >
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
 
                   <div class="flex items-center gap-6">
                     <div class="flex items-center gap-2">
@@ -2260,45 +2417,63 @@
                           </div>
 
                           <button
-                            onclick={() =>
-                              (slot.hasSubQuestions = !slot.hasSubQuestions)}
+                            onclick={() => {
+                              slot.hasSubQuestions = !slot.hasSubQuestions;
+                              if (slot.hasSubQuestions && !slot.numSubQuestions) {
+                                slot.numSubQuestions = 2;
+                                slot.marks_a = slot.marks_a || Math.round(slot.marks / 2);
+                                slot.marks_b = slot.marks_b || Math.round(slot.marks / 2);
+                              }
+                            }}
                             class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all
                                                               {slot.hasSubQuestions
                               ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
                               : 'bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-slate-500 border border-gray-100 dark:border-slate-800 opacity-50'}"
                           >
-                            Sub-Qs (a,b)
+                            Sub-Qs ({#if slot.numSubQuestions >= 3}a,b,c{:else}a,b{/if})
                           </button>
                         </div>
 
                         {#if slot.hasSubQuestions}
                           <div
-                            class="grid grid-cols-2 gap-4 bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100/50 dark:border-amber-800/50"
+                            class="bg-amber-50/50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-100/50 dark:border-amber-800/50 space-y-3"
                             transition:slide
                           >
-                            <div class="space-y-1">
-                              <span
-                                class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1"
-                                >Marks (a)</span
-                              >
-                              <input
-                                type="number"
-                                step="0.5"
-                                bind:value={slot.marks_a}
-                                class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm"
-                              />
+                            <div class="flex items-center gap-3">
+                              <span class="text-[9px] font-black text-amber-500 uppercase tracking-widest">Sub-Questions:</span>
+                              <div class="flex gap-1">
+                                {#each [2, 3] as n}
+                                  <button
+                                    onclick={() => {
+                                      slot.numSubQuestions = n;
+                                      if (n >= 3 && !slot.marks_c) slot.marks_c = slot.marks_a || Math.round(slot.marks / n);
+                                    }}
+                                    class="px-3 py-1 rounded-lg text-[10px] font-black border transition-all
+                                      {(slot.numSubQuestions || 2) === n
+                                        ? 'bg-amber-500 text-white border-amber-500'
+                                        : 'bg-white dark:bg-slate-900 text-amber-600 border-amber-200 dark:border-amber-800'}"
+                                  >{n} ({#if n === 2}a,b{:else}a,b,c{/if})</button>
+                                {/each}
+                              </div>
                             </div>
-                            <div class="space-y-1">
-                              <span
-                                class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1"
-                                >Marks (b)</span
-                              >
-                              <input
-                                type="number"
-                                step="0.5"
-                                bind:value={slot.marks_b}
-                                class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm"
-                              />
+                            <div class="grid gap-4" style="grid-template-columns: repeat({slot.numSubQuestions || 2}, 1fr);">
+                              <div class="space-y-1">
+                                <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (a)</span>
+                                <input type="number" step="0.5" bind:value={slot.marks_a}
+                                  class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
+                              </div>
+                              <div class="space-y-1">
+                                <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (b)</span>
+                                <input type="number" step="0.5" bind:value={slot.marks_b}
+                                  class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
+                              </div>
+                              {#if (slot.numSubQuestions || 2) >= 3}
+                                <div class="space-y-1">
+                                  <span class="text-[9px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest ml-1">Marks (c)</span>
+                                  <input type="number" step="0.5" bind:value={slot.marks_c}
+                                    class="w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-xl p-2 text-xs font-black text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/20 shadow-sm" />
+                                </div>
+                              {/if}
                             </div>
                           </div>
                         {/if}
@@ -2952,6 +3127,14 @@
                     mode="preview"
                   />
                 {/if}
+              {:else if selectedTemplate === "adypu" || isADYPU}
+                <ADYPUSemTemplate
+                  paperMeta={previewPaperMeta}
+                  {paperStructure}
+                  currentSetData={previewSetData}
+                  {courseOutcomes}
+                  mode="preview"
+                />
               {:else if selectedTemplate === "vgu-standard-mid-term" || isVGU}
                 {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
                   <VGUMidTemplate
