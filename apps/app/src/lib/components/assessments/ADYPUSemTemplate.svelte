@@ -247,7 +247,7 @@
       </div>
 
       <!-- Student URN -->
-      <div class="flex items-center gap-2 mb-4">
+      <div class="flex items-center justify-end gap-2 mb-4">
         <span class="text-[10pt] font-bold border border-black px-2 py-0.5">Student URN →</span>
         <div class="flex border border-black">
           {#each Array(20) as _}
@@ -419,12 +419,20 @@
                               />
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[50px]">
-                              {q1.marks || marks}
+                              <AssessmentEditable
+                                value={String(q1.marks || marks)}
+                                onUpdate={(v: string) => {
+                                  q1.marks = Number(v) || v;
+                                  if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+                                  else currentSetData.questions = [...currentSetData.questions];
+                                }}
+                                class="text-center"
+                              />
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[70px]"></td>
                             <td class="border border-black p-1.5 text-center align-top font-bold w-[35px]">
                               <AssessmentEditable
-                                value={co || `C O${sIdx + 1}`}
+                                value={co || `CO${sIdx + 1}`}
                                 onUpdate={(v: string) => {
                                   section.co = v;
                                   paperStructure = [...paperStructure];
@@ -451,7 +459,15 @@
                               />
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[50px]">
-                              {q2.marks || marks}
+                              <AssessmentEditable
+                                value={String(q2.marks || marks)}
+                                onUpdate={(v: string) => {
+                                  q2.marks = Number(v) || v;
+                                  if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+                                  else currentSetData.questions = [...currentSetData.questions];
+                                }}
+                                class="text-center"
+                              />
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[70px]"></td>
                             <td class="border border-black p-1.5 text-center align-top w-[35px]"></td>
@@ -495,7 +511,15 @@
                                 {/if}
                               </td>
                               <td class="border border-black p-1.5 text-center align-top w-[50px]">
-                                {q.marks || marks}
+                                <AssessmentEditable
+                                  value={String(q.marks || marks)}
+                                  onUpdate={(v: string) => {
+                                    q.marks = Number(v) || v;
+                                    if (Array.isArray(currentSetData)) currentSetData = [...currentSetData];
+                                    else currentSetData.questions = [...currentSetData.questions];
+                                  }}
+                                  class="text-center"
+                                />
                               </td>
                               <td class="border border-black p-1.5 text-center align-top w-[70px]">
                                 <AssessmentEditable
@@ -511,7 +535,7 @@
                               <td class="border border-black p-1.5 text-center align-top font-bold w-[35px]">
                                 {#if qIdx === 0}
                                   <AssessmentEditable
-                                    value={co || `C O${sIdx + 1}`}
+                                    value={co || `CO${sIdx + 1}`}
                                     onUpdate={(v: string) => {
                                       section.co = v;
                                       paperStructure = [...paperStructure];

@@ -106,89 +106,140 @@
     const structure = [];
 
     if (isADYPU) {
-      // SECTION A: 1 (MCQ a-e), 2, 3
+      // Matches the original ADYPU Sem template format:
+      // Q1, Q2: "Attempt any one" (OR_GROUP, a/b) — 4 marks each
+      // Q3, Q4: "Attempt any Two" (a/b/c, pick 2) — 7 marks each
       const partA = {
-        title: "SECTION A",
+        title: "Attempt any one",
         part: "A",
-        answered_count: 3,
-        marks_per_q: 5,
+        answered_count: 1,
+        marks_per_q: 4,
+        co: "CO1",
         slots: [
           {
             id: `A-1-${Math.random()}`,
             label: "1",
             part: "A",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "MCQ",
-            hasSubQuestions: true,
-            numSubQuestions: 5,
-            bloom: "ANY",
-          },
-          {
-            id: `A-2-${Math.random()}`,
-            label: "2",
-            part: "A",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "NORMAL",
-            bloom: "ANY",
-          },
-          {
-            id: `A-3-${Math.random()}`,
-            label: "3",
-            part: "A",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "NORMAL",
-            bloom: "ANY",
+            type: "OR_GROUP",
+            marks: 4,
+            choices: [
+              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
           },
         ],
       };
       structure.push(partA);
 
-      // SECTION B: 4, 5, 6
       const partB = {
-        title: "SECTION B",
+        title: "Attempt any one",
         part: "B",
-        answered_count: 3,
-        marks_per_q: 5,
+        answered_count: 1,
+        marks_per_q: 4,
+        co: "CO2",
         slots: [
           {
-            id: `B-4-${Math.random()}`,
-            label: "4",
+            id: `B-2-${Math.random()}`,
+            label: "2",
             part: "B",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "NORMAL",
-            bloom: "ANY",
-          },
-          {
-            id: `B-5-${Math.random()}`,
-            label: "5",
-            part: "B",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "NORMAL",
-            bloom: "ANY",
-          },
-          {
-            id: `B-6-${Math.random()}`,
-            label: "6",
-            part: "B",
-            type: "SINGLE",
-            marks: 5,
-            unit: "Auto",
-            qType: "NORMAL",
-            bloom: "ANY",
+            type: "OR_GROUP",
+            marks: 4,
+            choices: [
+              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
           },
         ],
       };
       structure.push(partB);
+
+      const partC = {
+        title: "Attempt any Two",
+        part: "C",
+        answered_count: 2,
+        marks_per_q: 7,
+        co: "CO3",
+        slots: [
+          {
+            id: `C-3a-${Math.random()}`,
+            label: "3",
+            part: "C",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+          {
+            id: `C-3b-${Math.random()}`,
+            label: "3",
+            part: "C",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+          {
+            id: `C-3c-${Math.random()}`,
+            label: "3",
+            part: "C",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+        ],
+      };
+      structure.push(partC);
+
+      const partD = {
+        title: "Attempt any Two",
+        part: "D",
+        answered_count: 2,
+        marks_per_q: 7,
+        co: "CO4",
+        slots: [
+          {
+            id: `D-4a-${Math.random()}`,
+            label: "4",
+            part: "D",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+          {
+            id: `D-4b-${Math.random()}`,
+            label: "4",
+            part: "D",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+          {
+            id: `D-4c-${Math.random()}`,
+            label: "4",
+            part: "D",
+            type: "OR_GROUP",
+            marks: 7,
+            choices: [
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
+            ],
+          },
+        ],
+      };
+      structure.push(partD);
 
       paperStructure = structure;
       refreshLabels();
