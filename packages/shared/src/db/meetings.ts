@@ -272,6 +272,11 @@ export async function clearTranscriptParticipants(meetingId: string) {
     await db.query(`DELETE FROM org_meeting_participants WHERE meeting_id = $1 AND source = 'TRANSCRIPT'`, [meetingId]);
 }
 
+export async function getParticipantCount(meetingId: string): Promise<number> {
+    const result = await db.query(`SELECT COUNT(*) as count FROM org_meeting_participants WHERE meeting_id = $1`, [meetingId]);
+    return parseInt(result.rows[0]?.count || '0', 10);
+}
+
 // ─── Invitees ────────────────────────────────────────────────────────
 
 export async function getMeetingInvitees(meetingId: string): Promise<MeetingInvitee[]> {

@@ -19,6 +19,7 @@ import {
     upsertMeetingParticipant,
     clearMeetingParticipants,
     clearTranscriptParticipants,
+    getParticipantCount,
     type OrgMeeting
 } from '../db/meetings';
 
@@ -320,36 +321,64 @@ const NON_NAME_WORDS = new Set([
     'implementation', 'integration', 'deployment', 'migration', 'configuration',
     'demonstration', 'presentation', 'workshop', 'training', 'onboarding',
     'feedback', 'retrospective', 'standup', 'sync', 'kickoff', 'wrap',
-    'closing', 'opening', 'remarks', 'takeaways', 'highlights', 'blockers'
+    'closing', 'opening', 'remarks', 'takeaways', 'highlights', 'blockers',
+    // Business/process vocabulary
+    'process', 'budget', 'proposal', 'approval', 'document', 'upload', 'download',
+    'event', 'reporting', 'system', 'management', 'template', 'module', 'feature',
+    'database', 'server', 'client', 'portal', 'dashboard', 'interface', 'workflow',
+    'schedule', 'calendar', 'notification', 'email', 'message', 'campaign',
+    'registration', 'enrollment', 'admission', 'examination', 'assessment',
+    'certificate', 'degree', 'semester', 'academic', 'curriculum', 'syllabus',
+    'attendance', 'tracking', 'monitoring', 'compliance', 'audit', 'verification',
+    'freeze', 'dates', 'deadline', 'extension', 'request', 'response', 'form',
+    'data', 'entry', 'record', 'records', 'files', 'folder', 'storage',
+    'payment', 'invoice', 'receipt', 'fee', 'scholarship', 'financial',
+    'campus', 'university', 'college', 'department', 'faculty', 'staff',
+    'student', 'master', 'registry', 'directory', 'operations', 'hub',
+    'setup', 'install', 'launch', 'release', 'version', 'phase',
+    'testing', 'staging', 'production', 'development', 'design', 'prototype',
+    'criteria', 'requirements', 'specification', 'documentation', 'manual',
+    'policy', 'procedure', 'guideline', 'standard', 'protocol', 'framework',
+    'structure', 'architecture', 'infrastructure', 'security', 'access', 'permission',
+    'role', 'team', 'group', 'organization', 'division', 'unit', 'branch',
+    'task', 'checklist', 'step', 'steps', 'instructions', 'guide', 'tutorial'
 ]);
 
 function isLikelyPersonName(text: string): boolean {
     const cleaned = text.trim();
-    if (cleaned.length < 3 || cleaned.length > 60) return false;
+    if (cleaned.length < 3 || cleaned.length > 40) return false;
     // Skip known headings
     if (KNOWN_HEADINGS.has(cleaned.toLowerCase())) return false;
     // Skip if it contains special chars that names don't have
     if (/[{}[\]<>|@#$%^&*()+=]/.test(cleaned)) return false;
     // Skip if it looks like a URL or timestamp
     if (/^https?:|^\d{2}:\d{2}|^\(\d/.test(cleaned)) return false;
-    // Skip if it's a single word that's too generic
     const words = cleaned.split(/\s+/);
-    if (words.length === 1 && cleaned.length < 4) return false;
+    // Person names are typically 2-3 words
+    if (words.length === 1 || words.length > 3) return false;
     // Skip if ANY word is a known non-name word (topic/heading vocabulary)
     const lowerWords = words.map((w: string) => w.toLowerCase());
     if (lowerWords.some((w: string) => NON_NAME_WORDS.has(w))) return false;
-    // Skip if 3+ words (most Indian/person names are 2-3 words, topic titles often 3+)
-    // Only allow 3+ word names if they look like "First Middle Last" pattern
-    if (words.length >= 3) {
-        // Each word should be short (typical name words are 3-10 chars)
-        const allShortWords = words.every((w: string) => w.length <= 12);
-        if (!allShortWords) return false;
-    }
-    // A person name typically has 2-4 words, all starting with uppercase
-    if (words.length >= 2 && words.length <= 4) {
-        const allCapitalized = words.every((w: string) => /^[A-Z]/.test(w));
-        if (allCapitalized) return true;
-    }
+    // Reject gerunds/action words ending in -ing, -tion, -ment, -ness, -ity (not person names)
+    if (lowerWords.some((w: string) =>
+        (w.length > 4 && w.endsWith('ing')) ||
+        (w.length > 4 && w.endsWith('tion')) ||
+        (w.length > 4 && w.endsWith('ment')) ||
+        (w.length > 4 && w.endsWith('ness')) ||
+        (w.length > 4 && w.endsWith('ity')) ||
+        (w.length > 4 && w.endsWith('ance')) ||
+        (w.length > 4 && w.endsWith('ence'))
+    )) return false;
+    // Reject if any word ends in common non-name suffixes
+    if (lowerWords.some((w: string) =>
+        w.endsWith('ize') || w.endsWith('ise') || w.endsWith('ify') ||
+        w.endsWith('ous') || w.endsWith('ive') || w.endsWith('able') ||
+        w.endsWith('ful') || w.endsWith('less')
+    )) return false;
+    // A person name: 2-3 words, all starting with uppercase, no word too long
+    const allCapitalized = words.every((w: string) => /^[A-Z]/.test(w));
+    const allReasonableLength = words.every((w: string) => w.length >= 2 && w.length <= 15);
+    if (allCapitalized && allReasonableLength) return true;
     return false;
 }
 
@@ -436,7 +465,12 @@ export async function extractTranscript(
             });
         }
 
-        await updateMeeting(meetingId, { participant_count: speakers.size });
+        // Don't overwrite participant_count — MANUAL source participants are the authoritative count
+        // Only update if there are no existing participants at all
+        const existingCount = await getParticipantCount(meetingId);
+        if (existingCount === 0 && speakers.size > 0) {
+            await updateMeeting(meetingId, { participant_count: speakers.size });
+        }
         return fullText;
     } catch (e: any) {
         console.error(`[MEETING] Failed to extract transcript:`, e);
