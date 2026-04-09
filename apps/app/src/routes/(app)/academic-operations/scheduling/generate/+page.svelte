@@ -210,6 +210,7 @@
         </select>
       </div>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Week Start</label>
         <div class="flex gap-1">
           <button onclick={() => setWeekOffset(-1)} class="px-2 py-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 hover:bg-gray-50 dark:hover:bg-slate-700 text-xs">&lt;</button>

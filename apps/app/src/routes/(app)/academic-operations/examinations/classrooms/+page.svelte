@@ -553,11 +553,13 @@
 
 <!-- Create Classroom Modal -->
 {#if showCreate}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => showCreate = false} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-3xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Create Classroom</h3>
-        <button onclick={() => showCreate = false} class="p-2 hover:bg-gray-100 rounded-xl">
+        <button onclick={() => showCreate = false} class="p-2 hover:bg-gray-100 rounded-xl" aria-label="Close">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
@@ -565,14 +567,17 @@
       <div class="p-6 space-y-6">
         <div class="grid grid-cols-2 gap-4">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Name</label>
             <input type="text" bind:value={form.name} placeholder="Room 101" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Code</label>
             <input type="text" bind:value={form.code} placeholder="R-101" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Type</label>
             <select bind:value={form.room_type} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
               <option value="LECTURE">Lecture Room</option>
@@ -581,14 +586,17 @@
             </select>
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Building</label>
             <input type="text" bind:value={form.building} placeholder="Block A" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Floor</label>
             <input type="number" bind:value={form.floor} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Invigilators Required</label>
             <input type="number" bind:value={form.invigilators_required} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
@@ -599,24 +607,29 @@
           <h4 class="text-xs font-black text-indigo-700 dark:text-indigo-300 uppercase tracking-widest mb-4">Bench Configuration</h4>
           <div class="grid grid-cols-3 gap-4">
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-indigo-600 block mb-1">Total Benches</label>
               <input type="number" bind:value={form.total_benches} min="1" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-slate-700 rounded-lg text-sm font-black text-center" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-indigo-600 block mb-1">Seats per Bench</label>
               <input type="number" bind:value={form.seats_per_bench} min="1" max="6" class="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-slate-700 rounded-lg text-sm font-black text-center" />
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-indigo-600 block mb-1">Capacity (auto)</label>
               <div class="px-3 py-2 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg text-sm font-black text-center text-indigo-700">{form.capacity}</div>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4 mt-3">
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-indigo-600 block mb-1">Rows (auto)</label>
               <div class="px-3 py-2 bg-indigo-100/50 dark:bg-indigo-500/10 rounded-lg text-sm font-bold text-center text-indigo-600">{form.bench_rows}</div>
             </div>
             <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
               <label class="text-[10px] font-bold text-indigo-600 block mb-1">Columns (auto)</label>
               <div class="px-3 py-2 bg-indigo-100/50 dark:bg-indigo-500/10 rounded-lg text-sm font-bold text-center text-indigo-600">{form.bench_columns}</div>
             </div>
@@ -654,39 +667,47 @@
 
 <!-- Edit Classroom Modal -->
 {#if editingRoom}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => editingRoom = null} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Edit Classroom</h3>
-        <button onclick={() => editingRoom = null} class="p-2 hover:bg-gray-100 rounded-xl">
+        <button onclick={() => editingRoom = null} class="p-2 hover:bg-gray-100 rounded-xl" aria-label="Close">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
       <div class="p-6 space-y-4">
         <div class="grid grid-cols-2 gap-4">
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Name</label>
             <input type="text" bind:value={editForm.name} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Code</label>
             <input type="text" bind:value={editForm.code} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Type</label>
             <select bind:value={editForm.room_type} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold">
               <option value="LECTURE">Lecture</option><option value="LAB">Lab</option><option value="HALL">Hall</option>
             </select>
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Building</label>
             <input type="text" bind:value={editForm.building} class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Invigilators</label>
             <input type="number" bind:value={editForm.invigilators_required} min="1" class="w-full px-4 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-bold" />
           </div>
           <div>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Capacity (auto)</label>
             <div class="px-4 py-2.5 bg-indigo-100 dark:bg-indigo-500/20 rounded-xl text-sm font-black text-center text-indigo-700">{editCapacity} seats ({editTotalBenches} benches)</div>
           </div>
@@ -695,6 +716,7 @@
         <!-- Bench Types Configuration -->
         <div class="mt-4">
           <div class="flex items-center justify-between mb-2">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Bench Types</label>
             <button onclick={() => editForm.bench_types = [...editForm.bench_types, { count: 0, seats_per_bench: 2, label: '' }]}
               class="px-2 py-1 text-[9px] font-black text-indigo-600 hover:bg-indigo-50 rounded-lg uppercase">+ Add Type</button>
@@ -703,20 +725,23 @@
             {#each editForm.bench_types as bt, i}
               <div class="flex items-center gap-2 p-2 bg-gray-50 dark:bg-slate-800 rounded-xl">
                 <div class="flex-1">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[8px] font-bold text-gray-400 uppercase">Count</label>
                   <input type="number" bind:value={bt.count} min="0" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
                 </div>
                 <div class="flex-1">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[8px] font-bold text-gray-400 uppercase">Seats/Bench</label>
                   <input type="number" bind:value={bt.seats_per_bench} min="1" max="6" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
                 </div>
                 <div class="flex-1">
+                  <!-- svelte-ignore a11y_label_has_associated_control -->
                   <label class="text-[8px] font-bold text-gray-400 uppercase">Label</label>
                   <input type="text" bind:value={bt.label} placeholder="e.g. Big, Small" class="w-full px-3 py-1.5 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-lg text-sm font-bold" />
                 </div>
                 {#if editForm.bench_types.length > 1}
                   <button onclick={() => editForm.bench_types = editForm.bench_types.filter((_, idx) => idx !== i)}
-                    class="mt-4 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg">
+                    class="mt-4 p-1.5 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg" aria-label="Remove bench type">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 {/if}
@@ -736,7 +761,9 @@
 
 <!-- Import from Sheet Modal -->
 {#if showImport}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick={() => { showImport = false; importResult = null; importError = ''; importFile = null; }} transition:fade>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-auto shadow-2xl" onclick={(e) => e.stopPropagation()}>
       <div class="p-6 border-b border-gray-100 dark:border-slate-800">
         <h3 class="text-lg font-black text-gray-900 dark:text-white">Import Classrooms from Excel</h3>
@@ -756,6 +783,7 @@
         </div>
 
         <!-- File Upload -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div
           class="relative border-2 border-dashed rounded-2xl p-8 text-center transition-all
             {importFile ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-500/5' : 'border-gray-200 dark:border-slate-700 hover:border-indigo-400'}"

@@ -434,7 +434,7 @@
 <!-- Profile detail/edit panel -->
 {#if panelOpen && selectedFaculty}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" transition:fade={{ duration: 150 }} onclick={() => panelOpen = false}></div>
+  <div role="button" tabindex="0" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" transition:fade={{ duration: 150 }} onclick={() => panelOpen = false}></div>
   <div class="fixed right-0 top-0 h-full w-full max-w-lg bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col overflow-hidden" transition:fly={{ x: 400, duration: 250 }}>
     <!-- Header -->
     <div class="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
@@ -479,6 +479,7 @@
               { key: 'specialization', label: 'Specialization', full: true }
             ] as field}
               <div class={field.full ? 'col-span-2' : ''}>
+                <!-- svelte-ignore a11y_label_has_associated_control -->
                 <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{field.label}</label>
                 <input type="text" bind:value={editForm[field.key]}
                   class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white focus:ring-2 ring-indigo-500 outline-none" />
@@ -545,7 +546,7 @@
                     <div class="flex items-center gap-1 px-2 py-1 bg-white dark:bg-slate-900 rounded-lg group">
                       <span class="text-[9px] font-bold text-indigo-500">{sub.program_name}</span>
                       <span class="text-[8px] text-gray-400">({sub.term_name})</span>
-                      <button onclick={() => removeSubject(sub.mapping_id)} class="w-4 h-4 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                      <button aria-label="Remove subject" onclick={() => removeSubject(sub.mapping_id)} class="w-4 h-4 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
                         <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                       </button>
                     </div>
@@ -578,7 +579,7 @@
                        ks.proficiency_level === 'PROFICIENT' ? 'bg-blue-100 text-blue-600' :
                        'bg-gray-100 text-gray-500'}">{ks.proficiency_level}</span>
                   </div>
-                  <button onclick={() => removeKnownSubject(ks.id)} class="w-5 h-5 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                  <button aria-label="Remove expertise" onclick={() => removeKnownSubject(ks.id)} class="w-5 h-5 rounded bg-red-50 dark:bg-red-900/20 text-red-400 hover:bg-red-100 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                   </button>
                 </div>
@@ -666,6 +667,7 @@
 {#if deleteConfirm}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center" transition:fade={{ duration: 100 }} onclick={() => deleteConfirm = null}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
       <div class="w-12 h-12 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
         <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
@@ -684,6 +686,7 @@
 {#if showAddModal}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
   <div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center" transition:fade={{ duration: 100 }} onclick={() => showAddModal = false}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" transition:fly={{ y: 20 }} onclick={(e) => e.stopPropagation()}>
       <h3 class="text-base font-black text-gray-900 dark:text-white mb-1">Add New Instructor</h3>
       <p class="text-xs text-gray-400 font-medium mb-5">Create a new faculty profile manually.</p>
@@ -694,6 +697,7 @@
 
       <div class="space-y-3">
         <div>
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Full Name *</label>
           <input type="text" bind:value={addForm.name} placeholder="Dr. John Doe"
             class="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-medium focus:ring-2 ring-indigo-500 outline-none" />

@@ -247,7 +247,7 @@
           <h3 class="text-xl font-black text-gray-900 dark:text-white">Approve & Assign Substitute</h3>
           <p class="text-xs font-medium text-gray-400 mt-1">{subPanelReq.faculty_name} · {subPanelReq.total_days} days</p>
         </div>
-        <button onclick={() => showSubPanel = false} class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center hover:bg-gray-200 transition-colors">
+        <button aria-label="Close" onclick={() => showSubPanel = false} class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center hover:bg-gray-200 transition-colors">
           <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
