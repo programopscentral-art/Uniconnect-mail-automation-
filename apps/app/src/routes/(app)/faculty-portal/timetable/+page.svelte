@@ -98,11 +98,11 @@
       </div>
 
       <!-- Date Nav -->
-      <button onclick={() => changeDate(viewMode === 'weekly' ? -7 : -1)} class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all">
+      <button aria-label="Previous" onclick={() => changeDate(viewMode === 'weekly' ? -7 : -1)} class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
       </button>
       <input type="date" bind:value={selectedDate} class="px-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-black" />
-      <button onclick={() => changeDate(viewMode === 'weekly' ? 7 : 1)} class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all">
+      <button aria-label="Next" onclick={() => changeDate(viewMode === 'weekly' ? 7 : 1)} class="p-2 bg-gray-50 dark:bg-slate-800 rounded-xl hover:bg-gray-100 transition-all">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
       </button>
       <button onclick={() => { selectedDate = today; }} class="px-4 py-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl text-[10px] font-black uppercase hover:bg-indigo-100 transition-all">Today</button>

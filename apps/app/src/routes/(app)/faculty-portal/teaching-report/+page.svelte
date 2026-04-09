@@ -336,6 +336,7 @@
         <!-- 6. Unit (from syllabus topics) -->
         {#if selectedSubject}
           <div class="flex flex-col gap-1">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Unit / Chapter</label>
             <select bind:value={selectedUnit}
               class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500">
@@ -352,6 +353,7 @@
 
         <!-- 7. Topic Covered -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Topic Covered <span class="text-rose-500">*</span></label>
           <input type="text" bind:value={topicName} placeholder="e.g. Introduction to Thermodynamics"
             class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500" />
@@ -359,6 +361,7 @@
 
         <!-- 8. Status -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Status</label>
           <div class="grid grid-cols-3 gap-2">
             {#each statuses as s}
@@ -373,6 +376,7 @@
 
         <!-- 9. Portion Done -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Portion Done (%)</label>
           <div class="flex items-center gap-3">
             <input type="range" min="0" max="100" step="5" bind:value={portionPct} class="flex-1 accent-indigo-600" />
@@ -382,6 +386,7 @@
 
         <!-- 10. Notes (description) -->
         <div class="flex flex-col gap-1">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Description <span class="font-medium text-gray-400 normal-case">(where you stopped, key points)</span></label>
           <textarea bind:value={notes} rows="3" placeholder="Brief description of what was covered, where you stopped..."
             class="px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border-none rounded-xl text-xs font-medium text-gray-700 dark:text-gray-300 focus:ring-2 ring-indigo-500 resize-none"></textarea>

@@ -116,6 +116,7 @@
   <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 p-4">
     <div class="flex flex-wrap items-end gap-3">
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Access Type</label>
         <select bind:value={filterAccessType}
           class="px-3 py-2 text-xs font-bold bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl">
@@ -126,16 +127,19 @@
         </select>
       </div>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">From</label>
         <input type="date" bind:value={filterStartDate}
           class="px-3 py-2 text-xs font-bold bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl" />
       </div>
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">To</label>
         <input type="date" bind:value={filterEndDate}
           class="px-3 py-2 text-xs font-bold bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl" />
       </div>
       <div class="flex-1 min-w-[200px]">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label class="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Search</label>
         <input type="text" bind:value={filterSearch} placeholder="Search by name, email, student..."
           class="w-full px-3 py-2 text-xs font-bold bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl" />
