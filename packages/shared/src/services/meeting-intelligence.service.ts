@@ -465,7 +465,10 @@ async function parseAttendanceCsv(connectionId: string, meetingId: string, fileI
         const nameIdx = header.findIndex((h: string) => h.includes('name') || h.includes('participant'));
         const emailIdx = header.findIndex((h: string) => h.includes('email'));
         const durationIdx = header.findIndex((h: string) => h.includes('duration'));
+        const joinIdx = header.findIndex((h: string) => h.includes('join') || h.includes('start'));
+        const leaveIdx = header.findIndex((h: string) => h.includes('leave') || h.includes('end') || h.includes('exit'));
 
+        let participantCount = 0;
         for (let i = 1; i < lines.length; i++) {
             const cols = lines[i].split(',').map((c: string) => c.trim());
             const name = nameIdx >= 0 ? cols[nameIdx] : `Participant ${i}`;
@@ -473,13 +476,24 @@ async function parseAttendanceCsv(connectionId: string, meetingId: string, fileI
 
             if (!name || name === '') continue;
 
+            const joinRaw = joinIdx >= 0 ? cols[joinIdx]?.replace(/"/g, '') : undefined;
+            const leaveRaw = leaveIdx >= 0 ? cols[leaveIdx]?.replace(/"/g, '') : undefined;
+
             await upsertMeetingParticipant({
                 meeting_id: meetingId,
                 name: name.replace(/"/g, ''),
                 email: email?.replace(/"/g, '') || undefined,
                 duration_minutes: durationIdx >= 0 ? parseInt(cols[durationIdx]) || undefined : undefined,
+                join_time: joinRaw ? new Date(joinRaw) : undefined,
+                leave_time: leaveRaw ? new Date(leaveRaw) : undefined,
                 source: 'ATTENDANCE_CSV'
             });
+            participantCount++;
+        }
+
+        // Update participant count from attendance data
+        if (participantCount > 0) {
+            await updateMeeting(meetingId, { participant_count: participantCount });
         }
     } catch (e: any) {
         console.error(`[MEETING] Failed to parse attendance CSV:`, e);
