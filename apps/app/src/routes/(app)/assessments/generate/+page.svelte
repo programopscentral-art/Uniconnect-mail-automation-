@@ -106,9 +106,11 @@
     const structure = [];
 
     if (isADYPU) {
-      // Matches the original ADYPU Sem template format:
-      // Q1, Q2: "Attempt any one" (OR_GROUP, a/b) — 4 marks each
-      // Q3, Q4: "Attempt any Two" (a/b/c, pick 2) — 7 marks each
+      // Matches the original ADYPU Sem template format exactly:
+      // Each Q gets its own "Attempt any one/two" header
+      // Q1(a,b), Q2(a,b): 4 marks each sub-q, attempt any one
+      // Q3(a,b,c), Q4(a,b,c): 7 marks each sub-q, attempt any two
+      // Uses SINGLE + hasSubQuestions so each sub-q is independently picked
       const partA = {
         title: "Attempt any one",
         part: "A",
@@ -120,12 +122,13 @@
             id: `A-1-${Math.random()}`,
             label: "1",
             part: "A",
-            type: "OR_GROUP",
+            type: "SINGLE",
             marks: 4,
-            choices: [
-              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 2,
           },
         ],
       };
@@ -142,12 +145,13 @@
             id: `B-2-${Math.random()}`,
             label: "2",
             part: "B",
-            type: "OR_GROUP",
+            type: "SINGLE",
             marks: 4,
-            choices: [
-              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 4, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 2,
           },
         ],
       };
@@ -161,37 +165,16 @@
         co: "CO3",
         slots: [
           {
-            id: `C-3a-${Math.random()}`,
+            id: `C-3-${Math.random()}`,
             label: "3",
             part: "C",
-            type: "OR_GROUP",
+            type: "SINGLE",
             marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
-          },
-          {
-            id: `C-3b-${Math.random()}`,
-            label: "3",
-            part: "C",
-            type: "OR_GROUP",
-            marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
-          },
-          {
-            id: `C-3c-${Math.random()}`,
-            label: "3",
-            part: "C",
-            type: "OR_GROUP",
-            marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 3,
           },
         ],
       };
@@ -205,37 +188,16 @@
         co: "CO4",
         slots: [
           {
-            id: `D-4a-${Math.random()}`,
+            id: `D-4-${Math.random()}`,
             label: "4",
             part: "D",
-            type: "OR_GROUP",
+            type: "SINGLE",
             marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
-          },
-          {
-            id: `D-4b-${Math.random()}`,
-            label: "4",
-            part: "D",
-            type: "OR_GROUP",
-            marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
-          },
-          {
-            id: `D-4c-${Math.random()}`,
-            label: "4",
-            part: "D",
-            type: "OR_GROUP",
-            marks: 7,
-            choices: [
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-              { marks: 7, unit: "Auto", qType: "NORMAL", bloom: "ANY" },
-            ],
+            unit: "Auto",
+            qType: "NORMAL",
+            bloom: "ANY",
+            hasSubQuestions: true,
+            numSubQuestions: 3,
           },
         ],
       };
@@ -1375,8 +1337,9 @@
       }
     } else if (isADYPU) {
       selectedTemplate = "adypu";
-      maxMarks = 20;
-      examDuration = 60;
+      maxMarks = 50;
+      examDuration = 120;
+      paperInstructions = "1. Attempt all the questions.\n2. Draw necessary diagram if required.\n3. Assume data as per question if required.\n4. Marked are indicated.";
       paperStructure = []; // Clear to force re-init
     } else if (isNRI) {
       selectedTemplate = "nri";
