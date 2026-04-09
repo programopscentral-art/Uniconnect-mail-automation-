@@ -235,7 +235,7 @@
       <!-- ═══ HEADER ═══ -->
       <div class="flex items-start justify-between mb-3">
         <div class="w-[80px]">
-          <img src="/adypu-logo.png" alt="University Logo" class="w-[70px] h-auto" onerror="this.style.display='none'" />
+          <img src="/adypu-logo.png" alt="University Logo" class="w-[70px] h-auto" onerror={(e: Event) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
         </div>
         <div class="flex-1 text-right italic text-[11pt] font-bold">
           <AssessmentEditable

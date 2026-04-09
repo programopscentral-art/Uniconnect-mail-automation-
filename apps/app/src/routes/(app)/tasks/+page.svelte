@@ -1301,7 +1301,9 @@
 
 <!-- Task Detail View Modal -->
 {#if viewingTask}
+  <!-- svelte-ignore a11y_interactive_supports_focus a11y_click_events_have_key_events -->
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onclick={() => viewingTask = null} role="dialog" transition:fade={{ duration: 150 }}>
+    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
     <div class="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg mx-4 shadow-2xl border border-gray-200 dark:border-slate-700 max-h-[85vh] overflow-y-auto"
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
 
@@ -1321,7 +1323,7 @@
           <button onclick={() => { openEdit(viewingTask); viewingTask = null; }} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
             <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
           </button>
-          <button onclick={() => viewingTask = null} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
+          <button onclick={() => viewingTask = null} class="p-2 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-lg transition-colors" aria-label="Close">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
