@@ -50,11 +50,18 @@ function generateReportHTML(report: any, type: string): string {
         type === 'weekly' ? `Weekly Operations Report — ${formatReportDate(report.weekStart)} to ${formatReportDate(report.weekEnd)}` :
         `Monthly Operations Report — ${new Date(report.year, (report.month || 1) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
 
-    function formatReportDate(d: string) {
-        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); } catch { return d; }
+    function toDateStr(d: any): string {
+        if (!d) return '';
+        if (d instanceof Date) return d.toISOString().split('T')[0];
+        const s = String(d);
+        if (s.includes('T')) return s.split('T')[0];
+        return s;
     }
-    function formatShortDate(d: string) {
-        try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }); } catch { return d; }
+    function formatReportDate(d: any) {
+        try { const ds = toDateStr(d); if (!ds) return '—'; return new Date(ds + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); } catch { return String(d); }
+    }
+    function formatShortDate(d: any) {
+        try { const ds = toDateStr(d); if (!ds) return '—'; return new Date(ds + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }); } catch { return String(d); }
     }
 
     const s = report.summary || {};
@@ -299,7 +306,7 @@ function generateReportHTML(report: any, type: string): string {
                 rows.map((r: any, i: number) => {
                     const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
                     const overallStatus = filed === 3 ? 'Complete' : filed > 0 ? 'Partial' : 'Missing';
-                    const dateStr = String(r.date).split('T')[0];
+                    const dateStr = toDateStr(r.date);
                     return `<tr${i === 0 ? ' style="border-top:2px solid #e2e8f0"' : ''}>
                         <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:${i === 0 ? '600' : '400'}">${i === 0 ? r.university_name : ''}</td>
                         <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px">${formatShortDate(dateStr)}</td>
@@ -320,7 +327,7 @@ function generateReportHTML(report: any, type: string): string {
     if (type !== 'daily') {
         const dailyByDate = new Map<string, any>();
         for (const row of rawDaily) {
-            const d = String(row.date).split('T')[0];
+            const d = toDateStr(row.date);
             if (!dailyByDate.has(d)) {
                 dailyByDate.set(d, { sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0, enrolled: 0, attended: 0, coach_calls: 0, parent_calls: 0, at_risk_total: 0, events_planned: 0, events_executed: 0, exams_planned: 0, exams_completed: 0, instructors_on_leave: 0, univCount: 0 });
             }
@@ -446,7 +453,7 @@ function generateReportHTML(report: any, type: string): string {
     if (type !== 'daily' && rawDaily.length > 0) {
         const dailyByDate = new Map<string, any>();
         for (const row of rawDaily) {
-            const d = String(row.date).split('T')[0];
+            const d = toDateStr(row.date);
             if (!dailyByDate.has(d)) dailyByDate.set(d, { sessions_completed: 0, attended: 0, enrolled: 0 });
             const agg = dailyByDate.get(d)!;
             agg.sessions_completed += n(row.sessions_completed);

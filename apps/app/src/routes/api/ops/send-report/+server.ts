@@ -133,8 +133,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 // ─── AI Summary (generic for all report types) ──────────────────────
 
 async function generateAISummary(report: any, type: string, opts: any): Promise<string> {
-    const apiKey = (env.GEMINI_API_KEY || '').trim();
-    if (!apiKey || apiKey.length < 10) return 'AI summary unavailable — API key not configured.';
+    const apiKey = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey || apiKey.length < 10) return 'AI summary unavailable — Gemini API key not configured.';
 
     const s = report.summary || {};
     const n = (v: any) => parseInt(v) || 0;
