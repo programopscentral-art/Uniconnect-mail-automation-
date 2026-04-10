@@ -298,7 +298,8 @@
               >
                 {#each sectionQuestions as slot, i (slot.id + activeSet)}
                   {@const sn = getSN(sectionQuestions, i, sIdx)}
-                  {@const marks = slot.marks || slot.questions?.[0]?.marks || section.marks_per_q || ""}
+                  <!-- Prioritize section marks_per_q so bank question marks don't override configured slot marks -->
+                  {@const marks = section.marks_per_q || slot.marks || slot.questions?.[0]?.marks || slot.choice1?.questions?.[0]?.marks || ""}
                   {@const co = slot.co || slot.questions?.[0]?.co || section.co || `CO${sIdx + 1}`}
                   {@const bloom = slot.bloom || slot.questions?.[0]?.bloom || ""}
 
@@ -325,7 +326,7 @@
                         <AssessmentEditable value={q1?.text || q1?.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q1?.id)} multiline={true} />
                       </td>
                       <td class="border border-black p-1 text-center align-top">
-                        <AssessmentEditable value={String(q1?.marks || marks)} onUpdate={(v: string) => { if (q1) { q1.marks = Number(v) || v; if (Array.isArray(currentSetData)) currentSetData = [...currentSetData]; else currentSetData.questions = [...currentSetData.questions]; } }} class="text-center" />
+                        <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />
                       </td>
                       <td class="border border-black p-1 text-center align-top">
                         <AssessmentEditable value={String(q1?.bloom_level || bloom || "")} onUpdate={(v: string) => { if (q1) q1.bloom_level = v; }} class="text-center" />
@@ -348,7 +349,7 @@
                         <AssessmentEditable value={q2?.text || q2?.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q2?.id)} multiline={true} />
                       </td>
                       <td class="border border-black p-1 text-center align-top">
-                        <AssessmentEditable value={String(q2?.marks || marks)} onUpdate={(v: string) => { if (q2) { q2.marks = Number(v) || v; if (Array.isArray(currentSetData)) currentSetData = [...currentSetData]; else currentSetData.questions = [...currentSetData.questions]; } }} class="text-center" />
+                        <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />
                       </td>
                       <td class="border border-black p-1 text-center align-top">
                         <AssessmentEditable value={String(q2?.bloom_level || bloom || "")} onUpdate={(v: string) => { if (q2) q2.bloom_level = v; }} class="text-center" />
@@ -382,7 +383,7 @@
                           <AssessmentEditable value={q.text || q.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
                         </td>
                         <td class="border border-black p-1 text-center align-top">
-                          <AssessmentEditable value={String(q.marks || marks)} onUpdate={(v: string) => { q.marks = Number(v) || v; if (Array.isArray(currentSetData)) currentSetData = [...currentSetData]; else currentSetData.questions = [...currentSetData.questions]; }} class="text-center" />
+                          <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />
                         </td>
                         <td class="border border-black p-1 text-center align-top">
                           <AssessmentEditable value={String(q.bloom_level || bloom || "")} onUpdate={(v: string) => { q.bloom_level = v; }} class="text-center" />
