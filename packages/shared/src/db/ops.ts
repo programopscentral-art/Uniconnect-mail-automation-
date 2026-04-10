@@ -46,6 +46,10 @@ const UNIVERSITY_ALIASES: Record<string, string> = {
     'cietcity': 'CIET/CITY',
     'cityciet': 'CIET/CITY',
     'yenapoya': 'Yenapoya',
+    'yenepoya': 'Yenapoya',   // alternate spelling — deduplicates with Yenapoya
+    'kkh': 'KKH',
+    'kkhcollege': 'KKH',
+    'khajabandanawaz': 'KKH',
 };
 
 // Quick sync canonical name resolver — no DB needed, just alias map + normalization
@@ -413,17 +417,23 @@ export async function getOpsDataRange(startDate: string, endDate: string, univer
 }
 
 export async function getOpsUniversities() {
-    const res = await db.query('SELECT DISTINCT university_name FROM ops_daily_data ORDER BY university_name');
-    // Deduplicate via JS alias map — guaranteed single entry per university
+    // Merge ops_daily_data names + universities master table so all universities
+    // always appear in the dropdown, even if they have no ops data yet.
+    const [opsRes, masterRes] = await Promise.all([
+        db.query('SELECT DISTINCT university_name FROM ops_daily_data'),
+        db.query("SELECT COALESCE(short_name, name) AS name FROM universities WHERE is_team = false"),
+    ]);
     const seen = new Set<string>();
     const result: string[] = [];
-    for (const r of res.rows) {
-        const canonical = canonicalUnivName(r.university_name);
+    const addName = (raw: string) => {
+        const canonical = canonicalUnivName(raw);
         if (!seen.has(canonical)) {
             seen.add(canonical);
             result.push(canonical);
         }
-    }
+    };
+    for (const r of opsRes.rows) addName(r.university_name);
+    for (const r of masterRes.rows) addName(r.name);
     return result.sort();
 }
 
