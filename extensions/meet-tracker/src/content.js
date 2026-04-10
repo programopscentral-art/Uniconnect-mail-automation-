@@ -13,7 +13,7 @@
     meetTitle: '',
     isTracking: false,
     joinedAt: null,
-    participants: new Map(), // email/name → { name, joinTime, leaveTime, durations[], isActive }
+    participants: new Map(), // name → { name, joinTime, leaveTime, durations[], isActive }
     captions: [],            // { speaker, text, timestamp }
     captionBuffer: '',
     captionSpeaker: '',
@@ -31,6 +31,54 @@
     API_ENDPOINT: null,             // Set from storage
     AUTH_TOKEN: null                // Set from storage
   };
+
+  // ─── UI Garbage Filter ───────────────────────────────────────────────
+  // Strings that appear in Meet's UI buttons/tooltips that are NOT names
+  // ── Name validation ──────────────────────────────────────────────────
+  // A real human name: Title Case words (each word starts with a capital).
+  // UI labels like "Side panel", "Getting items", "Chat with everyone"
+  // always have at least one lowercase-starting word → fail this check.
+  function isValidParticipantName(str) {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim();
+
+    // 2–50 chars, no newlines/tabs/underscores
+    if (trimmed.length < 2 || trimmed.length > 50) return false;
+    if (/[\n\r\t_]/.test(trimmed)) return false;
+
+    // Must contain at least one letter
+    if (!/[a-zA-Z\u0900-\u097F\u0600-\u06FF]/.test(trimmed)) return false;
+
+    // No sentence-ending punctuation (filters "Rate the meeting 1 star out of 5.")
+    if (/[.!?]/.test(trimmed)) return false;
+
+    // No digits (filters "1 star", timestamps, etc.)
+    if (/\d/.test(trimmed)) return false;
+
+    // ── Title Case check ──────────────────────────────────────────────
+    // Every word must start with an uppercase letter (or be a single
+    // uppercase letter like "A" in "Karthikeya A").
+    // This eliminates UI phrases where helper words are lowercase.
+    const words = trimmed.split(/\s+/);
+    if (words.length > 5) return false; // Names have at most 5 parts
+    const allTitleCase = words.every(w =>
+      /^[A-Z\u0900-\u097F\u0600-\u06FF]/.test(w)
+    );
+    if (!allTitleCase) return false;
+
+    return true;
+  }
+
+  function cleanName(name) {
+    if (!name) return '';
+    return name
+      .replace(/\s*\(you\)\s*/gi, '')
+      .replace(/\s*\(host\)\s*/gi, '')
+      .replace(/\s*\(presenting\)\s*/gi, '')
+      .replace(/\s*\(co-host\)\s*/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
   // ─── Initialize ──────────────────────────────────────────────────────
   async function init() {
@@ -62,9 +110,7 @@
 
   // ─── Wait for Meeting to Actually Start ──────────────────────────────
   function waitForMeetingStart() {
-    // Look for signs that user has joined the meeting (not just the lobby)
     const checkInterval = setInterval(() => {
-      // The meeting is active when we can see the end call button or participant count
       const endCallBtn = document.querySelector('[data-tooltip="Leave call"]') ||
                          document.querySelector('[aria-label="Leave call"]') ||
                          document.querySelector('button[data-call-ended]');
@@ -89,23 +135,21 @@
 
     console.log('[UniConnect Meet Tracker] Meeting joined! Starting tracking...');
 
-    // Extract meeting title
     state.meetTitle = extractMeetingTitle();
 
-    // Create status badge
     createStatusBadge();
 
-    // Start participant polling
+    // Open participants panel so [data-participant-id] elements exist in DOM
+    setTimeout(openParticipantsPanel, 2000);
+
     state.pollInterval = setInterval(pollParticipants, CONFIG.PARTICIPANT_POLL_MS);
-    pollParticipants(); // Initial poll
+    // First poll after panel has had time to open
+    setTimeout(pollParticipants, 3000);
 
-    // Start caption observation
+    startJoinLeaveObserver(); // Watch "X joined" / "X left" toasts
     startCaptionObserver();
-
-    // Listen for meeting end
     detectMeetingEnd();
 
-    // Notify background
     chrome.runtime.sendMessage({
       type: 'MEETING_STARTED',
       data: {
@@ -116,65 +160,145 @@
     });
 
     updateBadge('Tracking');
+
+    // ── Debug helper: run in Meet DevTools console to inspect ─────────
+    // window._ucDebug = () => ({
+    //   selfName: detectSelfName(),
+    //   alerts: [...document.querySelectorAll('[role="alert"],[aria-live]')].map(e => e.textContent.trim()),
+    //   selfNameAttr: document.querySelector('[data-self-name]')?.getAttribute('data-self-name'),
+    //   ariaYou: document.querySelector('[aria-label*="you" i]')?.getAttribute('aria-label'),
+    // });
+    // console.log('[UniConnect] Run window._ucDebug() to inspect DOM state');
   }
 
   // ─── Extract Meeting Title ───────────────────────────────────────────
   function extractMeetingTitle() {
-    // Try various selectors for meeting title
-    const titleEl = document.querySelector('[data-meeting-title]') ||
-                    document.querySelector('.u6vdEc') ||  // Common class for title
-                    document.querySelector('[data-tooltip*="meeting"]');
-
-    if (titleEl) return titleEl.textContent?.trim() || '';
-
-    // Fallback: use document title
-    const docTitle = document.title.replace(' - Google Meet', '').trim();
-    return docTitle || `Meeting ${state.meetCode}`;
+    // Prefer document title — cleanest and most reliable source
+    const docTitle = document.title.replace(/\s*[-–]\s*Google Meet\s*$/i, '').trim();
+    if (docTitle && docTitle.length > 0 && docTitle.length < 120) {
+      return docTitle;
+    }
+    return `Meeting ${state.meetCode}`;
   }
 
-  // ─── Poll Participants ───────────────────────────────────────────────
+  // ─── Open Participants Panel ──────────────────────────────────────────
+  function openParticipantsPanel() {
+    // Strategy 1: CSS attribute selector (fastest — handles "People", "People (3)", etc.)
+    const directBtn =
+      document.querySelector('button[aria-label*="People" i]:not([aria-label*="chat" i]):not([aria-label*="message" i])') ||
+      document.querySelector('button[aria-label*="participant" i]:not([aria-label*="chat" i])') ||
+      document.querySelector('[data-tooltip*="People" i]:not([data-tooltip*="chat" i])') ||
+      document.querySelector('[data-tooltip*="participant" i]') ||
+      document.querySelector('[title*="People" i]:not([title*="chat" i])');
+
+    if (directBtn) {
+      directBtn.click();
+      console.log('[UniConnect Meet Tracker] Opened participants panel (css):', directBtn.getAttribute('aria-label') || directBtn.getAttribute('data-tooltip'));
+      setTimeout(pollParticipants, 1500); // re-poll immediately after panel opens
+      return;
+    }
+
+    // Strategy 2: Word-boundary scan across all buttons
+    const allBtns = [...document.querySelectorAll('button[aria-label], [role="button"][aria-label]')];
+    const btn = allBtns.find(b => {
+      const label = (b.getAttribute('aria-label') || '').toLowerCase();
+      if (!/\bpeople\b|\bparticipant/.test(label)) return false;
+      if (/message|chat|react|emoji|raise|hand|caption|record/.test(label)) return false;
+      return true;
+    });
+
+    if (btn) {
+      btn.click();
+      console.log('[UniConnect Meet Tracker] Opened participants panel (scan):', btn.getAttribute('aria-label'));
+      setTimeout(pollParticipants, 1500);
+      return;
+    }
+
+    console.log('[UniConnect Meet Tracker] Participants button not found. Available:',
+      allBtns.slice(0, 30).map(b => b.getAttribute('aria-label')).filter(Boolean).join(' | ')
+    );
+    setTimeout(openParticipantsPanel, 4000);
+  }
+
+  // ─── Detect Self ──────────────────────────────────────────────────────
+  // Tries multiple attributes/patterns since Meet changes its DOM frequently.
+  function detectSelfName() {
+    // 1. data-self-name attribute
+    const a = document.querySelector('[data-self-name]');
+    if (a) {
+      const n = cleanName(a.getAttribute('data-self-name') || '');
+      if (isValidParticipantName(n)) return n;
+    }
+
+    // 2. aria-label containing "(you)" — local video tile label
+    const b = document.querySelector('[aria-label*="(you)" i]');
+    if (b) {
+      const n = cleanName(b.getAttribute('aria-label') || '');
+      if (isValidParticipantName(n)) return n;
+    }
+
+    // 3. Any leaf element whose text ends with "(You)" or "(you)"
+    for (const el of document.querySelectorAll('div, span')) {
+      if (el.children.length > 0) continue;
+      const t = (el.textContent || '').trim();
+      if (/\(you\)$/i.test(t)) {
+        const n = cleanName(t);
+        if (isValidParticipantName(n)) return n;
+      }
+    }
+
+    // 4. Participants panel item with "(you)" in aria-label
+    for (const el of document.querySelectorAll('[data-participant-id]')) {
+      const label = el.getAttribute('aria-label') || '';
+      if (/\(you\)/i.test(label)) {
+        const n = cleanName(label);
+        if (isValidParticipantName(n)) return n;
+      }
+    }
+
+    return null;
+  }
+
+  // ─── Poll Participants ────────────────────────────────────────────────
   function pollParticipants() {
     const now = new Date();
     const currentNames = new Set();
 
-    // Strategy 1: Participant panel (when open)
-    const participantItems = document.querySelectorAll(
-      '[data-participant-id], ' +
-      '.zWGUib, ' +                    // Participant list items
-      '[data-requested-participant-id]'
-    );
-
-    participantItems.forEach(el => {
-      const name = extractParticipantName(el);
-      if (name) currentNames.add(name);
-    });
-
-    // Strategy 2: Video tiles (always visible)
-    const videoTiles = document.querySelectorAll(
-      '[data-self-name], ' +
-      '.KV1GEc, ' +                    // Name on video tile
-      '.zs7s8d, ' +                    // Name overlay
-      '.dwSJ2e, ' +                    // Participant name in grid
-      '[data-participant-id] [class*="name"]'
-    );
-
-    videoTiles.forEach(el => {
-      const name = el.getAttribute('data-self-name') || el.textContent?.trim();
-      if (name && name.length > 1 && name.length < 80) {
-        currentNames.add(cleanName(name));
+    // ── Signal 1: [data-participant-id] elements ─────────────────────
+    // Present in participant panel AND sometimes on video tiles.
+    // Title Case filter handles garbage — safe to also check textContent.
+    document.querySelectorAll('[data-participant-id]').forEach(el => {
+      // Prefer aria-label (clean, already formatted as a name)
+      const label = el.getAttribute('aria-label');
+      if (label) {
+        const name = cleanName(label);
+        if (isValidParticipantName(name)) { currentNames.add(name); return; }
+      }
+      // Fallback: first leaf child whose text looks like a Title Case name
+      const leaves = el.querySelectorAll('div, span');
+      for (const leaf of leaves) {
+        if (leaf.children.length > 0) continue;
+        const t = (leaf.textContent || '').trim();
+        if (t && isValidParticipantName(cleanName(t))) {
+          currentNames.add(cleanName(t));
+          break;
+        }
       }
     });
 
-    // Strategy 3: Participant count badge (to know if we're missing people)
-    const countEl = document.querySelector('.uArJ5e, .rua5Nb, [data-attendees-count]');
-    const displayedCount = countEl ? parseInt(countEl.textContent || '0') : 0;
+    // ── Signal 2: self-name (your own tile) ───────────────────────────
+    const selfName = detectSelfName();
+    if (selfName) currentNames.add(selfName);
 
-    // Update participant state
+    // ── Signal 3: Poll aria-live/alert regions for join text ──────────
+    document.querySelectorAll('[role="alert"], [aria-live="polite"], [aria-live="assertive"]').forEach(el => {
+      tryParseJoinLeaveText((el.textContent || '').trim());
+    });
+
+    // ── Update state ──────────────────────────────────────────────────
     currentNames.forEach(name => {
-      if (!name || name === 'You' || name === 'Presentation') return;
-
+      if (!name || name === 'You') return;
       if (!state.participants.has(name)) {
-        // New participant
         state.participants.set(name, {
           name,
           firstSeen: now.toISOString(),
@@ -186,59 +310,152 @@
           spokeInCaptions: false,
           speakingSegments: 0
         });
-        console.log(`[UniConnect Meet Tracker] Participant joined: ${name}`);
+        console.log(`[UniConnect Meet Tracker] Detected: ${name}`);
       } else {
         const p = state.participants.get(name);
         if (!p.isActive) {
-          // Re-joined
           p.isActive = true;
           p.joinEvents.push(now.toISOString());
-          console.log(`[UniConnect Meet Tracker] Participant re-joined: ${name}`);
         }
         p.lastSeen = now.toISOString();
       }
     });
 
-    // Detect leaves
+    // ── Mark inactive anyone no longer seen ───────────────────────────
     state.participants.forEach((p, name) => {
       if (p.isActive && !currentNames.has(name)) {
-        p.isActive = false;
-        p.leaveEvents.push(now.toISOString());
-        // Calculate duration for this session
-        const lastJoin = new Date(p.joinEvents[p.joinEvents.length - 1]);
-        p.totalDurationMs += now.getTime() - lastJoin.getTime();
-        console.log(`[UniConnect Meet Tracker] Participant left: ${name}`);
+        // Only mark inactive if they were detected via poll (not just toasts)
+        // Give grace period — they disappear from panel momentarily sometimes
+        if (!p._graceStart) {
+          p._graceStart = now.getTime();
+        } else if (now.getTime() - p._graceStart > 9000) {
+          // 9 seconds missing → actually left
+          p._graceStart = null;
+          p.isActive = false;
+          p.leaveEvents.push(now.toISOString());
+          const lastJoin = new Date(p.joinEvents[p.joinEvents.length - 1]);
+          p.totalDurationMs += now.getTime() - lastJoin.getTime();
+          console.log(`[UniConnect Meet Tracker] Left (poll): ${name}`);
+        }
+      } else if (currentNames.has(name)) {
+        p._graceStart = null; // reset grace period if seen again
       }
     });
 
-    // Update badge
-    updateBadge(`${state.participants.size} tracked`);
+    // ── Push live participant list to storage (for popup display) ─────
+    const activeParticipants = Array.from(state.participants.values())
+      .filter(p => p.isActive)
+      .map(p => ({ name: p.name, speaking: p.spokeInCaptions }));
+
+    try {
+      chrome.storage.local.set({
+        activeParticipants,
+        activeMeetingParticipantCount: activeParticipants.length
+      });
+    } catch (e) { /* extension context invalidated — ignore */ }
+
+    updateBadge(`${activeParticipants.length} in call`);
+
+    console.log(`[UniConnect Meet Tracker] Active: ${activeParticipants.length} | Names: ${activeParticipants.map(p => p.name).join(', ')}`);
   }
 
-  function extractParticipantName(el) {
-    // Try multiple approaches
-    const nameEl = el.querySelector('.zs7s8d, .dwSJ2e, .KV1GEc, [class*="name"]');
-    if (nameEl) return cleanName(nameEl.textContent);
+  // ─── Join / Leave Text Parser ─────────────────────────────────────────
+  // Called from both the observer and the poll (for aria-live polling).
+  // Tracks which texts we've already processed to avoid double-counting.
+  const _seenJoinTexts = new Set();
 
-    const ariaLabel = el.getAttribute('aria-label');
-    if (ariaLabel) return cleanName(ariaLabel);
+  function tryParseJoinLeaveText(text) {
+    if (!text || _seenJoinTexts.has(text)) return;
+    _seenJoinTexts.add(text);
+    // Expire old entries so the set doesn't grow forever
+    if (_seenJoinTexts.size > 200) _seenJoinTexts.clear();
 
-    return cleanName(el.textContent);
+    // "Priya joined" / "Priya joined the call" / "Priya has joined"
+    const joinMatch = text.match(/^(.+?)\s+(?:has\s+)?joined(?:\s+the\s+call)?\s*\.?\s*$/i);
+    if (joinMatch) {
+      const name = cleanName(joinMatch[1]);
+      if (isValidParticipantName(name)) { recordJoin(name); return; }
+    }
+
+    // "Priya left" / "Priya left the call" / "Priya has left"
+    const leaveMatch = text.match(/^(.+?)\s+(?:has\s+)?left(?:\s+the\s+call)?\s*\.?\s*$/i);
+    if (leaveMatch) {
+      const name = cleanName(leaveMatch[1]);
+      if (isValidParticipantName(name)) { recordLeave(name); return; }
+    }
   }
 
-  function cleanName(name) {
-    if (!name) return '';
-    return name
-      .replace(/\(You\)/gi, '')
-      .replace(/\(Host\)/gi, '')
-      .replace(/\(Presenting\)/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+  // ─── Join / Leave Toast Observer ────────────────────────────────────
+  function startJoinLeaveObserver() {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        // New element added — check its text
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1) {
+            tryParseJoinLeaveText((node.textContent || '').trim());
+          }
+          if (node.nodeType === 3) {
+            // Text node directly added
+            tryParseJoinLeaveText((node.textContent || '').trim());
+          }
+        }
+        // Existing element's text changed (aria-live pattern)
+        if (mutation.type === 'characterData') {
+          tryParseJoinLeaveText((mutation.target.textContent || '').trim());
+        }
+        if (mutation.type === 'childList' && mutation.target) {
+          tryParseJoinLeaveText((mutation.target.textContent || '').trim());
+        }
+      }
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+
+  function recordJoin(name) {
+    const now = new Date();
+    if (!state.participants.has(name)) {
+      state.participants.set(name, {
+        name,
+        firstSeen: now.toISOString(),
+        lastSeen: now.toISOString(),
+        isActive: true,
+        joinEvents: [now.toISOString()],
+        leaveEvents: [],
+        totalDurationMs: 0,
+        spokeInCaptions: false,
+        speakingSegments: 0
+      });
+      console.log(`[UniConnect Meet Tracker] Joined (toast): ${name}`);
+    } else {
+      const p = state.participants.get(name);
+      if (!p.isActive) {
+        p.isActive = true;
+        p.joinEvents.push(now.toISOString());
+        console.log(`[UniConnect Meet Tracker] Re-joined (toast): ${name}`);
+      }
+      p.lastSeen = now.toISOString();
+    }
+  }
+
+  function recordLeave(name) {
+    const now = new Date();
+    const p = state.participants.get(name);
+    if (p && p.isActive) {
+      p.isActive = false;
+      p.leaveEvents.push(now.toISOString());
+      const lastJoin = new Date(p.joinEvents[p.joinEvents.length - 1]);
+      p.totalDurationMs += now.getTime() - lastJoin.getTime();
+      console.log(`[UniConnect Meet Tracker] Left (toast): ${name}`);
+    }
   }
 
   // ─── Caption Observer ────────────────────────────────────────────────
   function startCaptionObserver() {
-    // Try to enable captions if not already on
     setTimeout(() => {
       const captionBtn = document.querySelector('[aria-label="Turn on captions"]') ||
                          document.querySelector('[data-tooltip="Turn on captions"]');
@@ -248,12 +465,11 @@
       }
     }, 5000);
 
-    // Observe caption container for changes
     const observeCaption = () => {
       const captionContainer = document.querySelector(
-        '.a4cQT, ' +          // Caption container
+        '.a4cQT, ' +
         '[class*="caption"], ' +
-        '.iOzk7'              // Another caption class
+        '.iOzk7'
       );
 
       if (captionContainer) {
@@ -269,17 +485,13 @@
       return false;
     };
 
-    // Retry caption observer setup (captions may take time to load)
     if (!observeCaption()) {
       const retryInterval = setInterval(() => {
         if (observeCaption()) clearInterval(retryInterval);
       }, 3000);
-
-      // Stop retrying after 2 minutes
       setTimeout(() => clearInterval(retryInterval), 2 * 60 * 1000);
     }
 
-    // Also set up a general body observer as fallback
     const bodyObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
@@ -299,17 +511,15 @@
   function handleCaptionMutation(mutations) {
     const now = Date.now();
 
-    for (const mutation of mutations) {
-      // Look for caption text updates
+    for (const _mutation of mutations) {
       const captionElements = document.querySelectorAll(
-        '.a4cQT .TBMuR span, ' +    // Speaker + text
+        '.a4cQT .TBMuR span, ' +
         '.iOzk7 span, ' +
         '[class*="caption"] span'
       );
 
       if (captionElements.length === 0) continue;
 
-      // Extract speaker and text
       let speaker = '';
       let text = '';
 
@@ -317,7 +527,6 @@
         const content = el.textContent?.trim() || '';
         if (!content) return;
 
-        // Check if this looks like a speaker name (shorter, often bold/styled differently)
         const parent = el.parentElement;
         const isSpeakerEl = parent?.classList?.contains('zs7s8d') ||
                             el.classList?.contains('zs7s8d') ||
@@ -333,7 +542,6 @@
       text = text.trim();
       if (!text) continue;
 
-      // Track speaker
       if (speaker && state.participants.has(speaker)) {
         const p = state.participants.get(speaker);
         if (!p.spokeInCaptions) {
@@ -342,9 +550,7 @@
         p.speakingSegments++;
       }
 
-      // Buffer captions (group consecutive text from same speaker)
       if (speaker !== state.captionSpeaker || (now - state.lastCaptionTime > CONFIG.CAPTION_FLUSH_MS)) {
-        // Flush previous buffer
         if (state.captionBuffer) {
           state.captions.push({
             speaker: state.captionSpeaker,
@@ -363,31 +569,31 @@
 
   // ─── Detect Meeting End ──────────────────────────────────────────────
   function detectMeetingEnd() {
-    // Watch for navigation away or meeting end screen
     const checkEnd = setInterval(() => {
-      const endScreen = document.querySelector('[data-call-ended]') ||
-                        document.querySelector('.CRFCdf') ||  // "You left the meeting" screen
-                        document.querySelector('[class*="meeting-ended"]');
+      try {
+        const endScreen = document.querySelector('[data-call-ended]') ||
+                          document.querySelector('.CRFCdf') ||
+                          document.querySelector('[class*="meeting-ended"]');
 
-      const returnHome = document.querySelector('[aria-label="Return to home screen"]');
-      const rejoinBtn = document.querySelector('[aria-label="Rejoin"]');
+        const returnHome = document.querySelector('[aria-label="Return to home screen"]');
+        const rejoinBtn  = document.querySelector('[aria-label="Rejoin"]');
 
-      if (endScreen || returnHome || rejoinBtn) {
-        clearInterval(checkEnd);
-        endTracking();
-      }
+        if (endScreen || returnHome || rejoinBtn) {
+          clearInterval(checkEnd);
+          endTracking();
+          return;
+        }
 
-      // Also check if URL changed away from meet
-      if (!window.location.href.includes('meet.google.com')) {
-        clearInterval(checkEnd);
-        endTracking();
+        if (!window.location.href.includes('meet.google.com')) {
+          clearInterval(checkEnd);
+          endTracking();
+        }
+      } catch (e) {
+        clearInterval(checkEnd); // extension context gone, stop polling
       }
     }, 2000);
 
-    // Also listen for page unload
-    window.addEventListener('beforeunload', () => {
-      endTracking();
-    });
+    window.addEventListener('beforeunload', () => { endTracking(); });
   }
 
   // ─── End Tracking & Send Data ────────────────────────────────────────
@@ -398,7 +604,6 @@
     const endTime = new Date();
     console.log('[UniConnect Meet Tracker] Meeting ended. Compiling report...');
 
-    // Flush remaining caption buffer
     if (state.captionBuffer) {
       state.captions.push({
         speaker: state.captionSpeaker,
@@ -417,19 +622,20 @@
       }
     });
 
-    // Build participant list for report
-    const participantList = Array.from(state.participants.values()).map(p => ({
-      name: p.name,
-      firstSeen: p.firstSeen,
-      lastSeen: p.lastSeen,
-      joinEvents: p.joinEvents,
-      leaveEvents: p.leaveEvents,
-      totalDurationMinutes: Math.round(p.totalDurationMs / 60000),
-      spokeInCaptions: p.spokeInCaptions,
-      speakingSegments: p.speakingSegments
-    }));
+    // Build participant list (only real participants with valid names)
+    const participantList = Array.from(state.participants.values())
+      .filter(p => isValidParticipantName(p.name))
+      .map(p => ({
+        name: p.name,
+        firstSeen: p.firstSeen,
+        lastSeen: p.lastSeen,
+        joinEvents: p.joinEvents,
+        leaveEvents: p.leaveEvents,
+        totalDurationMinutes: Math.round(p.totalDurationMs / 60000),
+        spokeInCaptions: p.spokeInCaptions,
+        speakingSegments: p.speakingSegments
+      }));
 
-    // Build report
     const report = {
       meetCode: state.meetCode,
       title: state.meetTitle,
@@ -441,24 +647,31 @@
       captionTranscript: state.captions.map(c =>
         `${c.speaker ? c.speaker + ': ' : ''}${c.text}`
       ).join('\n'),
-      trackerVersion: '1.1.0',
+      trackerVersion: '1.2.0',
       collectedBy: 'chrome-extension'
     };
 
     console.log('[UniConnect Meet Tracker] Report:', report);
+    console.log(`[UniConnect Meet Tracker] Final participants (${participantList.length}):`, participantList.map(p => p.name));
 
-    // AUTO-DOWNLOAD CSV of attendees before anything else
+    // Auto-download CSV
     downloadAttendanceCSV(participantList, report);
 
-    // Send to background for API submission
+    // Send to background
     chrome.runtime.sendMessage({
       type: 'MEETING_ENDED',
       data: report
     });
 
     // Store locally as backup
-    chrome.storage.local.set({
-      [`meeting_${state.meetCode}_${Date.now()}`]: report
+    const reportKey = `meeting_${state.meetCode}_${Date.now()}`;
+    chrome.storage.local.get('reportKeys', ({ reportKeys = [] }) => {
+      reportKeys.push(reportKey);
+      chrome.storage.local.set({
+        [reportKey]: report,
+        reportKeys,
+        activeParticipants: []
+      });
     });
 
     // Cleanup
@@ -466,8 +679,7 @@
     state.captionObserver?.disconnect();
     updateBadge('Done');
 
-    // Show confirmation toast
-    showEndToast(participantList.length);
+    showEndToast(participantList.length, participantList.map(p => p.name));
   }
 
   // ─── Auto-Download Attendance CSV ──────────────────────────────────
@@ -475,7 +687,6 @@
     if (!participants || participants.length === 0) return;
 
     try {
-      // Build CSV content
       const headers = ['Name', 'First Seen', 'Last Seen', 'Join Time', 'Leave Time', 'Duration (min)', 'Spoke', 'Speaking Segments'];
       const rows = participants.map(p => [
         p.name,
@@ -501,7 +712,6 @@
         ...rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       ].join('\n');
 
-      // Create and trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -521,7 +731,8 @@
   }
 
   // ─── End-of-Meeting Toast ──────────────────────────────────────────
-  function showEndToast(count) {
+  function showEndToast(count, names) {
+    const nameList = names.slice(0, 5).join(', ') + (names.length > 5 ? ` +${names.length - 5} more` : '');
     const toast = document.createElement('div');
     toast.style.cssText = `
       position: fixed; bottom: 80px; right: 24px; z-index: 99999;
@@ -535,19 +746,18 @@
         Meeting Report Saved
       </div>
       <div style="font-size:12px; color:#94a3b8; line-height:1.4;">
-        ${count} participants tracked. Attendance CSV downloaded.
-        Report sent to UniConnect.
+        ${count} participant${count !== 1 ? 's' : ''} tracked.
+        ${count > 0 ? `<br><span style="color:#e0e0e0;">${nameList}</span>` : ''}
+        <br>Attendance CSV downloaded.
       </div>
     `;
 
-    // Add animation keyframes
     const style = document.createElement('style');
     style.textContent = `@keyframes uc-slide-in { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }`;
     document.head.appendChild(style);
 
     document.body.appendChild(toast);
 
-    // Auto-remove after 8 seconds
     setTimeout(() => {
       toast.style.transition = 'opacity 0.3s';
       toast.style.opacity = '0';
@@ -561,11 +771,17 @@
 
     const badge = document.createElement('div');
     badge.id = 'uniconnect-tracker-badge';
+    badge.style.cssText = `
+      position: fixed; bottom: 16px; right: 16px; z-index: 99998;
+      background: #1a1a2e; border: 1px solid #4f46e5; border-radius: 8px;
+      padding: 6px 12px; font-family: 'Segoe UI', sans-serif; font-size: 12px;
+      color: #e0e0e0; display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3); cursor: default;
+    `;
     badge.innerHTML = `
-      <div class="uc-badge-inner">
-        <div class="uc-badge-dot"></div>
-        <span class="uc-badge-text">Tracking</span>
-      </div>
+      <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;animation:uc-pulse 2s infinite;"></div>
+      <span class="uc-badge-text">Tracking</span>
+      <style>@keyframes uc-pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
     `;
     document.body.appendChild(badge);
     state.statusBadge = badge;
@@ -578,7 +794,6 @@
   }
 
   // ─── Start ───────────────────────────────────────────────────────────
-  // Small delay to let Meet's SPA fully render
   setTimeout(init, 3000);
 
 })();

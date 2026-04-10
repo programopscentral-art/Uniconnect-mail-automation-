@@ -290,12 +290,15 @@
 
                     <!-- Section header row for this Q -->
                     <tr>
-                      <td colspan="6" class="border border-black p-1 font-bold text-[10pt]">
+                      <td colspan="5" class="border border-black p-1 font-bold text-[10pt]">
                         <AssessmentEditable
                           value={section.title || "Attempt the following Question."}
                           onUpdate={(v: string) => { section.title = v; paperStructure = [...paperStructure]; }}
                           class="w-full"
                         />
+                      </td>
+                      <td class="border border-black p-1 text-center font-bold text-[10pt]">
+                        {section.marks_per_q || ""}
                       </td>
                     </tr>
                     <!-- choice a -->
@@ -344,12 +347,15 @@
 
                     <!-- Section header row -->
                     <tr>
-                      <td colspan="6" class="border border-black p-1 font-bold text-[10pt]">
+                      <td colspan="5" class="border border-black p-1 font-bold text-[10pt]">
                         <AssessmentEditable
                           value={section.title || (sIdx === 0 ? "Attempt the following Questions." : "Attempt any three of the following Questions.")}
                           onUpdate={(v: string) => { section.title = v; paperStructure = [...paperStructure]; }}
                           class="w-full"
                         />
+                      </td>
+                      <td class="border border-black p-1 text-center font-bold text-[10pt]">
+                        {sIdx === 0 ? 5 * (section.marks_per_q || 3) : 3 * (section.marks_per_q || 5)}
                       </td>
                     </tr>
 

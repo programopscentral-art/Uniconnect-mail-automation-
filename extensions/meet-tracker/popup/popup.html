@@ -14,93 +14,181 @@
 
     .header {
       background: linear-gradient(135deg, #4f46e5, #7c3aed);
-      padding: 20px;
+      padding: 16px 20px;
       text-align: center;
     }
 
     .header h1 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 800;
       color: white;
       letter-spacing: -0.3px;
     }
 
     .header p {
-      font-size: 11px;
+      font-size: 10px;
       color: rgba(255,255,255,0.7);
-      margin-top: 4px;
+      margin-top: 3px;
     }
 
+    /* Status */
     .status-card {
-      margin: 16px;
-      padding: 16px;
+      margin: 12px 16px 0;
+      padding: 12px 14px;
       background: #1a1a2e;
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid #2a2a4a;
     }
 
     .status-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .status-dot {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
 
-    .status-dot.active { background: #22c55e; animation: pulse 2s infinite; }
+    .status-dot.active  { background: #22c55e; animation: pulse 2s infinite; }
     .status-dot.inactive { background: #64748b; }
-    .status-dot.error { background: #ef4444; }
+    .status-dot.error   { background: #ef4444; }
 
-    .status-text {
-      font-size: 13px;
-      font-weight: 600;
-    }
+    .status-text { font-size: 12px; font-weight: 600; }
 
     .status-sub {
-      font-size: 11px;
+      font-size: 10px;
       color: #94a3b8;
-      margin-top: 8px;
+      margin-top: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
+    /* 3-column stats */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 12px 16px 0;
+    }
+
+    .stat-card {
+      background: #1a1a2e;
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      border: 1px solid #2a2a4a;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 800;
+      color: #818cf8;
+      line-height: 1;
+    }
+
+    .stat-value.green { color: #22c55e; }
+
+    .stat-label {
+      font-size: 9px;
+      color: #64748b;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Participant names block */
     .section {
-      margin: 0 16px 16px;
+      margin: 12px 16px 0;
     }
 
     .section-title {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #64748b;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
+    .participant-card {
+      background: #1a1a2e;
+      border-radius: 10px;
+      border: 1px solid #2a2a4a;
+      overflow: hidden;
+    }
+
+    .participant-list {
+      max-height: 140px;
+      overflow-y: auto;
+      padding: 4px 0;
+    }
+
+    .participant-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+    }
+
+    .participant-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #4f46e5;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .participant-name {
+      font-size: 12px;
+      color: #e0e0e0;
+      flex: 1;
+    }
+
+    .mic-icon {
+      font-size: 11px;
+      color: #22c55e;
+      flex-shrink: 0;
+      title: "Spoke in meeting";
+    }
+
+    .participant-empty {
+      padding: 14px;
+      text-align: center;
+      font-size: 11px;
+      color: #475569;
+    }
+
+    /* Settings */
     .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px;
+      padding: 10px 12px;
       background: #1a1a2e;
       border-radius: 10px;
       border: 1px solid #2a2a4a;
       margin-bottom: 8px;
     }
 
-    .toggle-label {
-      font-size: 13px;
-      font-weight: 500;
-    }
+    .toggle-label { font-size: 12px; font-weight: 500; }
 
     .toggle {
-      width: 40px;
-      height: 22px;
+      width: 38px;
+      height: 20px;
       background: #374151;
-      border-radius: 11px;
+      border-radius: 10px;
       position: relative;
       cursor: pointer;
       transition: background 0.2s;
@@ -111,8 +199,8 @@
     .toggle::after {
       content: '';
       position: absolute;
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background: white;
       top: 2px;
@@ -124,7 +212,7 @@
 
     input[type="text"], input[type="password"] {
       width: 100%;
-      padding: 10px 12px;
+      padding: 9px 11px;
       background: #1a1a2e;
       border: 1px solid #2a2a4a;
       border-radius: 8px;
@@ -135,18 +223,16 @@
       transition: border-color 0.2s;
     }
 
-    input:focus {
-      border-color: #4f46e5;
-    }
+    input:focus { border-color: #4f46e5; }
 
     .btn {
       width: 100%;
-      padding: 10px;
+      padding: 9px;
       background: #4f46e5;
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.2s;
@@ -162,64 +248,39 @@
 
     .btn-outline:hover { background: #1a1a2e; color: white; }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .stat-card {
-      background: #1a1a2e;
-      border-radius: 10px;
-      padding: 12px;
-      text-align: center;
-      border: 1px solid #2a2a4a;
-    }
-
-    .stat-value {
-      font-size: 20px;
-      font-weight: 800;
-      color: #818cf8;
-    }
-
-    .stat-label {
-      font-size: 10px;
-      color: #64748b;
-      margin-top: 2px;
-      text-transform: uppercase;
-    }
-
     .saved-msg {
       text-align: center;
       font-size: 11px;
       color: #22c55e;
-      padding: 6px;
+      padding: 5px;
       display: none;
     }
 
     .saved-msg.show { display: block; }
 
+    .footer {
+      text-align: center;
+      padding: 10px;
+      font-size: 10px;
+      color: #475569;
+      margin-top: 4px;
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.4; }
     }
-
-    .footer {
-      text-align: center;
-      padding: 12px;
-      font-size: 10px;
-      color: #475569;
-    }
   </style>
 </head>
 <body>
+  <!-- Header -->
   <div class="header">
     <h1>UniConnect Meet Tracker</h1>
     <p>Automatic meeting intelligence</p>
   </div>
 
   <!-- Status -->
-  <div class="status-card" id="statusCard">
+  <div class="status-card">
     <div class="status-row">
       <div class="status-dot inactive" id="statusDot"></div>
       <span class="status-text" id="statusText">No active meeting</span>
@@ -227,22 +288,33 @@
     <div class="status-sub" id="statusSub">Open a Google Meet to start tracking</div>
   </div>
 
-  <!-- Stats -->
+  <!-- 3-column Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="totalMeetings">0</div>
+      <div class="stat-label">Meetings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value green" id="peopleCount">0</div>
+      <div class="stat-label">People</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="totalReports">0</div>
+      <div class="stat-label">Reports Sent</div>
+    </div>
+  </div>
+
+  <!-- Participant Names -->
   <div class="section">
-    <div class="section-title">Session Stats</div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value" id="totalMeetings">0</div>
-        <div class="stat-label">Meetings Tracked</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="totalReports">0</div>
-        <div class="stat-label">Reports Sent</div>
+    <div class="section-title">People in call</div>
+    <div class="participant-card">
+      <div class="participant-list" id="participantList">
+        <div class="participant-empty" id="participantEmpty">No active meeting</div>
       </div>
     </div>
   </div>
 
-  <!-- Toggle -->
+  <!-- Settings -->
   <div class="section">
     <div class="section-title">Settings</div>
     <div class="toggle-row">
@@ -251,7 +323,7 @@
     </div>
   </div>
 
-  <!-- API Config -->
+  <!-- Server Config -->
   <div class="section">
     <div class="section-title">UniConnect Server</div>
     <input type="text" id="apiEndpoint" placeholder="https://uniconnect-app.up.railway.app" />
@@ -261,15 +333,13 @@
   </div>
 
   <!-- Actions -->
-  <div class="section">
+  <div class="section" style="margin-bottom:0;">
     <div class="section-title">Actions</div>
     <button class="btn btn-outline" id="downloadCsvBtn" style="margin-bottom:8px;">Download Last Meeting CSV</button>
     <button class="btn btn-outline" id="uploadBtn">Upload Pending Reports</button>
   </div>
 
-  <div class="footer">
-    UniConnect Meeting Intelligence v1.0
-  </div>
+  <div class="footer">UniConnect Meeting Intelligence v1.2</div>
 
   <script src="popup.js"></script>
 </body>
