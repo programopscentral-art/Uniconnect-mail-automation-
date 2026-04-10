@@ -1856,6 +1856,41 @@
             </div>
           </div>
         </div>
+
+        <!-- Exam Type Selection (shown once a university is selected) -->
+        {#if selectedUniversityId}
+          <div class="space-y-4 pt-4 border-t border-gray-100 dark:border-slate-800" in:slide>
+            <div class="text-center">
+              <h4 class="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">
+                Exam Type
+              </h4>
+              <p class="text-[10px] text-gray-300 dark:text-slate-600 mt-1">Select the assessment type — the paper format will adjust automatically</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3 sm:grid-cols-6">
+              {#if isSGU}
+                {#each [{ value: "SGU_SEM_50", label: "Sem\n(50 Marks)" }, { value: "SGU_SEM_75", label: "Sem\n(75 Marks)" }] as type}
+                  <button
+                    onclick={() => (selectedExamType = type.value)}
+                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all whitespace-pre-line
+                      {selectedExamType === type.value
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
+                        : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
+                  >{type.label}</button>
+                {/each}
+              {:else}
+                {#each ["MID1", "MID2", "SEM", "SUPPLY", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
+                  <button
+                    onclick={() => (selectedExamType = type)}
+                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
+                      {selectedExamType === type
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
+                        : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
+                  >{type.replace(/_/g, " ")}</button>
+                {/each}
+              {/if}
+            </div>
+          </div>
+        {/if}
       </div>
     {:else if currentStep === 2}
       <div class="space-y-8" in:fly={{ y: 20, duration: 400 }}>
@@ -3187,33 +3222,27 @@
           </div>
 
           <div class="space-y-4">
-            <h4
-              class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1"
-            >
-              Assessment Type
-            </h4>
-            <div class="grid grid-cols-2 gap-3">
+            <h4 class="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Assessment Type</h4>
+            <div class="flex flex-wrap gap-2">
               {#if isSGU}
                 {#each [{ value: "SGU_SEM_50", label: "Sem (50 Marks)" }, { value: "SGU_SEM_75", label: "Sem (75 Marks)" }] as type}
                   <button
                     onclick={() => (selectedExamType = type.value)}
-                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
-                                      {selectedExamType === type.value
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
-                      : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
-                    >{type.label}</button
-                  >
+                    class="px-4 py-2 rounded-xl border-2 text-[10px] font-black uppercase transition-all
+                      {selectedExamType === type.value
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                        : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100'}"
+                  >{type.label}</button>
                 {/each}
               {:else}
                 {#each ["MID1", "MID2", "SEM", "SUPPLY", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
                   <button
                     onclick={() => (selectedExamType = type)}
-                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
-                                      {selectedExamType === type
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
-                      : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
-                    >{type.replace("_", " ")}</button
-                  >
+                    class="px-4 py-2 rounded-xl border-2 text-[10px] font-black uppercase transition-all
+                      {selectedExamType === type
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg'
+                        : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100'}"
+                  >{type.replace(/_/g, " ")}</button>
                 {/each}
               {/if}
             </div>

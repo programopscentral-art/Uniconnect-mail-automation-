@@ -99,6 +99,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const branch_id = sanitizeUUID(raw_branch_id);
         const template_id = sanitizeUUID(raw_template_id);
 
+        // Map SGU-specific exam types to the standard DB enum value
+        const db_exam_type = (exam_type === 'SGU_SEM_50' || exam_type === 'SGU_SEM_75') ? 'SEM' : exam_type;
+
         if (!subject_id) throw error(400, 'Subject ID is required');
         if (!template_config || !Array.isArray(template_config)) throw error(400, 'Invalid template configuration');
 
@@ -533,7 +536,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 duration_minutes, max_marks, template_id, sets_data
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id
         `, [
-            university_id, batch_id, branch_id, subject_id, exam_type || 'MID1', semester, paper_date,
+            university_id, batch_id, branch_id, subject_id, db_exam_type || 'MID1', semester, paper_date,
             duration_minutes, max_marks, template_id,
             JSON.stringify({
                 ...generatedSets,
