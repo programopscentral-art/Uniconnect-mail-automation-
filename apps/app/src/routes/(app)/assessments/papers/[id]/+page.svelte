@@ -16,6 +16,8 @@
   import NRITemplate from "$lib/components/assessments/NRITemplate.svelte";
   import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AnnamacharyaTemplate from "$lib/components/assessments/AnnamacharyaTemplate.svelte";
+  import SGU50SEMTemplate from "$lib/components/assessments/SGU50SEMTemplate.svelte";
+  import SGU75SEMTemplate from "$lib/components/assessments/SGU75SEMTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
 
   let { data } = $props();
@@ -92,6 +94,20 @@
     ) {
       return "nri";
     }
+    if (
+      metaTemplate === "sgu75" ||
+      (uniName.includes("sgu") || uniName.includes("shivaji")) &&
+        (String(data?.paper?.max_marks) === "75" || metaTemplate === "sgu75")
+    ) {
+      return "sgu75";
+    }
+    if (
+      metaTemplate === "sgu50" ||
+      uniName.includes("sgu") ||
+      uniName.includes("shivaji")
+    ) {
+      return "sgu50";
+    }
 
     return metaTemplate || "standard";
   });
@@ -117,7 +133,11 @@
                         ? "Annamacharya University V1.1.2"
                         : selectedTemplate === "nri"
                           ? "NRI Institute of Technology"
-                          : "University Standard",
+                          : selectedTemplate === "sgu75"
+                            ? "SGU Sem Template (75M)"
+                            : selectedTemplate === "sgu50"
+                              ? "SGU Sem Template (50M)"
+                              : "University Standard",
   );
 
   // We deep clone paper data to allow local edits
@@ -1489,6 +1509,28 @@
           />
         {:else if selectedTemplate === "nri"}
           <NRITemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "sgu75"}
+          <SGU75SEMTemplate
+            bind:paperMeta
+            bind:currentSetData={editableSets[activeSet]}
+            bind:paperStructure={paperMeta.template_config}
+            {activeSet}
+            courseOutcomes={data.courseOutcomes}
+            questionPool={data.questionPool}
+            mode="edit"
+            onSwap={handleSetUpdate}
+          />
+        {:else if selectedTemplate === "sgu50"}
+          <SGU50SEMTemplate
             bind:paperMeta
             bind:currentSetData={editableSets[activeSet]}
             bind:paperStructure={paperMeta.template_config}

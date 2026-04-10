@@ -10,6 +10,8 @@
   import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
   import ADYPUSemTemplate from "$lib/components/assessments/ADYPUSemTemplate.svelte";
+  import SGU50SEMTemplate from "$lib/components/assessments/SGU50SEMTemplate.svelte";
+  import SGU75SEMTemplate from "$lib/components/assessments/SGU75SEMTemplate.svelte";
 
   let { data } = $props();
 
@@ -68,6 +70,24 @@
   let courseCodeManual = $state("");
   let examTitleHeader = $state("I MID TERM EXAMINATION FEBRUARY");
   let paperInstructions = $state("ANSWER ALL QUESTIONS");
+
+  // Update SGU template/marks when exam type changes
+  $effect(() => {
+    if (!isSGU) return;
+    if (selectedExamType === "SGU_SEM_75") {
+      selectedTemplate = "sgu75";
+      maxMarks = 75;
+      examDuration = 180;
+      paperInstructions = "1. All questions are compulsory.\n2. Figures to the right indicate full marks.\n3. Assume suitable data wherever necessary and mention it clearly.";
+      paperStructure = [];
+    } else if (selectedExamType === "SGU_SEM_50") {
+      selectedTemplate = "sgu50";
+      maxMarks = 50;
+      examDuration = 120;
+      paperInstructions = "1. All questions are compulsory.\n2. Assume suitable data wherever necessary and mention it clearly.";
+      paperStructure = [];
+    }
+  });
 
   // Update exam title when exam type changes
   $effect(() => {
@@ -272,6 +292,113 @@
       };
       structure.push(partF);
 
+      paperStructure = structure;
+      refreshLabels();
+      return;
+    }
+
+    if (isSGU) {
+      const parts = ["A", "B", "C", "D", "E"];
+      if (selectedExamType === "SGU_SEM_75") {
+        // Q1: 5 sub-questions (a–e) × 3M = 15M
+        structure.push({
+          title: "Attempt the following Questions.",
+          part: "A",
+          answered_count: 5,
+          marks_per_q: 3,
+          numSubQuestions: 5,
+          co: "CO1",
+          slots: [
+            {
+              id: `A-1-${Math.random()}`,
+              label: "1",
+              part: "A",
+              type: "SINGLE",
+              marks: 3,
+              unit: "Auto",
+              qType: "NORMAL",
+              bloom: "ANY",
+              hasSubQuestions: true,
+              numSubQuestions: 5,
+              marks_a: 3,
+              marks_b: 3,
+              marks_c: 3,
+            },
+          ],
+        });
+        // Q2–Q5: 4 sub-questions (a–d) × 5M, attempt any 3
+        ["B", "C", "D", "E"].forEach((part, idx) => {
+          structure.push({
+            title: "Attempt any three of the following Questions.",
+            part,
+            answered_count: 3,
+            marks_per_q: 5,
+            numSubQuestions: 4,
+            co: `CO${idx + 2}`,
+            slots: [
+              {
+                id: `${part}-${idx + 2}-${Math.random()}`,
+                label: `${idx + 2}`,
+                part,
+                type: "SINGLE",
+                marks: 5,
+                unit: "Auto",
+                qType: "NORMAL",
+                bloom: "ANY",
+                hasSubQuestions: true,
+                numSubQuestions: 4,
+                marks_a: 5,
+                marks_b: 5,
+                marks_c: 5,
+              },
+            ],
+          });
+        });
+      } else {
+        // SGU_SEM_50: Q1 SINGLE 10M, Q2-Q5 OR_GROUP 10M each
+        structure.push({
+          title: "Attempt the following Question.",
+          part: "A",
+          answered_count: 1,
+          marks_per_q: 10,
+          co: "CO1",
+          slots: [
+            {
+              id: `A-1-${Math.random()}`,
+              label: "1",
+              part: "A",
+              type: "SINGLE",
+              marks: 10,
+              unit: "Auto",
+              qType: "NORMAL",
+              bloom: "ANY",
+              hasSubQuestions: false,
+            },
+          ],
+        });
+        ["B", "C", "D", "E"].forEach((part, idx) => {
+          structure.push({
+            title: "Attempt the following Question.",
+            part,
+            answered_count: 1,
+            marks_per_q: 10,
+            co: `CO${idx + 2}`,
+            slots: [
+              {
+                id: `${part}-${idx + 2}-${Math.random()}`,
+                label: `${idx + 2}`,
+                part,
+                type: "OR_GROUP",
+                marks: 10,
+                choices: [
+                  { label: "", unit: "Auto", qType: "NORMAL", marks: 10, bloom: "ANY" },
+                  { label: "", unit: "Auto", qType: "NORMAL", marks: 10, bloom: "ANY" },
+                ],
+              },
+            ],
+          });
+        });
+      }
       paperStructure = structure;
       refreshLabels();
       return;
@@ -1405,6 +1532,11 @@
     activeUniversity?.name?.toLowerCase()?.includes("nri") ||
       activeUniversity?.slug?.includes("nri"),
   );
+  const isSGU = $derived(
+    activeUniversity?.name?.toLowerCase()?.includes("sgu") ||
+      activeUniversity?.name?.toLowerCase()?.includes("shivaji") ||
+      activeUniversity?.slug?.includes("sgu"),
+  );
 
   $effect(() => {
     if (!selectedUniversityId) return;
@@ -1449,6 +1581,13 @@
       maxMarks = 30;
       examDuration = 90;
       paperStructure = []; // Clear to force re-init
+    } else if (isSGU) {
+      selectedTemplate = "sgu50";
+      selectedExamType = "SGU_SEM_50";
+      maxMarks = 50;
+      examDuration = 120;
+      paperInstructions = "1. All questions are compulsory.\n2. Assume suitable data wherever necessary and mention it clearly.";
+      paperStructure = []; // Clear to force re-init
     } else {
       selectedTemplate = "standard";
     }
@@ -1466,7 +1605,9 @@
             ? "ADYPU Sem Template"
             : isNRI
               ? "NRI Institute of Technology"
-              : "University Standard",
+              : isSGU
+                ? "SGU Sem Template"
+                : "University Standard",
   );
 
   let previewPaperMeta = $state<any>({
@@ -3052,16 +3193,29 @@
               Assessment Type
             </h4>
             <div class="grid grid-cols-2 gap-3">
-              {#each ["MID1", "MID2", "SEM", "SUPPLY", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
-                <button
-                  onclick={() => (selectedExamType = type)}
-                  class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
-                                    {selectedExamType === type
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
-                    : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
-                  >{type.replace("_", " ")}</button
-                >
-              {/each}
+              {#if isSGU}
+                {#each [{ value: "SGU_SEM_50", label: "Sem (50 Marks)" }, { value: "SGU_SEM_75", label: "Sem (75 Marks)" }] as type}
+                  <button
+                    onclick={() => (selectedExamType = type.value)}
+                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
+                                      {selectedExamType === type.value
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
+                      : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
+                    >{type.label}</button
+                  >
+                {/each}
+              {:else}
+                {#each ["MID1", "MID2", "SEM", "SUPPLY", "INTERNAL_LAB", "EXTERNAL_LAB"] as type}
+                  <button
+                    onclick={() => (selectedExamType = type)}
+                    class="p-4 rounded-xl border-2 text-[10px] font-black uppercase transition-all
+                                      {selectedExamType === type
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100 dark:shadow-indigo-950'
+                      : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 text-gray-400 dark:text-slate-500 hover:border-indigo-100 dark:hover:border-indigo-900'}"
+                    >{type.replace("_", " ")}</button
+                  >
+                {/each}
+              {/if}
             </div>
           </div>
         </div>
@@ -3129,6 +3283,22 @@
                 {/if}
               {:else if selectedTemplate === "adypu" || isADYPU}
                 <ADYPUSemTemplate
+                  paperMeta={previewPaperMeta}
+                  {paperStructure}
+                  currentSetData={previewSetData}
+                  {courseOutcomes}
+                  mode="preview"
+                />
+              {:else if selectedTemplate === "sgu75" || (isSGU && selectedExamType === "SGU_SEM_75")}
+                <SGU75SEMTemplate
+                  paperMeta={previewPaperMeta}
+                  {paperStructure}
+                  currentSetData={previewSetData}
+                  {courseOutcomes}
+                  mode="preview"
+                />
+              {:else if selectedTemplate === "sgu50" || isSGU}
+                <SGU50SEMTemplate
                   paperMeta={previewPaperMeta}
                   {paperStructure}
                   currentSetData={previewSetData}
