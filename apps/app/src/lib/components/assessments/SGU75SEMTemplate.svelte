@@ -12,8 +12,6 @@
    *            — "Attempt any three of the following Questions."
    *   Total: 15 + 4×15 = 75M
    */
-  import { dndzone } from "svelte-dnd-action";
-  import { flip } from "svelte/animate";
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
@@ -60,18 +58,6 @@
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
   const isEditable = $derived(mode === "edit" || mode === "preview");
-
-  function handleDndSync(part: string, items: any[]) {
-    const arr = (
-      Array.isArray(currentSetData)
-        ? currentSetData
-        : currentSetData?.questions || []
-    ).filter(Boolean);
-    const otherQuestions = arr.filter((q: any) => q.part !== part);
-    const result = [...otherQuestions, ...items.map((i) => ({ ...i, part }))];
-    if (Array.isArray(currentSetData)) currentSetData = result;
-    else currentSetData.questions = result;
-  }
 
   function updateText(val: string, type: "META" | "QUESTION", key: string, slotId?: string, qId?: string) {
     if (!isEditable) return;
@@ -290,12 +276,7 @@
           {#each paperStructure as section, sIdx}
             {@const sectionQuestions = getQuestionsByPart(section.part)}
 
-            {#if sectionQuestions.length > 0 || mode === "preview"}
-              <div
-                use:dndzone={{ items: sectionQuestions, flipDurationMs: 200, dragDisabled: !isEditable }}
-                onconsider={(e: any) => handleDndSync(section.part, e.detail.items)}
-                onfinalize={(e: any) => handleDndSync(section.part, e.detail.items)}
-              >
+            {#if sectionQuestions.length > 0}
                 {#each sectionQuestions as slot, i (slot.id + activeSet)}
                   {@const sn = getSN(sectionQuestions, i, sIdx)}
                   <!-- Prioritize section marks_per_q so bank question marks don't override configured slot marks -->
@@ -397,27 +378,26 @@
                     {/each}
                   {/if}
 
-                {:else}
-                  <!-- Preview placeholders -->
-                  {#if mode === "preview"}
-                    {#each section.slots as slot, i}
-                      <tr>
-                        <td colspan="6" class="border border-black p-1 font-bold">
-                          {section.title || (sIdx === 0 ? "Attempt the following Questions." : "Attempt any three of the following Questions.")}
-                        </td>
-                      </tr>
-                      <tr class="opacity-40">
-                        <td class="border border-black p-1 text-center">{i + 1 + getPreviousQuestionsCount(sIdx)}</td>
-                        <td class="border border-black p-1 text-center">a</td>
-                        <td class="border border-black p-1 italic text-[9pt]">[ {slot.qType || "NORMAL"} ] Question — {slot.marks} Marks</td>
-                        <td class="border border-black p-1 text-center">{slot.marks}</td>
-                        <td class="border border-black p-1"></td>
-                        <td class="border border-black p-1"></td>
-                      </tr>
-                    {/each}
-                  {/if}
                 {/each}
-              </div>
+            {/if}
+
+            <!-- Preview placeholders when no questions generated yet -->
+            {#if sectionQuestions.length === 0 && mode === "preview"}
+              {#each section.slots || [] as slot, i}
+                <tr>
+                  <td colspan="6" class="border border-black p-1 font-bold">
+                    {section.title || (sIdx === 0 ? "Attempt the following Questions." : "Attempt any three of the following Questions.")}
+                  </td>
+                </tr>
+                <tr class="opacity-40">
+                  <td class="border border-black p-1 text-center">{i + 1 + getPreviousQuestionsCount(sIdx)}</td>
+                  <td class="border border-black p-1 text-center">a</td>
+                  <td class="border border-black p-1 italic text-[9pt]">[ {slot.qType || "NORMAL"} ] Question — {slot.marks || section.marks_per_q} Marks</td>
+                  <td class="border border-black p-1 text-center">{slot.marks || section.marks_per_q}</td>
+                  <td class="border border-black p-1"></td>
+                  <td class="border border-black p-1"></td>
+                </tr>
+              {/each}
             {/if}
           {/each}
         </tbody>
