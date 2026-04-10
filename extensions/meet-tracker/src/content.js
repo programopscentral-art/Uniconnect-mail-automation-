@@ -32,8 +32,20 @@
     AUTH_TOKEN: null                // Set from storage
   };
 
-  // ─── UI Garbage Filter ───────────────────────────────────────────────
-  // Strings that appear in Meet's UI buttons/tooltips that are NOT names
+  // ─── Known Meet UI terms that pass Title Case but are NOT names ──────
+  const UI_BLOCKLIST = new Set([
+    'Reframe', 'Antigravity', 'Captions', 'Summarize', 'Transcript',
+    'Whiteboard', 'Polls', 'Activities', 'Breakout', 'Recording',
+    'Effects', 'Background', 'Blur', 'Reactions', 'Emojis',
+    'Settings', 'Feedback', 'Help', 'Leave', 'Rejoin',
+    'Share', 'Present', 'Stop', 'Switch', 'Camera', 'Microphone',
+    'Speaker', 'Noise', 'Cancel', 'Dismiss', 'Close', 'Open',
+    'Loading', 'Connecting', 'Connected', 'Reconnecting', 'Waiting',
+    'Host', 'Cohost', 'Moderator', 'Guest', 'Lobby',
+    'Raise', 'Pin', 'Spotlight', 'Tile', 'More', 'Options',
+    'Google', 'Meet', 'Workspace', 'Drive', 'Docs', 'Sheets',
+  ]);
+
   // ── Name validation ──────────────────────────────────────────────────
   // A real human name: Title Case words (each word starts with a capital).
   // UI labels like "Side panel", "Getting items", "Chat with everyone"
@@ -65,6 +77,9 @@
       /^[A-Z\u0900-\u097F\u0600-\u06FF]/.test(w)
     );
     if (!allTitleCase) return false;
+
+    // Block known Meet UI terms that pass Title Case
+    if (UI_BLOCKLIST.has(trimmed)) return false;
 
     return true;
   }
