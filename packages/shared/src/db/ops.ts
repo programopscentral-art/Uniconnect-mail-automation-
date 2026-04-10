@@ -46,10 +46,33 @@ const UNIVERSITY_ALIASES: Record<string, string> = {
     'cietcity': 'CIET/CITY',
     'cityciet': 'CIET/CITY',
     'yenapoya': 'Yenapoya',
-    'yenepoya': 'Yenapoya',   // alternate spelling — deduplicates with Yenapoya
+    'yenepoya': 'Yenapoya',
     'kkh': 'KKH',
     'kkhcollege': 'KKH',
+    'kkhyderabad': 'KKH',
     'khajabandanawaz': 'KKH',
+    // AMET / Academy
+    'academy': 'AMET',
+    'amet': 'AMET',
+    'ametuniversity': 'AMET',
+    // ADYPU / Adypatil
+    'adypatil': 'Adypu',
+    'adypu': 'Adypu',
+    'adpatil': 'Adypu',
+    'drdy': 'Adypu',
+    // MRV / Mallareddy
+    'mallareddy': 'MRV',
+    'mrv': 'MRV',
+    'mallareddyuniversity': 'MRV',
+    // NIU / NOIDAINT / Noida
+    'niu': 'NIU',
+    'noidaint': 'NIU',
+    'noida': 'NIU',
+    'noidainternational': 'NIU',
+    // NRI / NRIIT
+    'nri': 'NRI',
+    'nriit': 'NRI',
+    'nriinstituteoftechnology': 'NRI',
 };
 
 // Quick sync canonical name resolver — no DB needed, just alias map + normalization
