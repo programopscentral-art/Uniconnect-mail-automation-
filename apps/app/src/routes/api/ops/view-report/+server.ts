@@ -3,6 +3,7 @@ import {
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 
 // ─── Public endpoint: serves full HTML reports for email CTA links ──────────
 // No auth required — linked directly from email "Open Full Report" buttons.
@@ -10,6 +11,61 @@ import { error } from '@sveltejs/kit';
 //   /api/ops/view-report?type=daily&date=2026-04-07
 //   /api/ops/view-report?type=weekly&weekStart=2026-03-30&weekEnd=2026-04-05
 //   /api/ops/view-report?type=monthly&year=2026&month=3
+
+async function generateAISummaryForReport(report: any, type: string): Promise<string> {
+    const apiKey = (env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey || apiKey.length < 10) return '';
+
+    const s = report.summary || {};
+    const n = (v: any) => parseInt(v) || 0;
+    const byUniv = (report.byUniversity || []).slice(0, 20).map((r: any) => {
+        const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
+        const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+        return `${r.university_name}: Sessions ${n(r.sessions_completed)}/${n(r.sessions_planned)} (${uSess}%), Attendance ${uAtt}%, At-Risk ${n(r.at_risk_total)}${r.cancellation_reason ? `, Notes: ${r.cancellation_reason}` : ''}`;
+    }).join('\n');
+
+    const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
+    const sessRate = n(s.sessions_planned) > 0 ? Math.round((n(s.sessions_completed) / n(s.sessions_planned)) * 100) : 0;
+
+    const periodInfo = type === 'weekly' ? `Week: ${report.weekStart} to ${report.weekEnd}` :
+        type === 'monthly' ? `Month: ${new Date(report.year, (report.month || 1) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}` :
+        `Date: ${report.date}`;
+
+    const prompt = `Generate a concise executive summary (5-7 paragraphs, under 400 words) for UniConnect ${type} ops report.
+
+${periodInfo}
+Sessions: ${n(s.sessions_completed)}/${n(s.sessions_planned)} (${sessRate}%), ${n(s.sessions_cancelled)} cancelled
+Attendance: ${n(s.attended)}/${n(s.enrolled)} (${attRate}%)
+Coach Calls: ${n(s.coach_calls)}, Parent Calls: ${n(s.parent_calls)}
+At-Risk: ${n(s.at_risk_total)} total, ${n(s.at_risk_informed)} informed
+Events: ${n(s.events_executed)}/${n(s.events_planned)}
+
+Universities:
+${byUniv || 'No data'}
+
+Professional tone. Cover overall health, top/bottom performers, at-risk follow-up, coach call coverage, and 3 specific action items for management. Plain text paragraphs only — no markdown, no bullet points.`;
+
+    for (const model of ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash']) {
+        try {
+            const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
+                    })
+                }
+            );
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
+        } catch { continue; }
+    }
+    return '';
+}
 
 export const GET: RequestHandler = async ({ url }) => {
     const type = url.searchParams.get('type') || 'daily';
@@ -31,18 +87,19 @@ export const GET: RequestHandler = async ({ url }) => {
         report = await getOpsDailyReport(date);
     }
 
-    const html = generateReportHTML(report, type);
+    const aiSummary = await generateAISummaryForReport(report, type);
+    const html = generateReportHTML(report, type, aiSummary);
     return new Response(html, {
         headers: {
             'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600',
+            'Cache-Control': 'no-store',
         },
     });
 };
 
 // ─── Full report HTML generator (ported from client-side ops-dashboard) ─────
 
-function generateReportHTML(report: any, type: string): string {
+function generateReportHTML(report: any, type: string, aiSummary = ''): string {
     const periodLabel = type === 'daily' ? report.date :
         type === 'weekly' ? `${report.weekStart} to ${report.weekEnd}` :
         `${new Date(report.year, (report.month || 1) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
@@ -67,7 +124,6 @@ function generateReportHTML(report: any, type: string): string {
     const s = report.summary || {};
     const rawByUniv = report.byUniversity || [];
     const rawDaily = report.dailyBreakdown || [];
-    const rawCompliance = report.compliance || [];
     const rawTeamActivity = report.teamActivity || [];
 
     const n = (v: any) => parseInt(v) || 0;
@@ -140,11 +196,6 @@ function generateReportHTML(report: any, type: string): string {
     const atRiskInformedRate = totalAtRisk > 0 ? Math.round((totalAtRiskInformed / totalAtRisk) * 100) : 0;
 
     const rateColor = (v: number) => v >= 80 ? '#16a34a' : v >= 50 ? '#ca8a04' : '#dc2626';
-    const statusBadge = (status: string) => {
-        const colors: Record<string, string> = { 'Filed': '#16a34a', 'Submitted': '#16a34a', 'Missing': '#dc2626', 'Late': '#ca8a04', 'On time': '#16a34a', 'Complete': '#16a34a', 'Partial': '#ca8a04' };
-        const bg: Record<string, string> = { 'Filed': '#f0fdf4', 'Submitted': '#f0fdf4', 'Missing': '#fef2f2', 'Late': '#fefce8', 'On time': '#f0fdf4', 'Complete': '#f0fdf4', 'Partial': '#fefce8' };
-        return `<span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;color:${colors[status] || '#64748b'};background:${bg[status] || '#f1f5f9'}">${status}</span>`;
-    };
 
     // ── SVG Chart Helpers ──
     function svgDonut(percent: number, label: string, color: string, size = 100) {
@@ -268,64 +319,6 @@ function generateReportHTML(report: any, type: string): string {
             <td style="padding:10px 8px;border-bottom:1px solid #e5e7eb;text-align:center;font-size:12px">${f(r.avg_hours_program_ops).toFixed(1)}h</td>
         </tr>`).join('') +
         `</tbody></table></div>`;
-    }
-
-    // ── Compliance Section ──
-    let complianceSection = '';
-    if (rawCompliance.length > 0) {
-        const totalReports = rawCompliance.length;
-        const completeReports = rawCompliance.filter((r: any) => {
-            const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
-            return filed === 3;
-        }).length;
-        const partialReports = rawCompliance.filter((r: any) => {
-            const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
-            return filed > 0 && filed < 3;
-        }).length;
-        const missingReports = totalReports - completeReports - partialReports;
-        const complianceRate = totalReports > 0 ? Math.round((completeReports / totalReports) * 100) : 0;
-
-        complianceSection = `
-        <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Daily Report Submission Compliance</h2>
-        <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Each university must submit 3 daily reports: <strong>Instructor Report</strong>, <strong>Coach Report</strong>, and <strong>Ops Report</strong>.</p>
-        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);margin-top:16px">
-            <div class="kpi kpi-highlight"><div class="label">Compliance Rate</div><div class="value" style="color:${rateColor(complianceRate)}">${complianceRate}%</div><div class="sub">${completeReports} of ${totalReports} fully submitted</div></div>
-            <div class="kpi"><div class="label">All 3 Reports Filed</div><div class="value green">${completeReports}</div></div>
-            <div class="kpi"><div class="label">Partially Filed</div><div class="value amber">${partialReports}</div><div class="sub">1 or 2 of 3 reports</div></div>
-            <div class="kpi"><div class="label">No Reports Filed</div><div class="value red">${missingReports}</div><div class="sub">0 of 3 reports</div></div>
-        </div>` +
-        (() => {
-            const univGroups = new Map<string, any[]>();
-            for (const r of rawCompliance) {
-                const key = normalizeUnivName(r.university_name);
-                if (!univGroups.has(key)) univGroups.set(key, []);
-                univGroups.get(key)!.push(r);
-            }
-            return `<div class="table-wrap"><table>
-            <thead><tr>
-                <th style="text-align:left">University</th>
-                <th style="text-align:left">Date</th>
-                <th>Instructor</th><th>Coach</th><th>Ops</th>
-                <th>Submitted By</th><th>Status</th>
-            </tr></thead><tbody>` +
-            Array.from(univGroups.entries()).map(([, rows]) =>
-                rows.map((r: any, i: number) => {
-                    const filed = [r.instructor_report, r.coach_report, r.ops_report].filter((x: string) => x === 'Filed' || x === 'Submitted').length;
-                    const overallStatus = filed === 3 ? 'Complete' : filed > 0 ? 'Partial' : 'Missing';
-                    const dateStr = toDateStr(r.date);
-                    return `<tr${i === 0 ? ' style="border-top:2px solid #e2e8f0"' : ''}>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:${i === 0 ? '600' : '400'}">${i === 0 ? r.university_name : ''}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;font-size:12px">${formatShortDate(dateStr)}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${statusBadge(r.instructor_report || 'Missing')}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${statusBadge(r.coach_report || 'Missing')}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${statusBadge(r.ops_report || 'Missing')}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:12px">${r.report_submitted_by || '—'}</td>
-                        <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center">${statusBadge(overallStatus)}</td>
-                    </tr>`;
-                }).join('')
-            ).join('') +
-            `</tbody></table></div>`;
-        })();
     }
 
     // ── Daily Breakdown (for weekly/monthly) ──
@@ -619,6 +612,15 @@ function generateReportHTML(report: any, type: string): string {
         </div>
     </div>
 
+    ${aiSummary ? `
+    <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">AI Executive Summary</h2>
+    <div style="margin-top:16px;background:#f8fafc;border-left:4px solid #3b82f6;border-radius:0 12px 12px 0;padding:20px 24px">` +
+        aiSummary.replace(/\*\*/g, '').replace(/^#+\s*/gm, '').replace(/^[-*]\s+/gm, '')
+            .split('\n').filter((l: string) => l.trim())
+            .map((p: string) => `<p style="margin:0 0 12px;font-size:14px;line-height:1.7;color:#374151">${p.trim()}</p>`)
+            .join('') +
+    `</div>` : ''}
+
     ${chartsSection}
 
     ${observationsSection}
@@ -644,7 +646,6 @@ function generateReportHTML(report: any, type: string): string {
     ${remarksSection}
     ${teamSection}
     ${dailySection}
-    ${complianceSection}
 
     <div class="footer">Auto-generated by UniConnect Ops Dashboard | ${new Date().toLocaleString('en-IN')} | ${type.charAt(0).toUpperCase() + type.slice(1)} Operations Report</div>
     </body></html>`;
