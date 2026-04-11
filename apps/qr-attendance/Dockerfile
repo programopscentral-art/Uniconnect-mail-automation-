@@ -27,12 +27,12 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
-# Also copy the prisma CLI and engines needed for the startup migration
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# Also copy the prisma CLI and engines needed for the startup migration/seeding
+COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000
 
-# Run prisma migration then start the server
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node server.js"]
+# Run prisma migration + seeding then start the server
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node node_modules/ts-node/dist/bin.js --project tsconfig.json prisma/seed.ts && node server.js"]
