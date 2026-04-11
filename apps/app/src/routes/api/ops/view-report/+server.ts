@@ -70,6 +70,7 @@ Professional tone. Cover overall health, top/bottom performers, at-risk follow-u
 export const GET: RequestHandler = async ({ url }) => {
     const type = url.searchParams.get('type') || 'daily';
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const univFilter = url.searchParams.get('university') || null;
 
     let report: any;
 
@@ -87,8 +88,23 @@ export const GET: RequestHandler = async ({ url }) => {
         report = await getOpsDailyReport(date);
     }
 
+    // Filter to a single university when ?university= param is provided
+    if (univFilter) {
+        const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const nf = norm(univFilter);
+        const filterRow = (r: any) => {
+            const rn = norm(r.university_name);
+            return rn.includes(nf) || nf.includes(rn);
+        };
+        report = {
+            ...report,
+            byUniversity: (report.byUniversity || []).filter(filterRow),
+            teamActivity: (report.teamActivity || []).filter(filterRow),
+        };
+    }
+
     const aiSummary = await generateAISummaryForReport(report, type);
-    const html = generateReportHTML(report, type, aiSummary);
+    const html = generateReportHTML(report, type, aiSummary, univFilter || undefined);
     return new Response(html, {
         headers: {
             'Content-Type': 'text/html; charset=utf-8',
@@ -99,7 +115,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 // ─── Full report HTML generator (ported from client-side ops-dashboard) ─────
 
-function generateReportHTML(report: any, type: string, aiSummary = ''): string {
+function generateReportHTML(report: any, type: string, aiSummary = '', univFilter?: string): string {
     const periodLabel = type === 'daily' ? report.date :
         type === 'weekly' ? `${report.weekStart} to ${report.weekEnd}` :
         `${new Date(report.year, (report.month || 1) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
@@ -557,7 +573,7 @@ function generateReportHTML(report: any, type: string, aiSummary = ''): string {
     @media print { body { padding: 16px; } .kpi { break-inside: avoid; } table { page-break-inside: auto; } tr { page-break-inside: avoid; } }
     </style></head><body>
     <h1>UniOps — ${title}</h1>
-    <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard | ${byUniv.length} universit${byUniv.length === 1 ? 'y' : 'ies'}</p>
+    <p class="subtitle">Generated on ${new Date().toLocaleString('en-IN')} | UniConnect Operations Dashboard${univFilter ? ` | ${byUniv[0]?.university_name || univFilter} only` : ` | ${byUniv.length} universit${byUniv.length === 1 ? 'y' : 'ies'}`}</p>
 
     <h2 style="margin-top:24px">Performance Overview</h2>
     <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Key performance indicators for the ${type === 'daily' ? 'day' : type === 'weekly' ? 'week' : 'month'}. Green = good (80%+), Yellow = needs improvement (50-79%), Red = critical (&lt;50%).</p>

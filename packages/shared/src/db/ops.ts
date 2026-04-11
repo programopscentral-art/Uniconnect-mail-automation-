@@ -1062,8 +1062,26 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
             // Read cancellation_reason and remarks separately, then combine so neither is lost
             const cancelReason = getVal(values, 'cancellation_reason', 'cancel_reason') || null;
             const remarksVal = getVal(values, 'remarks', 'remark') || null;
+
+            // Capture meaningful text placed inside numeric columns (e.g. "CAT 2 Exam", "0(Sports day)")
+            const numericFieldDefs: [string, string[]][] = [
+                ['Sessions Planned', ['sessions_planned', 'planned']],
+                ['Sessions Completed', ['sessions_completed', 'ssions_completed', 'completed', 'done']],
+                ['Sessions Cancelled', ['sessions_cancelled', 'ssions_cancelled', 'cancelled']],
+                ['Enrolled', ['enrolled', 'total_enrolled', 'students_enrolled']],
+                ['Attended', ['attended', 'total_attended', 'students_attended']],
+            ];
+            const TRIVIAL_VAL = /^(na|n\/a|nil|none|-+|—|\d+)$/i;
+            const numericNotes: string[] = [];
+            for (const [label, aliases] of numericFieldDefs) {
+                const rawVal = getVal(values, ...aliases).trim();
+                if (rawVal && !TRIVIAL_VAL.test(rawVal) && /[a-zA-Z]/.test(rawVal)) {
+                    numericNotes.push(`${label}: "${rawVal}"`);
+                }
+            }
+
             const remarkVal = isHoliday ? 'Holiday'
-                : [cancelReason, remarksVal].filter(Boolean).join(' | ') || null;
+                : [...[cancelReason, remarksVal].filter(Boolean), ...numericNotes].join(' | ') || null;
 
             dailyData.push({
                 date: rowDate,

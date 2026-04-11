@@ -158,7 +158,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 const univData = reportByUniv[univName];
                 if (!univData || !recipients.length) continue;
 
-                const univHtml = buildUniversityEmailHTML(type, periodLabel, univName, univData, reportUrl);
+                const univReportUrl = `${reportUrl}&university=${encodeURIComponent(univName)}`;
+                const univHtml = buildUniversityEmailHTML(type, periodLabel, univName, univData, univReportUrl);
                 const univSubject = `UniConnect ${type.charAt(0).toUpperCase() + type.slice(1)} Report — ${univName}`;
                 const univText = `${type} report for ${univName}. Sessions: ${univData.sessions_completed || 0}/${univData.sessions_planned || 0}. Attendance: ${univData.attended || 0}/${univData.enrolled || 0}.`;
 
