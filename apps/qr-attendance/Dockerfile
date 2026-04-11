@@ -4,6 +4,7 @@ WORKDIR /app
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
 COPY package.json ./
+COPY prisma ./prisma
 RUN npm install --frozen-lockfile=false
 
 FROM base AS builder
