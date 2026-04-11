@@ -1030,8 +1030,8 @@
           Approved Budget
         </p>
         <p class="text-4xl font-black text-emerald-400">
-          {proposal.approved_total_budget
-            ? formatter.format(proposal.approved_total_budget)
+          {Number(proposal.approved_total_budget) > 0
+            ? formatter.format(Number(proposal.approved_total_budget))
             : "Pending"}
         </p>
         <div class="pt-4 flex items-center gap-3">
@@ -1044,7 +1044,7 @@
           <p
             class="font-black text-gray-300 text-[10px] uppercase tracking-wider"
           >
-            Status: {proposal.status.replace("_", " ")}
+            Status: {proposal.status.replace(/_/g, " ")}
           </p>
         </div>
       </div>

@@ -1,33 +1,32 @@
 import { json, error } from '@sveltejs/kit';
-import { db, logBudgetProposalEmail, getBudgetProposalById } from '@uniconnect/shared';
-import { addNotificationJob } from '$lib/server/queue';
+import { getBudgetProposalById, type BudgetProposalStatus } from '@uniconnect/shared';
+import { notifyBudgetProposalUpdate } from '$lib/server/budget_proposals';
 import type { RequestHandler } from './$types';
 
+// Admin-only endpoint to re-trigger the full rich notification for any status.
+// Usage: POST /api/budget-proposals/[id]/test-email?status=APPROVED_L1
 export const POST: RequestHandler = async ({ params, url, locals }) => {
-    if (!locals.user || locals.user.role !== 'ADMIN') throw error(403, 'Admin only');
+    if (!locals.user || (locals.user.role !== 'ADMIN' && locals.user.role !== 'PROGRAM_OPS')) {
+        throw error(403, 'Admin only');
+    }
 
-    const type = url.searchParams.get('type') || 'APPROVED';
+    const status = (url.searchParams.get('status') || 'APPROVED_L1') as BudgetProposalStatus;
+    const allowedStatuses: BudgetProposalStatus[] = [
+        'SUBMITTED', 'APPROVED_L1', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED', 'REPORT_SUBMITTED', 'CLOSED'
+    ];
+    if (!allowedStatuses.includes(status)) {
+        throw error(400, `Invalid status. Allowed: ${allowedStatuses.join(', ')}`);
+    }
+
     const proposal = await getBudgetProposalById(params.id);
     if (!proposal) throw error(404, 'Proposal not found');
 
-    const subject = `[TEST] Budget Proposal ${type}`;
-    const body = `This is a test notification for your proposal: ${proposal.title}`;
+    await notifyBudgetProposalUpdate(
+        proposal,
+        status,
+        locals.user.name || locals.user.email,
+        status === 'CHANGES_REQUESTED' ? 'Please review and update the budget items.' : undefined
+    );
 
-    // Queue the email
-    await addNotificationJob({
-        to: proposal.proposer_email,
-        subject,
-        text: body,
-        html: `<div>${body}</div>`
-    });
-
-    // Log the event
-    await logBudgetProposalEmail({
-        proposal_id: params.id,
-        event_type: `TEST_${type}`,
-        recipient_email: proposal.proposer_email,
-        status: 'SENT'
-    });
-
-    return json({ success: true, message: `Test email queued for ${proposal.proposer_email}` });
+    return json({ success: true, message: `Full notification sent for status ${status} — check emails` });
 };
