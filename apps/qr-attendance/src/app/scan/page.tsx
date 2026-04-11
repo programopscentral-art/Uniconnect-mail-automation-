@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import Script from 'next/script';
 
 type ScanResult = 'ACCEPTED' | 'DUPLICATE' | 'INVALID_QR' | 'UNKNOWN_STUDENT' | 'OUTSIDE_SLOT' | 'INACTIVE_STUDENT' | 'ERROR';
 
@@ -44,12 +45,11 @@ export default function ScanPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(false);
+  const [libReady, setLibReady] = useState(false);
 
   const scannerRef = useRef<any>(null);
   const processingRef = useRef(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hidBufferRef = useRef('');
-  const hidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const processQR = useCallback(async (payload: string) => {
     if (processingRef.current || !payload.trim()) return;
@@ -103,16 +103,6 @@ export default function ScanPage() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    if (token && deviceKey && !processingRef.current) {
-      processQR(token);
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [deviceKey, processQR]);
-
-  useEffect(() => {
     const update = () => {
       const now = new Date();
       setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
@@ -138,17 +128,16 @@ export default function ScanPage() {
 
   const startScanner = async () => {
     if (!deviceKey) return setShowSettings(true);
+    if (!window.hasOwnProperty('Html5Qrcode')) {
+      setCameraError('Scanner engine not loaded yet. Please wait a moment.');
+      return;
+    }
+
     setCameraError(null);
     setInitializing(true);
 
     try {
-      const lib = await import('html5-qrcode');
-      // Ensure we use the correct class name regardless of how it was imported
-      const H5 = (lib as any).Html5Qrcode || (lib as any).default?.Html5Qrcode;
-
-      if (!H5) {
-        throw new Error('Scanner library failed to load correctly.');
-      }
+      const H5 = (window as any).Html5Qrcode;
 
       if (scannerRef.current) {
         try { await scannerRef.current.stop(); } catch (e) { }
@@ -157,44 +146,22 @@ export default function ScanPage() {
       const html5QrCode = new H5("qr-reader");
       scannerRef.current = html5QrCode;
 
-      const config = {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0,
-      };
-
       await html5QrCode.start(
         { facingMode: "environment" },
-        config,
+        { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         (decodedText: string) => {
-          if (!processingRef.current) {
-            processQR(decodedText);
-          }
+          if (!processingRef.current) processQR(decodedText);
         },
         () => { }
       );
 
       setCameraActive(true);
     } catch (err: any) {
-      console.error('Camera Init Error:', err);
-      // More user-friendly messages
-      if (err?.message?.includes('Permission denied')) {
-        setCameraError('CAMERA BLOCKED: Please allow camera access in your browser settings.');
-      } else {
-        setCameraError(`SYSTEM ERROR: ${err?.message || 'Unable to scan'}`);
-      }
+      setCameraError(`CAMERA ERROR: ${err?.message || 'Access Denied'}`);
     } finally {
       setInitializing(false);
     }
   };
-
-  useEffect(() => {
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => { });
-      }
-    };
-  }, []);
 
   const saveDeviceKey = () => {
     const key = deviceKeyInput.trim();
@@ -208,14 +175,17 @@ export default function ScanPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col text-white font-sans overflow-hidden">
+      <Script
+        src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
+        onLoad={() => setLibReady(true)}
+      />
+
       <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 px-4 py-4 flex items-center justify-between z-40">
         <div className="flex flex-col">
           <p className="font-black text-2xl tracking-tighter leading-none">{currentTime}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`w-2 h-2 rounded-full ${slotStatus?.activeSlot ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
-              {slotStatus?.activeSlot ? slotStatus.activeSlot.slot : 'System Closed'}
-            </p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 uppercase">{slotStatus?.activeSlot ? slotStatus.activeSlot.slot : 'System Offline'}</p>
           </div>
         </div>
         <button onClick={() => setShowSettings(true)} className="p-3 bg-white/5 rounded-2xl border border-white/10 active:scale-90 transition-all">
@@ -230,13 +200,11 @@ export default function ScanPage() {
           <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 ${cfg.bg} backdrop-blur-2xl animate-in fade-in zoom-in duration-200`}>
             <div className={`w-full max-w-sm border-4 ${cfg.border} rounded-[3rem] p-10 bg-black/40 text-center shadow-2xl`}>
               <p className={`text-6xl font-black mb-4 ${cfg.text}`}>{cfg.label}</p>
-              {lastResult.student ? (
+              {lastResult.student && (
                 <>
                   <p className="text-4xl font-black text-white leading-tight">{lastResult.student.name}</p>
-                  <p className="text-xl font-mono text-white/60 mt-2 tracking-widest">{lastResult.student.studentId}</p>
+                  <p className="text-xl font-mono text-white/60 mt-2">{lastResult.student.studentId}</p>
                 </>
-              ) : (
-                <p className="text-2xl font-bold">{lastResult.message}</p>
               )}
             </div>
           </div>
@@ -253,13 +221,13 @@ export default function ScanPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
               </div>
-              <p className="text-xl font-black">{initializing ? 'LOADING...' : 'TAP TO OPEN SCANNER'}</p>
-              <p className="text-gray-500 text-xs mt-2 font-medium">Click to request camera access</p>
+              <p className="text-xl font-black">{initializing ? 'LOADING...' : 'OPEN CAMERA'}</p>
+              <p className="text-gray-500 text-xs mt-2 font-medium">{libReady ? 'Ready for scan' : 'Connecting to engine...'}</p>
             </div>
           ) : (
-            <div className="w-full h-full relative rounded-[3.5rem] overflow-hidden border-4 border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.05)]">
+            <div className="w-full h-full relative rounded-[3.5rem] overflow-hidden border-4 border-white/10">
               <div id="qr-reader" className="w-full h-full bg-black" />
-              <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
+              <div className="absolute inset-0 border-[40px] border-black/50 pointer-events-none">
                 <div className="w-full h-full border-2 border-indigo-500/50 rounded-3xl" />
               </div>
             </div>
@@ -281,20 +249,18 @@ export default function ScanPage() {
             <input
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Manual ID / USB Scanner..."
+              placeholder="Enter ID / USB Scanner..."
               className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono"
             />
-            <button className="absolute right-2 top-2 bottom-2 bg-white text-black px-6 rounded-xl font-black text-xs uppercase tracking-widest active:scale-90 transition-all">
-              Submit
-            </button>
+            <button className="absolute right-2 top-2 bottom-2 bg-white text-black px-6 rounded-xl font-black text-xs uppercase tracking-widest active:scale-90 transition-all">Submit</button>
           </form>
         </div>
       </div>
 
       {showSettings && (
         <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl">
-            <h2 className="text-3xl font-black mb-1">Config</h2>
+          <div className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl scale-100 animate-in zoom-in-95">
+            <h2 className="text-3xl font-black mb-1">Link Device</h2>
             <div className="space-y-6 mt-8">
               <div>
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Device Key</label>
@@ -306,12 +272,8 @@ export default function ScanPage() {
                 />
               </div>
               <div className="flex flex-col gap-3">
-                <button onClick={saveDeviceKey} className="w-full bg-white text-black py-4 rounded-2xl font-black text-sm tracking-widest uppercase">
-                  Save
-                </button>
-                <button onClick={() => setShowSettings(false)} className="w-full bg-transparent text-gray-500 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">
-                  Close
-                </button>
+                <button onClick={saveDeviceKey} className="w-full bg-white text-black py-4 rounded-2xl font-black text-sm tracking-widest uppercase">Save</button>
+                <button onClick={() => setShowSettings(false)} className="w-full bg-transparent text-gray-500 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">Close</button>
               </div>
             </div>
           </div>
