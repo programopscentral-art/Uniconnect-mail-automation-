@@ -27,6 +27,11 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
             bodyText = `Reviewers have requested changes for your proposal: ${title}.${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
+        case 'APPROVED_L1':
+            titleText = 'Budget Proposal — L1 Approved ✅';
+            bodyText = `${actorName} has given L1 approval for "${title}". Final admin approval is now required to proceed.`;
+            isToSET = true; // notify admins to give final approval
+            break;
         case 'APPROVED':
             titleText = 'Budget Proposal APPROVED ✅';
             bodyText = `Congratulations! Your budget proposal for "${title}" has been approved. You can proceed with the event.`;

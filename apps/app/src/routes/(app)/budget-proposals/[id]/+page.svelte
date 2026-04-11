@@ -36,6 +36,8 @@
         return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
       case "CHANGES_REQUESTED":
         return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+      case "APPROVED_L1":
+        return "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400";
       case "APPROVED":
         return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
       case "REJECTED":
@@ -216,7 +218,8 @@
     user.role === "ADMIN" || user.role === "PROGRAM_OPS",
   );
   const isSET = $derived(user.role === "SET_REVIEWER");
-  const canReview = $derived(isGlobalAdmin || isSET);
+  const isCMAManager = $derived(user.role === "CMA_MANAGER");
+  const canReview = $derived(isGlobalAdmin || isSET || isCMAManager);
   const isProposer = $derived(proposal.proposer_user_id === user.id);
   const eventPassed = $derived(new Date(proposal.proposed_date) < new Date());
 </script>
@@ -353,6 +356,7 @@
       {#if canReview}
         {#if proposal.status === "SUBMITTED" || proposal.status === "UNDER_REVIEW"}
           {#if isGlobalAdmin}
+            <!-- Admin: direct final approve -->
             <button
               onclick={() => {
                 showActionModal = "approve";
@@ -360,6 +364,14 @@
               }}
               class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md active:scale-95"
               >Approve</button
+            >
+          {:else if isCMAManager}
+            <!-- CMA Manager: L1 approve — admin still needs to give final approval -->
+            <button
+              onclick={() => handleAction("approve")}
+              class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold shadow-md active:scale-95"
+              title="L1 Approval — admin final approval still required"
+              >L1 Approve</button
             >
           {/if}
           <button
@@ -372,6 +384,27 @@
             class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md active:scale-95"
             >Reject</button
           >
+        {/if}
+
+        {#if proposal.status === "APPROVED_L1"}
+          {#if isGlobalAdmin}
+            <!-- Admin: give final approval after CMA Manager's L1 -->
+            <button
+              onclick={() => {
+                showActionModal = "approve";
+                actionBudget = proposal.approved_total_budget ?? proposal.estimated_total_budget;
+              }}
+              class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md active:scale-95"
+              >Final Approve</button
+            >
+            <button
+              onclick={() => (showActionModal = "reject")}
+              class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-md active:scale-95"
+              >Reject</button
+            >
+          {:else}
+            <span class="px-4 py-2 text-teal-700 bg-teal-50 border border-teal-200 rounded-xl text-sm font-semibold">L1 Approved — Awaiting Admin Final Approval</span>
+          {/if}
         {/if}
 
         {#if proposal.status === "REPORT_SUBMITTED"}

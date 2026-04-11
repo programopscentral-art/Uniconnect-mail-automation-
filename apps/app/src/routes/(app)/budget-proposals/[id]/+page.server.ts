@@ -16,15 +16,16 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     // Scoping check
     const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
     const isSET = locals.user.role === 'SET_REVIEWER';
+    const isCMAManager = locals.user.role === 'CMA_MANAGER';
     const isProposer = proposal.proposer_user_id === locals.user.id;
 
-    if (!isGlobalAdmin && !isSET && !isProposer) {
+    if (!isGlobalAdmin && !isSET && !isCMAManager && !isProposer) {
         const hasAccess = locals.user.universities?.some(u => u.id === proposal.university_id);
         if (!hasAccess) throw error(403, 'Forbidden: You do not have access to this proposal');
     }
 
     // Comments scoping
-    const comments = await getBudgetProposalComments(params.id, isSET || isGlobalAdmin);
+    const comments = await getBudgetProposalComments(params.id, isSET || isGlobalAdmin || isCMAManager);
 
     return {
         proposal: JSON.parse(JSON.stringify(proposal)),

@@ -12,15 +12,16 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     const proposal = await getBudgetProposalById(params.id);
     if (!proposal) throw error(404, 'Proposal not found');
 
-    // RBAC: Only SET_REVIEWER, ADMIN, or PROGRAM_OPS
+    // RBAC
     const isSET = locals.user.role === 'SET_REVIEWER';
     const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+    const isCMAManager = locals.user.role === 'CMA_MANAGER';
 
-    if (!isSET && !isGlobalAdmin) {
-        throw error(403, 'Forbidden: Only SET reviewers or admins can perform review actions');
+    if (!isSET && !isGlobalAdmin && !isCMAManager) {
+        throw error(403, 'Forbidden: Only SET reviewers, CMA managers, or admins can perform review actions');
     }
 
-    // Scoping check
+    // Scoping check — CMA_MANAGER and SET need university-level access; global admins bypass
     if (!isGlobalAdmin) {
         const hasAccess = locals.user.universities?.some(u => u.id === proposal.university_id);
         if (!hasAccess) throw error(403, 'Forbidden: You do not have access to this university');
@@ -34,22 +35,32 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             toStatus = 'UNDER_REVIEW';
             break;
         case 'approve':
-            if (!isGlobalAdmin) throw error(403, 'Forbidden: Only administrators can approve budget proposals');
-            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED') {
-                throw error(400, 'Invalid status for approval. Must be SUBMITTED or UNDER_REVIEW');
+            // CMA_MANAGER (not admin) → L1 approval
+            if (isCMAManager && !isGlobalAdmin) {
+                if (proposal.status !== 'SUBMITTED' && proposal.status !== 'UNDER_REVIEW') {
+                    throw error(400, 'Invalid status for L1 approval. Must be SUBMITTED or UNDER_REVIEW');
+                }
+                toStatus = 'APPROVED_L1';
+            } else if (isGlobalAdmin) {
+                // Admin → final approval (can also approve directly from APPROVED_L1)
+                if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED' && proposal.status !== 'APPROVED_L1') {
+                    throw error(400, 'Invalid status for final approval. Must be SUBMITTED, UNDER_REVIEW, or APPROVED_L1');
+                }
+                if (approvedBudget === undefined) throw error(400, 'Approved budget is required for final approval');
+                toStatus = 'APPROVED';
+            } else {
+                throw error(403, 'Forbidden: Only CMA managers or admins can approve budget proposals');
             }
-            if (approvedBudget === undefined) throw error(400, 'Approved budget is required for final approval');
-            toStatus = 'APPROVED';
             break;
         case 'reject':
-            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED') {
+            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED' && proposal.status !== 'APPROVED_L1') {
                 throw error(400, 'Invalid status for rejection');
             }
             if (!reason) throw error(400, 'Reason is required for rejection');
             toStatus = 'REJECTED';
             break;
         case 'request-changes':
-            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED' && proposal.status !== 'REPORT_SUBMITTED') {
+            if (proposal.status !== 'UNDER_REVIEW' && proposal.status !== 'SUBMITTED' && proposal.status !== 'APPROVED_L1' && proposal.status !== 'REPORT_SUBMITTED') {
                 throw error(400, 'Invalid transition for requesting changes');
             }
             if (!reason) throw error(400, 'Reason is required for requesting changes');
