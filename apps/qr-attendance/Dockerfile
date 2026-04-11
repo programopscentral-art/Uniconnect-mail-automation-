@@ -3,8 +3,8 @@ WORKDIR /app
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json ./
+RUN npm install --frozen-lockfile=false
 
 FROM base AS builder
 WORKDIR /app
