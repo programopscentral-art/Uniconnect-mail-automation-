@@ -590,7 +590,7 @@ export async function getOpsWeekByUniversity(startDate: string, endDate: string)
             COALESCE(SUM(d.exams_planned), 0) as exams_planned,
             COALESCE(SUM(d.exams_completed), 0) as exams_completed,
             COALESCE(SUM(d.post_exam_comms_sent), 0) as post_exam_comms_sent,
-            STRING_AGG(DISTINCT d.cancellation_reason, '; ') FILTER (WHERE d.cancellation_reason IS NOT NULL AND d.sessions_cancelled > 0) as cancellation_reason
+            STRING_AGG(DISTINCT d.cancellation_reason, '; ') FILTER (WHERE d.cancellation_reason IS NOT NULL) as cancellation_reason
         FROM ops_daily_data d
         JOIN canonical_names cn ON cn.raw_name = d.university_name
         WHERE d.date >= $1 AND d.date <= $2
