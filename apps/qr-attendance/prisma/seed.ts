@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -24,10 +24,10 @@ async function main() {
   // Create default slot configs
   await prisma.slotConfig.upsert({
     where: { slot: 'MORNING' },
-    update: {},
+    update: { startTime: '00:00', endTime: '12:00' },
     create: {
       slot: 'MORNING',
-      startTime: '08:00',
+      startTime: '00:00',
       endTime: '12:00',
       isActive: true
     }
@@ -35,15 +35,15 @@ async function main() {
 
   await prisma.slotConfig.upsert({
     where: { slot: 'AFTERNOON' },
-    update: {},
+    update: { startTime: '12:00', endTime: '23:59' },
     create: {
       slot: 'AFTERNOON',
       startTime: '12:00',
-      endTime: '18:00',
+      endTime: '23:59',
       isActive: true
     }
   });
-  console.log('Slot configs created: MORNING (08:00-12:00), AFTERNOON (12:00-18:00)');
+  console.log('Slot configs updated: MORNING (00:00-12:00), AFTERNOON (12:00-23:59)');
 
   // Create default device
   await prisma.device.upsert({
@@ -68,6 +68,20 @@ async function main() {
     }
   });
   console.log('Student ID sequence initialized for year 2026');
+
+  // Create a test student with a known QR token
+  const testToken = '1234567890abcdef1234567890abcdef';
+  await prisma.student.upsert({
+    where: { qrToken: testToken },
+    update: { isActive: true },
+    create: {
+      studentId: 'B2026TEST',
+      name: 'Test Student',
+      qrToken: testToken,
+      isActive: true
+    }
+  });
+  console.log('Test student created with token:', testToken);
 
   console.log('Seeding complete!');
 }
