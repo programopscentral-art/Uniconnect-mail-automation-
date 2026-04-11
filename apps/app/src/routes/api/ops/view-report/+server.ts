@@ -78,7 +78,13 @@ function generateReportHTML(report: any, type: string): string {
         'chalapathy': 'chalapathi', 'chalapathi': 'chalapathi',
         'cresent': 'crescent', 'crescent': 'crescent',
         'cietcity': 'cietcity', 'cityciet': 'cietcity',
-        'yenapoya': 'yenapoya',
+        'yenapoya': 'yenapoya', 'yenepoya': 'yenapoya',
+        'academy': 'amet', 'amet': 'amet',
+        'adypatil': 'adypu', 'adypu': 'adypu',
+        'mallareddy': 'mrv', 'mrv': 'mrv',
+        'noidaint': 'niu', 'niu': 'niu',
+        'nriit': 'nri', 'nri': 'nri',
+        'kkh': 'kkh',
     };
     function normalizeUnivName(name: string) {
         const lower = (name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');

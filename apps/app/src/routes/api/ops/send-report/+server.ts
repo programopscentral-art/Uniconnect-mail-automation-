@@ -11,6 +11,7 @@ import {
     getOpsMonthlyReport,
     aggregateAllUniversities,
     getDailyFormComplianceStatus,
+    canonicalUnivName,
     db,
 } from '@uniconnect/shared';
 import { env } from '$env/dynamic/private';
@@ -50,30 +51,37 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let html: string;
         let subject: string;
         let textPlain: string;
+        let report: any;
+        let periodLabel: string;
+        let reportUrl: string;
 
         if (type === 'weekly') {
             const weekStart = body.weekStart;
             const weekEnd = body.weekEnd;
             if (!weekStart || !weekEnd) throw new Error('weekStart and weekEnd are required for weekly reports');
 
-            const report = await getOpsWeeklyReport(weekStart, weekEnd);
+            report = await getOpsWeeklyReport(weekStart, weekEnd);
             const aiSummary = await generateAISummary(report, type, { weekStart, weekEnd });
             html = buildWeeklyEmailHTML(weekStart, weekEnd, report, aiSummary);
+            periodLabel = formatDateRange(weekStart, weekEnd);
+            reportUrl = `${BASE_URL}/api/ops/view-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
 
             const n = (v: any) => parseInt(v) || 0;
             const s = report.summary || {};
-            subject = `UniConnect Weekly Report — ${formatDateRange(weekStart, weekEnd)} | ${n(s.sessions_completed)} Sessions`;
-            textPlain = `Weekly Report for ${formatDateRange(weekStart, weekEnd)}. ${n(s.sessions_completed)} sessions, ${n(s.attended)} students attended.`;
+            subject = `UniConnect Weekly Report — ${periodLabel} | ${n(s.sessions_completed)} Sessions`;
+            textPlain = `Weekly Report for ${periodLabel}. ${n(s.sessions_completed)} sessions, ${n(s.attended)} students attended.`;
 
         } else if (type === 'monthly') {
             const year = body.year;
             const month = body.month;
             if (!year || !month) throw new Error('year and month are required for monthly reports');
 
-            const report = await getOpsMonthlyReport(year, month);
+            report = await getOpsMonthlyReport(year, month);
             const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             const aiSummary = await generateAISummary(report, type, { year, month, monthName });
             html = buildMonthlyEmailHTML(report, aiSummary, monthName, year, month);
+            periodLabel = monthName;
+            reportUrl = `${BASE_URL}/api/ops/view-report?type=monthly&year=${year}&month=${month}`;
 
             const n = (v: any) => parseInt(v) || 0;
             const s = report.summary || {};
@@ -84,11 +92,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             // Daily
             const date = body.date || getISTToday();
             await aggregateAllUniversities(date);
-            const report = await getOpsDailyReport(date);
+            report = await getOpsDailyReport(date);
             const compliance = await getDailyFormComplianceStatus(date);
             const submitted = compliance.filter((c: any) => c.submitted);
             const aiSummary = await generateAISummary(report, 'daily', { date, compliance });
             html = buildDailyEmailHTML(date, report, compliance, aiSummary);
+            periodLabel = formatDate(date);
+            reportUrl = `${BASE_URL}/api/ops/view-report?type=daily&date=${date}`;
 
             subject = `UniConnect Daily Ops Report — ${formatDate(date)} | ${submitted.length}/${compliance.length} Universities`;
             textPlain = `Daily Ops Report for ${date}. ${submitted.length}/${compliance.length} universities submitted.`;
@@ -116,11 +126,62 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             });
         }
 
+        // ── Per-university emails to COs, PMs, and university operators ──
+        try {
+            const univUsers = await db.query(`
+                SELECT u.email, u.name as user_name,
+                       COALESCE(univ.short_name, univ.name) as university_name
+                FROM users u
+                JOIN universities univ ON univ.id = u.university_id
+                WHERE u.is_active = true
+                AND u.university_id IS NOT NULL
+                AND u.role IN ('COS', 'PM', 'PMA', 'UNIVERSITY_OPERATOR', 'BOA', 'CMA_MANAGER')
+                ORDER BY university_name, u.name
+            `);
+
+            // Group recipients by canonical university name
+            const univRecipients: Record<string, { email: string; name: string }[]> = {};
+            for (const row of univUsers.rows) {
+                const key = canonicalUnivName(row.university_name);
+                if (!univRecipients[key]) univRecipients[key] = [];
+                univRecipients[key].push({ email: row.email, name: row.user_name });
+            }
+
+            // Build lookup of report data by university name
+            const reportByUniv: Record<string, any> = {};
+            for (const r of (report.byUniversity || [])) {
+                reportByUniv[r.university_name] = r;
+            }
+
+            let univEmailsQueued = 0;
+            for (const [univName, recipients] of Object.entries(univRecipients)) {
+                const univData = reportByUniv[univName];
+                if (!univData || !recipients.length) continue;
+
+                const univHtml = buildUniversityEmailHTML(type, periodLabel, univName, univData, reportUrl);
+                const univSubject = `UniConnect ${type.charAt(0).toUpperCase() + type.slice(1)} Report — ${univName}`;
+                const univText = `${type} report for ${univName}. Sessions: ${univData.sessions_completed || 0}/${univData.sessions_planned || 0}. Attendance: ${univData.attended || 0}/${univData.enrolled || 0}.`;
+
+                for (const recipient of recipients) {
+                    await queue.add('send-notification', {
+                        to: recipient.email,
+                        subject: univSubject,
+                        html: univHtml,
+                        text: univText
+                    });
+                    univEmailsQueued++;
+                }
+            }
+            console.log(`[OPS-REPORT] Per-university emails queued: ${univEmailsQueued}`);
+        } catch (univErr: any) {
+            console.warn('[OPS-REPORT] Per-university emails failed (non-fatal):', univErr.message);
+        }
+
         await connection.quit();
 
         return json({
             success: true,
-            message: `${type.charAt(0).toUpperCase() + type.slice(1)} report email queued for ${admins.rows.length} admin(s)`,
+            message: `${type.charAt(0).toUpperCase() + type.slice(1)} report email queued for ${admins.rows.length} admin(s) + per-university emails`,
             recipients: admins.rows.map((a: any) => a.email),
             type,
         });
@@ -172,7 +233,7 @@ ${byUniv || 'No data'}
 
 Professional tone. Highlight wins, concerns, 2-3 action items. Plain text paragraphs only.`;
 
-    for (const model of ['gemini-2.5-flash', 'gemini-2.0-flash']) {
+    for (const model of ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash']) {
         try {
             const resp = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -240,6 +301,69 @@ ${content}
 </table>
 </td></tr></table>
 </body></html>`;
+}
+
+// ─── Per-University Email HTML ───────────────────────────────────────
+
+function buildUniversityEmailHTML(type: string, periodLabel: string, univName: string, r: any, reportUrl: string): string {
+    const n = (v: any) => parseInt(v) || 0;
+    const uAtt = n(r.enrolled) > 0 ? Math.round((n(r.attended) / n(r.enrolled)) * 100) : 0;
+    const uSess = n(r.sessions_planned) > 0 ? Math.round((n(r.sessions_completed) / n(r.sessions_planned)) * 100) : 0;
+    const dashUrl = `${BASE_URL}/ops-dashboard`;
+
+    const remarkNote = r.cancellation_reason ? `
+<tr><td style="background:#fff;padding:0 24px 20px">
+    <div style="background:#fffbeb;border-radius:10px;padding:14px 18px;border-left:4px solid #f59e0b">
+        <div style="font-size:11px;font-weight:600;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Notes / Remarks</div>
+        <div style="font-size:13px;color:#78350f">${r.cancellation_reason}</div>
+    </div>
+</td></tr>` : '';
+
+    const content = `
+<tr><td style="background:#fff;padding:24px 24px 12px">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td width="50%" style="padding:0 6px 12px 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#eff6ff;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(uSess,90,70)}">${uSess}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Sessions</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(r.sessions_completed)} of ${n(r.sessions_planned)}</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 12px 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f0fdf4;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:${kpiColor(uAtt,80,60)}">${uAtt}%</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Attendance</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(r.attended)} of ${n(r.enrolled)}</div>
+        </td></tr></table></td>
+    </tr><tr>
+        <td width="50%" style="padding:0 6px 0 0"><table width="100%" cellspacing="0" cellpadding="0" style="background:#fffbeb;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#d97706">${n(r.at_risk_total)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">At-Risk</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(r.at_risk_informed)} informed</div>
+        </td></tr></table></td>
+        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#334155">${n(r.coach_calls)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Coach Calls</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(r.parent_calls)} parent calls</div>
+        </td></tr></table></td>
+    </tr></table>
+</td></tr>
+<tr><td style="background:#fff;padding:4px 24px 20px">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px"><tr>
+        <td style="padding:12px 8px;text-align:center;width:25%"><div style="font-size:18px;font-weight:700;color:#334155">${n(r.sessions_cancelled)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Cancelled</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(r.events_executed)}/${n(r.events_planned)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Events</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#334155">${n(r.instructors_total)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">Instructors</div></td>
+        <td style="padding:12px 8px;text-align:center;width:25%;border-left:1px solid #e2e8f0"><div style="font-size:18px;font-weight:700;color:#ef4444">${n(r.instructors_on_leave)}</div><div style="font-size:10px;color:#64748b;margin-top:2px">On Leave</div></td>
+    </tr></table>
+</td></tr>
+${remarkNote}`;
+
+    return emailShell(
+        'linear-gradient(135deg,#1e3a8a,#2563eb)',
+        `${univName} — ${type.charAt(0).toUpperCase() + type.slice(1)} Report`,
+        periodLabel,
+        content,
+        reportUrl,
+        dashUrl,
+        '#60a5fa'
+    );
 }
 
 // ─── Daily Email HTML ────────────────────────────────────────────────

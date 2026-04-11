@@ -56,7 +56,7 @@ Provide analysis in plain text (no markdown) covering:
 
 Be data-driven and reference specific events and numbers.`;
 
-        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        const modelsToTry = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash'];
         let aiText: string | null = null;
         for (const model of modelsToTry) {
             try {
@@ -109,7 +109,7 @@ Provide a comprehensive weekly analytics summary in plain text (no markdown) cov
 
 Be direct, data-driven, and reference specific names and numbers.`;
 
-        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+        const modelsToTry = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash'];
         let aiText: string | null = null;
         for (const model of modelsToTry) {
             try {
@@ -204,9 +204,9 @@ Provide a detailed executive summary in plain text (no markdown, no bullet symbo
 Be data-driven, reference specific universities and numbers. Be direct and honest about problems. This report will be read by senior management.`;
 
     const modelsToTry = [
-        'gemini-2.5-flash',
         'gemini-2.0-flash',
         'gemini-2.0-flash-lite',
+        'gemini-2.5-flash',
         'gemini-flash-latest',
     ];
     let aiText: string | null = null;
