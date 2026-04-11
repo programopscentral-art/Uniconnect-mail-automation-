@@ -15,6 +15,8 @@ COPY . .
 RUN npx prisma generate
 RUN mkdir -p public
 RUN npm run build
+# Pre-compile seed script to avoid needing ts-node in runner
+RUN npx tsc prisma/seed.ts --outDir dist-seed --esModuleInterop --module esnext --moduleResolution node --target es2020
 
 FROM base AS runner
 WORKDIR /app
@@ -27,12 +29,14 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/dist-seed ./dist-seed
 
-# Also copy the prisma CLI and engines needed for the startup migration/seeding
-COPY --from=builder /app/node_modules ./node_modules
+# Copy only what's needed for the prisma client/CLI
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 EXPOSE 3000
 
-# Run prisma migration + seeding then start the server
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node node_modules/ts-node/dist/bin.js --project tsconfig.json prisma/seed.ts && node server.js"]
+# Run prisma migration + pre-compiled seeding then start the server
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node dist-seed/seed.js && node server.js"]
