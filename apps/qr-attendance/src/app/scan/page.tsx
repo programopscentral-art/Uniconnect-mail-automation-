@@ -98,10 +98,8 @@ export default function ScanPage() {
     if (stored) {
       setDeviceKey(stored);
       setDeviceKeyInput(stored);
-    } else {
-      setDeviceKey('default-scanner');
-      setDeviceKeyInput('default-scanner');
     }
+    // No fallback - unauthorized by default
   }, []);
 
   useEffect(() => {

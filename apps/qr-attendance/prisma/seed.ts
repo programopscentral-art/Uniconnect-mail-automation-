@@ -45,18 +45,7 @@ async function main() {
   });
   console.log('Slot configs updated: MORNING (00:00-12:00), AFTERNOON (12:00-23:59)');
 
-  // Create default device
-  await prisma.device.upsert({
-    where: { deviceKey: 'default-scanner' },
-    update: {},
-    create: {
-      deviceKey: 'default-scanner',
-      label: 'Default Scanner',
-      location: 'Main Entrance',
-      isActive: true
-    }
-  });
-  console.log('Default device created: default-scanner');
+  console.log('Slot configs updated: MORNING (00:00-12:00), AFTERNOON (12:00-23:59)');
 
   // Initialize student ID sequence for 2026
   await prisma.studentIdSequence.upsert({
