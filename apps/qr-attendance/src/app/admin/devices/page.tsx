@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { useEffect, useState } from 'react';
 
 interface Device {
@@ -65,6 +63,16 @@ export default function DevicesPage() {
     }
   }
 
+  async function deleteDevice(id: string) {
+    if (!confirm('Are you sure you want to delete this device? It will no longer be able to submit attendance.')) return;
+
+    const res = await fetch(`/api/admin/devices/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setDevices(prev => prev.filter(d => d.id !== id));
+      setMsg('Device deleted');
+    }
+  }
+
   function copyKey(key: string) {
     navigator.clipboard.writeText(key);
     setCopied(key);
@@ -103,7 +111,7 @@ export default function DevicesPage() {
           </button>
         </div>
         {msg && (
-          <p className={`mt-3 text-sm ${msg.includes('created') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>
+          <p className={`mt-3 text-sm ${msg.includes('created') || msg.includes('deleted') ? 'text-green-400' : 'text-red-400'}`}>{msg}</p>
         )}
       </div>
 
@@ -157,13 +165,21 @@ export default function DevicesPage() {
                   )}
                   <button
                     onClick={() => toggleDevice(device.id, device.isActive)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      device.isActive
-                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                        : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${device.isActive
+                        ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
+                        : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                      }`}
                   >
                     {device.isActive ? 'Disable' : 'Enable'}
+                  </button>
+                  <button
+                    onClick={() => deleteDevice(device.id)}
+                    className="p-1.5 text-gray-500 hover:text-red-500 transition-colors"
+                    title="Delete Device"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>

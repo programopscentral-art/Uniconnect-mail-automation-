@@ -1,10 +1,7 @@
 'use client';
 
-
-
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 
 interface Student {
@@ -97,8 +94,29 @@ export default function StudentDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ studentIds: [id] })
     });
-    router.refresh();
     window.location.reload();
+  }
+
+  async function deleteStudent() {
+    if (!confirm('Are you sure you want to PERMANENTLY delete this student and all their attendance history? This cannot be undone.')) return;
+
+    const res = await fetch(`/api/admin/students/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      router.push('/admin/students');
+    } else {
+      const data = await res.json();
+      setMsg(data.error ?? 'Delete failed');
+    }
+  }
+
+  async function deleteAttendance(recordId: string) {
+    if (!confirm('Delete this attendance record?')) return;
+
+    const res = await fetch(`/api/admin/attendance/${recordId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setAttendance(attendance.filter(a => a.id !== recordId));
+      setMsg('Record deleted');
+    }
   }
 
   if (loading) {
@@ -154,19 +172,24 @@ export default function StudentDetailPage() {
         <div className="flex gap-2">
           <button
             onClick={toggleActive}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              student.isActive
-                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-            }`}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${student.isActive
+                ? 'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
+                : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+              }`}
           >
             {student.isActive ? 'Deactivate' : 'Reactivate'}
+          </button>
+          <button
+            onClick={deleteStudent}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+          >
+            Delete Student
           </button>
         </div>
       </div>
 
       {msg && (
-        <div className={`px-4 py-3 rounded-lg text-sm ${msg.includes('success') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+        <div className={`px-4 py-3 rounded-lg text-sm ${msg.includes('success') || msg.includes('deleted') ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
           {msg}
         </div>
       )}
@@ -282,6 +305,7 @@ export default function StudentDetailPage() {
                   <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Slot</th>
                   <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Time</th>
                   <th className="text-left text-xs font-medium text-gray-400 px-5 py-3">Device</th>
+                  <th className="text-right text-xs font-medium text-gray-400 px-5 py-3">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
@@ -289,14 +313,24 @@ export default function StudentDetailPage() {
                   <tr key={a.id} className="hover:bg-gray-800/50">
                     <td className="px-5 py-3 text-white">{new Date(a.attendanceDate).toLocaleDateString('en-IN')}</td>
                     <td className="px-5 py-3">
-                      <span className={`inline-flex text-xs px-2 py-0.5 rounded font-medium ${
-                        a.slot === 'MORNING' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'
-                      }`}>{a.slot}</span>
+                      <span className={`inline-flex text-xs px-2 py-0.5 rounded font-medium ${a.slot === 'MORNING' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'
+                        }`}>{a.slot}</span>
                     </td>
                     <td className="px-5 py-3 text-gray-400">
                       {new Date(a.scannedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </td>
                     <td className="px-5 py-3 text-gray-500 font-mono text-xs">{a.deviceKey ?? '—'}</td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        onClick={() => deleteAttendance(a.id)}
+                        className="text-gray-500 hover:text-red-400 transition-colors p-1"
+                        title="Delete record"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

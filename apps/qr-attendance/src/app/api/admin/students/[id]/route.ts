@@ -65,10 +65,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const student = await prisma.student.update({
-    where: { id: params.id },
-    data: { isActive: false }
-  });
+  try {
+    // Hard delete: must use a transaction to delete related records first
+    await prisma.$transaction([
+      prisma.scanLog.deleteMany({ where: { studentId: params.id } }),
+      prisma.attendance.deleteMany({ where: { studentId: params.id } }),
+      prisma.student.delete({ where: { id: params.id } })
+    ]);
 
-  return NextResponse.json({ student });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Delete failed:', err);
+    return NextResponse.json({ error: 'Failed to delete student and their records' }, { status: 500 });
+  }
 }
