@@ -305,21 +305,20 @@ function generateReportHTML(report: any, type: string, aiSummary = '', univFilte
         const totalClicks = teamActivity.reduce((s: number, r: any) => s + n(r.clicks_shares_sent), 0);
         const avgInstrHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_instructors), 0) / teamActivity.length).toFixed(1) : '0';
         const avgCoachHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_coaches), 0) / teamActivity.length).toFixed(1) : '0';
-        const avgOpsHrs = teamActivity.length > 0 ? (teamActivity.reduce((s: number, r: any) => s + f(r.avg_hours_program_ops), 0) / teamActivity.length).toFixed(1) : '0';
 
         teamSection = `
         <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Staff Activity &amp; Productivity</h2>
-        <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Number of active staff members and their work output per university.</p>
+        <p style="color:#64748b;font-size:12px;margin:8px 0 16px">Active staff counts and work output per university. Tasks counted from the UniConnect system (completed by 6:30 PM IST). Program Ops Staff = COs, PMs, and ops managers.</p>
         <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-top:16px">
             <div class="kpi"><div class="label">Instructors</div><div class="value blue">${totalInstructorsActive}</div><div class="sub">Avg ${avgInstrHrs}h/day</div></div>
             <div class="kpi"><div class="label">Coaches (CMAs)</div><div class="value purple">${totalCoachesActive}</div><div class="sub">Avg ${avgCoachHrs}h/day</div></div>
-            <div class="kpi"><div class="label">Program Ops</div><div class="value" style="color:#0891b2">${totalOpsActive}</div><div class="sub">Avg ${avgOpsHrs}h/day</div></div>
+            <div class="kpi"><div class="label">Program Ops Staff</div><div class="value" style="color:#0891b2">${totalOpsActive}</div><div class="sub">COs, PMs &amp; Ops Managers</div></div>
         </div>
         <div class="table-wrap"><table>
             <thead><tr>
                 <th style="text-align:left">University</th>
-                <th>Instructors</th><th>Coaches</th><th>Prog. Ops</th>
-                <th>Outreach Calls</th><th>Tasks Done</th><th>Clicks/Shares</th>
+                <th>Instructors</th><th>Coaches</th><th>Program Ops Staff</th>
+                <th>Outreach Calls</th><th>Tasks Done (till 6:30 PM)</th><th>Clicks/Shares</th>
                 <th>Instr. Hrs</th><th>Coach Hrs</th><th>Ops Hrs</th>
             </tr></thead><tbody>` +
         teamActivity.filter((r: any) => n(r.instructors_active) + n(r.coaches_active) + n(r.program_ops_active) > 0).map((r: any) => `<tr>

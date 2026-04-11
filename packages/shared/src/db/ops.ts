@@ -608,6 +608,37 @@ export async function getOpsTeamActivity(date: string, universityName?: string) 
         filter = ' AND cn.canonical_name = $2';
         params.push(universityName);
     }
+
+    // Fetch task counts directly from the tasks table (completed by 6:30 PM IST = 13:00 UTC)
+    // This gives live task data regardless of whether the CSV sheet was filled
+    const taskParams: any[] = [date];
+    let taskFilter = '';
+    if (universityName) {
+        taskFilter = ` AND COALESCE(u.short_name, u.name) = $2`;
+        taskParams.push(universityName);
+    }
+    const taskRes = await db.query(
+        `SELECT
+            COALESCE(u.short_name, u.name) as university_name,
+            COUNT(DISTINCT t.id) FILTER (
+                WHERE ta.status = 'COMPLETED'
+                AND (ta.completed_at AT TIME ZONE 'Asia/Kolkata')::date = $1::date
+                AND (ta.completed_at AT TIME ZONE 'Asia/Kolkata')::time <= '18:30:00'
+            )::int as tasks_done_by_630
+        FROM tasks t
+        JOIN task_assignees ta ON t.id = ta.task_id
+        JOIN universities u ON t.university_id = u.id
+        WHERE u.is_team = false${taskFilter}
+        GROUP BY COALESCE(u.short_name, u.name)`,
+        taskParams
+    ).catch(() => ({ rows: [] as any[] })); // non-fatal if schema differs
+
+    // Build a lookup map: canonical university name → tasks done by 6:30 PM
+    const tasksByUniv: Record<string, number> = {};
+    for (const row of taskRes.rows) {
+        tasksByUniv[row.university_name] = parseInt(row.tasks_done_by_630) || 0;
+    }
+
     const res = await db.query(
         `WITH ${UNIV_RESOLVE_CTE}
         SELECT cn.canonical_name as university_name,
@@ -627,7 +658,13 @@ export async function getOpsTeamActivity(date: string, universityName?: string) 
         ORDER BY cn.canonical_name`,
         params
     );
-    return applyCanonicalNames(res.rows);
+
+    // Merge live task counts into the result — prefer live DB count over sheet value
+    const rows = applyCanonicalNames(res.rows).map((r: any) => ({
+        ...r,
+        tickets_resolved: tasksByUniv[r.university_name] ?? (parseInt(r.tickets_resolved) || 0),
+    }));
+    return rows;
 }
 
 // ─── Instructor Daily Activity ───────────────────────────────────────
