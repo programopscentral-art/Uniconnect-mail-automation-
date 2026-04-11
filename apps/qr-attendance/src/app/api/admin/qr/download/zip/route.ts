@@ -19,8 +19,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No students with QR codes found' }, { status: 404 });
   }
 
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+  // FORCE DYNAMIC DISCOVERY
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
   const baseUrl = `${protocol}://${host}`;
 
   const zip = new JSZip();
@@ -30,8 +31,8 @@ export async function GET(request: NextRequest) {
     students.map(async (student) => {
       if (!student.qrToken) return;
       try {
-        const qrUrl = `${baseUrl}/scan?token=${student.qrToken}`;
-        const buffer = await generateQRBuffer(qrUrl);
+        const qrContent = `${baseUrl}/scan?token=${student.qrToken}`;
+        const buffer = await generateQRBuffer(qrContent);
         const safeName = student.name.replace(/[^a-z0-9_\-]/gi, '_');
         const dept = student.department ? `${student.department.replace(/[^a-z0-9_\-]/gi, '_')}/` : '';
         zip.file(`${dept}${student.studentId}_${safeName}.png`, buffer);

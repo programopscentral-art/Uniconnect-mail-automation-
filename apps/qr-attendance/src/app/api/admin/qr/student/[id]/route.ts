@@ -14,17 +14,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     select: { qrToken: true, studentId: true, name: true }
   });
 
-  if (!student) {
-    return NextResponse.json({ error: 'Student not found' }, { status: 404 });
+  if (!student || !student.qrToken) {
+    return NextResponse.json({ error: 'Student or Token not found' }, { status: 404 });
   }
 
-  if (!student.qrToken) {
-    return NextResponse.json({ error: 'QR not generated for this student' }, { status: 404 });
-  }
+  // FORCE DYNAMIC DISCOVERY: 
+  // We prioritize x-forwarded-host (Railway/Proxy) over the raw host header
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
+  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
 
-  // Generate dynamic QR content that points to the scan page
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+  // Create absolute URL for the scan page
   const baseUrl = `${protocol}://${host}`;
   const qrData = `${baseUrl}/scan?token=${student.qrToken}`;
 
@@ -34,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `inline; filename="qr_${student.studentId}.png"`,
-      'Cache-Control': 'private, max-age=3600'
+      'X-QR-URL': qrData // For debugging
     }
   });
 }
