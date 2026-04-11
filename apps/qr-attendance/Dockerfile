@@ -28,12 +28,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist-seed ./dist-seed
 
-# Copy prisma CLI and engines for migrations
+# Copy specific modules needed for DB operations
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 EXPOSE 3000
 
-# Optimized startup: Run migrations in background or before server starts
-# We use a script to ensure the server starts even if migrations take a moment
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node dist-seed/seed.js && node server.js"]
+# Use direct path to prisma build to avoid "not found" errors
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --accept-data-loss && node dist-seed/seed.js && node server.js"]
