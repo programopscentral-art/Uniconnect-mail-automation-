@@ -19,6 +19,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No students with QR codes found' }, { status: 404 });
   }
 
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+  const baseUrl = `${protocol}://${host}`;
+
   const zip = new JSZip();
 
   // Generate QR for each student
@@ -26,7 +30,8 @@ export async function GET(request: NextRequest) {
     students.map(async (student) => {
       if (!student.qrToken) return;
       try {
-        const buffer = await generateQRBuffer(student.qrToken);
+        const qrUrl = `${baseUrl}/scan?token=${student.qrToken}`;
+        const buffer = await generateQRBuffer(qrUrl);
         const safeName = student.name.replace(/[^a-z0-9_\-]/gi, '_');
         const dept = student.department ? `${student.department.replace(/[^a-z0-9_\-]/gi, '_')}/` : '';
         zip.file(`${dept}${student.studentId}_${safeName}.png`, buffer);
@@ -38,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   const zipBuffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 
-  return new NextResponse(zipBuffer, {
+  return new Response(zipBuffer, {
     headers: {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="qr_codes_${new Date().toISOString().split('T')[0]}.zip"`,
