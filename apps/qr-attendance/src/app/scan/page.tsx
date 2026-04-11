@@ -22,13 +22,13 @@ interface SlotStatus {
 }
 
 const RESULT_CONFIG: Record<ScanResult, { bg: string; border: string; text: string; label: string }> = {
-  ACCEPTED: { bg: 'bg-green-500/20', border: 'border-green-500', text: 'text-green-300', label: 'PRESENT' },
-  DUPLICATE: { bg: 'bg-yellow-500/20', border: 'border-yellow-500', text: 'text-yellow-300', label: 'ALREADY MARKED' },
-  INVALID_QR: { bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-300', label: 'INVALID QR' },
-  UNKNOWN_STUDENT: { bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-300', label: 'UNKNOWN' },
-  OUTSIDE_SLOT: { bg: 'bg-orange-500/20', border: 'border-orange-500', text: 'text-orange-300', label: 'OUTSIDE SLOT' },
-  INACTIVE_STUDENT: { bg: 'bg-gray-600/40', border: 'border-gray-500', text: 'text-gray-300', label: 'INACTIVE' },
-  ERROR: { bg: 'bg-red-500/20', border: 'border-red-500', text: 'text-red-300', label: 'ERROR' }
+  ACCEPTED: { bg: 'bg-green-500/90', border: 'border-green-400', text: 'text-white', label: 'PRESENT' },
+  DUPLICATE: { bg: 'bg-yellow-500/90', border: 'border-yellow-400', text: 'text-white', label: 'ALREADY MARKED' },
+  INVALID_QR: { bg: 'bg-red-500/90', border: 'border-red-400', text: 'text-white', label: 'INVALID QR' },
+  UNKNOWN_STUDENT: { bg: 'bg-red-500/90', border: 'border-red-400', text: 'text-white', label: 'UNKNOWN' },
+  OUTSIDE_SLOT: { bg: 'bg-orange-500/90', border: 'border-orange-400', text: 'text-white', label: 'OUTSIDE SLOT' },
+  INACTIVE_STUDENT: { bg: 'bg-gray-600/90', border: 'border-gray-400', text: 'text-white', label: 'INACTIVE' },
+  ERROR: { bg: 'bg-red-500/90', border: 'border-red-400', text: 'text-white', label: 'ERROR' }
 };
 
 export default function ScanPage() {
@@ -43,6 +43,7 @@ export default function ScanPage() {
   const [processing, setProcessing] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(false);
 
   const scannerRef = useRef<any>(null);
   const processingRef = useRef(false);
@@ -74,13 +75,15 @@ export default function ScanPage() {
       setLastResult(res.ok ? data : { result: 'ERROR', message: data.error ?? 'Server error' });
       setShowResult(true);
 
+      // Play sound if possible (optional future enhancement)
+
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
       resetTimerRef.current = setTimeout(() => {
         setShowResult(false);
         setLastResult(null);
         processingRef.current = false;
         setProcessing(false);
-      }, 2500);
+      }, 2000); // 2 second pause before next scan
     } catch {
       setLastResult({ result: 'ERROR', message: 'Network error. Check connection.' });
       setShowResult(true);
@@ -89,7 +92,7 @@ export default function ScanPage() {
         setLastResult(null);
         processingRef.current = false;
         setProcessing(false);
-      }, 2500);
+      }, 2000);
     }
   }, [deviceKey]);
 
@@ -99,7 +102,6 @@ export default function ScanPage() {
       setDeviceKey(stored);
       setDeviceKeyInput(stored);
     }
-    // No fallback - unauthorized by default
   }, []);
 
   useEffect(() => {
@@ -139,59 +141,53 @@ export default function ScanPage() {
   const startScanner = async () => {
     if (!deviceKey) return setShowSettings(true);
     setCameraError(null);
+    setInitializing(true);
 
     try {
-      const { Html5QrcodeScanner } = await import('html5-qrcode');
+      const { Html5Qrcode } = await import('html5-qrcode');
 
+      // Clear existing
       if (scannerRef.current) {
-        await scannerRef.current.clear();
+        try { await scannerRef.current.stop(); } catch (e) { }
       }
 
-      const s = new Html5QrcodeScanner(
-        'qr-reader',
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-          showTorchButtonIfSupported: true
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      scannerRef.current = html5QrCode;
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+      };
+
+      // Use 'back' camera by default
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          if (!processingRef.current) {
+            processQR(decodedText);
+          }
         },
-        false
+        (errorMessage) => { /* ignore normal noise */ }
       );
 
-      s.render((text) => processQR(text), (err) => { });
-      scannerRef.current = s;
       setCameraActive(true);
-    } catch (err) {
-      setCameraError('Could not access camera. Please check permissions.');
+    } catch (err: any) {
+      console.error(err);
+      setCameraError(err?.message || 'Camera access denied or not found.');
+    } finally {
+      setInitializing(false);
     }
   };
 
-  // Auto-start scanner on mount
   useEffect(() => {
-    if (deviceKey) {
-      startScanner();
-    }
-  }, [deviceKey]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
-
-      if (e.key === 'Enter') {
-        const buf = hidBufferRef.current.trim();
-        if (buf.length >= 8) processQR(buf);
-        hidBufferRef.current = '';
-        if (hidTimerRef.current) clearTimeout(hidTimerRef.current);
-      } else if (e.key.length === 1) {
-        hidBufferRef.current += e.key;
-        if (hidTimerRef.current) clearTimeout(hidTimerRef.current);
-        hidTimerRef.current = setTimeout(() => { hidBufferRef.current = ''; }, 200);
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => { });
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [processQR]);
+  }, []);
 
   const saveDeviceKey = () => {
     const key = deviceKeyInput.trim();
@@ -204,169 +200,139 @@ export default function ScanPage() {
   const cfg = lastResult ? RESULT_CONFIG[lastResult.result] : null;
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col text-gray-100 font-sans">
-      <div className="bg-gray-900/50 backdrop-blur-md border-b border-gray-800 px-4 py-3 sticky top-0 z-30 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex flex-col">
-            <p className="text-white font-black text-xl leading-none">{currentTime}</p>
-            <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+    <div className="min-h-screen bg-black flex flex-col text-white font-sans overflow-hidden">
+      {/* Dynamic Header */}
+      <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 px-4 py-4 flex items-center justify-between z-40">
+        <div className="flex flex-col">
+          <p className="font-black text-2xl tracking-tighter leading-none">{currentTime}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`w-2 h-2 rounded-full ${slotStatus?.activeSlot ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              {slotStatus?.activeSlot ? slotStatus.activeSlot.slot : 'System Closed'}
+            </p>
           </div>
-          <div className="h-8 w-px bg-gray-800" />
-          {slotStatus?.activeSlot ? (
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-              <div>
-                <p className="text-green-400 font-black text-xs uppercase tracking-tight">{slotStatus.activeSlot.slot}</p>
-                <p className="text-gray-500 text-[10px] font-medium">{slotStatus.activeSlot.startTime}–{slotStatus.activeSlot.endTime}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-gray-600">
-              <span className="w-2 h-2 bg-gray-700 rounded-full" />
-              <p className="text-[10px] uppercase font-bold tracking-tight">System Offline</p>
-            </div>
-          )}
         </div>
-
-        <div className="flex items-center gap-2">
-          {slotStatus && (
-            <div className="hidden sm:flex items-center gap-3 mr-4">
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] text-gray-500 font-bold uppercase">Morning</span>
-                <span className="text-sm text-blue-400 font-black">{slotStatus.morningCount}</span>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] text-gray-500 font-bold uppercase">Afternoon</span>
-                <span className="text-sm text-orange-400 font-black">{slotStatus.afternoonCount}</span>
-              </div>
-            </div>
-          )}
-          <button onClick={() => setShowSettings(true)} className="p-2.5 text-gray-400 hover:text-white transition-all bg-gray-800/50 hover:bg-gray-800 rounded-xl border border-gray-700/50">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-        </div>
+        <button onClick={() => setShowSettings(true)} className="p-3 bg-white/5 rounded-2xl border border-white/10 active:scale-90 transition-all">
+          <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+        </button>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8 overflow-hidden relative">
+      <div className="flex-1 relative flex flex-col items-center justify-center p-6">
+        {/* Results Overlay - Full Screen Style */}
         {showResult && lastResult && cfg && (
-          <div className={`fixed inset-0 z-50 flex items-center justify-center p-6 ${cfg.bg} backdrop-blur-md animate-in fade-in duration-300`}>
-            <div className={`text-center max-w-sm w-full border-4 ${cfg.border} rounded-[3rem] p-10 bg-gray-950 shadow-[0_0_50px_rgba(0,0,0,0.5)] scale-100 animate-in zoom-in-90 duration-300`}>
-              <p className={`text-5xl font-black ${cfg.text} mb-3 tracking-tighter`}>{cfg.label}</p>
+          <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 ${cfg.bg} backdrop-blur-2xl animate-in fade-in zoom-in duration-200`}>
+            <div className={`w-full max-w-sm border-4 ${cfg.border} rounded-[3rem] p-10 bg-black/40 text-center shadow-2xl`}>
+              <p className={`text-6xl font-black mb-4 ${cfg.text}`}>{cfg.label}</p>
               {lastResult.student ? (
                 <>
-                  <p className="text-white text-3xl font-black mb-1">{lastResult.student.name}</p>
-                  <p className="text-gray-500 text-lg font-mono tracking-widest">{lastResult.student.studentId}</p>
-                  {lastResult.result === 'ACCEPTED' && (
-                    <div className="mt-6 w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+                  <p className="text-4xl font-black text-white leading-tight">{lastResult.student.name}</p>
+                  <p className="text-xl font-mono text-white/60 mt-2 tracking-widest">{lastResult.student.studentId}</p>
+                  <div className="mt-8 flex justify-center">
+                    <div className="w-20 h-20 rounded-full border-4 border-white/20 flex items-center justify-center">
                       <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={4} d="M5 13l4 4L19 7" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={5} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                  )}
+                  </div>
                 </>
               ) : (
-                <p className={`${cfg.text} text-lg mt-2 font-bold`}>{lastResult.message}</p>
+                <p className="text-2xl font-bold">{lastResult.message}</p>
               )}
             </div>
+            <p className="mt-8 text-white/50 font-bold uppercase tracking-widest animate-pulse">Ready for next scan...</p>
           </div>
         )}
 
-        <div className="w-full max-w-sm">
+        {/* Scanner Area */}
+        <div className="w-full max-w-sm aspect-square relative mb-12">
           {!cameraActive ? (
-            <div className="aspect-square w-full bg-gray-900/50 rounded-[2.5rem] border-2 border-dashed border-gray-800 flex flex-col items-center justify-center gap-4 text-center p-8 active:border-indigo-500 transition-all cursor-pointer" onClick={startScanner}>
-              <div className="w-20 h-20 bg-indigo-500/10 text-indigo-500 rounded-3xl flex items-center justify-center shadow-lg border border-indigo-500/20">
-                <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-white font-black text-lg">Camera Is Off</p>
-                <p className="text-gray-500 text-sm mt-1">Tap to turn on camera & start scanning</p>
-              </div>
-              <button className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-2xl font-black text-sm shadow-xl shadow-indigo-600/20 transition-all active:scale-95">
-                TAP TO OPEN SCANNER
-              </button>
+            <div
+              onClick={startScanner}
+              className="absolute inset-0 bg-gray-900/50 rounded-[3rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-8 cursor-pointer active:scale-95 transition-all"
+            >
+              {initializing ? (
+                <div className="animate-spin w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full" />
+              ) : (
+                <>
+                  <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-indigo-600/40 mb-6">
+                    <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-xl font-black text-white">Start Local Scanner</p>
+                  <p className="text-gray-500 text-sm mt-2 font-medium">Click to bypass browser permissions</p>
+                </>
+              )}
             </div>
           ) : (
-            <div className="relative group overflow-hidden rounded-[2.5rem] border-2 border-indigo-500/30 shadow-[0_0_30px_rgba(99,102,241,0.1)]">
-              <div id="qr-reader" className="w-full overflow-hidden" />
-              <div className="absolute inset-0 pointer-events-none border-2 border-indigo-500/20 m-6 rounded-3xl" />
+            <div className="w-full h-full relative rounded-[3.5rem] overflow-hidden border-4 border-white/10 shadow-[0_0_50px_rgba(255,255,255,0.05)]">
+              <div id="qr-reader" className="w-full h-full bg-black" />
+              <div className="absolute inset-0 border-[40px] border-black/40 pointer-events-none">
+                <div className="w-full h-full border-2 border-indigo-500/50 rounded-3xl" />
+              </div>
             </div>
           )}
-          {cameraError && <p className="text-red-400 text-center text-xs mt-4 font-bold uppercase tracking-wider">{cameraError}</p>}
+          {cameraError && (
+            <div className="absolute -bottom-16 left-0 right-0 text-center">
+              <p className="text-red-500 font-black text-xs uppercase tracking-tighter bg-red-500/10 py-2 rounded-xl border border-red-500/20 px-4">
+                {cameraError}
+              </p>
+              <p className="text-gray-500 text-[10px] mt-2 px-6">Check browser settings and allow camera access for this URL</p>
+            </div>
+          )}
         </div>
 
-        <div className="w-full max-w-sm space-y-4">
+        {/* Manual Fallback */}
+        <div className="w-full max-w-sm mt-8">
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (manualInput.trim()) {
-                processQR(manualInput.trim());
-                setManualInput('');
-              }
-            }}
-            className="group flex flex-col gap-3"
+            onSubmit={(e) => { e.preventDefault(); processQR(manualInput); setManualInput(''); }}
+            className="relative"
           >
-            <div className="relative">
-              <input
-                value={manualInput}
-                onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Enter ID Manually..."
-                className="w-full bg-gray-900/80 border border-gray-800 rounded-2xl px-5 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-base font-bold transition-all shadow-inner"
-              />
-              <button
-                type="submit"
-                disabled={processing}
-                className="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 rounded-xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
-              >
-                {processing ? '...' : 'SUBMIT'}
-              </button>
-            </div>
+            <input
+              value={manualInput}
+              onChange={(e) => setManualInput(e.target.value)}
+              placeholder="Enter ID or Use USB..."
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
+            />
+            <button className="absolute right-2 top-2 bottom-2 bg-white text-black px-6 rounded-xl font-black text-xs uppercase tracking-widest active:scale-90 transition-all">
+              Submit
+            </button>
           </form>
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1 bg-gray-900/50 rounded-lg border border-gray-800/50">
-              <span className="text-[9px] text-gray-600 uppercase font-black tracking-widest">Authorized As:</span>
-              <span className="text-[10px] font-mono text-indigo-400 font-bold">{deviceKey || 'UNLINKED'}</span>
-            </div>
-            {!cameraActive && (
-              <p className="text-[10px] text-gray-700 font-medium">Automatic scanner detection is active</p>
-            )}
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Linked As:</span>
+            <span className="text-[10px] font-mono text-indigo-400 font-bold bg-indigo-400/10 px-2 py-0.5 rounded border border-indigo-400/20">
+              {deviceKey ? deviceKey.slice(0, 8) + '...' : 'NONE'}
+            </span>
           </div>
         </div>
       </div>
 
+      {/* Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="bg-gray-950 border border-gray-800 rounded-[2.5rem] p-8 w-full max-w-sm shadow-[0_0_50px_rgba(0,0,0,0.8)] scale-100 animate-in zoom-in-95 duration-300">
-            <h2 className="text-white font-black text-2xl mb-1">Configuration</h2>
-            <p className="text-gray-500 text-xs mb-8 font-medium">Link this hardware to your admin panel</p>
+        <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl">
+            <h2 className="text-3xl font-black mb-1">Configuration</h2>
+            <p className="text-gray-500 text-sm mb-8">Set your device authorization key</p>
 
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div>
-                <label className="block text-[10px] font-black text-gray-500 mb-2 uppercase tracking-[0.2em]">Secret Device Key</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Device Key</label>
                 <input
                   value={deviceKeyInput}
                   onChange={(e) => setDeviceKeyInput(e.target.value)}
-                  placeholder="Paste key here..."
-                  className="w-full bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                  className="w-full bg-black border border-white/10 rounded-2xl py-4 px-5 font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="xxxx-xxxx-xxxx"
                 />
               </div>
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={saveDeviceKey}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-black text-sm transition-all active:scale-95 shadow-lg shadow-indigo-600/30"
-                >
-                  SAVE & CONNECT
+                <button onClick={saveDeviceKey} className="w-full bg-white text-black py-5 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl hover:bg-gray-200 active:scale-95 transition-all">
+                  Save Config
                 </button>
-                <button
-                  onClick={() => setShowSettings(false)}
-                  className="w-full bg-transparent border border-gray-800 hover:border-gray-700 text-gray-500 py-4 rounded-2xl font-black text-xs transition-all tracking-widest"
-                >
-                  CLOSE
+                <button onClick={() => setShowSettings(false)} className="w-full bg-transparent text-gray-500 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">
+                  Close
                 </button>
               </div>
             </div>
