@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model StudentIdSequence {
+  year    Int @id
+  lastSeq Int @default(0) @map("last_seq")
+  @@map("student_id_sequences")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  role         String   @default("STAFF")
+  passwordHash String   @map("password_hash")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  @@map("users")
+}
+
+model Device {
+  id        String    @id @default(uuid())
+  deviceKey String    @unique @map("device_key")
+  label     String?
+  location  String?
+  isActive  Boolean   @default(true) @map("is_active")
+  lastSeen  DateTime? @map("last_seen")
+  createdAt DateTime  @default(now()) @map("created_at")
+  @@map("devices")
+}
+
+model SlotConfig {
+  id        String  @id @default(uuid())
+  slot      String  @unique
+  startTime String  @map("start_time")
+  endTime   String  @map("end_time")
+  isActive  Boolean @default(true) @map("is_active")
+  @@map("slot_configs")
+}
+
+model Student {
+  id            String       @id @default(uuid())
+  studentId     String       @unique @map("student_id")
+  name          String
+  email         String?
+  phone         String?
+  department    String?
+  batch         String?
+  section       String?
+  qrToken       String?      @unique @map("qr_token")
+  qrGeneratedAt DateTime?    @map("qr_generated_at")
+  isActive      Boolean      @default(true) @map("is_active")
+  metadata      Json         @default("{}")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  attendance    Attendance[]
+  scanLogs      ScanLog[]
+  @@map("students")
+}
+
+model Attendance {
+  id             String   @id @default(uuid())
+  studentId      String   @map("student_id")
+  student        Student  @relation(fields: [studentId], references: [id])
+  attendanceDate DateTime @map("attendance_date") @db.Date
+  slot           String
+  status         String   @default("PRESENT")
+  scannedAt      DateTime @default(now()) @map("scanned_at")
+  deviceKey      String?  @map("device_key")
+  operatorId     String?  @map("operator_id")
+  @@unique([studentId, attendanceDate, slot], name: "unique_attendance")
+  @@index([attendanceDate])
+  @@index([studentId])
+  @@map("attendance")
+}
+
+model ScanLog {
+  id             String    @id @default(uuid())
+  scannedAt      DateTime  @default(now()) @map("scanned_at")
+  qrPayload      String    @map("qr_payload")
+  studentId      String?   @map("student_id")
+  student        Student?  @relation(fields: [studentId], references: [id])
+  result         String
+  slot           String?
+  attendanceDate DateTime? @map("attendance_date") @db.Date
+  deviceKey      String?   @map("device_key")
+  ipAddress      String?   @map("ip_address")
+  firstScanAt    DateTime? @map("first_scan_at")
+  @@index([scannedAt(sort: Desc)])
+  @@map("scan_logs")
+}
+
+model UploadBatch {
+  id         String   @id @default(uuid())
+  filename   String
+  uploadedBy String?  @map("uploaded_by")
+  totalRows  Int?     @map("total_rows")
+  inserted   Int?
+  skipped    Int?
+  errors     Json     @default("[]")
+  status     String   @default("DONE")
+  createdAt  DateTime @default(now()) @map("created_at")
+  @@map("upload_batches")
+}
