@@ -72,8 +72,8 @@ async function main() {
   // Create a test student with a known QR token
   const testToken = '1234567890abcdef1234567890abcdef';
   await prisma.student.upsert({
-    where: { qrToken: testToken },
-    update: { isActive: true },
+    where: { studentId: 'B2026TEST' },
+    update: { isActive: true, qrToken: testToken },
     create: {
       studentId: 'B2026TEST',
       name: 'Test Student',
