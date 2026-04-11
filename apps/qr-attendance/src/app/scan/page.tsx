@@ -1,7 +1,5 @@
 'use client';
 
-
-
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 type ScanResult = 'ACCEPTED' | 'DUPLICATE' | 'INVALID_QR' | 'UNKNOWN_STUDENT' | 'OUTSIDE_SLOT' | 'INACTIVE_STUDENT' | 'ERROR';
@@ -44,54 +42,16 @@ export default function ScanPage() {
   const [manualInput, setManualInput] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  const scannerRef = useRef<{ clear: () => Promise<void> } | null>(null);
+  const scannerRef = useRef<any>(null);
   const processingRef = useRef(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hidBufferRef = useRef('');
   const hidTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load device key from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem('qr_device_key');
-    if (stored) {
-      setDeviceKey(stored);
-      setDeviceKeyInput(stored);
-    } else {
-      setDeviceKey('default-scanner');
-      setDeviceKeyInput('default-scanner');
-    }
-  }, []);
-
-  // Clock
-  useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
-    };
-    update();
-    const t = setInterval(update, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Fetch slot status
-  const fetchSlotStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/scan/status');
-      const data = await res.json();
-      setSlotStatus(data);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchSlotStatus();
-    const t = setInterval(fetchSlotStatus, 30000);
-    return () => clearInterval(t);
-  }, [fetchSlotStatus]);
-
   const processQR = useCallback(async (payload: string) => {
     if (processingRef.current || !payload.trim()) return;
     if (!deviceKey) {
-      alert('Please set a device key in settings first.');
+      setShowSettings(true);
       return;
     }
 
@@ -127,12 +87,62 @@ export default function ScanPage() {
     }
   }, [deviceKey]);
 
+  // Load device key from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('qr_device_key');
+    if (stored) {
+      setDeviceKey(stored);
+      setDeviceKeyInput(stored);
+    } else {
+      setDeviceKey('default-scanner');
+      setDeviceKeyInput('default-scanner');
+    }
+  }, []);
+
+  // Auto-scan if token is in URL (e.g. from phone camera scan redirected to here)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token && deviceKey && !processingRef.current) {
+      processQR(token);
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [deviceKey, processQR]);
+
+  // Clock
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Fetch slot status
+  const fetchSlotStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/scan/status');
+      const data = await res.json();
+      setSlotStatus(data);
+    } catch { }
+  }, []);
+
+  useEffect(() => {
+    fetchSlotStatus();
+    const t = setInterval(fetchSlotStatus, 30000);
+    return () => clearInterval(t);
+  }, [fetchSlotStatus]);
+
   // Camera scanner
   useEffect(() => {
     if (!deviceKey) return;
 
     let mounted = true;
-    let scanner: { clear: () => Promise<void> } | null = null;
+    let scanner: any = null;
 
     import('html5-qrcode').then(({ Html5QrcodeScanner }) => {
       if (!mounted) return;
@@ -143,17 +153,13 @@ export default function ScanPage() {
         }
       };
 
-      const onScanError = () => {
-        // Ignore scan errors (camera scanning continuously)
-      };
-
       try {
         const s = new Html5QrcodeScanner(
           'qr-reader',
           { fps: 15, qrbox: { width: 280, height: 280 }, rememberLastUsedCamera: true },
           false
         );
-        s.render(onScanSuccess, onScanError);
+        s.render(onScanSuccess, () => { });
         scanner = s;
         scannerRef.current = s;
       } catch (err) {
@@ -166,7 +172,7 @@ export default function ScanPage() {
     return () => {
       mounted = false;
       if (scanner) {
-        scanner.clear().catch(() => {});
+        scanner.clear().catch(() => { });
       }
     };
   }, [deviceKey, processQR]);
@@ -174,7 +180,6 @@ export default function ScanPage() {
   // USB HID keyboard scanner handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is typing in an input
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
@@ -198,18 +203,18 @@ export default function ScanPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [processQR]);
 
-  function saveDeviceKey() {
+  const saveDeviceKey = () => {
     const key = deviceKeyInput.trim();
     if (!key) return;
     setDeviceKey(key);
     localStorage.setItem('qr_device_key', key);
     setShowSettings(false);
-  }
+  };
 
   const cfg = lastResult ? RESULT_CONFIG[lastResult.result] : null;
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-gray-950 flex flex-col text-gray-100">
       {/* Header */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -236,8 +241,8 @@ export default function ScanPage() {
             <>
               <div className="h-8 w-px bg-gray-800 hidden sm:block" />
               <div className="hidden sm:flex items-center gap-3 text-sm">
-                <span className="text-blue-400">AM: {slotStatus.morningCount}</span>
-                <span className="text-orange-400">PM: {slotStatus.afternoonCount}</span>
+                <span className="text-blue-400 font-medium">AM: {slotStatus.morningCount}</span>
+                <span className="text-orange-400 font-medium">PM: {slotStatus.afternoonCount}</span>
               </div>
             </>
           )}
@@ -254,37 +259,40 @@ export default function ScanPage() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 relative">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 gap-6 relative overflow-hidden">
         {/* Result overlay */}
         {showResult && lastResult && cfg && (
-          <div className={`absolute inset-0 z-20 flex items-center justify-center p-8 ${cfg.bg} backdrop-blur-sm`}>
-            <div className={`text-center max-w-md w-full border-2 ${cfg.border} rounded-3xl p-8 bg-gray-950/90`}>
-              <p className={`text-6xl font-black ${cfg.text} mb-4`}>{cfg.label}</p>
+          <div className={`absolute inset-0 z-20 flex items-center justify-center p-8 ${cfg.bg} backdrop-blur-sm transition-all duration-300`}>
+            <div className={`text-center max-w-md w-full border-2 ${cfg.border} rounded-3xl p-8 bg-gray-950/95 shadow-2xl scale-100 animate-in fade-in zoom-in duration-300`}>
+              <p className={`text-6xl font-black ${cfg.text} mb-4 tracking-tighter`}>{cfg.label}</p>
               {lastResult.student ? (
                 <>
                   <p className="text-white text-3xl font-bold mb-2">{lastResult.student.name}</p>
                   <p className="text-gray-400 text-xl font-mono">{lastResult.student.studentId}</p>
                   {lastResult.student.department && (
-                    <p className="text-gray-500 text-base mt-1">{lastResult.student.department}</p>
+                    <p className="text-gray-500 text-base mt-2">{lastResult.student.department}</p>
                   )}
                   {lastResult.result === 'ACCEPTED' && lastResult.slot && (
-                    <div className={`mt-4 inline-block px-6 py-2 rounded-full text-lg font-semibold ${lastResult.slot === 'MORNING' ? 'bg-blue-500/30 text-blue-300' : 'bg-orange-500/30 text-orange-300'}`}>
+                    <div className={`mt-5 inline-block px-6 py-2 rounded-full text-lg font-bold ${lastResult.slot === 'MORNING' ? 'bg-blue-500/30 text-blue-300' : 'bg-orange-500/30 text-orange-300'}`}>
                       {lastResult.slot}
                     </div>
                   )}
                   {lastResult.result === 'DUPLICATE' && lastResult.firstMarkedAt && (
-                    <p className="text-gray-400 text-sm mt-3">
-                      First marked at {new Date(lastResult.firstMarkedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    <p className="text-yellow-400/80 text-sm mt-4 font-medium">
+                      Already scanned at {new Date(lastResult.firstMarkedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
                 </>
               ) : (
-                <p className={`${cfg.text} text-xl mt-2`}>{lastResult.message}</p>
+                <p className={`${cfg.text} text-xl mt-2 font-medium`}>{lastResult.message}</p>
               )}
-              <div className="mt-6 flex justify-center">
-                <div className={`h-1.5 rounded-full bg-gray-700 w-48 overflow-hidden`}>
-                  <div className={`h-full rounded-full ${lastResult.result === 'ACCEPTED' ? 'bg-green-400' : lastResult.result === 'DUPLICATE' ? 'bg-yellow-400' : 'bg-red-400'} animate-[shrink_2.5s_linear_forwards]`}
-                    style={{ animation: 'shrink 2.5s linear forwards' }}
+              <div className="mt-8 flex justify-center">
+                <div className={`h-2 rounded-full bg-gray-800 w-48 overflow-hidden`}>
+                  <div className={`h-full rounded-full ${lastResult.result === 'ACCEPTED' ? 'bg-green-400' : lastResult.result === 'DUPLICATE' ? 'bg-yellow-400' : 'bg-red-400'}`}
+                    style={{
+                      width: '100%',
+                      animation: 'shrink 2.5s linear forwards'
+                    }}
                   />
                 </div>
               </div>
@@ -292,13 +300,14 @@ export default function ScanPage() {
           </div>
         )}
 
-        {/* Camera */}
-        <div className="w-full max-w-sm">
-          <div id="qr-reader" className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800" />
+        {/* Camera container */}
+        <div className="w-full max-w-sm relative">
+          <div className="absolute inset-0 border-2 border-indigo-500/20 rounded-2xl pointer-events-none z-10" />
+          <div id="qr-reader" className="rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 shadow-2xl" />
         </div>
 
         {/* Manual input */}
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm space-y-3">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -312,58 +321,59 @@ export default function ScanPage() {
             <input
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Manual QR input or USB scanner..."
-              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono"
+              placeholder="Manual ID or USB Scanner..."
+              className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono shadow-inner"
             />
             <button
               type="submit"
               disabled={processing}
-              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-lg shadow-indigo-600/20"
             >
               Scan
             </button>
           </form>
-          <p className="text-gray-600 text-xs text-center mt-2">
-            Device: <span className="font-mono text-gray-500">{deviceKey || 'not set'}</span>
-          </p>
+          <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
+            <span>Device Key:</span>
+            <span className="font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800">{deviceKey || 'not set'}</span>
+          </div>
         </div>
       </div>
 
       {/* Settings modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold text-lg">Scanner Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl p-6 w-full max-w-md shadow-2xl scale-100 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-white font-bold text-xl">Scanner Configuration</h2>
+              <button onClick={() => setShowSettings(false)} className="text-gray-500 hover:text-white transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Device Key</label>
+                <label className="block text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">Device Key</label>
                 <input
                   value={deviceKeyInput}
                   onChange={(e) => setDeviceKeyInput(e.target.value)}
-                  placeholder="Enter device key from admin panel"
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Paste key from Admin panel"
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-inner"
                 />
-                <p className="text-gray-500 text-xs mt-1">Find device keys in Admin → Devices</p>
+                <p className="text-gray-500 text-xs mt-2 italic">Register devices in Admin → Device Management</p>
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowSettings(false)}
-                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-3 rounded-xl font-bold transition-all active:scale-95"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveDeviceKey}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-indigo-600/30"
                 >
-                  Save
+                  Save & Connect
                 </button>
               </div>
             </div>

@@ -22,7 +22,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'QR not generated for this student' }, { status: 404 });
   }
 
-  const buffer = await generateQRBuffer(student.qrToken);
+  // Generate dynamic QR content that points to the scan page
+  const host = request.headers.get('host');
+  const protocol = host?.includes('localhost') ? 'http' : 'https';
+  const baseUrl = `${protocol}://${host}`;
+  const qrData = `${baseUrl}/scan?token=${student.qrToken}`;
+
+  const buffer = await generateQRBuffer(qrData);
 
   return new NextResponse(buffer, {
     headers: {

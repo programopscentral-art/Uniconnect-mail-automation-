@@ -19,25 +19,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields: qr_payload, device_key are required' }, { status: 400 });
   }
 
+  // Extract real token if the payload is a full URL (.../scan?token=xxxx)
+  let finalToken = qr_payload;
+  if (qr_payload.includes('?token=')) {
+    try {
+      const url = new URL(qr_payload.startsWith('http') ? qr_payload : `http://localhost${qr_payload}`);
+      const tokenParam = url.searchParams.get('token');
+      if (tokenParam) finalToken = tokenParam;
+    } catch {
+      // Treat as raw token if URL parsing fails
+    }
+  }
+
   // Verify device exists and is active
   const device = await prisma.device.findUnique({ where: { deviceKey: device_key } });
   if (!device || !device.isActive) {
     return NextResponse.json({ error: 'Unknown or inactive device' }, { status: 403 });
   }
 
-  // Update device last_seen (fire-and-forget for performance)
+  // Update device last_seen
   prisma.device.update({
     where: { id: device.id },
     data: { lastSeen: new Date() }
-  }).catch(() => {});
+  }).catch(() => { });
 
-  // Get IP address
+  // IP address
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ??
     req.headers.get('x-real-ip') ??
     undefined;
 
-  // Process scan
-  const result = await processAttendanceScan(qr_payload, device_key, ip);
+  // Process scan using the final extracted token
+  const result = await processAttendanceScan(finalToken, device_key, ip);
 
   return NextResponse.json(result);
 }
