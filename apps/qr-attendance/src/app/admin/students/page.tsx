@@ -1,59 +1,116 @@
-export const dynamic = 'force-dynamic';
+'use client';
 
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/db';
+import { useRouter, useSearchParams } from 'next/navigation';
 
-interface SearchParams {
-  search?: string;
-  dept?: string;
-  page?: string;
+interface Student {
+  id: string;
+  studentId: string;
+  name: string;
+  email?: string | null;
+  department?: string | null;
+  batch?: string | null;
+  section?: string | null;
+  qrToken?: string | null;
+  isActive: boolean;
 }
 
-async function getStudents(params: SearchParams) {
-  const page = Math.max(1, parseInt(params.page ?? '1'));
-  const limit = 20;
-  const skip = (page - 1) * limit;
+export default function StudentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const where: Record<string, unknown> = {};
+  const [students, setStudents] = useState<Student[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState('');
 
-  if (params.search) {
-    where.OR = [
-      { name: { contains: params.search, mode: 'insensitive' } },
-      { studentId: { contains: params.search, mode: 'insensitive' } },
-      { email: { contains: params.search, mode: 'insensitive' } }
-    ];
+  const search = searchParams.get('search') ?? '';
+  const dept = searchParams.get('dept') ?? '';
+  const page = parseInt(searchParams.get('page') ?? '1');
+
+  const fetchStudents = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      search,
+      dept,
+      page: String(page),
+      limit: '100' // Show more for bulk actions
+    });
+
+    try {
+      const res = await fetch(`/api/admin/students?${params}`);
+      const data = await res.json();
+      setStudents(data.students ?? []);
+      setTotal(data.total ?? 0);
+    } catch (err) {
+      console.error('Fetch failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, dept, page]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
   }
 
-  if (params.dept) {
-    where.department = { equals: params.dept, mode: 'insensitive' };
+  function toggleSelectAll() {
+    if (selectedIds.size === students.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(students.map(s => s.id)));
+    }
   }
 
-  const [students, total] = await Promise.all([
-    prisma.student.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' }
-    }),
-    prisma.student.count({ where })
-  ]);
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to permanently delete ${selectedIds.size} selected students? This will remove all their records from the database.`)) return;
 
-  const departments = await prisma.student.groupBy({
-    by: ['department'],
-    where: { department: { not: null } },
-    _count: true,
-    orderBy: { department: 'asc' }
-  });
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/admin/students/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentIds: Array.from(selectedIds) })
+      });
 
-  return { students, total, page, totalPages: Math.ceil(total / limit), departments };
-}
+      const data = await res.json();
+      if (res.ok) {
+        setMsg(`Successfully deleted ${selectedIds.size} students`);
+        setSelectedIds(new Set());
+        fetchStudents();
+      } else {
+        setMsg(data.error ?? 'Bulk delete failed');
+      }
+    } catch {
+      setMsg('Network error while deleting');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
-export default async function StudentsPage({
-  searchParams
-}: {
-  searchParams: SearchParams;
-}) {
-  const { students, total, page, totalPages, departments } = await getStudents(searchParams);
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const s = formData.get('search') as string;
+    const d = formData.get('dept') as string;
+
+    const params = new URLSearchParams();
+    if (s) params.set('search', s);
+    if (d) params.set('dept', d);
+    params.set('page', '1');
+
+    router.push(`/admin/students?${params.toString()}`);
+  };
 
   return (
     <div className="space-y-5">
@@ -64,6 +121,15 @@ export default async function StudentsPage({
           <p className="text-gray-400 text-sm mt-1">{total} total students</p>
         </div>
         <div className="flex gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-red-500/20 disabled:opacity-50"
+            >
+              {deleting ? 'Deleting...' : `Delete Selected (${selectedIds.size})`}
+            </button>
+          )}
           <Link
             href="/admin/students/upload"
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
@@ -71,42 +137,36 @@ export default async function StudentsPage({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
-            Upload Students
+            Upload CSV
           </Link>
         </div>
       </div>
 
+      {msg && (
+        <div className={`px-4 py-3 rounded-xl text-sm ${msg.includes('Successfully') ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+          {msg}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <form className="flex flex-col sm:flex-row gap-3 flex-1" method="GET">
+        <form className="flex flex-col sm:flex-row gap-3 flex-1" onSubmit={handleSearchSubmit}>
           <input
             name="search"
-            defaultValue={searchParams.search}
-            placeholder="Search by name, ID, email..."
-            className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            defaultValue={search}
+            placeholder="Search name, ID, or email..."
+            className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
           />
-          <select
-            name="dept"
-            defaultValue={searchParams.dept ?? ''}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-          >
-            <option value="">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.department} value={d.department ?? ''}>
-                {d.department} ({d._count})
-              </option>
-            ))}
-          </select>
           <button
             type="submit"
-            className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-xl text-sm font-bold transition-all"
           >
-            Search
+            Filter
           </button>
-          {(searchParams.search || searchParams.dept) && (
+          {(search || dept) && (
             <Link
               href="/admin/students"
-              className="bg-gray-800 hover:bg-gray-700 text-gray-400 px-4 py-2 rounded-lg text-sm transition-colors text-center"
+              className="bg-gray-900 border border-gray-800 hover:bg-gray-800 text-gray-500 px-4 py-2 rounded-xl text-sm transition-colors text-center flex items-center justify-center font-medium"
             >
               Clear
             </Link>
@@ -115,99 +175,83 @@ export default async function StudentsPage({
       </div>
 
       {/* Table */}
-      {students.length === 0 ? (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-12 text-center">
-          <svg className="w-12 h-12 text-gray-700 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <p className="text-gray-500">No students found. Upload a CSV to get started.</p>
-          <Link href="/admin/students/upload" className="mt-4 inline-block bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-            Upload Students
-          </Link>
-        </div>
-      ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  {['Student ID', 'Name', 'Email', 'Dept', 'Batch', 'Section', 'QR', 'Status', 'Actions'].map((h) => (
-                    <th key={h} className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider px-4 py-3">
-                      {h}
-                    </th>
-                  ))}
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-800 bg-gray-950/50">
+                <th className="px-5 py-4 w-10">
+                  <input
+                    type="checkbox"
+                    checked={students.length > 0 && selectedIds.size === students.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Student ID</th>
+                <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Dept/Batch</th>
+                <th className="px-5 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">QR</th>
+                <th className="px-5 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-800">
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-gray-500 animate-pulse">Loading students...</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {students.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-800/50 transition-colors">
-                    <td className="px-4 py-3 text-sm font-mono text-indigo-400">{s.studentId}</td>
-                    <td className="px-4 py-3 text-sm text-white font-medium max-w-[180px] truncate">{s.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400 max-w-[160px] truncate">{s.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{s.department ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{s.batch ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-400">{s.section ?? '—'}</td>
-                    <td className="px-4 py-3">
+              ) : students.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-gray-400">No students found matches your filters.</td>
+                </tr>
+              ) : (
+                students.map((s) => (
+                  <tr key={s.id} className={`hover:bg-gray-800/40 transition-all ${selectedIds.has(s.id) ? 'bg-indigo-500/5' : ''}`}>
+                    <td className="px-5 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(s.id)}
+                        onChange={() => toggleSelect(s.id)}
+                        className="w-4 h-4 rounded border-gray-700 bg-gray-900 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    <td className="px-5 py-4 font-mono text-sm text-indigo-400 font-bold">{s.studentId}</td>
+                    <td className="px-5 py-4">
+                      <div className="text-sm font-bold text-white truncate max-w-[150px]">{s.name}</div>
+                      <div className="text-xs text-gray-600 truncate max-w-[150px]">{s.email}</div>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="text-sm text-gray-300 font-medium">{s.department || '—'}</div>
+                      <div className="text-xs text-gray-600">{s.batch} {s.section}</div>
+                    </td>
+                    <td className="px-5 py-4">
                       {s.qrToken ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-400 bg-green-500/20 px-2 py-0.5 rounded">
-                          <span className="w-1.5 h-1.5 bg-green-400 rounded-full" />
-                          Generated
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                          LIVE
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-700 px-2 py-0.5 rounded">
-                          None
-                        </span>
+                        <span className="text-[10px] font-bold text-gray-600 bg-gray-800 px-2 py-0.5 rounded-full">EMPTY</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      {s.isActive ? (
-                        <span className="text-xs text-green-400">Active</span>
-                      ) : (
-                        <span className="text-xs text-red-400">Inactive</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-4 text-right">
                       <Link
                         href={`/admin/students/${s.id}`}
-                        className="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg transition-all"
                       >
-                        View
+                        Details
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </Link>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-4 py-3 border-t border-gray-800 flex items-center justify-between">
-              <p className="text-gray-500 text-xs">
-                Page {page} of {totalPages} ({total} students)
-              </p>
-              <div className="flex gap-2">
-                {page > 1 && (
-                  <Link
-                    href={`/admin/students?${new URLSearchParams({ ...searchParams, page: String(page - 1) })}`}
-                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-colors"
-                  >
-                    Previous
-                  </Link>
-                )}
-                {page < totalPages && (
-                  <Link
-                    href={`/admin/students?${new URLSearchParams({ ...searchParams, page: String(page + 1) })}`}
-                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm transition-colors"
-                  >
-                    Next
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
   );
 }
