@@ -1,8 +1,155 @@
-import { db, createNotification, getUserFcmTokens, type BudgetProposal, type BudgetProposalStatus } from '@uniconnect/shared';
+import { db, createNotification, getUserFcmTokens, type BudgetProposal, type BudgetItem, type BudgetProposalStatus } from '@uniconnect/shared';
 import admin from './firebase-admin';
 import { addNotificationJob } from './queue';
 
-export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toStatus: BudgetProposalStatus, actorName: string, reason?: string) {
+type FullProposal = BudgetProposal & {
+    university_name?: string;
+    items?: BudgetItem[];
+    attachments?: any[];
+    report?: any;
+};
+
+const PRIORITY_COLOR: Record<string, string> = { HIGH: '#DC2626', MED: '#D97706', LOW: '#16A34A' };
+const STATUS_COLOR: Record<string, string> = {
+    SUBMITTED: '#2563EB', UNDER_REVIEW: '#7C3AED', CHANGES_REQUESTED: '#D97706',
+    APPROVED_L1: '#0D9488', APPROVED: '#16A34A', REJECTED: '#DC2626',
+    REPORT_SUBMITTED: '#2563EB', CLOSED: '#374151'
+};
+const STATUS_LABEL: Record<string, string> = {
+    SUBMITTED: 'Submitted', UNDER_REVIEW: 'Under Review', CHANGES_REQUESTED: 'Changes Requested',
+    APPROVED_L1: 'L1 Approved — Awaiting Final', APPROVED: 'Approved ✅', REJECTED: 'Rejected',
+    REPORT_SUBMITTED: 'Report Submitted', CLOSED: 'Closed', EVENT_COMPLETED: 'Event Completed'
+};
+const CATEGORY_LABEL: Record<string, string> = {
+    VENUE: 'Venue', FOOD: 'Food & Beverages', SPEAKER: 'Speaker / Guest', TRAVEL: 'Travel',
+    MARKETING: 'Marketing', AWARDS: 'Awards', RECOGNITION: 'Recognition', HOSPITALITY: 'Hospitality',
+    CERTIFICATES: 'Certificates', GIFTS: 'Gifts', MISC: 'Miscellaneous'
+};
+
+function fmtINR(n: number) {
+    return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+function fmtDate(d: Date | string) {
+    return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function buildBudgetProposalEmail(proposal: FullProposal, bodyText: string, baseUrl: string, proposalId: string): string {
+    const viewUrl = `${baseUrl}/api/budget-proposals/${proposalId}/view`;
+    const appUrl = `${baseUrl}/budget-proposals/${proposalId}`;
+    const statusColor = STATUS_COLOR[proposal.status] || '#6B7280';
+    const priorityColor = PRIORITY_COLOR[proposal.priority] || '#6B7280';
+    const statusLabel = STATUS_LABEL[proposal.status] || proposal.status;
+
+    const itemRows = (proposal.items || []).map(item => `
+        <tr>
+            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;">${CATEGORY_LABEL[item.category] || item.category}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;">${item.description}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center;">${item.qty}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:right;">${fmtINR(item.unit_cost)}</td>
+            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700;text-align:right;">${fmtINR(item.amount)}</td>
+        </tr>`).join('');
+
+    const itemsSection = (proposal.items || []).length > 0 ? `
+        <div style="margin-bottom:24px;">
+            <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">💰 Budget Breakdown</h3>
+            <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+                <thead>
+                    <tr style="background:#F8FAFC;">
+                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:left;">Category</th>
+                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:left;">Description</th>
+                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:center;">Qty</th>
+                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:right;">Unit Cost</th>
+                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>${itemRows}</tbody>
+                <tfoot>
+                    <tr style="background:#F0FDF4;">
+                        <td colspan="4" style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right;border-top:2px solid #16A34A;">Total Estimated Budget</td>
+                        <td style="padding:10px 12px;font-size:14px;font-weight:700;color:#16A34A;text-align:right;border-top:2px solid #16A34A;">${fmtINR(proposal.estimated_total_budget)}</td>
+                    </tr>
+                    ${proposal.approved_total_budget !== null && proposal.approved_total_budget !== undefined ? `
+                    <tr style="background:#EFF6FF;">
+                        <td colspan="4" style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right;border-top:1px solid #BFDBFE;">Approved Budget</td>
+                        <td style="padding:10px 12px;font-size:14px;font-weight:700;color:#2563EB;text-align:right;border-top:1px solid #BFDBFE;">${fmtINR(proposal.approved_total_budget)}</td>
+                    </tr>` : ''}
+                </tfoot>
+            </table>
+        </div>` : '';
+
+    return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<div style="max-width:680px;margin:24px auto;">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1E1B4B 0%,#312E81 100%);border-radius:12px 12px 0 0;padding:28px 32px;color:white;">
+        <div style="font-size:11px;font-weight:600;opacity:0.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Budget Proposal Update</div>
+        <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;line-height:1.3;">${proposal.title}</h1>
+        <div style="font-size:13px;opacity:0.8;">${(proposal as any).university_name || ''} &nbsp;·&nbsp; ${(proposal.event_type || '').replace(/_/g, ' ')} &nbsp;·&nbsp; ${fmtDate(proposal.proposed_date)}</div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span style="display:inline-block;padding:4px 12px;border-radius:20px;background:${statusColor};font-size:12px;font-weight:700;">${statusLabel}</span>
+            <span style="display:inline-block;padding:4px 12px;border-radius:20px;background:${priorityColor};font-size:12px;font-weight:700;">${proposal.priority} Priority</span>
+        </div>
+    </div>
+
+    <!-- Body -->
+    <div style="background:white;padding:28px 32px;border-left:1px solid #E5E7EB;border-right:1px solid #E5E7EB;">
+
+        <!-- Update message -->
+        <div style="background:#EFF6FF;border-left:4px solid #2563EB;padding:14px 16px;border-radius:0 8px 8px 0;margin-bottom:24px;">
+            <p style="margin:0;font-size:14px;color:#1E40AF;line-height:1.6;">${bodyText}</p>
+        </div>
+
+        <!-- Details grid -->
+        <div style="margin-bottom:24px;">
+            <h3 style="margin:0 0 12px;font-size:14px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">📋 Proposal Details</h3>
+            <table style="width:100%;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;width:40%;font-size:13px;color:#6B7280;font-weight:600;">Proposer</td>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600;">${proposal.proposer_name || proposal.proposer_email} <span style="color:#6B7280;font-weight:400;">(${proposal.proposer_email})</span></td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#6B7280;font-weight:600;">Event Date</td>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600;">${fmtDate(proposal.proposed_date)}</td>
+                </tr>
+                ${proposal.venue ? `<tr><td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#6B7280;font-weight:600;">Venue</td><td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600;">${proposal.venue}</td></tr>` : ''}
+                ${proposal.expected_attendance ? `<tr><td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#6B7280;font-weight:600;">Expected Attendance</td><td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:600;">${proposal.expected_attendance} people</td></tr>` : ''}
+                <tr>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:13px;color:#6B7280;font-weight:600;">Estimated Budget</td>
+                    <td style="padding:8px 0;border-bottom:1px solid #F1F5F9;font-size:14px;font-weight:700;color:#4F46E5;">${fmtINR(proposal.estimated_total_budget)}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px 0;font-size:13px;color:#6B7280;font-weight:600;">Proposal ID</td>
+                    <td style="padding:8px 0;font-size:12px;font-family:monospace;color:#6B7280;">${proposalId}</td>
+                </tr>
+            </table>
+        </div>
+
+        ${proposal.description ? `
+        <div style="margin-bottom:24px;">
+            <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">📝 Description</h3>
+            <div style="background:#F8FAFC;padding:14px 16px;border-radius:8px;font-size:13px;line-height:1.7;color:#374151;">${proposal.description.replace(/\n/g, '<br>')}</div>
+        </div>` : ''}
+
+        ${itemsSection}
+
+        <!-- CTA Buttons -->
+        <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:2px solid #F1F5F9;">
+            <a href="${viewUrl}" style="display:inline-block;padding:13px 28px;background:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;margin-right:12px;">View & Review Proposal ↗</a>
+            <a href="${appUrl}" style="display:inline-block;padding:13px 24px;background:#F8FAFC;color:#374151;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;border:2px solid #E5E7EB;">Open in App</a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background:#F8FAFC;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 12px 12px;padding:16px 32px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#9CA3AF;">UniConnect Budget Management &nbsp;·&nbsp; This is an automated notification.</p>
+    </div>
+</div>
+</body></html>`;
+}
+
+export async function notifyBudgetProposalUpdate(proposal: FullProposal, toStatus: BudgetProposalStatus, actorName: string, reason?: string) {
     const { university_id, id: proposalId, title, proposer_user_id, proposer_email, proposer_name } = proposal;
     console.log(`[BP_NOTIFY] 📢 Notifying status ${toStatus} for proposal ${proposalId}. Proposer: ${proposer_email}`);
 
@@ -127,15 +274,12 @@ export async function notifyBudgetProposalUpdate(proposal: BudgetProposal, toSta
         if (['SUBMITTED', 'APPROVED_L1', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED', 'REPORT_SUBMITTED'].includes(toStatus)) {
             const baseUrl = process.env.PUBLIC_BASE_URL || '';
             console.log(`[BP_NOTIFY] 📬 Queueing email for ${recipient.email}. Base URL: ${baseUrl}`);
+            const richHtml = buildBudgetProposalEmail(proposal, bodyText, baseUrl, proposalId);
             await addNotificationJob({
                 to: recipient.email,
                 subject: titleText,
-                text: `Hello,\n\n${bodyText}\n\nView details here: ${baseUrl}${link}`,
-                html: `<div>
-                    <h2>Budget Proposal Update</h2>
-                    <p>${bodyText}</p>
-                    <a href="${baseUrl}${link}" style="display:inline-block;padding:10px 20px;background-color:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:bold;">View Proposal Details</a>
-                </div>`
+                text: `Hello,\n\n${bodyText}\n\nView & review the proposal: ${baseUrl}/api/budget-proposals/${proposalId}/view\n\nOpen in App: ${baseUrl}${link}`,
+                html: richHtml
             });
 
             // Log the email trigger in Budget Proposal Email Logs
