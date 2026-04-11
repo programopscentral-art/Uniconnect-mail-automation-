@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const buffer = await generateQRBuffer(setupUrl);
 
-    return new NextResponse(buffer, {
+    return new Response(buffer, {
         headers: {
             'Content-Type': 'image/png',
             'Content-Disposition': `inline; filename="device_setup_${device.id}.png"`,

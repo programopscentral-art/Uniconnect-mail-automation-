@@ -23,14 +23,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 
   // Generate dynamic QR content that points to the scan page
-  const host = request.headers.get('host');
-  const protocol = host?.includes('localhost') ? 'http' : 'https';
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+  const protocol = request.headers.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
   const baseUrl = `${protocol}://${host}`;
   const qrData = `${baseUrl}/scan?token=${student.qrToken}`;
 
   const buffer = await generateQRBuffer(qrData);
 
-  return new NextResponse(buffer, {
+  return new Response(buffer, {
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `inline; filename="qr_${student.studentId}.png"`,
