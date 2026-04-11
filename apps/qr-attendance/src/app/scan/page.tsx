@@ -10,16 +10,6 @@ interface ScanResponse {
   message?: string;
   student?: { studentId: string; name: string; department: string | null };
   slot?: string;
-  date?: string;
-  scannedAt?: string;
-  firstMarkedAt?: string;
-  error?: string;
-}
-
-interface SlotStatus {
-  activeSlot: { slot: string; startTime: string; endTime: string } | null;
-  morningCount: number;
-  afternoonCount: number;
 }
 
 const RESULT_CONFIG: Record<ScanResult, { bg: string; border: string; text: string; label: string }> = {
@@ -38,7 +28,6 @@ export default function ScanPage() {
   const [deviceKeyInput, setDeviceKeyInput] = useState('');
   const [lastResult, setLastResult] = useState<ScanResponse | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [slotStatus, setSlotStatus] = useState<SlotStatus | null>(null);
   const [currentTime, setCurrentTime] = useState('');
   const [manualInput, setManualInput] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -51,19 +40,26 @@ export default function ScanPage() {
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' &&
-      window.location.protocol === 'http:' &&
-      !window.location.hostname.includes('localhost')) {
-      window.location.href = window.location.href.replace('http:', 'https:');
+    const stored = localStorage.getItem('qr_device_key');
+    if (stored) {
+      setDeviceKey(stored);
+      setDeviceKeyInput(stored);
     }
+  }, []);
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
+    };
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
   }, []);
 
   const processQR = useCallback(async (payload: string) => {
     if (processingRef.current || !payload.trim()) return;
-    if (!deviceKey) {
-      setShowSettings(true);
-      return;
-    }
+    if (!deviceKey) { setShowSettings(true); return; }
 
     processingRef.current = true;
     setProcessing(true);
@@ -90,66 +86,31 @@ export default function ScanPage() {
         setProcessing(false);
       }, 2000);
     } catch {
-      setLastResult({ result: 'ERROR', message: 'Network error. Check connection.' });
+      setLastResult({ result: 'ERROR', message: 'Network error.' });
       setShowResult(true);
-      resetTimerRef.current = setTimeout(() => {
-        setShowResult(false);
-        setLastResult(null);
-        processingRef.current = false;
-        setProcessing(false);
-      }, 2000);
+      setTimeout(() => { setShowResult(false); setLastResult(null); processingRef.current = false; setProcessing(false); }, 2000);
     }
   }, [deviceKey]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('qr_device_key');
-    if (stored) {
-      setDeviceKey(stored);
-      setDeviceKeyInput(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    const update = () => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
-    };
-    update();
-    const t = setInterval(update, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const fetchSlotStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/scan/status');
-      const data = await res.json();
-      setSlotStatus(data);
-    } catch { }
-  }, []);
-
-  useEffect(() => {
-    fetchSlotStatus();
-    const t = setInterval(fetchSlotStatus, 30000);
-    return () => clearInterval(t);
-  }, [fetchSlotStatus]);
 
   const startScanner = async () => {
     if (!deviceKey) return setShowSettings(true);
     setCameraError(null);
     setInitializing(true);
 
-    let testStream: MediaStream | null = null;
     try {
-      // Step 1: Request permission AND capture result
-      testStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      // PROBE: Just check if camera exists at all
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
 
-      // IMPORTANT: Stop the test stream immediately so hardware is free
-      testStream.getTracks().forEach(track => track.stop());
-      testStream = null;
+      // FIND ALL CAMERAS
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
 
-      // Step 2: Handoff to scanner engine
+      if (cameras.length === 0) throw new Error('No camera found on this device.');
+
+      // PUSH TO ENGINE
       const H5 = (window as any).Html5Qrcode;
-      if (!H5) throw new Error('Connecting to engine... tap again in 1s.');
+      if (!H5) throw new Error('Loading engine... Wait 2s.');
 
       if (scannerRef.current) {
         try { await scannerRef.current.stop(); } catch (e) { }
@@ -158,22 +119,25 @@ export default function ScanPage() {
       const html5QrCode = new H5("qr-reader");
       scannerRef.current = html5QrCode;
 
+      // Prefer back camera, otherwise any
+      const backCamera = cameras.reverse().find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('environment'));
+      const deviceId = backCamera ? backCamera.deviceId : cameras[0].deviceId;
+
       await html5QrCode.start(
-        { facingMode: "environment" },
+        deviceId,
         { fps: 20, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-        (decodedText: string) => {
-          if (!processingRef.current) processQR(decodedText);
-        },
+        (decodedText: string) => { if (!processingRef.current) processQR(decodedText); },
         () => { }
       );
 
       setCameraActive(true);
     } catch (err: any) {
-      if (testStream) {
-        testStream.getTracks().forEach(t => t.stop());
-      }
       console.error(err);
-      setCameraError(err.message || 'Access Denied');
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
+        setCameraError('LOCKED: Please refresh page or check Browser Privacy Settings.');
+      } else {
+        setCameraError(err.message || 'Camera blocked by hardware.');
+      }
     } finally {
       setInitializing(false);
     }
@@ -191,17 +155,14 @@ export default function ScanPage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col text-white font-sans overflow-hidden">
-      <Script
-        src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
-        strategy="beforeInteractive"
-      />
+      <Script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" strategy="beforeInteractive" />
 
-      <div className="bg-gray-900 border-b border-white/5 px-4 py-4 flex items-center justify-between z-40 bg-gradient-to-r from-gray-900 to-black">
+      <div className="bg-gray-900 border-b border-white/5 px-4 py-4 flex items-center justify-between z-40 bg-gradient-to-r from-gray-950 to-black">
         <div className="flex flex-col">
           <p className="font-black text-2xl tracking-tighter leading-none">{currentTime}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-green-500">Live</p>
+            <p className="text-[10px] font-black tracking-widest text-green-500 uppercase">System Ready</p>
           </div>
         </div>
         <button onClick={() => setShowSettings(true)} className="p-3 bg-white/5 rounded-2xl border border-white/10 active:scale-95">
@@ -223,7 +184,7 @@ export default function ScanPage() {
                 </>
               )}
             </div>
-            <p className="text-white/40 mt-8 font-black uppercase tracking-widest animate-pulse">Auto-reset in 2s...</p>
+            <p className="text-white/40 mt-8 font-black tracking-widest uppercase animate-pulse">Auto-reset in 2s...</p>
           </div>
         )}
 
@@ -238,11 +199,11 @@ export default function ScanPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
               </div>
-              <p className="text-2xl font-black text-white">{initializing ? 'OPENING...' : 'TAP TO SCAN'}</p>
-              <p className="text-indigo-200 text-xs mt-2 uppercase font-black tracking-widest">High-Speed Scanner</p>
+              <p className="text-2xl font-black text-white tracking-tighter uppercase">{initializing ? 'Opening Hardware...' : 'Scan Now'}</p>
+              <p className="text-indigo-200 text-[10px] mt-2 font-black uppercase tracking-widest">Multi-Camera Probing</p>
             </button>
           ) : (
-            <div className="w-full h-full relative rounded-[4rem] overflow-hidden border-4 border-indigo-500/20 shadow-2xl">
+            <div className="w-full h-full relative rounded-[4rem] overflow-hidden border-4 border border-white/10">
               <div id="qr-reader" className="w-full h-full bg-black" />
               <div className="absolute inset-0 border-[60px] border-black/60 pointer-events-none">
                 <div className="w-full h-full border-2 border-white/20 rounded-3xl" />
@@ -250,10 +211,11 @@ export default function ScanPage() {
             </div>
           )}
           {cameraError && (
-            <div className="absolute -bottom-24 left-0 right-0 text-center px-4">
-              <p className="text-red-500 font-black text-[10px] uppercase tracking-tighter bg-red-500/5 py-3 rounded-xl border border-red-500/10 px-4">
-                {cameraError}
-              </p>
+            <div className="absolute -bottom-28 left-0 right-0 text-center px-6">
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
+                <p className="text-red-500 font-black text-xs uppercase mb-1">Hardware Conflict</p>
+                <p className="text-gray-400 text-[9px] leading-tight font-medium uppercase tracking-tighter">{cameraError}</p>
+              </div>
             </div>
           )}
         </div>
@@ -266,14 +228,14 @@ export default function ScanPage() {
             <input
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Student ID..."
+              placeholder="Type ID..."
               className="w-full bg-white/5 border border-white/5 rounded-2xl py-6 px-7 font-black text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white/10 transition-all font-mono"
             />
             <button className="absolute right-3 top-3 bottom-3 bg-white text-black px-6 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">Submit</button>
           </form>
           {deviceKey && (
             <div className="mt-8 flex items-center justify-center gap-2">
-              <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">Active Device:</span>
+              <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">Linked:</span>
               <span className="text-[10px] font-mono text-indigo-400 font-bold">{deviceKey.slice(0, 10)}...</span>
             </div>
           )}
@@ -283,21 +245,21 @@ export default function ScanPage() {
       {showSettings && (
         <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in zoom-in-95 duration-200">
           <div className="w-full max-w-xs bg-gray-900 border border-white/10 rounded-[3rem] p-10 shadow-2xl">
-            <h2 className="text-3xl font-black">Config</h2>
+            <h2 className="text-3xl font-black tracking-tighter">Setting</h2>
             <div className="space-y-6 mt-10">
               <div>
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Device Key</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Device Secret</label>
                 <input
                   value={deviceKeyInput}
                   type="password"
                   onChange={(e) => setDeviceKeyInput(e.target.value)}
                   className="w-full bg-black border border-white/10 rounded-2xl py-4 px-5 font-mono text-center text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="Paste Key Here"
+                  placeholder="xxxx-xxxx-xxxx"
                 />
               </div>
               <div className="flex flex-col gap-3">
-                <button onClick={saveDeviceKey} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl active:scale-95">Complete</button>
-                <button onClick={() => setShowSettings(false)} className="w-full text-gray-500 py-2 font-bold text-xs uppercase tracking-widest">Go Back</button>
+                <button onClick={saveDeviceKey} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl active:scale-95">Authorize</button>
+                <button onClick={() => setShowSettings(false)} className="w-full text-gray-500 py-2 font-bold text-xs uppercase tracking-widest">Back</button>
               </div>
             </div>
           </div>
