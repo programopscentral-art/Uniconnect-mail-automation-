@@ -96,7 +96,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const compliance = await getDailyFormComplianceStatus(date);
             const submitted = compliance.filter((c: any) => c.submitted);
             const aiSummary = await generateAISummary(report, 'daily', { date, compliance });
-            html = buildDailyEmailHTML(date, report, compliance, aiSummary);
+            html = buildDailyEmailHTML(date, report, aiSummary);
             periodLabel = formatDate(date);
             reportUrl = `${BASE_URL}/api/ops/view-report?type=daily&date=${date}`;
 
@@ -135,7 +135,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 JOIN universities univ ON univ.id = u.university_id
                 WHERE u.is_active = true
                 AND u.university_id IS NOT NULL
-                AND u.role IN ('COS', 'PM', 'PMA', 'UNIVERSITY_OPERATOR', 'BOA', 'CMA_MANAGER')
+                AND u.role IN ('COS', 'PM')
                 ORDER BY university_name, u.name
             `);
 
@@ -368,15 +368,13 @@ ${remarkNote}`;
 
 // ─── Daily Email HTML ────────────────────────────────────────────────
 
-function buildDailyEmailHTML(date: string, report: any, compliance: any[], aiSummary: string): string {
+function buildDailyEmailHTML(date: string, report: any, aiSummary: string): string {
     const s = report.summary || {};
     const byUniv = report.byUniversity || [];
     const n = (v: any) => parseInt(v) || 0;
 
     const attRate = n(s.enrolled) > 0 ? Math.round((n(s.attended) / n(s.enrolled)) * 100) : 0;
     const sessRate = n(s.sessions_planned) > 0 ? Math.round((n(s.sessions_completed) / n(s.sessions_planned)) * 100) : 0;
-    const submitted = compliance.filter((c: any) => c.submitted);
-    const missing = compliance.filter((c: any) => !c.submitted);
 
     const cleanAI = cleanAIText(aiSummary);
     const dashUrl = `${BASE_URL}/ops-dashboard`;
@@ -392,11 +390,6 @@ function buildDailyEmailHTML(date: string, report: any, compliance: any[], aiSum
             <td style="padding:10px 8px;border-bottom:1px solid #f1f5f9;text-align:center;font-size:13px;color:#475569">${n(r.coach_calls)}</td>
         </tr>`;
     }).join('');
-
-    const missingNames = missing.slice(0, 5).map((m: any) => m.university_name).join(', ');
-    const compText = missing.length === 0
-        ? `<span style="color:#10b981;font-weight:600">All ${compliance.length} universities submitted</span>`
-        : `<span style="color:#10b981;font-weight:600">${submitted.length} submitted</span> &middot; <span style="color:#ef4444;font-weight:600">${missing.length} missing</span>${missing.length > 0 ? `<br><span style="color:#94a3b8;font-size:12px">${missingNames}</span>` : ''}`;
 
     const content = `
 <!-- KPI 2x2 Grid -->
@@ -418,10 +411,10 @@ function buildDailyEmailHTML(date: string, report: any, compliance: any[], aiSum
             <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">At-Risk</div>
             <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.at_risk_informed)} informed</div>
         </td></tr></table></td>
-        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:${missing.length === 0 ? '#f0fdf4' : '#fef2f2'};border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
-            <div style="font-size:30px;font-weight:800;color:${missing.length === 0 ? '#10b981' : '#ef4444'}">${submitted.length}/${compliance.length}</div>
-            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Compliance</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${missing.length === 0 ? 'All done' : missing.length + ' missing'}</div>
+        <td width="50%" style="padding:0 0 0 6px"><table width="100%" cellspacing="0" cellpadding="0" style="background:#f8fafc;border-radius:12px"><tr><td style="padding:18px 12px;text-align:center">
+            <div style="font-size:30px;font-weight:800;color:#334155">${n(s.coach_calls)}</div>
+            <div style="font-size:11px;font-weight:600;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px">Coach Calls</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px">${n(s.parent_calls)} parent calls</div>
         </td></tr></table></td>
     </tr></table>
 </td></tr>
@@ -459,16 +452,7 @@ function buildDailyEmailHTML(date: string, report: any, compliance: any[], aiSum
         </table>
     </div>
 </td></tr>
-
-<!-- Compliance -->
-<tr><td style="background:#fff;padding:0 24px 20px">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border-radius:10px">
-        <tr><td style="padding:14px 18px">
-            <div style="font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Report Compliance</div>
-            <div style="font-size:13px">${compText}</div>
-        </td></tr>
-    </table>
-</td></tr>`;
+`;
 
     return emailShell(
         'linear-gradient(135deg,#1e3a8a,#2563eb)',
