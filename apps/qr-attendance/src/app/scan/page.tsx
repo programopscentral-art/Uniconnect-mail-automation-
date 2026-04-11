@@ -45,7 +45,6 @@ export default function ScanPage() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(false);
-  const [libReady, setLibReady] = useState(false);
 
   const scannerRef = useRef<any>(null);
   const processingRef = useRef(false);
@@ -100,7 +99,19 @@ export default function ScanPage() {
       setDeviceKey(stored);
       setDeviceKeyInput(stored);
     }
-  }, []);
+
+    // Auto-process URL token AND show settings if no key
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      if (!stored) {
+        setShowSettings(true);
+      } else if (!processingRef.current) {
+        processQR(token);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [processQR]);
 
   useEffect(() => {
     const update = () => {
@@ -128,16 +139,12 @@ export default function ScanPage() {
 
   const startScanner = async () => {
     if (!deviceKey) return setShowSettings(true);
-    if (!window.hasOwnProperty('Html5Qrcode')) {
-      setCameraError('Scanner engine not loaded yet. Please wait a moment.');
-      return;
-    }
-
     setCameraError(null);
     setInitializing(true);
 
     try {
       const H5 = (window as any).Html5Qrcode;
+      if (!H5) throw new Error('Scanner engine not ready. Wait 2s.');
 
       if (scannerRef.current) {
         try { await scannerRef.current.stop(); } catch (e) { }
@@ -148,7 +155,7 @@ export default function ScanPage() {
 
       await html5QrCode.start(
         { facingMode: "environment" },
-        { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        { fps: 20, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         (decodedText: string) => {
           if (!processingRef.current) processQR(decodedText);
         },
@@ -157,7 +164,12 @@ export default function ScanPage() {
 
       setCameraActive(true);
     } catch (err: any) {
-      setCameraError(`CAMERA ERROR: ${err?.message || 'Access Denied'}`);
+      console.error(err);
+      if (err?.message?.includes('Permission denied') || err?.name === 'NotAllowedError') {
+        setCameraError('ACCESS DENIED: Please go to Browser Settings → Site Settings → Camera and Allow this website.');
+      } else {
+        setCameraError(`CAMERA ERROR: ${err?.message || 'Unauthorized hardware'}`);
+      }
     } finally {
       setInitializing(false);
     }
@@ -169,6 +181,14 @@ export default function ScanPage() {
     setDeviceKey(key);
     localStorage.setItem('qr_device_key', key);
     setShowSettings(false);
+
+    // Check if there was a pending token
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      processQR(token);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   };
 
   const cfg = lastResult ? RESULT_CONFIG[lastResult.result] : null;
@@ -177,33 +197,34 @@ export default function ScanPage() {
     <div className="min-h-screen bg-black flex flex-col text-white font-sans overflow-hidden">
       <Script
         src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
-        onLoad={() => setLibReady(true)}
+        strategy="beforeInteractive"
       />
 
-      <div className="bg-gray-900/80 backdrop-blur-xl border-b border-white/10 px-4 py-4 flex items-center justify-between z-40">
+      <div className="bg-gray-900 border-b border-white/5 px-4 py-4 flex items-center justify-between z-40">
         <div className="flex flex-col">
           <p className="font-black text-2xl tracking-tighter leading-none">{currentTime}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`w-2 h-2 rounded-full ${slotStatus?.activeSlot ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-            <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 uppercase">{slotStatus?.activeSlot ? slotStatus.activeSlot.slot : 'System Offline'}</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-green-500">
+              {slotStatus?.activeSlot ? slotStatus.activeSlot.slot : 'Online'}
+            </p>
           </div>
         </div>
-        <button onClick={() => setShowSettings(true)} className="p-3 bg-white/5 rounded-2xl border border-white/10 active:scale-90 transition-all">
+        <button onClick={() => setShowSettings(true)} className="p-3 bg-white/5 rounded-2xl border border-white/10">
           <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
           </svg>
         </button>
       </div>
 
-      <div className="flex-1 relative flex flex-col items-center justify-center p-6">
+      <div className="flex-1 relative flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-950 to-black">
         {showResult && lastResult && cfg && (
-          <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 ${cfg.bg} backdrop-blur-2xl animate-in fade-in zoom-in duration-200`}>
-            <div className={`w-full max-w-sm border-4 ${cfg.border} rounded-[3rem] p-10 bg-black/40 text-center shadow-2xl`}>
-              <p className={`text-6xl font-black mb-4 ${cfg.text}`}>{cfg.label}</p>
+          <div className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-6 ${cfg.bg} backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200`}>
+            <div className={`w-full max-w-xs border-4 ${cfg.border} rounded-[3.5rem] p-12 bg-black shadow-2xl scale-100`}>
+              <p className={`text-5xl font-black mb-4 ${cfg.text}`}>{cfg.label}</p>
               {lastResult.student && (
                 <>
-                  <p className="text-4xl font-black text-white leading-tight">{lastResult.student.name}</p>
-                  <p className="text-xl font-mono text-white/60 mt-2">{lastResult.student.studentId}</p>
+                  <p className="text-3xl font-black text-white leading-tight">{lastResult.student.name}</p>
+                  <p className="text-lg font-mono text-white/50 mt-1">{lastResult.student.studentId}</p>
                 </>
               )}
             </div>
@@ -214,34 +235,35 @@ export default function ScanPage() {
           {!cameraActive ? (
             <div
               onClick={startScanner}
-              className="absolute inset-0 bg-gray-900/50 rounded-[3rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-8 cursor-pointer active:scale-95 transition-all text-center"
+              className="absolute inset-0 bg-gray-900/40 rounded-[3rem] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-10 cursor-pointer text-center"
             >
-              <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-xl shadow-indigo-600/40 mb-6">
+              <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-[0_0_30px_rgba(79,70,229,0.3)] mb-6">
                 <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
               </div>
-              <p className="text-xl font-black">{initializing ? 'LOADING...' : 'OPEN CAMERA'}</p>
-              <p className="text-gray-500 text-xs mt-2 font-medium">{libReady ? 'Ready for scan' : 'Connecting to engine...'}</p>
+              <p className="text-xl font-black">{initializing ? 'LOADING...' : 'TAP TO OPEN SCANNER'}</p>
+              <p className="text-gray-500 text-xs mt-2 font-medium">Point at student QR codes</p>
             </div>
           ) : (
-            <div className="w-full h-full relative rounded-[3.5rem] overflow-hidden border-4 border-white/10">
+            <div className="w-full h-full relative rounded-[3.5rem] overflow-hidden border-4 border-indigo-500/20 shadow-2xl">
               <div id="qr-reader" className="w-full h-full bg-black" />
-              <div className="absolute inset-0 border-[40px] border-black/50 pointer-events-none">
-                <div className="w-full h-full border-2 border-indigo-500/50 rounded-3xl" />
+              <div className="absolute inset-0 pointer-events-none border-[60px] border-black/50">
+                <div className="w-full h-full border-2 border-white/20 rounded-2xl" />
               </div>
             </div>
           )}
           {cameraError && (
-            <div className="absolute -bottom-24 left-0 right-0 text-center">
-              <p className="text-red-500 font-black text-[10px] uppercase tracking-tighter bg-red-500/10 py-3 rounded-xl border border-red-500/20 px-4">
-                {cameraError}
-              </p>
+            <div className="absolute -bottom-28 left-0 right-0 text-center px-4">
+              <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-2xl">
+                <p className="text-red-500 font-black text-xs uppercase mb-2">{cameraError}</p>
+                <p className="text-gray-500 text-[10px] leading-tight font-medium">Important: For iPads/iPhones, you must use Safari or Chrome browser directly, not a WebView app.</p>
+              </div>
             </div>
           )}
         </div>
 
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-sm mt-8">
           <form
             onSubmit={(e) => { e.preventDefault(); processQR(manualInput); setManualInput(''); }}
             className="relative"
@@ -249,31 +271,42 @@ export default function ScanPage() {
             <input
               value={manualInput}
               onChange={(e) => setManualInput(e.target.value)}
-              placeholder="Enter ID / USB Scanner..."
-              className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono"
+              placeholder="ID or USB Scanner..."
+              className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 font-black text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all font-mono"
             />
-            <button className="absolute right-2 top-2 bottom-2 bg-white text-black px-6 rounded-xl font-black text-xs uppercase tracking-widest active:scale-90 transition-all">Submit</button>
+            <button className="absolute right-2 top-2 bottom-2 bg-indigo-600 text-white px-6 rounded-xl font-black text-xs uppercase tracking-widest active:scale-90">Send</button>
           </form>
+          <div className="flex flex-col items-center gap-2 mt-8">
+            <div className={`px-4 py-1.5 rounded-full border ${deviceKey ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'} flex items-center gap-2`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${deviceKey ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-[10px] uppercase font-black tracking-widest text-gray-400">
+                {deviceKey ? 'Device Authorized' : 'Not Linked'}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {showSettings && (
         <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm bg-gray-900 border border-white/10 rounded-[3rem] p-8 shadow-2xl scale-100 animate-in zoom-in-95">
-            <h2 className="text-3xl font-black mb-1">Link Device</h2>
-            <div className="space-y-6 mt-8">
+          <div className="w-full max-w-xs bg-gray-900 border border-white/10 rounded-[3rem] p-10 shadow-2xl scale-100">
+            <h2 className="text-3xl font-black">Link Device</h2>
+            <p className="text-gray-500 text-xs mt-2 uppercase font-bold tracking-widest">Administrator Auth</p>
+
+            <div className="space-y-6 mt-10">
               <div>
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Device Key</label>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] block mb-2">Secret Key</label>
                 <input
                   value={deviceKeyInput}
+                  type="password"
                   onChange={(e) => setDeviceKeyInput(e.target.value)}
-                  className="w-full bg-black border border-white/10 rounded-2xl py-4 px-5 font-mono text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="xxxx-xxxx-xxxx"
+                  className="w-full bg-black border border-white/10 rounded-2xl py-4 px-5 font-mono text-center text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  placeholder="Paste Device Key"
                 />
               </div>
               <div className="flex flex-col gap-3">
-                <button onClick={saveDeviceKey} className="w-full bg-white text-black py-4 rounded-2xl font-black text-sm tracking-widest uppercase">Save</button>
-                <button onClick={() => setShowSettings(false)} className="w-full bg-transparent text-gray-500 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest">Close</button>
+                <button onClick={saveDeviceKey} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm tracking-widest uppercase shadow-xl hover:bg-indigo-700 active:scale-95 transition-all">Link Now</button>
+                <button onClick={() => setShowSettings(false)} className="w-full text-gray-500 py-3 font-bold text-xs uppercase tracking-widest">Cancel</button>
               </div>
             </div>
           </div>
