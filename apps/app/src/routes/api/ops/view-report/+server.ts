@@ -421,6 +421,22 @@ function generateReportHTML(report: any, type: string): string {
         `</tbody></table></div>`;
     }
 
+    // ── Remarks (universities with notes but no cancellations) ──
+    let remarksSection = '';
+    const withRemarks = byUniv.filter((r: any) => r.cancellation_reason && n(r.sessions_cancelled) === 0);
+    if (withRemarks.length > 0) {
+        remarksSection = `
+        <h2 style="margin-top:32px;color:#1e293b;font-size:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px">Remarks</h2>
+        <div class="table-wrap"><table><thead><tr>
+            <th style="text-align:left">University</th><th style="text-align:left">Remarks</th>
+        </tr></thead><tbody>` +
+        withRemarks.map((r: any) => `<tr>
+            <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:500">${r.university_name}</td>
+            <td style="padding:8px;border-bottom:1px solid #e5e7eb;font-size:12px">${r.cancellation_reason}</td>
+        </tr>`).join('') +
+        `</tbody></table></div>`;
+    }
+
     // ── Key Observations (auto-generated) ──
     const observations: string[] = [];
     if (sessRate < 80) observations.push(`Session completion is at ${sessRate}% (target: 80%). ${totalSessionsCancelled} sessions were cancelled across ${byUniv.length} universities.`);
@@ -619,6 +635,7 @@ function generateReportHTML(report: any, type: string): string {
     </div>
 
     ${cancellationSection}
+    ${remarksSection}
     ${teamSection}
     ${dailySection}
     ${complianceSection}

@@ -1059,7 +1059,11 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
             // Detect "Holiday" — if sessions_planned is non-numeric text like "Holiday"
             const rawPlanned = getVal(values, 'sessions_planned', 'planned');
             const isHoliday = rawPlanned && isNaN(parseInt(rawPlanned)) && /holiday/i.test(rawPlanned);
-            const remarkVal = getVal(values, 'cancellation_reason', 'cancel_reason', 'remarks') || null;
+            // Read cancellation_reason and remarks separately, then combine so neither is lost
+            const cancelReason = getVal(values, 'cancellation_reason', 'cancel_reason') || null;
+            const remarksVal = getVal(values, 'remarks', 'remark') || null;
+            const remarkVal = isHoliday ? 'Holiday'
+                : [cancelReason, remarksVal].filter(Boolean).join(' | ') || null;
 
             dailyData.push({
                 date: rowDate,
@@ -1096,7 +1100,7 @@ export function parseOpsCSV(csvText: string, dateOverride?: string): { dailyData
                 avg_hours_instructors: getFloat(values, 'avg_hours_instructors'),
                 avg_hours_coaches: getFloat(values, 'avg_hours_coaches'),
                 avg_hours_program_ops: getFloat(values, 'avg_hours_program_ops'),
-                cancellation_reason: isHoliday ? 'Holiday' : remarkVal,
+                cancellation_reason: remarkVal,
             });
         }
     }
