@@ -12,7 +12,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     const mine = url.searchParams.get('mine') === 'true';
 
     // RBAC & Scoping
-    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER';
     const isSET = locals.user.role === 'SET_REVIEWER';
 
     // Determine effective university filter
@@ -53,7 +53,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!data.items || !Array.isArray(data.items)) throw error(400, 'Budget items are required');
 
     // Scoping check
-    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER';
     if (!isGlobalAdmin) {
         const hasAccess = locals.user.universities?.some(u => u.id === data.university_id);
         if (!hasAccess) throw error(403, 'Forbidden: You do not have access to this university');

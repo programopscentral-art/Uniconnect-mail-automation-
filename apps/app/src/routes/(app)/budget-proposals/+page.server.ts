@@ -7,7 +7,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     const mine = url.searchParams.get('mine') === 'true';
 
     // Scoping for the load function
-    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
+    const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'CMA_MANAGER';
     const isSET = locals.user.role === 'SET_REVIEWER';
 
     let effectiveUniversityId = university_id;

@@ -575,6 +575,7 @@
             item.alwaysShow ||
             user?.role === 'ADMIN' ||
             user?.role === 'PROGRAM_OPS' ||
+            (item.id === 'budget-proposals' && (user?.role === 'CMA_MANAGER' || user?.role === 'CMA')) ||
             (user?.permissions || []).includes(item.id)
           )}
           {#if visibleItems.length > 0}
