@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Karthikeya Alla — Product Requirements Documents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f5f9;
+  --surface:#fff;
+  --border:#e8e9f0;
+  --border2:#d1d5e8;
+  --accent:#4f46e5;
+  --accent2:#6366f1;
+  --accent3:#818cf8;
+  --text:#0d0c22;
+  --sub:#374151;
+  --muted:#6b7280;
+  --muted2:#9ca3af;
+  --p0:#ef4444;
+  --p1:#f59e0b;
+  --p2:#3b82f6;
+  --green:#10b981;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.6}
+
+/* ── TOP NAV ── */
+.topnav{
+  position:fixed;inset:0 0 auto;z-index:200;
+  height:56px;display:flex;align-items:center;
+  padding:0 1.5rem;gap:1rem;
+  background:rgba(255,255,255,0.96);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  justify-content:space-between;
+}
+.topnav-back{display:inline-flex;align-items:center;gap:.4rem;font-size:.78rem;font-weight:600;color:var(--muted);text-decoration:none;padding:.35rem .8rem;border:1px solid var(--border);border-radius:7px;transition:all .15s}
+.topnav-back:hover{color:var(--text);border-color:var(--border2)}
+.topnav-title{font-size:.82rem;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.topnav-tabs{display:flex;gap:.25rem}
+.tnav-tab{font-size:.72rem;font-weight:600;color:var(--muted);padding:.3rem .75rem;border-radius:6px;text-decoration:none;transition:all .15s;white-space:nowrap}
+.tnav-tab:hover,.tnav-tab.active{background:rgba(79,70,229,.08);color:var(--accent)}
+
+/* ── LAYOUT ── */
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh;padding-top:56px}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;
+  padding:1.5rem 1rem;
+  border-right:1px solid var(--border);
+  background:var(--surface);
+  display:flex;flex-direction:column;gap:.25rem;
+}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.sb-label{font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted2);padding:.5rem .75rem .25rem;margin-top:.5rem}
+.sb-label:first-child{margin-top:0}
+.sb-link{display:flex;align-items:center;gap:.5rem;font-size:.75rem;font-weight:500;color:var(--muted);padding:.32rem .75rem;border-radius:7px;text-decoration:none;transition:all .15s;line-height:1.3}
+.sb-link:hover{background:rgba(79,70,229,.05);color:var(--text)}
+.sb-link.active{background:rgba(79,70,229,.08);color:var(--accent);font-weight:600}
+.sb-project{display:flex;align-items:center;gap:.6rem;font-size:.78rem;font-weight:700;color:var(--text);padding:.5rem .75rem .25rem;margin-top:1rem;border-top:1px solid var(--border)}
+.sb-project:first-of-type{border-top:none;margin-top:0}
+.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+
+/* ── MAIN CONTENT ── */
+.main{padding:2.5rem 3rem;max-width:860px}
+
+/* ── PRD DOCUMENT ── */
+.prd{margin-bottom:5rem}
+.prd:last-child{margin-bottom:2rem}
+
+/* PRD Header */
+.prd-hdr{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:1.75rem 2rem;
+  margin-bottom:1.75rem;
+  position:relative;
+  overflow:hidden;
+}
+.prd-hdr::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent3));
+}
+.prd-hdr-top{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem;flex-wrap:wrap}
+.prd-product-name{font-size:1.5rem;font-weight:900;letter-spacing:-.04em;color:var(--text);line-height:1.1}
+.prd-product-name small{display:block;font-size:.75rem;font-weight:500;color:var(--muted);letter-spacing:.01em;margin-top:.25rem}
+.prd-badges{display:flex;gap:.5rem;flex-wrap:wrap}
+.badge{font-size:.62rem;font-weight:700;letter-spacing:.04em;padding:.22rem .65rem;border-radius:100px;display:inline-flex;align-items:center;gap:.3rem}
+.badge-live{background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.25)}
+.badge-done{background:rgba(245,158,11,.1);color:#d97706;border:1px solid rgba(245,158,11,.25)}
+.badge-intern{background:rgba(79,70,229,.08);color:var(--accent);border:1px solid rgba(79,70,229,.2)}
+.prd-meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.75rem}
+.prd-meta-cell{display:flex;flex-direction:column;gap:.15rem}
+.prd-meta-lbl{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2)}
+.prd-meta-val{font-size:.8rem;font-weight:600;color:var(--text)}
+
+/* PRD Sections */
+.prd-section{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:1.5rem 1.75rem;
+  margin-bottom:1rem;
+}
+.prd-section-hdr{
+  display:flex;align-items:center;gap:.75rem;
+  margin-bottom:1.1rem;
+}
+.sec-num{
+  font-size:1.4rem;font-weight:900;letter-spacing:-.05em;
+  color:rgba(79,70,229,.12);
+  line-height:1;flex-shrink:0;min-width:28px;
+}
+.sec-title{font-size:.95rem;font-weight:800;letter-spacing:-.025em;color:var(--text)}
+.sec-icon{font-size:1rem;flex-shrink:0}
+
+/* body text */
+.prd-p{font-size:.875rem;color:var(--sub);line-height:1.75;margin-bottom:.75rem}
+.prd-p:last-child{margin-bottom:0}
+.prd-p strong{color:var(--text);font-weight:600}
+
+/* bullet list */
+.prd-list{list-style:none;display:flex;flex-direction:column;gap:.55rem;margin-bottom:.75rem}
+.prd-list:last-child{margin-bottom:0}
+.prd-list li{font-size:.875rem;color:var(--sub);line-height:1.65;padding-left:1.1rem;position:relative}
+.prd-list li::before{content:'';position:absolute;left:0;top:.62rem;width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.prd-list li strong{color:var(--text);font-weight:600}
+
+/* sub-label */
+.sub-label{font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:.5rem;margin-top:1rem}
+.sub-label:first-child{margin-top:0}
+
+/* two-col grid */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem}
+.two-col:last-child{margin-bottom:0}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}}
+
+/* metric pill */
+.met-pill{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem}
+.met-pill-lbl{font-size:.6rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted2);margin-bottom:.3rem}
+.met-pill-val{font-size:.95rem;font-weight:800;color:var(--text);letter-spacing:-.025em;line-height:1.2}
+.met-pill-val.g{color:var(--green)}
+.met-pill-val.a{color:var(--accent)}
+.met-pill-val.o{color:#f59e0b}
+
+/* priority tags */
+.req-item{display:flex;gap:.65rem;align-items:flex-start;padding:.6rem .75rem;border-radius:8px;margin-bottom:.4rem;background:var(--bg);border:1px solid var(--border)}
+.req-item:last-child{margin-bottom:0}
+.req-pri{
+  font-size:.58rem;font-weight:800;letter-spacing:.05em;
+  padding:.18rem .45rem;border-radius:4px;
+  flex-shrink:0;margin-top:.15rem;
+}
+.p0{background:rgba(239,68,68,.1);color:var(--p0)}
+.p1{background:rgba(245,158,11,.1);color:#b45309}
+.p2{background:rgba(59,130,246,.1);color:#1d4ed8}
+.req-text{font-size:.82rem;color:var(--sub);line-height:1.55}
+.req-text strong{color:var(--text);font-weight:600}
+
+/* risk table */
+.risk-table{width:100%;border-collapse:collapse;margin-bottom:.75rem}
+.risk-table:last-child{margin-bottom:0}
+.risk-table th{
+  font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--muted);padding:.5rem .75rem;background:var(--bg);
+  border-bottom:1px solid var(--border);text-align:left;
+}
+.risk-table td{font-size:.8rem;color:var(--sub);padding:.6rem .75rem;border-bottom:1px solid var(--border);vertical-align:top;line-height:1.55}
+.risk-table tr:last-child td{border-bottom:none}
+.risk-table td strong{color:var(--text);font-weight:600}
+.risk-sev{font-size:.6rem;font-weight:700;letter-spacing:.04em;padding:.15rem .4rem;border-radius:4px;white-space:nowrap}
+.sev-h{background:rgba(239,68,68,.1);color:var(--p0)}
+.sev-m{background:rgba(245,158,11,.1);color:#b45309}
+.sev-l{background:rgba(16,185,129,.1);color:#059669}
+
+/* timeline */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:1rem;padding:.5rem 0}
+.tl-dot-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:20px}
+.tl-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex-shrink:0;border:2px solid #fff;box-shadow:0 0 0 2px var(--accent)}
+.tl-line{flex:1;width:1.5px;background:var(--border2)}
+.tl-item:last-child .tl-line{display:none}
+.tl-content{padding-bottom:.5rem;flex:1}
+.tl-phase{font-size:.75rem;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.tl-desc{font-size:.78rem;color:var(--muted);line-height:1.5;margin-top:.15rem}
+
+/* user stories */
+.story-card{background:rgba(79,70,229,.03);border:1px solid rgba(79,70,229,.12);border-radius:9px;padding:.7rem .9rem;margin-bottom:.45rem}
+.story-card:last-child{margin-bottom:0}
+.story-as{font-size:.68rem;font-weight:700;color:var(--accent);letter-spacing:.03em;text-transform:uppercase;margin-bottom:.2rem}
+.story-text{font-size:.83rem;color:var(--sub);line-height:1.6}
+.story-text strong{color:var(--text);font-weight:600}
+
+/* persona card */
+.persona-card{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.85rem 1rem;margin-bottom:.5rem}
+.persona-card:last-child{margin-bottom:0}
+.persona-name{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.25rem;display:flex;align-items:center;gap:.5rem}
+.persona-role{font-size:.7rem;font-weight:600;color:var(--accent);background:rgba(79,70,229,.07);border-radius:4px;padding:.1rem .4rem}
+.persona-need{font-size:.8rem;color:var(--muted);line-height:1.55}
+
+/* outcomes highlight */
+.outcome-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.65rem;margin-bottom:.75rem}
+.outcome-pill{border-radius:10px;padding:1rem;border:1px solid}
+.outcome-pill.green{background:rgba(16,185,129,.05);border-color:rgba(16,185,129,.2)}
+.outcome-pill.indigo{background:rgba(79,70,229,.05);border-color:rgba(79,70,229,.18)}
+.outcome-pill.amber{background:rgba(245,158,11,.05);border-color:rgba(245,158,11,.2)}
+.op-lbl{font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted2);margin-bottom:.3rem}
+.op-val{font-size:1rem;font-weight:900;letter-spacing:-.03em;line-height:1.15}
+.op-val.g{color:var(--green)}
+.op-val.a{color:var(--accent)}
+.op-val.o{color:#d97706}
+.op-sub{font-size:.62rem;color:var(--muted);margin-top:.2rem}
+
+/* divider */
+.prd-divider{height:1px;background:linear-gradient(90deg,var(--accent),transparent);margin:.5rem 0 1rem;opacity:.2}
+
+/* decision box */
+.decision-box{background:rgba(79,70,229,.04);border:1px solid rgba(79,70,229,.15);border-radius:10px;padding:1rem 1.1rem;margin-bottom:.75rem}
+.decision-box:last-child{margin-bottom:0}
+.decision-lbl{font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);margin-bottom:.4rem}
+.decision-text{font-size:.83rem;color:var(--sub);line-height:1.65}
+.decision-text strong{color:var(--text);font-weight:600}
+
+/* future work */
+.future-chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:500;color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:.3rem .75rem;border-radius:100px;margin:.2rem}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .main{padding:1.5rem}
+  .topnav-tabs{display:none}
+}
+
+/* PRINT */
+@media print{
+  .topnav{display:none}
+  .sidebar{display:none}
+  .layout{display:block;padding-top:0}
+  .main{padding:1rem;max-width:100%}
+  .prd-section{break-inside:avoid}
+  .prd-hdr{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <a href="KarthikeyaAlla-Portfolio.html" class="topnav-back">
+    <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+    Portfolio
+  </a>
+  <div class="topnav-title">PRD Portfolio — Karthikeya Alla</div>
+  <div class="topnav-tabs">
+    <a href="#uniconnect" class="tnav-tab">UniConnect</a>
+    <a href="#qr" class="tnav-tab">QR Attendance</a>
+    <a href="#makers" class="tnav-tab">Makers Conclave</a>
+    <a href="#cdu" class="tnav-tab">CDU Marks Tool</a>
+  </div>
+</nav>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-label">PRD Documents</div>
+
+  <div class="sb-project"><div class="sb-dot" style="background:#7c6af7"></div>UniConnect</div>
+  <a href="#uc-overview" class="sb-link">Overview</a>
+  <a href="#uc-problem" class="sb-link">Problem Statement</a>
+  <a href="#uc-goals" class="sb-link">Goals & Non-Goals</a>
+  <a href="#uc-metrics" class="sb-link">Success Metrics</a>
+  <a href="#uc-personas" class="sb-link">User Personas</a>
+  <a href="#uc-stories" class="sb-link">User Stories</a>
+  <a href="#uc-requirements" class="sb-link">Requirements</a>
+  <a href="#uc-decisions" class="sb-link">Technical Decisions</a>
+  <a href="#uc-timeline" class="sb-link">Timeline</a>
+  <a href="#uc-risks" class="sb-link">Risks</a>
+  <a href="#uc-outcomes" class="sb-link">Outcomes</a>
+  <a href="#uc-future" class="sb-link">Future Work</a>
+
+  <div class="sb-project"><div class="sb-dot" style="background:#10b981"></div>QR Attendance</div>
+  <a href="#qr-overview" class="sb-link">Overview</a>
+  <a href="#qr-problem" class="sb-link">Problem Statement</a>
+  <a href="#qr-goals" class="sb-link">Goals & Non-Goals</a>
+  <a href="#qr-metrics" class="sb-link">Success Metrics</a>
+  <a href="#qr-personas" class="sb-link">User Personas</a>
+  <a href="#qr-stories" class="sb-link">User Stories</a>
+  <a href="#qr-requirements" class="sb-link">Requirements</a>
+  <a href="#qr-decisions" class="sb-link">Technical Decisions</a>
+  <a href="#qr-timeline" class="sb-link">Timeline</a>
+  <a href="#qr-risks" class="sb-link">Risks</a>
+  <a href="#qr-outcomes" class="sb-link">Outcomes</a>
+
+  <div class="sb-project"><div class="sb-dot" style="background:#f59e0b"></div>Makers Conclave</div>
+  <a href="#mk-overview" class="sb-link">Overview</a>
+  <a href="#mk-problem" class="sb-link">Problem Statement</a>
+  <a href="#mk-goals" class="sb-link">Goals & Non-Goals</a>
+  <a href="#mk-metrics" class="sb-link">Success Metrics</a>
+  <a href="#mk-personas" class="sb-link">User Personas</a>
+  <a href="#mk-stories" class="sb-link">User Stories</a>
+  <a href="#mk-requirements" class="sb-link">Requirements</a>
+  <a href="#mk-decisions" class="sb-link">Technical Decisions</a>
+  <a href="#mk-timeline" class="sb-link">Timeline</a>
+  <a href="#mk-risks" class="sb-link">Risks</a>
+  <a href="#mk-outcomes" class="sb-link">Outcomes</a>
+
+  <div class="sb-project"><div class="sb-dot" style="background:#3b82f6"></div>CDU Marks Tool</div>
+  <a href="#cdu-overview" class="sb-link">Overview</a>
+  <a href="#cdu-problem" class="sb-link">Problem Statement</a>
+  <a href="#cdu-goals" class="sb-link">Goals & Non-Goals</a>
+  <a href="#cdu-metrics" class="sb-link">Success Metrics</a>
+  <a href="#cdu-personas" class="sb-link">User Personas</a>
+  <a href="#cdu-stories" class="sb-link">User Stories</a>
+  <a href="#cdu-requirements" class="sb-link">Requirements</a>
+  <a href="#cdu-timeline" class="sb-link">Timeline</a>
+  <a href="#cdu-risks" class="sb-link">Risks</a>
+  <a href="#cdu-outcomes" class="sb-link">Outcomes</a>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+<!-- ═══════════════════════════════════════════════════
+     PRD 1: UNICONNECT
+═══════════════════════════════════════════════════ -->
+<div class="prd" id="uniconnect">
+
+  <div class="prd-hdr">
+    <div class="prd-hdr-top">
+      <div>
+        <div class="prd-product-name">
+          UniConnect
+          <small>Product Requirements Document · v1.0</small>
+        </div>
+      </div>
+      <div class="prd-badges">
+        <span class="badge badge-live">● Live · Daily Use</span>
+        <span class="badge badge-intern">NxtWave Internship</span>
+      </div>
+    </div>
+    <div class="prd-meta-grid">
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Role</span>
+        <span class="prd-meta-val">Solution Architect Associate (Intern)</span>
+      </div>
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Organization</span>
+        <span class="prd-meta-val">NxtWave</span>
+      </div>
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Timeline</span>
+        <span class="prd-meta-val">Dec 2025 – Present</span>
+      </div>
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Type</span>
+        <span class="prd-meta-val">0→1 Internal Platform</span>
+      </div>
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Users</span>
+        <span class="prd-meta-val">111+ across 18 universities</span>
+      </div>
+      <div class="prd-meta-cell">
+        <span class="prd-meta-lbl">Status</span>
+        <span class="prd-meta-val" style="color:var(--green)">Active · Expanding</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Overview -->
+  <div class="prd-section" id="uc-overview">
+    <div class="prd-section-hdr">
+      <div class="sec-num">01</div>
+      <div class="sec-icon">📄</div>
+      <div class="sec-title">Product Overview</div>
+    </div>
+    <p class="prd-p">UniConnect is an internal multi-university operations platform built for NxtWave's university partner program. It unifies student communication, task management, operational reporting, academic workflows, budget tracking, and role-based access into a single system — replacing a fragmented web of personal Gmail accounts, WhatsApp groups, and shared Google Sheets.</p>
+    <p class="prd-p">The platform is designed for university operations staff, faculty, and leadership across 18 partner institutions, with the goal of replacing manual effort with automated, structured workflows that surface real-time visibility to leadership without adding burden to front-line teams.</p>
+  </div>
+
+  <!-- 2. Problem -->
+  <div class="prd-section" id="uc-problem">
+    <div class="prd-section-hdr">
+      <div class="sec-num">02</div>
+      <div class="sec-icon">⚠️</div>
+      <div class="sec-title">Problem Statement</div>
+    </div>
+    <p class="prd-p">University operations across 18 NxtWave partner institutions were managed through entirely informal channels. The core pain points surfaced through 40+ user interviews:</p>
+    <ul class="prd-list">
+      <li><strong>Bulk email took 2–3 hours per campaign.</strong> Faculty manually composed and sent individual batches from personal Gmail accounts, with no delivery tracking, no acknowledgment confirmation, and no way to resume if the process failed mid-send.</li>
+      <li><strong>Zero leadership visibility.</strong> Department heads had no real-time view into task completion, team activity, or performance across campuses. Status updates happened via informal phone calls.</li>
+      <li><strong>Exam paper creation consumed 4+ hours per paper.</strong> Faculty manually selected questions, formatted papers, assigned Bloom's taxonomy levels — an entirely manual and repetitive process with no question bank or reuse mechanism.</li>
+      <li><strong>Budget proposals had no audit trail.</strong> Approval chains happened over email. Post-event reconciliation had no structured process, creating financial accountability gaps.</li>
+      <li><strong>Meeting outcomes were lost.</strong> Decisions made in meetings were captured in personal notes and never systematically followed up on, causing recurring re-discussions and slipped action items.</li>
+      <li><strong>Faculty data entry consumed 6+ hours per week per person.</strong> Attendance sheets, marks entry, and performance reports were all manual, redundant, and error-prone.</li>
+    </ul>
+    <div class="decision-box">
+      <div class="decision-lbl">Root Cause</div>
+      <div class="decision-text">The root cause was not tool absence — it was <strong>fragmented informal systems creating invisible operational overhead</strong> that scaled linearly with each new university added, with no feedback mechanism for leadership to see the scale of inefficiency.</div>
+    </div>
+  </div>
+
+  <!-- 3. Goals -->
+  <div class="prd-section" id="uc-goals">
+    <div class="prd-section-hdr">
+      <div class="sec-num">03</div>
+      <div class="sec-icon">🎯</div>
+      <div class="sec-title">Goals & Non-Goals</div>
+    </div>
+    <div class="sub-label">Goals</div>
+    <ul class="prd-list">
+      <li>Reduce bulk email campaign execution time from ~3 hours to under 10 minutes</li>
+      <li>Give leadership real-time operational visibility without requiring additional data entry from teams</li>
+      <li>Centralize all operational workflows (email, tasks, reports, budgets, academics) into a single platform</li>
+      <li>Enable scale from 1 to 18+ universities without custom development per institution</li>
+      <li>Eliminate manual faculty data entry for attendance, marks, and performance sheets</li>
+    </ul>
+    <div class="sub-label">Non-Goals</div>
+    <ul class="prd-list">
+      <li>Not a student-facing LMS or learning platform — this is internal operations tooling only</li>
+      <li>Not a replacement for HR or enterprise finance systems</li>
+      <li>Not designed for public SaaS distribution in Phase 1 — internal deployment only</li>
+      <li>Not a communication tool for students communicating with each other</li>
+    </ul>
+  </div>
+
+  <!-- 4. Metrics -->
+  <div class="prd-section" id="uc-metrics">
+    <div class="prd-section-hdr">
+      <div class="sec-num">04</div>
+      <div class="sec-icon">📊</div>
+      <div class="sec-title">Success Metrics (KPIs)</div>
+    </div>
+    <div class="two-col">
+      <div class="met-pill"><div class="met-pill-lbl">Email Campaign Time</div><div class="met-pill-val g">3 hours → &lt;5 min</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Daily Report Prep</div><div class="met-pill-val g">30 min → 2 min</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Exam Paper Creation</div><div class="met-pill-val g">4 hours → 15 min</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Weekly Faculty Data Entry</div><div class="met-pill-val g">6 hrs/week saved</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Active Users (Target)</div><div class="met-pill-val a">100+ in 3 months</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Universities Onboarded</div><div class="met-pill-val a">18 (full scope)</div></div>
+    </div>
+    <div class="sub-label">Leading Indicators (Adoption Health)</div>
+    <ul class="prd-list">
+      <li>Daily active sessions per university (target: &gt;3 staff active per day per campus)</li>
+      <li>Email campaign frequency — increase indicates trust in the system</li>
+      <li>Daily form completion rate (proxy for team engagement with Ops Dashboard)</li>
+      <li>Feature adoption breadth: % of users who have used &gt;3 modules</li>
+    </ul>
+  </div>
+
+  <!-- 5. Personas -->
+  <div class="prd-section" id="uc-personas">
+    <div class="prd-section-hdr">
+      <div class="sec-num">05</div>
+      <div class="sec-icon">👤</div>
+      <div class="sec-title">User Personas</div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-name">University Operations Lead <span class="persona-role">Primary</span></div>
+      <div class="persona-need">Manages 1–3 campuses. Needs real-time visibility into task completion, staff activity, and operational health — currently relies on informal phone calls. Wants a 2-minute morning dashboard check to replace 30 minutes of follow-ups.</div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-name">Faculty Member <span class="persona-role">Primary</span></div>
+      <div class="persona-need">Sends bulk communications, creates exam papers, submits attendance and marks data. Primary pain: email campaigns take hours; exam papers take half a day. Wants speed without losing tracking.</div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-name">Finance / Events Coordinator <span class="persona-role">Secondary</span></div>
+      <div class="persona-need">Manages budget proposals and event approvals. Currently works over email chains with no structured flow. Needs a proposal → approval → reconciliation workflow with an audit trail.</div>
+    </div>
+    <div class="persona-card">
+      <div class="persona-name">NxtWave System Administrator <span class="persona-role">Internal</span></div>
+      <div class="persona-need">Manages university onboarding, role assignments, and data isolation. Needs each university's data to be completely isolated without any custom development per institution.</div>
+    </div>
+  </div>
+
+  <!-- 6. User Stories -->
+  <div class="prd-section" id="uc-stories">
+    <div class="prd-section-hdr">
+      <div class="sec-num">06</div>
+      <div class="sec-icon">📝</div>
+      <div class="sec-title">User Stories</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As an Operations Lead</div>
+      <div class="story-text">I want to see a real-time dashboard of all university activity so I don't need to make status calls to each campus coordinator every morning.</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As a Faculty Member</div>
+      <div class="story-text">I want to send bulk emails to 500+ students and know <strong>who opened them and who didn't</strong>, so I can follow up only with non-responders instead of re-sending to everyone.</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As a Faculty Member</div>
+      <div class="story-text">I want to generate an exam question paper from a question bank with Bloom's taxonomy tagging, so I spend 15 minutes instead of 4 hours — and the paper is ready to print with no formatting work.</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As a Finance Coordinator</div>
+      <div class="story-text">I want to submit a budget proposal that flows through an approval chain and tracks post-event actuals, so there's always a complete audit trail and reconciliation takes hours instead of days.</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As a System Administrator</div>
+      <div class="story-text">I want each university's data to be completely isolated by default, so there is zero risk of data crossover even as we scale to 20+ partner institutions.</div>
+    </div>
+    <div class="story-card">
+      <div class="story-as">As an Operations Lead</div>
+      <div class="story-text">I want automated weekly and monthly digest reports delivered without asking anyone, so leadership always has structured data — not anecdote — when making decisions.</div>
+    </div>
+  </div>
+
+  <!-- 7. Requirements -->
+  <div class="prd-section" id="uc-requirements">
+    <div class="prd-section-hdr">
+      <div class="sec-num">07</div>
+      <div class="sec-icon">⚙️</div>
+      <div class="sec-title">Functional Requirements</div>
+    </div>
+    <div class="sub-label">P0 — Must Ship (Core Value)</div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Email Automation Engine:</strong> Gmail OAuth integration, async job queue (BullMQ/Redis), per-student delivery tracking, open/acknowledgment tracking, resume capability for interrupted runs</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Ops Dashboard:</strong> Auto-aggregated activity feed across all modules + 2-minute daily form + automated daily/weekly/monthly report generation — no extra effort from teams</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Task Center:</strong> Assigned tasks with status, priority, due dates, and completion tracking visible to operations leads across campuses</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>RBAC (12+ roles):</strong> University-scoped access with invitation system, access request workflow, and complete data isolation enforced at the API layer</div></div>
+
+    <div class="sub-label" style="margin-top:1rem">P1 — Should Ship</div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Exam Assessment Engine:</strong> Question bank with Bloom's taxonomy tagging, 4-set paper auto-generation with deduplication, formatted PDF export ready for print</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Smart Sheets:</strong> Auto-generated attendance, marks, and performance sheets per faculty member — updated automatically from data already in the system</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Budget Proposals:</strong> Full lifecycle: draft → submission → approval → post-event actuals, with complete audit log and finance reconciliation view</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Meeting Intelligence:</strong> Calendar sync + meeting transcript processing + AI-extracted action items surfaced as structured tasks in the Task Center</div></div>
+
+    <div class="sub-label" style="margin-top:1rem">P2 — Nice to Have</div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Campaigns Module:</strong> Templated email campaigns with scheduled delivery, audience segmentation, and multi-university targeting</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>System Analytics:</strong> Platform-wide usage metrics, adoption heatmaps, and engagement patterns across universities for NxtWave leadership</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Mobile-optimized views:</strong> Responsive layouts for operations leads accessing dashboards on mobile during campus visits</div></div>
+
+    <div class="sub-label" style="margin-top:1rem">Non-Functional Requirements</div>
+    <ul class="prd-list">
+      <li><strong>Data isolation:</strong> Per-university schema separation enforced at middleware layer — no university can access another's data under any query path</li>
+      <li><strong>Performance:</strong> Email sends processed asynchronously; UI remains fully responsive during bulk operations of 500+ recipients</li>
+      <li><strong>Reliability:</strong> Redis-backed job queue with automatic retry logic; email jobs recoverable after server restart</li>
+      <li><strong>Security:</strong> OAuth-only authentication; RBAC enforced at API level (not just UI); all sensitive operations logged</li>
+      <li><strong>Uptime target:</strong> 99%+ availability for email engine and Ops Dashboard (highest-use modules)</li>
+    </ul>
+  </div>
+
+  <!-- 8. Technical Decisions -->
+  <div class="prd-section" id="uc-decisions">
+    <div class="prd-section-hdr">
+      <div class="sec-num">08</div>
+      <div class="sec-icon">🔧</div>
+      <div class="sec-title">Key Technical Decisions & Rationale</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">BullMQ + Redis for Email Queue</div>
+      <div class="decision-text"><strong>Decision:</strong> Process all bulk email sends asynchronously through a Redis-backed job queue.<br><br><strong>Rationale:</strong> Synchronous sends would block the UI for minutes during large campaigns. BullMQ provides durable job persistence (survives restarts), retry logic, and resume capability — so an interrupted 500-student send picks up from the last completed row, not from scratch.<br><br><strong>Trade-off:</strong> Adds Redis infrastructure dependency. Accepted — reliability at this scale requires it.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">University-Scoped Data Model</div>
+      <div class="decision-text"><strong>Decision:</strong> All tables include a university foreign key; all queries are filtered by university at the API middleware layer.<br><br><strong>Rationale:</strong> Chosen over a shared table model to enforce complete data isolation. A query-layer approach would risk isolation bugs under complex joins. Middleware enforcement is simpler to audit and test.<br><br><strong>Trade-off:</strong> Slower initial onboarding (university config must be set before any data entry). Accepted — data leakage at 18-university scale would be catastrophic.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Auto-Aggregation over Manual Reporting</div>
+      <div class="decision-text"><strong>Decision:</strong> The Ops Dashboard auto-aggregates data from all modules. The 2-minute daily form adds qualitative context — it does not replace auto-aggregated data.<br><br><strong>Rationale:</strong> If leadership visibility required teams to fill yet another form, adoption would fail. By making visibility a byproduct of normal system use, it adds zero burden to front-line teams while giving leadership more accurate data than self-reported forms alone.</div>
+    </div>
+  </div>
+
+  <!-- 9. Timeline -->
+  <div class="prd-section" id="uc-timeline">
+    <div class="prd-section-hdr">
+      <div class="sec-num">09</div>
+      <div class="sec-icon">📅</div>
+      <div class="sec-title">Timeline & Milestones</div>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Week 1–2 · Research & PRD</div><div class="tl-desc">40+ user interviews across campuses. Pain mapping and prioritization. PRD finalized. Decision: start with email automation as adoption wedge.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Week 3–6 · Email Automation Engine (Phase 1 MVP)</div><div class="tl-desc">Gmail OAuth, async queue, per-student tracking, delivery confirmation, resume capability. First 3 universities onboarded. User feedback collected.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Week 7–10 · Ops Dashboard + Task Center</div><div class="tl-desc">Auto-aggregation pipeline. 2-minute daily form. Automated weekly digest. Task Center with cross-campus visibility. First leadership adoption.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Week 11–16 · Assessment Engine + Smart Sheets</div><div class="tl-desc">Question bank, Bloom's taxonomy, 4-set paper generation, PDF export. Smart Sheets auto-population. Scale to 10 universities.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Week 17–22 · Budgets + Meeting Intelligence + RBAC</div><div class="tl-desc">Full budget lifecycle. Meeting transcript processing + AI action item extraction. 12-role RBAC with invitation system. Scale to 18 universities.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot-col"><div class="tl-dot"></div><div class="tl-line"></div></div>
+        <div class="tl-content"><div class="tl-phase">Ongoing · Campaigns + Analytics + Iteration</div><div class="tl-desc">Campaigns module, System Analytics, continuous feedback-driven iteration. 111+ users active across full 18-university network.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. Risks -->
+  <div class="prd-section" id="uc-risks">
+    <div class="prd-section-hdr">
+      <div class="sec-num">10</div>
+      <div class="sec-icon">🛡️</div>
+      <div class="sec-title">Risks & Mitigations</div>
+    </div>
+    <table class="risk-table">
+      <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Gmail rate limits</strong> during large bulk sends causing delivery failures</td><td><span class="risk-sev sev-h">High</span></td><td>Exponential backoff + queue pacing + per-sender limits enforced in job processor</td></tr>
+        <tr><td><strong>University onboarding complexity</strong> requiring custom configuration beyond what was planned</td><td><span class="risk-sev sev-m">Medium</span></td><td>Underestimated in v1; building flexible configuration layer in next iteration to reduce per-onboarding custom dev</td></tr>
+        <tr><td><strong>Adoption resistance</strong> from staff comfortable with existing informal tools</td><td><span class="risk-sev sev-m">Medium</span></td><td>Solved email pain first — highest impact, builds trust. New modules introduced only after email adoption was strong.</td></tr>
+        <tr><td><strong>Data isolation bugs</strong> under complex multi-university queries</td><td><span class="risk-sev sev-h">High</span></td><td>University filter enforced at API middleware layer — not query-by-query. Extensive query audit before each university onboarding.</td></tr>
+        <tr><td><strong>Feature scope creep</strong> delaying core modules</td><td><span class="risk-sev sev-m">Medium</span></td><td>Strict P0/P1/P2 prioritization. New features queued only after current milestone is shipped and validated.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 11. Outcomes -->
+  <div class="prd-section" id="uc-outcomes">
+    <div class="prd-section-hdr">
+      <div class="sec-num">11</div>
+      <div class="sec-icon">✅</div>
+      <div class="sec-title">Outcomes (Measured)</div>
+    </div>
+    <div class="outcome-grid">
+      <div class="outcome-pill green"><div class="op-lbl">Email Campaigns</div><div class="op-val g">3h → 5min</div><div class="op-sub">96% reduction</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">Daily Reporting</div><div class="op-val g">30min → 2min</div><div class="op-sub">93% reduction</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">Exam Paper Creation</div><div class="op-val g">4h → 15min</div><div class="op-sub">94% reduction</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">Faculty Data Entry</div><div class="op-val g">6hrs/week</div><div class="op-sub">Saved per person</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Active Users</div><div class="op-val a">111+</div><div class="op-sub">Across 18 universities</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Modules Shipped</div><div class="op-val a">10+</div><div class="op-sub">All in production</div></div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Key Learning</div>
+      <div class="decision-text">Visibility tools (Ops Dashboard, auto-reports) became the most valued feature for leadership — even more than time-saving automations. <strong>Visibility builds organizational trust faster than efficiency does.</strong> The adoption wedge strategy (email first) worked exactly as hypothesized: users who trusted the email system adopted every subsequent module significantly faster.</div>
+    </div>
+  </div>
+
+  <!-- 12. Future -->
+  <div class="prd-section" id="uc-future">
+    <div class="prd-section-hdr">
+      <div class="sec-num">12</div>
+      <div class="sec-icon">🔭</div>
+      <div class="sec-title">Future Work & Open Questions</div>
+    </div>
+    <div class="sub-label">Planned Next</div>
+    <div>
+      <span class="future-chip">Student-facing portal (grades, notices)</span>
+      <span class="future-chip">Flexible per-university configuration layer</span>
+      <span class="future-chip">Early warning system for at-risk students</span>
+      <span class="future-chip">Multi-language support for regional campuses</span>
+      <span class="future-chip">External SaaS mode for non-NxtWave universities</span>
+      <span class="future-chip">AI-powered weekly insight summaries for leadership</span>
+    </div>
+    <div class="sub-label" style="margin-top:1rem">Open Questions</div>
+    <ul class="prd-list">
+      <li>How do we make university onboarding fully self-serve without sacrificing data isolation guarantees?</li>
+      <li>At what scale does per-university isolation need to move from application-layer to database-level separation?</li>
+      <li>Should students eventually have read-only access to their own data within UniConnect, or should that be a separate product?</li>
+    </ul>
+  </div>
+
+</div><!-- /PRD 1 -->
+
+<div class="prd-divider" style="margin:3rem 0;opacity:.3"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     PRD 2: QR ATTENDANCE SYSTEM
+═══════════════════════════════════════════════════ -->
+<div class="prd" id="qr">
+
+  <div class="prd-hdr" style="--accent:#10b981">
+    <div class="prd-hdr-top">
+      <div>
+        <div class="prd-product-name">
+          QR Attendance System
+          <small>Product Requirements Document · v1.0</small>
+        </div>
+      </div>
+      <div class="prd-badges">
+        <span class="badge badge-live" style="color:#059669">● Live · Bootcamps</span>
+        <span class="badge badge-intern">NxtWave Internship</span>
+      </div>
+    </div>
+    <div class="prd-meta-grid">
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Role</span><span class="prd-meta-val">Product Owner</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Organization</span><span class="prd-meta-val">NxtWave</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Shipped</span><span class="prd-meta-val">Apr 2026</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Type</span><span class="prd-meta-val">Operational Infrastructure</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Scope</span><span class="prd-meta-val">Bootcamp Attendance</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Status</span><span class="prd-meta-val" style="color:var(--green)">Active</span></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="qr-overview">
+    <div class="prd-section-hdr"><div class="sec-num">01</div><div class="sec-icon">📄</div><div class="sec-title">Product Overview</div></div>
+    <p class="prd-p">A secure, QR-based digital attendance tracking system for NxtWave bootcamps. Replaces paper-based attendance entirely with a real-time tablet-scanner system: each student carries a unique QR code, authorized scanner tablets at the venue read them, and attendance is recorded instantly. The system is built with a tamper-proof token architecture, cross-platform support (iOS Safari + Android Chrome), and full admin tooling for coordinators.</p>
+  </div>
+
+  <div class="prd-section" id="qr-problem">
+    <div class="prd-section-hdr"><div class="sec-num">02</div><div class="sec-icon">⚠️</div><div class="sec-title">Problem Statement</div></div>
+    <ul class="prd-list">
+      <li><strong>Paper attendance created post-session overhead.</strong> Sheets collected at the door had to be manually keyed into a spreadsheet — an error-prone process with no real-time visibility during the session itself.</li>
+      <li><strong>Naive QR implementation would be exploitable.</strong> A URL-encoded QR code can be opened in any browser — students could mark themselves present without attending by simply visiting the URL from anywhere.</li>
+      <li><strong>No device management existed.</strong> Multiple tablets acted as scanners with no way to authorize, revoke, or track which device recorded which entry — a significant accountability gap.</li>
+      <li><strong>iOS Safari crashed on camera access.</strong> After initial deployment, iPads running Safari threw a null srcObject error when attempting to activate the camera — blocking the scanner entirely on Apple hardware, which was the primary scanner device.</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="qr-goals">
+    <div class="prd-section-hdr"><div class="sec-num">03</div><div class="sec-icon">🎯</div><div class="sec-title">Goals & Non-Goals</div></div>
+    <div class="sub-label">Goals</div>
+    <ul class="prd-list">
+      <li>Eliminate paper attendance sheets entirely — zero paper after deployment</li>
+      <li>Prevent proxy/cheating attendance through tamper-proof token architecture</li>
+      <li>Provide real-time attendance visibility to session coordinators during the event</li>
+      <li>Support both iOS Safari and Android Chrome without crashes or workarounds</li>
+      <li>Give admin full device management (authorize, revoke, track)</li>
+    </ul>
+    <div class="sub-label">Non-Goals</div>
+    <ul class="prd-list">
+      <li>Not a student identity or authentication system</li>
+      <li>Not designed for daily classroom attendance — bootcamp events only</li>
+      <li>Not integrated with an external LMS in v1</li>
+      <li>No student-facing app — students show a static QR code only</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="qr-metrics">
+    <div class="prd-section-hdr"><div class="sec-num">04</div><div class="sec-icon">📊</div><div class="sec-title">Success Metrics</div></div>
+    <div class="two-col">
+      <div class="met-pill"><div class="met-pill-lbl">Paper Sheets Remaining</div><div class="met-pill-val g">0</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">iOS Crashes Post-Fix</div><div class="met-pill-val g">0</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Setup Time per Bootcamp</div><div class="met-pill-val a">&lt;15 minutes</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Proxy Attendance Incidents</div><div class="met-pill-val g">0</div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="qr-personas">
+    <div class="prd-section-hdr"><div class="sec-num">05</div><div class="sec-icon">👤</div><div class="sec-title">User Personas</div></div>
+    <div class="persona-card"><div class="persona-name">Bootcamp Coordinator <span class="persona-role">Primary</span></div><div class="persona-need">Sets up the event, authorizes scanner tablets, monitors live attendance count, exports CSV for records. Needs setup to take under 15 minutes and exports to be audit-ready with IST timestamps.</div></div>
+    <div class="persona-card"><div class="persona-name">Scanner Tablet Operator <span class="persona-role">Primary</span></div><div class="persona-need">Stands at the venue entry and scans each student's QR. Needs the camera to open instantly, scanning to be immediate, and success feedback to be unmistakable. Zero tolerance for crashes.</div></div>
+    <div class="persona-card"><div class="persona-name">Bootcamp Student <span class="persona-role">End User</span></div><div class="persona-need">Shows their unique QR code at entry. Needs no app download, no account, no action beyond presenting the code. Should be frictionless.</div></div>
+  </div>
+
+  <div class="prd-section" id="qr-stories">
+    <div class="prd-section-hdr"><div class="sec-num">06</div><div class="sec-icon">📝</div><div class="sec-title">User Stories</div></div>
+    <div class="story-card"><div class="story-as">As a Coordinator</div><div class="story-text">I want to generate and download QR codes for all students organized by department as a ZIP, so physical distribution is structured and takes under 5 minutes.</div></div>
+    <div class="story-card"><div class="story-as">As a Coordinator</div><div class="story-text">I want to authorize specific tablets as scanners and be able to revoke any device instantly, so I have complete control over what can record attendance.</div></div>
+    <div class="story-card"><div class="story-as">As a Tablet Operator</div><div class="story-text">I want the camera to launch immediately after the device is paired, without any additional setup steps, so I can start scanning the moment students arrive.</div></div>
+    <div class="story-card"><div class="story-as">As a Coordinator</div><div class="story-text">I want to export attendance as a CSV with IST-accurate timestamps and device labels, so the data is audit-ready without any manual timezone conversion.</div></div>
+    <div class="story-card"><div class="story-as">As a Student</div><div class="story-text">I want to show my QR code from my phone without downloading any app or creating an account, so attendance takes 3 seconds and doesn't slow the entry line.</div></div>
+  </div>
+
+  <div class="prd-section" id="qr-requirements">
+    <div class="prd-section-hdr"><div class="sec-num">07</div><div class="sec-icon">⚙️</div><div class="sec-title">Functional Requirements</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Unique per-student QR codes:</strong> Raw opaque token encoding (not a URL) — QR cannot be opened in a browser; prevents replay attacks at the protocol level</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Scanner app:</strong> Camera activation, real-time QR frame detection, server-side token validation, immediate visual + audio success feedback</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Device pairing:</strong> Each tablet scans a setup QR to register; admin must explicitly authorize before device can submit attendance; rogue devices rejected at API</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>iOS Safari camera fix:</strong> Video element always mounted to DOM; camera starts via getUserMedia on pre-mounted element; zero crashes across all tested iOS devices</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Bulk QR download:</strong> Admin downloads ZIP of all student QR codes organized by department for structured physical distribution</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>IST-accurate CSV export:</strong> All timestamps converted to Asia/Kolkata timezone; device labels (not UUIDs) included in export for readability</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Live admin dashboard:</strong> Real-time attendance count per session, list of scanned students with timestamps, device activity log</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Session analytics:</strong> Attendance rate over time, peak scanning periods, device utilization metrics</div></div>
+  </div>
+
+  <div class="prd-section" id="qr-decisions">
+    <div class="prd-section-hdr"><div class="sec-num">08</div><div class="sec-icon">🔧</div><div class="sec-title">Key Technical Decisions</div></div>
+    <div class="decision-box">
+      <div class="decision-lbl">Raw Token vs URL Encoding for QR</div>
+      <div class="decision-text"><strong>Options evaluated:</strong> URL-encoded QR (easy to implement) vs Raw opaque token QR (slightly more complex).<br><br><strong>Decision:</strong> Raw token encoding. When a QR encodes a URL, scanning it opens a browser tab — any student can visit that URL from anywhere and potentially exploit it. Raw token encoding means the QR contains meaningless data to a browser; the scanner app alone can interpret and validate it server-side.<br><br><strong>Result:</strong> Replay attack vector eliminated at the protocol level — no security logic required beyond token validation.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">iOS Safari Camera Bug — Root Cause & Fix</div>
+      <div class="decision-text"><strong>Symptom:</strong> null srcObject error on camera activation in Safari on iPads.<br><br><strong>Root Cause:</strong> The video element was conditionally rendered (mounted/unmounted based on state). The camera activation code ran before the element was mounted to the DOM, so getUserMedia had no target element.<br><br><strong>Fix:</strong> Video element always mounted; toggled by CSS visibility, not DOM presence. Camera starts by calling getUserMedia on the already-mounted element.<br><br><strong>Result:</strong> Zero crashes on all tested iOS devices post-fix. No workaround required — root cause addressed.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Device Pairing Model</div>
+      <div class="decision-text"><strong>Decision:</strong> Each scanner tablet goes through a one-time pairing flow: admin generates a setup QR per device → tablet scans it → device is registered with a unique deviceKey → admin explicitly authorizes it in the portal before it can submit.<br><br><strong>Rationale:</strong> Prevents any unauthorized device (personal phones, unregistered tablets) from submitting attendance records. All submissions carry device labels — creating accountability at the device level, not just the student level.</div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="qr-timeline">
+    <div class="prd-section-hdr"><div class="sec-num">09</div><div class="sec-icon">📅</div><div class="sec-title">Timeline (6-Day Build)</div></div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#10b981;box-shadow:0 0 0 2px #10b981"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 1 · Security Architecture Decision</div><div class="tl-desc">Requirement scoping. URL vs token QR evaluation. Decision: raw token encoding. Device pairing model designed.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#10b981;box-shadow:0 0 0 2px #10b981"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 2–3 · Core Scanner + Token System</div><div class="tl-desc">QR generation per student, token validation API, scanner camera activation, success/fail feedback UI, device pairing flow.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#10b981;box-shadow:0 0 0 2px #10b981"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 4 · Admin Tooling</div><div class="tl-desc">Bulk QR download (ZIP by department), IST CSV export, device management portal (authorize/revoke), live dashboard.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#10b981;box-shadow:0 0 0 2px #10b981"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 5 · iOS Bug Discovery + Fix</div><div class="tl-desc">iPad Safari crashes discovered during tablet setup. Root cause analysis. DOM mounting fix implemented. Full iOS regression test.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#10b981;box-shadow:0 0 0 2px #10b981"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 6 · End-to-End Test + Deploy</div><div class="tl-desc">Full bootcamp simulation. Device authorization flow tested. CSV export verified. Deployed and live for Apr 2026 bootcamp.</div></div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="qr-risks">
+    <div class="prd-section-hdr"><div class="sec-num">10</div><div class="sec-icon">🛡️</div><div class="sec-title">Risks & Mitigations</div></div>
+    <table class="risk-table">
+      <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>iOS camera incompatibility</strong> blocks scanner tablets entirely</td><td><span class="risk-sev sev-h">High</span></td><td>Root-cause fix (DOM mounting order) — not a workaround. Validated across multiple iOS versions.</td></tr>
+        <tr><td><strong>QR token replay</strong> — students sharing or screenshotting QR codes for others</td><td><span class="risk-sev sev-h">High</span></td><td>Token is single-use per session; raw encoding prevents browser-based exploitation; device authorization adds a second check layer.</td></tr>
+        <tr><td><strong>Network drop</strong> mid-session causes scan failures</td><td><span class="risk-sev sev-m">Medium</span></td><td>Scanner queues failed validations locally; retries automatically when connection restores. (Planned for v2)</td></tr>
+        <tr><td><strong>Device pairing confusion</strong> during coordinator setup</td><td><span class="risk-sev sev-l">Low</span></td><td>Setup flow reduced to: scan one QR → see device appear in admin portal → authorize. 3 steps, no technical knowledge required.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prd-section" id="qr-outcomes">
+    <div class="prd-section-hdr"><div class="sec-num">11</div><div class="sec-icon">✅</div><div class="sec-title">Outcomes</div></div>
+    <div class="outcome-grid">
+      <div class="outcome-pill green"><div class="op-lbl">Paper Sheets</div><div class="op-val g">Eliminated</div><div class="op-sub">100% digital</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">iOS Crashes</div><div class="op-val g">0</div><div class="op-sub">Post root-cause fix</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Security</div><div class="op-val a">Zero exploits</div><div class="op-sub">Token model holds</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Setup Time</div><div class="op-val a">&lt;15 min</div><div class="op-sub">Per bootcamp</div></div>
+    </div>
+  </div>
+
+</div><!-- /PRD 2 -->
+
+<div class="prd-divider" style="margin:3rem 0;opacity:.3"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     PRD 3: MAKERS CONCLAVE RESULTS PORTAL
+═══════════════════════════════════════════════════ -->
+<div class="prd" id="makers">
+
+  <div class="prd-hdr">
+    <div class="prd-hdr-top">
+      <div>
+        <div class="prd-product-name">
+          Makers Conclave — Student Results Portal
+          <small>Product Requirements Document · v1.0</small>
+        </div>
+      </div>
+      <div class="prd-badges">
+        <span class="badge badge-done" style="color:#d97706">● Shipped · Embedded</span>
+        <span class="badge badge-intern">NxtWave Internship</span>
+      </div>
+    </div>
+    <div class="prd-meta-grid">
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Role</span><span class="prd-meta-val">Feature Developer</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Organization</span><span class="prd-meta-val">NxtWave / NIAT</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Built</span><span class="prd-meta-val">Mar 28 – Apr 2, 2026</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Type</span><span class="prd-meta-val">Self-serve Feature</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Data Source</span><span class="prd-meta-val">Google Sheets API</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Deploy</span><span class="prd-meta-val">iFrame embed on NIAT site</span></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="mk-overview">
+    <div class="prd-section-hdr"><div class="sec-num">01</div><div class="sec-icon">📄</div><div class="sec-title">Product Overview</div></div>
+    <p class="prd-p">A zero-login, self-serve student results portal built for the Makers Conclave hackathon at NIAT. Students enter their ID and instantly see their phase-wise scores, pass/fail status, and feedback — eliminating all manual result queries to event coordinators. Built on top of the existing Google Sheets data maintained by event staff, with an in-memory cache to handle peak traffic at results announcement.</p>
+  </div>
+
+  <div class="prd-section" id="mk-problem">
+    <div class="prd-section-hdr"><div class="sec-num">02</div><div class="sec-icon">⚠️</div><div class="sec-title">Problem Statement</div></div>
+    <p class="prd-p">During and after Makers Conclave results announcements, students repeatedly contacted event coordinators to ask for their scores — "What was my Phase 2 score?", "Did I qualify?", "Can you check my ID?" — creating significant coordinator overhead at exactly the moment when coordinators were busiest managing the event itself.</p>
+    <ul class="prd-list">
+      <li><strong>Coordinator overload:</strong> 50+ manual result queries per hour after results were announced, each requiring a coordinator to open the spreadsheet, search the ID, and reply individually.</li>
+      <li><strong>Student frustration:</strong> Delays in getting results created anxiety and eroded trust in the event organization — a fixable UX problem, not an organizational one.</li>
+      <li><strong>No structured data access:</strong> Results existed in a Google Sheet maintained by coordinators, but no structured student-facing interface existed to query it.</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="mk-goals">
+    <div class="prd-section-hdr"><div class="sec-num">03</div><div class="sec-icon">🎯</div><div class="sec-title">Goals & Non-Goals</div></div>
+    <div class="sub-label">Goals</div>
+    <ul class="prd-list">
+      <li>Give students 24/7 instant access to their phase-wise results without contacting anyone</li>
+      <li>Eliminate all manual result queries to coordinators post-results announcement</li>
+      <li>Require zero student login or account creation — frictionless ID lookup only</li>
+      <li>Read from the existing Google Sheet — no new data entry burden on coordinators</li>
+      <li>Be embeddable into the existing NIAT website via iframe in under 5 minutes</li>
+    </ul>
+    <div class="sub-label">Non-Goals</div>
+    <ul class="prd-list">
+      <li>Not a score entry or management system — read-only access to existing data</li>
+      <li>Not a full event management platform</li>
+      <li>No admin portal for modifying scores (coordinators continue using Google Sheets)</li>
+      <li>No persistent user accounts or profiles</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="mk-metrics">
+    <div class="prd-section-hdr"><div class="sec-num">04</div><div class="sec-icon">📊</div><div class="sec-title">Success Metrics</div></div>
+    <div class="two-col">
+      <div class="met-pill"><div class="met-pill-lbl">Manual Queries to Coordinators</div><div class="met-pill-val g">~0</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Student Lookup Response Time</div><div class="met-pill-val a">&lt;2 seconds (cached)</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Uptime During Peak</div><div class="met-pill-val g">100%</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Coordinator Setup Time</div><div class="met-pill-val a">5 min (iframe embed)</div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="mk-personas">
+    <div class="prd-section-hdr"><div class="sec-num">05</div><div class="sec-icon">👤</div><div class="sec-title">User Personas</div></div>
+    <div class="persona-card"><div class="persona-name">Hackathon Student <span class="persona-role">Primary</span></div><div class="persona-need">Participated in 1–3 phases of Makers Conclave. Wants to immediately see their scores without waiting for a coordinator response. High anxiety during results — needs fast, clear, unambiguous feedback.</div></div>
+    <div class="persona-card"><div class="persona-name">Event Coordinator <span class="persona-role">Beneficiary</span></div><div class="persona-need">Maintains scores in Google Sheets. Wants zero result-query interruptions so they can focus on running the event. Needs the integration to require no new workflow or data entry on their side.</div></div>
+    <div class="persona-card"><div class="persona-name">NIAT Website Admin <span class="persona-role">Embedding Team</span></div><div class="persona-need">Wants to drop an iframe into the existing website with minimal technical work. Integration should take under 10 minutes and require no backend changes to the NIAT site.</div></div>
+  </div>
+
+  <div class="prd-section" id="mk-stories">
+    <div class="prd-section-hdr"><div class="sec-num">06</div><div class="sec-icon">📝</div><div class="sec-title">User Stories</div></div>
+    <div class="story-card"><div class="story-as">As a Student</div><div class="story-text">I want to enter my student ID and <strong>immediately see all my phase scores with pass/fail status</strong>, so I don't have to wait for a coordinator to manually look up my result.</div></div>
+    <div class="story-card"><div class="story-as">As a Student</div><div class="story-text">I want the portal to work without creating an account or logging in, so I can check my results instantly without any friction — even from a friend's phone.</div></div>
+    <div class="story-card"><div class="story-as">As an Event Coordinator</div><div class="story-text">I want the results to auto-serve from our existing Google Sheet so I don't maintain a separate system or re-enter data anywhere — my workflow stays exactly the same.</div></div>
+    <div class="story-card"><div class="story-as">As the Embedding Team</div><div class="story-text">I want to drop an iframe into our website with no backend work required, so the integration takes 5 minutes and doesn't require a developer.</div></div>
+  </div>
+
+  <div class="prd-section" id="mk-requirements">
+    <div class="prd-section-hdr"><div class="sec-num">07</div><div class="sec-icon">⚙️</div><div class="sec-title">Functional Requirements</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Student ID lookup:</strong> Input field → Google Sheets API fetch → display Phase 1, 2, 3 scores with context (score/max, Qualified/Not Qualified status)</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Google Sheets integration:</strong> Read-only API access to coordinator-maintained spreadsheet; no new data entry burden on staff</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>In-memory cache (5-min TTL):</strong> Prevents Google Sheets API quota exhaustion during peak traffic at results announcement; cache refreshes automatically</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>iFrame embeddability:</strong> CSS scoped to prevent style leakage into the parent NIAT website; responsive design at all viewport sizes</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Friendly error states:</strong> Clear message for unrecognized IDs; format hint if ID doesn't match expected pattern; no raw API errors exposed to students</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Qualification status derivation:</strong> System derives Qualified/Not Qualified from score thresholds — coordinator doesn't need to maintain a separate qualification flag column</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Name-based search:</strong> Allow students to find results by name in addition to ID (useful if students misremember their ID format)</div></div>
+  </div>
+
+  <div class="prd-section" id="mk-decisions">
+    <div class="prd-section-hdr"><div class="sec-num">08</div><div class="sec-icon">🔧</div><div class="sec-title">Key Technical Decisions</div></div>
+    <div class="decision-box">
+      <div class="decision-lbl">Google Sheets as Data Source (No New Backend)</div>
+      <div class="decision-text"><strong>Decision:</strong> Read directly from the Google Sheet coordinators already maintain via the Sheets API, rather than building a separate database.<br><br><strong>Rationale:</strong> Coordinators already update the spreadsheet as scores are finalized — asking them to mirror data into a new system would create adoption friction and maintenance burden. The best product decision was: <em>extend the existing workflow, don't replace it.</em><br><br><strong>Trade-off:</strong> Google Sheets API has rate limits. Mitigated with in-memory cache.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Zero-Login Design</div>
+      <div class="decision-text"><strong>Decision:</strong> Students look up results by student ID only — no authentication, no account, no session.<br><br><strong>Rationale:</strong> Results are not sensitive enough to require authentication. Any login friction reduces usage and increases coordinator load (students who can't log in will message the coordinator instead). Zero-login means every student can access results in under 10 seconds, from any device.</div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">In-Memory Cache over Redis</div>
+      <div class="decision-text"><strong>Decision:</strong> Used Node.js in-process in-memory cache with a 5-minute TTL rather than a Redis instance.<br><br><strong>Rationale:</strong> This was a short-lived event portal (5 days). Redis adds infrastructure overhead and cost unjustified for a feature at this scale. In-memory cache adequately handles peak traffic bursts at announcement time while keeping the system simple and deploy-ready in minutes.</div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="mk-timeline">
+    <div class="prd-section-hdr"><div class="sec-num">09</div><div class="sec-icon">📅</div><div class="sec-title">Timeline (5-Day Build)</div></div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #f59e0b"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 1 · Scoping + Sheets Setup</div><div class="tl-desc">Requirement discussion with event coordinator. Google Sheets API authentication and data structure mapping. Column schema confirmed.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #f59e0b"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 2–3 · Core Feature</div><div class="tl-desc">ID lookup API, result display (3 phases, scores, qualification status), error states for invalid IDs, responsive UI.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #f59e0b"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 4 · Cache + Polish + iFrame</div><div class="tl-desc">In-memory cache layer implemented. CSS scoped for iframe embedding. Responsive design validated. Coordinator reviewed UX.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #f59e0b"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Day 5 (Mar 28) · Deploy + Embed</div><div class="tl-desc">Deployed to production. Embedded into NIAT website via iframe. Confirmed live and accessible to students on event start day.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #f59e0b"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Mar 28 – Apr 2 · Event Live</div><div class="tl-desc">Portal operational throughout all 3 result announcement phases. Zero coordinator result queries reported. No downtime.</div></div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="mk-risks">
+    <div class="prd-section-hdr"><div class="sec-num">10</div><div class="sec-icon">🛡️</div><div class="sec-title">Risks & Mitigations</div></div>
+    <table class="risk-table">
+      <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Google Sheets API quota exhaustion</strong> during results announcement spike</td><td><span class="risk-sev sev-h">High</span></td><td>In-memory cache with 5-minute TTL; most requests served from cache; API called only on cache miss or TTL expiry</td></tr>
+        <tr><td><strong>Student ID format confusion</strong> — students enter wrong format</td><td><span class="risk-sev sev-m">Medium</span></td><td>Input field shows example format; error message distinguishes "ID not found" from "invalid format"</td></tr>
+        <tr><td><strong>iFrame style conflicts</strong> with NIAT website CSS</td><td><span class="risk-sev sev-l">Low</span></td><td>All CSS scoped to portal wrapper class; no global selectors; tested in embedded context before go-live</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prd-section" id="mk-outcomes">
+    <div class="prd-section-hdr"><div class="sec-num">11</div><div class="sec-icon">✅</div><div class="sec-title">Outcomes</div></div>
+    <div class="outcome-grid">
+      <div class="outcome-pill green"><div class="op-lbl">Manual Queries</div><div class="op-val g">~0</div><div class="op-sub">vs. 50+/hr before</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">Downtime</div><div class="op-val g">0</div><div class="op-sub">5-day event run</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Build Time</div><div class="op-val a">5 days</div><div class="op-sub">Design to deploy</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Coordinator Work</div><div class="op-val a">Zero added</div><div class="op-sub">Existing Sheet unchanged</div></div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Key Learning</div>
+      <div class="decision-text">The best product decision was to read from the coordinator's existing Google Sheet rather than building a new data pipeline. <strong>Meeting users where they already work eliminates adoption friction entirely.</strong> The coordinator never changed their workflow — and the student experience was fully transformed.</div>
+    </div>
+  </div>
+
+</div><!-- /PRD 3 -->
+
+<div class="prd-divider" style="margin:3rem 0;opacity:.3"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     PRD 4: CDU MARKS AUTOMATION TOOL
+═══════════════════════════════════════════════════ -->
+<div class="prd" id="cdu">
+
+  <div class="prd-hdr">
+    <div class="prd-hdr-top">
+      <div>
+        <div class="prd-product-name">
+          CDU Marks Automation Tool
+          <small>Product Requirements Document · v1.0</small>
+        </div>
+      </div>
+      <div class="prd-badges">
+        <span class="badge badge-done">● Delivered</span>
+        <span class="badge badge-intern">NxtWave Internship</span>
+      </div>
+    </div>
+    <div class="prd-meta-grid">
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Role</span><span class="prd-meta-val">Builder & Product Owner</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Client</span><span class="prd-meta-val">Centurion University (CDU)</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Built</span><span class="prd-meta-val">Feb 24, 2025 (half-day)</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Type</span><span class="prd-meta-val">Internal Automation Tool</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Stack</span><span class="prd-meta-val">Python · Browser Automation</span></div>
+      <div class="prd-meta-cell"><span class="prd-meta-lbl">Target User</span><span class="prd-meta-val">Non-technical Faculty</span></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="cdu-overview">
+    <div class="prd-section-hdr"><div class="sec-num">01</div><div class="sec-icon">📄</div><div class="sec-title">Product Overview</div></div>
+    <p class="prd-p">A single-executable Python automation tool that reads faculty marks from a CSV file and automatically enters them into CDU's university management portal. Designed to require zero technical knowledge from faculty — one double-click to launch, with live progress feedback, error logging, and resume capability. Built and delivered in under half a day.</p>
+  </div>
+
+  <div class="prd-section" id="cdu-problem">
+    <div class="prd-section-hdr"><div class="sec-num">02</div><div class="sec-icon">⚠️</div><div class="sec-title">Problem Statement</div></div>
+    <p class="prd-p">CDU faculty were required to enter marks for every student individually into the university's web-based management portal. The portal had no bulk import functionality — every student required manual navigation: open student record → select subject → enter marks → save → next student.</p>
+    <ul class="prd-list">
+      <li><strong>Time cost:</strong> 2–3 hours per subject per faculty member — for a repetitive, zero-cognitive-value task that added nothing beyond data transfer.</li>
+      <li><strong>Error rate:</strong> Manual entry at scale introduces keystroke errors (transposed digits, wrong subject columns) that are hard to detect until students raise disputes.</li>
+      <li><strong>No resume capability:</strong> If the portal session expired or a browser crash occurred mid-entry, faculty had to determine where they stopped and restart from there — no checkpoint, no log.</li>
+      <li><strong>Zero visibility into progress:</strong> Faculty had no way to know how far through the class roster the upload had progressed without manually counting completed entries.</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="cdu-goals">
+    <div class="prd-section-hdr"><div class="sec-num">03</div><div class="sec-icon">🎯</div><div class="sec-title">Goals & Non-Goals</div></div>
+    <div class="sub-label">Goals</div>
+    <ul class="prd-list">
+      <li>Reduce marks entry time from 2–3 hours to under 30 minutes per subject</li>
+      <li>Eliminate manual keystroke errors through automated, CSV-driven entry</li>
+      <li>Require zero technical setup from faculty — no terminal, no Python installation, one double-click</li>
+      <li>Provide live progress visibility so faculty know the tool is working</li>
+      <li>Resume from checkpoint if the tool or session is interrupted mid-upload</li>
+    </ul>
+    <div class="sub-label">Non-Goals</div>
+    <ul class="prd-list">
+      <li>Not a portal replacement — works within the existing CDU portal UI</li>
+      <li>Not intended for other universities' portals in v1 (CDU-specific automation logic)</li>
+      <li>No cloud component — fully local, self-contained executable, no internet dependency beyond CDU portal access</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="cdu-metrics">
+    <div class="prd-section-hdr"><div class="sec-num">04</div><div class="sec-icon">📊</div><div class="sec-title">Success Metrics</div></div>
+    <div class="two-col">
+      <div class="met-pill"><div class="met-pill-lbl">Time per Subject</div><div class="met-pill-val g">2–3 hrs → ~20 min</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Manual Error Rate</div><div class="met-pill-val g">~0%</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Faculty Setup Time</div><div class="met-pill-val a">&lt;1 minute</div></div>
+      <div class="met-pill"><div class="met-pill-lbl">Build & Delivery Time</div><div class="met-pill-val a">Half day</div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="cdu-personas">
+    <div class="prd-section-hdr"><div class="sec-num">05</div><div class="sec-icon">👤</div><div class="sec-title">User Personas</div></div>
+    <div class="persona-card"><div class="persona-name">Faculty Member (Non-Technical) <span class="persona-role">Primary</span></div><div class="persona-need">Has their marks in an Excel/CSV file. Dreads the 3-hour portal entry process. Has no programming knowledge. Needs to run the tool by double-clicking, see it work, and trust it finished correctly.</div></div>
+    <div class="persona-card"><div class="persona-name">Department Coordinator <span class="persona-role">Secondary</span></div><div class="persona-need">Wants a summary log after completion — how many students were uploaded, how many were skipped, and why — to confirm everything went correctly without re-checking the portal manually.</div></div>
+  </div>
+
+  <div class="prd-section" id="cdu-stories">
+    <div class="prd-section-hdr"><div class="sec-num">06</div><div class="sec-icon">📝</div><div class="sec-title">User Stories</div></div>
+    <div class="story-card"><div class="story-as">As a Faculty Member</div><div class="story-text">I want to double-click one file and have it automatically fill all marks from my CSV, so I spend 20 minutes instead of 3 hours on a task that adds no value beyond data transfer.</div></div>
+    <div class="story-card"><div class="story-as">As a Faculty Member</div><div class="story-text">I want to see a <strong>live progress stream</strong> showing which student is currently being processed and what percentage is complete, so I know the tool is working and don't have to stare at a frozen screen.</div></div>
+    <div class="story-card"><div class="story-as">As a Faculty Member</div><div class="story-text">I want the tool to <strong>resume from where it stopped</strong> if my laptop dies or the session expires mid-upload, so I don't have to figure out where it stopped and restart from scratch.</div></div>
+    <div class="story-card"><div class="story-as">As a Department Coordinator</div><div class="story-text">I want a summary at completion showing how many entries succeeded, how many were skipped, and why, so I can verify the upload was complete without re-checking the portal row by row.</div></div>
+  </div>
+
+  <div class="prd-section" id="cdu-requirements">
+    <div class="prd-section-hdr"><div class="sec-num">07</div><div class="sec-icon">⚙️</div><div class="sec-title">Functional Requirements</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>CSV parsing:</strong> Read faculty marks CSV, validate format before starting (expected columns: roll number, name, marks), surface clear errors for malformed files</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Browser automation:</strong> Navigate CDU portal, authenticate, locate each student by roll number, enter marks in the correct field, save — without any faculty interaction</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Live progress stream:</strong> Real-time terminal/UI output showing current student name + roll number being processed, completion count, and percentage</div></div>
+    <div class="req-item"><span class="req-pri p0">P0</span><div class="req-text"><strong>Error handling:</strong> Skip unrecognized students gracefully (log as "skipped" with reason); continue processing remaining records without crashing</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Resume / checkpoint:</strong> Write a checkpoint file after each successful entry; on restart, detect checkpoint and continue from last completed row</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Completion summary:</strong> Final report showing: total records in CSV, successfully uploaded, skipped (with reasons), failed — written to a log file for coordinator review</div></div>
+    <div class="req-item"><span class="req-pri p1">P1</span><div class="req-text"><strong>Pre-run CSV validation:</strong> Before starting any portal interaction, validate CSV structure and flag format errors — so faculty know of issues before the automation begins</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Simple GUI wrapper:</strong> Replace terminal output with a lightweight desktop UI for faculty who find terminal text anxiety-inducing</div></div>
+    <div class="req-item"><span class="req-pri p2">P2</span><div class="req-text"><strong>Multi-subject batch mode:</strong> Queue multiple CSV files (one per subject) to run sequentially overnight without faculty supervision</div></div>
+
+    <div class="sub-label" style="margin-top:1rem">Non-Functional Requirements</div>
+    <ul class="prd-list">
+      <li><strong>Zero setup:</strong> Distributed as a bundled executable (PyInstaller) — no Python installation, no pip install, no command line required from faculty</li>
+      <li><strong>Safety:</strong> Tool reads CSV and confirms record count before starting; no destructive actions without pre-run check</li>
+      <li><strong>Recoverability:</strong> Checkpoint/resume means any interrupted run is recoverable without manual re-work</li>
+    </ul>
+  </div>
+
+  <div class="prd-section" id="cdu-timeline">
+    <div class="prd-section-hdr"><div class="sec-num">08</div><div class="sec-icon">📅</div><div class="sec-title">Timeline (Half-Day Build)</div></div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 0 2px #3b82f6"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Morning · Discovery & Portal Mapping</div><div class="tl-desc">Conversation with faculty to understand exact pain and expected CSV format. Manual walkthrough of CDU portal UI to map automation selectors and entry flow.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 0 2px #3b82f6"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Mid-Morning · CSV Parsing + Core Automation</div><div class="tl-desc">CSV reader with column validation. Browser automation loop: authenticate, locate student, enter marks, save, next.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 0 2px #3b82f6"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Early Afternoon · Progress + Resume + Error Handling</div><div class="tl-desc">Live progress stream, checkpoint/resume logic, graceful skip for unrecognized students, completion summary report.</div></div></div>
+      <div class="tl-item"><div class="tl-dot-col"><div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 0 2px #3b82f6"></div><div class="tl-line"></div></div><div class="tl-content"><div class="tl-phase">Afternoon · Test + Deliver</div><div class="tl-desc">End-to-end test with real faculty CSV (anonymized). Faculty walkthrough — one double-click confirmed. Delivered same day (Feb 24, 2025).</div></div></div>
+    </div>
+  </div>
+
+  <div class="prd-section" id="cdu-risks">
+    <div class="prd-section-hdr"><div class="sec-num">09</div><div class="sec-icon">🛡️</div><div class="sec-title">Risks & Mitigations</div></div>
+    <table class="risk-table">
+      <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Portal UI changes</strong> break automation selectors</td><td><span class="risk-sev sev-m">Medium</span></td><td>Selectors documented in code comments; re-mapping process documented so any future update can be applied in under an hour</td></tr>
+        <tr><td><strong>Faculty uploads wrong CSV</strong> (wrong subject or format)</td><td><span class="risk-sev sev-m">Medium</span></td><td>Pre-run validation checks expected column headers and record count; clearly surfaces mismatches before any portal interaction begins</td></tr>
+        <tr><td><strong>Network drop or session expiry</strong> mid-upload</td><td><span class="risk-sev sev-h">High</span></td><td>Checkpoint file written after every successful entry; resume logic picks up from last row without re-processing completed entries</td></tr>
+        <tr><td><strong>Student roll number format mismatch</strong> between CSV and portal</td><td><span class="risk-sev sev-l">Low</span></td><td>Normalized during pre-run validation; skipped with reason logged if unresolvable after normalization</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prd-section" id="cdu-outcomes">
+    <div class="prd-section-hdr"><div class="sec-num">10</div><div class="sec-icon">✅</div><div class="sec-title">Outcomes</div></div>
+    <div class="outcome-grid">
+      <div class="outcome-pill green"><div class="op-lbl">Marks Entry Time</div><div class="op-val g">3hr → 20min</div><div class="op-sub">Per subject</div></div>
+      <div class="outcome-pill green"><div class="op-lbl">Manual Errors</div><div class="op-val g">~0%</div><div class="op-sub">Automated entry</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Build Time</div><div class="op-val a">Half day</div><div class="op-sub">Concept to delivery</div></div>
+      <div class="outcome-pill indigo"><div class="op-lbl">Faculty Setup</div><div class="op-val a">1 double-click</div><div class="op-sub">Zero config required</div></div>
+    </div>
+    <div class="decision-box">
+      <div class="decision-lbl">Key Learning</div>
+      <div class="decision-text">The entire value of this tool came from <strong>ruthless constraint on scope</strong>. Faculty didn't need a UI framework, a database, or a web app — they needed a script that did exactly one thing perfectly: read a CSV and fill a form. Saying no to scope creep (GUI, multi-subject batch, reporting dashboard) kept the build to half a day and the delivery to the same afternoon.</div>
+    </div>
+  </div>
+
+</div><!-- /PRD 4 -->
+
+</main>
+</div><!-- /layout -->
+
+<script>
+// Sidebar active state on scroll
+const sections = document.querySelectorAll('[id]');
+const sidebarLinks = document.querySelectorAll('.sb-link');
+const topLinks = document.querySelectorAll('.tnav-tab');
+
+function updateActive(){
+  let current = '';
+  sections.forEach(s=>{
+    if(window.scrollY >= s.offsetTop - 120) current = s.id;
+  });
+  sidebarLinks.forEach(l=>{
+    const href = l.getAttribute('href').replace('#','');
+    l.classList.toggle('active', href === current);
+  });
+  // update top tabs
+  const prdIds = ['uniconnect','qr','makers','cdu'];
+  topLinks.forEach(l=>{
+    const href = l.getAttribute('href').replace('#','');
+    const isActive = prdIds.some(pid=>{
+      if(href===pid) return current.startsWith(pid.split('-')[0]) || current===pid;
+      return false;
+    });
+    l.classList.toggle('active',isActive);
+  });
+}
+window.addEventListener('scroll', updateActive, {passive:true});
+updateActive();
+</script>
+</body>
+</html>
