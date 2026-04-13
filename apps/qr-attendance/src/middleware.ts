@@ -35,8 +35,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow scanner page (device key validated separately)
+  // Protect scanner page — only ADMIN or STAFF can operate the scanner
+  // Students must NOT be able to open this page
   if (pathname === '/scan') {
+    const payload = await verifyTokenFromRequest(request);
+    if (!payload) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('from', '/scan');
+      return NextResponse.redirect(loginUrl);
+    }
+    if (payload.role !== 'ADMIN' && payload.role !== 'STAFF') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
     return NextResponse.next();
   }
 
