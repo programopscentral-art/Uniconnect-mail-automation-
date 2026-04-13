@@ -19,19 +19,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No students with QR codes found' }, { status: 404 });
   }
 
-  // FORCE DYNAMIC DISCOVERY
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
-  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-  const baseUrl = `${protocol}://${host}`;
-
   const zip = new JSZip();
 
-  // Generate QR for each student
+  // Generate QR for each student — encode raw token only, no URL
   await Promise.all(
     students.map(async (student) => {
       if (!student.qrToken) return;
       try {
-        const qrContent = `${baseUrl}/scan?token=${student.qrToken}`;
+        const qrContent = student.qrToken;
         const buffer = await generateQRBuffer(qrContent);
         const safeName = student.name.replace(/[^a-z0-9_\-]/gi, '_');
         const dept = student.department ? `${student.department.replace(/[^a-z0-9_\-]/gi, '_')}/` : '';
