@@ -40,6 +40,13 @@ export async function GET(request: NextRequest) {
     orderBy: [{ attendanceDate: 'asc' }, { scannedAt: 'asc' }]
   });
 
+  // Build deviceKey → label map for human-readable device names
+  const deviceKeys = [...new Set(records.map((r) => r.deviceKey).filter(Boolean))] as string[];
+  const devices = deviceKeys.length > 0
+    ? await prisma.device.findMany({ where: { deviceKey: { in: deviceKeys } }, select: { deviceKey: true, label: true } })
+    : [];
+  const deviceLabelMap = Object.fromEntries(devices.map((d) => [d.deviceKey, d.label ?? d.deviceKey]));
+
   const rows = records.map((r) => ({
     student_id: r.student.studentId,
     name: r.student.name,
@@ -49,8 +56,8 @@ export async function GET(request: NextRequest) {
     section: r.student.section ?? '',
     date: r.attendanceDate.toISOString().split('T')[0],
     slot: r.slot,
-    time: r.scannedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-    device: r.deviceKey ?? ''
+    time: r.scannedAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    device: r.deviceKey ? (deviceLabelMap[r.deviceKey] ?? r.deviceKey) : ''
   }));
 
   const csv = stringify(rows, {

@@ -20,9 +20,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         return NextResponse.json({ error: 'Device not found' }, { status: 404 });
     }
 
-    // Generate setup URL
-    const host = request.headers.get('host');
-    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    // Generate setup URL — use x-forwarded-host so Railway proxy URLs work correctly
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
+    const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
     const baseUrl = `${protocol}://${host}`;
     const setupUrl = `${baseUrl}/scan/setup?key=${device.deviceKey}&label=${encodeURIComponent(device.label || 'Device')}`;
 

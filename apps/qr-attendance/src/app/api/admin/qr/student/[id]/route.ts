@@ -18,22 +18,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     return NextResponse.json({ error: 'Student or Token not found' }, { status: 404 });
   }
 
-  // FORCE DYNAMIC DISCOVERY: 
-  // We prioritize x-forwarded-host (Railway/Proxy) over the raw host header
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'localhost:3000';
-  const protocol = request.headers.get('x-forwarded-proto') || (host.includes('localhost') ? 'http' : 'https');
-
-  // Create absolute URL for the scan page
-  const baseUrl = `${protocol}://${host}`;
-  const qrData = `${baseUrl}/scan?token=${student.qrToken}`;
-
-  const buffer = await generateQRBuffer(qrData);
+  // Encode raw token only — no URL, so student QR cannot be opened in a browser
+  const buffer = await generateQRBuffer(student.qrToken);
 
   return new Response(buffer, {
     headers: {
       'Content-Type': 'image/png',
       'Content-Disposition': `inline; filename="qr_${student.studentId}.png"`,
-      'X-QR-URL': qrData // For debugging
     }
   });
 }

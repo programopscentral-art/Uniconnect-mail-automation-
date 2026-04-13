@@ -115,9 +115,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-6">
-          Default: admin@attendance.local / Admin@1234
-        </p>
       </div>
     </div>
   );
