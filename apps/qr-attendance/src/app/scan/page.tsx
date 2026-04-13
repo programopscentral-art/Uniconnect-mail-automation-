@@ -230,36 +230,34 @@ export default function ScanPage() {
 
       {/* Camera / Activate area */}
       <div className="w-full max-w-sm px-6 mt-24 mb-6">
-        {cameraActive ? (
-          /* Live camera viewfinder */
-          <div className="relative rounded-[2.5rem] overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_60px_-15px_rgba(79,70,229,0.4)]"
-               style={{ aspectRatio: '3/4' }}>
-            <video
-              ref={videoRef}
-              className="w-full h-full object-cover"
-              playsInline
-              muted
-              autoPlay
-            />
-            {/* Scanning guide overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative w-56 h-56">
-                {/* Corner brackets */}
-                <span className="absolute top-0 left-0  w-8 h-8 border-t-[3px] border-l-[3px] border-white rounded-tl-md" />
-                <span className="absolute top-0 right-0 w-8 h-8 border-t-[3px] border-r-[3px] border-white rounded-tr-md" />
-                <span className="absolute bottom-0 left-0  w-8 h-8 border-b-[3px] border-l-[3px] border-white rounded-bl-md" />
-                <span className="absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] border-white rounded-br-md" />
-                {/* Scan line */}
-                <span className="absolute left-2 right-2 h-0.5 bg-indigo-400/80 rounded-full animate-scanline" />
-              </div>
-            </div>
-            {/* Bottom label */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent text-center">
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Hold QR code in the frame</p>
+        {/* Video always mounted so videoRef is never null when startCamera runs */}
+        <div
+          className="relative rounded-[2.5rem] overflow-hidden border-2 border-indigo-500/30 shadow-[0_0_60px_-15px_rgba(79,70,229,0.4)]"
+          style={{ aspectRatio: '3/4', display: cameraActive ? 'block' : 'none' }}
+        >
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            playsInline
+            muted
+            autoPlay
+          />
+          {/* Scanning guide overlay */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="relative w-56 h-56">
+              <span className="absolute top-0 left-0  w-8 h-8 border-t-[3px] border-l-[3px] border-white rounded-tl-md" />
+              <span className="absolute top-0 right-0 w-8 h-8 border-t-[3px] border-r-[3px] border-white rounded-tr-md" />
+              <span className="absolute bottom-0 left-0  w-8 h-8 border-b-[3px] border-l-[3px] border-white rounded-bl-md" />
+              <span className="absolute bottom-0 right-0 w-8 h-8 border-b-[3px] border-r-[3px] border-white rounded-br-md" />
+              <span className="absolute left-2 right-2 h-0.5 bg-indigo-400/80 rounded-full animate-scanline" />
             </div>
           </div>
-        ) : (
-          /* Activate button */
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent text-center">
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-white/60">Hold QR code in the frame</p>
+          </div>
+        </div>
+
+        {!cameraActive && (
           <div className="flex flex-col gap-4">
             <button
               onClick={startCamera}
@@ -274,7 +272,6 @@ export default function ScanPage() {
               ) : (
                 <>
                   <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center shadow-2xl">
-                    {/* Camera icon */}
                     <svg className="w-14 h-14 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
                         d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
