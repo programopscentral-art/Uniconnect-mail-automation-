@@ -290,7 +290,7 @@ Please analyze this data and provide:
 Keep it concise and actionable. Use bullet points.`;
 
         try {
-            const geminiKey = env.GEMINI_API_KEY;
+            const geminiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
             if (!geminiKey) throw error(500, 'Gemini API key not configured');
 
             const geminiResponse = await fetch(
@@ -420,7 +420,7 @@ Format with markdown tables and bullet points.`
         const prompt = reportPrompts[reportType || 'summary'] || reportPrompts.summary;
 
         try {
-            const geminiKey = env.GEMINI_API_KEY;
+            const geminiKey = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
             if (!geminiKey) throw error(500, 'Gemini API key not configured');
 
             const geminiResponse = await fetch(
