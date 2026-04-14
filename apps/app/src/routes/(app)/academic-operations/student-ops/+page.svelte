@@ -84,6 +84,8 @@
   let showDocUploadModal = $state(false);
   let uploadingDocs = $state(false);
   let docUploadResult = $state<any>(null);
+  let uploadProgress = $state(0);
+  let uploadPhase = $state<'uploading' | 'processing' | 'done'>('uploading');
 
   async function downloadTemplate() {
     window.open('/api/academic/students/bulk-import', '_blank');
@@ -119,14 +121,41 @@
 
     uploadingDocs = true;
     docUploadResult = null;
+    uploadProgress = 0;
+    uploadPhase = 'uploading';
+
     try {
-      const res = await fetch('/api/academic/students/bulk-documents', {
-        method: 'POST',
-        body: formData
+      // Use XMLHttpRequest for upload progress tracking
+      const result = await new Promise<any>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/academic/students/bulk-documents');
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            uploadProgress = Math.round((event.loaded / event.total) * 100);
+          }
+        };
+
+        xhr.upload.onload = () => {
+          uploadPhase = 'processing';
+          uploadProgress = 100;
+        };
+
+        xhr.onload = () => {
+          try { resolve(JSON.parse(xhr.responseText)); }
+          catch { reject(new Error('Invalid server response')); }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.ontimeout = () => reject(new Error('Upload timed out'));
+        xhr.timeout = 0; // no timeout for large files
+        xhr.send(formData);
       });
-      docUploadResult = await res.json();
-    } catch {
-      docUploadResult = { success: false, summary: 'Upload failed — check ZIP format' };
+
+      uploadPhase = 'done';
+      docUploadResult = result;
+    } catch (err: any) {
+      docUploadResult = { success: false, summary: `Upload failed — ${err.message || 'check ZIP format'}` };
     } finally { uploadingDocs = false; }
   }
 
@@ -569,7 +598,7 @@
         <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">ZIP File</label>
         <input type="file" name="file" required accept=".zip"
           class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100" />
-        <p class="text-[9px] text-gray-400 mt-1">Max 500MB. Allowed file types inside: PDF, JPG, PNG, WebP (max 10MB each)</p>
+        <p class="text-[9px] text-gray-400 mt-1">Max 3GB. Allowed file types inside: PDF, JPG, PNG, WebP (max 10MB each)</p>
       </div>
 
       {#if docUploadResult}
@@ -618,12 +647,20 @@
 
       <div class="flex gap-3 mt-5">
         <button type="submit" disabled={uploadingDocs}
-          class="flex-1 px-4 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+          class="flex-1 px-4 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors relative overflow-hidden">
           {#if uploadingDocs}
-            <span class="inline-flex items-center gap-2">
-              <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-              Encrypting & Uploading...
-            </span>
+            {#if uploadPhase === 'uploading'}
+              <div class="absolute inset-0 bg-emerald-500 transition-all duration-300" style="width: {uploadProgress}%; opacity: 0.3;"></div>
+              <span class="relative inline-flex items-center gap-2">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Uploading... {uploadProgress}%
+              </span>
+            {:else}
+              <span class="relative inline-flex items-center gap-2">
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                Encrypting & Processing documents...
+              </span>
+            {/if}
           {:else}
             Upload & Encrypt All
           {/if}

@@ -3,6 +3,9 @@ import { db, StudentDocumentService } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+/** Allow up to 3GB uploads for bulk documents */
+export const config = { body: { maxSize: '3gb' } };
+
 /**
  * Bulk Document Upload via ZIP
  *
@@ -22,7 +25,7 @@ import type { RequestHandler } from './$types';
 
 const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
-const MAX_ZIP_SIZE = 500 * 1024 * 1024; // 500MB total ZIP
+const MAX_ZIP_SIZE = 3 * 1024 * 1024 * 1024; // 3GB total ZIP
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
@@ -36,7 +39,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     if (!zipFile) throw error(400, 'No ZIP file uploaded');
     if (!universityId) throw error(400, 'university_id is required');
-    if (zipFile.size > MAX_ZIP_SIZE) throw error(400, 'ZIP file exceeds 500MB limit');
+    if (zipFile.size > MAX_ZIP_SIZE) throw error(400, 'ZIP file exceeds 3GB limit');
 
     // Load valid document type codes
     const typesRes = await db.query('SELECT code FROM student_document_types');
