@@ -89,7 +89,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         // Handle nested __MACOSX or hidden files
         if (parts.some(p => p.startsWith('.') || p.startsWith('__'))) return;
 
-        const niatId = parts[parts.length - 2].trim().toUpperCase();
+        const folderName = parts[parts.length - 2].trim().toUpperCase();
+        // Handle folders like "N25H02A0183 - Nunna Jaswanthi" — extract just the NIAT ID
+        const niatId = folderName.split(/\s*[-–—]\s*/)[0].trim();
         const fileName = parts[parts.length - 1];
 
         if (!niatId || !fileName) return;
