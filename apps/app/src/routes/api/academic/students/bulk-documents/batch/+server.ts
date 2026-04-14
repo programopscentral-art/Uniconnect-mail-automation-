@@ -9,6 +9,58 @@ const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 
 /**
+ * Maps common human-readable file names to document type codes.
+ * Checked in order — first match wins.
+ */
+const NAME_TO_CODE: [RegExp, string][] = [
+    // Profile / passport photo
+    [/profile.?photo|passport.?photo|photo|profile.?pic/i, 'PASSPORT_PHOTO'],
+    // Aadhaar
+    [/aadh?ar|aadhaar|uid/i, 'ID_PROOF_AADHAAR'],
+    // Signature
+    [/signature/i, 'SIGNATURE'],
+    // 10th certificates & marksheets
+    [/10th.*memo|10th.*marks|ssc.*marks|10th.*mark.?sheet/i, 'MARKSHEET_10TH'],
+    [/10th.*cert|ssc.*cert|10th.*pass/i, 'CERTIFICATE_10TH'],
+    // 11th / Intermediate (first year)
+    [/11th.*memo|11th.*marks/i, 'MARKSHEET_11TH'],
+    [/11th.*cert/i, 'CERTIFICATE_11TH'],
+    // 12th / Inter certificates & marksheets
+    [/12th.*memo|12th.*marks|inter.*marks|inter.*memo|hsc.*marks/i, 'MARKSHEET_12TH'],
+    [/12th.*cert|inter.*cert|hsc.*cert|inter.*pass/i, 'CERTIFICATE_12TH'],
+    // Degree
+    [/degree/i, 'DEGREE_CERTIFICATE'],
+    // Transfer certificate
+    [/transfer.*cert|tc\b/i, 'TRANSFER_CERTIFICATE'],
+    // Migration certificate
+    [/migration/i, 'MIGRATION_CERTIFICATE'],
+    // Fee / payment / admission receipts
+    [/admission.*receipt/i, 'ADMISSION_RECEIPT'],
+    [/hostel.*receipt/i, 'HOSTEL_RECEIPT'],
+    [/fee.*receipt/i, 'FEE_RECEIPT'],
+    [/payment.*receipt|receipt/i, 'PAYMENT_RECEIPT'],
+    // Income / caste / scholarship
+    [/income.*cert/i, 'INCOME_CERTIFICATE'],
+    [/caste.*cert/i, 'CASTE_CERTIFICATE'],
+    [/scholarship/i, 'SCHOLARSHIP_LETTER'],
+];
+
+/** Try to resolve a filename to a known document type code */
+function resolveTypeCode(fileName: string, validCodes: Set<string>): string | null {
+    // First: strip extension and try direct match (e.g. CERTIFICATE_10TH.pdf)
+    const raw = fileName.replace(/(\.(pdf|jpg|jpeg|png|webp))+$/i, '').toUpperCase().replace(/[\s-]+/g, '_');
+    if (validCodes.has(raw)) return raw;
+
+    // Second: try fuzzy name mapping
+    const nameWithoutExt = fileName.replace(/\.(pdf|jpg|jpeg|png|webp)$/i, '');
+    for (const [pattern, code] of NAME_TO_CODE) {
+        if (pattern.test(nameWithoutExt) && validCodes.has(code)) return code;
+    }
+
+    return null;
+}
+
+/**
  * Batch upload endpoint — receives one student's documents at a time.
  * The frontend extracts the ZIP client-side and sends batches here.
  *
@@ -49,7 +101,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     for (const file of files) {
         const ext = file.name.split('.').pop()?.toLowerCase() || '';
-        const typeCode = file.name.replace(/(\.(pdf|jpg|jpeg|png|webp))+$/i, '').toUpperCase().replace(/[\s-]+/g, '_');
 
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
             result.errors.push({ file: file.name, reason: `Invalid file type .${ext}` });
@@ -57,8 +108,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             continue;
         }
 
-        if (!validTypeCodes.has(typeCode)) {
-            result.errors.push({ file: file.name, reason: `Unknown document type "${typeCode}"` });
+        const typeCode = resolveTypeCode(file.name, validTypeCodes);
+        if (!typeCode) {
+            result.errors.push({ file: file.name, reason: `Unknown document type — rename to a known code like CERTIFICATE_10TH.pdf` });
             result.failed++;
             continue;
         }

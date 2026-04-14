@@ -27,6 +27,38 @@ const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 const MAX_ZIP_SIZE = 3 * 1024 * 1024 * 1024; // 3GB total ZIP
 
+const NAME_TO_CODE: [RegExp, string][] = [
+    [/profile.?photo|passport.?photo|photo|profile.?pic/i, 'PASSPORT_PHOTO'],
+    [/aadh?ar|aadhaar|uid/i, 'ID_PROOF_AADHAAR'],
+    [/signature/i, 'SIGNATURE'],
+    [/10th.*memo|10th.*marks|ssc.*marks|10th.*mark.?sheet/i, 'MARKSHEET_10TH'],
+    [/10th.*cert|ssc.*cert|10th.*pass/i, 'CERTIFICATE_10TH'],
+    [/11th.*memo|11th.*marks/i, 'MARKSHEET_11TH'],
+    [/11th.*cert/i, 'CERTIFICATE_11TH'],
+    [/12th.*memo|12th.*marks|inter.*marks|inter.*memo|hsc.*marks/i, 'MARKSHEET_12TH'],
+    [/12th.*cert|inter.*cert|hsc.*cert|inter.*pass/i, 'CERTIFICATE_12TH'],
+    [/degree/i, 'DEGREE_CERTIFICATE'],
+    [/transfer.*cert|tc\b/i, 'TRANSFER_CERTIFICATE'],
+    [/migration/i, 'MIGRATION_CERTIFICATE'],
+    [/admission.*receipt/i, 'ADMISSION_RECEIPT'],
+    [/hostel.*receipt/i, 'HOSTEL_RECEIPT'],
+    [/fee.*receipt/i, 'FEE_RECEIPT'],
+    [/payment.*receipt|receipt/i, 'PAYMENT_RECEIPT'],
+    [/income.*cert/i, 'INCOME_CERTIFICATE'],
+    [/caste.*cert/i, 'CASTE_CERTIFICATE'],
+    [/scholarship/i, 'SCHOLARSHIP_LETTER'],
+];
+
+function resolveTypeCode(fileName: string, validCodes: Set<string>): string | null {
+    const raw = fileName.replace(/(\.(pdf|jpg|jpeg|png|webp))+$/i, '').toUpperCase().replace(/[\s-]+/g, '_');
+    if (validCodes.has(raw)) return raw;
+    const nameWithoutExt = fileName.replace(/\.(pdf|jpg|jpeg|png|webp)$/i, '');
+    for (const [pattern, code] of NAME_TO_CODE) {
+        if (pattern.test(nameWithoutExt) && validCodes.has(code)) return code;
+    }
+    return null;
+}
+
 export const POST: RequestHandler = async ({ request, locals }) => {
     if (!locals.user) throw error(401);
     if (!['ADMIN', 'PROGRAM_OPS'].includes(locals.user.role as string)) {
@@ -117,21 +149,20 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         for (const file of files) {
             const ext = file.name.split('.').pop()?.toLowerCase() || '';
-            // Strip ALL extensions (handles double extensions like CERTIFICATE_10TH.jpg.jpg)
-            const typeCode = file.name.replace(/(\.(pdf|jpg|jpeg|png|webp))+$/i, '').toUpperCase().replace(/[\s-]+/g, '_');
 
             // Validate extension
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
                 result.errors.push({ niatId, file: file.name, reason: `Invalid file type .${ext} — allowed: PDF, JPG, PNG, WebP` });
-                result.details.push({ niatId, file: file.name, type: typeCode, status: 'INVALID_TYPE' });
+                result.details.push({ niatId, file: file.name, type: '', status: 'INVALID_TYPE' });
                 result.documents_failed++;
                 continue;
             }
 
-            // Validate document type code
-            if (!validTypeCodes.has(typeCode)) {
-                result.errors.push({ niatId, file: file.name, reason: `Unknown document type "${typeCode}". Use codes like CERTIFICATE_10TH, MARKSHEET_12TH, etc.` });
-                result.details.push({ niatId, file: file.name, type: typeCode, status: 'UNKNOWN_TYPE' });
+            // Resolve document type code (supports both exact codes and human-readable names)
+            const typeCode = resolveTypeCode(file.name, validTypeCodes);
+            if (!typeCode) {
+                result.errors.push({ niatId, file: file.name, reason: `Unknown document type — rename to a known code like CERTIFICATE_10TH.pdf` });
+                result.details.push({ niatId, file: file.name, type: '', status: 'UNKNOWN_TYPE' });
                 result.documents_failed++;
                 continue;
             }
