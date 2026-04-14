@@ -162,14 +162,12 @@
       uploadPhase = 'uploading';
       uploadStatus = `Processing 0 / ${totalStudents} students...`;
 
-      // Send one student at a time
+      // Process students in parallel batches of 5 for speed
+      const CONCURRENCY = 5;
       const niatEntries = Array.from(filesByNiat.entries());
-      for (let i = 0; i < niatEntries.length; i++) {
-        const [niatId, files] = niatEntries[i];
-        uploadedCount = i + 1;
-        uploadProgress = Math.round(((i + 1) / totalStudents) * 100);
-        uploadStatus = `Processing ${i + 1} / ${totalStudents} students — ${niatId}`;
+      let completed = 0;
 
+      async function processStudent(niatId: string, files: { name: string; entry: any }[]) {
         // Extract files to base64
         const filePayloads = [];
         for (const f of files) {
@@ -182,9 +180,8 @@
           }
         }
 
-        if (filePayloads.length === 0) continue;
+        if (filePayloads.length === 0) return;
 
-        // Send with a 60s timeout per student to avoid hanging
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 60000);
         try {
@@ -212,7 +209,18 @@
           const reason = err.name === 'AbortError' ? 'Timed out (60s) — skipped' : 'Network error';
           totals.errors.push({ niatId, file: '*', reason });
           totals.failed += filePayloads.length;
+        } finally {
+          completed++;
+          uploadedCount = completed;
+          uploadProgress = Math.round((completed / totalStudents) * 100);
+          uploadStatus = `Processing ${completed} / ${totalStudents} students — ${niatId}`;
         }
+      }
+
+      // Process in chunks of CONCURRENCY
+      for (let i = 0; i < niatEntries.length; i += CONCURRENCY) {
+        const chunk = niatEntries.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map(([niatId, files]) => processStudent(niatId, files)));
       }
 
       uploadPhase = 'done';
