@@ -182,12 +182,17 @@
 
         if (filePayloads.length === 0) continue;
 
+        // Send with a 60s timeout per student to avoid hanging
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 60000);
         try {
           const res = await fetch('/api/academic/students/bulk-documents/batch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ university_id: universityId, niat_id: niatId, files: filePayloads })
+            body: JSON.stringify({ university_id: universityId, niat_id: niatId, files: filePayloads }),
+            signal: controller.signal
           });
+          clearTimeout(timeout);
           const data = await res.json();
           totals.uploaded += data.uploaded || 0;
           totals.skipped += data.skipped || 0;
@@ -200,8 +205,10 @@
           } else {
             totals.students_matched++;
           }
-        } catch {
-          totals.errors.push({ niatId, file: '*', reason: 'Network error' });
+        } catch (err: any) {
+          clearTimeout(timeout);
+          const reason = err.name === 'AbortError' ? 'Timed out (60s) — skipped' : 'Network error';
+          totals.errors.push({ niatId, file: '*', reason });
           totals.failed += filePayloads.length;
         }
       }
