@@ -85,7 +85,10 @@
   let uploadingDocs = $state(false);
   let docUploadResult = $state<any>(null);
   let uploadProgress = $state(0);
-  let uploadPhase = $state<'uploading' | 'processing' | 'done'>('uploading');
+  let uploadPhase = $state<'reading' | 'uploading' | 'done'>('reading');
+  let uploadStatus = $state('');
+  let uploadedCount = $state(0);
+  let totalStudents = $state(0);
 
   async function downloadTemplate() {
     window.open('/api/academic/students/bulk-import', '_blank');
@@ -116,46 +119,106 @@
 
   async function handleBulkDocUpload(e: Event) {
     const form = e.target as HTMLFormElement;
-    const formData = new FormData(form);
-    formData.set('university_id', universityId);
+    const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
+    const zipFile = fileInput?.files?.[0];
+    if (!zipFile) return;
 
     uploadingDocs = true;
     docUploadResult = null;
     uploadProgress = 0;
-    uploadPhase = 'uploading';
+    uploadPhase = 'reading';
+    uploadStatus = 'Reading ZIP file...';
+    uploadedCount = 0;
+    totalStudents = 0;
+
+    const totals = { uploaded: 0, skipped: 0, failed: 0, students_matched: 0, students_not_found: [] as string[], errors: [] as any[] };
 
     try {
-      // Use XMLHttpRequest for upload progress tracking
-      const result = await new Promise<any>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/academic/students/bulk-documents');
+      // Dynamic import JSZip only when needed
+      const JSZip = (await import('jszip')).default;
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            uploadProgress = Math.round((event.loaded / event.total) * 100);
-          }
-        };
+      // Read ZIP in browser
+      const arrayBuffer = await zipFile.arrayBuffer();
+      uploadStatus = 'Extracting ZIP...';
+      const zip = await JSZip.loadAsync(arrayBuffer);
 
-        xhr.upload.onload = () => {
-          uploadPhase = 'processing';
-          uploadProgress = 100;
-        };
-
-        xhr.onload = () => {
-          try { resolve(JSON.parse(xhr.responseText)); }
-          catch { reject(new Error('Invalid server response')); }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error'));
-        xhr.ontimeout = () => reject(new Error('Upload timed out'));
-        xhr.timeout = 0; // no timeout for large files
-        xhr.send(formData);
+      // Group files by NIAT ID folder
+      const filesByNiat = new Map<string, { name: string; entry: any }[]>();
+      zip.forEach((path: string, entry: any) => {
+        if (entry.dir) return;
+        const parts = path.split('/');
+        if (parts.length < 2) return;
+        if (parts.some((p: string) => p.startsWith('.') || p.startsWith('__'))) return;
+        const niatId = parts[parts.length - 2].trim().toUpperCase();
+        const fileName = parts[parts.length - 1];
+        if (!niatId || !fileName) return;
+        if (!filesByNiat.has(niatId)) filesByNiat.set(niatId, []);
+        filesByNiat.get(niatId)!.push({ name: fileName, entry });
       });
 
+      totalStudents = filesByNiat.size;
+      uploadPhase = 'uploading';
+      uploadStatus = `Processing 0 / ${totalStudents} students...`;
+
+      // Send one student at a time
+      const niatEntries = Array.from(filesByNiat.entries());
+      for (let i = 0; i < niatEntries.length; i++) {
+        const [niatId, files] = niatEntries[i];
+        uploadedCount = i + 1;
+        uploadProgress = Math.round(((i + 1) / totalStudents) * 100);
+        uploadStatus = `Processing ${i + 1} / ${totalStudents} students — ${niatId}`;
+
+        // Extract files to base64
+        const filePayloads = [];
+        for (const f of files) {
+          try {
+            const content = await f.entry.async('base64');
+            filePayloads.push({ name: f.name, content });
+          } catch {
+            totals.errors.push({ niatId, file: f.name, reason: 'Failed to extract from ZIP' });
+            totals.failed++;
+          }
+        }
+
+        if (filePayloads.length === 0) continue;
+
+        try {
+          const res = await fetch('/api/academic/students/bulk-documents/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ university_id: universityId, niat_id: niatId, files: filePayloads })
+          });
+          const data = await res.json();
+          totals.uploaded += data.uploaded || 0;
+          totals.skipped += data.skipped || 0;
+          totals.failed += data.failed || 0;
+          if (data.errors?.length) {
+            if (data.errors[0]?.reason === 'Student NIAT ID not found') {
+              totals.students_not_found.push(niatId);
+            }
+            totals.errors.push(...data.errors.map((err: any) => ({ niatId, ...err })));
+          } else {
+            totals.students_matched++;
+          }
+        } catch {
+          totals.errors.push({ niatId, file: '*', reason: 'Network error' });
+          totals.failed += filePayloads.length;
+        }
+      }
+
       uploadPhase = 'done';
-      docUploadResult = result;
+      docUploadResult = {
+        success: totals.failed === 0 && totals.students_not_found.length === 0,
+        summary: `${totals.students_matched} students matched — ${totals.uploaded} documents encrypted & uploaded, ${totals.skipped} skipped (already exist), ${totals.failed} failed`,
+        documents_uploaded: totals.uploaded,
+        documents_skipped: totals.skipped,
+        documents_failed: totals.failed,
+        students_matched: totals.students_matched,
+        students_not_found: totals.students_not_found,
+        errors: totals.errors
+      };
     } catch (err: any) {
-      docUploadResult = { success: false, summary: `Upload failed — ${err.message || 'check ZIP format'}` };
+      docUploadResult = { success: false, summary: `Failed — ${err.message || 'Invalid ZIP file'}` };
     } finally { uploadingDocs = false; }
   }
 
@@ -647,22 +710,23 @@
 
       <div class="flex gap-3 mt-5">
         <button type="submit" disabled={uploadingDocs}
-          class="flex-1 px-4 py-3 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors relative overflow-hidden">
+          class="flex-1 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-colors relative overflow-hidden">
           {#if uploadingDocs}
-            {#if uploadPhase === 'uploading'}
-              <div class="absolute inset-0 bg-emerald-500 transition-all duration-300" style="width: {uploadProgress}%; opacity: 0.3;"></div>
-              <span class="relative inline-flex items-center gap-2">
+            <div class="absolute inset-0 bg-emerald-400 transition-all duration-300 ease-out" style="width: {uploadProgress}%; opacity: 0.25;"></div>
+            <div class="relative px-4 py-3">
+              <span class="inline-flex items-center gap-2">
                 <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Uploading... {uploadProgress}%
+                {uploadStatus}
               </span>
-            {:else}
-              <span class="relative inline-flex items-center gap-2">
-                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Encrypting & Processing documents...
-              </span>
-            {/if}
+              {#if uploadPhase === 'uploading'}
+                <div class="mt-1.5 w-full bg-emerald-800/40 rounded-full h-1.5">
+                  <div class="bg-white rounded-full h-1.5 transition-all duration-300" style="width: {uploadProgress}%"></div>
+                </div>
+                <p class="text-[10px] mt-1 opacity-80">{uploadProgress}% — {uploadedCount}/{totalStudents} students</p>
+              {/if}
+            </div>
           {:else}
-            Upload & Encrypt All
+            <div class="px-4 py-3">Upload & Encrypt All</div>
           {/if}
         </button>
         <button type="button" onclick={() => { showDocUploadModal = false; docUploadResult = null; }}
