@@ -211,6 +211,7 @@ body{
   font-size:9px;
   color:#374151;
   line-height:1.68;
+  text-align:justify;
 }
 
 /* ── EXPERIENCE BLOCK ── */
@@ -251,6 +252,7 @@ body{
   line-height:1.52;
   padding-left:12px;
   position:relative;
+  text-align:justify;
 }
 .bl li::before{
   content:'';
@@ -379,10 +381,17 @@ body{
 
 /* RESPONSIVE */
 @media(max-width:680px){
-  .cols{grid-template-columns:1fr}
-  .lc{border-right:none;border-bottom:1px solid #ede9fe}
-  .hd-top{flex-direction:column;gap:10px}
-  .hd-right{align-items:flex-start}
+  .page-wrap{padding:0 0 40px}
+  .resume{border-radius:0;box-shadow:none;overflow-x:auto}
+  .cols{grid-template-columns:160px 1fr;min-width:560px}
+  .hd{padding:16px 14px 12px;min-width:560px}
+  .hd-top{flex-direction:row;gap:10px}
+  .hd-name{font-size:18px}
+  .hd-title{font-size:9px}
+  .hd-contact-item{font-size:8px}
+  .topbar{padding:8px 12px}
+  .topbar-name{font-size:12px}
+  .topbar-btns a{font-size:11px;padding:6px 10px}
 }
 
 </style>

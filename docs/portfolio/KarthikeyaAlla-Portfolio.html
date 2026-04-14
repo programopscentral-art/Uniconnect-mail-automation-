@@ -92,8 +92,8 @@ nav{position:fixed;inset:0 0 auto 0;z-index:100;height:60px;display:flex;align-i
 .divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
 
 /* ── ABOUT ── */
-.about-wrap{display:grid;grid-template-columns:1fr 380px;gap:4rem;align-items:start;margin-top:3.5rem}
-.about-text p{font-size:.95rem;color:rgba(238,238,240,.65);line-height:1.85;margin-bottom:1.25rem}
+.about-wrap{display:grid;grid-template-columns:1fr 300px;gap:2.5rem;align-items:start;margin-top:3.5rem}
+.about-text p{font-size:.95rem;color:rgba(238,238,240,.65);line-height:1.85;margin-bottom:1.25rem;text-align:justify}
 .about-text p strong{color:rgba(238,238,240,.9);font-weight:600}
 .about-glass{background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:20px;padding:2rem;backdrop-filter:blur(20px)}
 .about-glass-title{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:1.25rem}
@@ -194,15 +194,15 @@ nav{position:fixed;inset:0 0 auto 0;z-index:100;height:60px;display:flex;align-i
 .mcl:hover{background:rgba(255,255,255,.12);color:#fff}
 .modal h2{font-size:2rem;font-weight:900;letter-spacing:-.045em;color:#fff;margin-bottom:.3rem}
 .modal-sub{font-size:.8rem;color:var(--muted);margin-bottom:1.75rem}
-.modal-hl{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.18);border-radius:12px;padding:1.1rem 1.35rem;margin-bottom:2rem;font-size:.875rem;color:rgba(238,238,240,.8);line-height:1.65}
+.modal-hl{background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.18);border-radius:12px;padding:1.1rem 1.35rem;margin-bottom:2rem;font-size:.875rem;color:rgba(238,238,240,.8);line-height:1.65;text-align:justify}
 .modal-mets{display:flex;gap:2rem;margin-bottom:2rem;padding-bottom:2rem;border-bottom:1px solid var(--border);flex-wrap:wrap}
 .ms-title{font-size:.62rem;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--accent2);margin-bottom:.65rem;margin-top:1.5rem}
 .ms-title:first-of-type{margin-top:0}
-.ms-content{font-size:.875rem;color:rgba(238,238,240,.65);line-height:1.75;margin-bottom:1rem}
-.mlist{list-style:none;display:flex;flex-direction:column;gap:.65rem;margin-bottom:1.25rem}
-.mlist li{font-size:.875rem;color:rgba(238,238,240,.65);display:flex;gap:.75rem;line-height:1.65}
-.mlist li::before{content:'';width:5px;height:5px;background:var(--accent);border-radius:50%;margin-top:.58rem;flex-shrink:0}
-.mlist li strong{color:rgba(238,238,240,.9)}
+.ms-content{font-size:.875rem;color:rgba(238,238,240,.65);line-height:1.75;margin-bottom:1rem;text-align:justify}
+.mlist{list-style:none;display:flex;flex-direction:column;gap:1rem;margin-bottom:1.25rem}
+.mlist li{font-size:.875rem;color:rgba(238,238,240,.62);line-height:1.7;padding-left:1rem;position:relative;text-align:justify}
+.mlist li::before{content:'';width:5px;height:5px;background:var(--accent);border-radius:50%;position:absolute;left:0;top:.62rem;flex-shrink:0}
+.mlist li strong{color:rgba(238,238,240,.95);font-weight:700;display:block;margin-bottom:.18rem}
 .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:1.25rem}
 .mpill{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:.9rem 1rem}
 .mpill-lbl{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.25rem}
@@ -210,22 +210,23 @@ nav{position:fixed;inset:0 0 auto 0;z-index:100;height:60px;display:flex;align-i
 .mpill-val.g{color:var(--green)}
 .mpill-val.a{color:var(--accent2)}
 .reflection-box{background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.18);border-radius:12px;padding:1.1rem 1.35rem;margin-top:.5rem}
-.reflection-box p{font-size:.85rem;color:rgba(238,238,240,.6);line-height:1.7;font-style:italic}
+.reflection-box p{font-size:.85rem;color:rgba(238,238,240,.6);line-height:1.7;font-style:italic;text-align:justify}
 
 /* ── FOOTER ── */
-footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100vw - 1100px)/2 + 1.5rem))}
-.footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
-.footer-logo{font-size:.85rem;font-weight:800;color:var(--text);letter-spacing:-.02em}
-.footer-links{display:flex;gap:1.75rem}
+footer{border-top:1px solid var(--border);padding:2.5rem max(1.5rem, calc((100vw - 1100px)/2 + 1.5rem)) 2rem}
+.footer-inner{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:2rem}
+.footer-logo{font-size:.9rem;font-weight:800;color:var(--text);letter-spacing:-.02em}
+.footer-logo span{display:block;font-size:.7rem;font-weight:400;color:var(--muted);margin-top:.2rem;letter-spacing:0}
+.footer-links{display:flex;gap:1.5rem;flex-wrap:wrap}
 .footer-links a{font-size:.75rem;color:var(--muted);text-decoration:none;transition:color .2s}
 .footer-links a:hover{color:var(--text)}
 .footer-copy{font-size:.72rem;color:var(--muted2)}
-.footer-contact{display:flex;flex-direction:column;align-items:flex-end;gap:.35rem}
-.footer-status{font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent2)}
-.footer-contact-row{display:flex;align-items:center;gap:.4rem;font-size:.74rem;color:var(--muted)}
+.footer-contact{display:flex;flex-direction:column;align-items:flex-end;gap:.4rem}
+.footer-status{font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:.15rem}
+.footer-contact-row{display:flex;align-items:center;justify-content:flex-end;gap:.45rem;font-size:.75rem;color:var(--muted)}
 .footer-contact-row a{color:var(--muted);text-decoration:none;transition:color .2s}
 .footer-contact-row a:hover{color:var(--text)}
-.footer-contact-icon{width:13px;height:13px;color:var(--muted2);flex-shrink:0}
+.footer-contact-icon{width:13px;height:13px;color:var(--accent2);flex-shrink:0}
 
 /* ANIMATIONS */
 @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
@@ -238,7 +239,8 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
 
 /* RESPONSIVE */
 @media(max-width:900px){
-  .about-wrap{grid-template-columns:1fr;gap:2.5rem}
+  .about-glass{padding:1.25rem}
+  .about-wrap{grid-template-columns:1fr 260px;gap:1.5rem}
   .edu-grid{grid-template-columns:1fr;gap:2rem}
   nav{padding:0 1.25rem}
   .section{padding:5rem 1.25rem}
@@ -249,6 +251,13 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
   .mgrid{grid-template-columns:1fr}
   .modal{padding:1.75rem 1.5rem}
   footer{padding:2rem 1.25rem}
+  .footer-inner{grid-template-columns:1fr;gap:1.5rem}
+  .footer-contact{align-items:flex-start}
+  .footer-contact-row{justify-content:flex-start}
+  .about-wrap{grid-template-columns:1fr;gap:1.5rem;margin-top:2rem}
+  .about-text p{text-align:justify;font-size:.9rem;line-height:1.75}
+  .about-glass{padding:1.5rem}
+  .about-item-val{font-size:.85rem}
 }
 
 /* ══════════════════════════════
@@ -412,7 +421,7 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
       <div class="hm"><div class="hm-num">111<s>+</s></div><div class="hm-lbl">Active Users</div></div>
       <div class="hm"><div class="hm-num">18</div><div class="hm-lbl">Universities</div></div>
       <div class="hm"><div class="hm-num">4<s>+</s></div><div class="hm-lbl">Products Shipped</div></div>
-      <div class="hm"><div class="hm-num">8.53</div><div class="hm-lbl">CGPA · GRIET</div></div>
+
     </div>
   </div>
 </div>
@@ -427,10 +436,13 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
   </div>
   <div class="about-wrap">
     <div class="about-text reveal reveal-delay-1">
-      <p>I'm a final-year <strong>B.Tech CSE (AI/ML) student at GRIET (Gokaraju Rangaraju Institute of Engineering &amp; Technology)</strong> with a CGPA of 8.53. As a Solution Architect Associate Intern at NxtWave, I built <strong>UniConnect</strong> — a multi-university operations platform active across 18 universities with 111+ daily users — owning it from user research through launch and iteration.</p>
-      <p>I've interned at <strong>Atos India</strong> as a Data Analyst, built <strong>QR-based attendance infrastructure</strong> for bootcamps, automated marks entry workflows for universities, and shipped a student results portal for Makers Conclave. Every product I've built started with a genuine user problem — not a feature idea.</p>
-      <p>My approach: <strong>run user research first, map the system second, ship fast, then iterate</strong>. I write PRDs, run sprints, coordinate with developers, and stay close enough to the codebase to unblock technical decisions without needing to escalate every edge case.</p>
-      <p>Certified in <strong>Product Management (Udacity)</strong>, <strong>Business Analysis (Celonis)</strong>, and <strong>Python (NPTEL)</strong>. Open to Product Management roles where I can own a problem end-to-end.</p>
+      <p>I'm a final-year <strong>B.Tech CSE (AI/ML) student at GRIET (Gokaraju Rangaraju Institute of Engineering &amp; Technology)</strong> with a CGPA of 8.53.</p>
+      <p>As a Solution Architect Associate Intern at NxtWave, I built <strong>UniConnect</strong> — a multi-university operations platform now used across 18 universities by 111+ daily users — owning it end-to-end from problem discovery and system design to launch and iteration.</p>
+      <p>Before that, I worked as a <strong>Data Analytics Intern at Atos India</strong>, where I analyzed structured datasets using Python and SQL to identify patterns, improve reporting workflows, and support data-driven decision-making. This experience strengthened my ability to work with real-world data, translate insights into actionable improvements, and think in terms of systems and efficiency.</p>
+      <p>Building on this foundation, I went on to design and ship multiple products — including a <strong>QR-based attendance system</strong> for bootcamps, an <strong>automated marks entry tool</strong> for university faculty, and a <strong>student results tracking portal</strong> for Makers Conclave — each solving a specific operational bottleneck.</p>
+      <p>Every product I've built started from a real user problem — not a feature idea.</p>
+      <p>My approach: <strong>run user research first, map the system second, ship fast, then iterate</strong>. I write PRDs, run sprints, coordinate with developers, and stay close enough to the codebase to make informed technical decisions without unnecessary escalation.</p>
+      <p>Certified in <strong>Product Management (Udacity)</strong>, <strong>Business Analysis (Celonis)</strong>, and <strong>Python (NPTEL)</strong>. Open to Product Management roles where I can own problems end-to-end.</p>
     </div>
     <div class="about-glass reveal reveal-delay-2">
       <div class="about-glass-title">Quick Facts</div>
@@ -487,8 +499,8 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
 <!-- CASE STUDIES -->
 <section class="section" id="work">
   <div class="work-header reveal">
-    <div class="sec-label">PM Case Studies</div>
-    <h2 class="sec-h">Problems I solved.<br>Outcomes I drove.</h2>
+    <div class="sec-label">Product Case Studies</div>
+    <h2 class="sec-h">Work I've built<br>and shipped.</h2>
     <p class="sec-sub">Four detailed case studies — each following the full PM framework: Context → Problem → Approach → Solution → Outcomes → Learnings.</p>
   </div>
 
@@ -854,7 +866,7 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
             <div class="edu-item-name">B.Tech CSE (AI/ML)</div>
             <div class="edu-item-sub">GRIET (Gokaraju Rangaraju Institute of Engineering &amp; Technology) · 2022–2026</div>
           </div>
-          <div class="edu-item-score">8.53</div>
+          <div class="edu-item-score" style="display:flex;flex-direction:column;align-items:flex-end;gap:.05rem"><span style="font-size:1rem;font-weight:900">8.53</span><span style="font-size:.55rem;font-weight:600;opacity:.65;letter-spacing:.04em">CGPA</span></div>
         </div>
         <div class="edu-item reveal reveal-delay-1">
           <div class="edu-item-icon">📚</div>
@@ -947,7 +959,7 @@ footer{border-top:1px solid var(--border);padding:2.25rem max(1.5rem, calc((100v
 <!-- FOOTER -->
 <footer>
   <div class="footer-inner">
-    <div class="footer-logo">Karthikeya Alla</div>
+    <div class="footer-logo">Karthikeya Alla<span>Aspiring Product Manager</span></div>
     <div class="footer-links">
       <a href="#work">Case Studies</a>
       <a href="#thinking">PM Thinking</a>
