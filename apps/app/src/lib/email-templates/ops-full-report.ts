@@ -15,6 +15,7 @@ export interface OpsFullReportOptions {
     dashboardUrl: string;
     prevSummary?: any;
     budgetIntel?: any;
+    scopedUniversity?: string | null; // if set, report is scoped to one university
 }
 
 const n = (v: any) => {
@@ -217,7 +218,7 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
         requested: number;
         approved: number;
         spent: number;
-        events: Array<{ title: string; type: string; amount: number; status: string; date?: string; outcomes?: string; issues?: string }>;
+        events: Array<{ title: string; type: string; amount: number; status: string; date?: string; outcomes?: string; issues?: string; proposer?: string }>;
     };
     const byUniv = new Map<string, UnivBudget>();
     let totalProposals = 0, totalRequested = 0, totalApproved = 0, totalSpent = 0;
@@ -241,8 +242,9 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
             status: e.status || '',
             date: e.proposed_date ? new Date(e.proposed_date).toISOString().split('T')[0] : undefined,
             outcomes: e.outcomes || '',
-            issues: e.issues_faced || ''
-        });
+            issues: e.issues_faced || '',
+            proposer: e.proposer_name || ''
+        } as any);
         totalProposals += 1;
         totalRequested += req;
         totalApproved += apr;
@@ -301,7 +303,7 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
             ${statusBadge(e.status)}
             <span style="font-size:11px;font-weight:600;color:#64748b">${e.event_type || '—'}</span>
         </div>
-        <div style="font-size:12px;color:#64748b">${e.university_name || '—'}${e.proposed_date ? ` · ${new Date(e.proposed_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</div>
+        <div style="font-size:12px;color:#64748b">${e.university_name || '—'}${e.proposer_name ? ` · by <strong style="color:#334155">${e.proposer_name}</strong>` : ''}${e.proposed_date ? ` · ${new Date(e.proposed_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</div>
         ${e.outcomes ? `<div style="margin-top:8px;padding:10px 12px;background:#f0fdf4;border-left:3px solid #10b981;border-radius:8px;font-size:12px;color:#14532d"><strong style="color:#065f46">Outcome:</strong> ${e.outcomes}</div>` : ''}
         ${e.issues_faced ? `<div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border-left:3px solid #f43f5e;border-radius:8px;font-size:12px;color:#7f1d1d"><strong style="color:#991b1b">Issues:</strong> ${e.issues_faced}</div>` : ''}
     </div>
@@ -348,7 +350,7 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
             <span style="font-size:13px;font-weight:600;color:#0f172a">${ev.title}</span>
             ${statusBadge(ev.status)}
         </div>
-        <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:capitalize">${ev.type.replace(/_/g, ' ')}${ev.date ? ` · ${new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:capitalize">${ev.type.replace(/_/g, ' ')}${ev.proposer ? ` · by ${ev.proposer}` : ''}${ev.date ? ` · ${new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}</div>
         ${ev.outcomes ? `<div style="font-size:11px;color:#065f46;margin-top:3px"><strong>✓</strong> ${ev.outcomes.slice(0, 140)}${ev.outcomes.length > 140 ? '…' : ''}</div>` : ''}
         ${ev.issues ? `<div style="font-size:11px;color:#991b1b;margin-top:3px"><strong>!</strong> ${ev.issues.slice(0, 140)}${ev.issues.length > 140 ? '…' : ''}</div>` : ''}
     </div>
@@ -405,8 +407,72 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
 </section>`;
 }
 
+function renderCancellationDetail(mode: OpsReportMode, byUniv: any[], dailyBreakdown: any[]): string {
+    // Source rows: for daily, we have one row per university; for weekly/monthly
+    // we have aggregated rows. Use dailyBreakdown when available for richer
+    // per-day reasons.
+    const source = (dailyBreakdown && dailyBreakdown.length > 0) ? dailyBreakdown : byUniv;
+    // Group by university: collect cancelled count + list of reasons.
+    const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number> }>();
+    for (const r of source || []) {
+        const cancelled = Number(r.sessions_cancelled) || 0;
+        if (cancelled <= 0 && !r.cancellation_reason) continue;
+        const name = r.university_name || '—';
+        if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map() });
+        const u = byU.get(name)!;
+        u.cancelled += cancelled;
+        const reason = String(r.cancellation_reason || '').trim();
+        if (reason) {
+            // Split semicolon-separated reasons (weekly/monthly aggregates use this)
+            const parts = reason.split(/\s*;\s*|\s*\|\s*/).map((p) => p.trim()).filter(Boolean);
+            for (const p of parts) {
+                u.reasons.set(p, (u.reasons.get(p) || 0) + 1);
+            }
+        }
+    }
+
+    const universities = Array.from(byU.values())
+        .filter((u) => u.cancelled > 0 || u.reasons.size > 0)
+        .sort((a, b) => b.cancelled - a.cancelled);
+
+    if (universities.length === 0) {
+        return `<div style="padding:8px 0;font-size:12px;color:#94a3b8">No per-university reasons recorded.</div>`;
+    }
+
+    return universities.map((u) => {
+        const reasonsList = Array.from(u.reasons.entries()).sort((a, b) => b[1] - a[1]);
+        const top = reasonsList[0];
+        if (mode === 'daily') {
+            // Daily: show full verbatim reason, one block per university.
+            const reasonText = reasonsList.map(([r]) => r).join(' · ') || '—';
+            return `
+<div style="padding:10px 0;border-bottom:1px solid #f1f5f9">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}</div>
+        <div style="font-size:11px;color:#9f1239;font-weight:700;white-space:nowrap">${u.cancelled} cancelled</div>
+    </div>
+    <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5">${reasonText}</div>
+</div>`;
+        }
+        // Weekly/Monthly: show most-common reason prominently and a list of other reasons.
+        const topReason = top ? `${top[0]}${top[1] > 1 ? ` <span style="color:#94a3b8;font-weight:400">(×${top[1]})</span>` : ''}` : '—';
+        const otherReasons = reasonsList.slice(1, 4).map(([r, c]) => `${r}${c > 1 ? ` (×${c})` : ''}`).join(' · ');
+        return `
+<div style="padding:10px 0;border-bottom:1px solid #f1f5f9">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}</div>
+        <div style="font-size:11px;color:#9f1239;font-weight:700;white-space:nowrap">${u.cancelled} cancelled</div>
+    </div>
+    <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5">
+        <span style="font-weight:600;color:#b91c1c">Most common:</span> ${topReason}
+        ${otherReasons ? `<br><span style="color:#94a3b8">Also:</span> ${otherReasons}` : ''}
+    </div>
+</div>`;
+    }).join('');
+}
+
 export function buildOpsFullReportHtml(opts: OpsFullReportOptions): string {
-    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel } = opts;
+    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel, scopedUniversity } = opts;
     const s = report?.summary || {};
     const byUniv = report?.byUniversity || [];
     const dailyBreakdown = report?.dailyBreakdown || [];
@@ -499,11 +565,14 @@ ${card('Sessions breakdown', `${modeLabel} performance`, `
     ${bar('Completed', n(s.sessions_completed), Math.max(n(s.sessions_planned), 1), '#10b981', `of ${fmt(s.sessions_planned)}`)}
     ${bar('Cancelled', n(s.sessions_cancelled), Math.max(n(s.sessions_planned), 1), '#f43f5e', '')}
     ${bar('Remaining', Math.max(0, n(s.sessions_planned) - n(s.sessions_completed) - n(s.sessions_cancelled)), Math.max(n(s.sessions_planned), 1), '#a1a1aa', '')}
-    ${s.cancellation_reason ? `
-    <div style="margin-top:16px;padding:12px 14px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:8px">
-        <div style="font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.7px">Reason</div>
-        <div style="font-size:13px;color:#78350f;margin-top:3px">${s.cancellation_reason}</div>
-    </div>` : ''}
+    ${n(s.sessions_cancelled) > 0 ? `
+    <details style="margin-top:14px;border:1px solid #fecdd3;border-radius:10px;overflow:hidden">
+        <summary style="cursor:pointer;list-style:none;padding:12px 14px;background:#fff1f2;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:700;color:#9f1239">
+            <span>View cancellation reasons by university</span>
+            <span style="font-size:14px">▾</span>
+        </summary>
+        <div style="padding:10px 14px;background:#ffffff">${renderCancellationDetail(mode, byUniv, dailyBreakdown)}</div>
+    </details>` : ''}
 `, 4)}
 
 ${card('Engagement', 'Success coach outreach', `
@@ -583,14 +652,15 @@ ${aiSummary ? `
 <!-- Budget & proposals -->
 ${renderBudgetSection(mode, budgetIntel, accent1)}
 
-<!-- University table (full width) -->
+${scopedUniversity ? '' : `
+<!-- University table (full width) — hidden when report is scoped to one university -->
 <section style="grid-column:span 12">
     <header style="margin-bottom:14px">
         <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">University performance</h2>
         <p style="margin:3px 0 0;font-size:13px;color:#64748b">Ranked by attendance · ${sortedUniv.length} universities in this ${mode === 'daily' ? 'day' : mode === 'weekly' ? 'week' : 'month'}</p>
     </header>
     ${universityTable(sortedUniv)}
-</section>
+</section>`}
 
 <!-- Remarks timeline -->
 <section style="grid-column:span 12">
@@ -629,10 +699,10 @@ ${renderBudgetSection(mode, budgetIntel, accent1)}
         <header style="background:linear-gradient(135deg,${accent1} 0%,${accent2} 100%);border-radius:24px;padding:36px 40px;color:#ffffff;margin-bottom:24px;display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;box-shadow:0 10px 40px ${accent1}33">
             <div>
                 <div style="display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);padding:6px 12px;border-radius:999px;margin-bottom:14px">
-                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px">UniConnect · Ops Report</span>
+                    <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px">${scopedUniversity ? scopedUniversity : 'UniConnect'} · Ops Report</span>
                 </div>
-                <h1 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.8px;line-height:1.1">${modeLabel} Report</h1>
-                <p style="margin:6px 0 0;font-size:15px;opacity:0.9">${periodLabel}</p>
+                <h1 style="margin:0;font-size:32px;font-weight:800;letter-spacing:-0.8px;line-height:1.1">${scopedUniversity ? `${scopedUniversity} — ${modeLabel} Report` : `${modeLabel} Report`}</h1>
+                <p style="margin:6px 0 0;font-size:15px;opacity:0.9">${periodLabel}${scopedUniversity ? ` · Scoped to ${scopedUniversity}` : ''}</p>
             </div>
             <div class="no-print" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end">
                 <a href="${dashboardUrl}" style="background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.3)">Open Dashboard</a>

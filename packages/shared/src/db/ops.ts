@@ -494,8 +494,20 @@ export async function getOpsTodaySummary(date: string) {
 }
 
 export async function getOpsWeekSummary(startDate: string, endDate: string) {
+    // instructors_total is a per-university count, not a daily flow.
+    // Sum the MAX-per-university across the window so the number reflects the
+    // real headcount, not a sum of daily headcounts (which over-counts).
     const res = await db.query(
-        `WITH ${UNIV_RESOLVE_CTE}
+        `WITH ${UNIV_RESOLVE_CTE},
+        per_univ AS (
+            SELECT cn.canonical_name,
+                MAX(d.instructors_total) as max_instructors,
+                MAX(d.instructors_on_leave) as max_on_leave
+            FROM ops_daily_data d
+            JOIN canonical_names cn ON cn.raw_name = d.university_name
+            WHERE d.date >= $1 AND d.date <= $2
+            GROUP BY cn.canonical_name
+        )
         SELECT
             COALESCE(SUM(d.sessions_planned), 0) as sessions_planned,
             COALESCE(SUM(d.sessions_completed), 0) as sessions_completed,
@@ -512,7 +524,8 @@ export async function getOpsWeekSummary(startDate: string, endDate: string) {
             COALESCE(SUM(d.exams_planned), 0) as exams_planned,
             COALESCE(LEAST(SUM(d.exams_completed), SUM(d.exams_planned)), 0) as exams_completed,
             COALESCE(SUM(d.post_exam_comms_sent), 0) as post_exam_comms_sent,
-            COALESCE(SUM(d.instructors_on_leave), 0) as instructors_on_leave,
+            (SELECT COALESCE(SUM(max_instructors), 0) FROM per_univ) as instructors_total,
+            (SELECT COALESCE(SUM(max_on_leave), 0) FROM per_univ) as instructors_on_leave,
             COUNT(DISTINCT cn.canonical_name) as university_count
         FROM ops_daily_data d
         JOIN canonical_names cn ON cn.raw_name = d.university_name
@@ -1574,12 +1587,19 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
     const params: any[] = [startDate, endDate];
     if (universityId) params.push(universityId);
 
+    // Use COALESCE(proposed_date, created_at) so proposals without a scheduled
+    // date still appear in the window when they were created. Fall back to
+    // u.name when short_name is null so CDU/etc. aren't shown as blank.
+    // Also join creator user to surface who submitted the proposal.
     const eventsRes = await db.query(`
         SELECT
             bp.id, bp.title, bp.event_type,
-            u.short_name AS university_name,
+            COALESCE(NULLIF(u.short_name, ''), u.name, '—') AS university_name,
             bp.expected_attendance, bp.estimated_total_budget,
-            bp.approved_total_budget, bp.status, bp.proposed_date,
+            bp.approved_total_budget, bp.status,
+            COALESCE(bp.proposed_date::date, bp.created_at::date) AS proposed_date,
+            bp.created_at,
+            COALESCE(bp.proposer_name, proposer.name) AS proposer_name,
             bpr.actual_attendance, bpr.actual_budget_used,
             bpr.remaining_budget, bpr.outcomes, bpr.feedback_summary, bpr.issues_faced,
             CASE WHEN bpr.actual_attendance > 0 AND bpr.actual_budget_used > 0
@@ -1591,9 +1611,11 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
         FROM budget_proposals bp
         LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
         LEFT JOIN universities u ON u.id = bp.university_id
-        WHERE bp.proposed_date >= $1::date AND bp.proposed_date <= ($2::date + interval '1 day')
+        LEFT JOIN users proposer ON proposer.id = bp.proposer_user_id
+        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) >= $1::date
+          AND COALESCE(bp.proposed_date::date, bp.created_at::date) <= ($2::date + interval '1 day')
         ${univFilter}
-        ORDER BY bp.proposed_date DESC
+        ORDER BY COALESCE(bp.proposed_date::date, bp.created_at::date) DESC, bp.created_at DESC
     `, params);
 
     const withReports = eventsRes.rows.filter((r: any) => r.actual_budget_used != null);

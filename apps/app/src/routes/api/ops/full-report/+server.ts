@@ -122,6 +122,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
         console.warn('[full-report] budget intel fetch failed:', e);
     }
 
+    let displayUnivName: string | null = null;
     if (univFilter) {
         const norm = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const nf = norm(univFilter);
@@ -129,11 +130,47 @@ export const GET: RequestHandler = async ({ url, request }) => {
             const rn = norm(r.university_name);
             return rn.includes(nf) || nf.includes(rn);
         };
+        const filteredByUniv = (report.byUniversity || []).filter(filterRow);
+        const filteredDaily = (report.dailyBreakdown || []).filter(filterRow);
+        const filteredTeam = (report.teamActivity || []).filter(filterRow);
+
+        // Recompute the summary from the filtered per-university rows so the
+        // hero KPIs / risk / sessions reflect ONLY this university.
+        const nn = (v: any) => parseInt(v) || 0;
+        const summed = filteredByUniv.reduce((acc: any, r: any) => {
+            for (const k of [
+                'sessions_planned', 'sessions_completed', 'sessions_cancelled',
+                'enrolled', 'attended', 'coach_calls', 'parent_calls',
+                'at_risk_total', 'at_risk_informed', 'acknowledgments',
+                'events_planned', 'events_executed', 'events_cancelled',
+                'exams_planned', 'exams_completed', 'post_exam_comms_sent'
+            ]) {
+                acc[k] = (acc[k] || 0) + nn((r as any)[k]);
+            }
+            // instructors_total is a headcount — take MAX, not SUM
+            acc.instructors_total = Math.max(acc.instructors_total || 0, nn(r.instructors_total));
+            acc.instructors_on_leave = Math.max(acc.instructors_on_leave || 0, nn(r.instructors_on_leave));
+            return acc;
+        }, {});
+        // Merge cancellation reasons from filtered rows
+        const reasons = filteredByUniv
+            .map((r: any) => r.cancellation_reason)
+            .filter((x: any) => x && String(x).trim().length > 0);
+        if (reasons.length > 0) summed.cancellation_reason = Array.from(new Set(reasons)).join('; ');
+
+        displayUnivName = filteredByUniv[0]?.university_name || univFilter;
         report = {
             ...report,
-            byUniversity: (report.byUniversity || []).filter(filterRow),
-            teamActivity: (report.teamActivity || []).filter(filterRow),
+            summary: summed,
+            byUniversity: filteredByUniv,
+            dailyBreakdown: filteredDaily,
+            teamActivity: filteredTeam,
         };
+        // Filter budget intel too
+        if (budgetIntel?.events) {
+            const filteredEvents = budgetIntel.events.filter(filterRow);
+            budgetIntel = { ...budgetIntel, events: filteredEvents };
+        }
     }
 
     const aiSummary = await generateAISummaryForReport(report, type);
@@ -146,7 +183,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
         aiSummary,
         dashboardUrl: `${origin}/ops-dashboard/v2`,
         prevSummary,
-        budgetIntel
+        budgetIntel,
+        scopedUniversity: displayUnivName
     });
 
     return new Response(html, {
