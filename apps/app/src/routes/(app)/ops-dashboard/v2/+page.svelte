@@ -1012,14 +1012,14 @@
                 </Card>
 
                 <!-- ── REMARKS ───────────────────────────────── -->
-                {@const remarkRows = (rangeRows || [])
-                    .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
-                    .filter((r: any) => r._note && String(r._note).trim().length > 0)}
                 <Card title="Remarks" subtitle="Qualitative notes from the field" className="md:col-span-12">
                     {#snippet icon()}
                         <StickyNote size={14} />
                     {/snippet}
                     {#snippet children()}
+                        {@const remarkRows = (rangeRows || [])
+                            .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
+                            .filter((r: any) => r._note && String(r._note).trim().length > 0)}
                         {#if remarkRows.length > 0}
                             <ul class="flex flex-col gap-3">
                                 {#each remarkRows.slice(0, 8) as row}
