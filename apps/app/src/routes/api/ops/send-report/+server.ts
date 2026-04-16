@@ -68,7 +68,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             report = await getOpsWeeklyReport(weekStart, weekEnd);
             const aiSummary = await generateAISummary(report, type, { weekStart, weekEnd });
             periodLabel = formatDateRange(weekStart, weekEnd);
-            reportUrl = `${BASE_URL}/api/ops/view-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
+            // "View full report" opens the wide standalone HTML page.
+            reportUrl = `${BASE_URL}/api/ops/full-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
 
             if (useV2) {
                 try {
@@ -99,7 +100,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             const aiSummary = await generateAISummary(report, type, { year, month, monthName });
             periodLabel = monthName;
-            reportUrl = `${BASE_URL}/api/ops/view-report?type=monthly&year=${year}&month=${month}`;
+            reportUrl = `${BASE_URL}/api/ops/full-report?type=monthly&year=${year}&month=${month}`;
 
             if (useV2) {
                 try {
@@ -130,7 +131,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const submitted = compliance.filter((c: any) => c.submitted);
             const aiSummary = await generateAISummary(report, 'daily', { date, compliance });
             periodLabel = formatDate(date);
-            reportUrl = `${BASE_URL}/api/ops/view-report?type=daily&date=${date}`;
+            reportUrl = `${BASE_URL}/api/ops/full-report?type=daily&date=${date}`;
 
             if (useV2) {
                 try {

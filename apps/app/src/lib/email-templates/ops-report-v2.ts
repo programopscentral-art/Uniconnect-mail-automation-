@@ -409,10 +409,10 @@ export function buildOpsReportV2(opts: OpsReportV2Options): string {
                         <td align="center">
                             <table cellpadding="0" cellspacing="0"><tr>
                                 <td style="padding-right:8px">
-                                    <a href="${dashboardUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 22px;border-radius:10px">Open dashboard</a>
+                                    <a href="${dashboardUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 22px;border-radius:10px">Open Dashboard</a>
                                 </td>
                                 <td style="padding-left:8px">
-                                    <a href="${reportUrl}" style="display:inline-block;background:#f1f5f9;color:#0f172a;text-decoration:none;font-size:13px;font-weight:600;padding:12px 22px;border-radius:10px">View full report</a>
+                                    <a href="${reportUrl}" style="display:inline-block;background:#f1f5f9;color:#0f172a;text-decoration:none;font-size:13px;font-weight:600;padding:12px 22px;border-radius:10px">Full Report</a>
                                 </td>
                             </tr></table>
                         </td>
