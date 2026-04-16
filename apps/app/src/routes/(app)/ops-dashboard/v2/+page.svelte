@@ -317,7 +317,17 @@
     });
 
     function openReportsHub() {
-        window.location.href = `/ops-dashboard/v2/reports?type=${mode}&date=${selectedDate}`;
+        let url = `/api/ops/view-report?type=${mode}`;
+        if (mode === 'daily') {
+            url += `&date=${selectedDate}`;
+        } else if (mode === 'weekly') {
+            const w = getWeekRange(selectedDate);
+            url += `&weekStart=${w.start}&weekEnd=${w.end}`;
+        } else {
+            const d = new Date(selectedDate);
+            url += `&year=${d.getFullYear()}&month=${d.getMonth() + 1}`;
+        }
+        window.open(url, '_blank');
     }
 </script>
 
@@ -329,22 +339,33 @@
     <!-- App bar -->
     <header class="sticky top-0 z-30 backdrop-blur-md bg-white/80 dark:bg-zinc-950/80 border-b border-zinc-200/70 dark:border-zinc-800">
         <div class="max-w-[1440px] mx-auto px-4 md:px-8 py-3 flex items-center gap-3 flex-wrap">
-            <a
-                href="/ops-dashboard"
-                class="inline-flex items-center gap-1 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-            >
-                <ArrowLeft size={14} />
-                <span class="hidden sm:inline">Classic</span>
-            </a>
-            <div class="h-5 w-px bg-zinc-200 dark:bg-zinc-800 hidden sm:block"></div>
             <div class="flex items-center gap-2 min-w-0">
                 <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-500 to-violet-500 flex items-center justify-center text-white">
                     <Activity size={14} />
                 </div>
-                <div class="min-w-0">
-                    <h1 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight truncate">Ops Dashboard</h1>
-                    <p class="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">New · v2</p>
+                <div class="min-w-0 hidden sm:block">
+                    <h1 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 leading-tight truncate">UniConnect</h1>
+                    <p class="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Ops</p>
                 </div>
+            </div>
+
+            <!-- Primary tabs: Dashboard | Reports -->
+            <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 shadow-sm ml-2">
+                <a
+                    href="/ops-dashboard"
+                    class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-all"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    <span>Dashboard</span>
+                </a>
+                <button
+                    type="button"
+                    class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-sky-500 to-violet-500 text-white shadow-sm"
+                    aria-current="page"
+                >
+                    <FileText size={13} />
+                    <span>Reports</span>
+                </button>
             </div>
 
             <div class="flex-1"></div>
@@ -459,20 +480,25 @@
                 <div class="flex items-center justify-between mb-2.5">
                     <div class="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">
                         <FileText size={11} />
-                        <span>Open full report</span>
+                        <span>Open full HTML report</span>
                     </div>
-                    <a href="/ops-dashboard/v2/reports?type={mode}&date={selectedDate}" class="text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline">
-                        Reports hub →
-                    </a>
+                    <span class="text-[11px] text-zinc-500 dark:text-zinc-400">Opens in new tab</span>
                 </div>
                 <div class="grid grid-cols-3 gap-2 md:gap-3">
                     {#each [
-                        { m: 'daily', label: 'Daily', from: '#0ea5e9', to: '#6366f1', hint: 'Today snapshot' },
+                        { m: 'daily', label: 'Daily', from: '#0ea5e9', to: '#6366f1', hint: 'Single-day snapshot' },
                         { m: 'weekly', label: 'Weekly', from: '#8b5cf6', to: '#ec4899', hint: '7-day trend' },
-                        { m: 'monthly', label: 'Monthly', from: '#10b981', to: '#0ea5e9', hint: 'Strategic view' }
+                        { m: 'monthly', label: 'Monthly', from: '#10b981', to: '#0ea5e9', hint: 'Strategic overview' }
                     ] as r}
+                        {@const href = r.m === 'daily'
+                            ? `/api/ops/view-report?type=daily&date=${selectedDate}`
+                            : r.m === 'weekly'
+                                ? (() => { const w = getWeekRange(selectedDate); return `/api/ops/view-report?type=weekly&weekStart=${w.start}&weekEnd=${w.end}`; })()
+                                : (() => { const d = new Date(selectedDate); return `/api/ops/view-report?type=monthly&year=${d.getFullYear()}&month=${d.getMonth() + 1}`; })()}
                         <a
-                            href="/ops-dashboard/v2/reports?type={r.m}&date={selectedDate}"
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
                             class="group relative overflow-hidden rounded-2xl p-4 md:p-5 text-white flex flex-col justify-between min-h-[88px] transition-all hover:scale-[1.01] hover:shadow-lg"
                             style="background: linear-gradient(135deg, {r.from}, {r.to});"
                         >
