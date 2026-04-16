@@ -671,7 +671,7 @@
 
                 <!-- ── AI Copilot ─────────────────────────────── -->
                 <div class="md:col-span-12 lg:col-span-4">
-                    <AIInsightCard {mode} {summary} date={selectedDate} />
+                    <AIInsightCard {mode} {summary} byUniversity={universityRows} date={selectedDate} />
                 </div>
 
                 <!-- ── RISK ALERTS (FEATURED) ─────────────────── -->
@@ -1023,23 +1023,22 @@
                         {#if remarkRows.length > 0}
                             <ul class="flex flex-col gap-3">
                                 {#each remarkRows.slice(0, 8) as row}
+                                    {@const rd = row.date ? new Date(row.date) : null}
+                                    {@const dayLabel = rd && !isNaN(rd.getTime()) ? String(rd.getDate()) : '—'}
+                                    {@const monthLabel = rd && !isNaN(rd.getTime()) ? rd.toLocaleDateString('en-IN', { month: 'short' }) : ''}
                                     <li class="flex items-start gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                                        <div class="w-9 h-9 rounded-lg bg-white dark:bg-zinc-900 text-xs font-semibold flex items-center justify-center text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shrink-0">
-                                            {row.date ? new Date(row.date).getDate() : '—'}
+                                        <div class="shrink-0 w-14 py-1.5 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex flex-col items-center justify-center text-center">
+                                            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums leading-none">{dayLabel}</div>
+                                            <div class="text-[9px] font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mt-0.5">{monthLabel || 'date'}</div>
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="text-xs font-medium text-zinc-900 dark:text-zinc-100">{row.university_name || '—'}</span>
-                                                {#if row.date}
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
-                                                        {new Date(row.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                                    </span>
-                                                {/if}
+                                                <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{row.university_name || '—'}</span>
                                                 {#if row.cancellation_reason && !row.remarks}
-                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium">Cancellation reason</span>
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium uppercase tracking-wider">Cancellation</span>
                                                 {/if}
                                             </div>
-                                            <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{row._note}</p>
+                                            <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1 leading-snug">{row._note}</p>
                                         </div>
                                     </li>
                                 {/each}

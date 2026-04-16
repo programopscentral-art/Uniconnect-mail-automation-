@@ -1,13 +1,15 @@
 <script lang="ts">
-    import { Sparkles, AlertTriangle, Lightbulb, TrendingUp, RefreshCw, Loader2 } from 'lucide-svelte';
+    import { Sparkles, AlertTriangle, Lightbulb, TrendingUp, RefreshCw, Loader2, FileText } from 'lucide-svelte';
 
     let {
         mode = 'daily',
         summary = null,
+        byUniversity = [],
         date = ''
     }: {
         mode?: 'daily' | 'weekly' | 'monthly';
         summary?: any;
+        byUniversity?: any[];
         date?: string;
     } = $props();
 
@@ -17,6 +19,9 @@
     let error = $state('');
     let insights = $state<Insight[]>([]);
     let rawText = $state('');
+    let narrative = $state(''); // full AI paragraph summary
+    let hasTriedAI = $state(false);
+    let lastKey = $state('');
 
     function deriveFallbackInsights(s: any): Insight[] {
         if (!s) return [];
@@ -79,27 +84,32 @@
         return out;
     }
 
-    async function loadInsights() {
+    async function loadInsights(opts: { force?: boolean } = {}) {
         if (!summary) return;
         loading = true;
         error = '';
         try {
+            // Send the FULL report (summary + byUniversity) so the server uses
+            // the rich default prompt branch rather than a skinny snapshot.
             const res = await fetch('/api/ops/ai-insights', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: mode === 'weekly' ? 'weekly-analytics' : mode === 'monthly' ? 'monthly-analytics' : 'daily-snapshot',
-                    report: { summary, date }
+                    type: 'report',
+                    report: { summary, byUniversity, date }
                 })
             });
             if (res.ok) {
                 const j = await res.json();
-                rawText = j.insights || '';
+                rawText = (j.insights || '').trim();
+                narrative = rawText;
                 const parsed = parseAIText(rawText);
                 insights = parsed.length ? parsed : deriveFallbackInsights(summary);
             } else {
                 insights = deriveFallbackInsights(summary);
+                narrative = '';
             }
+            hasTriedAI = true;
         } catch (e: any) {
             error = e?.message || 'Failed to load insights';
             insights = deriveFallbackInsights(summary);
@@ -108,9 +118,17 @@
         }
     }
 
+    // Auto-load: show fallback chips immediately, then fetch real AI narrative
+    // exactly once per (mode, date) combination. Clicking Refresh forces a reload.
     $effect(() => {
-        if (summary) {
-            insights = deriveFallbackInsights(summary);
+        if (!summary) return;
+        insights = deriveFallbackInsights(summary);
+        const key = `${mode}|${date}`;
+        if (key !== lastKey) {
+            lastKey = key;
+            narrative = '';
+            hasTriedAI = false;
+            loadInsights();
         }
     });
 
@@ -137,7 +155,7 @@
                 </div>
             </div>
             <button
-                onclick={loadInsights}
+                onclick={() => loadInsights({ force: true })}
                 disabled={loading || !summary}
                 class="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg
                        bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700
@@ -156,31 +174,57 @@
 
         {#if !summary}
             <div class="text-xs text-zinc-500 dark:text-zinc-400">Select a date to generate insights.</div>
-        {:else if insights.length === 0 && !loading}
-            <div class="text-xs text-zinc-500 dark:text-zinc-400">No significant signals yet.</div>
         {:else}
-            <ul class="flex flex-col gap-2.5">
-                {#each insights as ins}
-                    {@const meta = typeMeta[ins.type]}
-                    <li class="flex gap-3">
-                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg shrink-0 {meta.cls}">
-                            {#if ins.type === 'risk'}
-                                <AlertTriangle size={12} />
-                            {:else if ins.type === 'recommendation'}
-                                <Lightbulb size={12} />
-                            {:else}
-                                <TrendingUp size={12} />
-                            {/if}
-                        </span>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[10px] uppercase tracking-wide font-semibold {meta.cls.split(' ').filter((c) => c.startsWith('text-')).join(' ')}">
-                                {meta.label}
+            {#if narrative}
+                <!-- AI narrative paragraph summary -->
+                <div class="flex items-start gap-2.5 pb-3 mb-1 border-b border-zinc-100 dark:border-zinc-800">
+                    <div class="shrink-0 w-6 h-6 rounded-lg bg-gradient-to-br from-sky-100 to-violet-100 dark:from-sky-950/40 dark:to-violet-950/40 text-sky-700 dark:text-sky-300 flex items-center justify-center">
+                        <FileText size={12} />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[10px] uppercase tracking-wide font-semibold text-sky-700 dark:text-sky-300 mb-1">Executive summary</div>
+                        <p class="text-[12.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed whitespace-pre-line">{narrative.length > 720 ? narrative.slice(0, 720).trimEnd() + '…' : narrative}</p>
+                    </div>
+                </div>
+            {:else if loading && !hasTriedAI}
+                <!-- Loading skeleton -->
+                <div class="flex items-start gap-2.5 pb-3 mb-1 border-b border-zinc-100 dark:border-zinc-800">
+                    <div class="shrink-0 w-6 h-6 rounded-lg bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
+                    <div class="flex-1 space-y-2">
+                        <div class="h-2.5 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse w-1/3"></div>
+                        <div class="h-2 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse"></div>
+                        <div class="h-2 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse w-5/6"></div>
+                        <div class="h-2 rounded bg-zinc-100 dark:bg-zinc-800 animate-pulse w-2/3"></div>
+                    </div>
+                </div>
+            {/if}
+
+            {#if insights.length === 0 && !loading}
+                <div class="text-xs text-zinc-500 dark:text-zinc-400">No significant signals yet.</div>
+            {:else if insights.length > 0}
+                <ul class="flex flex-col gap-2.5">
+                    {#each insights as ins}
+                        {@const meta = typeMeta[ins.type]}
+                        <li class="flex gap-3">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg shrink-0 {meta.cls}">
+                                {#if ins.type === 'risk'}
+                                    <AlertTriangle size={12} />
+                                {:else if ins.type === 'recommendation'}
+                                    <Lightbulb size={12} />
+                                {:else}
+                                    <TrendingUp size={12} />
+                                {/if}
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[10px] uppercase tracking-wide font-semibold {meta.cls.split(' ').filter((c) => c.startsWith('text-')).join(' ')}">
+                                    {meta.label}
+                                </div>
+                                <p class="text-[13px] text-zinc-700 dark:text-zinc-200 leading-snug mt-0.5">{ins.text}</p>
                             </div>
-                            <p class="text-[13px] text-zinc-700 dark:text-zinc-200 leading-snug mt-0.5">{ins.text}</p>
-                        </div>
-                    </li>
-                {/each}
-            </ul>
+                        </li>
+                    {/each}
+                </ul>
+            {/if}
         {/if}
 
         {#if error}

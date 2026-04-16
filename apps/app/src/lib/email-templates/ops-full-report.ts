@@ -139,26 +139,36 @@ function remarksList(rows: any[]): string {
     const notes = (rows || [])
         .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
         .filter((r: any) => r._note && String(r._note).trim().length > 0)
-        .slice(0, 10);
+        .slice(0, 12);
     if (notes.length === 0) {
         return `<div style="padding:14px;background:#f8fafc;border-radius:10px;color:#64748b;font-size:13px;font-style:italic">No remarks logged for this period.</div>`;
     }
-    return `<div style="display:flex;flex-direction:column;gap:10px">${notes.map((r: any) => `
+    return `<div style="display:flex;flex-direction:column;gap:10px">${notes.map((r: any) => {
+        let dayLabel = '—', monthLabel = '';
+        if (r.date) {
+            const d = new Date(r.date);
+            if (!Number.isNaN(d.getTime())) {
+                dayLabel = String(d.getDate());
+                monthLabel = d.toLocaleDateString('en-IN', { month: 'short' });
+            }
+        }
+        return `
 <div style="display:flex;gap:12px;padding:14px 16px;background:#f8fafc;border-radius:12px;border-left:3px solid ${r.cancellation_reason && !r.remarks ? '#f59e0b' : '#6366f1'}">
     <div style="flex-shrink:0">
-        <div style="width:36px;height:36px;border-radius:10px;background:#ffffff;border:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#64748b;display:flex;align-items:center;justify-content:center">
-            ${r.date ? new Date(r.date).getDate() : '—'}
+        <div style="width:52px;padding:6px 0;border-radius:10px;background:#ffffff;border:1px solid #e2e8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+            <div style="font-size:16px;font-weight:800;color:#0f172a;line-height:1;font-variant-numeric:tabular-nums">${dayLabel}</div>
+            <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-top:2px">${monthLabel || 'date'}</div>
         </div>
     </div>
     <div style="flex:1;min-width:0">
         <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-            <span style="font-size:12px;font-weight:600;color:#0f172a">${r.university_name || '—'}</span>
-            ${r.date ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;background:#e2e8f0;color:#475569">${new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>` : ''}
+            <span style="font-size:13px;font-weight:700;color:#0f172a">${r.university_name || '—'}</span>
             ${r.cancellation_reason && !r.remarks ? `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;text-transform:uppercase;letter-spacing:0.5px">Cancellation</span>` : ''}
         </div>
-        <p style="margin:6px 0 0;font-size:13px;color:#334155;line-height:1.5">${r._note}</p>
+        <p style="margin:6px 0 0;font-size:13px;color:#334155;line-height:1.55">${r._note}</p>
     </div>
-</div>`).join('')}</div>`;
+</div>`;
+    }).join('')}</div>`;
 }
 
 function money(v: any): string {
