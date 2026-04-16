@@ -4,6 +4,7 @@ import {
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
+import { buildOpsReportV2 } from '$lib/email-templates/ops-report-v2';
 
 // ─── Public endpoint: serves full HTML reports for email CTA links ──────────
 // No auth required — linked directly from email "Open Full Report" buttons.
@@ -67,25 +68,53 @@ Professional tone. Cover overall health, top/bottom performers, at-risk follow-u
     return '';
 }
 
-export const GET: RequestHandler = async ({ url }) => {
+export const GET: RequestHandler = async ({ url, request }) => {
     const type = url.searchParams.get('type') || 'daily';
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
     const univFilter = url.searchParams.get('university') || null;
+    // template=classic for the legacy report; otherwise v2 is the default.
+    const template = (url.searchParams.get('template') || 'v2').toLowerCase();
 
     let report: any;
+    let prevSummary: any = null;
+    let periodLabel = '';
+    let weekStart = ''; let weekEnd = '';
+    let year = 0; let month = 0;
 
     if (type === 'weekly') {
-        const weekStart = url.searchParams.get('weekStart');
-        const weekEnd = url.searchParams.get('weekEnd');
+        weekStart = url.searchParams.get('weekStart') || '';
+        weekEnd = url.searchParams.get('weekEnd') || '';
         if (!weekStart || !weekEnd) throw error(400, 'weekStart and weekEnd required for weekly reports');
         report = await getOpsWeeklyReport(weekStart, weekEnd);
+        try {
+            const ps = new Date(weekStart); ps.setDate(ps.getDate() - 7);
+            const pe = new Date(weekEnd); pe.setDate(pe.getDate() - 7);
+            const prev = await getOpsWeeklyReport(
+                ps.toISOString().split('T')[0], pe.toISOString().split('T')[0]
+            );
+            prevSummary = prev?.summary || null;
+        } catch {}
+        periodLabel = `${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
     } else if (type === 'monthly') {
-        const year = parseInt(url.searchParams.get('year') || '');
-        const month = parseInt(url.searchParams.get('month') || '');
+        year = parseInt(url.searchParams.get('year') || '');
+        month = parseInt(url.searchParams.get('month') || '');
         if (!year || !month) throw error(400, 'year and month required for monthly reports');
         report = await getOpsMonthlyReport(year, month);
+        try {
+            let pYear = year, pMonth = month - 1;
+            if (pMonth === 0) { pMonth = 12; pYear = year - 1; }
+            const prev = await getOpsMonthlyReport(pYear, pMonth);
+            prevSummary = prev?.summary || null;
+        } catch {}
+        periodLabel = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
     } else {
         report = await getOpsDailyReport(date);
+        try {
+            const prev = new Date(date); prev.setDate(prev.getDate() - 1);
+            const prevReport = await getOpsDailyReport(prev.toISOString().split('T')[0]);
+            prevSummary = prevReport?.summary || null;
+        } catch {}
+        periodLabel = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     }
 
     // Filter to a single university when ?university= param is provided
@@ -104,7 +133,24 @@ export const GET: RequestHandler = async ({ url }) => {
     }
 
     const aiSummary = await generateAISummaryForReport(report, type);
-    const html = generateReportHTML(report, type, aiSummary, univFilter || undefined);
+
+    let html: string;
+    if (template === 'classic') {
+        html = generateReportHTML(report, type, aiSummary, univFilter || undefined);
+    } else {
+        const origin = request.headers.get('origin') || new URL(request.url).origin;
+        const reportUrl = new URL(request.url).toString();
+        html = buildOpsReportV2({
+            mode: type as any,
+            periodLabel,
+            report,
+            aiSummary,
+            dashboardUrl: `${origin}/ops-dashboard/v2`,
+            reportUrl,
+            prevSummary
+        });
+    }
+
     return new Response(html, {
         headers: {
             'Content-Type': 'text/html; charset=utf-8',

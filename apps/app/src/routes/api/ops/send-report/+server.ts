@@ -17,6 +17,7 @@ import {
 import { env } from '$env/dynamic/private';
 import { Queue } from 'bullmq';
 import IORedis from 'ioredis';
+import { buildOpsReportV2 } from '$lib/email-templates/ops-report-v2';
 
 function getISTToday(): string {
     const now = new Date();
@@ -55,6 +56,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         let periodLabel: string;
         let reportUrl: string;
 
+        // template=classic to force legacy emails; otherwise v2 is the default.
+        const useV2 = (body.template || 'v2') !== 'classic';
+        let prevSummary: any = null;
+
         if (type === 'weekly') {
             const weekStart = body.weekStart;
             const weekEnd = body.weekEnd;
@@ -62,9 +67,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
             report = await getOpsWeeklyReport(weekStart, weekEnd);
             const aiSummary = await generateAISummary(report, type, { weekStart, weekEnd });
-            html = buildWeeklyEmailHTML(weekStart, weekEnd, report, aiSummary);
             periodLabel = formatDateRange(weekStart, weekEnd);
             reportUrl = `${BASE_URL}/api/ops/view-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
+
+            if (useV2) {
+                try {
+                    const ps = new Date(weekStart); ps.setDate(ps.getDate() - 7);
+                    const pe = new Date(weekEnd); pe.setDate(pe.getDate() - 7);
+                    const prev = await getOpsWeeklyReport(ps.toISOString().split('T')[0], pe.toISOString().split('T')[0]);
+                    prevSummary = prev?.summary || null;
+                } catch {}
+                html = buildOpsReportV2({
+                    mode: 'weekly', periodLabel, report, aiSummary,
+                    dashboardUrl: `${BASE_URL}/ops-dashboard/v2`, reportUrl, prevSummary
+                });
+            } else {
+                html = buildWeeklyEmailHTML(weekStart, weekEnd, report, aiSummary);
+            }
 
             const n = (v: any) => parseInt(v) || 0;
             const s = report.summary || {};
@@ -79,9 +98,23 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             report = await getOpsMonthlyReport(year, month);
             const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
             const aiSummary = await generateAISummary(report, type, { year, month, monthName });
-            html = buildMonthlyEmailHTML(report, aiSummary, monthName, year, month);
             periodLabel = monthName;
             reportUrl = `${BASE_URL}/api/ops/view-report?type=monthly&year=${year}&month=${month}`;
+
+            if (useV2) {
+                try {
+                    let pYear = year, pMonth = month - 1;
+                    if (pMonth === 0) { pMonth = 12; pYear = year - 1; }
+                    const prev = await getOpsMonthlyReport(pYear, pMonth);
+                    prevSummary = prev?.summary || null;
+                } catch {}
+                html = buildOpsReportV2({
+                    mode: 'monthly', periodLabel, report, aiSummary,
+                    dashboardUrl: `${BASE_URL}/ops-dashboard/v2`, reportUrl, prevSummary
+                });
+            } else {
+                html = buildMonthlyEmailHTML(report, aiSummary, monthName, year, month);
+            }
 
             const n = (v: any) => parseInt(v) || 0;
             const s = report.summary || {};
@@ -96,9 +129,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             const compliance = await getDailyFormComplianceStatus(date);
             const submitted = compliance.filter((c: any) => c.submitted);
             const aiSummary = await generateAISummary(report, 'daily', { date, compliance });
-            html = buildDailyEmailHTML(date, report, aiSummary);
             periodLabel = formatDate(date);
             reportUrl = `${BASE_URL}/api/ops/view-report?type=daily&date=${date}`;
+
+            if (useV2) {
+                try {
+                    const prev = new Date(date); prev.setDate(prev.getDate() - 1);
+                    const prevReport = await getOpsDailyReport(prev.toISOString().split('T')[0]);
+                    prevSummary = prevReport?.summary || null;
+                } catch {}
+                html = buildOpsReportV2({
+                    mode: 'daily', periodLabel, report, aiSummary,
+                    dashboardUrl: `${BASE_URL}/ops-dashboard/v2`, reportUrl, prevSummary
+                });
+            } else {
+                html = buildDailyEmailHTML(date, report, aiSummary);
+            }
 
             subject = `UniConnect Daily Ops Report — ${formatDate(date)} | ${submitted.length}/${compliance.length} Universities`;
             textPlain = `Daily Ops Report for ${date}. ${submitted.length}/${compliance.length} universities submitted.`;
