@@ -355,43 +355,30 @@
         isDownloading = true;
         showReportPicker = null;
         try {
-            const params = new URLSearchParams({ view: 'report', type, date: selectedDate });
+            // Fetch the new v2 report HTML from the unified endpoint.
+            const params = new URLSearchParams({ type });
             if (type === 'weekly' && opts?.weekStart && opts?.weekEnd) {
                 params.set('weekStart', opts.weekStart);
                 params.set('weekEnd', opts.weekEnd);
-            }
-            if (type === 'monthly' && opts?.year && opts?.month) {
+            } else if (type === 'monthly' && opts?.year && opts?.month) {
                 params.set('year', String(opts.year));
                 params.set('month', String(opts.month));
+            } else {
+                params.set('date', selectedDate);
             }
-            const res = await fetch(`/api/ops?${params}`);
+            const res = await fetch(`/api/ops/view-report?${params}`);
             if (!res.ok) return;
-            const report = await res.json();
+            const content = await res.text();
 
-            // Fetch AI insights in parallel (non-blocking — report downloads even if AI fails)
-            let aiInsights = '';
-            try {
-                const aiRes = await fetch('/api/ops/ai-insights', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ report, type })
-                });
-                if (aiRes.ok) {
-                    const aiData = await aiRes.json();
-                    aiInsights = aiData.insights || '';
-                }
-            } catch { /* AI is optional */ }
-
-            const content = generateReportHTML(report, type, aiInsights);
             const blob = new Blob([content], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             const fileName = type === 'weekly' && opts?.weekStart
-                ? `UniOps_weekly_report_${opts.weekStart}_to_${opts.weekEnd}.html`
+                ? `UniConnect_weekly_report_${opts.weekStart}_to_${opts.weekEnd}.html`
                 : type === 'monthly' && opts?.year
-                    ? `UniOps_monthly_report_${opts.year}-${String(opts.month).padStart(2, '0')}.html`
-                    : `UniOps_${type}_report_${selectedDate}.html`;
+                    ? `UniConnect_monthly_report_${opts.year}-${String(opts.month).padStart(2, '0')}.html`
+                    : `UniConnect_${type}_report_${selectedDate}.html`;
             a.download = fileName;
             a.click();
             URL.revokeObjectURL(url);
