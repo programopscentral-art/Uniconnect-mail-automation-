@@ -1466,7 +1466,8 @@
                                             {@const uEnrolled = num(u.enrolled)}
                                             {@const uAttended = num(u.attended)}
                                             {@const uAtt = pct(uAttended, uEnrolled)}
-                                            {@const uSessComp = pct(num(u.sessions_completed), num(u.sessions_planned))}
+                                            {@const uAbsent = Math.max(0, uEnrolled - uAttended)}
+                                            {@const uAtRisk = num(u.at_risk_total)}
                                             {@const uTone = uAtt >= 85 ? 'text-emerald-600 dark:text-emerald-400' : uAtt >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
                                             <tr class="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
                                                 <td class="py-2.5 text-zinc-900 dark:text-zinc-100 font-medium">{u.university_name || '—'}</td>
@@ -1478,7 +1479,18 @@
                                                 <td class="py-2.5 text-right tabular-nums font-semibold {uTone}">
                                                     {uEnrolled > 0 ? uAtt.toFixed(1) + '%' : '—'}
                                                 </td>
-                                                <td class="py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 font-semibold">{num(u.at_risk_total) || '—'}</td>
+                                                <td class="py-2.5 text-right tabular-nums font-semibold">
+                                                    {#if uAtRisk > 0}
+                                                        <span class="text-rose-600 dark:text-rose-400">{uAtRisk}</span>
+                                                    {:else if uEnrolled > 0 && uAtt < 75}
+                                                        <!-- Fallback: absences imply at-risk when the university didn't fill the field -->
+                                                        <span class="text-amber-600 dark:text-amber-400" title="Estimated from absences ({uAbsent} missed)">{uAbsent}<span class="text-[9px] text-amber-500 ml-0.5">est.</span></span>
+                                                    {:else if uEnrolled > 0 && uAbsent > 0}
+                                                        <span class="text-zinc-500 dark:text-zinc-400" title="Absences">{uAbsent}</span>
+                                                    {:else}
+                                                        <span class="text-zinc-400">—</span>
+                                                    {/if}
+                                                </td>
                                             </tr>
                                         {/each}
                                     </tbody>

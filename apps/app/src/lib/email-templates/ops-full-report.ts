@@ -98,7 +98,20 @@ function universityTable(rows: any[]): string {
         const uSess = pct(n(r.sessions_completed), n(r.sessions_planned));
         const attColor = tone(uAtt, 85, 75);
         const sessColor = tone(uSess, 90, 70);
-        const atRiskColor = n(r.at_risk_total) > 0 ? '#e11d48' : '#64748b';
+        const atRisk = n(r.at_risk_total);
+        const absent = Math.max(0, n(r.enrolled) - n(r.attended));
+        // At-risk cell: tracked value if filled, else implied from absences
+        // when attendance < 75% (amber, "est." tag), else absences in grey, else "—".
+        let atRiskCell: string;
+        if (atRisk > 0) {
+            atRiskCell = `<span style="color:#e11d48;font-weight:700">${atRisk}</span>`;
+        } else if (n(r.enrolled) > 0 && uAtt < 75) {
+            atRiskCell = `<span style="color:#d97706;font-weight:700" title="Estimated from absences">${absent}<span style="font-size:9px;color:#f59e0b;margin-left:3px">est.</span></span>`;
+        } else if (absent > 0) {
+            atRiskCell = `<span style="color:#64748b;font-weight:600">${absent}</span>`;
+        } else {
+            atRiskCell = `<span style="color:#94a3b8">—</span>`;
+        }
         return `
 <tr>
     <td style="padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#0f172a">${r.university_name || '—'}</td>
@@ -111,7 +124,7 @@ function universityTable(rows: any[]): string {
     <td style="padding:12px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;font-variant-numeric:tabular-nums">
         <span style="font-weight:700;color:${attColor}">${n(r.enrolled) > 0 ? uAtt + '%' : '—'}</span>
     </td>
-    <td style="padding:12px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:${atRiskColor};font-weight:600;font-variant-numeric:tabular-nums">${n(r.at_risk_total) || '—'}</td>
+    <td style="padding:12px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;font-variant-numeric:tabular-nums">${atRiskCell}</td>
     <td style="padding:12px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#475569;font-variant-numeric:tabular-nums">${n(r.coach_calls) + n(r.parent_calls)}</td>
     <td style="padding:12px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:${n(r.sessions_cancelled) > 0 ? '#e11d48' : '#94a3b8'};font-variant-numeric:tabular-nums">${fmt(r.sessions_cancelled)}</td>
 </tr>`;
