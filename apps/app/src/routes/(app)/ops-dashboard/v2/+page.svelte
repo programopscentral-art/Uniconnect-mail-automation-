@@ -27,6 +27,7 @@
 
     let overview = $state<any>(null); // today, week, month, universities
     let rangeRows = $state<any[]>([]); // day-by-day rows for trend
+    let universityRows = $state<any[]>([]); // per-university aggregated rows for current period
     let prevPeriod = $state<any>(null); // prev period summary for deltas
     let eventIntel = $state<any>(null); // for financials
     let taskPatterns = $state<any>(null); // for tickets
@@ -179,6 +180,69 @@
         return j.reportData || [];
     }
 
+    // Fetch per-university data WITH real metrics (enrolled/attended/at_risk/etc.)
+    // Daily → uses /api/ops?view=sessions&date=X (today's per-univ rows from ops_daily_data)
+    // Weekly/Monthly → view=sessions returns weekByUniversity aggregated fields
+    async function fetchUniversityRows() {
+        try {
+            if (mode === 'daily') {
+                // getOpsDailyByDate returns full rows with all stats — fetch via daily-reports
+                const res = await fetch(`/api/ops?view=daily-reports&dateRange=today&date=${selectedDate}`);
+                if (!res.ok) return [];
+                const j = await res.json();
+                return j.reportData || [];
+            }
+            const url = mode === 'weekly'
+                ? `/api/ops?view=sessions&date=${selectedDate}`
+                : `/api/ops?view=sessions&date=${selectedDate}`;
+            const res = await fetch(url);
+            if (!res.ok) return [];
+            const j = await res.json();
+            // weekByUniversity has aggregated enrolled/attended/at_risk_total
+            if (mode === 'monthly') {
+                // aggregate the full-month range into per-university totals
+                const rangeRes = await fetch(`/api/ops?view=daily-reports&dateRange=month&date=${selectedDate}`);
+                if (rangeRes.ok) {
+                    const rd = (await rangeRes.json()).reportData || [];
+                    const byUniv: Record<string, any> = {};
+                    for (const r of rd) {
+                        const key = r.university_name;
+                        if (!byUniv[key]) {
+                            byUniv[key] = {
+                                university_name: key,
+                                enrolled: 0, attended: 0,
+                                sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0,
+                                coach_calls: 0, parent_calls: 0,
+                                at_risk_total: 0, at_risk_informed: 0,
+                                events_planned: 0, events_executed: 0,
+                                exams_planned: 0, exams_completed: 0,
+                                remarks: r.remarks || r.cancellation_reason || ''
+                            };
+                        }
+                        const b = byUniv[key];
+                        b.enrolled += num(r.enrolled);
+                        b.attended += num(r.attended);
+                        b.sessions_planned += num(r.sessions_planned);
+                        b.sessions_completed += num(r.sessions_completed);
+                        b.sessions_cancelled += num(r.sessions_cancelled);
+                        b.coach_calls += num(r.coach_calls);
+                        b.parent_calls += num(r.parent_calls);
+                        b.at_risk_total = Math.max(b.at_risk_total, num(r.at_risk_total));
+                        b.at_risk_informed = Math.max(b.at_risk_informed, num(r.at_risk_informed));
+                        b.events_planned += num(r.events_planned);
+                        b.events_executed += num(r.events_executed);
+                        b.exams_planned += num(r.exams_planned);
+                        b.exams_completed += num(r.exams_completed);
+                    }
+                    return Object.values(byUniv);
+                }
+            }
+            return j.weekByUniversity || j.todayByUniversity || [];
+        } catch {
+            return [];
+        }
+    }
+
     async function fetchPrev() {
         try {
             if (mode === 'daily') {
@@ -211,6 +275,9 @@
 
     async function fetchAux() {
         try {
+            // event-intelligence + task-patterns both use the month containing `date`
+            // on the server. For daily/weekly modes we still surface month-level aggregates,
+            // which is fine for "budget efficiency" and "ticket SLA" cards.
             const [ei, tp] = await Promise.all([
                 fetch(`/api/ops?view=event-intelligence&date=${selectedDate}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
                 fetch(`/api/ops?view=task-patterns&date=${selectedDate}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -224,9 +291,14 @@
         loading = true;
         loadError = '';
         try {
-            const [ov, prev] = await Promise.all([fetchOverview(selectedDate), fetchPrev()]);
+            const [ov, prev, univRows] = await Promise.all([
+                fetchOverview(selectedDate),
+                fetchPrev(),
+                fetchUniversityRows()
+            ]);
             overview = ov;
             prevPeriod = prev;
+            universityRows = univRows;
 
             let start = selectedDate, end = selectedDate;
             if (mode === 'weekly') {
@@ -236,7 +308,8 @@
                 const m = getMonthRange(selectedDate);
                 start = m.start; end = m.end;
             }
-            rangeRows = mode === 'daily' ? [] : await fetchRange(start, end);
+            // Always fetch daily rows so remarks show up in every mode.
+            rangeRows = mode === 'daily' ? univRows : await fetchRange(start, end);
 
             // aux (financials, tickets) — fire and forget
             fetchAux();
@@ -279,8 +352,15 @@
     // ─── Universities: top performers for context ─────────────
 
     const topUniversities = $derived.by(() => {
-        if (!overview?.universities) return [];
-        return [...overview.universities].slice(0, 6);
+        if (!universityRows || universityRows.length === 0) return [];
+        // sort by attendance desc, limit 10
+        return [...universityRows]
+            .map((u: any) => ({
+                ...u,
+                _att: pct(num(u.attended), num(u.enrolled))
+            }))
+            .sort((a: any, b: any) => (b._att - a._att) || (num(b.enrolled) - num(a.enrolled)))
+            .slice(0, 10);
     });
 
     // ─── Cancellation segments (from range if available, else summary) ─
@@ -306,14 +386,17 @@
     });
 
     const ticketsData = $derived.by(() => {
-        const s = taskPatterns?.stats;
-        if (!s) return null;
-        return {
-            total: s.total_tasks || 0,
-            completed: s.completed_tasks || 0,
-            onTime: s.on_time_tasks || 0,
-            late: s.late_tasks || 0
-        };
+        // getOpsTaskPatterns returns { patterns: [...], byTeam: [...] }. Roll up totals.
+        const patterns = taskPatterns?.patterns as any[] | undefined;
+        if (!patterns || patterns.length === 0) return null;
+        let total = 0, completed = 0, overdue = 0;
+        for (const p of patterns) {
+            total += num(p.frequency);
+            completed += num(p.completed_count);
+            overdue += num(p.overdue_count);
+        }
+        const onTime = Math.max(0, completed - overdue);
+        return { total, completed, onTime, late: overdue };
     });
 
     function openReportsHub() {
@@ -929,26 +1012,34 @@
                 </Card>
 
                 <!-- ── REMARKS ───────────────────────────────── -->
+                {@const remarkRows = (rangeRows || [])
+                    .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
+                    .filter((r: any) => r._note && String(r._note).trim().length > 0)}
                 <Card title="Remarks" subtitle="Qualitative notes from the field" className="md:col-span-12">
                     {#snippet icon()}
                         <StickyNote size={14} />
                     {/snippet}
                     {#snippet children()}
-                        {#if rangeRows && rangeRows.some((r) => r.remarks)}
+                        {#if remarkRows.length > 0}
                             <ul class="flex flex-col gap-3">
-                                {#each rangeRows.filter((r) => r.remarks).slice(0, 5) as row}
+                                {#each remarkRows.slice(0, 8) as row}
                                     <li class="flex items-start gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
-                                        <div class="w-8 h-8 rounded-lg bg-white dark:bg-zinc-900 text-xs font-semibold flex items-center justify-center text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shrink-0">
-                                            {new Date(row.date).getDate()}
+                                        <div class="w-9 h-9 rounded-lg bg-white dark:bg-zinc-900 text-xs font-semibold flex items-center justify-center text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shrink-0">
+                                            {row.date ? new Date(row.date).getDate() : '—'}
                                         </div>
                                         <div class="min-w-0 flex-1">
                                             <div class="flex items-center gap-2 flex-wrap">
-                                                <span class="text-xs font-medium text-zinc-900 dark:text-zinc-100">{row.university_name}</span>
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
-                                                    {new Date(row.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                                </span>
+                                                <span class="text-xs font-medium text-zinc-900 dark:text-zinc-100">{row.university_name || '—'}</span>
+                                                {#if row.date}
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300">
+                                                        {new Date(row.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                    </span>
+                                                {/if}
+                                                {#if row.cancellation_reason && !row.remarks}
+                                                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-medium">Cancellation reason</span>
+                                                {/if}
                                             </div>
-                                            <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-0.5">{row.remarks}</p>
+                                            <p class="text-sm text-zinc-700 dark:text-zinc-300 mt-1">{row._note}</p>
                                         </div>
                                     </li>
                                 {/each}
@@ -973,7 +1064,7 @@
                                     <thead>
                                         <tr class="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 border-b border-zinc-100 dark:border-zinc-800">
                                             <th class="text-left py-2 font-semibold">University</th>
-                                            <th class="text-right py-2 font-semibold">Students</th>
+                                            <th class="text-right py-2 font-semibold">Sessions</th>
                                             <th class="text-right py-2 font-semibold hidden md:table-cell">Enrolled</th>
                                             <th class="text-right py-2 font-semibold hidden md:table-cell">Attended</th>
                                             <th class="text-right py-2 font-semibold">Attendance</th>
@@ -982,19 +1073,22 @@
                                     </thead>
                                     <tbody>
                                         {#each topUniversities as u}
-                                            {@const uEnrolled = num(u.total_enrolled || u.enrolled)}
-                                            {@const uAttended = num(u.total_attended || u.attended)}
+                                            {@const uEnrolled = num(u.enrolled)}
+                                            {@const uAttended = num(u.attended)}
                                             {@const uAtt = pct(uAttended, uEnrolled)}
+                                            {@const uSessComp = pct(num(u.sessions_completed), num(u.sessions_planned))}
                                             {@const uTone = uAtt >= 85 ? 'text-emerald-600 dark:text-emerald-400' : uAtt >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
                                             <tr class="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                                                <td class="py-2.5 text-zinc-900 dark:text-zinc-100 font-medium">{u.university_name || u.name || '—'}</td>
-                                                <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{num(u.student_count || 0) || '—'}</td>
+                                                <td class="py-2.5 text-zinc-900 dark:text-zinc-100 font-medium">{u.university_name || '—'}</td>
+                                                <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                                                    {num(u.sessions_completed)}<span class="text-zinc-400">/{num(u.sessions_planned)}</span>
+                                                </td>
                                                 <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400 hidden md:table-cell">{uEnrolled}</td>
                                                 <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400 hidden md:table-cell">{uAttended}</td>
                                                 <td class="py-2.5 text-right tabular-nums font-semibold {uTone}">
                                                     {uEnrolled > 0 ? uAtt.toFixed(1) + '%' : '—'}
                                                 </td>
-                                                <td class="py-2.5 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{num(u.at_risk_total || 0)}</td>
+                                                <td class="py-2.5 text-right tabular-nums text-rose-600 dark:text-rose-400 font-semibold">{num(u.at_risk_total) || '—'}</td>
                                             </tr>
                                         {/each}
                                     </tbody>
