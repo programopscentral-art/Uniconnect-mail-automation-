@@ -12,7 +12,8 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import {
-    getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport
+    getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport,
+    getOpsEventBudgetIntelligence
 } from '@uniconnect/shared';
 import { buildOpsFullReportHtml } from '$lib/email-templates/ops-full-report';
 
@@ -71,6 +72,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
     let report: any;
     let periodLabel = '';
     let prevSummary: any = null;
+    let budgetStart = '';
+    let budgetEnd = '';
 
     if (type === 'weekly') {
         const weekStart = url.searchParams.get('weekStart');
@@ -78,6 +81,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
         if (!weekStart || !weekEnd) throw error(400, 'weekStart and weekEnd required');
         report = await getOpsWeeklyReport(weekStart, weekEnd);
         periodLabel = `${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        budgetStart = weekStart; budgetEnd = weekEnd;
         try {
             const ps = new Date(weekStart); ps.setDate(ps.getDate() - 7);
             const pe = new Date(weekEnd); pe.setDate(pe.getDate() - 7);
@@ -90,6 +94,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
         if (!year || !month) throw error(400, 'year and month required');
         report = await getOpsMonthlyReport(year, month);
         periodLabel = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        budgetStart = `${year}-${String(month).padStart(2, '0')}-01`;
+        budgetEnd = new Date(year, month, 0).toISOString().split('T')[0];
         try {
             let pYear = year, pMonth = month - 1;
             if (pMonth === 0) { pMonth = 12; pYear = year - 1; }
@@ -100,11 +106,20 @@ export const GET: RequestHandler = async ({ url, request }) => {
         const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
         report = await getOpsDailyReport(date);
         periodLabel = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        budgetStart = date; budgetEnd = date;
         try {
             const prev = new Date(date); prev.setDate(prev.getDate() - 1);
             const prevReport = await getOpsDailyReport(prev.toISOString().split('T')[0]);
             prevSummary = prevReport?.summary || null;
         } catch {}
+    }
+
+    // Fetch budget intelligence for the same window.
+    let budgetIntel: any = null;
+    try {
+        budgetIntel = await getOpsEventBudgetIntelligence(budgetStart, budgetEnd);
+    } catch (e) {
+        console.warn('[full-report] budget intel fetch failed:', e);
     }
 
     if (univFilter) {
@@ -130,7 +145,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
         report,
         aiSummary,
         dashboardUrl: `${origin}/ops-dashboard/v2`,
-        prevSummary
+        prevSummary,
+        budgetIntel
     });
 
     return new Response(html, {

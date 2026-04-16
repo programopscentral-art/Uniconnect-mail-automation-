@@ -366,7 +366,7 @@
             } else {
                 params.set('date', selectedDate);
             }
-            const res = await fetch(`/api/ops/view-report?${params}`);
+            const res = await fetch(`/api/ops/full-report?${params}`);
             if (!res.ok) return;
             const content = await res.text();
 

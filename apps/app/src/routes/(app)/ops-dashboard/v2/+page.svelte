@@ -400,7 +400,7 @@
     });
 
     function openReportsHub() {
-        let url = `/api/ops/view-report?type=${mode}`;
+        let url = `/api/ops/full-report?type=${mode}`;
         if (mode === 'daily') {
             url += `&date=${selectedDate}`;
         } else if (mode === 'weekly') {
@@ -574,10 +574,10 @@
                         { m: 'monthly', label: 'Monthly', from: '#10b981', to: '#0ea5e9', hint: 'Strategic overview' }
                     ] as r}
                         {@const href = r.m === 'daily'
-                            ? `/api/ops/view-report?type=daily&date=${selectedDate}`
+                            ? `/api/ops/full-report?type=daily&date=${selectedDate}`
                             : r.m === 'weekly'
-                                ? (() => { const w = getWeekRange(selectedDate); return `/api/ops/view-report?type=weekly&weekStart=${w.start}&weekEnd=${w.end}`; })()
-                                : (() => { const d = new Date(selectedDate); return `/api/ops/view-report?type=monthly&year=${d.getFullYear()}&month=${d.getMonth() + 1}`; })()}
+                                ? (() => { const w = getWeekRange(selectedDate); return `/api/ops/full-report?type=weekly&weekStart=${w.start}&weekEnd=${w.end}`; })()
+                                : (() => { const d = new Date(selectedDate); return `/api/ops/full-report?type=monthly&year=${d.getFullYear()}&month=${d.getMonth() + 1}`; })()}
                         <a
                             href={href}
                             target="_blank"

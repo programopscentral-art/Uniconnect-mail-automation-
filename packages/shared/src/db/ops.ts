@@ -478,6 +478,12 @@ export async function getOpsTodaySummary(date: string) {
             COALESCE(SUM(d.at_risk_total), 0) as at_risk_total,
             COALESCE(SUM(d.at_risk_informed), 0) as at_risk_informed,
             COALESCE(SUM(d.acknowledgments), 0) as acknowledgments,
+            COALESCE(SUM(d.events_planned), 0) as events_planned,
+            COALESCE(SUM(d.events_executed), 0) as events_executed,
+            COALESCE(SUM(d.events_cancelled), 0) as events_cancelled,
+            COALESCE(SUM(d.exams_planned), 0) as exams_planned,
+            COALESCE(LEAST(SUM(d.exams_completed), SUM(d.exams_planned)), 0) as exams_completed,
+            COALESCE(SUM(d.post_exam_comms_sent), 0) as post_exam_comms_sent,
             COUNT(DISTINCT cn.canonical_name) as university_count
         FROM ops_daily_data d
         JOIN canonical_names cn ON cn.raw_name = d.university_name

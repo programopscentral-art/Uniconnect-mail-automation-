@@ -14,6 +14,7 @@ export interface OpsFullReportOptions {
     aiSummary?: string;
     dashboardUrl: string;
     prevSummary?: any;
+    budgetIntel?: any;
 }
 
 const n = (v: any) => {
@@ -160,8 +161,242 @@ function remarksList(rows: any[]): string {
 </div>`).join('')}</div>`;
 }
 
+function money(v: any): string {
+    const num = Number(v);
+    if (!Number.isFinite(num) || num === 0) return '—';
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} L`;
+    if (num >= 1000) return `₹${(num / 1000).toFixed(1)}K`;
+    return `₹${Math.round(num).toLocaleString('en-IN')}`;
+}
+
+function statusBadge(status: string): string {
+    const s = (status || '').toUpperCase();
+    const map: Record<string, { bg: string; fg: string; label: string }> = {
+        'PROPOSED':          { bg: '#eff6ff', fg: '#1d4ed8', label: 'Proposed' },
+        'PENDING_APPROVAL':  { bg: '#fef9c3', fg: '#854d0e', label: 'Pending' },
+        'APPROVED':          { bg: '#d1fae5', fg: '#065f46', label: 'Approved' },
+        'REJECTED':          { bg: '#fee2e2', fg: '#991b1b', label: 'Rejected' },
+        'EVENT_COMPLETED':   { bg: '#e0e7ff', fg: '#3730a3', label: 'Completed' },
+        'REPORT_SUBMITTED':  { bg: '#f5f3ff', fg: '#6d28d9', label: 'Reported' },
+        'CLOSED':            { bg: '#f1f5f9', fg: '#475569', label: 'Closed' },
+    };
+    const m = map[s] || { bg: '#f1f5f9', fg: '#475569', label: s || '—' };
+    return `<span style="display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:999px;background:${m.bg};color:${m.fg};text-transform:uppercase;letter-spacing:0.5px">${m.label}</span>`;
+}
+
+function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: string): string {
+    if (!budgetIntel || !budgetIntel.events || budgetIntel.events.length === 0) {
+        return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Budget & proposals</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">${mode === 'daily' ? 'Proposals submitted today' : mode === 'weekly' ? 'Proposals this week' : 'Proposals this month'}</p>
+    </header>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:32px;text-align:center;color:#94a3b8;font-size:13px">No budget proposals in this period.</div>
+</section>`;
+    }
+
+    const events = budgetIntel.events || [];
+    const ag = budgetIntel.aggregates || {};
+
+    // Per-university totals (what university spent/requested, and a breakdown of reasons)
+    type UnivBudget = {
+        name: string;
+        proposals: number;
+        requested: number;
+        approved: number;
+        spent: number;
+        events: Array<{ title: string; type: string; amount: number; status: string; date?: string; outcomes?: string; issues?: string }>;
+    };
+    const byUniv = new Map<string, UnivBudget>();
+    let totalProposals = 0, totalRequested = 0, totalApproved = 0, totalSpent = 0;
+    for (const e of events) {
+        const key = e.university_name || '—';
+        if (!byUniv.has(key)) {
+            byUniv.set(key, { name: key, proposals: 0, requested: 0, approved: 0, spent: 0, events: [] });
+        }
+        const u = byUniv.get(key)!;
+        const req = Number(e.estimated_total_budget) || 0;
+        const apr = Number(e.approved_total_budget) || 0;
+        const act = Number(e.actual_budget_used) || 0;
+        u.proposals += 1;
+        u.requested += req;
+        u.approved += apr;
+        u.spent += act;
+        u.events.push({
+            title: e.title || 'Untitled',
+            type: e.event_type || '—',
+            amount: act || apr || req,
+            status: e.status || '',
+            date: e.proposed_date ? new Date(e.proposed_date).toISOString().split('T')[0] : undefined,
+            outcomes: e.outcomes || '',
+            issues: e.issues_faced || ''
+        });
+        totalProposals += 1;
+        totalRequested += req;
+        totalApproved += apr;
+        totalSpent += act;
+    }
+
+    const universities = Array.from(byUniv.values()).sort((a, b) => b.spent - a.spent || b.requested - a.requested);
+
+    // Event-type breakdown ("what it was spent on")
+    const byTypeMap = new Map<string, { type: string; count: number; spent: number }>();
+    for (const e of events) {
+        const key = e.event_type || 'other';
+        if (!byTypeMap.has(key)) byTypeMap.set(key, { type: key, count: 0, spent: 0 });
+        const t = byTypeMap.get(key)!;
+        t.count += 1;
+        t.spent += Number(e.actual_budget_used) || 0;
+    }
+    const byType = Array.from(byTypeMap.values()).sort((a, b) => b.spent - a.spent);
+    const maxTypeSpend = Math.max(1, ...byType.map(t => t.spent));
+
+    const summaryRow = `
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px">
+    ${statTile('Proposals', totalProposals.toString(), `${mode === 'daily' ? 'today' : mode === 'weekly' ? 'this week' : 'this month'}`)}
+    ${statTile('Requested', money(totalRequested), 'Total ask')}
+    ${statTile('Approved', money(totalApproved), 'Sanctioned')}
+    ${statTile('Spent', money(totalSpent), `${ag.eventsWithReports || 0} with reports`, tone(ag.avgBudgetUtilization || 0, 85, 100) === '#e11d48' ? '#e11d48' : '#0f172a')}
+</div>`;
+
+    const avgRow = ag.avgBudgetUtilization || ag.avgCostPerParticipant ? `
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px">
+    <div style="padding:14px 16px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Avg budget utilization</div>
+        <div style="font-size:22px;font-weight:800;color:${tone(100 - Math.abs((ag.avgBudgetUtilization || 0) - 100), 85, 70)};margin-top:4px;font-variant-numeric:tabular-nums">${ag.avgBudgetUtilization || 0}%</div>
+    </div>
+    <div style="padding:14px 16px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Avg cost / participant</div>
+        <div style="font-size:22px;font-weight:800;color:#0f172a;margin-top:4px;font-variant-numeric:tabular-nums">${money(ag.avgCostPerParticipant)}</div>
+    </div>
+    <div style="padding:14px 16px;background:#f8fafc;border-radius:12px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Attendance accuracy</div>
+        <div style="font-size:22px;font-weight:800;color:${tone(ag.avgAttendanceAccuracy || 0, 85, 70)};margin-top:4px;font-variant-numeric:tabular-nums">${ag.avgAttendanceAccuracy || 0}%</div>
+    </div>
+</div>` : '';
+
+    // Daily: list each proposal as a row of details.
+    if (mode === 'daily') {
+        const cards = events.slice(0, 12).map((e: any) => {
+            const spent = Number(e.actual_budget_used) || 0;
+            const req = Number(e.estimated_total_budget) || 0;
+            const apr = Number(e.approved_total_budget) || 0;
+            return `
+<article style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start">
+    <div style="min-width:0">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:700;color:#0f172a">${e.title || 'Untitled proposal'}</span>
+            ${statusBadge(e.status)}
+            <span style="font-size:11px;font-weight:600;color:#64748b">${e.event_type || '—'}</span>
+        </div>
+        <div style="font-size:12px;color:#64748b">${e.university_name || '—'}${e.proposed_date ? ` · ${new Date(e.proposed_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</div>
+        ${e.outcomes ? `<div style="margin-top:8px;padding:10px 12px;background:#f0fdf4;border-left:3px solid #10b981;border-radius:8px;font-size:12px;color:#14532d"><strong style="color:#065f46">Outcome:</strong> ${e.outcomes}</div>` : ''}
+        ${e.issues_faced ? `<div style="margin-top:6px;padding:10px 12px;background:#fef2f2;border-left:3px solid #f43f5e;border-radius:8px;font-size:12px;color:#7f1d1d"><strong style="color:#991b1b">Issues:</strong> ${e.issues_faced}</div>` : ''}
+    </div>
+    <div style="text-align:right;min-width:140px">
+        <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">${spent > 0 ? 'Spent' : apr > 0 ? 'Approved' : 'Requested'}</div>
+        <div style="font-size:22px;font-weight:800;color:${spent > req && req > 0 ? '#e11d48' : '#0f172a'};margin-top:2px;font-variant-numeric:tabular-nums">${money(spent || apr || req)}</div>
+        ${req > 0 && spent > 0 ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px">of ${money(req)} est.</div>` : ''}
+        ${e.expected_attendance ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px">${e.actual_attendance || '—'} / ${e.expected_attendance} attendees</div>` : ''}
+    </div>
+</article>`;
+        }).join('');
+        return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Budget & proposals</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">Proposals submitted on this date · ${totalProposals} total</p>
+    </header>
+    ${summaryRow}
+    <div style="display:flex;flex-direction:column;gap:12px">${cards}</div>
+</section>`;
+    }
+
+    // Weekly / Monthly: aggregate view with breakdowns.
+    const typeBars = byType.map((t) => {
+        const p = Math.max(0, Math.min(100, (t.spent / maxTypeSpend) * 100));
+        return `
+<div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+        <span style="font-size:12px;color:#475569;font-weight:600;text-transform:capitalize">${t.type.replace(/_/g, ' ')} <span style="color:#94a3b8;font-weight:400">· ${t.count} event${t.count > 1 ? 's' : ''}</span></span>
+        <span style="font-size:13px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums">${money(t.spent)}</span>
+    </div>
+    <div style="background:#f1f5f9;height:10px;border-radius:999px;overflow:hidden">
+        <div style="background:linear-gradient(90deg,${accent1},${accent1}cc);height:100%;width:${p}%;border-radius:999px"></div>
+    </div>
+</div>`;
+    }).join('');
+
+    // Per-university rows (expandable <details> so users can click to see the breakdown of reasons)
+    const univRows = universities.slice(0, 12).map((u) => {
+        const eventList = u.events.map(ev => `
+<li style="display:flex;justify-content:space-between;gap:14px;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;margin-top:6px">
+    <div style="min-width:0;flex:1">
+        <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <span style="font-size:13px;font-weight:600;color:#0f172a">${ev.title}</span>
+            ${statusBadge(ev.status)}
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px;text-transform:capitalize">${ev.type.replace(/_/g, ' ')}${ev.date ? ` · ${new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}` : ''}</div>
+        ${ev.outcomes ? `<div style="font-size:11px;color:#065f46;margin-top:3px"><strong>✓</strong> ${ev.outcomes.slice(0, 140)}${ev.outcomes.length > 140 ? '…' : ''}</div>` : ''}
+        ${ev.issues ? `<div style="font-size:11px;color:#991b1b;margin-top:3px"><strong>!</strong> ${ev.issues.slice(0, 140)}${ev.issues.length > 140 ? '…' : ''}</div>` : ''}
+    </div>
+    <div style="text-align:right;white-space:nowrap">
+        <div style="font-size:14px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums">${money(ev.amount)}</div>
+    </div>
+</li>`).join('');
+
+        return `
+<details style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden">
+    <summary style="cursor:pointer;list-style:none;padding:16px 20px;display:grid;grid-template-columns:1fr auto auto auto auto;gap:16px;align-items:center;font-weight:600">
+        <div style="min-width:0">
+            <div style="font-size:14px;font-weight:700;color:#0f172a">${u.name}</div>
+            <div style="font-size:11px;color:#64748b">${u.proposals} proposal${u.proposals > 1 ? 's' : ''} · click to see breakdown</div>
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px">Requested</div>
+            <div style="font-size:14px;font-weight:700;color:#475569;font-variant-numeric:tabular-nums">${money(u.requested)}</div>
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px">Approved</div>
+            <div style="font-size:14px;font-weight:700;color:#0369a1;font-variant-numeric:tabular-nums">${money(u.approved)}</div>
+        </div>
+        <div style="text-align:right">
+            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px">Spent</div>
+            <div style="font-size:16px;font-weight:800;color:${u.spent > u.approved && u.approved > 0 ? '#e11d48' : '#0f172a'};font-variant-numeric:tabular-nums">${money(u.spent)}</div>
+        </div>
+        <div style="color:#64748b;font-size:16px">▾</div>
+    </summary>
+    <div style="padding:0 16px 16px;background:#f8fafc;border-top:1px solid #e2e8f0">
+        <ul style="list-style:none;padding:12px 0 0;margin:0">${eventList}</ul>
+    </div>
+</details>`;
+    }).join('');
+
+    return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Budget & proposals</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">${mode === 'weekly' ? 'Total spend and breakdown for the week' : 'Total spend and breakdown for the month'} · ${totalProposals} proposal${totalProposals === 1 ? '' : 's'}</p>
+    </header>
+    ${summaryRow}
+    ${avgRow}
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:18px">
+        <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:20px">
+            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:14px">Spent by event type</div>
+            ${typeBars || '<div style="font-size:12px;color:#94a3b8;padding:16px 0">No categorized spend yet.</div>'}
+        </div>
+        <div>
+            <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:10px;padding-left:4px">By university <span style="font-weight:400;color:#64748b">· click any row to expand reasons</span></div>
+            <div style="display:flex;flex-direction:column;gap:8px">${univRows}</div>
+        </div>
+    </div>
+</section>`;
+}
+
 export function buildOpsFullReportHtml(opts: OpsFullReportOptions): string {
-    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary } = opts;
+    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel } = opts;
     const s = report?.summary || {};
     const byUniv = report?.byUniversity || [];
     const dailyBreakdown = report?.dailyBreakdown || [];
@@ -334,6 +569,9 @@ ${aiSummary ? `
     <div style="font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap">${cleanAI(aiSummary)}</div>
 </section>
 ` : ''}
+
+<!-- Budget & proposals -->
+${renderBudgetSection(mode, budgetIntel, accent1)}
 
 <!-- University table (full width) -->
 <section style="grid-column:span 12">
