@@ -88,32 +88,51 @@
         if (!summary) return;
         loading = true;
         error = '';
+        // Show fallback chips IMMEDIATELY so the card never looks empty
+        // while we wait for Gemini (which can rate-limit and take 10s+).
+        insights = deriveFallbackInsights(summary);
+        // Hard client-side timeout — Gemini is often rate-limited during
+        // busy windows; waiting more than 20s feels broken. If it returns
+        // later we just ignore it (stale response).
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
         try {
-            // Send the FULL report (summary + byUniversity) so the server uses
-            // the rich default prompt branch rather than a skinny snapshot.
             const res = await fetch('/api/ops/ai-insights', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: ctrl.signal,
                 body: JSON.stringify({
                     type: 'report',
                     report: { summary, byUniversity, date }
                 })
             });
+            clearTimeout(t);
             if (res.ok) {
                 const j = await res.json();
                 rawText = (j.insights || '').trim();
-                narrative = rawText;
-                const parsed = parseAIText(rawText);
-                insights = parsed.length ? parsed : deriveFallbackInsights(summary);
+                if (rawText) {
+                    narrative = rawText;
+                    const parsed = parseAIText(rawText);
+                    if (parsed.length) insights = parsed;
+                } else {
+                    // Server returned empty (no GEMINI_API_KEY, or all models rate-limited)
+                    narrative = '';
+                    error = 'AI temporarily unavailable — showing local insights.';
+                }
             } else {
-                insights = deriveFallbackInsights(summary);
                 narrative = '';
+                error = `AI unavailable (HTTP ${res.status}) — showing local insights.`;
             }
-            hasTriedAI = true;
         } catch (e: any) {
-            error = e?.message || 'Failed to load insights';
-            insights = deriveFallbackInsights(summary);
+            clearTimeout(t);
+            if (e?.name === 'AbortError') {
+                error = 'AI timed out — showing local insights. Click Refresh to retry.';
+            } else {
+                error = (e?.message || 'AI failed') + ' — showing local insights.';
+            }
+            narrative = '';
         } finally {
+            hasTriedAI = true;
             loading = false;
         }
     }

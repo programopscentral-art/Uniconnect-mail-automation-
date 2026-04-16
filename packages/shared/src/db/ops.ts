@@ -1587,10 +1587,11 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
     const params: any[] = [startDate, endDate];
     if (universityId) params.push(universityId);
 
-    // Use COALESCE(proposed_date, created_at) so proposals without a scheduled
-    // date still appear in the window when they were created. Fall back to
-    // u.name when short_name is null so CDU/etc. aren't shown as blank.
-    // Also join creator user to surface who submitted the proposal.
+    // Filter by the proposal's SUBMISSION date (created_at), not the scheduled
+    // event date (proposed_date). The dashboard needs "proposals raised today"
+    // not "events scheduled for today". Fall back to u.name when short_name is
+    // null so CDU/etc. aren't shown as blank. Join users to surface who
+    // submitted the proposal.
     const eventsRes = await db.query(`
         SELECT
             bp.id, bp.title, bp.event_type,
@@ -1612,9 +1613,9 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
         LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
         LEFT JOIN universities u ON u.id = bp.university_id
         LEFT JOIN users proposer ON proposer.id = bp.proposer_user_id
-        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) BETWEEN $1::date AND $2::date
+        WHERE bp.created_at::date BETWEEN $1::date AND $2::date
         ${univFilter}
-        ORDER BY COALESCE(bp.proposed_date::date, bp.created_at::date) DESC, bp.created_at DESC
+        ORDER BY bp.created_at DESC
     `, params);
 
     const withReports = eventsRes.rows.filter((r: any) => r.actual_budget_used != null);
@@ -1644,7 +1645,7 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
                 THEN bpr.actual_budget_used / bpr.actual_attendance END)::numeric(10,2) AS avg_cost_pp
         FROM budget_proposals bp
         LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
-        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) BETWEEN $1::date AND $2::date
+        WHERE bp.created_at::date BETWEEN $1::date AND $2::date
         ${univFilter}
         GROUP BY bp.event_type
         ORDER BY total_events DESC

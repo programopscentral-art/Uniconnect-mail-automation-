@@ -181,63 +181,89 @@
     }
 
     // Fetch per-university data WITH real metrics (enrolled/attended/at_risk/etc.)
-    // Daily → uses /api/ops?view=sessions&date=X (today's per-univ rows from ops_daily_data)
-    // Weekly/Monthly → view=sessions returns weekByUniversity aggregated fields
+    // ALWAYS aggregate from per-day rows so weekly/monthly totals match the
+    // row-level detail we show elsewhere (cancellation reasons, remarks).
     async function fetchUniversityRows() {
         try {
-            if (mode === 'daily') {
-                // getOpsDailyByDate returns full rows with all stats — fetch via daily-reports
-                const res = await fetch(`/api/ops?view=daily-reports&dateRange=today&date=${selectedDate}`);
-                if (!res.ok) return [];
-                const j = await res.json();
-                return j.reportData || [];
-            }
-            const url = mode === 'weekly'
-                ? `/api/ops?view=sessions&date=${selectedDate}`
-                : `/api/ops?view=sessions&date=${selectedDate}`;
-            const res = await fetch(url);
+            const range = mode === 'daily' ? 'today' : mode === 'weekly' ? 'week' : 'month';
+            const res = await fetch(`/api/ops?view=daily-reports&dateRange=${range}&date=${selectedDate}`);
             if (!res.ok) return [];
             const j = await res.json();
-            // weekByUniversity has aggregated enrolled/attended/at_risk_total
-            if (mode === 'monthly') {
-                // aggregate the full-month range into per-university totals
-                const rangeRes = await fetch(`/api/ops?view=daily-reports&dateRange=month&date=${selectedDate}`);
-                if (rangeRes.ok) {
-                    const rd = (await rangeRes.json()).reportData || [];
-                    const byUniv: Record<string, any> = {};
-                    for (const r of rd) {
-                        const key = r.university_name;
-                        if (!byUniv[key]) {
-                            byUniv[key] = {
-                                university_name: key,
-                                enrolled: 0, attended: 0,
-                                sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0,
-                                coach_calls: 0, parent_calls: 0,
-                                at_risk_total: 0, at_risk_informed: 0,
-                                events_planned: 0, events_executed: 0,
-                                exams_planned: 0, exams_completed: 0,
-                                remarks: r.remarks || r.cancellation_reason || ''
-                            };
-                        }
-                        const b = byUniv[key];
-                        b.enrolled += num(r.enrolled);
-                        b.attended += num(r.attended);
-                        b.sessions_planned += num(r.sessions_planned);
-                        b.sessions_completed += num(r.sessions_completed);
-                        b.sessions_cancelled += num(r.sessions_cancelled);
-                        b.coach_calls += num(r.coach_calls);
-                        b.parent_calls += num(r.parent_calls);
-                        b.at_risk_total = Math.max(b.at_risk_total, num(r.at_risk_total));
-                        b.at_risk_informed = Math.max(b.at_risk_informed, num(r.at_risk_informed));
-                        b.events_planned += num(r.events_planned);
-                        b.events_executed += num(r.events_executed);
-                        b.exams_planned += num(r.exams_planned);
-                        b.exams_completed += num(r.exams_completed);
-                    }
-                    return Object.values(byUniv);
+            const rows = (j.reportData || []) as any[];
+            if (mode === 'daily') return rows;
+
+            // Weekly/Monthly: collapse per-day rows into per-university totals.
+            const byUniv: Record<string, any> = {};
+            // Track per-university remarks/cancellation reasons across the window.
+            const reasons: Record<string, Map<string, number>> = {};
+            const notes: Record<string, Map<string, number>> = {};
+            const dates: Record<string, string[]> = {};
+            for (const r of rows) {
+                const key = r.university_name;
+                if (!key) continue;
+                if (!byUniv[key]) {
+                    byUniv[key] = {
+                        university_name: key,
+                        enrolled: 0, attended: 0,
+                        sessions_planned: 0, sessions_completed: 0, sessions_cancelled: 0,
+                        coach_calls: 0, parent_calls: 0,
+                        at_risk_total: 0, at_risk_informed: 0, acknowledgments: 0,
+                        events_planned: 0, events_executed: 0, events_cancelled: 0,
+                        exams_planned: 0, exams_completed: 0, post_exam_comms_sent: 0,
+                        instructors_total: 0, instructors_on_leave: 0,
+                        cancellation_reason: '',
+                        remarks: ''
+                    };
+                    reasons[key] = new Map();
+                    notes[key] = new Map();
+                    dates[key] = [];
                 }
+                const b = byUniv[key];
+                b.enrolled += num(r.enrolled);
+                b.attended += num(r.attended);
+                b.sessions_planned += num(r.sessions_planned);
+                b.sessions_completed += num(r.sessions_completed);
+                b.sessions_cancelled += num(r.sessions_cancelled);
+                b.coach_calls += num(r.coach_calls);
+                b.parent_calls += num(r.parent_calls);
+                // At-risk / acknowledgments are per-day snapshots; take MAX
+                // across the window rather than summing (otherwise we'd
+                // over-count the same students on consecutive days).
+                b.at_risk_total = Math.max(b.at_risk_total, num(r.at_risk_total));
+                b.at_risk_informed = Math.max(b.at_risk_informed, num(r.at_risk_informed));
+                b.acknowledgments = Math.max(b.acknowledgments, num(r.acknowledgments));
+                // Instructors: headcount — take MAX too.
+                b.instructors_total = Math.max(b.instructors_total, num(r.instructors_total));
+                b.instructors_on_leave = Math.max(b.instructors_on_leave, num(r.instructors_on_leave));
+                b.events_planned += num(r.events_planned);
+                b.events_executed += num(r.events_executed);
+                b.events_cancelled += num(r.events_cancelled);
+                b.exams_planned += num(r.exams_planned);
+                b.exams_completed += num(r.exams_completed);
+                b.post_exam_comms_sent += num(r.post_exam_comms_sent);
+                // Collect reasons / remarks with frequency.
+                const addParts = (raw: string, target: Map<string, number>) => {
+                    const s = String(raw || '').trim();
+                    if (!s) return;
+                    for (const p of s.split(/\s*;\s*|\s*\|\s*/).map((x) => x.trim()).filter(Boolean)) {
+                        target.set(p, (target.get(p) || 0) + 1);
+                    }
+                };
+                addParts(r.cancellation_reason, reasons[key]);
+                addParts(r.remarks, notes[key]);
+                if (r.date) dates[key].push(String(r.date));
             }
-            return j.weekByUniversity || j.todayByUniversity || [];
+            // Serialize aggregated reasons/remarks as semicolon-joined strings
+            // so the existing cancellation-by-university + remarks cards work
+            // unchanged on the aggregated view.
+            for (const key of Object.keys(byUniv)) {
+                const topReasons = Array.from(reasons[key].entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                byUniv[key].cancellation_reason = topReasons.map(([r, c]) => c > 1 ? `${r} (×${c})` : r).join('; ');
+                const topNotes = Array.from(notes[key].entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+                byUniv[key].remarks = topNotes.map(([r, c]) => c > 1 ? `${r} (×${c})` : r).join('; ');
+                byUniv[key]._dates = dates[key];
+            }
+            return Object.values(byUniv);
         } catch {
             return [];
         }
@@ -391,46 +417,68 @@
     // cancellations or only noise reasons ("NA", "-" etc.).
     const cancellationByUniversity = $derived.by(() => {
         const src = rangeRows && rangeRows.length > 0 ? rangeRows : universityRows;
-        const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number>; holiday: boolean }>();
+        const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number>; holiday: boolean; holidayDates: Set<string> }>();
         for (const r of src || []) {
             const cancelled = num((r as any).sessions_cancelled);
             const reason = String((r as any).cancellation_reason || '').trim();
             if (cancelled <= 0 && isNoise(reason)) continue;
             const name = (r as any).university_name || '—';
-            if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map(), holiday: false });
+            if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map(), holiday: false, holidayDates: new Set() });
             const u = byU.get(name)!;
             u.cancelled += cancelled;
             if (reason && !isNoise(reason)) {
                 for (const p of reason.split(/\s*;\s*|\s*\|\s*/).map((s) => s.trim()).filter((s) => !isNoise(s))) {
                     u.reasons.set(p, (u.reasons.get(p) || 0) + 1);
-                    if (isHolidayReason(p)) u.holiday = true;
+                    if (isHolidayReason(p)) {
+                        u.holiday = true;
+                        const d = (r as any).date;
+                        if (d) {
+                            const dd = new Date(d);
+                            if (!isNaN(dd.getTime())) {
+                                u.holidayDates.add(dd.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
+                            }
+                        }
+                    }
                 }
             }
         }
         return Array.from(byU.values())
-            // Hide universities with 0 cancellations AND 0 meaningful reasons
             .filter((u) => u.cancelled > 0 && u.reasons.size > 0)
             .sort((a, b) => b.cancelled - a.cancelled)
             .map((u) => ({
                 name: u.name,
                 cancelled: u.cancelled,
                 holiday: u.holiday,
+                holidayDates: Array.from(u.holidayDates),
                 reasons: Array.from(u.reasons.entries()).sort((a, b) => b[1] - a[1])
             }));
     });
 
-    // Universities currently on holiday (any row in window mentions holiday)
+    // Universities currently on holiday — keyed by name, collecting the
+    // actual dates so the UI can render "Chalapathi · 9 Apr, 13 Apr".
     const holidayUniversities = $derived.by(() => {
         const src = rangeRows && rangeRows.length > 0 ? rangeRows : universityRows;
-        const set = new Set<string>();
+        const byName = new Map<string, Set<string>>();
         for (const r of src || []) {
             const reason = String((r as any).cancellation_reason || '').trim();
             const remarks = String((r as any).remarks || '').trim();
-            if (isHolidayReason(reason) || isHolidayReason(remarks)) {
-                set.add((r as any).university_name || '—');
+            if (!isHolidayReason(reason) && !isHolidayReason(remarks)) continue;
+            const name = (r as any).university_name || '—';
+            if (!byName.has(name)) byName.set(name, new Set());
+            const d = (r as any).date;
+            if (d) {
+                const dd = new Date(d);
+                if (!isNaN(dd.getTime())) {
+                    byName.get(name)!.add(dd.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }));
+                }
             }
         }
-        return Array.from(set).sort();
+        return Array.from(byName.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([name, dateSet]) => ({
+                name,
+                dates: Array.from(dateSet)
+            }));
     });
 
     // ─── Event intel / Budget ──────────────────────────────────
@@ -926,10 +974,12 @@
                                     {#each cancellationByUniversity as u}
                                         <li class="px-3 py-2.5">
                                             <div class="flex items-baseline justify-between gap-2">
-                                                <span class="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5">
+                                                <span class="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5 flex-wrap">
                                                     {u.name}
                                                     {#if u.holiday}
-                                                        <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Holiday</span>
+                                                        <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">
+                                                            Holiday{#if u.holidayDates.length > 0} · {u.holidayDates.slice(0, 3).join(', ')}{u.holidayDates.length > 3 ? ` +${u.holidayDates.length - 3}` : ''}{/if}
+                                                        </span>
                                                     {/if}
                                                 </span>
                                                 <span class="text-[11px] font-bold text-rose-600 dark:text-rose-400 tabular-nums shrink-0">{u.cancelled} cancelled</span>
@@ -960,9 +1010,11 @@
                         {/if}
                         {#if holidayUniversities.length > 0}
                             <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-                                <span class="text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Holiday today:</span>
+                                <span class="text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">{mode === 'daily' ? 'Holiday today:' : 'Holidays this ' + mode.replace('ly', '') + ':'}</span>
                                 {#each holidayUniversities as u}
-                                    <span class="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold">{u}</span>
+                                    <span class="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold">
+                                        {u.name}{#if u.dates.length > 0}<span class="text-amber-600/70 dark:text-amber-400/70 font-normal ml-1">· {u.dates.slice(0, 3).join(', ')}{u.dates.length > 3 ? ` +${u.dates.length - 3}` : ''}</span>{/if}
+                                    </span>
                                 {/each}
                             </div>
                         {/if}
@@ -1315,11 +1367,46 @@
                 </Card>
 
                 <!-- ── REMARKS ───────────────────────────────── -->
-                <Card title="Remarks" subtitle="Qualitative notes from the field" className="md:col-span-12">
+                <Card title={mode === 'daily' ? 'Remarks' : `Remarks · aggregated for the ${mode.replace('ly', '')}`} subtitle={mode === 'daily' ? 'Qualitative notes from the field' : 'Per-university common themes with frequency counts'} className="md:col-span-12">
                     {#snippet icon()}
                         <StickyNote size={14} />
                     {/snippet}
                     {#snippet children()}
+                        {#if mode !== 'daily'}
+                            <!-- Weekly/Monthly: aggregate by university. The aggregated
+                                 universityRows from fetchUniversityRows already contain
+                                 semicolon-joined "reason (×N)" strings. -->
+                            {@const aggregated = (universityRows || [])
+                                .map((u: any) => ({
+                                    name: u.university_name,
+                                    remarks: String(u.remarks || '').trim(),
+                                    cancellation_reason: String(u.cancellation_reason || '').trim()
+                                }))
+                                .filter((u: any) => u.remarks || u.cancellation_reason)}
+                            {#if aggregated.length === 0}
+                                <p class="text-xs text-zinc-500 dark:text-zinc-400 italic">No remarks or cancellation reasons logged this {mode.replace('ly', '')}.</p>
+                            {:else}
+                                <ul class="flex flex-col gap-2.5 max-h-[480px] overflow-y-auto pr-1">
+                                    {#each aggregated as u}
+                                        <li class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                            <div class="text-sm font-bold text-zinc-900 dark:text-zinc-100 mb-1">{u.name}</div>
+                                            {#if u.cancellation_reason}
+                                                <div class="text-[12px] mt-1">
+                                                    <span class="text-rose-600 dark:text-rose-400 font-semibold">Cancellation reasons:</span>
+                                                    <span class="text-zinc-700 dark:text-zinc-300 ml-1">{u.cancellation_reason}</span>
+                                                </div>
+                                            {/if}
+                                            {#if u.remarks}
+                                                <div class="text-[12px] mt-1">
+                                                    <span class="text-sky-600 dark:text-sky-400 font-semibold">Remarks:</span>
+                                                    <span class="text-zinc-700 dark:text-zinc-300 ml-1">{u.remarks}</span>
+                                                </div>
+                                            {/if}
+                                        </li>
+                                    {/each}
+                                </ul>
+                            {/if}
+                        {:else}
                         {@const remarkRows = (rangeRows || [])
                             .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
                             .filter((r: any) => r._note && String(r._note).trim().length > 0)}
@@ -1350,6 +1437,7 @@
                             <p class="text-sm text-zinc-700 dark:text-zinc-300">{summary.remarks}</p>
                         {:else}
                             <p class="text-xs text-zinc-500 dark:text-zinc-400 italic">No remarks logged for this period.</p>
+                        {/if}
                         {/if}
                     {/snippet}
                 </Card>
