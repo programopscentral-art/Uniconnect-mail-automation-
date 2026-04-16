@@ -167,10 +167,23 @@
 
     // ─── Loaders ──────────────────────────────────────────────────
 
-    async function fetchOverview(forDate: string) {
-        const res = await fetch(`/api/ops?view=overview&date=${forDate}`);
-        if (!res.ok) throw new Error(`Overview fetch failed: ${res.status}`);
-        return res.json();
+    async function fetchOverview(forDate: string, retries = 2): Promise<any> {
+        // DB pool exhaustion (PgBouncer session mode) surfaces as a transient
+        // 500 under concurrent load — retry a couple of times with backoff.
+        for (let attempt = 0; attempt <= retries; attempt++) {
+            try {
+                const res = await fetch(`/api/ops?view=overview&date=${forDate}`);
+                if (res.ok) return res.json();
+                if (res.status >= 500 && attempt < retries) {
+                    await new Promise((r) => setTimeout(r, 600 + attempt * 400));
+                    continue;
+                }
+                throw new Error(`Overview fetch failed: ${res.status}`);
+            } catch (e) {
+                if (attempt === retries) throw e;
+                await new Promise((r) => setTimeout(r, 600 + attempt * 400));
+            }
+        }
     }
 
     async function fetchRange(start: string, end: string) {
@@ -300,33 +313,29 @@
     }
 
     async function fetchAux() {
+        // Run sequentially to be gentle on the DB pool — these populate
+        // secondary cards (budget, tickets) and don't block the hero KPIs.
         try {
-            // Pass the correct date window so budget data is scoped to the
-            // selected mode: daily -> that day only, weekly -> that week,
-            // monthly -> that month. Otherwise the server falls back to the
-            // month containing `date` and daily reports show the whole month.
             const eiUrl = `/api/ops?view=event-intelligence&date=${selectedDate}&range=${mode}`;
-            const [ei, tp] = await Promise.all([
-                fetch(eiUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-                fetch(`/api/ops?view=task-patterns&date=${selectedDate}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-            ]);
-            eventIntel = ei;
-            taskPatterns = tp;
-        } catch {}
+            const eiRes = await fetch(eiUrl).catch(() => null);
+            eventIntel = eiRes?.ok ? await eiRes.json() : null;
+        } catch { eventIntel = null; }
+        try {
+            const tpRes = await fetch(`/api/ops?view=task-patterns&date=${selectedDate}`).catch(() => null);
+            taskPatterns = tpRes?.ok ? await tpRes.json() : null;
+        } catch { taskPatterns = null; }
     }
 
     async function load() {
         loading = true;
         loadError = '';
         try {
-            const [ov, prev, univRows] = await Promise.all([
-                fetchOverview(selectedDate),
-                fetchPrev(),
-                fetchUniversityRows()
-            ]);
-            overview = ov;
-            prevPeriod = prev;
-            universityRows = univRows;
+            // Serialize fetches to avoid DB pool exhaustion. The Postgres
+            // pool (PgBouncer session mode) is tight — firing 6+ parallel
+            // fetches, each running 4 sub-queries, bursts the pool and
+            // returns 500s. Core data first, then enrichment in background.
+            overview = await fetchOverview(selectedDate);
+            universityRows = await fetchUniversityRows();
 
             let start = selectedDate, end = selectedDate;
             if (mode === 'weekly') {
@@ -337,9 +346,11 @@
                 start = m.start; end = m.end;
             }
             // Always fetch daily rows so remarks show up in every mode.
-            rangeRows = mode === 'daily' ? univRows : await fetchRange(start, end);
+            rangeRows = mode === 'daily' ? universityRows : await fetchRange(start, end);
 
-            // aux (financials, tickets) — fire and forget
+            // Enrichment (prev-period deltas, event intel, task patterns) runs
+            // AFTER the main data renders — not critical path, OK to trickle in.
+            fetchPrev().then((p) => { prevPeriod = p; }).catch(() => {});
             fetchAux();
         } catch (e: any) {
             loadError = e?.message || 'Failed to load dashboard';
