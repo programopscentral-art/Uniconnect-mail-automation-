@@ -1082,6 +1082,26 @@
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto bg-gray-950 p-6">
+        <!-- Top tabs: Dashboard | Reports -->
+        <div class="mb-4 flex items-center gap-1 p-1 rounded-xl bg-gray-900 border border-gray-800 w-full md:w-auto md:inline-flex">
+            <button
+                type="button"
+                class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-blue-600 text-white shadow-sm"
+                aria-current="page"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span>Dashboard</span>
+            </button>
+            <a
+                href="/ops-dashboard/v2/reports"
+                class="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all text-gray-400 hover:text-white hover:bg-gray-800"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+                <span>Reports</span>
+                <span class="ml-1 text-[10px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-sky-500 to-violet-500 text-white">New</span>
+            </a>
+        </div>
+
         <!-- Top Bar: Sheet URL + controls -->
         <div class="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4">
             <div class="flex items-center gap-3 flex-wrap">

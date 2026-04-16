@@ -183,6 +183,19 @@ export function buildOpsReportV2(opts: OpsReportV2Options): string {
     const engTarget = Math.max(n(s.enrolled) * 0.3, 10);
     const engRate = Math.min(100, pct(callsTotal, engTarget));
 
+    // Detect "no activity" — all key signals are zero. Shown as an empty state
+    // so the viewer doesn't misread a 0% attendance as a real result.
+    const hasNoData =
+        n(s.enrolled) === 0 &&
+        n(s.sessions_planned) === 0 &&
+        n(s.sessions_completed) === 0 &&
+        n(s.coach_calls) === 0 &&
+        n(s.parent_calls) === 0 &&
+        n(s.at_risk_total) === 0 &&
+        n(s.events_planned) === 0 &&
+        n(s.exams_planned) === 0 &&
+        byUniv.length === 0;
+
     // deltas
     let attDelta: number | null = null;
     let sessDelta: number | null = null;
@@ -335,6 +348,23 @@ export function buildOpsReportV2(opts: OpsReportV2Options): string {
                 </table>
             </td></tr>
 
+            ${hasNoData ? `
+            <!-- Empty state banner -->
+            <tr><td style="padding:24px 28px 12px">
+                <table width="100%" cellspacing="0" cellpadding="0" style="background:linear-gradient(135deg,#fefce8 0%,#ffffff 100%);border:1px solid #fde68a;border-radius:16px">
+                    <tr><td style="padding:26px 28px" align="center">
+                        <div style="width:52px;height:52px;border-radius:14px;background:#fef3c7;display:inline-block;line-height:52px;text-align:center;font-size:26px;font-weight:800;color:#b45309;margin-bottom:12px">!</div>
+                        <div style="font-size:17px;font-weight:800;color:#92400e;margin-bottom:6px">No data recorded for this ${mode === 'daily' ? 'day' : mode === 'weekly' ? 'week' : 'month'}</div>
+                        <div style="font-size:13px;color:#b45309;line-height:1.55;max-width:440px;margin:0 auto">
+                            <strong>${periodLabel}</strong> hasn't been synced yet. Pick a date in the ${mode === 'daily' ? 'past few days' : 'past few weeks'} that already has data, or sync the Google Sheet for this period from the dashboard.
+                        </div>
+                        <div style="margin-top:16px">
+                            <a href="${dashboardUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 20px;border-radius:10px">Go to dashboard</a>
+                        </div>
+                    </td></tr>
+                </table>
+            </td></tr>
+            ` : `
             <!-- Hero KPI row -->
             <tr><td style="padding:22px 28px 6px">
                 <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">
@@ -370,6 +400,7 @@ export function buildOpsReportV2(opts: OpsReportV2Options): string {
                     ${universityTable(byUniv)}
                 </table>
             </td></tr>
+            `}
 
             <!-- CTA -->
             <tr><td style="padding:0 28px 28px">

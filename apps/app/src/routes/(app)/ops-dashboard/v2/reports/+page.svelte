@@ -268,8 +268,29 @@
         </div>
     </header>
 
+    <!-- Primary tabs: Dashboard | Reports -->
+    <div class="max-w-[1440px] mx-auto w-full px-4 md:px-8 pt-5">
+        <div class="inline-flex items-center gap-1 p-1 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 shadow-sm">
+            <a
+                href="/ops-dashboard"
+                class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-all"
+            >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                <span>Dashboard</span>
+            </a>
+            <button
+                type="button"
+                class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-sky-500 to-violet-500 text-white shadow-sm"
+                aria-current="page"
+            >
+                <FileText size={15} />
+                <span>Reports</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Mode selector (BIG, visible tabs that actually open reports) -->
-    <div class="max-w-[1440px] mx-auto w-full px-4 md:px-8 pt-6">
+    <div class="max-w-[1440px] mx-auto w-full px-4 md:px-8 pt-4">
         <div class="grid grid-cols-3 gap-2 md:gap-3 p-1.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 shadow-sm">
             {#each ['daily', 'weekly', 'monthly'] as m}
                 {@const active = mode === m}
