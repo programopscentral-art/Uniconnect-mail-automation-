@@ -3,7 +3,7 @@
     import {
         Calendar, ChevronLeft, ChevronRight, RefreshCw, Sparkles, Download, Mail,
         PlayCircle, Users, PhoneCall, UserCheck, GraduationCap,
-        AlertTriangle, Megaphone, Wallet, Ticket, StickyNote, TrendingUp, Activity, ArrowLeft
+        AlertTriangle, Megaphone, Wallet, Ticket, StickyNote, TrendingUp, Activity, ArrowLeft, FileText
     } from 'lucide-svelte';
 
     import Card from '$lib/components/ops/Card.svelte';
@@ -316,19 +316,8 @@
         };
     });
 
-    async function downloadReport() {
-        const type = mode;
-        let url = `/api/ops/view-report?type=${type}`;
-        if (type === 'daily') {
-            url += `&date=${selectedDate}`;
-        } else if (type === 'weekly') {
-            const w = getWeekRange(selectedDate);
-            url += `&weekStart=${w.start}&weekEnd=${w.end}`;
-        } else {
-            const d = new Date(selectedDate);
-            url += `&year=${d.getFullYear()}&month=${d.getMonth() + 1}`;
-        }
-        window.open(url, '_blank');
+    function openReportsHub() {
+        window.location.href = `/ops-dashboard/v2/reports?type=${mode}&date=${selectedDate}`;
     }
 </script>
 
@@ -421,13 +410,13 @@
             </button>
 
             <button
-                onclick={downloadReport}
-                class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-2 rounded-xl
+                onclick={openReportsHub}
+                class="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl
                        bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white
-                       text-white dark:text-zinc-900 transition-colors"
+                       text-white dark:text-zinc-900 transition-colors capitalize"
             >
-                <Download size={13} />
-                <span class="hidden md:inline">Export</span>
+                <FileText size={13} />
+                <span class="hidden md:inline">{mode} Report</span>
             </button>
         </div>
 
@@ -465,6 +454,44 @@
                 <p class="text-zinc-500 dark:text-zinc-400 text-sm">No data available for this period.</p>
             </div>
         {:else}
+            <!-- ── Reports quick-access ──────────────────────── -->
+            <div class="mb-5 md:mb-6">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">
+                        <FileText size={11} />
+                        <span>Open full report</span>
+                    </div>
+                    <a href="/ops-dashboard/v2/reports?type={mode}&date={selectedDate}" class="text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:underline">
+                        Reports hub →
+                    </a>
+                </div>
+                <div class="grid grid-cols-3 gap-2 md:gap-3">
+                    {#each [
+                        { m: 'daily', label: 'Daily', from: '#0ea5e9', to: '#6366f1', hint: 'Today snapshot' },
+                        { m: 'weekly', label: 'Weekly', from: '#8b5cf6', to: '#ec4899', hint: '7-day trend' },
+                        { m: 'monthly', label: 'Monthly', from: '#10b981', to: '#0ea5e9', hint: 'Strategic view' }
+                    ] as r}
+                        <a
+                            href="/ops-dashboard/v2/reports?type={r.m}&date={selectedDate}"
+                            class="group relative overflow-hidden rounded-2xl p-4 md:p-5 text-white flex flex-col justify-between min-h-[88px] transition-all hover:scale-[1.01] hover:shadow-lg"
+                            style="background: linear-gradient(135deg, {r.from}, {r.to});"
+                        >
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] md:text-[11px] uppercase tracking-wider font-bold opacity-90">{r.label}</span>
+                                <FileText size={14} class="opacity-80" />
+                            </div>
+                            <div class="flex items-end justify-between mt-2">
+                                <div>
+                                    <div class="text-sm md:text-base font-bold leading-tight">Open {r.label} Report</div>
+                                    <div class="text-[10px] md:text-[11px] opacity-80">{r.hint}</div>
+                                </div>
+                                <ChevronRight size={16} class="opacity-70 group-hover:translate-x-0.5 transition-transform" />
+                            </div>
+                        </a>
+                    {/each}
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
                 <!-- ── HERO RING KPI ─────────────────────────────── -->
                 <Card className="md:col-span-12 lg:col-span-8">
