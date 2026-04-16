@@ -275,11 +275,13 @@
 
     async function fetchAux() {
         try {
-            // event-intelligence + task-patterns both use the month containing `date`
-            // on the server. For daily/weekly modes we still surface month-level aggregates,
-            // which is fine for "budget efficiency" and "ticket SLA" cards.
+            // Pass the correct date window so budget data is scoped to the
+            // selected mode: daily -> that day only, weekly -> that week,
+            // monthly -> that month. Otherwise the server falls back to the
+            // month containing `date` and daily reports show the whole month.
+            const eiUrl = `/api/ops?view=event-intelligence&date=${selectedDate}&range=${mode}`;
             const [ei, tp] = await Promise.all([
-                fetch(`/api/ops?view=event-intelligence&date=${selectedDate}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+                fetch(eiUrl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
                 fetch(`/api/ops?view=task-patterns&date=${selectedDate}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)
             ]);
             eventIntel = ei;

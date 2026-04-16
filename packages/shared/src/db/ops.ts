@@ -1612,8 +1612,7 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
         LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
         LEFT JOIN universities u ON u.id = bp.university_id
         LEFT JOIN users proposer ON proposer.id = bp.proposer_user_id
-        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) >= $1::date
-          AND COALESCE(bp.proposed_date::date, bp.created_at::date) <= ($2::date + interval '1 day')
+        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) BETWEEN $1::date AND $2::date
         ${univFilter}
         ORDER BY COALESCE(bp.proposed_date::date, bp.created_at::date) DESC, bp.created_at DESC
     `, params);
@@ -1645,7 +1644,7 @@ export async function getOpsEventBudgetIntelligence(startDate: string, endDate: 
                 THEN bpr.actual_budget_used / bpr.actual_attendance END)::numeric(10,2) AS avg_cost_pp
         FROM budget_proposals bp
         LEFT JOIN budget_proposal_reports bpr ON bpr.proposal_id = bp.id
-        WHERE bp.proposed_date >= $1::date AND bp.proposed_date <= ($2::date + interval '1 day')
+        WHERE COALESCE(bp.proposed_date::date, bp.created_at::date) BETWEEN $1::date AND $2::date
         ${univFilter}
         GROUP BY bp.event_type
         ORDER BY total_events DESC

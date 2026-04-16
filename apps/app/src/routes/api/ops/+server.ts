@@ -265,8 +265,24 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         // ─── Phase 4: Advanced AI ────────────────────────────────────
 
         case 'event-intelligence': {
-            const intel = await getOpsEventBudgetIntelligence(monthStart, monthEnd, university);
-            return json({ ...intel, date, monthStart, monthEnd });
+            // Accept explicit start/end or a `range` hint (daily|weekly|monthly),
+            // defaulting to the month containing `date`.
+            const qStart = url.searchParams.get('startDate');
+            const qEnd = url.searchParams.get('endDate');
+            const range = url.searchParams.get('range') || 'monthly';
+            let start = qStart || monthStart;
+            let end = qEnd || monthEnd;
+            if (!qStart || !qEnd) {
+                if (range === 'daily') {
+                    start = date; end = date;
+                } else if (range === 'weekly') {
+                    start = week.start; end = week.end;
+                } else {
+                    start = monthStart; end = monthEnd;
+                }
+            }
+            const intel = await getOpsEventBudgetIntelligence(start, end, university);
+            return json({ ...intel, date, startDate: start, endDate: end });
         }
 
         // Views that manage their own data (NLQ uses /api/ops/nlq directly)
