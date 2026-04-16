@@ -372,18 +372,116 @@
         return t > 0 ? ((t - l) / t) * 100 : 0;
     });
 
-    // ─── Event intel derived ────────────────────────────────────
+    // ─── Cancellation reasons per university ───────────────────
+    // Source rows: use rangeRows (daily breakdown for daily mode, else
+    // weekly/monthly aggregated rows). Group by university, parse the
+    // semicolon-separated reasons for weekly/monthly aggregates.
+    const cancellationByUniversity = $derived.by(() => {
+        const src = rangeRows && rangeRows.length > 0 ? rangeRows : universityRows;
+        const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number> }>();
+        for (const r of src || []) {
+            const cancelled = num((r as any).sessions_cancelled);
+            const reason = String((r as any).cancellation_reason || '').trim();
+            if (cancelled <= 0 && !reason) continue;
+            const name = (r as any).university_name || '—';
+            if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map() });
+            const u = byU.get(name)!;
+            u.cancelled += cancelled;
+            if (reason) {
+                for (const p of reason.split(/\s*;\s*|\s*\|\s*/).map((s) => s.trim()).filter(Boolean)) {
+                    u.reasons.set(p, (u.reasons.get(p) || 0) + 1);
+                }
+            }
+        }
+        return Array.from(byU.values())
+            .filter((u) => u.cancelled > 0 || u.reasons.size > 0)
+            .sort((a, b) => b.cancelled - a.cancelled)
+            .map((u) => ({
+                name: u.name,
+                cancelled: u.cancelled,
+                reasons: Array.from(u.reasons.entries()).sort((a, b) => b[1] - a[1])
+            }));
+    });
 
-    const financials = $derived.by(() => {
-        const a = eventIntel?.aggregates;
-        if (!a) return null;
+    // ─── Event intel / Budget ──────────────────────────────────
+
+    const budgetData = $derived.by(() => {
+        const events = (eventIntel?.events as any[]) || [];
+        const ag = eventIntel?.aggregates || {};
+        if (events.length === 0) return null;
+
+        // By event type
+        const byTypeMap = new Map<string, { type: string; count: number; spent: number }>();
+        // By university
+        type UB = {
+            name: string; proposals: number; requested: number; approved: number; spent: number;
+            events: Array<{ title: string; type: string; amount: number; status: string; date?: string; proposer?: string; outcomes?: string; issues?: string }>;
+        };
+        const byUnivMap = new Map<string, UB>();
+        let totalReq = 0, totalApr = 0, totalSpent = 0;
+        for (const e of events) {
+            const uName = e.university_name || '—';
+            const t = e.event_type || 'other';
+            const req = Number(e.estimated_total_budget) || 0;
+            const apr = Number(e.approved_total_budget) || 0;
+            const spent = Number(e.actual_budget_used) || 0;
+            totalReq += req; totalApr += apr; totalSpent += spent;
+
+            if (!byTypeMap.has(t)) byTypeMap.set(t, { type: t, count: 0, spent: 0 });
+            const tr = byTypeMap.get(t)!;
+            tr.count += 1;
+            tr.spent += spent;
+
+            if (!byUnivMap.has(uName)) byUnivMap.set(uName, { name: uName, proposals: 0, requested: 0, approved: 0, spent: 0, events: [] });
+            const u = byUnivMap.get(uName)!;
+            u.proposals += 1;
+            u.requested += req;
+            u.approved += apr;
+            u.spent += spent;
+            u.events.push({
+                title: e.title || 'Untitled',
+                type: t,
+                amount: spent || apr || req,
+                status: e.status || '',
+                date: e.proposed_date ? String(e.proposed_date).split('T')[0] : undefined,
+                proposer: e.proposer_name || '',
+                outcomes: e.outcomes || '',
+                issues: e.issues_faced || ''
+            });
+        }
+        const byType = Array.from(byTypeMap.values()).sort((a, b) => b.spent - a.spent);
+        const byUniversity = Array.from(byUnivMap.values()).sort((a, b) => b.spent - a.spent || b.requested - a.requested);
+
         return {
-            events: a.totalEvents || 0,
-            avgCost: a.avgCostPerParticipant || 0,
-            utilization: a.avgBudgetUtilization || 0,
-            attendanceAccuracy: a.avgAttendanceAccuracy || 0
+            totalProposals: events.length,
+            totalRequested: totalReq,
+            totalApproved: totalApr,
+            totalSpent,
+            avgUtilization: ag.avgBudgetUtilization || 0,
+            avgCostPerParticipant: ag.avgCostPerParticipant || 0,
+            avgAttendanceAccuracy: ag.avgAttendanceAccuracy || 0,
+            byType,
+            byUniversity,
+            events
         };
     });
+
+    function money(v: number): string {
+        if (!Number.isFinite(v) || v === 0) return '—';
+        if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)} Cr`;
+        if (v >= 100000) return `₹${(v / 100000).toFixed(2)} L`;
+        if (v >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
+        return `₹${Math.round(v).toLocaleString('en-IN')}`;
+    }
+
+    function statusTone(status: string): string {
+        const s = (status || '').toUpperCase();
+        if (s.includes('COMPLETED') || s === 'CLOSED' || s === 'REPORT_SUBMITTED') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
+        if (s === 'APPROVED') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400';
+        if (s === 'REJECTED') return 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400';
+        if (s === 'PENDING_APPROVAL' || s === 'UNDER_REVIEW' || s === 'CHANGES_REQUESTED') return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400';
+        return 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400';
+    }
 
     const ticketsData = $derived.by(() => {
         // getOpsTaskPatterns returns { patterns: [...], byTeam: [...] }. Roll up totals.
@@ -785,7 +883,41 @@
                             centerValue={num(summary.sessions_planned)}
                             centerLabel="Planned"
                         />
-                        {#if cancelCount > 0 && summary.cancellation_reason}
+                        {#if cancelCount > 0 && cancellationByUniversity.length > 0}
+                            <details class="mt-3 rounded-xl border border-rose-200 dark:border-rose-900/40 overflow-hidden group">
+                                <summary class="cursor-pointer list-none px-3 py-2.5 bg-rose-50 dark:bg-rose-950/30 flex items-center justify-between text-[12px] font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <AlertTriangle size={12} />
+                                        View cancellations by university
+                                    </span>
+                                    <ChevronRight size={14} class="transition-transform group-open:rotate-90" />
+                                </summary>
+                                <ul class="divide-y divide-rose-100 dark:divide-rose-900/30 bg-white dark:bg-zinc-900">
+                                    {#each cancellationByUniversity as u}
+                                        <li class="px-3 py-2.5">
+                                            <div class="flex items-baseline justify-between gap-2">
+                                                <span class="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{u.name}</span>
+                                                <span class="text-[11px] font-bold text-rose-600 dark:text-rose-400 tabular-nums shrink-0">{u.cancelled} cancelled</span>
+                                            </div>
+                                            {#if u.reasons.length > 0}
+                                                <div class="text-[11px] text-zinc-600 dark:text-zinc-400 mt-1 leading-relaxed">
+                                                    {#if mode === 'daily'}
+                                                        {u.reasons.map(([r]) => r).join(' · ')}
+                                                    {:else}
+                                                        <span class="text-rose-600 dark:text-rose-400 font-semibold">Most common:</span>
+                                                        {u.reasons[0][0]}{u.reasons[0][1] > 1 ? ` (×${u.reasons[0][1]})` : ''}
+                                                        {#if u.reasons.length > 1}
+                                                            <br><span class="text-zinc-400">Also:</span>
+                                                            {u.reasons.slice(1, 4).map(([r, c]) => r + (c > 1 ? ` (×${c})` : '')).join(' · ')}
+                                                        {/if}
+                                                    {/if}
+                                                </div>
+                                            {/if}
+                                        </li>
+                                    {/each}
+                                </ul>
+                            </details>
+                        {:else if cancelCount > 0 && summary.cancellation_reason}
                             <div class="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                                 <div class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 font-medium mb-1">Top cancellation reason</div>
                                 <p class="text-xs text-zinc-700 dark:text-zinc-200">{summary.cancellation_reason}</p>
@@ -943,43 +1075,171 @@
                     {/snippet}
                 </Card>
 
-                <!-- ── FINANCIALS (weekly/monthly only) ───────── -->
-                {#if mode !== 'daily'}
-                    <Card title="Financials" subtitle="Event budget efficiency" className="md:col-span-6 lg:col-span-6">
-                        {#snippet icon()}
-                            <Wallet size={14} />
-                        {/snippet}
-                        {#snippet children()}
-                            {#if financials}
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <StatTile label="Events" value={financials.events} />
-                                    <StatTile label="Avg cost / person" value={`₹${financials.avgCost}`} />
-                                    <StatTile
-                                        label="Budget used"
-                                        value={`${financials.utilization}%`}
-                                        tone={financials.utilization > 100 ? 'bad' : financials.utilization > 85 ? 'warn' : 'good'}
-                                    />
-                                    <StatTile
-                                        label="Attendance acc."
-                                        value={`${financials.attendanceAccuracy}%`}
-                                        tone={financials.attendanceAccuracy >= 85 ? 'good' : financials.attendanceAccuracy >= 70 ? 'warn' : 'bad'}
-                                    />
+                <!-- ── BUDGET & PROPOSALS ─────────────────────── -->
+                <Card title="Budget & proposals" subtitle={mode === 'daily' ? "Proposals submitted today" : mode === 'weekly' ? "Total spend & breakdown this week" : "Total spend & breakdown this month"} className="md:col-span-12">
+                    {#snippet icon()}
+                        <Wallet size={14} />
+                    {/snippet}
+                    {#snippet children()}
+                        {#if budgetData}
+                            <!-- Top summary row -->
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <StatTile label="Proposals" value={budgetData.totalProposals} hint={mode === 'daily' ? 'today' : mode === 'weekly' ? 'this week' : 'this month'} />
+                                <StatTile label="Requested" value={money(budgetData.totalRequested)} hint="Total ask" />
+                                <StatTile label="Approved" value={money(budgetData.totalApproved)} hint="Sanctioned" />
+                                <StatTile
+                                    label="Spent"
+                                    value={money(budgetData.totalSpent)}
+                                    tone={budgetData.totalSpent > budgetData.totalApproved && budgetData.totalApproved > 0 ? 'bad' : 'default'}
+                                    hint={`${budgetData.events.filter((e: any) => e.actual_budget_used).length} with reports`}
+                                />
+                            </div>
+
+                            {#if budgetData.avgUtilization || budgetData.avgCostPerParticipant}
+                                <div class="grid grid-cols-3 gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                    <div class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                        <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Avg utilization</div>
+                                        <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums mt-0.5">{budgetData.avgUtilization}%</div>
+                                    </div>
+                                    <div class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                        <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Cost / person</div>
+                                        <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums mt-0.5">{money(budgetData.avgCostPerParticipant)}</div>
+                                    </div>
+                                    <div class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50">
+                                        <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Attendance acc.</div>
+                                        <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100 tabular-nums mt-0.5">{budgetData.avgAttendanceAccuracy}%</div>
+                                    </div>
                                 </div>
-                                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                                    <BarRow
-                                        bars={[
-                                            { label: 'Budget utilization', value: financials.utilization, color: financials.utilization > 100 ? '#f43f5e' : '#0ea5e9', hint: '%' },
-                                            { label: 'Attendance accuracy', value: financials.attendanceAccuracy, color: '#10b981', hint: '%' }
-                                        ]}
-                                        max={Math.max(100, financials.utilization)}
-                                    />
+                            {/if}
+
+                            {#if mode === 'daily'}
+                                <!-- Daily: list each proposal as a card -->
+                                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2.5">
+                                    <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Proposals submitted</div>
+                                    {#each budgetData.events.slice(0, 10) as e}
+                                        {@const spent = Number(e.actual_budget_used) || 0}
+                                        {@const req = Number(e.estimated_total_budget) || 0}
+                                        {@const apr = Number(e.approved_total_budget) || 0}
+                                        <article class="flex items-start gap-3 p-3 rounded-xl border border-zinc-200/70 dark:border-zinc-700/50 bg-white dark:bg-zinc-900">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{e.title || 'Untitled'}</span>
+                                                    <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full {statusTone(e.status)}">{(e.status || '').replace(/_/g, ' ')}</span>
+                                                </div>
+                                                <div class="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                                    {e.university_name || '—'}
+                                                    {#if e.proposer_name} · <span class="font-semibold text-zinc-700 dark:text-zinc-300">by {e.proposer_name}</span>{/if}
+                                                    · <span class="capitalize">{(e.event_type || '').replace(/_/g, ' ')}</span>
+                                                </div>
+                                                {#if e.outcomes}
+                                                    <div class="mt-2 text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border-l-2 border-emerald-500 pl-2 py-1 rounded">
+                                                        <span class="font-semibold">Outcome:</span> {e.outcomes}
+                                                    </div>
+                                                {/if}
+                                                {#if e.issues_faced}
+                                                    <div class="mt-1 text-[11px] text-rose-800 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/30 border-l-2 border-rose-500 pl-2 py-1 rounded">
+                                                        <span class="font-semibold">Issues:</span> {e.issues_faced}
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                            <div class="text-right shrink-0">
+                                                <div class="text-[9px] uppercase tracking-wider font-bold text-zinc-500 dark:text-zinc-400">{spent > 0 ? 'Spent' : apr > 0 ? 'Approved' : 'Requested'}</div>
+                                                <div class="text-lg font-bold tabular-nums mt-0.5 {spent > req && req > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}">{money(spent || apr || req)}</div>
+                                                {#if e.expected_attendance}
+                                                    <div class="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">{e.actual_attendance || '—'}/{e.expected_attendance} attendees</div>
+                                                {/if}
+                                            </div>
+                                        </article>
+                                    {/each}
                                 </div>
                             {:else}
-                                <p class="text-xs text-zinc-500 dark:text-zinc-400">No event budget data for this period.</p>
+                                <!-- Weekly/Monthly: by type + by university with drill-down -->
+                                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800 grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <!-- Spent by event type -->
+                                    <div class="md:col-span-1">
+                                        <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400 mb-2">Spent by event type</div>
+                                        {#if budgetData.byType.length > 0}
+                                            {@const maxSpend = Math.max(1, ...budgetData.byType.map((t: any) => t.spent))}
+                                            <div class="flex flex-col gap-2">
+                                                {#each budgetData.byType as t}
+                                                    {@const p = maxSpend > 0 ? Math.max(3, (t.spent / maxSpend) * 100) : 0}
+                                                    <div>
+                                                        <div class="flex justify-between text-[11px] mb-0.5">
+                                                            <span class="text-zinc-700 dark:text-zinc-300 font-medium capitalize truncate">{t.type.replace(/_/g, ' ')} <span class="text-zinc-400 font-normal">· {t.count}</span></span>
+                                                            <span class="text-zinc-900 dark:text-zinc-100 font-bold tabular-nums">{money(t.spent)}</span>
+                                                        </div>
+                                                        <div class="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                                                            <div class="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500" style="width: {p}%"></div>
+                                                        </div>
+                                                    </div>
+                                                {/each}
+                                            </div>
+                                        {:else}
+                                            <p class="text-xs text-zinc-500 dark:text-zinc-400">No categorized spend yet.</p>
+                                        {/if}
+                                    </div>
+
+                                    <!-- By university with drill-down -->
+                                    <div class="md:col-span-2">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <div class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">By university</div>
+                                            <div class="text-[10px] text-zinc-400">click a row to see breakdown</div>
+                                        </div>
+                                        <div class="flex flex-col gap-1.5">
+                                            {#each budgetData.byUniversity.slice(0, 10) as u}
+                                                <details class="rounded-xl border border-zinc-200/70 dark:border-zinc-700/50 bg-white dark:bg-zinc-900 group">
+                                                    <summary class="cursor-pointer list-none px-3 py-2.5 flex items-center gap-3 text-[12px] hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                                        <ChevronRight size={12} class="text-zinc-400 transition-transform group-open:rotate-90 shrink-0" />
+                                                        <div class="flex-1 min-w-0">
+                                                            <div class="font-semibold text-zinc-900 dark:text-zinc-100 truncate">{u.name}</div>
+                                                            <div class="text-[10px] text-zinc-500 dark:text-zinc-400">{u.proposals} proposal{u.proposals > 1 ? 's' : ''}</div>
+                                                        </div>
+                                                        <div class="text-right shrink-0">
+                                                            <div class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Requested</div>
+                                                            <div class="text-[11px] font-semibold text-zinc-700 dark:text-zinc-300 tabular-nums">{money(u.requested)}</div>
+                                                        </div>
+                                                        <div class="text-right shrink-0">
+                                                            <div class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Approved</div>
+                                                            <div class="text-[11px] font-semibold text-sky-600 dark:text-sky-400 tabular-nums">{money(u.approved)}</div>
+                                                        </div>
+                                                        <div class="text-right shrink-0">
+                                                            <div class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Spent</div>
+                                                            <div class="text-sm font-bold tabular-nums {u.spent > u.approved && u.approved > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}">{money(u.spent)}</div>
+                                                        </div>
+                                                    </summary>
+                                                    <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800">
+                                                        <ul class="flex flex-col gap-1.5 mt-2">
+                                                            {#each u.events as ev}
+                                                                <li class="flex items-start gap-2 text-[11px] p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
+                                                                    <div class="flex-1 min-w-0">
+                                                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                                                            <span class="font-semibold text-zinc-900 dark:text-zinc-100">{ev.title}</span>
+                                                                            <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full {statusTone(ev.status)}">{(ev.status || '').replace(/_/g, ' ')}</span>
+                                                                        </div>
+                                                                        <div class="text-[10px] text-zinc-500 dark:text-zinc-400 capitalize">
+                                                                            {(ev.type || '').replace(/_/g, ' ')}
+                                                                            {#if ev.proposer} · by {ev.proposer}{/if}
+                                                                            {#if ev.date} · {new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}{/if}
+                                                                        </div>
+                                                                        {#if ev.outcomes}<div class="text-[10px] text-emerald-700 dark:text-emerald-400 mt-0.5">✓ {ev.outcomes.slice(0, 120)}{ev.outcomes.length > 120 ? '…' : ''}</div>{/if}
+                                                                        {#if ev.issues}<div class="text-[10px] text-rose-700 dark:text-rose-400 mt-0.5">! {ev.issues.slice(0, 120)}{ev.issues.length > 120 ? '…' : ''}</div>{/if}
+                                                                    </div>
+                                                                    <div class="text-right shrink-0 font-bold text-zinc-900 dark:text-zinc-100 tabular-nums">{money(ev.amount)}</div>
+                                                                </li>
+                                                            {/each}
+                                                        </ul>
+                                                    </div>
+                                                </details>
+                                            {/each}
+                                        </div>
+                                    </div>
+                                </div>
                             {/if}
-                        {/snippet}
-                    </Card>
-                {/if}
+                        {:else}
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400">No budget proposals in this period.</p>
+                        {/if}
+                    {/snippet}
+                </Card>
 
                 <!-- ── TICKETS / OPS TASKS ───────────────────── -->
                 <Card title="Tickets & operations" subtitle="Task SLA & delivery" className="md:col-span-6 lg:col-span-6">
