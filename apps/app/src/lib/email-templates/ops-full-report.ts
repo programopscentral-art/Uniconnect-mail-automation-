@@ -407,32 +407,38 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
 </section>`;
 }
 
+const isNoiseReason = (s: string): boolean => {
+    const low = s.trim().toLowerCase();
+    return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null';
+};
+const isHolidayReason = (s: string): boolean => {
+    const low = s.toLowerCase();
+    return low.includes('holiday') || low.includes('public holiday') || low.includes('vacation');
+};
+
 function renderCancellationDetail(mode: OpsReportMode, byUniv: any[], dailyBreakdown: any[]): string {
-    // Source rows: for daily, we have one row per university; for weekly/monthly
-    // we have aggregated rows. Use dailyBreakdown when available for richer
-    // per-day reasons.
     const source = (dailyBreakdown && dailyBreakdown.length > 0) ? dailyBreakdown : byUniv;
-    // Group by university: collect cancelled count + list of reasons.
-    const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number> }>();
+    const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number>; holiday: boolean }>();
     for (const r of source || []) {
         const cancelled = Number(r.sessions_cancelled) || 0;
-        if (cancelled <= 0 && !r.cancellation_reason) continue;
+        const reason = String(r.cancellation_reason || '').trim();
+        if (cancelled <= 0 && isNoiseReason(reason)) continue;
         const name = r.university_name || '—';
-        if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map() });
+        if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map(), holiday: false });
         const u = byU.get(name)!;
         u.cancelled += cancelled;
-        const reason = String(r.cancellation_reason || '').trim();
-        if (reason) {
-            // Split semicolon-separated reasons (weekly/monthly aggregates use this)
-            const parts = reason.split(/\s*;\s*|\s*\|\s*/).map((p) => p.trim()).filter(Boolean);
+        if (reason && !isNoiseReason(reason)) {
+            const parts = reason.split(/\s*;\s*|\s*\|\s*/).map((p) => p.trim()).filter((p) => !isNoiseReason(p));
             for (const p of parts) {
                 u.reasons.set(p, (u.reasons.get(p) || 0) + 1);
+                if (isHolidayReason(p)) u.holiday = true;
             }
         }
     }
 
+    // Only keep universities with real cancellations AND meaningful reasons.
     const universities = Array.from(byU.values())
-        .filter((u) => u.cancelled > 0 || u.reasons.size > 0)
+        .filter((u) => u.cancelled > 0 && u.reasons.size > 0)
         .sort((a, b) => b.cancelled - a.cancelled);
 
     if (universities.length === 0) {
@@ -442,25 +448,24 @@ function renderCancellationDetail(mode: OpsReportMode, byUniv: any[], dailyBreak
     return universities.map((u) => {
         const reasonsList = Array.from(u.reasons.entries()).sort((a, b) => b[1] - a[1]);
         const top = reasonsList[0];
+        const holidayChip = u.holiday ? `<span style="display:inline-block;font-size:9px;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;margin-left:6px">Holiday</span>` : '';
         if (mode === 'daily') {
-            // Daily: show full verbatim reason, one block per university.
             const reasonText = reasonsList.map(([r]) => r).join(' · ') || '—';
             return `
 <div style="padding:10px 0;border-bottom:1px solid #f1f5f9">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
-        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}</div>
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}${holidayChip}</div>
         <div style="font-size:11px;color:#9f1239;font-weight:700;white-space:nowrap">${u.cancelled} cancelled</div>
     </div>
     <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5">${reasonText}</div>
 </div>`;
         }
-        // Weekly/Monthly: show most-common reason prominently and a list of other reasons.
         const topReason = top ? `${top[0]}${top[1] > 1 ? ` <span style="color:#94a3b8;font-weight:400">(×${top[1]})</span>` : ''}` : '—';
         const otherReasons = reasonsList.slice(1, 4).map(([r, c]) => `${r}${c > 1 ? ` (×${c})` : ''}`).join(' · ');
         return `
 <div style="padding:10px 0;border-bottom:1px solid #f1f5f9">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
-        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}</div>
+        <div style="font-size:13px;font-weight:700;color:#0f172a">${u.name}${holidayChip}</div>
         <div style="font-size:11px;color:#9f1239;font-weight:700;white-space:nowrap">${u.cancelled} cancelled</div>
     </div>
     <div style="font-size:12px;color:#475569;margin-top:4px;line-height:1.5">
@@ -469,6 +474,24 @@ function renderCancellationDetail(mode: OpsReportMode, byUniv: any[], dailyBreak
     </div>
 </div>`;
     }).join('');
+}
+
+function holidayStrip(byUniv: any[], dailyBreakdown: any[]): string {
+    const source = (dailyBreakdown && dailyBreakdown.length > 0) ? dailyBreakdown : byUniv;
+    const holiday = new Set<string>();
+    for (const r of source || []) {
+        const reason = String(r.cancellation_reason || '').trim();
+        const remarks = String(r.remarks || '').trim();
+        if (isHolidayReason(reason) || isHolidayReason(remarks)) {
+            holiday.add(r.university_name || '—');
+        }
+    }
+    if (holiday.size === 0) return '';
+    return `
+<div style="margin-top:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <span style="font-size:10px;font-weight:800;color:#92400e;text-transform:uppercase;letter-spacing:0.7px">Holiday</span>
+    ${Array.from(holiday).sort().map(name => `<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;background:#fde68a;color:#78350f">${name}</span>`).join('')}
+</div>`;
 }
 
 export function buildOpsFullReportHtml(opts: OpsFullReportOptions): string {
@@ -571,8 +594,9 @@ ${card('Sessions breakdown', `${modeLabel} performance`, `
             <span>View cancellation reasons by university</span>
             <span style="font-size:14px">▾</span>
         </summary>
-        <div style="padding:10px 14px;background:#ffffff">${renderCancellationDetail(mode, byUniv, dailyBreakdown)}</div>
+        <div style="max-height:320px;overflow-y:auto;padding:10px 14px;background:#ffffff">${renderCancellationDetail(mode, byUniv, dailyBreakdown)}</div>
     </details>` : ''}
+    ${holidayStrip(byUniv, dailyBreakdown)}
 `, 4)}
 
 ${card('Engagement', 'Success coach outreach', `

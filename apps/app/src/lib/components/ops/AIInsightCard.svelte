@@ -176,14 +176,14 @@
             <div class="text-xs text-zinc-500 dark:text-zinc-400">Select a date to generate insights.</div>
         {:else}
             {#if narrative}
-                <!-- AI narrative paragraph summary -->
+                <!-- AI narrative paragraph summary (full text, scrollable if very long) -->
                 <div class="flex items-start gap-2.5 pb-3 mb-1 border-b border-zinc-100 dark:border-zinc-800">
                     <div class="shrink-0 w-6 h-6 rounded-lg bg-gradient-to-br from-sky-100 to-violet-100 dark:from-sky-950/40 dark:to-violet-950/40 text-sky-700 dark:text-sky-300 flex items-center justify-center">
                         <FileText size={12} />
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="text-[10px] uppercase tracking-wide font-semibold text-sky-700 dark:text-sky-300 mb-1">Executive summary</div>
-                        <p class="text-[12.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed whitespace-pre-line">{narrative.length > 720 ? narrative.slice(0, 720).trimEnd() + '…' : narrative}</p>
+                        <p class="text-[12.5px] text-zinc-700 dark:text-zinc-200 leading-relaxed whitespace-pre-line max-h-[320px] overflow-y-auto pr-1">{narrative}</p>
                     </div>
                 </div>
             {:else if loading && !hasTriedAI}

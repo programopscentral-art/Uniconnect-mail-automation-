@@ -372,35 +372,63 @@
         return t > 0 ? ((t - l) / t) * 100 : 0;
     });
 
+    // Filter out "no content" reason strings — users sometimes put "NA" or "-".
+    const isNoise = (s: string): boolean => {
+        const low = s.trim().toLowerCase();
+        return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null';
+    };
+    const isHolidayReason = (s: string): boolean => {
+        const low = s.toLowerCase();
+        return low.includes('holiday') || low.includes('public holiday') || low.includes('vacation');
+    };
+
     // ─── Cancellation reasons per university ───────────────────
     // Source rows: use rangeRows (daily breakdown for daily mode, else
     // weekly/monthly aggregated rows). Group by university, parse the
-    // semicolon-separated reasons for weekly/monthly aggregates.
+    // semicolon-separated reasons, and DROP universities with zero real
+    // cancellations or only noise reasons ("NA", "-" etc.).
     const cancellationByUniversity = $derived.by(() => {
         const src = rangeRows && rangeRows.length > 0 ? rangeRows : universityRows;
-        const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number> }>();
+        const byU = new Map<string, { name: string; cancelled: number; reasons: Map<string, number>; holiday: boolean }>();
         for (const r of src || []) {
             const cancelled = num((r as any).sessions_cancelled);
             const reason = String((r as any).cancellation_reason || '').trim();
-            if (cancelled <= 0 && !reason) continue;
+            if (cancelled <= 0 && isNoise(reason)) continue;
             const name = (r as any).university_name || '—';
-            if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map() });
+            if (!byU.has(name)) byU.set(name, { name, cancelled: 0, reasons: new Map(), holiday: false });
             const u = byU.get(name)!;
             u.cancelled += cancelled;
-            if (reason) {
-                for (const p of reason.split(/\s*;\s*|\s*\|\s*/).map((s) => s.trim()).filter(Boolean)) {
+            if (reason && !isNoise(reason)) {
+                for (const p of reason.split(/\s*;\s*|\s*\|\s*/).map((s) => s.trim()).filter((s) => !isNoise(s))) {
                     u.reasons.set(p, (u.reasons.get(p) || 0) + 1);
+                    if (isHolidayReason(p)) u.holiday = true;
                 }
             }
         }
         return Array.from(byU.values())
-            .filter((u) => u.cancelled > 0 || u.reasons.size > 0)
+            // Hide universities with 0 cancellations AND 0 meaningful reasons
+            .filter((u) => u.cancelled > 0 && u.reasons.size > 0)
             .sort((a, b) => b.cancelled - a.cancelled)
             .map((u) => ({
                 name: u.name,
                 cancelled: u.cancelled,
+                holiday: u.holiday,
                 reasons: Array.from(u.reasons.entries()).sort((a, b) => b[1] - a[1])
             }));
+    });
+
+    // Universities currently on holiday (any row in window mentions holiday)
+    const holidayUniversities = $derived.by(() => {
+        const src = rangeRows && rangeRows.length > 0 ? rangeRows : universityRows;
+        const set = new Set<string>();
+        for (const r of src || []) {
+            const reason = String((r as any).cancellation_reason || '').trim();
+            const remarks = String((r as any).remarks || '').trim();
+            if (isHolidayReason(reason) || isHolidayReason(remarks)) {
+                set.add((r as any).university_name || '—');
+            }
+        }
+        return Array.from(set).sort();
     });
 
     // ─── Event intel / Budget ──────────────────────────────────
@@ -699,7 +727,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 items-start">
                 <!-- ── HERO RING KPI ─────────────────────────────── -->
                 <Card className="md:col-span-12 lg:col-span-8">
                     {#snippet children()}
@@ -888,15 +916,20 @@
                                 <summary class="cursor-pointer list-none px-3 py-2.5 bg-rose-50 dark:bg-rose-950/30 flex items-center justify-between text-[12px] font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 transition-colors">
                                     <span class="inline-flex items-center gap-1.5">
                                         <AlertTriangle size={12} />
-                                        View cancellations by university
+                                        View cancellations by university ({cancellationByUniversity.length})
                                     </span>
                                     <ChevronRight size={14} class="transition-transform group-open:rotate-90" />
                                 </summary>
-                                <ul class="divide-y divide-rose-100 dark:divide-rose-900/30 bg-white dark:bg-zinc-900">
+                                <ul class="divide-y divide-rose-100 dark:divide-rose-900/30 bg-white dark:bg-zinc-900 max-h-[260px] overflow-y-auto">
                                     {#each cancellationByUniversity as u}
                                         <li class="px-3 py-2.5">
                                             <div class="flex items-baseline justify-between gap-2">
-                                                <span class="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">{u.name}</span>
+                                                <span class="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100 inline-flex items-center gap-1.5">
+                                                    {u.name}
+                                                    {#if u.holiday}
+                                                        <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Holiday</span>
+                                                    {/if}
+                                                </span>
                                                 <span class="text-[11px] font-bold text-rose-600 dark:text-rose-400 tabular-nums shrink-0">{u.cancelled} cancelled</span>
                                             </div>
                                             {#if u.reasons.length > 0}
@@ -921,6 +954,14 @@
                             <div class="mt-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                                 <div class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 font-medium mb-1">Top cancellation reason</div>
                                 <p class="text-xs text-zinc-700 dark:text-zinc-200">{summary.cancellation_reason}</p>
+                            </div>
+                        {/if}
+                        {#if holidayUniversities.length > 0}
+                            <div class="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+                                <span class="text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider">Holiday today:</span>
+                                {#each holidayUniversities as u}
+                                    <span class="px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold">{u}</span>
+                                {/each}
                             </div>
                         {/if}
                     {/snippet}
@@ -1207,7 +1248,7 @@
                                                             <div class="text-sm font-bold tabular-nums {u.spent > u.approved && u.approved > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-zinc-900 dark:text-zinc-100'}">{money(u.spent)}</div>
                                                         </div>
                                                     </summary>
-                                                    <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800">
+                                                    <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 max-h-[240px] overflow-y-auto">
                                                         <ul class="flex flex-col gap-1.5 mt-2">
                                                             {#each u.events as ev}
                                                                 <li class="flex items-start gap-2 text-[11px] p-2 rounded-lg bg-zinc-50 dark:bg-zinc-800/50">
