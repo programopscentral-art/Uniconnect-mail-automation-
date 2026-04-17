@@ -15,6 +15,8 @@ import {
     getWorkloadForDate, upsertWorkloadLog,
     getAttendanceSummary, getAttendanceByDate, getMonthlyInstructorReport,
     ensureInstructorTables,
+    getCoachesByUniversity, createCoachProfile, updateCoachProfile, deactivateCoach,
+    getCoachLogsForDate, upsertCoachDailyLog, getMonthlyCoachReport,
 } from '@uniconnect/shared';
 
 function checkAccess(locals: any) {
@@ -64,6 +66,22 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             const year = parseInt(url.searchParams.get('year') || String(new Date().getFullYear()));
             const month = parseInt(url.searchParams.get('month') || String(new Date().getMonth() + 1));
             const report = await getMonthlyInstructorReport(universityId, year, month);
+            return json({ report, year, month });
+        }
+
+        // ── Success Coaches ───────────────────────────
+        case 'coaches': {
+            const coaches = await getCoachesByUniversity(universityId);
+            return json({ coaches });
+        }
+        case 'coach-logs': {
+            const logs = await getCoachLogsForDate(universityId, date);
+            return json({ logs, date });
+        }
+        case 'monthly-coach-report': {
+            const year = parseInt(url.searchParams.get('year') || String(new Date().getFullYear()));
+            const month = parseInt(url.searchParams.get('month') || String(new Date().getMonth() + 1));
+            const report = await getMonthlyCoachReport(universityId, year, month);
             return json({ report, year, month });
         }
 
@@ -140,6 +158,41 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 sessions_taken: sessions_taken || 0,
                 subjects_taught: subjects_taught || [],
                 topics_covered, workload_notes, logged_by: userId
+            });
+            return json({ success: true, log });
+        }
+
+        // ── Success Coaches ───────────────────────────
+        case 'add-coach': {
+            const { university_id, name, email, phone, daily_call_target } = body;
+            if (!university_id || !name) throw error(400, 'university_id and name required');
+            const coach = await createCoachProfile({
+                university_id, name, email, phone,
+                daily_call_target: daily_call_target || 15, created_by: userId
+            });
+            return json({ success: true, coach });
+        }
+        case 'update-coach': {
+            const { id, ...updates } = body;
+            if (!id) throw error(400, 'id required');
+            const coach = await updateCoachProfile(id, updates);
+            return json({ success: true, coach });
+        }
+        case 'remove-coach': {
+            const { id } = body;
+            if (!id) throw error(400, 'id required');
+            const coach = await deactivateCoach(id);
+            return json({ success: true, coach });
+        }
+        case 'log-coach-calls': {
+            const { coach_id, university_id, date: d, student_calls_made, parent_calls_made, daily_target, notes: n } = body;
+            if (!coach_id || !university_id || !d) throw error(400, 'coach_id, university_id, date required');
+            const log = await upsertCoachDailyLog({
+                coach_id, university_id, date: d,
+                student_calls_made: student_calls_made || 0,
+                parent_calls_made: parent_calls_made || 0,
+                daily_target: daily_target || 15,
+                notes: n, logged_by: userId
             });
             return json({ success: true, log });
         }

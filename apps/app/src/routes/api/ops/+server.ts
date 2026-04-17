@@ -21,6 +21,7 @@ import {
     getOpsEventBudgetIntelligence,
     normalizeOpsUniversityNames,
     getAllFacultyAttendanceForReport,
+    getAllCoachDataForReport,
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
@@ -291,8 +292,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
             let start = date, end = date;
             if (range === 'weekly') { start = week.start; end = week.end; }
             else if (range === 'monthly') { start = monthStart; end = monthEnd; }
-            const fac = await getAllFacultyAttendanceForReport(start, end);
-            return json({ ...fac, startDate: start, endDate: end });
+            const [fac, coach] = await Promise.all([
+                getAllFacultyAttendanceForReport(start, end),
+                getAllCoachDataForReport(start, end)
+            ]);
+            return json({ ...fac, coach, startDate: start, endDate: end });
         }
 
         // Views that manage their own data (NLQ uses /api/ops/nlq directly)

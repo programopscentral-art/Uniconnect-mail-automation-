@@ -3,12 +3,13 @@
     import {
         Calendar, ChevronLeft, ChevronRight, UserPlus, UserMinus,
         Check, X, Clock, Home, BookOpen, Save, Loader2,
-        Users, CheckCircle, XCircle, AlertTriangle, GraduationCap, BarChart3
+        Users, CheckCircle, XCircle, AlertTriangle, GraduationCap, BarChart3,
+        Phone, Target
     } from 'lucide-svelte';
 
     let { data } = $props();
 
-    type Tab = 'attendance' | 'directory' | 'summary';
+    type Tab = 'attendance' | 'directory' | 'coaches' | 'summary';
     type AttStatus = 'present' | 'absent' | 'training' | 'wfh' | 'leave' | 'half_day';
 
     let activeTab = $state<Tab>('attendance');
@@ -38,6 +39,17 @@
     let monthlyReport = $state<any[]>([]);
     let summaryYear = $state(new Date().getFullYear());
     let summaryMonth = $state(new Date().getMonth() + 1);
+
+    // ─── Coach state ─────────────────────────────────────
+    let coachRows = $state<any[]>([]);
+    let coachCallData = $state<Map<string, { student: number; parent: number; target: number; notes: string }>>(new Map());
+    let coaches = $state<any[]>([]);
+    let showAddCoachForm = $state(false);
+    let newCoach = $state({ name: '', email: '', phone: '', daily_call_target: 15 });
+    let addingCoach = $state(false);
+    let savingCoach = $state(false);
+    let monthlyCoachReport = $state<any[]>([]);
+    let expandedCoach = $state<string | null>(null);
 
     // ─── Helpers ──────────────────────────────────────────
     const statusMeta: Record<AttStatus, { label: string; short: string; color: string; bg: string; darkBg: string }> = {
@@ -272,6 +284,122 @@
         }
     }
 
+    // ─── Coach loaders & actions ────────────────────────────
+
+    async function loadCoachLogs() {
+        if (!universityId) return;
+        loading = true;
+        try {
+            const res = await fetch(`/api/faculty-attendance?view=coach-logs&universityId=${universityId}&date=${selectedDate}`);
+            if (res.ok) {
+                const j = await res.json();
+                coachRows = j.logs || [];
+                coachCallData = new Map();
+                for (const r of coachRows) {
+                    if (r.student_calls_made !== null || r.parent_calls_made !== null) {
+                        coachCallData.set(r.coach_id, {
+                            student: Number(r.student_calls_made) || 0,
+                            parent: Number(r.parent_calls_made) || 0,
+                            target: Number(r.daily_target) || Number(r.daily_call_target) || 15,
+                            notes: r.notes || ''
+                        });
+                    }
+                }
+            }
+        } catch (e: any) { flash(e?.message || 'Failed to load coach data', true); }
+        finally { loading = false; }
+    }
+
+    async function loadCoachDirectory() {
+        if (!universityId) return;
+        loading = true;
+        try {
+            const res = await fetch(`/api/faculty-attendance?view=coaches&universityId=${universityId}`);
+            if (res.ok) { coaches = (await res.json()).coaches || []; }
+        } catch (e: any) { flash(e?.message || 'Failed', true); }
+        finally { loading = false; }
+    }
+
+    async function loadMonthlyCoachReport() {
+        if (!universityId) return;
+        try {
+            const res = await fetch(`/api/faculty-attendance?view=monthly-coach-report&universityId=${universityId}&year=${summaryYear}&month=${summaryMonth}`);
+            if (res.ok) { monthlyCoachReport = (await res.json()).report || []; }
+        } catch {}
+    }
+
+    function setCoachCalls(coachId: string, field: 'student' | 'parent' | 'target' | 'notes', value: any) {
+        const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: 15, notes: '' };
+        if (field === 'student') existing.student = Number(value) || 0;
+        else if (field === 'parent') existing.parent = Number(value) || 0;
+        else if (field === 'target') existing.target = Number(value) || 15;
+        else existing.notes = String(value);
+        coachCallData.set(coachId, existing);
+        coachCallData = new Map(coachCallData);
+    }
+
+    async function submitCoachLogs() {
+        if (coachCallData.size === 0) { flash('No call data entered', true); return; }
+        savingCoach = true;
+        try {
+            let count = 0;
+            for (const [coach_id, d] of coachCallData.entries()) {
+                if (d.student > 0 || d.parent > 0) {
+                    const res = await fetch('/api/faculty-attendance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'log-coach-calls', coach_id,
+                            university_id: universityId, date: selectedDate,
+                            student_calls_made: d.student, parent_calls_made: d.parent,
+                            daily_target: d.target, notes: d.notes || undefined
+                        })
+                    });
+                    if (res.ok) count++;
+                }
+            }
+            flash(`Saved call data for ${count} coaches`);
+            await loadCoachLogs();
+        } catch (e: any) { flash(e?.message || 'Save failed', true); }
+        finally { savingCoach = false; }
+    }
+
+    async function addCoach() {
+        if (!newCoach.name.trim()) { flash('Name required', true); return; }
+        addingCoach = true;
+        try {
+            const res = await fetch('/api/faculty-attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'add-coach', university_id: universityId,
+                    name: newCoach.name.trim(), email: newCoach.email.trim() || undefined,
+                    phone: newCoach.phone.trim() || undefined,
+                    daily_call_target: newCoach.daily_call_target || 15
+                })
+            });
+            if (res.ok) {
+                flash('Success coach added');
+                newCoach = { name: '', email: '', phone: '', daily_call_target: 15 };
+                showAddCoachForm = false;
+                await loadCoachDirectory();
+            }
+        } catch (e: any) { flash(e?.message || 'Failed', true); }
+        finally { addingCoach = false; }
+    }
+
+    async function removeCoach(id: string, name: string) {
+        if (!confirm(`Remove ${name}?`)) return;
+        try {
+            await fetch('/api/faculty-attendance', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'remove-coach', id })
+            });
+            flash(`${name} removed`);
+            await loadCoachDirectory();
+        } catch {}
+    }
+
     // ─── Lifecycle ────────────────────────────────────────
 
     onMount(async () => {
@@ -285,10 +413,16 @@
         if (!universityId) return;
         if (activeTab === 'attendance') loadAttendance();
         else if (activeTab === 'directory') loadDirectory();
-        else if (activeTab === 'summary') loadSummary();
+        else if (activeTab === 'coaches') { loadCoachLogs(); loadCoachDirectory(); }
+        else if (activeTab === 'summary') { loadSummary(); loadMonthlyCoachReport(); }
     });
 
-    $effect(() => { selectedDate; if (activeTab === 'attendance' && universityId) loadAttendance(); });
+    $effect(() => {
+        selectedDate;
+        if (!universityId) return;
+        if (activeTab === 'attendance') loadAttendance();
+        else if (activeTab === 'coaches') loadCoachLogs();
+    });
 
     const markedCount = $derived(pendingChanges.size);
     const totalFaculty = $derived(attendanceRows.length);
@@ -344,6 +478,7 @@
             {#each [
                 { id: 'attendance', label: 'Mark Attendance', icon: CheckCircle },
                 { id: 'directory', label: 'Faculty Directory', icon: Users },
+                { id: 'coaches', label: 'Success Coaches', icon: Phone },
                 { id: 'summary', label: 'Monthly Summary', icon: BarChart3 }
             ] as tab}
                 <button
@@ -574,6 +709,143 @@
                 </div>
             {/if}
 
+        <!-- ── COACHES TAB ─────────────────────────────── -->
+        {:else if activeTab === 'coaches'}
+            <!-- Date nav + submit -->
+            <div class="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <div class="inline-flex items-center gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-1.5 py-1">
+                    <button onclick={() => shiftDate(-1)} class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"><ChevronLeft size={14} /></button>
+                    <div class="flex items-center gap-1.5 px-2">
+                        <Calendar size={12} class="text-zinc-400" />
+                        <input type="date" bind:value={selectedDate} class="bg-transparent text-sm text-zinc-800 dark:text-zinc-100 border-0 focus:outline-none focus:ring-0 p-0 min-w-[130px]" />
+                    </div>
+                    <button onclick={() => shiftDate(1)} class="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300"><ChevronRight size={14} /></button>
+                    <button onclick={today} class="text-xs font-medium px-2 py-1 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40">Today</button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button
+                        onclick={() => showAddCoachForm = !showAddCoachForm}
+                        class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
+                               {showAddCoachForm ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-700' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 hover:bg-zinc-200'} transition-colors"
+                    >
+                        {#if showAddCoachForm}<X size={13} /> Cancel{:else}<UserPlus size={13} /> Add Coach{/if}
+                    </button>
+                    <button
+                        onclick={submitCoachLogs}
+                        disabled={savingCoach || coachCallData.size === 0}
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
+                               bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-50 transition-colors"
+                    >
+                        {#if savingCoach}<Loader2 size={14} class="animate-spin" />{:else}<Save size={14} />{/if}
+                        Submit Calls
+                    </button>
+                </div>
+            </div>
+
+            {#if showAddCoachForm}
+                <div class="rounded-xl bg-white dark:bg-zinc-900 border border-sky-200 dark:border-sky-900/40 p-4 mb-4">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <input bind:value={newCoach.name} placeholder="Coach name *" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                        <input bind:value={newCoach.email} placeholder="Email" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                        <input bind:value={newCoach.phone} placeholder="Phone" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                        <div class="flex items-center gap-2">
+                            <input type="number" bind:value={newCoach.daily_call_target} min="1" max="100" class="w-20 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                            <span class="text-xs text-zinc-500">daily target</span>
+                        </div>
+                    </div>
+                    <button onclick={addCoach} disabled={addingCoach || !newCoach.name.trim()} class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-50 transition-colors">
+                        {#if addingCoach}<Loader2 size={14} class="animate-spin" />{:else}<UserPlus size={14} />{/if} Add
+                    </button>
+                </div>
+            {/if}
+
+            {#if loading}
+                <div class="space-y-2">{#each Array(4) as _}<div class="h-20 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 animate-pulse"></div>{/each}</div>
+            {:else if coachRows.length === 0}
+                <div class="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-10 text-center">
+                    <Phone size={40} class="mx-auto text-zinc-300 dark:text-zinc-600 mb-3" />
+                    <p class="text-zinc-500 dark:text-zinc-400 mb-2">No success coaches found for this university.</p>
+                    <p class="text-xs text-zinc-400">Click "Add Coach" above to register success coaches.</p>
+                </div>
+            {:else}
+                <div class="flex flex-col gap-1.5">
+                    {#each coachRows as row}
+                        {@const cd = coachCallData.get(row.coach_id)}
+                        {@const totalCalls = (cd?.student || 0) + (cd?.parent || 0)}
+                        {@const target = cd?.target || Number(row.daily_call_target) || 15}
+                        {@const achieved = target > 0 ? Math.round((totalCalls / target) * 100) : 0}
+                        {@const isExpanded = expandedCoach === row.coach_id}
+                        <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 overflow-hidden {cd ? 'ring-1 ring-sky-200 dark:ring-sky-900/40' : ''}">
+                            <div class="flex items-center gap-3 p-3">
+                                <!-- Coach info -->
+                                <button onclick={() => expandedCoach = isExpanded ? null : row.coach_id} class="flex-1 min-w-0 text-left group">
+                                    <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-sky-600 transition-colors">
+                                        {row.name} <span class="text-[10px] text-zinc-400">{isExpanded ? '▾' : '▸'}</span>
+                                    </div>
+                                    <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        Target: {target} calls/day
+                                        {#if cd} · <span class="font-semibold {achieved >= 100 ? 'text-emerald-600' : achieved >= 70 ? 'text-amber-600' : 'text-rose-600'}">{achieved}% achieved</span>{/if}
+                                    </div>
+                                </button>
+
+                                <!-- Quick call inputs -->
+                                <div class="flex items-center gap-2">
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-[9px] text-zinc-400 uppercase font-bold">Student</span>
+                                        <input
+                                            type="number" min="0" max="200" placeholder="0"
+                                            value={cd?.student || ''}
+                                            oninput={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value)}
+                                            class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                        />
+                                    </div>
+                                    <div class="flex flex-col items-center">
+                                        <span class="text-[9px] text-zinc-400 uppercase font-bold">Parent</span>
+                                        <input
+                                            type="number" min="0" max="200" placeholder="0"
+                                            value={cd?.parent || ''}
+                                            oninput={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value)}
+                                            class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                        />
+                                    </div>
+                                    <!-- Achievement chip -->
+                                    {#if cd}
+                                        <div class="w-14 text-center py-1.5 rounded-lg text-xs font-bold tabular-nums
+                                             {achieved >= 100 ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400' :
+                                              achieved >= 70 ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400' :
+                                              'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'}">
+                                            {totalCalls}/{target}
+                                        </div>
+                                    {/if}
+                                </div>
+
+                                <!-- Remove button -->
+                                <button onclick={() => removeCoach(row.coach_id, row.name)} class="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors" title="Remove">
+                                    <UserMinus size={13} />
+                                </button>
+                            </div>
+
+                            {#if isExpanded}
+                                <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 flex gap-3 pt-2">
+                                    <div class="flex items-center gap-2 flex-1">
+                                        <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
+                                        <input type="number" min="1" max="200" value={cd?.target || target}
+                                            oninput={(e) => setCoachCalls(row.coach_id, 'target', (e.target as HTMLInputElement).value)}
+                                            class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-[2]">
+                                        <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Notes</span>
+                                        <input type="text" placeholder="Notes (optional)" value={cd?.notes || ''}
+                                            oninput={(e) => setCoachCalls(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
+                                            class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
+                                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+
         <!-- ── SUMMARY TAB ────────────────────────────── -->
         {:else if activeTab === 'summary'}
             <div class="flex items-center gap-3 mb-4">
@@ -651,6 +923,46 @@
                     </div>
                 {:else}
                     <p class="text-sm text-zinc-500 dark:text-zinc-400">No attendance data for this month yet.</p>
+                {/if}
+
+                <!-- Coach monthly report -->
+                {#if monthlyCoachReport.length > 0}
+                    <h3 class="text-lg font-bold text-zinc-900 dark:text-zinc-50 mt-6 mb-3">Success Coach Performance</h3>
+                    <div class="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+                                        <th class="text-left py-3 px-4 font-semibold">Coach</th>
+                                        <th class="text-right py-3 px-2 font-semibold">Days</th>
+                                        <th class="text-right py-3 px-2 font-semibold">Student</th>
+                                        <th class="text-right py-3 px-2 font-semibold">Parent</th>
+                                        <th class="text-right py-3 px-2 font-semibold">Total</th>
+                                        <th class="text-right py-3 px-2 font-semibold">Target</th>
+                                        <th class="text-right py-3 px-4 font-semibold">Achieved</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {#each monthlyCoachReport as r}
+                                        {@const achieved = Number(r.total_target) > 0 ? Math.round((Number(r.total_calls) / Number(r.total_target)) * 100) : 0}
+                                        {@const acTone = achieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : achieved >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
+                                        <tr class="border-b border-zinc-50 dark:border-zinc-800/50 last:border-0">
+                                            <td class="py-2.5 px-4">
+                                                <div class="font-medium text-zinc-900 dark:text-zinc-100">{r.name}</div>
+                                                <div class="text-[10px] text-zinc-500 dark:text-zinc-400">Target: {r.daily_call_target}/day</div>
+                                            </td>
+                                            <td class="py-2.5 px-2 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{r.days_logged || 0}</td>
+                                            <td class="py-2.5 px-2 text-right tabular-nums text-sky-600 dark:text-sky-400 font-semibold">{r.total_student_calls || 0}</td>
+                                            <td class="py-2.5 px-2 text-right tabular-nums text-violet-600 dark:text-violet-400 font-semibold">{r.total_parent_calls || 0}</td>
+                                            <td class="py-2.5 px-2 text-right tabular-nums text-zinc-900 dark:text-zinc-100 font-bold">{r.total_calls || 0}</td>
+                                            <td class="py-2.5 px-2 text-right tabular-nums text-zinc-500 dark:text-zinc-400">{r.total_target || 0}</td>
+                                            <td class="py-2.5 px-4 text-right tabular-nums font-bold {acTone}">{achieved}%</td>
+                                        </tr>
+                                    {/each}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 {/if}
             {:else}
                 <p class="text-sm text-zinc-500 dark:text-zinc-400">Select a month and year above.</p>
