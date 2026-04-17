@@ -64,31 +64,28 @@ export async function ensureInstructorTables() {
 export async function getInstructorsByUniversity(universityId: string) {
     await ensureInstructorTables();
 
-    // Auto-sync: pull users with FACULTY role into instructor_profiles
-    // if they aren't there yet (so existing faculty show up immediately).
+    // Auto-sync: pull from faculty_profiles (which exists in the DB)
+    // into instructor_profiles so existing faculty appear immediately.
     try {
         await db.query(`
-            INSERT INTO instructor_profiles (university_id, user_id, name, email, designation, is_active)
+            INSERT INTO instructor_profiles (university_id, user_id, name, email, designation, department, is_active)
             SELECT
-                u.university_id,
-                u.id,
-                u.name,
+                fp.university_id,
+                fp.user_id,
+                COALESCE(u.name, fp.employee_code, 'Unknown'),
                 u.email,
-                'Faculty',
-                u.is_active
-            FROM users u
-            WHERE u.university_id = $1
-              AND u.is_active = true
-              AND (
-                  u.role = 'FACULTY'
-                  OR EXISTS (SELECT 1 FROM user_role_assignments ura WHERE ura.user_id = u.id AND ura.role_code = 'faculty')
-              )
+                fp.designation,
+                fp.department,
+                COALESCE(fp.is_active, true)
+            FROM faculty_profiles fp
+            LEFT JOIN users u ON u.id = fp.user_id
+            WHERE fp.university_id = $1
               AND NOT EXISTS (
-                  SELECT 1 FROM instructor_profiles ip WHERE ip.user_id = u.id
+                  SELECT 1 FROM instructor_profiles ip WHERE ip.user_id = fp.user_id AND fp.user_id IS NOT NULL
               )
             ON CONFLICT DO NOTHING
         `, [universityId]);
-    } catch { /* user_role_assignments may not exist */ }
+    } catch { /* faculty_profiles may not have data for this university */ }
 
     const res = await db.query(
         `SELECT ip.*, u.name AS university_name
