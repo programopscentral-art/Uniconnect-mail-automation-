@@ -1090,22 +1090,22 @@
                 </Card>
 
                 <!-- ── INSTRUCTORS (uses live attendance data when available) ──── -->
-                {@const facSummary = facultyAttData?.byUniversity as any[] || []}
-                {@const hasFacData = facSummary.length > 0}
-                {@const facTotals = hasFacData ? facSummary.reduce((acc: any, u: any) => {
-                    acc.total += Number(u.total_faculty) || 0;
-                    acc.present += Number(u.present) || 0;
-                    acc.absent += Number(u.absent) || 0;
-                    acc.training += Number(u.training) || 0;
-                    acc.onLeave += Number(u.on_leave_or_wfh) || 0;
-                    acc.sessions += Number(u.total_sessions_logged) || 0;
-                    return acc;
-                }, { total: 0, present: 0, absent: 0, training: 0, onLeave: 0, sessions: 0 }) : null}
-                <Card title="Instructors" subtitle={hasFacData ? 'Live from Faculty Attendance' : 'From ops daily data'} className="md:col-span-6 lg:col-span-4">
+                <Card title="Instructors" subtitle="Workforce availability" className="md:col-span-6 lg:col-span-4">
                     {#snippet icon()}
                         <UserCheck size={14} />
                     {/snippet}
                     {#snippet children()}
+                        {@const facSummary = (facultyAttData?.byUniversity as any[]) || []}
+                        {@const hasFacData = facSummary.length > 0}
+                        {@const facTotals = hasFacData ? facSummary.reduce((acc: any, u: any) => {
+                            acc.total += Number(u.total_faculty) || 0;
+                            acc.present += Number(u.present) || 0;
+                            acc.absent += Number(u.absent) || 0;
+                            acc.training += Number(u.training) || 0;
+                            acc.onLeave += Number(u.on_leave_or_wfh) || 0;
+                            acc.sessions += Number(u.total_sessions_logged) || 0;
+                            return acc;
+                        }, { total: 0, present: 0, absent: 0, training: 0, onLeave: 0, sessions: 0 }) : null}
                         {#if hasFacData && facTotals}
                             <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <StatTile label="Total" value={facTotals.total} />
