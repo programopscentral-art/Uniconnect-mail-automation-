@@ -14,20 +14,29 @@ export const load: PageServerLoad = async ({ locals }) => {
     let universityName = '';
     let allUniversities: Array<{ id: string; name: string }> = [];
 
-    if (role === 'ADMIN' || role === 'PROGRAM_OPS') {
-        // Admin/PM: all universities
+    // Check if user's primary university is a "team" org (Central, HQ, etc.)
+    let primaryIsTeam = false;
+    if (universityId) {
+        try {
+            const res = await db.query(`SELECT is_team FROM universities WHERE id = $1`, [universityId]);
+            primaryIsTeam = res.rows[0]?.is_team === true;
+        } catch {}
+    }
+
+    // Admin, PROGRAM_OPS, or central team members → see ALL operational universities
+    if (role === 'ADMIN' || role === 'PROGRAM_OPS' || primaryIsTeam) {
         try {
             const res = await db.query(
                 `SELECT id, COALESCE(short_name, name) AS name FROM universities WHERE is_team = false ORDER BY name`
             );
             allUniversities = res.rows;
         } catch {}
+        // Don't default to the "Central" team university
+        if (primaryIsTeam) universityId = null;
     } else {
-        // BOA / other roles: get universities they're assigned to
-        // via user_role_assignments + their primary university_id
+        // Regular BOA/COS: get universities from user_role_assignments + primary
         const univIds = new Set<string>();
         if (universityId) univIds.add(universityId);
-
         try {
             const res = await db.query(
                 `SELECT DISTINCT ura.university_id
@@ -44,17 +53,17 @@ export const load: PageServerLoad = async ({ locals }) => {
             try {
                 const res = await db.query(
                     `SELECT id, COALESCE(short_name, name) AS name
-                     FROM universities WHERE id = ANY($1) ORDER BY name`,
+                     FROM universities WHERE id = ANY($1) AND is_team = false ORDER BY name`,
                     [Array.from(univIds)]
                 );
                 allUniversities = res.rows;
             } catch {}
-
-            // Default to first if primary not set
-            if (!universityId && allUniversities.length > 0) {
-                universityId = allUniversities[0].id;
-            }
         }
+    }
+
+    // Default to first university if none selected
+    if (!universityId && allUniversities.length > 0) {
+        universityId = allUniversities[0].id;
     }
 
     // Resolve current university name

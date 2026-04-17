@@ -257,6 +257,7 @@
                 newFaculty = { name: '', email: '', phone: '', designation: '', department: '', subjects: '' };
                 showAddForm = false;
                 await loadDirectory();
+                loadAttendance(); // refresh attendance list too
             } else {
                 const j = await res.json().catch(() => ({}));
                 flash(j.message || 'Add failed', true);
@@ -383,7 +384,7 @@
                 flash('Success coach added');
                 newCoach = { name: '', email: '', phone: '', daily_call_target: 15 };
                 showAddCoachForm = false;
-                await loadCoachDirectory();
+                await loadCoachLogs(); // refresh the main list immediately
             }
         } catch (e: any) { flash(e?.message || 'Failed', true); }
         finally { addingCoach = false; }
