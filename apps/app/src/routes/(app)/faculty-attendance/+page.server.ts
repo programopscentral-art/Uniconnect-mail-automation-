@@ -7,67 +7,57 @@ export const load: PageServerLoad = async ({ locals }) => {
     const role = locals.user.role;
     const perms: string[] = locals.user.permissions || [];
     if (role !== 'ADMIN' && role !== 'PROGRAM_OPS' && !perms.includes('faculty-attendance')) {
-        throw error(403, 'Access denied. Ask your admin to enable Faculty Attendance for your account.');
+        throw error(403, 'Access denied.');
     }
 
+    // Step 1: Fetch all universities (with fallback if short_name column missing)
     let allUniversities: Array<{ id: string; name: string }> = [];
-
-    if (role === 'ADMIN' || role === 'PROGRAM_OPS') {
-        // Admin/PM: show all universities
+    try {
+        const res = await db.query(`SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY COALESCE(short_name, name)`);
+        allUniversities = res.rows;
+    } catch {
         try {
-            const res = await db.query(
-                `SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY name`
-            );
+            const res = await db.query(`SELECT id, name FROM universities ORDER BY name`);
             allUniversities = res.rows;
         } catch {}
-    } else {
-        // Everyone else: show ONLY universities assigned to them.
-        // Pull from user_role_assignments (all assigned universities)
-        // PLUS their primary university_id from the users table.
+    }
+
+    // Step 2: For non-admin users, try to filter to assigned universities
+    if (role !== 'ADMIN' && role !== 'PROGRAM_OPS') {
+        const assignedIds = new Set<string>();
+        // Add primary university
+        if (locals.user.university_id) assignedIds.add(locals.user.university_id);
+        // Add from user_role_assignments
         try {
             const res = await db.query(
-                `SELECT DISTINCT u.id, COALESCE(u.short_name, u.name) AS name
-                 FROM universities u
-                 WHERE u.id IN (
-                     SELECT DISTINCT ura.university_id
-                     FROM user_role_assignments ura
-                     WHERE ura.user_id = $1
-                 )
-                 OR u.id = $2
-                 ORDER BY name`,
-                [locals.user.id, locals.user.university_id || '00000000-0000-0000-0000-000000000000']
+                `SELECT DISTINCT university_id FROM user_role_assignments WHERE user_id = $1 AND university_id IS NOT NULL`,
+                [locals.user.id]
             );
-            allUniversities = res.rows;
-        } catch {
-            // Fallback: if user_role_assignments doesn't exist or query fails,
-            // at least show their primary university
-            if (locals.user.university_id) {
-                try {
-                    const res = await db.query(
-                        `SELECT id, COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
-                        [locals.user.university_id]
-                    );
-                    allUniversities = res.rows;
-                } catch {}
-            }
-        }
+            for (const r of res.rows) assignedIds.add(r.university_id);
+        } catch {}
 
-        // If they still have 0 universities (central team with no assignments),
-        // give them all universities as a last resort
-        if (allUniversities.length === 0) {
-            try {
-                const res = await db.query(
-                    `SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY name`
-                );
-                allUniversities = res.rows;
-            } catch {}
+        // If they have specific assignments, filter. Otherwise keep all (fallback).
+        if (assignedIds.size > 0) {
+            const filtered = allUniversities.filter(u => assignedIds.has(u.id));
+            if (filtered.length > 0) allUniversities = filtered;
+            // If all their assignments are "Central" type and no operational
+            // universities match, keep the full list as fallback
         }
     }
 
-    // Auto-select user's primary university, or first in list
+    // Step 3: Remove "Central" / HQ entries — they're org units, not operational universities
+    const skipNames = ['central', 'central team', 'hq', 'headquarters', 'nxtwave', 'central ops'];
+    const operational = allUniversities.filter(u => {
+        const lower = (u.name || '').toLowerCase().trim();
+        return !skipNames.some(s => lower === s || lower.includes('central'));
+    });
+    // Only use filtered if we still have options
+    if (operational.length > 0) allUniversities = operational;
+
+    // Step 4: Auto-select
     let universityId = locals.user.university_id || null;
+    // If their primary is Central (filtered out), pick first operational
     if (universityId && !allUniversities.find(u => u.id === universityId)) {
-        // Primary university not in their assigned list (e.g. "Central") — pick first
         universityId = allUniversities[0]?.id || null;
     }
     if (!universityId && allUniversities.length > 0) {
