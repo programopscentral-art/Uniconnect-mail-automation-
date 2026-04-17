@@ -32,6 +32,7 @@
     let eventIntel = $state<any>(null); // for financials
     let taskPatterns = $state<any>(null); // for tickets
     let facultyAttData = $state<any>(null); // from instructor_attendance tables
+    let selectedFacUniv = $state(''); // university filter for faculty/coach card
     let refreshing = $state(false);
 
     // ─── Helpers ──────────────────────────────────────────────────
@@ -1095,10 +1096,34 @@
                         <UserCheck size={14} />
                     {/snippet}
                     {#snippet children()}
-                        {@const facSummary = (facultyAttData?.byUniversity as any[]) || []}
-                        {@const facDetail = (facultyAttData?.detail as any[]) || []}
-                        {@const coachSummary = (facultyAttData?.coach?.byUniversity as any[]) || []}
-                        {@const coachDetail = (facultyAttData?.coach?.detail as any[]) || []}
+                        {@const allFacSummary = (facultyAttData?.byUniversity as any[]) || []}
+                        {@const allFacDetail = (facultyAttData?.detail as any[]) || []}
+                        {@const allCoachSummary = (facultyAttData?.coach?.byUniversity as any[]) || []}
+                        {@const allCoachDetail = (facultyAttData?.coach?.detail as any[]) || []}
+                        {@const univOptions = [...new Set([
+                            ...allFacSummary.map((u: any) => u.university_name),
+                            ...allCoachSummary.map((u: any) => u.university_name)
+                        ].filter(Boolean))].sort()}
+                        {@const facSummary = selectedFacUniv ? allFacSummary.filter((u: any) => u.university_name === selectedFacUniv) : allFacSummary}
+                        {@const facDetail = selectedFacUniv ? allFacDetail.filter((d: any) => d.university_name === selectedFacUniv) : allFacDetail}
+                        {@const coachSummary = selectedFacUniv ? allCoachSummary.filter((u: any) => u.university_name === selectedFacUniv) : allCoachSummary}
+                        {@const coachDetail = selectedFacUniv ? allCoachDetail.filter((d: any) => d.university_name === selectedFacUniv) : allCoachDetail}
+
+                        <!-- University filter -->
+                        {#if univOptions.length > 1}
+                            <div class="flex items-center gap-2 mb-4">
+                                <span class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Filter university</span>
+                                <select
+                                    bind:value={selectedFacUniv}
+                                    class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                >
+                                    <option value="">All universities</option>
+                                    {#each univOptions as u}
+                                        <option value={u}>{u}</option>
+                                    {/each}
+                                </select>
+                            </div>
+                        {/if}
                         {@const hasFacData = facSummary.length > 0 || facDetail.length > 0}
                         {@const hasCoachData = coachSummary.length > 0 || coachDetail.length > 0}
                         {@const facTotals = facSummary.reduce((acc: any, u: any) => {
@@ -1170,7 +1195,7 @@
                                                         </thead>
                                                         <tbody>
                                                             {#each facDetail.slice(0, 50) as d}
-                                                                {@const statusColors = { present: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', absent: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400', training: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400', wfh: 'bg-violet-100 text-violet-700', leave: 'bg-amber-100 text-amber-700', half_day: 'bg-orange-100 text-orange-700' } as Record<string, string>}
+                                                                {@const statusColors = { present: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', absent: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400', training: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400', wfh: 'bg-violet-100 text-violet-700', leave: 'bg-amber-100 text-amber-700', half_day: 'bg-orange-100 text-orange-700', not_marked: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500' } as Record<string, string>}
                                                                 <tr class="border-t border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
                                                                     <td class="py-1.5 px-3 font-medium text-zinc-900 dark:text-zinc-100">{d.name || '—'}</td>
                                                                     <td class="py-1.5 px-2 text-zinc-500 dark:text-zinc-400 truncate max-w-[100px]">{d.university_name || '—'}</td>

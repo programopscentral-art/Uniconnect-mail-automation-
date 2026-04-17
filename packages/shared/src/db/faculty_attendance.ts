@@ -284,7 +284,7 @@ export async function getAllFacultyAttendanceForReport(startDate: string, endDat
     try {
         const summaryRes = await db.query(
             `SELECT
-                u.short_name AS university_name,
+                COALESCE(u.short_name, u.name, 'Unknown') AS university_name,
                 ip.university_id,
                 COUNT(DISTINCT ip.id) FILTER (WHERE ip.is_active) AS total_faculty,
                 COUNT(DISTINCT ia.instructor_id) FILTER (WHERE ia.status = 'present') AS present,
@@ -299,25 +299,30 @@ export async function getAllFacultyAttendanceForReport(startDate: string, endDat
              LEFT JOIN instructor_daily_log idl ON idl.instructor_id = ip.id
                 AND idl.date >= $1 AND idl.date <= $2
              WHERE ip.is_active = true
-             GROUP BY u.short_name, ip.university_id
-             ORDER BY u.short_name`,
+             GROUP BY u.short_name, u.name, ip.university_id
+             ORDER BY COALESCE(u.short_name, u.name)`,
             [startDate, endDate]
         );
 
+        // Show ALL active instructors — those with attendance marked show their
+        // status; those without show 'not_marked' so the report makes it obvious
+        // who hasn't been tracked yet.
         const detailRes = await db.query(
             `SELECT
                 ip.name, ip.designation, ip.subjects,
-                COALESCE(u.short_name, u.name) AS university_name,
-                ia.date, ia.status, ia.notes,
+                COALESCE(u.short_name, u.name, 'Unknown') AS university_name,
+                COALESCE(ia.date, $1::date) AS date,
+                COALESCE(ia.status, 'not_marked') AS status,
+                ia.notes,
                 idl.sessions_taken, idl.subjects_taught, idl.topics_covered
              FROM instructor_profiles ip
              LEFT JOIN universities u ON u.id = ip.university_id
              LEFT JOIN instructor_attendance ia ON ia.instructor_id = ip.id
                 AND ia.date >= $1 AND ia.date <= $2
              LEFT JOIN instructor_daily_log idl ON idl.instructor_id = ip.id
-                AND idl.date = ia.date
-             WHERE ip.is_active = true AND ia.status IS NOT NULL
-             ORDER BY u.short_name, ip.name, ia.date`,
+                AND idl.date = COALESCE(ia.date, $1::date)
+             WHERE ip.is_active = true
+             ORDER BY COALESCE(u.short_name, u.name), ip.name, ia.date`,
             [startDate, endDate]
         );
 
