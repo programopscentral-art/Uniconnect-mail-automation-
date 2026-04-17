@@ -23,6 +23,8 @@
     // ─── Attendance state ─────────────────────────────────
     let attendanceRows = $state<any[]>([]);
     let pendingChanges = $state<Map<string, { status: AttStatus; notes: string }>>(new Map());
+    let workloadData = $state<Map<string, { sessions: number; topics: string }>>(new Map());
+    let expandedRow = $state<string | null>(null);
 
     // ─── Directory state ──────────────────────────────────
     let instructors = $state<any[]>([]);
@@ -151,10 +153,23 @@
         }
     }
 
+    function setWorkload(instructorId: string, field: 'sessions' | 'topics', value: any) {
+        const existing = workloadData.get(instructorId) || { sessions: 0, topics: '' };
+        if (field === 'sessions') existing.sessions = Number(value) || 0;
+        else existing.topics = String(value);
+        workloadData.set(instructorId, existing);
+        workloadData = new Map(workloadData);
+    }
+
+    function toggleExpand(instructorId: string) {
+        expandedRow = expandedRow === instructorId ? null : instructorId;
+    }
+
     async function submitAttendance() {
         if (pendingChanges.size === 0) { flash('No attendance marked yet', true); return; }
         saving = true;
         try {
+            // 1. Save attendance
             const entries = Array.from(pendingChanges.entries()).map(([instructor_id, { status, notes }]) => ({
                 instructor_id,
                 university_id: universityId,
@@ -167,14 +182,38 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'mark-bulk-attendance', entries })
             });
-            if (res.ok) {
-                const j = await res.json();
-                flash(`Attendance saved for ${j.count} instructors`);
-                await loadAttendance();
-            } else {
+            if (!res.ok) {
                 const j = await res.json().catch(() => ({}));
                 flash(j.message || `Save failed: ${res.status}`, true);
+                saving = false;
+                return;
             }
+            const j = await res.json();
+
+            // 2. Save workload logs for those who have topics/sessions filled
+            let workloadCount = 0;
+            for (const [instructor_id, wl] of workloadData.entries()) {
+                if (wl.sessions > 0 || wl.topics.trim()) {
+                    try {
+                        await fetch('/api/faculty-attendance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: 'log-workload',
+                                instructor_id,
+                                university_id: universityId,
+                                date: selectedDate,
+                                sessions_taken: wl.sessions,
+                                topics_covered: wl.topics.trim() || undefined
+                            })
+                        });
+                        workloadCount++;
+                    } catch {}
+                }
+            }
+
+            flash(`Saved: ${j.count} attendance${workloadCount > 0 ? ` + ${workloadCount} workload logs` : ''}`);
+            await loadAttendance();
         } catch (e: any) {
             flash(e?.message || 'Save failed', true);
         } finally {
@@ -375,44 +414,90 @@
                 <div class="flex flex-col gap-1.5">
                     {#each attendanceRows as row}
                         {@const current = pendingChanges.get(row.instructor_id)}
-                        <div class="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors {current ? 'ring-1 ring-emerald-200 dark:ring-emerald-900/40' : ''}">
-                            <!-- Faculty info -->
-                            <div class="flex-1 min-w-0">
-                                <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">{row.name}</div>
-                                <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                                    {row.designation || '—'}
-                                    {#if row.subjects && row.subjects.length > 0}
-                                        · {row.subjects.join(', ')}
-                                    {/if}
+                        {@const wl = workloadData.get(row.instructor_id)}
+                        {@const isExpanded = expandedRow === row.instructor_id}
+                        <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-hidden {current ? 'ring-1 ring-emerald-200 dark:ring-emerald-900/40' : ''}">
+                            <!-- Main row: name + status buttons -->
+                            <div class="flex items-center gap-3 p-3">
+                                <!-- Faculty info + expand toggle -->
+                                <button
+                                    onclick={() => toggleExpand(row.instructor_id)}
+                                    class="flex-1 min-w-0 text-left group"
+                                >
+                                    <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                                        {row.name}
+                                        <span class="text-[10px] text-zinc-400 ml-1">{isExpanded ? '▾' : '▸'}</span>
+                                    </div>
+                                    <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                                        {row.designation || '—'}
+                                        {#if row.subjects && row.subjects.length > 0}
+                                            · {row.subjects.join(', ')}
+                                        {/if}
+                                    </div>
+                                </button>
+
+                                <!-- Status buttons -->
+                                <div class="flex items-center gap-1">
+                                    {#each Object.entries(statusMeta) as [key, meta]}
+                                        {@const isActive = current?.status === key}
+                                        <button
+                                            onclick={() => setStatus(row.instructor_id, key as AttStatus)}
+                                            class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border
+                                                   {isActive
+                                                       ? `${meta.bg} ${meta.darkBg} ${meta.color} dark:${meta.color.replace('700', '300')} border-current`
+                                                       : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700'}"
+                                            title={meta.label}
+                                        >
+                                            {meta.short}
+                                        </button>
+                                    {/each}
                                 </div>
                             </div>
 
-                            <!-- Status buttons -->
-                            <div class="flex items-center gap-1">
-                                {#each Object.entries(statusMeta) as [key, meta]}
-                                    {@const isActive = current?.status === key}
-                                    <button
-                                        onclick={() => setStatus(row.instructor_id, key as AttStatus)}
-                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border
-                                               {isActive
-                                                   ? `${meta.bg} ${meta.darkBg} ${meta.color} dark:${meta.color.replace('700', '300')} border-current`
-                                                   : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700'}"
-                                        title={meta.label}
-                                    >
-                                        {meta.short}
-                                    </button>
-                                {/each}
-                            </div>
+                            <!-- Expanded: Notes + Workload -->
+                            {#if isExpanded || current}
+                                <div class="px-3 pb-3 {isExpanded ? '' : 'pt-0'} flex flex-col gap-2 border-t border-zinc-100 dark:border-zinc-800">
+                                    <!-- Notes -->
+                                    <div class="flex items-center gap-2 pt-2">
+                                        <span class="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider w-16 shrink-0">Notes</span>
+                                        <input
+                                            type="text"
+                                            placeholder="Attendance notes (optional)"
+                                            value={current?.notes || ''}
+                                            oninput={(e) => setNotes(row.instructor_id, (e.target as HTMLInputElement).value)}
+                                            class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
+                                        />
+                                    </div>
 
-                            <!-- Notes input (compact, shows when status selected) -->
-                            {#if current}
-                                <input
-                                    type="text"
-                                    placeholder="Notes (optional)"
-                                    value={current.notes}
-                                    oninput={(e) => setNotes(row.instructor_id, (e.target as HTMLInputElement).value)}
-                                    class="w-36 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
-                                />
+                                    {#if isExpanded}
+                                        <!-- Sessions taken -->
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider w-16 shrink-0">Sessions</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="20"
+                                                placeholder="0"
+                                                value={wl?.sessions || ''}
+                                                oninput={(e) => setWorkload(row.instructor_id, 'sessions', (e.target as HTMLInputElement).value)}
+                                                class="w-20 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
+                                            />
+                                            <span class="text-[10px] text-zinc-400">sessions taken today</span>
+                                        </div>
+
+                                        <!-- Topics covered -->
+                                        <div class="flex items-start gap-2">
+                                            <span class="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider w-16 shrink-0 pt-1.5">Topics</span>
+                                            <textarea
+                                                placeholder="Topics covered today — e.g., Ch 5: Thermodynamics, problems 1-15"
+                                                rows="2"
+                                                value={wl?.topics || ''}
+                                                oninput={(e) => setWorkload(row.instructor_id, 'topics', (e.target as HTMLTextAreaElement).value)}
+                                                class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400 resize-none"
+                                            ></textarea>
+                                        </div>
+                                    {/if}
+                                </div>
                             {/if}
                         </div>
                     {/each}
