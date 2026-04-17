@@ -1090,8 +1090,8 @@
                     {/snippet}
                 </Card>
 
-                <!-- ── FACULTY ATTENDANCE & SUCCESS COACHES (full width, embedded detail) ──── -->
-                <Card title="Faculty Attendance & Success Coaches" subtitle={mode === 'daily' ? 'Individual detail for today' : `Aggregated for the ${mode.replace('ly', '')}`} className="md:col-span-12">
+                <!-- ── FACULTY ATTENDANCE & SUCCESS COACHES (accordion per university) ──── -->
+                <Card title="Faculty Attendance & Success Coaches" subtitle="Click a university to see individual details" className="md:col-span-12">
                     {#snippet icon()}
                         <UserCheck size={14} />
                     {/snippet}
@@ -1100,57 +1100,18 @@
                         {@const allFacDetail = (facultyAttData?.detail as any[]) || []}
                         {@const allCoachSummary = (facultyAttData?.coach?.byUniversity as any[]) || []}
                         {@const allCoachDetail = (facultyAttData?.coach?.detail as any[]) || []}
-                        {@const univOptions = [...new Set([
+                        {@const univNames = [...new Set([
                             ...allFacSummary.map((u: any) => u.university_name),
                             ...allCoachSummary.map((u: any) => u.university_name)
                         ].filter(Boolean))].sort()}
-                        {@const facSummary = selectedFacUniv ? allFacSummary.filter((u: any) => u.university_name === selectedFacUniv) : allFacSummary}
-                        {@const facDetail = selectedFacUniv ? allFacDetail.filter((d: any) => d.university_name === selectedFacUniv) : allFacDetail}
-                        {@const coachSummary = selectedFacUniv ? allCoachSummary.filter((u: any) => u.university_name === selectedFacUniv) : allCoachSummary}
-                        {@const coachDetail = selectedFacUniv ? allCoachDetail.filter((d: any) => d.university_name === selectedFacUniv) : allCoachDetail}
+                        {@const statusColors = { present: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', absent: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400', training: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400', wfh: 'bg-violet-100 text-violet-700', leave: 'bg-amber-100 text-amber-700', half_day: 'bg-orange-100 text-orange-700', not_marked: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500' } as Record<string, string>}
 
-                        <!-- University filter -->
-                        {#if univOptions.length > 1}
-                            <div class="flex items-center gap-2 mb-4">
-                                <span class="text-[10px] uppercase tracking-wider font-semibold text-zinc-500 dark:text-zinc-400">Filter university</span>
-                                <select
-                                    bind:value={selectedFacUniv}
-                                    class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                                >
-                                    <option value="">All universities</option>
-                                    {#each univOptions as u}
-                                        <option value={u}>{u}</option>
-                                    {/each}
-                                </select>
-                            </div>
-                        {/if}
-                        {@const hasFacData = facSummary.length > 0 || facDetail.length > 0}
-                        {@const hasCoachData = coachSummary.length > 0 || coachDetail.length > 0}
-                        {@const facTotals = facSummary.reduce((acc: any, u: any) => {
-                            acc.total += Number(u.total_faculty) || 0;
-                            acc.present += Number(u.present) || 0;
-                            acc.absent += Number(u.absent) || 0;
-                            acc.training += Number(u.training) || 0;
-                            acc.onLeave += Number(u.on_leave_or_wfh) || 0;
-                            acc.sessions += Number(u.total_sessions_logged) || 0;
-                            return acc;
-                        }, { total: 0, present: 0, absent: 0, training: 0, onLeave: 0, sessions: 0 })}
-                        {@const coachTotals = coachSummary.reduce((acc: any, u: any) => {
-                            acc.coaches += Number(u.total_coaches) || 0;
-                            acc.studentCalls += Number(u.total_student_calls) || 0;
-                            acc.parentCalls += Number(u.total_parent_calls) || 0;
-                            acc.target += Number(u.total_target) || 0;
-                            return acc;
-                        }, { coaches: 0, studentCalls: 0, parentCalls: 0, target: 0 })}
-
-                        {#if !hasFacData && !hasCoachData}
-                            <!-- No data yet -->
+                        {#if univNames.length === 0}
                             <div class="text-center py-6">
                                 <UserCheck size={32} class="mx-auto text-zinc-300 dark:text-zinc-600 mb-2" />
                                 <p class="text-sm text-zinc-500 dark:text-zinc-400">No faculty attendance or coach call data for this period.</p>
                                 <a href="/faculty-attendance" class="text-xs text-sky-600 dark:text-sky-400 hover:underline mt-1 inline-block">Go to Faculty Attendance to start tracking →</a>
                             </div>
-                            <!-- Fallback: show old instructor counts from ops_daily_data -->
                             {#if num(summary.instructors_total) > 0}
                                 <div class="grid grid-cols-3 gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800">
                                     <StatTile label="Total (from sheet)" value={num(summary.instructors_total)} />
@@ -1159,191 +1120,126 @@
                                 </div>
                             {/if}
                         {:else}
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <!-- ─ Faculty section ─ -->
-                                <div>
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <GraduationCap size={14} class="text-sky-600" />
-                                        <h4 class="text-sm font-bold text-zinc-900 dark:text-zinc-100">Faculty Attendance</h4>
-                                        {#if facTotals.total > 0}
-                                            {@const facRate = Math.round((facTotals.present / facTotals.total) * 100)}
-                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {facRate >= 90 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : facRate >= 75 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}">{facRate}%</span>
-                                        {/if}
-                                    </div>
+                            <!-- University accordion -->
+                            <div class="flex flex-col gap-2">
+                                {#each univNames as univName}
+                                    {@const uFac = allFacSummary.find((u: any) => u.university_name === univName)}
+                                    {@const uFacDetail = allFacDetail.filter((d: any) => d.university_name === univName)}
+                                    {@const uCoach = allCoachSummary.find((u: any) => u.university_name === univName)}
+                                    {@const uCoachDetail = allCoachDetail.filter((d: any) => d.university_name === univName)}
+                                    {@const facTotal = Number(uFac?.total_faculty) || 0}
+                                    {@const facPresent = Number(uFac?.present) || 0}
+                                    {@const facAbsent = Number(uFac?.absent) || 0}
+                                    {@const facRate = facTotal > 0 ? Math.round((facPresent / facTotal) * 100) : 0}
+                                    {@const coachCount = Number(uCoach?.total_coaches) || 0}
+                                    {@const coachCalls = (Number(uCoach?.total_student_calls) || 0) + (Number(uCoach?.total_parent_calls) || 0)}
+                                    {@const coachTarget = Number(uCoach?.total_target) || 0}
+                                    {@const coachRate = coachTarget > 0 ? Math.round((coachCalls / coachTarget) * 100) : 0}
 
-                                    {#if hasFacData}
-                                        <!-- KPI row -->
-                                        <div class="grid grid-cols-4 gap-2 mb-3">
-                                            <StatTile label="Total" value={facTotals.total} />
-                                            <StatTile label="Present" value={facTotals.present} tone="good" />
-                                            <StatTile label="Absent" value={facTotals.absent} tone={facTotals.absent > 0 ? 'bad' : 'default'} />
-                                            <StatTile label="Train/WFH" value={facTotals.training + facTotals.onLeave} />
+                                    <details class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden group">
+                                        <!-- University header row -->
+                                        <summary class="cursor-pointer list-none px-4 py-3 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-4">
+                                            <ChevronRight size={14} class="text-zinc-400 transition-transform group-open:rotate-90 shrink-0" />
+                                            <div class="flex-1 min-w-0">
+                                                <div class="text-sm font-bold text-zinc-900 dark:text-zinc-100">{univName}</div>
+                                            </div>
+                                            <!-- Faculty badge -->
+                                            <div class="flex items-center gap-1.5 text-[11px]">
+                                                <GraduationCap size={12} class="text-sky-500" />
+                                                <span class="text-zinc-600 dark:text-zinc-400">{facTotal} faculty</span>
+                                                {#if facTotal > 0}
+                                                    <span class="font-bold tabular-nums {facRate >= 90 ? 'text-emerald-600' : facRate >= 75 ? 'text-amber-600' : 'text-rose-600'}">{facPresent}P {facAbsent}A · {facRate}%</span>
+                                                {/if}
+                                            </div>
+                                            <!-- Coach badge -->
+                                            {#if coachCount > 0}
+                                                <div class="flex items-center gap-1.5 text-[11px]">
+                                                    <PhoneCall size={12} class="text-violet-500" />
+                                                    <span class="text-zinc-600 dark:text-zinc-400">{coachCount} coaches</span>
+                                                    <span class="font-bold tabular-nums {coachRate >= 100 ? 'text-emerald-600' : coachRate >= 70 ? 'text-amber-600' : 'text-rose-600'}">{coachCalls}/{coachTarget} · {coachRate}%</span>
+                                                </div>
+                                            {/if}
+                                        </summary>
+
+                                        <!-- Expanded: Faculty + Coach detail -->
+                                        <div class="border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20 px-4 py-3">
+                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <!-- Faculty detail -->
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 mb-2">
+                                                        <GraduationCap size={12} class="text-sky-600" />
+                                                        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Faculty ({uFacDetail.length})</span>
+                                                    </div>
+                                                    {#if uFacDetail.length > 0}
+                                                        <div class="max-h-[250px] overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                                            <table class="w-full text-[11px]">
+                                                                <thead>
+                                                                    <tr class="text-[9px] uppercase tracking-wider text-zinc-500 bg-zinc-100 dark:bg-zinc-800 sticky top-0">
+                                                                        <th class="text-left py-1.5 px-2 font-semibold">Name</th>
+                                                                        <th class="text-center py-1.5 px-2 font-semibold">Status</th>
+                                                                        <th class="text-left py-1.5 px-2 font-semibold">Topics / Notes</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {#each uFacDetail as d}
+                                                                        <tr class="border-t border-zinc-100 dark:border-zinc-700/50 bg-white dark:bg-zinc-900">
+                                                                            <td class="py-1.5 px-2 font-medium text-zinc-900 dark:text-zinc-100">{d.name}</td>
+                                                                            <td class="py-1.5 px-2 text-center">
+                                                                                <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full {statusColors[d.status] || 'bg-zinc-100 text-zinc-500'}">{d.status === 'not_marked' ? 'N/M' : d.status}</span>
+                                                                            </td>
+                                                                            <td class="py-1.5 px-2 text-zinc-600 dark:text-zinc-400 truncate max-w-[150px]">{d.topics_covered || d.notes || '—'}</td>
+                                                                        </tr>
+                                                                    {/each}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    {:else}
+                                                        <p class="text-[11px] text-zinc-400 italic">No faculty data</p>
+                                                    {/if}
+                                                </div>
+
+                                                <!-- Coach detail -->
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 mb-2">
+                                                        <PhoneCall size={12} class="text-violet-600" />
+                                                        <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Success Coaches ({uCoachDetail.length})</span>
+                                                    </div>
+                                                    {#if uCoachDetail.length > 0}
+                                                        <div class="max-h-[250px] overflow-y-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                                            <table class="w-full text-[11px]">
+                                                                <thead>
+                                                                    <tr class="text-[9px] uppercase tracking-wider text-zinc-500 bg-zinc-100 dark:bg-zinc-800 sticky top-0">
+                                                                        <th class="text-left py-1.5 px-2 font-semibold">Coach</th>
+                                                                        <th class="text-right py-1.5 px-2 font-semibold">Student</th>
+                                                                        <th class="text-right py-1.5 px-2 font-semibold">Parent</th>
+                                                                        <th class="text-right py-1.5 px-2 font-semibold">Achieved</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {#each uCoachDetail as d}
+                                                                        {@const total = (Number(d.student_calls_made) || 0) + (Number(d.parent_calls_made) || 0)}
+                                                                        {@const target = Number(d.daily_target) || 15}
+                                                                        {@const achieved = target > 0 ? Math.round((total / target) * 100) : 0}
+                                                                        <tr class="border-t border-zinc-100 dark:border-zinc-700/50 bg-white dark:bg-zinc-900">
+                                                                            <td class="py-1.5 px-2 font-medium text-zinc-900 dark:text-zinc-100">{d.name}</td>
+                                                                            <td class="py-1.5 px-2 text-right tabular-nums text-sky-600 font-semibold">{d.student_calls_made || 0}</td>
+                                                                            <td class="py-1.5 px-2 text-right tabular-nums text-violet-600 font-semibold">{d.parent_calls_made || 0}</td>
+                                                                            <td class="py-1.5 px-2 text-right">
+                                                                                <span class="text-[9px] font-bold tabular-nums px-1.5 py-0.5 rounded-full {achieved >= 100 ? 'bg-emerald-100 text-emerald-700' : achieved >= 70 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}">{achieved}%</span>
+                                                                            </td>
+                                                                        </tr>
+                                                                    {/each}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    {:else}
+                                                        <p class="text-[11px] text-zinc-400 italic">No coach data</p>
+                                                    {/if}
+                                                </div>
+                                            </div>
                                         </div>
-
-                                        <!-- Per-instructor detail table -->
-                                        {#if facDetail.length > 0}
-                                            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                                <div class="max-h-[300px] overflow-y-auto">
-                                                    <table class="w-full text-[11px]">
-                                                        <thead>
-                                                            <tr class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">
-                                                                <th class="text-left py-2 px-3 font-semibold">Instructor</th>
-                                                                <th class="text-left py-2 px-2 font-semibold">University</th>
-                                                                <th class="text-center py-2 px-2 font-semibold">Status</th>
-                                                                <th class="text-left py-2 px-2 font-semibold">Topics / Notes</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {#each facDetail.slice(0, 50) as d}
-                                                                {@const statusColors = { present: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400', absent: 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400', training: 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400', wfh: 'bg-violet-100 text-violet-700', leave: 'bg-amber-100 text-amber-700', half_day: 'bg-orange-100 text-orange-700', not_marked: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500' } as Record<string, string>}
-                                                                <tr class="border-t border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                                                                    <td class="py-1.5 px-3 font-medium text-zinc-900 dark:text-zinc-100">{d.name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-zinc-500 dark:text-zinc-400 truncate max-w-[100px]">{d.university_name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-center">
-                                                                        <span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full {statusColors[d.status] || 'bg-zinc-100 text-zinc-600'}">
-                                                                            {d.status || '—'}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td class="py-1.5 px-2 text-zinc-600 dark:text-zinc-400 truncate max-w-[180px]">{d.topics_covered || d.notes || '—'}</td>
-                                                                </tr>
-                                                            {/each}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        {:else}
-                                            <!-- Summary only (no individual detail) -->
-                                            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                                <div class="max-h-[200px] overflow-y-auto">
-                                                    <table class="w-full text-[11px]">
-                                                        <thead>
-                                                            <tr class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">
-                                                                <th class="text-left py-2 px-3 font-semibold">University</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Total</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Present</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Absent</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Att%</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {#each facSummary as u}
-                                                                {@const rate = Number(u.total_faculty) > 0 ? Math.round((Number(u.present) / Number(u.total_faculty)) * 100) : 0}
-                                                                <tr class="border-t border-zinc-50 dark:border-zinc-800/50">
-                                                                    <td class="py-1.5 px-3 font-medium text-zinc-900 dark:text-zinc-100">{u.university_name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{u.total_faculty}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-emerald-600 dark:text-emerald-400 font-semibold">{u.present}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-rose-600 dark:text-rose-400 font-semibold">{u.absent}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums font-bold {rate >= 90 ? 'text-emerald-600' : rate >= 75 ? 'text-amber-600' : 'text-rose-600'}">{rate}%</td>
-                                                                </tr>
-                                                            {/each}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    {:else}
-                                        <p class="text-xs text-zinc-500 dark:text-zinc-400 italic">No faculty attendance marked yet.</p>
-                                    {/if}
-                                </div>
-
-                                <!-- ─ Success Coaches section ─ -->
-                                <div>
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <PhoneCall size={14} class="text-violet-600" />
-                                        <h4 class="text-sm font-bold text-zinc-900 dark:text-zinc-100">Success Coach Calls</h4>
-                                        {#if coachTotals.target > 0}
-                                            {@const coachRate = Math.round(((coachTotals.studentCalls + coachTotals.parentCalls) / coachTotals.target) * 100)}
-                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {coachRate >= 100 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : coachRate >= 70 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}">{coachRate}%</span>
-                                        {/if}
-                                    </div>
-
-                                    {#if hasCoachData}
-                                        <!-- KPI row -->
-                                        <div class="grid grid-cols-4 gap-2 mb-3">
-                                            <StatTile label="Coaches" value={coachTotals.coaches} />
-                                            <StatTile label="Student" value={coachTotals.studentCalls} tone="good" />
-                                            <StatTile label="Parent" value={coachTotals.parentCalls} />
-                                            <StatTile label="Target" value={coachTotals.target} />
-                                        </div>
-
-                                        <!-- Per-coach detail table -->
-                                        {#if coachDetail.length > 0}
-                                            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                                <div class="max-h-[300px] overflow-y-auto">
-                                                    <table class="w-full text-[11px]">
-                                                        <thead>
-                                                            <tr class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">
-                                                                <th class="text-left py-2 px-3 font-semibold">Coach</th>
-                                                                <th class="text-left py-2 px-2 font-semibold">University</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Student</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Parent</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Target</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Achieved</th>
-                                                                <th class="text-left py-2 px-2 font-semibold">Notes</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {#each coachDetail.slice(0, 50) as d}
-                                                                {@const total = (Number(d.student_calls_made) || 0) + (Number(d.parent_calls_made) || 0)}
-                                                                {@const target = Number(d.daily_target) || 15}
-                                                                {@const achieved = target > 0 ? Math.round((total / target) * 100) : 0}
-                                                                <tr class="border-t border-zinc-50 dark:border-zinc-800/50 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-                                                                    <td class="py-1.5 px-3 font-medium text-zinc-900 dark:text-zinc-100">{d.name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-zinc-500 dark:text-zinc-400 truncate max-w-[100px]">{d.university_name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-sky-600 dark:text-sky-400 font-semibold">{d.student_calls_made || 0}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-violet-600 dark:text-violet-400 font-semibold">{d.parent_calls_made || 0}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-zinc-500">{target}</td>
-                                                                    <td class="py-1.5 px-2 text-right">
-                                                                        <span class="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full
-                                                                            {achieved >= 100 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' :
-                                                                             achieved >= 70 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400' :
-                                                                             'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'}">
-                                                                            {achieved}%
-                                                                        </span>
-                                                                    </td>
-                                                                    <td class="py-1.5 px-2 text-zinc-600 dark:text-zinc-400 truncate max-w-[120px]">{d.notes || '—'}</td>
-                                                                </tr>
-                                                            {/each}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        {:else}
-                                            <!-- Summary only -->
-                                            <div class="rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-                                                <div class="max-h-[200px] overflow-y-auto">
-                                                    <table class="w-full text-[11px]">
-                                                        <thead>
-                                                            <tr class="text-[9px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/50 sticky top-0">
-                                                                <th class="text-left py-2 px-3 font-semibold">University</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Coaches</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Calls</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Target</th>
-                                                                <th class="text-right py-2 px-2 font-semibold">Achieved</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {#each coachSummary as u}
-                                                                {@const totalCalls = (Number(u.total_student_calls) || 0) + (Number(u.total_parent_calls) || 0)}
-                                                                {@const target = Number(u.total_target) || 0}
-                                                                {@const achieved = target > 0 ? Math.round((totalCalls / target) * 100) : 0}
-                                                                <tr class="border-t border-zinc-50 dark:border-zinc-800/50">
-                                                                    <td class="py-1.5 px-3 font-medium text-zinc-900 dark:text-zinc-100">{u.university_name || '—'}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-zinc-600 dark:text-zinc-400">{u.total_coaches}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-zinc-900 dark:text-zinc-100 font-semibold">{totalCalls}</td>
-                                                                    <td class="py-1.5 px-2 text-right tabular-nums text-zinc-500">{target}</td>
-                                                                    <td class="py-1.5 px-2 text-right font-bold {achieved >= 100 ? 'text-emerald-600' : achieved >= 70 ? 'text-amber-600' : 'text-rose-600'}">{achieved}%</td>
-                                                                </tr>
-                                                            {/each}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        {/if}
-                                    {:else}
-                                        <p class="text-xs text-zinc-500 dark:text-zinc-400 italic">No coach call data logged yet.</p>
-                                    {/if}
-                                </div>
+                                    </details>
+                                {/each}
                             </div>
                         {/if}
                     {/snippet}
