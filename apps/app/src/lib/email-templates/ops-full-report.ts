@@ -15,7 +15,8 @@ export interface OpsFullReportOptions {
     dashboardUrl: string;
     prevSummary?: any;
     budgetIntel?: any;
-    scopedUniversity?: string | null; // if set, report is scoped to one university
+    scopedUniversity?: string | null;
+    facultyAttendance?: { byUniversity: any[]; detail: any[] } | null;
 }
 
 const n = (v: any) => {
@@ -512,8 +513,98 @@ function holidayStrip(byUniv: any[], dailyBreakdown: any[]): string {
 </div>`;
 }
 
+function renderFacultyAttendanceSection(mode: OpsReportMode, fac: { byUniversity: any[]; detail: any[] } | null, scopedUniversity?: string | null): string {
+    if (!fac || (fac.byUniversity.length === 0 && fac.detail.length === 0)) {
+        return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Faculty Attendance</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">Instructor attendance & workload tracking</p>
+    </header>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:32px;text-align:center;color:#94a3b8;font-size:13px">No faculty attendance data recorded for this period. Start marking attendance via the Faculty Attendance feature.</div>
+</section>`;
+    }
+
+    // Summary by university
+    const univSummary = fac.byUniversity.map((u: any) => {
+        const total = Number(u.total_faculty) || 0;
+        const present = Number(u.present) || 0;
+        const absent = Number(u.absent) || 0;
+        const rate = total > 0 ? Math.round((present / total) * 100) : 0;
+        const rateColor = rate >= 90 ? '#059669' : rate >= 75 ? '#d97706' : '#e11d48';
+        return `<tr>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#0f172a">${u.university_name || '—'}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#475569;font-variant-numeric:tabular-nums">${total}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#059669;font-weight:700;font-variant-numeric:tabular-nums">${present}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#e11d48;font-weight:700;font-variant-numeric:tabular-nums">${absent}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#0ea5e9;font-variant-numeric:tabular-nums">${Number(u.training) || 0}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#8b5cf6;font-variant-numeric:tabular-nums">${Number(u.on_leave_or_wfh) || 0}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;font-weight:700;color:${rateColor};font-variant-numeric:tabular-nums">${rate}%</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#475569;font-variant-numeric:tabular-nums">${Number(u.total_sessions_logged) || 0}</td>
+        </tr>`;
+    }).join('');
+
+    // Detail list (for daily mode — show each person; for weekly/monthly — aggregate per person)
+    let detailBlock = '';
+    if (mode === 'daily' && fac.detail.length > 0) {
+        const rows = fac.detail.slice(0, 40).map((d: any) => {
+            const statusColors: Record<string, string> = { present: '#059669', absent: '#e11d48', training: '#0ea5e9', wfh: '#8b5cf6', leave: '#d97706', half_day: '#ea580c' };
+            return `<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:500;color:#0f172a">${d.name || '—'}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#64748b">${d.university_name || '—'}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:center">
+                    <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;color:${statusColors[d.status] || '#64748b'};background:${statusColors[d.status] ? statusColors[d.status] + '18' : '#f1f5f9'};text-transform:uppercase">${d.status || '—'}</span>
+                </td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#475569">${d.sessions_taken || '—'}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#475569">${d.topics_covered || d.notes || '—'}</td>
+            </tr>`;
+        }).join('');
+
+        detailBlock = `
+        <div style="margin-top:18px">
+            <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:10px">Individual attendance detail</div>
+            <div style="overflow:hidden;border:1px solid #e2e8f0;border-radius:12px">
+            <table style="width:100%;border-collapse:collapse">
+                <thead><tr style="background:#f8fafc">
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Name</th>
+                    <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">University</th>
+                    <th style="padding:10px 10px;text-align:center;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Status</th>
+                    <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Sessions</th>
+                    <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Topics / Notes</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            </div>
+        </div>`;
+    }
+
+    return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Faculty Attendance</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">Instructor attendance & workload · ${fac.byUniversity.length} universit${fac.byUniversity.length === 1 ? 'y' : 'ies'} reporting</p>
+    </header>
+    <div style="overflow:hidden;border:1px solid #e2e8f0;border-radius:14px">
+    <table style="width:100%;border-collapse:collapse;background:#ffffff">
+        <thead><tr style="background:#f8fafc">
+            <th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">University</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Total</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Present</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Absent</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Training</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Leave/WFH</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Att %</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Sessions</th>
+        </tr></thead>
+        <tbody>${univSummary}</tbody>
+    </table>
+    </div>
+    ${detailBlock}
+</section>`;
+}
+
 export function buildOpsFullReportHtml(opts: OpsFullReportOptions): string {
-    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel, scopedUniversity } = opts;
+    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel, scopedUniversity, facultyAttendance } = opts;
     const s = report?.summary || {};
     const byUniv = report?.byUniversity || [];
     const dailyBreakdown = report?.dailyBreakdown || [];
@@ -693,6 +784,9 @@ ${aiSummary ? `
 
 <!-- Budget & proposals -->
 ${renderBudgetSection(mode, budgetIntel, accent1)}
+
+<!-- Faculty attendance -->
+${renderFacultyAttendanceSection(mode, facultyAttendance || null, scopedUniversity)}
 
 ${scopedUniversity ? '' : `
 <!-- University table (full width) — hidden when report is scoped to one university -->

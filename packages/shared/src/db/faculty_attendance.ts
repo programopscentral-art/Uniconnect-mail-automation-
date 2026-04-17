@@ -40,15 +40,40 @@ export async function createInstructorProfile(data: {
     user_id?: string;
     created_by: string;
 }) {
+    // Also try to create a faculty_profiles entry so the faculty shows up
+    // in academic-operations/faculty-ops page as well (interlinked).
+    let facultyProfileId: string | null = null;
+    try {
+        const fpCheck = await db.query(
+            `SELECT 1 FROM information_schema.tables WHERE table_name = 'faculty_profiles'`
+        );
+        if (fpCheck.rows.length > 0 && data.user_id) {
+            const existing = await db.query(
+                `SELECT id FROM faculty_profiles WHERE user_id = $1`, [data.user_id]
+            );
+            if (existing.rows.length > 0) {
+                facultyProfileId = existing.rows[0].id;
+            } else {
+                const fpRes = await db.query(
+                    `INSERT INTO faculty_profiles (university_id, user_id, designation, department, employment_status)
+                     VALUES ($1, $2, $3, $4, 'active')
+                     ON CONFLICT DO NOTHING RETURNING id`,
+                    [data.university_id, data.user_id, data.designation || null, data.department || null]
+                );
+                if (fpRes.rows.length > 0) facultyProfileId = fpRes.rows[0].id;
+            }
+        }
+    } catch { /* faculty_profiles may not exist yet */ }
+
     const res = await db.query(
         `INSERT INTO instructor_profiles
-            (university_id, name, email, phone, designation, department, subjects, user_id, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            (university_id, name, email, phone, designation, department, subjects, user_id, faculty_profile_id, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          RETURNING *`,
         [
             data.university_id, data.name, data.email || null,
             data.phone || null, data.designation || null, data.department || null,
-            data.subjects || [], data.user_id || null, data.created_by
+            data.subjects || [], data.user_id || null, facultyProfileId, data.created_by
         ]
     );
     return res.rows[0];
@@ -195,6 +220,59 @@ export async function upsertWorkloadLog(data: {
         ]
     );
     return res.rows[0];
+}
+
+// ─── Cross-university summary (for ops dashboard + reports) ─────────
+
+export async function getAllFacultyAttendanceForReport(startDate: string, endDate: string) {
+    // Returns per-university totals + per-instructor detail for the ops report.
+    try {
+        const summaryRes = await db.query(
+            `SELECT
+                u.short_name AS university_name,
+                ip.university_id,
+                COUNT(DISTINCT ip.id) FILTER (WHERE ip.is_active) AS total_faculty,
+                COUNT(DISTINCT ia.instructor_id) FILTER (WHERE ia.status = 'present') AS present,
+                COUNT(DISTINCT ia.instructor_id) FILTER (WHERE ia.status = 'absent') AS absent,
+                COUNT(DISTINCT ia.instructor_id) FILTER (WHERE ia.status = 'training') AS training,
+                COUNT(DISTINCT ia.instructor_id) FILTER (WHERE ia.status IN ('leave', 'wfh')) AS on_leave_or_wfh,
+                COALESCE(SUM(idl.sessions_taken), 0) AS total_sessions_logged
+             FROM instructor_profiles ip
+             LEFT JOIN universities u ON u.id = ip.university_id
+             LEFT JOIN instructor_attendance ia ON ia.instructor_id = ip.id
+                AND ia.date >= $1 AND ia.date <= $2
+             LEFT JOIN instructor_daily_log idl ON idl.instructor_id = ip.id
+                AND idl.date >= $1 AND idl.date <= $2
+             WHERE ip.is_active = true
+             GROUP BY u.short_name, ip.university_id
+             ORDER BY u.short_name`,
+            [startDate, endDate]
+        );
+
+        const detailRes = await db.query(
+            `SELECT
+                ip.name, ip.designation, ip.subjects,
+                COALESCE(u.short_name, u.name) AS university_name,
+                ia.date, ia.status, ia.notes,
+                idl.sessions_taken, idl.subjects_taught, idl.topics_covered
+             FROM instructor_profiles ip
+             LEFT JOIN universities u ON u.id = ip.university_id
+             LEFT JOIN instructor_attendance ia ON ia.instructor_id = ip.id
+                AND ia.date >= $1 AND ia.date <= $2
+             LEFT JOIN instructor_daily_log idl ON idl.instructor_id = ip.id
+                AND idl.date = ia.date
+             WHERE ip.is_active = true AND ia.status IS NOT NULL
+             ORDER BY u.short_name, ip.name, ia.date`,
+            [startDate, endDate]
+        );
+
+        return {
+            byUniversity: summaryRes.rows,
+            detail: detailRes.rows
+        };
+    } catch {
+        return { byUniversity: [], detail: [] };
+    }
 }
 
 // ─── Summary / Stats (for ops dashboard) ────────────────────────────
