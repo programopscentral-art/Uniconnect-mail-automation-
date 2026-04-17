@@ -12,27 +12,64 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     let universityId = locals.user.university_id || null;
     let universityName = '';
-
-    // For non-admin users, resolve their university name so the UI can show it
-    if (universityId) {
-        try {
-            const res = await db.query(
-                `SELECT COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
-                [universityId]
-            );
-            universityName = res.rows[0]?.name || '';
-        } catch {}
-    }
-
-    // Also fetch all universities for admin/PM dropdown
     let allUniversities: Array<{ id: string; name: string }> = [];
+
     if (role === 'ADMIN' || role === 'PROGRAM_OPS') {
+        // Admin/PM: all universities
         try {
             const res = await db.query(
                 `SELECT id, COALESCE(short_name, name) AS name FROM universities WHERE is_team = false ORDER BY name`
             );
             allUniversities = res.rows;
         } catch {}
+    } else {
+        // BOA / other roles: get universities they're assigned to
+        // via user_role_assignments + their primary university_id
+        const univIds = new Set<string>();
+        if (universityId) univIds.add(universityId);
+
+        try {
+            const res = await db.query(
+                `SELECT DISTINCT ura.university_id
+                 FROM user_role_assignments ura
+                 WHERE ura.user_id = $1 AND ura.university_id IS NOT NULL`,
+                [locals.user.id]
+            );
+            for (const r of res.rows) {
+                if (r.university_id) univIds.add(r.university_id);
+            }
+        } catch {}
+
+        if (univIds.size > 0) {
+            try {
+                const res = await db.query(
+                    `SELECT id, COALESCE(short_name, name) AS name
+                     FROM universities WHERE id = ANY($1) ORDER BY name`,
+                    [Array.from(univIds)]
+                );
+                allUniversities = res.rows;
+            } catch {}
+
+            // Default to first if primary not set
+            if (!universityId && allUniversities.length > 0) {
+                universityId = allUniversities[0].id;
+            }
+        }
+    }
+
+    // Resolve current university name
+    if (universityId) {
+        const match = allUniversities.find(u => u.id === universityId);
+        universityName = match?.name || '';
+        if (!universityName) {
+            try {
+                const res = await db.query(
+                    `SELECT COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
+                    [universityId]
+                );
+                universityName = res.rows[0]?.name || '';
+            } catch {}
+        }
     }
 
     return {

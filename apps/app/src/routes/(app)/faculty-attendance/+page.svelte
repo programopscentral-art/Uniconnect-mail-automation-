@@ -441,8 +441,8 @@
             <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Mark daily attendance, manage faculty, and view reports.</p>
         </div>
 
-        {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
-            <!-- Admin/PM: dropdown to pick any university -->
+        {#if universities.length > 1}
+            <!-- Multiple universities: show dropdown (admin/PM or multi-university BOA) -->
             <select
                 bind:value={universityId}
                 class="text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
@@ -453,7 +453,7 @@
                 {/each}
             </select>
         {:else if universityName}
-            <!-- BOA: show their university name (auto-selected) -->
+            <!-- Single university BOA: show fixed chip -->
             <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/40">
                 <div class="w-2 h-2 rounded-full bg-sky-500"></div>
                 <span class="text-sm font-semibold text-sky-700 dark:text-sky-300">{universityName}</span>
