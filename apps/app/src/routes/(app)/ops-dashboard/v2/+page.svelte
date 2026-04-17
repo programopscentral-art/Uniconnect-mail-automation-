@@ -31,6 +31,7 @@
     let prevPeriod = $state<any>(null); // prev period summary for deltas
     let eventIntel = $state<any>(null); // for financials
     let taskPatterns = $state<any>(null); // for tickets
+    let facultyAttData = $state<any>(null); // from instructor_attendance tables
     let refreshing = $state(false);
 
     // ─── Helpers ──────────────────────────────────────────────────
@@ -314,7 +315,7 @@
 
     async function fetchAux() {
         // Run sequentially to be gentle on the DB pool — these populate
-        // secondary cards (budget, tickets) and don't block the hero KPIs.
+        // secondary cards (budget, tickets, faculty) and don't block the hero KPIs.
         try {
             const eiUrl = `/api/ops?view=event-intelligence&date=${selectedDate}&range=${mode}`;
             const eiRes = await fetch(eiUrl).catch(() => null);
@@ -324,6 +325,11 @@
             const tpRes = await fetch(`/api/ops?view=task-patterns&date=${selectedDate}`).catch(() => null);
             taskPatterns = tpRes?.ok ? await tpRes.json() : null;
         } catch { taskPatterns = null; }
+        // Faculty attendance (cross-university summary from instructor_attendance)
+        try {
+            const faRes = await fetch(`/api/ops?view=faculty-attendance&date=${selectedDate}&range=${mode}`).catch(() => null);
+            facultyAttData = faRes?.ok ? await faRes.json() : null;
+        } catch { facultyAttData = null; }
     }
 
     async function load() {
@@ -1083,29 +1089,93 @@
                     {/snippet}
                 </Card>
 
-                <!-- ── INSTRUCTORS ─────────────────────────────── -->
-                <Card title="Instructors" subtitle="Workforce availability" className="md:col-span-6 lg:col-span-3">
+                <!-- ── INSTRUCTORS (uses live attendance data when available) ──── -->
+                {@const facSummary = facultyAttData?.byUniversity as any[] || []}
+                {@const hasFacData = facSummary.length > 0}
+                {@const facTotals = hasFacData ? facSummary.reduce((acc: any, u: any) => {
+                    acc.total += Number(u.total_faculty) || 0;
+                    acc.present += Number(u.present) || 0;
+                    acc.absent += Number(u.absent) || 0;
+                    acc.training += Number(u.training) || 0;
+                    acc.onLeave += Number(u.on_leave_or_wfh) || 0;
+                    acc.sessions += Number(u.total_sessions_logged) || 0;
+                    return acc;
+                }, { total: 0, present: 0, absent: 0, training: 0, onLeave: 0, sessions: 0 }) : null}
+                <Card title="Instructors" subtitle={hasFacData ? 'Live from Faculty Attendance' : 'From ops daily data'} className="md:col-span-6 lg:col-span-4">
                     {#snippet icon()}
                         <UserCheck size={14} />
                     {/snippet}
                     {#snippet children()}
-                        <div class="grid grid-cols-3 gap-3">
-                            <StatTile label="Total" value={num(summary.instructors_total)} />
-                            <StatTile label="On leave" value={num(summary.instructors_on_leave)} tone={num(summary.instructors_on_leave) > 0 ? 'warn' : 'default'} />
-                            <StatTile
-                                label="Active"
-                                value={Math.max(0, num(summary.instructors_total) - num(summary.instructors_on_leave))}
-                                tone="good"
-                            />
-                        </div>
-                        <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                            <BarRow
-                                bars={[
-                                    { label: 'Availability', value: Math.round(instructorActivePct), color: '#10b981', hint: '%' }
-                                ]}
-                                max={100}
-                            />
-                        </div>
+                        {#if hasFacData && facTotals}
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <StatTile label="Total" value={facTotals.total} />
+                                <StatTile label="Present" value={facTotals.present} tone="good" />
+                                <StatTile label="Absent" value={facTotals.absent} tone={facTotals.absent > 0 ? 'bad' : 'default'} />
+                                <StatTile label="Training / WFH" value={facTotals.training + facTotals.onLeave} />
+                            </div>
+                            {#if facTotals.total > 0}
+                                <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                    <BarRow
+                                        bars={[
+                                            { label: 'Present', value: facTotals.present, color: '#10b981' },
+                                            { label: 'Absent', value: facTotals.absent, color: '#f43f5e' },
+                                            { label: 'Training', value: facTotals.training, color: '#0ea5e9' },
+                                            { label: 'Leave / WFH', value: facTotals.onLeave, color: '#f59e0b' }
+                                        ]}
+                                        max={facTotals.total}
+                                    />
+                                </div>
+                            {/if}
+                            {#if facTotals.sessions > 0}
+                                <div class="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    <span class="font-semibold text-zinc-700 dark:text-zinc-300">{facTotals.sessions}</span> sessions logged
+                                </div>
+                            {/if}
+                            <!-- Per-university breakdown -->
+                            {#if facSummary.length > 1}
+                                <details class="mt-3 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden group">
+                                    <summary class="cursor-pointer list-none px-3 py-2 bg-zinc-50 dark:bg-zinc-800/50 flex items-center justify-between text-[11px] font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                                        <span>By university ({facSummary.length})</span>
+                                        <ChevronRight size={12} class="transition-transform group-open:rotate-90" />
+                                    </summary>
+                                    <ul class="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[200px] overflow-y-auto text-[11px]">
+                                        {#each facSummary as u}
+                                            {@const rate = Number(u.total_faculty) > 0 ? Math.round((Number(u.present) / Number(u.total_faculty)) * 100) : 0}
+                                            <li class="flex items-center justify-between px-3 py-2">
+                                                <span class="text-zinc-900 dark:text-zinc-100 font-medium">{u.university_name || '—'}</span>
+                                                <div class="flex items-center gap-2 tabular-nums">
+                                                    <span class="text-emerald-600 dark:text-emerald-400">{u.present}P</span>
+                                                    <span class="text-rose-600 dark:text-rose-400">{u.absent}A</span>
+                                                    <span class="font-bold {rate >= 90 ? 'text-emerald-600' : rate >= 75 ? 'text-amber-600' : 'text-rose-600'}">{rate}%</span>
+                                                </div>
+                                            </li>
+                                        {/each}
+                                    </ul>
+                                </details>
+                            {/if}
+                        {:else}
+                            <!-- Fallback: ops_daily_data summary -->
+                            <div class="grid grid-cols-3 gap-3">
+                                <StatTile label="Total" value={num(summary.instructors_total)} />
+                                <StatTile label="On leave" value={num(summary.instructors_on_leave)} tone={num(summary.instructors_on_leave) > 0 ? 'warn' : 'default'} />
+                                <StatTile
+                                    label="Active"
+                                    value={Math.max(0, num(summary.instructors_total) - num(summary.instructors_on_leave))}
+                                    tone="good"
+                                />
+                            </div>
+                            <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                <BarRow
+                                    bars={[
+                                        { label: 'Availability', value: Math.round(instructorActivePct), color: '#10b981', hint: '%' }
+                                    ]}
+                                    max={100}
+                                />
+                            </div>
+                            <div class="pt-2 text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                                Tip: Start using <a href="/faculty-attendance" class="text-sky-500 hover:underline">Faculty Attendance</a> for live per-instructor tracking.
+                            </div>
+                        {/if}
                     {/snippet}
                 </Card>
 

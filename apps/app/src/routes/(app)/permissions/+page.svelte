@@ -85,6 +85,11 @@
       desc: "Operational metrics and monitoring overview",
     },
     {
+      id: "faculty-attendance",
+      label: "Faculty Attendance",
+      desc: "Mark daily faculty attendance, track workload and topics covered",
+    },
+    {
       id: "permissions",
       label: "Permissions",
       desc: "Feature management configuration",
