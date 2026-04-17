@@ -15,7 +15,8 @@
     let activeTab = $state<Tab>('attendance');
     let selectedDate = $state(new Date().toISOString().split('T')[0]);
     let universityId = $state(data.universityId || '');
-    let universities = $state<any[]>([]);
+    let universityName = $state(data.universityName || '');
+    let universities = $state<any[]>(data.allUniversities || []);
     let loading = $state(false);
     let saving = $state(false);
     let successMsg = $state('');
@@ -402,10 +403,8 @@
 
     // ─── Lifecycle ────────────────────────────────────────
 
-    onMount(async () => {
-        if (data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS') {
-            await loadUniversities();
-        }
+    onMount(() => {
+        // BOAs auto-load their university's data immediately
         if (universityId) loadAttendance();
     });
 
@@ -443,15 +442,22 @@
         </div>
 
         {#if data.userRole === 'ADMIN' || data.userRole === 'PROGRAM_OPS'}
+            <!-- Admin/PM: dropdown to pick any university -->
             <select
                 bind:value={universityId}
                 class="text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
                 <option value="">Select university</option>
                 {#each universities as u}
-                    <option value={u.id || u}>{typeof u === 'string' ? u : u.name || u.short_name}</option>
+                    <option value={u.id}>{u.name}</option>
                 {/each}
             </select>
+        {:else if universityName}
+            <!-- BOA: show their university name (auto-selected) -->
+            <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/40">
+                <div class="w-2 h-2 rounded-full bg-sky-500"></div>
+                <span class="text-sm font-semibold text-sky-700 dark:text-sky-300">{universityName}</span>
+            </div>
         {/if}
     </div>
 
