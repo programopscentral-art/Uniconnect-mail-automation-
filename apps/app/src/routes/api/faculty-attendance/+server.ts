@@ -14,6 +14,7 @@ import {
     getAttendanceForDate, markAttendance, markBulkAttendance,
     getWorkloadForDate, upsertWorkloadLog,
     getAttendanceSummary, getAttendanceByDate, getMonthlyInstructorReport,
+    ensureInstructorTables,
 } from '@uniconnect/shared';
 
 function checkAccess(locals: any) {
@@ -27,9 +28,10 @@ function checkAccess(locals: any) {
 
 export const GET: RequestHandler = async ({ url, locals }) => {
     checkAccess(locals);
+    await ensureInstructorTables();
 
     const view = url.searchParams.get('view') || 'attendance';
-    const universityId = url.searchParams.get('universityId') || locals.user.university_id;
+    const universityId = url.searchParams.get('universityId') || locals.user?.university_id;
     const date = url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
     if (!universityId) throw error(400, 'universityId required');
@@ -72,10 +74,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
 export const POST: RequestHandler = async ({ request, locals }) => {
     checkAccess(locals);
+    await ensureInstructorTables();
 
     const body = await request.json();
     const action = body.action;
-    const userId = locals.user.id;
+    const userId = locals.user!.id;
 
     switch (action) {
         // ─── Faculty profiles ─────────────────────────────

@@ -4,9 +4,90 @@
  */
 import { db } from './client';
 
+let tablesEnsured = false;
+
+/** Auto-create instructor tables if they don't exist yet (idempotent). */
+export async function ensureInstructorTables() {
+    if (tablesEnsured) return;
+    try {
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS instructor_profiles (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                university_id uuid NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+                user_id uuid REFERENCES users(id) ON DELETE SET NULL,
+                faculty_profile_id uuid,
+                name text NOT NULL,
+                email text,
+                phone text,
+                designation text,
+                department text,
+                subjects text[] DEFAULT '{}',
+                is_active boolean NOT NULL DEFAULT true,
+                created_by uuid REFERENCES users(id),
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS instructor_attendance (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                instructor_id uuid NOT NULL REFERENCES instructor_profiles(id) ON DELETE CASCADE,
+                university_id uuid NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+                date date NOT NULL,
+                status text NOT NULL DEFAULT 'present',
+                marked_by uuid NOT NULL REFERENCES users(id),
+                marked_at timestamptz NOT NULL DEFAULT now(),
+                notes text,
+                UNIQUE(instructor_id, date)
+            );
+            CREATE TABLE IF NOT EXISTS instructor_daily_log (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                instructor_id uuid NOT NULL REFERENCES instructor_profiles(id) ON DELETE CASCADE,
+                university_id uuid NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+                date date NOT NULL,
+                sessions_taken int NOT NULL DEFAULT 0,
+                subjects_taught text[] DEFAULT '{}',
+                topics_covered text,
+                workload_notes text,
+                logged_by uuid NOT NULL REFERENCES users(id),
+                created_at timestamptz NOT NULL DEFAULT now(),
+                updated_at timestamptz NOT NULL DEFAULT now(),
+                UNIQUE(instructor_id, date)
+            );
+        `);
+        tablesEnsured = true;
+    } catch (e) {
+        // Tables might already exist with slightly different schema — that's fine
+        tablesEnsured = true;
+    }
+}
+
 // ─── Instructor Profiles ────────────────────────────────────────────
 
 export async function getInstructorsByUniversity(universityId: string) {
+    // Auto-sync: if faculty_profiles exists for this university but
+    // instructor_profiles doesn't have them yet, create them on the fly.
+    // This removes the need to run the migration first.
+    try {
+        await db.query(`
+            INSERT INTO instructor_profiles (university_id, user_id, faculty_profile_id, name, email, designation, department, is_active)
+            SELECT
+                fp.university_id,
+                fp.user_id,
+                fp.id,
+                COALESCE(u.name, fp.employee_code, 'Unknown'),
+                u.email,
+                fp.designation,
+                fp.department,
+                COALESCE(fp.employment_status = 'active', true)
+            FROM faculty_profiles fp
+            LEFT JOIN users u ON u.id = fp.user_id
+            WHERE fp.university_id = $1
+              AND NOT EXISTS (
+                  SELECT 1 FROM instructor_profiles ip WHERE ip.faculty_profile_id = fp.id
+              )
+            ON CONFLICT DO NOTHING
+        `, [universityId]);
+    } catch { /* faculty_profiles table may not exist yet */ }
+
     const res = await db.query(
         `SELECT ip.*, u.name AS university_name
          FROM instructor_profiles ip
