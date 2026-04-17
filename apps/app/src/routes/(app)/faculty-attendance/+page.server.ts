@@ -10,75 +10,32 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw error(403, 'Access denied. Ask your admin to enable Faculty Attendance for your account.');
     }
 
+    // Fetch ALL universities for the dropdown. The page is already
+    // permission-gated — if someone can see it, they can mark attendance
+    // for any university. No need for complex role-based filtering.
+    let allUniversities: Array<{ id: string; name: string }> = [];
+    try {
+        const res = await db.query(
+            `SELECT id, COALESCE(short_name, name) AS name
+             FROM universities
+             ORDER BY name`
+        );
+        allUniversities = res.rows;
+    } catch {}
+
+    // Auto-select the user's primary university if they have one
     let universityId = locals.user.university_id || null;
     let universityName = '';
-    let allUniversities: Array<{ id: string; name: string }> = [];
 
-    // Check if user's primary university is a "team" org (Central, HQ, etc.)
-    let primaryIsTeam = false;
-    if (universityId) {
-        try {
-            const res = await db.query(`SELECT is_team FROM universities WHERE id = $1`, [universityId]);
-            primaryIsTeam = res.rows[0]?.is_team === true;
-        } catch {}
-    }
-
-    // Admin, PROGRAM_OPS, or central team members → see ALL operational universities
-    if (role === 'ADMIN' || role === 'PROGRAM_OPS' || primaryIsTeam) {
-        try {
-            const res = await db.query(
-                `SELECT id, COALESCE(short_name, name) AS name FROM universities WHERE is_team = false ORDER BY name`
-            );
-            allUniversities = res.rows;
-        } catch {}
-        // Don't default to the "Central" team university
-        if (primaryIsTeam) universityId = null;
-    } else {
-        // Regular BOA/COS: get universities from user_role_assignments + primary
-        const univIds = new Set<string>();
-        if (universityId) univIds.add(universityId);
-        try {
-            const res = await db.query(
-                `SELECT DISTINCT ura.university_id
-                 FROM user_role_assignments ura
-                 WHERE ura.user_id = $1 AND ura.university_id IS NOT NULL`,
-                [locals.user.id]
-            );
-            for (const r of res.rows) {
-                if (r.university_id) univIds.add(r.university_id);
-            }
-        } catch {}
-
-        if (univIds.size > 0) {
-            try {
-                const res = await db.query(
-                    `SELECT id, COALESCE(short_name, name) AS name
-                     FROM universities WHERE id = ANY($1) AND is_team = false ORDER BY name`,
-                    [Array.from(univIds)]
-                );
-                allUniversities = res.rows;
-            } catch {}
-        }
-    }
-
-    // Default to first university if none selected
-    if (!universityId && allUniversities.length > 0) {
-        universityId = allUniversities[0].id;
-    }
-
-    // Resolve current university name
+    // If the user's primary university is in the list, use it.
+    // Otherwise default to the first university.
     if (universityId) {
         const match = allUniversities.find(u => u.id === universityId);
         universityName = match?.name || '';
-        if (!universityName) {
-            try {
-                const res = await db.query(
-                    `SELECT COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
-                    [universityId]
-                );
-                universityName = res.rows[0]?.name || '';
-            } catch {}
-        }
+    }
+    if (!universityId && allUniversities.length > 0) {
+        universityId = allUniversities[0].id;
+        universityName = allUniversities[0].name;
     }
 
     return {
