@@ -15,7 +15,6 @@ export async function ensureInstructorTables() {
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
                 university_id uuid NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
                 user_id uuid REFERENCES users(id) ON DELETE SET NULL,
-                faculty_profile_id uuid,
                 name text NOT NULL,
                 email text,
                 phone text,
@@ -63,30 +62,33 @@ export async function ensureInstructorTables() {
 // ─── Instructor Profiles ────────────────────────────────────────────
 
 export async function getInstructorsByUniversity(universityId: string) {
-    // Auto-sync: if faculty_profiles exists for this university but
-    // instructor_profiles doesn't have them yet, create them on the fly.
-    // This removes the need to run the migration first.
+    await ensureInstructorTables();
+
+    // Auto-sync: pull users with FACULTY role into instructor_profiles
+    // if they aren't there yet (so existing faculty show up immediately).
     try {
         await db.query(`
-            INSERT INTO instructor_profiles (university_id, user_id, faculty_profile_id, name, email, designation, department, is_active)
+            INSERT INTO instructor_profiles (university_id, user_id, name, email, designation, is_active)
             SELECT
-                fp.university_id,
-                fp.user_id,
-                fp.id,
-                COALESCE(u.name, fp.employee_code, 'Unknown'),
+                u.university_id,
+                u.id,
+                u.name,
                 u.email,
-                fp.designation,
-                fp.department,
-                COALESCE(fp.employment_status = 'active', true)
-            FROM faculty_profiles fp
-            LEFT JOIN users u ON u.id = fp.user_id
-            WHERE fp.university_id = $1
+                'Faculty',
+                u.is_active
+            FROM users u
+            WHERE u.university_id = $1
+              AND u.is_active = true
+              AND (
+                  u.role = 'FACULTY'
+                  OR EXISTS (SELECT 1 FROM user_role_assignments ura WHERE ura.user_id = u.id AND ura.role_code = 'faculty')
+              )
               AND NOT EXISTS (
-                  SELECT 1 FROM instructor_profiles ip WHERE ip.faculty_profile_id = fp.id
+                  SELECT 1 FROM instructor_profiles ip WHERE ip.user_id = u.id
               )
             ON CONFLICT DO NOTHING
         `, [universityId]);
-    } catch { /* faculty_profiles table may not exist yet */ }
+    } catch { /* user_role_assignments may not exist */ }
 
     const res = await db.query(
         `SELECT ip.*, u.name AS university_name
@@ -121,40 +123,15 @@ export async function createInstructorProfile(data: {
     user_id?: string;
     created_by: string;
 }) {
-    // Also try to create a faculty_profiles entry so the faculty shows up
-    // in academic-operations/faculty-ops page as well (interlinked).
-    let facultyProfileId: string | null = null;
-    try {
-        const fpCheck = await db.query(
-            `SELECT 1 FROM information_schema.tables WHERE table_name = 'faculty_profiles'`
-        );
-        if (fpCheck.rows.length > 0 && data.user_id) {
-            const existing = await db.query(
-                `SELECT id FROM faculty_profiles WHERE user_id = $1`, [data.user_id]
-            );
-            if (existing.rows.length > 0) {
-                facultyProfileId = existing.rows[0].id;
-            } else {
-                const fpRes = await db.query(
-                    `INSERT INTO faculty_profiles (university_id, user_id, designation, department, employment_status)
-                     VALUES ($1, $2, $3, $4, 'active')
-                     ON CONFLICT DO NOTHING RETURNING id`,
-                    [data.university_id, data.user_id, data.designation || null, data.department || null]
-                );
-                if (fpRes.rows.length > 0) facultyProfileId = fpRes.rows[0].id;
-            }
-        }
-    } catch { /* faculty_profiles may not exist yet */ }
-
     const res = await db.query(
         `INSERT INTO instructor_profiles
-            (university_id, name, email, phone, designation, department, subjects, user_id, faculty_profile_id, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            (university_id, name, email, phone, designation, department, subjects, user_id, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
             data.university_id, data.name, data.email || null,
             data.phone || null, data.designation || null, data.department || null,
-            data.subjects || [], data.user_id || null, facultyProfileId, data.created_by
+            data.subjects || [], data.user_id || null, data.created_by
         ]
     );
     return res.rows[0];
