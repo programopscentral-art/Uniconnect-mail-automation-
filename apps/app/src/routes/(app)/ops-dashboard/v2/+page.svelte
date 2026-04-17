@@ -257,8 +257,8 @@
                 // Collect reasons / remarks with frequency.
                 const addParts = (raw: string, target: Map<string, number>) => {
                     const s = String(raw || '').trim();
-                    if (!s) return;
-                    for (const p of s.split(/\s*;\s*|\s*\|\s*/).map((x) => x.trim()).filter(Boolean)) {
+                    if (!s || isNoise(s)) return;
+                    for (const p of s.split(/\s*;\s*|\s*\|\s*/).map((x) => x.trim()).filter((x) => x && !isNoise(x))) {
                         target.set(p, (target.get(p) || 0) + 1);
                     }
                 };
@@ -414,7 +414,7 @@
     // Filter out "no content" reason strings — users sometimes put "NA" or "-".
     const isNoise = (s: string): boolean => {
         const low = s.trim().toLowerCase();
-        return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null';
+        return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null' || low === '0' || low === 'no';
     };
     const isHolidayReason = (s: string): boolean => {
         const low = s.toLowerCase();
@@ -1419,8 +1419,14 @@
                             {/if}
                         {:else}
                         {@const remarkRows = (rangeRows || [])
-                            .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
-                            .filter((r: any) => r._note && String(r._note).trim().length > 0)}
+                            .map((r: any) => {
+                                // Pick the best non-noise note from remarks or cancellation_reason
+                                const rm = String(r.remarks || '').trim();
+                                const cr = String(r.cancellation_reason || '').trim();
+                                const note = !isNoise(rm) ? rm : !isNoise(cr) ? cr : '';
+                                return { ...r, _note: note };
+                            })
+                            .filter((r: any) => r._note.length > 0)}
                         {#if remarkRows.length > 0}
                             <ul class="flex flex-col gap-3">
                                 {#each remarkRows.slice(0, 8) as row}

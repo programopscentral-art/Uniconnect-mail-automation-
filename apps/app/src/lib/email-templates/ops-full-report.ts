@@ -151,8 +151,13 @@ function universityTable(rows: any[]): string {
 
 function remarksList(rows: any[]): string {
     const notes = (rows || [])
-        .map((r: any) => ({ ...r, _note: r.remarks || r.cancellation_reason || '' }))
-        .filter((r: any) => r._note && String(r._note).trim().length > 0)
+        .map((r: any) => {
+            const rm = String(r.remarks || '').trim();
+            const cr = String(r.cancellation_reason || '').trim();
+            const note = !isNoiseReason(rm) ? rm : !isNoiseReason(cr) ? cr : '';
+            return { ...r, _note: note };
+        })
+        .filter((r: any) => r._note.length > 0)
         .slice(0, 12);
     if (notes.length === 0) {
         return `<div style="padding:14px;background:#f8fafc;border-radius:10px;color:#64748b;font-size:13px;font-style:italic">No remarks logged for this period.</div>`;
@@ -422,7 +427,7 @@ function renderBudgetSection(mode: OpsReportMode, budgetIntel: any, accent1: str
 
 const isNoiseReason = (s: string): boolean => {
     const low = s.trim().toLowerCase();
-    return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null';
+    return low === '' || low === 'na' || low === 'n/a' || low === '-' || low === 'none' || low === 'nil' || low === 'null' || low === '0' || low === 'no';
 };
 const isHolidayReason = (s: string): boolean => {
     const low = s.toLowerCase();
