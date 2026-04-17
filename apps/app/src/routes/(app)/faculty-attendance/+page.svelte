@@ -280,6 +280,7 @@
             if (res.ok) {
                 flash(`${name} removed`);
                 await loadDirectory();
+                loadAttendance();
             }
         } catch (e: any) {
             flash(e?.message || 'Remove failed', true);
@@ -398,7 +399,7 @@
                 body: JSON.stringify({ action: 'remove-coach', id })
             });
             flash(`${name} removed`);
-            await loadCoachDirectory();
+            await loadCoachLogs();
         } catch {}
     }
 
