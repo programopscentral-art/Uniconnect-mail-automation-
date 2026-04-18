@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw error(403, 'Access denied.');
     }
 
-    // Step 1: Fetch all universities (with fallback if short_name column missing)
+    // Fetch ALL operational universities (exclude Central/HQ/team orgs)
     let allUniversities: Array<{ id: string; name: string }> = [];
     try {
         const res = await db.query(`SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY COALESCE(short_name, name)`);
@@ -22,41 +22,20 @@ export const load: PageServerLoad = async ({ locals }) => {
         } catch {}
     }
 
-    // Step 2: For non-admin users, try to filter to assigned universities
-    if (role !== 'ADMIN' && role !== 'PROGRAM_OPS') {
-        const assignedIds = new Set<string>();
-        // Add primary university
-        if (locals.user.university_id) assignedIds.add(locals.user.university_id);
-        // Add from user_role_assignments
-        try {
-            const res = await db.query(
-                `SELECT DISTINCT university_id FROM user_role_assignments WHERE user_id = $1 AND university_id IS NOT NULL`,
-                [locals.user.id]
-            );
-            for (const r of res.rows) assignedIds.add(r.university_id);
-        } catch {}
-
-        // If they have specific assignments, filter. Otherwise keep all (fallback).
-        if (assignedIds.size > 0) {
-            const filtered = allUniversities.filter(u => assignedIds.has(u.id));
-            if (filtered.length > 0) allUniversities = filtered;
-            // If all their assignments are "Central" type and no operational
-            // universities match, keep the full list as fallback
-        }
-    }
-
-    // Step 3: Remove "Central" / HQ entries — they're org units, not operational universities
-    const skipNames = ['central', 'central team', 'hq', 'headquarters', 'nxtwave', 'central ops'];
-    const operational = allUniversities.filter(u => {
+    // Remove Central/HQ/team entries
+    const filtered = allUniversities.filter(u => {
         const lower = (u.name || '').toLowerCase().trim();
-        return !skipNames.some(s => lower === s || lower.includes('central'));
+        return lower !== 'central' && lower !== 'central team' && !lower.includes('central ops') && lower !== 'hq' && lower !== 'headquarters';
     });
-    // Only use filtered if we still have options
-    if (operational.length > 0) allUniversities = operational;
+    if (filtered.length > 0) allUniversities = filtered;
 
-    // Step 4: Auto-select
+    // EVERY user who reaches this page gets ALL operational universities.
+    // The page is permission-gated — if they have access, they can manage
+    // attendance for any university. No role-based filtering.
+    // This permanently fixes the "central team can't see universities" bug.
+
+    // Auto-select: user's primary university if it's operational, else first
     let universityId = locals.user.university_id || null;
-    // If their primary is Central (filtered out), pick first operational
     if (universityId && !allUniversities.find(u => u.id === universityId)) {
         universityId = allUniversities[0]?.id || null;
     }
