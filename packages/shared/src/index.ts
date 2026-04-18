@@ -86,4 +86,5 @@ export * from './db/column_recognition';
 export * from './services/meeting-intelligence.service';
 export * from './db/faculty_attendance';
 export * from './db/success_coaches';
+export * from './db/budget_proposal_tracking';
 // Ensure all assessment functions including createUniversityAsset are exported

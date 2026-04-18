@@ -1,6 +1,7 @@
 import { json, error } from '@sveltejs/kit';
-import { getBudgetProposalById, transitionBudgetProposalStatus, type BudgetProposalStatus } from '@uniconnect/shared';
+import { getBudgetProposalById, transitionBudgetProposalStatus, addTrackingEntry, db, type BudgetProposalStatus } from '@uniconnect/shared';
 import { notifyBudgetProposalUpdate } from '$lib/server/budget_proposals';
+import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ params, request, locals }) => {
@@ -85,8 +86,82 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
     // Notify
     const updatedProposal = await getBudgetProposalById(params.id);
-    if (updatedProposal && toStatus !== 'UNDER_REVIEW') { // Don't notify for "Under Review" start
+    if (updatedProposal && toStatus !== 'UNDER_REVIEW') {
         await notifyBudgetProposalUpdate(updatedProposal, toStatus, locals.user.name || locals.user.email, reason);
+    }
+
+    // Add tracking timeline entry
+    const trackingTitles: Record<string, string> = {
+        'UNDER_REVIEW': 'Under Review',
+        'APPROVED_L1': 'CM Approved',
+        'APPROVED': 'Admin Approved — Sent to Facilities',
+        'REJECTED': 'Proposal Rejected',
+        'CHANGES_REQUESTED': 'Changes Requested',
+        'CLOSED': 'Proposal Closed'
+    };
+    try {
+        await addTrackingEntry({
+            proposal_id: params.id,
+            status: toStatus.toLowerCase(),
+            title: trackingTitles[toStatus] || toStatus,
+            description: reason || (toStatus === 'APPROVED' ? `Budget approved: ₹${approvedBudget}` : undefined),
+            updated_by_name: locals.user.name || locals.user.email,
+            updated_by_email: locals.user.email,
+            source: 'uniconnect'
+        });
+    } catch (e) {
+        console.warn('[TRACKING] Failed to add tracking entry:', e);
+    }
+
+    // On APPROVED → webhook to Facilities OS to create procurement request
+    if (toStatus === 'APPROVED' && updatedProposal) {
+        const facilitiesUrl = env.FACILITIES_OS_WEBHOOK_URL || process.env.FACILITIES_OS_WEBHOOK_URL;
+        if (facilitiesUrl) {
+            try {
+                // Fetch items for this proposal
+                const itemsRes = await db.query(
+                    `SELECT * FROM budget_proposal_items WHERE proposal_id = $1`,
+                    [params.id]
+                );
+                const univRes = await db.query(
+                    `SELECT COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
+                    [updatedProposal.university_id]
+                );
+
+                await fetch(facilitiesUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-webhook-secret': env.FACILITIES_WEBHOOK_SECRET || 'facilities-webhook-key'
+                    },
+                    body: JSON.stringify({
+                        action: 'proposal_approved',
+                        proposal: {
+                            id: updatedProposal.id,
+                            title: updatedProposal.title,
+                            description: updatedProposal.description,
+                            university_id: updatedProposal.university_id,
+                            university_name: univRes.rows[0]?.name || '',
+                            proposer_name: updatedProposal.proposer_name,
+                            proposer_email: updatedProposal.proposer_email,
+                            estimated_total_budget: updatedProposal.estimated_total_budget,
+                            approved_total_budget: approvedBudget || updatedProposal.approved_total_budget,
+                            proposed_date: updatedProposal.proposed_date,
+                            venue: updatedProposal.venue,
+                            priority: updatedProposal.priority
+                        },
+                        items: itemsRes.rows,
+                        approvals: [
+                            { name: locals.user.name, email: locals.user.email, role: locals.user.role, approved_at: new Date().toISOString() }
+                        ]
+                    })
+                });
+                console.log(`[WEBHOOK] Sent approved proposal ${params.id} to Facilities OS`);
+            } catch (e) {
+                console.warn('[WEBHOOK] Failed to send to Facilities OS:', e);
+                // Non-blocking — approval still succeeds even if webhook fails
+            }
+        }
     }
 
     return json({ success: true });
