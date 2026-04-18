@@ -555,36 +555,41 @@
                         <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors overflow-hidden {current ? 'ring-1 ring-emerald-200 dark:ring-emerald-900/40' : ''}">
                             <!-- Main row: name + status buttons -->
                             <div class="flex items-center gap-3 p-3">
-                                <!-- Faculty info + expand toggle -->
+                                <!-- Faculty info + expand arrow -->
                                 <button
                                     onclick={() => toggleExpand(row.instructor_id)}
-                                    class="flex-1 min-w-0 text-left group"
+                                    class="flex items-center gap-2 flex-1 min-w-0 text-left group"
                                 >
-                                    <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
-                                        {row.name}
-                                        <span class="text-[10px] text-zinc-400 ml-1">{isExpanded ? '▾' : '▸'}</span>
-                                    </div>
-                                    <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                                        {row.designation || '—'}
-                                        {#if row.subjects && row.subjects.length > 0}
-                                            · {row.subjects.join(', ')}
-                                        {/if}
+                                    <ChevronRight size={14} class="text-zinc-400 transition-transform shrink-0 {isExpanded ? 'rotate-90' : ''} group-hover:text-sky-500" />
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                                            {row.name}
+                                        </div>
+                                        <div class="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                                            {row.designation || 'No designation'}
+                                            {#if row.subjects && row.subjects.length > 0}
+                                                · {row.subjects.join(', ')}
+                                            {:else}
+                                                · <span class="text-amber-500 italic">No subjects added — click to edit</span>
+                                            {/if}
+                                        </div>
                                     </div>
                                 </button>
 
-                                <!-- Status buttons -->
-                                <div class="flex items-center gap-1">
+                                <!-- Status buttons — full labels on md+, short on mobile -->
+                                <div class="flex items-center gap-1 flex-wrap">
                                     {#each Object.entries(statusMeta) as [key, meta]}
                                         {@const isActive = current?.status === key}
                                         <button
                                             onclick={() => setStatus(row.instructor_id, key as AttStatus)}
-                                            class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all border
+                                            class="px-2 md:px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold transition-all border
                                                    {isActive
-                                                       ? `${meta.bg} ${meta.darkBg} ${meta.color} dark:${meta.color.replace('700', '300')} border-current`
+                                                       ? `${meta.bg} ${meta.darkBg} ${meta.color} dark:${meta.color.replace('700', '300')} border-current shadow-sm`
                                                        : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700'}"
                                             title={meta.label}
                                         >
-                                            {meta.short}
+                                            <span class="md:hidden">{meta.short}</span>
+                                            <span class="hidden md:inline">{meta.label}</span>
                                         </button>
                                     {/each}
                                 </div>
@@ -606,6 +611,50 @@
                                     </div>
 
                                     {#if isExpanded}
+                                        <!-- Edit profile -->
+                                        <div class="p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-900/40">
+                                            <div class="text-[9px] uppercase tracking-wider font-bold text-sky-600 dark:text-sky-400 mb-2">Edit Profile</div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Designation"
+                                                    value={row.designation || ''}
+                                                    onchange={async (e) => {
+                                                        const val = (e.target as HTMLInputElement).value;
+                                                        try {
+                                                            await fetch('/api/faculty-attendance', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ action: 'update-faculty', id: row.instructor_id, designation: val })
+                                                            });
+                                                            row.designation = val;
+                                                            flash('Designation updated');
+                                                        } catch {}
+                                                    }}
+                                                    class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Subjects (comma-separated)"
+                                                    value={(row.subjects || []).join(', ')}
+                                                    onchange={async (e) => {
+                                                        const val = (e.target as HTMLInputElement).value;
+                                                        const subjects = val.split(',').map((s: string) => s.trim()).filter(Boolean);
+                                                        try {
+                                                            await fetch('/api/faculty-attendance', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ action: 'update-faculty', id: row.instructor_id, subjects })
+                                                            });
+                                                            row.subjects = subjects;
+                                                            flash('Subjects updated');
+                                                        } catch {}
+                                                    }}
+                                                    class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
+                                                />
+                                            </div>
+                                        </div>
+
                                         <!-- Sessions taken -->
                                         <div class="flex items-center gap-2">
                                             <span class="text-[10px] text-zinc-500 dark:text-zinc-400 font-semibold uppercase tracking-wider w-16 shrink-0">Sessions</span>
@@ -778,14 +827,17 @@
                         {@const isExpanded = expandedCoach === row.coach_id}
                         <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 overflow-hidden {cd ? 'ring-1 ring-sky-200 dark:ring-sky-900/40' : ''}">
                             <div class="flex items-center gap-3 p-3">
-                                <!-- Coach info -->
-                                <button onclick={() => expandedCoach = isExpanded ? null : row.coach_id} class="flex-1 min-w-0 text-left group">
-                                    <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-sky-600 transition-colors">
-                                        {row.name} <span class="text-[10px] text-zinc-400">{isExpanded ? '▾' : '▸'}</span>
-                                    </div>
-                                    <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                        Target: {target} calls/day
-                                        {#if cd} · <span class="font-semibold {achieved >= 100 ? 'text-emerald-600' : achieved >= 70 ? 'text-amber-600' : 'text-rose-600'}">{achieved}% achieved</span>{/if}
+                                <!-- Coach info + expand arrow -->
+                                <button onclick={() => expandedCoach = isExpanded ? null : row.coach_id} class="flex items-center gap-2 flex-1 min-w-0 text-left group">
+                                    <ChevronRight size={14} class="text-zinc-400 transition-transform shrink-0 {isExpanded ? 'rotate-90' : ''} group-hover:text-violet-500" />
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                                            {row.name}
+                                        </div>
+                                        <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                            Target: {target} calls/day
+                                            {#if cd} · <span class="font-semibold {achieved >= 100 ? 'text-emerald-600' : achieved >= 70 ? 'text-amber-600' : 'text-rose-600'}">{achieved}% achieved</span>{/if}
+                                        </div>
                                     </div>
                                 </button>
 
@@ -827,7 +879,35 @@
                             </div>
 
                             {#if isExpanded}
-                                <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 flex gap-3 pt-2">
+                                <div class="px-3 pb-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-col gap-2 pt-2">
+                                    <!-- Edit coach profile -->
+                                    <div class="p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900/40">
+                                        <div class="text-[9px] uppercase tracking-wider font-bold text-violet-600 dark:text-violet-400 mb-2">Edit Coach</div>
+                                        <div class="grid grid-cols-3 gap-2">
+                                            <input type="text" placeholder="Name" value={row.name || ''}
+                                                onchange={async (e) => {
+                                                    const val = (e.target as HTMLInputElement).value;
+                                                    try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, name: val }) }); row.name = val; flash('Name updated'); } catch {}
+                                                }}
+                                                class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
+                                            <input type="email" placeholder="Email" value={row.email || ''}
+                                                onchange={async (e) => {
+                                                    const val = (e.target as HTMLInputElement).value;
+                                                    try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, email: val }) }); flash('Email updated'); } catch {}
+                                                }}
+                                                class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
+                                            <div class="flex items-center gap-1">
+                                                <input type="number" min="1" max="100" placeholder="15" value={row.daily_call_target || 15}
+                                                    onchange={async (e) => {
+                                                        const val = Number((e.target as HTMLInputElement).value);
+                                                        try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, daily_call_target: val }) }); row.daily_call_target = val; flash('Target updated'); } catch {}
+                                                    }}
+                                                    class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                                                <span class="text-[9px] text-zinc-400">/day</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-3">
                                     <div class="flex items-center gap-2 flex-1">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
                                         <input type="number" min="1" max="200" value={cd?.target || target}
@@ -839,6 +919,7 @@
                                         <input type="text" placeholder="Notes (optional)" value={cd?.notes || ''}
                                             oninput={(e) => setCoachCalls(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
                                             class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
+                                    </div>
                                     </div>
                                 </div>
                             {/if}
