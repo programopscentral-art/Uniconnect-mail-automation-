@@ -12,6 +12,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
+    const isGlobal = locals.user.permissions?.includes('universities');
     let universities: any[] = [];
     if (isGlobal) {
         universities = await getAllUniversities();
