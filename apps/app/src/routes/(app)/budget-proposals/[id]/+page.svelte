@@ -2,6 +2,7 @@
   import { fade, fly, slide } from "svelte/transition";
   import type { PageData } from "./$types";
   import { invalidateAll } from "$app/navigation";
+  import TrackingTimeline from "$lib/components/ops/TrackingTimeline.svelte";
 
   let { data } = $props<{ data: PageData }>();
   let proposal = $derived(data.proposal);
@@ -533,6 +534,11 @@
           </div>
         </div>
       </section>
+
+      <!-- Order Tracking Timeline -->
+      {#if proposal.status !== 'DRAFT'}
+        <TrackingTimeline proposalId={proposal.id} proposalStatus={proposal.status} />
+      {/if}
 
       <!-- Budget Breakdown -->
       <section
