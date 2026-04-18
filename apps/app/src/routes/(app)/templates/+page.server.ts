@@ -5,11 +5,10 @@ import { error } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
+    // Respect the dropdown selection from the URL. Only fall back to
+    // the user's primary university if nothing was explicitly selected.
     let universityId = url.searchParams.get('universityId');
-    const isGlobal = locals.user.permissions?.includes('universities');
-    if (!isGlobal && locals.user.university_id) {
-        universityId = locals.user.university_id;
-    } else if (!universityId && locals.user.university_id) {
+    if (!universityId && locals.user.university_id) {
         universityId = locals.user.university_id;
     }
 

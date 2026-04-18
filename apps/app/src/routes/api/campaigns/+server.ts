@@ -5,9 +5,10 @@ import { json, error } from '@sveltejs/kit';
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401);
 
+    // Respect the selected university from the dropdown. Only fall back
+    // to the user's primary university if nothing was explicitly selected.
     let universityId = url.searchParams.get('university_id') || undefined;
-    const isGlobal = locals.user.permissions?.includes('universities');
-    if (!isGlobal && locals.user.university_id) {
+    if (!universityId && locals.user.university_id) {
         universityId = locals.user.university_id;
     }
 
