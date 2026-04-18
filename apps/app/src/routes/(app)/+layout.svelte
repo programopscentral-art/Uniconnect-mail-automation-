@@ -7,11 +7,34 @@
   import { clickOutside } from "$lib/utils/clickOutside";
   import { getFcmToken, onForegroundMessage } from "$lib/firebase";
   import NotificationToast from "$lib/components/NotificationToast.svelte";
+  import { onMount } from "svelte";
   let { children, data } = $props();
   let user = $derived(data.user);
   let currentTheme = $state<"light" | "dark">(
     untrack(() => data.theme) || "light",
   );
+
+  // Global university selector for central team / multi-university users
+  let userUniversities = $state<Array<{ id: string; name: string }>>([]);
+  let selectedUniversityId = $state('');
+  let selectedUniversityName = $derived(userUniversities.find(u => u.id === selectedUniversityId)?.name || '');
+
+  onMount(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/user-universities');
+      if (res.ok) {
+        const j = await res.json();
+        userUniversities = j.universities || [];
+        // Auto-select primary or first
+        if (user.university_id && userUniversities.find((u: any) => u.id === user.university_id)) {
+          selectedUniversityId = user.university_id;
+        } else if (userUniversities.length > 0) {
+          selectedUniversityId = userUniversities[0].id;
+        }
+      }
+    } catch {}
+  });
 
   $effect(() => {
     // Root application of theme
@@ -654,6 +677,22 @@
         <div
           class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-2 md:py-3 flex justify-end items-center gap-2 sm:gap-4"
         >
+          <!-- University Selector (visible when user has multiple universities) -->
+          {#if userUniversities.length > 1}
+            <select
+              bind:value={selectedUniversityId}
+              class="text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[180px]"
+            >
+              {#each userUniversities as u}
+                <option value={u.id}>{u.name}</option>
+              {/each}
+            </select>
+          {:else if userUniversities.length === 1}
+            <div class="text-xs font-bold text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/40">
+              {userUniversities[0].name}
+            </div>
+          {/if}
+
           <div class="hidden lg:block">
             <ThemeToggle bind:currentTheme />
           </div>
