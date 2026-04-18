@@ -1,4 +1,4 @@
-import { getTemplates, getAllUniversities } from '@uniconnect/shared';
+import { getTemplates, getAllUniversities, db } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -13,16 +13,37 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         universityId = locals.user.university_id;
     }
 
-    const [templates, universities] = await Promise.all([
-        getTemplates(universityId || undefined),
-        isGlobal ? getAllUniversities() : Promise.resolve([])
-    ]);
+    let universities: any[] = [];
+    if (isGlobal) {
+        universities = await getAllUniversities();
+    } else {
+        // Fetch user's assigned universities from user_universities
+        try {
+            const res = await db.query(
+                `SELECT DISTINCT u.id, COALESCE(u.short_name, u.name) AS name
+                 FROM universities u
+                 JOIN user_universities uu ON uu.university_id = u.id
+                 WHERE uu.user_id = $1 AND u.is_team = false
+                 ORDER BY name`,
+                [locals.user.id]
+            );
+            universities = res.rows;
+        } catch {
+            // Fallback to user's primary university
+            if (locals.user.university_id) {
+                universities = (locals.user as any).universities?.filter((u: any) => !u.is_team) || [];
+            }
+        }
+    }
+
+    const templates = await getTemplates(universityId || undefined);
 
     return {
         templates,
         universities,
         selectedUniversityId: universityId,
         userRole: locals.user.role,
-        userPermissions: locals.user.permissions || []
+        userPermissions: locals.user.permissions || [],
+        user: locals.user
     };
 };
