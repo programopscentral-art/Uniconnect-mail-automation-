@@ -3,11 +3,10 @@
   import { page } from "$app/stores";
   import { fade, fly } from "svelte/transition";
   import ThemeToggle from "$lib/components/ui/ThemeToggle.svelte";
-  import { untrack } from "svelte";
+  import { untrack, onMount } from "svelte";
   import { clickOutside } from "$lib/utils/clickOutside";
   import { getFcmToken, onForegroundMessage } from "$lib/firebase";
   import NotificationToast from "$lib/components/NotificationToast.svelte";
-  import { onMount } from "svelte";
   let { children, data } = $props();
   let user = $derived(data.user);
   let currentTheme = $state<"light" | "dark">(
@@ -19,14 +18,13 @@
   let selectedUniversityId = $state('');
   let selectedUniversityName = $derived(userUniversities.find(u => u.id === selectedUniversityId)?.name || '');
 
-  onMount(async () => {
+  async function loadUserUniversities() {
     if (!user) return;
     try {
       const res = await fetch('/api/user-universities');
       if (res.ok) {
         const j = await res.json();
         userUniversities = j.universities || [];
-        // Auto-select primary or first
         if (user.university_id && userUniversities.find((u: any) => u.id === user.university_id)) {
           selectedUniversityId = user.university_id;
         } else if (userUniversities.length > 0) {
@@ -34,7 +32,7 @@
         }
       }
     } catch {}
-  });
+  }
 
   $effect(() => {
     // Root application of theme
@@ -345,8 +343,8 @@
     showPresenceMenu = false;
   }
 
-  import { onMount } from "svelte";
   onMount(() => {
+    loadUserUniversities();
     notifChannel = new BroadcastChannel("uni-notifications-coord");
 
     fetchNotifications();
