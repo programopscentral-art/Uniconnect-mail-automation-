@@ -10,31 +10,50 @@ export const load: PageServerLoad = async ({ locals }) => {
         throw error(403, 'Access denied.');
     }
 
-    // Fetch ALL operational universities (exclude Central/HQ/team orgs)
     let allUniversities: Array<{ id: string; name: string }> = [];
+
+    // Use user_universities table — this is the source of truth for
+    // which universities each user is assigned to. Same as ops dashboard.
     try {
-        const res = await db.query(`SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY COALESCE(short_name, name)`);
+        const res = await db.query(
+            `SELECT DISTINCT u.id, COALESCE(u.short_name, u.name) AS name
+             FROM universities u
+             JOIN user_universities uu ON uu.university_id = u.id
+             WHERE uu.user_id = $1 AND u.is_team = false
+             ORDER BY name`,
+            [locals.user.id]
+        );
         allUniversities = res.rows;
     } catch {
+        // Fallback if user_universities or is_team column doesn't exist
         try {
-            const res = await db.query(`SELECT id, name FROM universities ORDER BY name`);
+            const res = await db.query(`SELECT id, COALESCE(short_name, name) AS name FROM universities ORDER BY name`);
             allUniversities = res.rows;
-        } catch {}
+        } catch {
+            try {
+                const res = await db.query(`SELECT id, name FROM universities ORDER BY name`);
+                allUniversities = res.rows;
+            } catch {}
+        }
     }
 
-    // Remove Central/HQ/team entries
-    const filtered = allUniversities.filter(u => {
-        const lower = (u.name || '').toLowerCase().trim();
-        return lower !== 'central' && lower !== 'central team' && !lower.includes('central ops') && lower !== 'hq' && lower !== 'headquarters';
-    });
-    if (filtered.length > 0) allUniversities = filtered;
+    // If user has 0 assigned universities (shouldn't happen but safety net),
+    // fall back to all operational universities
+    if (allUniversities.length === 0) {
+        try {
+            const res = await db.query(
+                `SELECT id, COALESCE(short_name, name) AS name FROM universities WHERE is_team = false ORDER BY name`
+            );
+            allUniversities = res.rows;
+        } catch {
+            try {
+                const res = await db.query(`SELECT id, name FROM universities ORDER BY name`);
+                allUniversities = res.rows;
+            } catch {}
+        }
+    }
 
-    // EVERY user who reaches this page gets ALL operational universities.
-    // The page is permission-gated — if they have access, they can manage
-    // attendance for any university. No role-based filtering.
-    // This permanently fixes the "central team can't see universities" bug.
-
-    // Auto-select: user's primary university if it's operational, else first
+    // Auto-select user's primary university if in list, else first
     let universityId = locals.user.university_id || null;
     if (universityId && !allUniversities.find(u => u.id === universityId)) {
         universityId = allUniversities[0]?.id || null;
