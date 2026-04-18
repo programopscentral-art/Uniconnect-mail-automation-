@@ -89,17 +89,10 @@ export async function getInstructorsByUniversity(universityId: string) {
             ON CONFLICT DO NOTHING
         `, [universityId]);
 
-        // Deactivate instructors whose faculty_profiles became inactive
-        await db.query(`
-            UPDATE instructor_profiles ip SET is_active = false
-            WHERE ip.university_id = $1
-              AND ip.user_id IS NOT NULL
-              AND EXISTS (
-                  SELECT 1 FROM faculty_profiles fp
-                  WHERE fp.user_id = ip.user_id
-                    AND (fp.is_active = false OR fp.employment_status NOT IN ('active'))
-              )
-        `, [universityId]);
+        // Note: removed auto-deactivation of instructors based on faculty_profiles
+        // status — it was too aggressive and could deactivate all faculty when
+        // employment_status had unexpected values. Deactivation is now manual only
+        // via the "Remove" button.
     } catch { /* faculty_profiles may not exist */ }
 
     const res = await db.query(
