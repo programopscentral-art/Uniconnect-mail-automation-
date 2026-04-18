@@ -22,7 +22,9 @@
       const [students, meta, univs] = await Promise.all([
         fetch(`/api/students?universityId=${univId}&page=${page}&limit=${limit}`).then(r => r.ok ? r.json() : []),
         fetch(`/api/students/meta?universityId=${univId}`).then(r => r.ok ? r.json() : { totalCount: 0, dailySentCount: 0 }),
-        isGlobal ? fetch('/api/universities').then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        isGlobal
+          ? fetch('/api/universities').then(r => r.ok ? r.json() : [])
+          : fetch('/api/user-universities').then(r => r.ok ? r.json().then(j => j.universities || []) : []).catch(() => []),
       ]);
       studentsList = students || [];
       totalCount = meta.totalCount || 0;

@@ -18,7 +18,9 @@
       const isGlobal = (data.userPermissions || []).includes('universities');
       const [c, u] = await Promise.all([
         fetch(`/api/campaigns${qs}`).then(r => r.ok ? r.json() : []),
-        isGlobal ? fetch('/api/universities').then(r => r.ok ? r.json() : []) : Promise.resolve([]),
+        isGlobal
+          ? fetch('/api/universities').then(r => r.ok ? r.json() : [])
+          : fetch('/api/user-universities').then(r => r.ok ? r.json().then((j: any) => j.universities || []) : []).catch(() => []),
       ]);
       campaignsList = c || [];
       universitiesList = u || [];
