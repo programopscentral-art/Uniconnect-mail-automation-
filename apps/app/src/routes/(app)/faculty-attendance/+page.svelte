@@ -331,11 +331,11 @@
         } catch {}
     }
 
-    function setCoachCalls(coachId: string, field: 'student' | 'parent' | 'target' | 'notes', value: any) {
-        const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: 15, notes: '' };
-        if (field === 'student') existing.student = Number(value) || 0;
-        else if (field === 'parent') existing.parent = Number(value) || 0;
-        else if (field === 'target') existing.target = Number(value) || 15;
+    function setCoachCalls(coachId: string, field: 'student' | 'parent' | 'target' | 'notes', value: any, defaultTarget = 15) {
+        const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: defaultTarget, notes: '' };
+        if (field === 'student') existing.student = parseInt(String(value)) || 0;
+        else if (field === 'parent') existing.parent = parseInt(String(value)) || 0;
+        else if (field === 'target') existing.target = parseInt(String(value)) || defaultTarget;
         else existing.notes = String(value);
         coachCallData.set(coachId, existing);
         coachCallData = new Map(coachCallData);
@@ -847,8 +847,9 @@
                                         <span class="text-[9px] text-zinc-400 uppercase font-bold">Student</span>
                                         <input
                                             type="number" min="0" max="200" placeholder="0"
-                                            value={cd?.student || ''}
-                                            oninput={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value)}
+                                            value={cd?.student ?? ''}
+                                            onchange={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                            onblur={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -856,8 +857,9 @@
                                         <span class="text-[9px] text-zinc-400 uppercase font-bold">Parent</span>
                                         <input
                                             type="number" min="0" max="200" placeholder="0"
-                                            value={cd?.parent || ''}
-                                            oninput={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value)}
+                                            value={cd?.parent ?? ''}
+                                            onchange={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                            onblur={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -911,13 +913,13 @@
                                     <div class="flex items-center gap-2 flex-1">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
                                         <input type="number" min="1" max="200" value={cd?.target || target}
-                                            oninput={(e) => setCoachCalls(row.coach_id, 'target', (e.target as HTMLInputElement).value)}
+                                            onchange={(e) => setCoachCalls(row.coach_id, 'target', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
                                     </div>
                                     <div class="flex items-center gap-2 flex-[2]">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Notes</span>
                                         <input type="text" placeholder="Notes (optional)" value={cd?.notes || ''}
-                                            oninput={(e) => setCoachCalls(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
+                                            onchange={(e) => setCoachCalls(row.coach_id, 'notes', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
                                             class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
                                     </div>
                                     </div>
