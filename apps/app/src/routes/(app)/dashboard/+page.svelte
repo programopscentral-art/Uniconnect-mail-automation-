@@ -1330,6 +1330,75 @@
     showFreezeModal = true;
   }
 
+  function downloadCalendarCSV() {
+    // Build a lookup of university names
+    const univMap = new Map<string, string>();
+    for (const u of data.universities || []) {
+      univMap.set(u.id, u.short_name || u.name || u.id);
+    }
+
+    const rows: string[][] = [];
+    rows.push(['Date', 'Day', 'Type', 'Title', 'Description', 'University', 'Priority', 'Status', 'Start Time', 'End Time']);
+
+    // Schedule events (exams, events, holidays, etc.)
+    for (const ev of scheduleEvents) {
+      const start = new Date(ev.start_date);
+      const end = ev.due_date ? new Date(ev.due_date) : start;
+      const univName = univMap.get(ev.university_id) || ev.university_name || '—';
+      const day = start.toLocaleDateString('en-IN', { weekday: 'long' });
+      rows.push([
+        start.toISOString().split('T')[0],
+        day,
+        ev.type || '—',
+        (ev.title || '').replace(/,/g, ';'),
+        (ev.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        univName,
+        ev.priority || 'MEDIUM',
+        ev.status || 'ACTIVE',
+        start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      ]);
+    }
+
+    // Calendar freezes (frozen dates)
+    for (const fr of calendarFreezes) {
+      const dates = fr.frozen_dates || [];
+      const univName = univMap.get(fr.university_id) || '—';
+      for (const d of dates) {
+        const dt = new Date(d);
+        rows.push([
+          dt.toISOString().split('T')[0],
+          dt.toLocaleDateString('en-IN', { weekday: 'long' }),
+          'FROZEN',
+          `Frozen: ${(fr.reason || 'No reason').replace(/,/g, ';')}`,
+          (fr.reason || '').replace(/,/g, ';'),
+          univName,
+          'HIGH',
+          'ACTIVE',
+          '—',
+          '—'
+        ]);
+      }
+    }
+
+    // Sort by date
+    rows.sort((a, b) => {
+      if (a[0] === 'Date') return -1;
+      return a[0].localeCompare(b[0]);
+    });
+
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const month = monthNames[currentDate.getMonth()];
+    const year = currentDate.getFullYear();
+    a.download = `UniConnect_Calendar_${month}_${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function submitFreeze() {
     if (!freezeUniversityId) return alert('Select a university');
     if (freezeDates.length === 0) return alert('Select at least one date');
@@ -1641,6 +1710,12 @@
               Freeze
             </button>
           {/if}
+          <button onclick={downloadCalendarCSV}
+            class="p-1.5 sm:px-3 sm:py-1.5 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5"
+            title="Download calendar as CSV">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="hidden sm:inline">CSV</span>
+          </button>
         </div>
       </div>
     </div>
