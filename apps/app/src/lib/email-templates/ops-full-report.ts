@@ -17,6 +17,7 @@ export interface OpsFullReportOptions {
     budgetIntel?: any;
     scopedUniversity?: string | null;
     facultyAttendance?: { byUniversity: any[]; detail: any[] } | null;
+    coachData?: { byUniversity: any[]; detail: any[] } | null;
 }
 
 const n = (v: any) => {
@@ -603,8 +604,100 @@ function renderFacultyAttendanceSection(mode: OpsReportMode, fac: { byUniversity
 </section>`;
 }
 
+function renderCoachSection(mode: OpsReportMode, coach: { byUniversity: any[]; detail: any[] } | null): string {
+    if (!coach || (coach.byUniversity.length === 0 && coach.detail.length === 0)) {
+        return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Success Coach Performance</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">Call tracking & target achievement</p>
+    </header>
+    <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:32px;text-align:center;color:#94a3b8;font-size:13px">No success coach call data recorded for this period.</div>
+</section>`;
+    }
+
+    // Per-university summary table
+    const univRows = coach.byUniversity.map((u: any) => {
+        const totalCalls = (Number(u.total_student_calls) || 0) + (Number(u.total_parent_calls) || 0);
+        const target = Number(u.total_target) || 0;
+        const achieved = target > 0 ? Math.round((totalCalls / target) * 100) : 0;
+        const achievedColor = achieved >= 100 ? '#059669' : achieved >= 70 ? '#d97706' : '#e11d48';
+        return `<tr>
+            <td style="padding:10px 14px;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#0f172a">${u.university_name || '—'}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#475569;font-variant-numeric:tabular-nums">${Number(u.total_coaches) || 0}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#0ea5e9;font-weight:700;font-variant-numeric:tabular-nums">${Number(u.total_student_calls) || 0}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#8b5cf6;font-weight:700;font-variant-numeric:tabular-nums">${Number(u.total_parent_calls) || 0}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums">${totalCalls}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;color:#64748b;font-variant-numeric:tabular-nums">${target}</td>
+            <td style="padding:10px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:13px;font-weight:700;color:${achievedColor};font-variant-numeric:tabular-nums">${achieved}%</td>
+        </tr>`;
+    }).join('');
+
+    // Per-coach detail (for daily mode)
+    let detailBlock = '';
+    if (mode === 'daily' && coach.detail.length > 0) {
+        const rows = coach.detail.slice(0, 40).map((d: any) => {
+            const total = (Number(d.student_calls_made) || 0) + (Number(d.parent_calls_made) || 0);
+            const target = Number(d.daily_target) || 15;
+            const achieved = target > 0 ? Math.round((total / target) * 100) : 0;
+            const achievedColor = achieved >= 100 ? '#059669' : achieved >= 70 ? '#d97706' : '#e11d48';
+            return `<tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:500;color:#0f172a">${d.name || '—'}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#64748b">${d.university_name || '—'}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#0ea5e9;font-weight:700;font-variant-numeric:tabular-nums">${d.student_calls_made || 0}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#8b5cf6;font-weight:700;font-variant-numeric:tabular-nums">${d.parent_calls_made || 0}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#64748b;font-variant-numeric:tabular-nums">${target}</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;font-weight:700;color:${achievedColor};font-variant-numeric:tabular-nums">${achieved}%</td>
+                <td style="padding:8px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;color:#475569">${d.notes || '—'}</td>
+            </tr>`;
+        }).join('');
+
+        detailBlock = `
+        <div style="margin-top:18px">
+            <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:10px">Individual coach performance</div>
+            <div style="overflow:hidden;border:1px solid #e2e8f0;border-radius:12px">
+            <table style="width:100%;border-collapse:collapse">
+                <thead><tr style="background:#f8fafc">
+                    <th style="padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Coach</th>
+                    <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">University</th>
+                    <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Student</th>
+                    <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Parent</th>
+                    <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Target</th>
+                    <th style="padding:10px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Achieved</th>
+                    <th style="padding:10px 10px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid #e2e8f0">Notes</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+            </table>
+            </div>
+        </div>`;
+    }
+
+    return `
+<section style="grid-column:span 12">
+    <header style="margin-bottom:14px">
+        <h2 style="margin:0;font-size:18px;font-weight:800;color:#0f172a;letter-spacing:-0.3px">Success Coach Performance</h2>
+        <p style="margin:3px 0 0;font-size:13px;color:#64748b">Call tracking & target achievement · ${coach.byUniversity.length} universit${coach.byUniversity.length === 1 ? 'y' : 'ies'}</p>
+    </header>
+    <div style="overflow:hidden;border:1px solid #e2e8f0;border-radius:14px">
+    <table style="width:100%;border-collapse:collapse;background:#ffffff">
+        <thead><tr style="background:#f8fafc">
+            <th style="padding:12px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">University</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Coaches</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Student</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Parent</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Total</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Target</th>
+            <th style="padding:12px 10px;text-align:right;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.7px;border-bottom:1px solid #e2e8f0">Achieved</th>
+        </tr></thead>
+        <tbody>${univRows}</tbody>
+    </table>
+    </div>
+    ${detailBlock}
+</section>`;
+}
+
 export function buildOpsFullReportHtml(opts: OpsFullReportOptions): string {
-    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel, scopedUniversity, facultyAttendance } = opts;
+    const { mode, periodLabel, report, aiSummary, dashboardUrl, prevSummary, budgetIntel, scopedUniversity, facultyAttendance, coachData } = opts;
     const s = report?.summary || {};
     const byUniv = report?.byUniversity || [];
     const dailyBreakdown = report?.dailyBreakdown || [];
@@ -787,6 +880,9 @@ ${renderBudgetSection(mode, budgetIntel, accent1)}
 
 <!-- Faculty attendance -->
 ${renderFacultyAttendanceSection(mode, facultyAttendance || null, scopedUniversity)}
+
+<!-- Success Coach Performance -->
+${renderCoachSection(mode, coachData || null)}
 
 ${scopedUniversity ? '' : `
 <!-- University table (full width) — hidden when report is scoped to one university -->

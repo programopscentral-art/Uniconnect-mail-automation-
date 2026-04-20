@@ -13,7 +13,8 @@ import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import {
     getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport,
-    getOpsEventBudgetIntelligence, getAllFacultyAttendanceForReport
+    getOpsEventBudgetIntelligence, getAllFacultyAttendanceForReport,
+    getAllCoachDataForReport
 } from '@uniconnect/shared';
 import { buildOpsFullReportHtml } from '$lib/email-templates/ops-full-report';
 
@@ -122,10 +123,16 @@ export const GET: RequestHandler = async ({ url, request }) => {
     } catch (e) {
         console.warn('[full-report] budget intel fetch failed:', e);
     }
+    let coachData: any = null;
     try {
         facultyAttendance = await getAllFacultyAttendanceForReport(budgetStart, budgetEnd);
     } catch (e) {
         console.warn('[full-report] faculty attendance fetch failed:', e);
+    }
+    try {
+        coachData = await getAllCoachDataForReport(budgetStart, budgetEnd);
+    } catch (e) {
+        console.warn('[full-report] coach data fetch failed:', e);
     }
 
     let displayUnivName: string | null = null;
@@ -191,7 +198,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
         prevSummary,
         budgetIntel,
         scopedUniversity: displayUnivName,
-        facultyAttendance
+        facultyAttendance,
+        coachData
     });
 
     return new Response(html, {
