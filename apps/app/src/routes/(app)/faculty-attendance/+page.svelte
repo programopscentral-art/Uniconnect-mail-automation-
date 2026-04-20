@@ -347,7 +347,8 @@
         try {
             let count = 0;
             for (const [coach_id, d] of coachCallData.entries()) {
-                if (d.student > 0 || d.parent > 0) {
+                // Save if calls were entered OR if the target was changed from default
+                if (d.student > 0 || d.parent > 0 || d.target !== 15) {
                     const res = await fetch('/api/faculty-attendance', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
