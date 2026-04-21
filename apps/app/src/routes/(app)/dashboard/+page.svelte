@@ -1441,8 +1441,11 @@
 
   function isFrozenDate(date: Date): any {
     return calendarFreezes.find((f: any) => {
-      const fd = new Date(f.freeze_date);
-      return fd.getFullYear() === date.getFullYear() && fd.getMonth() === date.getMonth() && fd.getDate() === date.getDate();
+      const dates = f.frozen_dates || (f.freeze_date ? [f.freeze_date] : []);
+      return dates.some((d: string) => {
+        const fd = new Date(String(d).split('T')[0] + 'T00:00');
+        return fd.getFullYear() === date.getFullYear() && fd.getMonth() === date.getMonth() && fd.getDate() === date.getDate();
+      });
     });
   }
 
@@ -1608,15 +1611,17 @@
           </p>
           <div class="space-y-1 max-h-40 overflow-y-auto">
             {#each calendarFreezes as f}
+              {#each (f.frozen_dates || (f.freeze_date ? [f.freeze_date] : [])) as fd}
               <div class="flex items-center gap-2 px-2 py-1.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg text-[10px] group">
                 <span class="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0"></span>
-                <span class="flex-1 text-gray-600 dark:text-gray-400 truncate">{new Date(f.freeze_date + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })} — {f.reason || 'Frozen'}</span>
+                <span class="flex-1 text-gray-600 dark:text-gray-400 truncate">{new Date(String(fd).split('T')[0] + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })} — {f.reason || 'Frozen'}</span>
                 {#if canFreeze}
                   <button onclick={() => removeFreeze(f.id)} class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30" title="Remove freeze">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                   </button>
                 {/if}
               </div>
+              {/each}
             {/each}
           </div>
         </div>
