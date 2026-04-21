@@ -605,9 +605,33 @@
   }
 
   async function saveEvent() {
-    if (!eventForm.title) return alert('Title is required.');
+    if (!eventForm.title && eventForm.type !== 'FREEZE') return alert('Title is required.');
     isSaving = true;
     try {
+      // Handle FREEZE type — use the freeze API
+      if (eventForm.type === 'FREEZE') {
+        const univId = eventForm.university_id || data.selectedUniversityId || data.defaultUniversityId;
+        if (!univId) { alert('Select a university'); isSaving = false; return; }
+        const res = await fetch('/api/calendar-freeze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            university_id: univId,
+            freeze_dates: [createEventDate],
+            reason: eventForm.title || eventForm.description || 'Calendar Freeze'
+          })
+        });
+        if (res.ok) {
+          showCreateEvent = false;
+          await loadDashboardData();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(err.message || 'Failed to freeze date');
+        }
+        isSaving = false;
+        return;
+      }
+
       // Build timezone-aware dates (datetime-local inputs have no timezone)
       const tzOffset = new Date().getTimezoneOffset();
       const tzSign = tzOffset <= 0 ? '+' : '-';
@@ -627,7 +651,6 @@
       }
 
       // When type is EVENT, send the sub_type as the actual type
-      // (CURRICULAR, CO_CURRICULAR, CLUB_ACTIVITY, CULTURAL_ACTIVITY)
       const actualType = eventForm.type === 'EVENT' ? (eventForm.sub_type || 'EVENT') : eventForm.type;
 
       const res = await fetch('/api/schedule-events', {
@@ -1710,16 +1733,9 @@
           </button>
           <button onclick={() => openCreateEvent()}
             class="p-1.5 sm:px-3 sm:py-1.5 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            <span class="hidden sm:inline">Event</span>
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            <span class="hidden sm:inline">Calendar Freeze</span>
           </button>
-          {#if canFreeze}
-            <button onclick={openFreezeModal}
-              class="p-1.5 sm:px-3 sm:py-1.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              <span class="hidden sm:inline">Freeze</span>
-            </button>
-          {/if}
           <button onclick={downloadCalendarCSV}
             class="p-1.5 sm:px-3 sm:py-1.5 border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 text-xs font-semibold rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5"
             title="Download calendar as CSV">
@@ -2175,7 +2191,7 @@
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
         <div class="flex items-center justify-between mb-5">
-          <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Calendar Entry</h3>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Calendar Freeze</h3>
           <button aria-label="Close event modal" onclick={() => showCreateEvent = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -2199,6 +2215,7 @@
                 <option value="HOLIDAY">Holiday</option>
                 <option value="EXAM">Exam</option>
                 <option value="ACADEMIC">Academic</option>
+                <option value="FREEZE">Freeze</option>
               </select>
               {#if eventForm.type === 'EVENT'}
                 <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block mt-2">Event Category</label>
