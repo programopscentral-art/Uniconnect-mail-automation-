@@ -67,8 +67,8 @@
 
   // ─── Event Form (Enhanced) ──────────────────────────────────────────────
   let eventForm = $state({
-    title: '', type: 'EVENT' as string, description: '',
-    priority: 'MEDIUM' as string,
+    title: '', type: 'EVENT' as string, sub_type: 'CURRICULAR' as string,
+    description: '', priority: 'MEDIUM' as string,
     assignee_ids: [] as string[], university_id: '',
     start_date: '', due_date: ''
   });
@@ -626,11 +626,16 @@
         dueDate = `${dueDate}${tzStr}`;
       }
 
+      // When type is EVENT, send the sub_type as the actual type
+      // (CURRICULAR, CO_CURRICULAR, CLUB_ACTIVITY, CULTURAL_ACTIVITY)
+      const actualType = eventForm.type === 'EVENT' ? (eventForm.sub_type || 'EVENT') : eventForm.type;
+
       const res = await fetch('/api/schedule-events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...eventForm,
+          type: actualType,
           start_date: startDate,
           due_date: dueDate,
           university_id: eventForm.university_id || data.selectedUniversityId || data.defaultUniversityId
@@ -891,7 +896,7 @@
     createEventDate = date.toISOString().split('T')[0];
     createEventStartTime = `${String(hour).padStart(2, '0')}:00`;
     createEventEndTime = `${String(hour + 1).padStart(2, '0')}:00`;
-    eventForm = { title: '', type: 'EVENT', description: '', priority: 'MEDIUM', assignee_ids: [], university_id: data.selectedUniversityId || data.defaultUniversityId || '', start_date: '', due_date: '' };
+    eventForm = { title: '', type: 'EVENT', sub_type: 'CURRICULAR', description: '', priority: 'MEDIUM', assignee_ids: [], university_id: data.selectedUniversityId || data.defaultUniversityId || '', start_date: '', due_date: '' };
     eventAssigneeSearch = '';
     eventAssigneeFilterUniv = data.selectedUniversityId || '';
     sopFile = null;
@@ -904,7 +909,7 @@
     createEventDate = d.toISOString().split('T')[0];
     createEventStartTime = '09:00';
     createEventEndTime = '10:00';
-    eventForm = { title: '', type: 'EVENT', description: '', priority: 'MEDIUM', assignee_ids: [], university_id: data.selectedUniversityId || data.defaultUniversityId || '', start_date: '', due_date: '' };
+    eventForm = { title: '', type: 'EVENT', sub_type: 'CURRICULAR', description: '', priority: 'MEDIUM', assignee_ids: [], university_id: data.selectedUniversityId || data.defaultUniversityId || '', start_date: '', due_date: '' };
     eventAssigneeSearch = '';
     eventAssigneeFilterUniv = data.selectedUniversityId || '';
     sopFile = null;
@@ -1710,9 +1715,9 @@
           </button>
           {#if canFreeze}
             <button onclick={openFreezeModal}
-              class="p-1.5 sm:px-3 sm:py-1.5 border border-slate-400 dark:border-slate-600 text-slate-600 dark:text-slate-300 text-xs font-semibold rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center gap-1.5 hidden sm:flex">
+              class="p-1.5 sm:px-3 sm:py-1.5 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-all flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-              Freeze
+              <span class="hidden sm:inline">Freeze</span>
             </button>
           {/if}
           <button onclick={downloadCalendarCSV}
@@ -2170,7 +2175,7 @@
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
         <div class="flex items-center justify-between mb-5">
-          <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Event</h3>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">New Calendar Entry</h3>
           <button aria-label="Close event modal" onclick={() => showCreateEvent = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -2193,11 +2198,17 @@
                 <option value="EVENT">Event</option>
                 <option value="HOLIDAY">Holiday</option>
                 <option value="EXAM">Exam</option>
-                <option value="CURRICULAR">Curricular</option>
-                <option value="CO_CURRICULAR">Co-Curricular</option>
-                <option value="CLUB_ACTIVITY">Club Activity</option>
-                <option value="CULTURAL_ACTIVITY">Cultural Activity</option>
+                <option value="ACADEMIC">Academic</option>
               </select>
+              {#if eventForm.type === 'EVENT'}
+                <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block mt-2">Event Category</label>
+                <select bind:value={eventForm.sub_type} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white">
+                  <option value="CURRICULAR">Curricular</option>
+                  <option value="CO_CURRICULAR">Co-Curricular</option>
+                  <option value="CLUB_ACTIVITY">Club Activity</option>
+                  <option value="CULTURAL_ACTIVITY">Cultural Activity</option>
+                </select>
+              {/if}
             </div>
             <div>
               <!-- svelte-ignore a11y_label_has_associated_control -->
