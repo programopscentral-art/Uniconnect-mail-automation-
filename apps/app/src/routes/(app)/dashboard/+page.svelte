@@ -38,8 +38,11 @@
   let selectedEvent = $state<any>(null);
   let showFreezeModal = $state(false);
   let createEventDate = $state('');
+  let createEventEndDate = $state('');
   let createEventStartTime = $state('09:00');
   let createEventEndTime = $state('10:00');
+  let isEditingEvent = $state(false);
+  let editingEventId = $state('');
 
   // ─── Task Form ────────────────────────────────────────────────────────────
   let taskForm = $state({
@@ -612,12 +615,19 @@
       if (eventForm.type === 'FREEZE') {
         const univId = eventForm.university_id || data.selectedUniversityId || data.defaultUniversityId;
         if (!univId) { alert('Select a university'); isSaving = false; return; }
+        // Build date range if end date is set
+        const freezeDatesArr: string[] = [];
+        const startD = new Date(createEventDate);
+        const endD = createEventEndDate ? new Date(createEventEndDate) : startD;
+        for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+          freezeDatesArr.push(d.toISOString().split('T')[0]);
+        }
         const res = await fetch('/api/calendar-freeze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             university_id: univId,
-            freeze_dates: [createEventDate],
+            freeze_dates: freezeDatesArr.length > 0 ? freezeDatesArr : [createEventDate],
             reason: eventForm.title || eventForm.description || 'Calendar Freeze'
           })
         });
@@ -640,7 +650,7 @@
       const tzStr = `${tzSign}${tzHours}:${tzMins}`;
 
       let startDate = eventForm.start_date || `${createEventDate}T${createEventStartTime}:00`;
-      let dueDate = eventForm.due_date || `${createEventDate}T${createEventEndTime}:00`;
+      let dueDate = eventForm.due_date || `${createEventEndDate || createEventDate}T${createEventEndTime}:00`;
 
       // Append timezone offset so DB stores correct UTC
       if (startDate && !startDate.includes('+') && !startDate.includes('Z')) {
@@ -653,8 +663,11 @@
       // When type is EVENT, send the sub_type as the actual type
       const actualType = eventForm.type === 'EVENT' ? (eventForm.sub_type || 'EVENT') : eventForm.type;
 
-      const res = await fetch('/api/schedule-events', {
-        method: 'POST',
+      const url = isEditingEvent ? `/api/schedule-events/${editingEventId}` : '/api/schedule-events';
+      const method = isEditingEvent ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...eventForm,
@@ -930,13 +943,44 @@
   function openCreateEvent(date?: Date) {
     const d = date || new Date();
     createEventDate = d.toISOString().split('T')[0];
+    createEventEndDate = '';
     createEventStartTime = '09:00';
     createEventEndTime = '10:00';
+    isEditingEvent = false;
+    editingEventId = '';
     eventForm = { title: '', type: 'EVENT', sub_type: 'CURRICULAR', description: '', priority: 'MEDIUM', assignee_ids: [], university_id: data.selectedUniversityId || data.defaultUniversityId || '', start_date: '', due_date: '' };
     eventAssigneeSearch = '';
     eventAssigneeFilterUniv = data.selectedUniversityId || '';
     sopFile = null;
     sopTaskFile = null;
+    showCreateEvent = true;
+  }
+
+  function openEditEvent(event: any) {
+    isEditingEvent = true;
+    editingEventId = event.id;
+    const start = event.start_date ? new Date(event.start_date) : new Date();
+    const end = event.due_date ? new Date(event.due_date) : start;
+    createEventDate = start.toISOString().split('T')[0];
+    createEventEndDate = end.toISOString().split('T')[0];
+    createEventStartTime = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+    createEventEndTime = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
+    // Map the DB type back to form type + sub_type
+    const subTypes = ['CURRICULAR', 'CO_CURRICULAR', 'CLUB_ACTIVITY', 'CULTURAL_ACTIVITY'];
+    const formType = subTypes.includes(event.type) ? 'EVENT' : event.type;
+    const formSubType = subTypes.includes(event.type) ? event.type : 'CURRICULAR';
+    eventForm = {
+      title: event.title || '',
+      type: formType,
+      sub_type: formSubType,
+      description: event.description || '',
+      priority: event.priority || 'MEDIUM',
+      assignee_ids: (event.assignees || []).map((a: any) => a.id),
+      university_id: event.university_id || '',
+      start_date: '', due_date: ''
+    };
+    eventAssigneeSearch = '';
+    eventAssigneeFilterUniv = event.university_id || '';
     showCreateEvent = true;
   }
 
@@ -2191,7 +2235,7 @@
       onclick={(e) => e.stopPropagation()} role="document" in:fly={{ y: 20, duration: 200 }}>
       <div class="p-6">
         <div class="flex items-center justify-between mb-5">
-          <h3 class="text-lg font-bold text-gray-900 dark:text-white">Calendar Freeze</h3>
+          <h3 class="text-lg font-bold text-gray-900 dark:text-white">{isEditingEvent ? 'Edit Entry' : 'Calendar Freeze'}</h3>
           <button aria-label="Close event modal" onclick={() => showCreateEvent = false} class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800">
             <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
@@ -2239,8 +2283,13 @@
             </div>
             <div>
               <!-- svelte-ignore a11y_label_has_associated_control -->
-              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Date</label>
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Start Date</label>
               <input type="date" bind:value={createEventDate} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
+            </div>
+            <div>
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">End Date</label>
+              <input type="date" bind:value={createEventEndDate} min={createEventDate} class="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-sm dark:text-white" />
             </div>
             <div>
               <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -2677,6 +2726,9 @@
             <p class="text-xs text-gray-400 mt-2">{new Date(selectedEvent.start_date || selectedEvent.startDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
           </div>
           <div class="flex items-center gap-2 ml-4">
+            <button onclick={() => { closeEventDetail(); openEditEvent(selectedEvent); }} class="p-2 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-indigo-400 hover:text-indigo-600" title="Edit event">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
             <button onclick={() => deleteEventUI(selectedEvent.id)} class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400 hover:text-red-600" title="Delete event">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
