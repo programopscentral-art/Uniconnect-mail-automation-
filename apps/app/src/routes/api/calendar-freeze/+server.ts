@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { freezeCalendarDate, unfreezeCalendarDate, getCalendarFreezes, getCalendarFreezesForDateRange, createNotification, getAllUsers } from '@uniconnect/shared';
 
-const FREEZE_ROLES = ['PM', 'PMA', 'COS', 'ADMIN', 'PROGRAM_OPS'];
+const FREEZE_ROLES = ['PM', 'PMA', 'COS', 'CMA', 'CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
 const SE_ROLES = ['SE', 'STUDENT_ENGAGEMENT', 'SE_MANAGER', 'SE_TEAM'];
 
 export const GET: RequestHandler = async ({ url, locals }) => {

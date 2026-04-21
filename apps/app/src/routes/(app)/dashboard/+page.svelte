@@ -111,7 +111,7 @@
   let freezeDates = $state<string[]>([]);
   let freezeReason = $state('');
   let freezeUniversityId = $state('');
-  const canFreeze = $derived(['PM', 'PMA', 'COS', 'ADMIN', 'PROGRAM_OPS'].includes(data.userRole as string));
+  const canFreeze = $derived(['PM', 'PMA', 'COS', 'CMA', 'CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'].includes(data.userRole as string));
 
   // ─── Client-side Data Loading ──────────────────────────────────────────
   async function loadDashboardData() {

@@ -13,13 +13,14 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
 
         // Strict Multi-Tenant Enforcement
-        const isGlobalAdmin = (locals.user.role as any) === 'ADMIN' || (locals.user.role as any) === 'PROGRAM_OPS';
+        const globalRoles = ['ADMIN', 'PROGRAM_OPS', 'CMA', 'CMA_MANAGER'];
+        const isGlobalAdmin = globalRoles.includes(locals.user.role as string);
 
-        // Check if user is a Central BOA (team member)
+        // Check if user is a Central/team member (BOA, COS, etc. with team university)
         const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === (university_id || locals.user!.university_id));
-        const isCentralBOA = locals.user.role === 'BOA' && (!locals.user.university_id || activeUniv?.is_team);
+        const isCentralTeam = !isGlobalAdmin && (!locals.user.university_id || activeUniv?.is_team);
 
-        if (!isGlobalAdmin && !isCentralBOA) {
+        if (!isGlobalAdmin && !isCentralTeam) {
             university_id = locals.user.university_id || undefined;
         }
         // For Central BOA: use the requested university_id (their team's id) to see all team tasks
