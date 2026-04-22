@@ -119,7 +119,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         const facilitiesUrl = env.FACILITIES_OS_WEBHOOK_URL || process.env.FACILITIES_OS_WEBHOOK_URL;
         if (facilitiesUrl) {
             try {
-                // Fetch items for this proposal
+                // Fetch items + attachments for this proposal
                 const itemsRes = await db.query(
                     `SELECT * FROM budget_proposal_items WHERE proposal_id = $1`,
                     [params.id]
@@ -128,6 +128,15 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
                     `SELECT COALESCE(short_name, name) AS name FROM universities WHERE id = $1`,
                     [updatedProposal.university_id]
                 );
+                // Fetch all attachments (reference images, PDFs, bills)
+                let attachments: any[] = [];
+                try {
+                    const attRes = await db.query(
+                        `SELECT id, file_url, file_name, file_type, category FROM budget_proposal_attachments WHERE proposal_id = $1`,
+                        [params.id]
+                    );
+                    attachments = attRes.rows;
+                } catch {}
 
                 await fetch(facilitiesUrl, {
                     method: 'POST',
@@ -173,6 +182,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
                             };
                         })(),
                         items: itemsRes.rows.map((i: any) => ({ ...i, quantity: i.qty, unit_price: i.unit_cost, total_price: i.amount })),
+                        attachments: attachments.map((a: any) => ({
+                            id: a.id, file_url: a.file_url, file_name: a.file_name,
+                            file_type: a.file_type, category: a.category || 'SUPPORTING'
+                        })),
                         approvals: [
                             { name: locals.user.name, email: locals.user.email, role: locals.user.role, status: toStatus, approved_at: new Date().toISOString() }
                         ]

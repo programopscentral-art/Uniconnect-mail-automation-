@@ -71,11 +71,19 @@ async function main() {
 
     for (const proposal of proposals) {
         try {
-            // Get items
+            // Get items + attachments
             const { rows: items } = await pool.query(
                 'SELECT * FROM budget_proposal_items WHERE proposal_id = $1',
                 [proposal.id]
             );
+            let attachments = [];
+            try {
+                const { rows: atts } = await pool.query(
+                    'SELECT id, file_url, file_name, file_type, category FROM budget_proposal_attachments WHERE proposal_id = $1',
+                    [proposal.id]
+                );
+                attachments = atts;
+            } catch {}
 
             // Get tracking entries for approval chain
             let approvals = [];
@@ -130,10 +138,13 @@ async function main() {
                 },
                 items: items.map(i => ({
                     ...i,
-                    // Map column names for Facilities OS
                     quantity: i.qty,
                     unit_price: i.unit_cost,
                     total_price: i.amount
+                })),
+                attachments: attachments.map(a => ({
+                    id: a.id, file_url: a.file_url, file_name: a.file_name,
+                    file_type: a.file_type, category: a.category || 'SUPPORTING'
                 })),
                 approvals
             };
