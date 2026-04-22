@@ -113,8 +113,10 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         console.warn('[TRACKING] Failed to add tracking entry:', e);
     }
 
-    // On APPROVED → webhook to Facilities OS to create procurement request
-    if (toStatus === 'APPROVED' && updatedProposal) {
+    // On APPROVED or APPROVED_L1 → webhook to Facilities OS
+    // L1 = CMA approved (visible in Facilities but may need admin approval)
+    // APPROVED = fully approved (proceed with procurement)
+    if ((toStatus === 'APPROVED' || toStatus === 'APPROVED_L1') && updatedProposal) {
         const facilitiesUrl = env.FACILITIES_OS_WEBHOOK_URL || process.env.FACILITIES_OS_WEBHOOK_URL;
         if (facilitiesUrl) {
             try {
@@ -148,7 +150,14 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
                             approved_total_budget: approvedBudget || updatedProposal.approved_total_budget,
                             proposed_date: updatedProposal.proposed_date,
                             venue: updatedProposal.venue,
-                            priority: updatedProposal.priority
+                            priority: updatedProposal.priority,
+                            status: toStatus,
+                            approval_status: toStatus === 'APPROVED' ? 'fully_approved'
+                                : (Number(updatedProposal.estimated_total_budget) >= 10000 ? 'needs_admin_approval' : 'l1_approved'),
+                            approval_note: toStatus === 'APPROVED' ? 'Fully approved — proceed with procurement'
+                                : (Number(updatedProposal.estimated_total_budget) >= 10000
+                                    ? 'CMA approved — awaiting Admin approval (budget ≥₹10K)'
+                                    : 'CMA approved — ready for procurement (budget <₹10K)')
                         },
                         items: itemsRes.rows,
                         approvals: [
