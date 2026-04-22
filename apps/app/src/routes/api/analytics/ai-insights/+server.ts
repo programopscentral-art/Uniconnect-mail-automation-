@@ -102,7 +102,6 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: { maxOutputTokens: 2048, temperature: 0.4 },
-                        thinkingConfig: { thinkingBudget: 0 }
                     }),
                 });
 

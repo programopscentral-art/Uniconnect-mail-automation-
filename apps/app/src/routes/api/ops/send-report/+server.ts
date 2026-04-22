@@ -290,7 +290,7 @@ Professional tone. Highlight wins, concerns, 2-3 action items. Plain text paragr
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 } })
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 } })
                 }
             );
             if (!resp.ok) continue;

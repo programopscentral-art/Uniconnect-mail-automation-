@@ -71,7 +71,6 @@ async function callGemini(prompt: string, apiKey: string): Promise<string | null
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: { maxOutputTokens: 4096, temperature: 0.1 },
-                    thinkingConfig: { thinkingBudget: 0 }
                 }),
             });
             if (response.status === 429) {

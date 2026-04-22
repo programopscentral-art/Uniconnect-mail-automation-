@@ -55,7 +55,7 @@ Professional tone. Cover overall health, top/bottom performers, at-risk follow-u
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 } })
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 } })
                 }
             );
             if (!resp.ok) continue;

@@ -63,7 +63,7 @@ Be data-driven and reference specific events and numbers.`;
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: eventPrompt }] }], generationConfig: { maxOutputTokens: 4096, temperature: 0.3 }, thinkingConfig: { thinkingBudget: 0 } }),
+                    body: JSON.stringify({ contents: [{ parts: [{ text: eventPrompt }] }], generationConfig: { maxOutputTokens: 4096, temperature: 0.3 } }),
                 });
                 if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
                 if (!response.ok) continue;
@@ -116,7 +116,7 @@ Be direct, data-driven, and reference specific names and numbers.`;
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: analyticsPrompt }] }], generationConfig: { maxOutputTokens: 6144, temperature: 0.3 }, thinkingConfig: { thinkingBudget: 0 } }),
+                    body: JSON.stringify({ contents: [{ parts: [{ text: analyticsPrompt }] }], generationConfig: { maxOutputTokens: 6144, temperature: 0.3 } }),
                 });
                 if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
                 if (!response.ok) continue;
@@ -222,7 +222,6 @@ Be data-driven, reference specific universities and numbers. Be direct and hones
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
-                        thinkingConfig: { thinkingBudget: 0 }
                     }),
                 });
 
