@@ -36,9 +36,17 @@ function fmtDate(d: Date | string) {
 function buildBudgetProposalEmail(proposal: FullProposal, bodyText: string, baseUrl: string, proposalId: string): string {
     const viewUrl = `${baseUrl}/api/budget-proposals/${proposalId}/view`;
     const appUrl = `${baseUrl}/budget-proposals/${proposalId}`;
+    const budget = Number(proposal.estimated_total_budget) || 0;
+    const isL1Under10K = proposal.status === 'APPROVED_L1' && budget < 10000;
+    const isL1Over10K = proposal.status === 'APPROVED_L1' && budget >= 10000;
+
+    // Use green for <₹10K approved, amber for ≥₹10K needing admin, default indigo for others
+    const headerGradient = isL1Under10K ? 'linear-gradient(135deg,#059669 0%,#10B981 100%)'
+        : isL1Over10K ? 'linear-gradient(135deg,#D97706 0%,#F59E0B 100%)'
+        : 'linear-gradient(135deg,#1E1B4B 0%,#312E81 100%)';
     const statusColor = STATUS_COLOR[proposal.status] || '#6B7280';
     const priorityColor = PRIORITY_COLOR[proposal.priority] || '#6B7280';
-    const statusLabel = STATUS_LABEL[proposal.status] || proposal.status;
+    const statusLabel = isL1Under10K ? 'CMA APPROVED' : isL1Over10K ? 'NEEDS ADMIN APPROVAL' : (STATUS_LABEL[proposal.status] || proposal.status);
 
     const itemRows = (proposal.items || []).map(item => `
         <tr>
@@ -83,7 +91,7 @@ function buildBudgetProposalEmail(proposal: FullProposal, bodyText: string, base
 <div style="max-width:680px;margin:24px auto;">
 
     <!-- Header -->
-    <div style="background:linear-gradient(135deg,#1E1B4B 0%,#312E81 100%);border-radius:12px 12px 0 0;padding:28px 32px;color:white;">
+    <div style="background:${headerGradient};border-radius:12px 12px 0 0;padding:28px 32px;color:white;">
         <div style="font-size:11px;font-weight:600;opacity:0.7;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Budget Proposal Update</div>
         <h1 style="margin:0 0 10px;font-size:22px;font-weight:700;line-height:1.3;">${proposal.title}</h1>
         <div style="font-size:13px;opacity:0.8;">${(proposal as any).university_name || ''} &nbsp;·&nbsp; ${(proposal.event_type || '').replace(/_/g, ' ')} &nbsp;·&nbsp; ${fmtDate(proposal.proposed_date)}</div>
@@ -136,8 +144,16 @@ function buildBudgetProposalEmail(proposal: FullProposal, bodyText: string, base
 
         <!-- CTA Buttons -->
         <div style="text-align:center;margin-top:28px;padding-top:20px;border-top:2px solid #F1F5F9;">
-            <a href="${viewUrl}" style="display:inline-block;padding:13px 28px;background:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;margin-right:12px;">View & Review Proposal ↗</a>
+            ${isL1Under10K ? `
+            <a href="${appUrl}" style="display:inline-block;padding:14px 36px;background:#059669;color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:700;border-radius:12px;letter-spacing:0.5px;">✓ OK, Acknowledged</a>
+            <p style="margin:10px 0 0;font-size:12px;color:#9CA3AF;">No action required — CMA approval is sufficient for budgets under ₹10,000</p>
+            ` : isL1Over10K ? `
+            <a href="${appUrl}" style="display:inline-block;padding:14px 36px;background:#D97706;color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:700;border-radius:12px;letter-spacing:0.5px;">Review & Approve →</a>
+            <p style="margin:10px 0 0;font-size:12px;color:#9CA3AF;">Admin approval required for budgets ≥₹10,000</p>
+            ` : `
+            <a href="${viewUrl}" style="display:inline-block;padding:13px 28px;background:#4F46E5;color:white;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;margin-right:12px;">View Proposal ↗</a>
             <a href="${appUrl}" style="display:inline-block;padding:13px 24px;background:#F8FAFC;color:#374151;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;border:2px solid #E5E7EB;">Open in App</a>
+            `}
         </div>
     </div>
 
