@@ -33,12 +33,11 @@ export const POST: RequestHandler = async ({ request }) => {
     try {
         switch (action) {
             case 'status_update': {
-                const { status, message, updated_by_name, updated_by_email, attachment_urls } = body;
-                // Insert tracking entry
+                const { status, message, updated_by_name, updated_by_email, attachment_urls, items_summary, vendor_details } = body;
                 await db.query(
                     `INSERT INTO budget_proposal_tracking
-                        (proposal_id, status, title, description, updated_by_name, updated_by_email, attachment_urls, source)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'facilities')`,
+                        (proposal_id, status, title, description, updated_by_name, updated_by_email, attachment_urls, source, metadata)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, 'facilities', $8)`,
                     [
                         budget_proposal_id,
                         status,
@@ -46,7 +45,8 @@ export const POST: RequestHandler = async ({ request }) => {
                         message || null,
                         updated_by_name || 'Facilities Team',
                         updated_by_email || null,
-                        attachment_urls || null
+                        attachment_urls || null,
+                        (items_summary || vendor_details) ? JSON.stringify({ items_summary, vendor_details }) : null
                     ]
                 );
                 return json({ success: true, action: 'status_update' });

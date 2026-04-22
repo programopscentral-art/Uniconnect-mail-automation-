@@ -191,6 +191,42 @@
                                 {/if}
                             </div>
                         {/if}
+                        <!-- Items summary from Facilities -->
+                        {#if meta?.items_summary}
+                            <div class="mt-2 p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 text-xs">
+                                <div class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-1">Items</div>
+                                <p class="text-gray-700 dark:text-gray-300 leading-relaxed">{meta.items_summary}</p>
+                            </div>
+                        {/if}
+                        <!-- Vendor details from Facilities -->
+                        {#if meta?.vendor_details}
+                            <div class="mt-2 p-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/30 text-xs">
+                                <div class="text-[10px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wider mb-1">Vendor Details</div>
+                                {#if meta.vendor_details.name}
+                                    <div class="text-gray-700 dark:text-gray-300"><span class="font-semibold">Vendor:</span> {meta.vendor_details.name}</div>
+                                {/if}
+                                {#if meta.vendor_details.quoted_price}
+                                    <div class="text-gray-700 dark:text-gray-300"><span class="font-semibold">Quote:</span> ₹{Number(meta.vendor_details.quoted_price).toLocaleString('en-IN')}</div>
+                                {/if}
+                                {#if meta.vendor_details.delivery_date}
+                                    <div class="text-gray-700 dark:text-gray-300"><span class="font-semibold">Delivery:</span> {new Date(meta.vendor_details.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                                {/if}
+                                {#if meta.vendor_details.notes}
+                                    <div class="text-gray-600 dark:text-gray-400 mt-1">{meta.vendor_details.notes}</div>
+                                {/if}
+                            </div>
+                        {/if}
+                        <!-- Actual cost + savings -->
+                        {#if meta?.actual_cost}
+                            <div class="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-xs">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-gray-900 dark:text-gray-100">Final Cost: ₹{Number(meta.actual_cost).toLocaleString('en-IN')}</span>
+                                    {#if meta.savings}
+                                        <span class="text-emerald-700 dark:text-emerald-400 font-bold">Saved ₹{Number(meta.savings).toLocaleString('en-IN')}</span>
+                                    {/if}
+                                </div>
+                            </div>
+                        {/if}
                         <!-- Attachments (sample photos etc.) -->
                         {#if entry.attachment_urls && entry.attachment_urls.length > 0}
                             <div class="flex gap-2 mt-2 flex-wrap">
