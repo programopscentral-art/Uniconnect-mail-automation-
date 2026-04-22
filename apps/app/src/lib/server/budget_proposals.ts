@@ -174,11 +174,20 @@ export async function notifyBudgetProposalUpdate(proposal: FullProposal, toStatu
             bodyText = `Reviewers have requested changes for your proposal: ${title}.${reason ? `\n\nReason: ${reason}` : ''}`;
             recipients = [{ id: proposer_user_id, email: proposer_email }];
             break;
-        case 'APPROVED_L1':
-            titleText = 'Budget Proposal — L1 Approved ✅';
-            bodyText = `${actorName} has given L1 approval for "${title}". Final admin approval is now required to proceed.`;
-            isToSET = true; // notify admins to give final approval
+        case 'APPROVED_L1': {
+            const budget = Number(proposal.estimated_total_budget) || 0;
+            if (budget >= 10000) {
+                // ≥₹10K → Admin approval required
+                titleText = 'Budget Proposal — CMA Approved, Admin Approval Needed 🔔';
+                bodyText = `${actorName} has given CMA approval for "${title}" (₹${budget.toLocaleString('en-IN')}). Admin approval is required as budget is ≥₹10,000.`;
+            } else {
+                // <₹10K → Just informational for admin, proposal can proceed
+                titleText = `Budget Proposal Approved — ₹${budget.toLocaleString('en-IN')} ✅`;
+                bodyText = `${actorName} has approved "${title}" for ${proposal.university_name || 'the university'} (₹${budget.toLocaleString('en-IN')}). This proposal is under ₹10,000 so CMA approval is sufficient. Procurement can proceed.\n\nProposed by: ${proposer_name} (${proposer_email})\n\nThis is for your information. No action needed — click OK to acknowledge.`;
+            }
+            isToSET = true;
             break;
+        }
         case 'APPROVED':
             titleText = 'Budget Proposal APPROVED ✅';
             bodyText = `Congratulations! Your budget proposal for "${title}" has been approved. You can proceed with the event.`;
