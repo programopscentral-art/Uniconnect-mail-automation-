@@ -1,11 +1,10 @@
 /**
- * Quick sync script: sends all approved budget proposals to Facilities OS.
+ * Full sync: sends ALL budget proposals to Facilities OS with proper status context.
  * Run with: node sync-to-facilities.mjs
  */
 import pg from 'pg';
 import { readFileSync } from 'fs';
 
-// Supabase uses self-signed certs via PgBouncer
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // Load .env
@@ -18,6 +17,7 @@ for (const line of envFile.split('\n')) {
         break;
     }
 }
+
 const FACILITIES_URL = 'https://facilities-os-production.up.railway.app/api/webhooks/uniconnect';
 const SECRET = 'uniconnect-facilities-2026';
 
@@ -25,10 +25,37 @@ if (!DATABASE_URL) { console.error('No DATABASE_URL found'); process.exit(1); }
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
+function getApprovalContext(proposal) {
+    const budget = Number(proposal.estimated_total_budget) || 0;
+    const status = proposal.status;
+    const needsAdmin = budget >= 10000;
+
+    const statusMap = {
+        'DRAFT': { approval_status: 'draft', approval_note: 'Draft — not yet submitted', can_proceed: false },
+        'SUBMITTED': { approval_status: 'submitted', approval_note: 'Submitted — awaiting CMA approval', can_proceed: false },
+        'UNDER_REVIEW': { approval_status: 'under_review', approval_note: 'Under review by CMA', can_proceed: false },
+        'CHANGES_REQUESTED': { approval_status: 'changes_requested', approval_note: 'Changes requested — awaiting resubmission', can_proceed: false },
+        'APPROVED_L1': {
+            approval_status: needsAdmin ? 'needs_admin_approval' : 'l1_approved',
+            approval_note: needsAdmin
+                ? `CMA approved (₹${budget.toLocaleString('en-IN')}) — awaiting Admin approval (budget ≥₹10K)`
+                : `CMA approved (₹${budget.toLocaleString('en-IN')}) — ready for procurement (budget <₹10K)`,
+            can_proceed: !needsAdmin
+        },
+        'APPROVED': { approval_status: 'fully_approved', approval_note: 'Fully approved — proceed with procurement', can_proceed: true },
+        'REJECTED': { approval_status: 'rejected', approval_note: 'Proposal rejected', can_proceed: false },
+        'EVENT_COMPLETED': { approval_status: 'event_completed', approval_note: 'Event completed — pending report', can_proceed: true },
+        'REPORT_SUBMITTED': { approval_status: 'report_submitted', approval_note: 'Post-event report submitted', can_proceed: true },
+        'CLOSED': { approval_status: 'closed', approval_note: 'Proposal closed', can_proceed: true },
+    };
+
+    return statusMap[status] || { approval_status: status.toLowerCase(), approval_note: status, can_proceed: false };
+}
+
 async function main() {
     console.log('Connecting to database...');
 
-    // Get ALL proposals (not just approved — send everything)
+    // Get ALL proposals (every status)
     const { rows: proposals } = await pool.query(`
         SELECT bp.*,
                COALESCE(univ.short_name, univ.name) AS university_name
@@ -38,18 +65,11 @@ async function main() {
     `);
 
     console.log(`Found ${proposals.length} total proposals`);
-
-    // Sync anything that has at least L1 (CMA) approval
-    const toSync = proposals.filter(p =>
-        ['APPROVED_L1', 'APPROVED_L2', 'APPROVED', 'EVENT_COMPLETED', 'REPORT_SUBMITTED', 'CLOSED'].includes(p.status)
-    );
-
-    console.log(`${toSync.length} approved/completed proposals to sync`);
     console.log('Statuses:', [...new Set(proposals.map(p => p.status))].join(', '));
 
     let sent = 0, failed = 0;
 
-    for (const proposal of toSync) {
+    for (const proposal of proposals) {
         try {
             // Get items
             const { rows: items } = await pool.query(
@@ -57,11 +77,38 @@ async function main() {
                 [proposal.id]
             );
 
-            // Determine approval status for Facilities OS
-            const needsAdminApproval = proposal.status === 'APPROVED_L1' &&
-                (Number(proposal.estimated_total_budget) >= 10000 || Number(proposal.approved_total_budget) >= 10000);
-            const isL1Only = proposal.status === 'APPROVED_L1';
-            const isFullyApproved = ['APPROVED', 'EVENT_COMPLETED', 'REPORT_SUBMITTED', 'CLOSED'].includes(proposal.status);
+            // Get tracking entries for approval chain
+            let approvals = [];
+            try {
+                const { rows: tracking } = await pool.query(
+                    `SELECT * FROM budget_proposal_tracking
+                     WHERE proposal_id = $1
+                     ORDER BY created_at`,
+                    [proposal.id]
+                );
+                approvals = tracking
+                    .filter(t => ['cm_approved', 'approved_l1', 'admin_approved', 'approved', 'submitted'].includes(t.status))
+                    .map(t => ({
+                        name: t.updated_by_name || 'System',
+                        email: t.updated_by_email || '',
+                        role: t.status.includes('admin') || t.status === 'approved' ? 'ADMIN' : t.status === 'submitted' ? 'SUBMITTER' : 'CMA_MANAGER',
+                        status: t.status,
+                        approved_at: t.created_at
+                    }));
+            } catch {}
+
+            // Add submitter if no tracking
+            if (approvals.length === 0) {
+                approvals.push({
+                    name: proposal.proposer_name || 'Unknown',
+                    email: proposal.proposer_email || '',
+                    role: 'SUBMITTER',
+                    status: 'submitted',
+                    approved_at: proposal.created_at
+                });
+            }
+
+            const context = getApprovalContext(proposal);
 
             const payload = {
                 action: 'proposal_approved',
@@ -79,23 +126,21 @@ async function main() {
                     venue: proposal.venue,
                     priority: proposal.priority || 'MED',
                     status: proposal.status,
-                    approval_status: isFullyApproved ? 'fully_approved' : needsAdminApproval ? 'needs_admin_approval' : 'l1_approved',
-                    approval_note: isFullyApproved
-                        ? 'Fully approved — proceed with procurement'
-                        : needsAdminApproval
-                            ? `CMA approved — awaiting Admin approval (budget ≥₹10K)`
-                            : 'CMA approved — ready for procurement (budget <₹10K)'
+                    ...context
                 },
-                items: items,
-                approvals: [{
-                    name: isFullyApproved ? 'Admin' : 'Pravalika (CMA Manager)',
-                    email: isFullyApproved ? '' : 'pravalika.s@nxtwave.co.in',
-                    role: isFullyApproved ? 'ADMIN' : 'CMA_MANAGER',
-                    approved_at: proposal.updated_at || proposal.created_at
-                }]
+                items: items.map(i => ({
+                    ...i,
+                    // Map column names for Facilities OS
+                    quantity: i.qty,
+                    unit_price: i.unit_cost,
+                    total_price: i.amount
+                })),
+                approvals
             };
 
-            console.log(`\nSending: "${proposal.title}" (${proposal.university_name}) — ₹${proposal.estimated_total_budget}`);
+            const statusIcon = context.can_proceed ? '✓' : context.approval_status === 'rejected' ? '✗' : '○';
+            console.log(`\n${statusIcon} [${proposal.status}] "${proposal.title}" (${proposal.university_name}) — ₹${proposal.estimated_total_budget}`);
+            console.log(`  ${context.approval_note}`);
 
             const res = await fetch(FACILITIES_URL, {
                 method: 'POST',
@@ -108,25 +153,23 @@ async function main() {
 
             const body = await res.text();
             if (res.ok) {
-                console.log(`  ✓ Sent — ${body}`);
+                console.log(`  → Sent OK — ${body}`);
                 sent++;
             } else {
-                console.log(`  ✗ Failed (HTTP ${res.status}) — ${body}`);
+                console.log(`  → Failed (HTTP ${res.status}) — ${body}`);
                 failed++;
             }
 
-            // Small delay
             await new Promise(r => setTimeout(r, 300));
 
         } catch (e) {
-            console.log(`  ✗ Error: ${e.message}`);
+            console.log(`  → Error: ${e.message}`);
             failed++;
         }
     }
 
-    console.log(`\n=== DONE ===`);
-    console.log(`Sent: ${sent}, Failed: ${failed}, Total: ${toSync.length}`);
-
+    console.log(`\n${'='.repeat(50)}`);
+    console.log(`DONE: ${sent} sent, ${failed} failed, ${proposals.length} total`);
     await pool.end();
 }
 

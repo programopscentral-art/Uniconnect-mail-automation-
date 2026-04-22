@@ -113,10 +113,9 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         console.warn('[TRACKING] Failed to add tracking entry:', e);
     }
 
-    // On APPROVED or APPROVED_L1 → webhook to Facilities OS
-    // L1 = CMA approved (visible in Facilities but may need admin approval)
-    // APPROVED = fully approved (proceed with procurement)
-    if ((toStatus === 'APPROVED' || toStatus === 'APPROVED_L1') && updatedProposal) {
+    // On ANY status change → webhook to Facilities OS so it stays in sync.
+    // Facilities shows all proposals with their current approval status.
+    if (updatedProposal) {
         const facilitiesUrl = env.FACILITIES_OS_WEBHOOK_URL || process.env.FACILITIES_OS_WEBHOOK_URL;
         if (facilitiesUrl) {
             try {
@@ -138,30 +137,44 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
                     },
                     body: JSON.stringify({
                         action: 'proposal_approved',
-                        proposal: {
-                            id: updatedProposal.id,
-                            title: updatedProposal.title,
-                            description: updatedProposal.description,
-                            university_id: updatedProposal.university_id,
-                            university_name: univRes.rows[0]?.name || '',
-                            proposer_name: updatedProposal.proposer_name,
-                            proposer_email: updatedProposal.proposer_email,
-                            estimated_total_budget: updatedProposal.estimated_total_budget,
-                            approved_total_budget: approvedBudget || updatedProposal.approved_total_budget,
-                            proposed_date: updatedProposal.proposed_date,
-                            venue: updatedProposal.venue,
-                            priority: updatedProposal.priority,
-                            status: toStatus,
-                            approval_status: toStatus === 'APPROVED' ? 'fully_approved'
-                                : (Number(updatedProposal.estimated_total_budget) >= 10000 ? 'needs_admin_approval' : 'l1_approved'),
-                            approval_note: toStatus === 'APPROVED' ? 'Fully approved — proceed with procurement'
-                                : (Number(updatedProposal.estimated_total_budget) >= 10000
-                                    ? 'CMA approved — awaiting Admin approval (budget ≥₹10K)'
-                                    : 'CMA approved — ready for procurement (budget <₹10K)')
-                        },
-                        items: itemsRes.rows,
+                        proposal: (() => {
+                            const budget = Number(updatedProposal.estimated_total_budget) || 0;
+                            const needsAdmin = budget >= 10000;
+                            const statusContext: Record<string, { approval_status: string; approval_note: string; can_proceed: boolean }> = {
+                                'SUBMITTED': { approval_status: 'submitted', approval_note: 'Submitted — awaiting CMA approval', can_proceed: false },
+                                'UNDER_REVIEW': { approval_status: 'under_review', approval_note: 'Under review by CMA', can_proceed: false },
+                                'CHANGES_REQUESTED': { approval_status: 'changes_requested', approval_note: 'Changes requested', can_proceed: false },
+                                'APPROVED_L1': {
+                                    approval_status: needsAdmin ? 'needs_admin_approval' : 'l1_approved',
+                                    approval_note: needsAdmin ? `CMA approved — awaiting Admin approval (₹${budget.toLocaleString('en-IN')} ≥₹10K)` : `CMA approved — ready for procurement (₹${budget.toLocaleString('en-IN')} <₹10K)`,
+                                    can_proceed: !needsAdmin
+                                },
+                                'APPROVED': { approval_status: 'fully_approved', approval_note: 'Fully approved — proceed with procurement', can_proceed: true },
+                                'REJECTED': { approval_status: 'rejected', approval_note: `Rejected${reason ? ': ' + reason : ''}`, can_proceed: false },
+                                'EVENT_COMPLETED': { approval_status: 'event_completed', approval_note: 'Event completed', can_proceed: true },
+                                'CLOSED': { approval_status: 'closed', approval_note: 'Closed', can_proceed: true },
+                            };
+                            const ctx = statusContext[toStatus] || { approval_status: toStatus.toLowerCase(), approval_note: toStatus, can_proceed: false };
+                            return {
+                                id: updatedProposal.id,
+                                title: updatedProposal.title,
+                                description: updatedProposal.description,
+                                university_id: updatedProposal.university_id,
+                                university_name: univRes.rows[0]?.name || '',
+                                proposer_name: updatedProposal.proposer_name,
+                                proposer_email: updatedProposal.proposer_email,
+                                estimated_total_budget: updatedProposal.estimated_total_budget,
+                                approved_total_budget: approvedBudget || updatedProposal.approved_total_budget,
+                                proposed_date: updatedProposal.proposed_date,
+                                venue: updatedProposal.venue,
+                                priority: updatedProposal.priority,
+                                status: toStatus,
+                                ...ctx
+                            };
+                        })(),
+                        items: itemsRes.rows.map((i: any) => ({ ...i, quantity: i.qty, unit_price: i.unit_cost, total_price: i.amount })),
                         approvals: [
-                            { name: locals.user.name, email: locals.user.email, role: locals.user.role, approved_at: new Date().toISOString() }
+                            { name: locals.user.name, email: locals.user.email, role: locals.user.role, status: toStatus, approved_at: new Date().toISOString() }
                         ]
                     })
                 });
