@@ -281,7 +281,7 @@ ${byUniv || 'No data'}
 
 Professional tone. Highlight wins, concerns, 2-3 action items. Plain text paragraphs only.`;
 
-    for (const model of ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash']) {
+    for (const model of ['gemini-2.5-flash']) {
         try {
             const resp = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -290,8 +290,7 @@ Professional tone. Highlight wins, concerns, 2-3 action items. Plain text paragr
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }
-                    })
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.2 }, thinkingConfig: { thinkingBudget: 0 } })
                 }
             );
             if (!resp.ok) continue;

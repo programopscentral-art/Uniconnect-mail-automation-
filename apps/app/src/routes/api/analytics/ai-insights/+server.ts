@@ -84,9 +84,9 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
     // Call Gemini API — all models use v1beta
     const modelsToTry = [
         'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-flash-latest',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
     ];
     let aiText: string | null = null;
     let lastError = '';
@@ -101,10 +101,8 @@ Be data-driven, direct, and specific. Reference actual team members by name. Use
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            maxOutputTokens: 2048,
-                            temperature: 0.4,
-                        },
+                        generationConfig: { maxOutputTokens: 2048, temperature: 0.4 },
+                        thinkingConfig: { thinkingBudget: 0 }
                     }),
                 });
 

@@ -56,14 +56,14 @@ Provide analysis in plain text (no markdown) covering:
 
 Be data-driven and reference specific events and numbers.`;
 
-        const modelsToTry = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash'];
+        const modelsToTry = ['gemini-2.5-flash'];
         let aiText: string | null = null;
         for (const model of modelsToTry) {
             try {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: eventPrompt }] }], generationConfig: { maxOutputTokens: 4096, temperature: 0.3 } }),
+                    body: JSON.stringify({ contents: [{ parts: [{ text: eventPrompt }] }], generationConfig: { maxOutputTokens: 4096, temperature: 0.3 }, thinkingConfig: { thinkingBudget: 0 } }),
                 });
                 if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
                 if (!response.ok) continue;
@@ -109,14 +109,14 @@ Provide a comprehensive weekly analytics summary in plain text (no markdown) cov
 
 Be direct, data-driven, and reference specific names and numbers.`;
 
-        const modelsToTry = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-flash'];
+        const modelsToTry = ['gemini-2.5-flash'];
         let aiText: string | null = null;
         for (const model of modelsToTry) {
             try {
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
                 const response = await fetch(url, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: analyticsPrompt }] }], generationConfig: { maxOutputTokens: 6144, temperature: 0.3 } }),
+                    body: JSON.stringify({ contents: [{ parts: [{ text: analyticsPrompt }] }], generationConfig: { maxOutputTokens: 6144, temperature: 0.3 }, thinkingConfig: { thinkingBudget: 0 } }),
                 });
                 if (response.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
                 if (!response.ok) continue;
@@ -204,10 +204,10 @@ Provide a detailed executive summary in plain text (no markdown, no bullet symbo
 Be data-driven, reference specific universities and numbers. Be direct and honest about problems. This report will be read by senior management.`;
 
     const modelsToTry = [
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
         'gemini-2.5-flash',
-        'gemini-flash-latest',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash',
     ];
     let aiText: string | null = null;
     let lastError = '';
@@ -221,10 +221,8 @@ Be data-driven, reference specific universities and numbers. Be direct and hones
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            maxOutputTokens: 8192,
-                            temperature: 0.3,
-                        },
+                        generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
+                        thinkingConfig: { thinkingBudget: 0 }
                     }),
                 });
 

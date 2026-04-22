@@ -294,7 +294,7 @@ Keep it concise and actionable. Use bullet points.`;
             if (!geminiKey) throw error(500, 'Gemini API key not configured');
 
             const geminiResponse = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -303,8 +303,7 @@ Keep it concise and actionable. Use bullet points.`;
                         generationConfig: {
                             maxOutputTokens: 4096,
                             temperature: 0.3
-                        }
-                    })
+                        }, thinkingConfig: { thinkingBudget: 0 } })
                 }
             );
 
@@ -424,7 +423,7 @@ Format with markdown tables and bullet points.`
             if (!geminiKey) throw error(500, 'Gemini API key not configured');
 
             const geminiResponse = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -433,8 +432,7 @@ Format with markdown tables and bullet points.`
                         generationConfig: {
                             maxOutputTokens: 8192,
                             temperature: 0.2
-                        }
-                    })
+                        }, thinkingConfig: { thinkingBudget: 0 } })
                 }
             );
 

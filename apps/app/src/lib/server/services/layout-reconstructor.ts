@@ -106,9 +106,9 @@ export class LayoutReconstructor {
         const apiVersions = ["v1", undefined];
         const modelsToTry = [
             "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash"
+            "gemini-2.5-flash",
+            "gemini-2.5-flash",
+            "gemini-2.5-flash"
         ];
 
         let result: any = null;

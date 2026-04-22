@@ -61,7 +61,7 @@ function ensureLimit(sql: string): string {
 }
 
 async function callGemini(prompt: string, apiKey: string): Promise<string | null> {
-    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+    const models = ['gemini-2.5-flash', 'gemini-2.5-flash', 'gemini-2.5-flash'];
     for (const model of models) {
         try {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -71,6 +71,7 @@ async function callGemini(prompt: string, apiKey: string): Promise<string | null
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: { maxOutputTokens: 4096, temperature: 0.1 },
+                    thinkingConfig: { thinkingBudget: 0 }
                 }),
             });
             if (response.status === 429) {
