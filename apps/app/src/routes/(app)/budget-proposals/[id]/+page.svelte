@@ -537,7 +537,7 @@
 
       <!-- Order Tracking Timeline -->
       {#if proposal.status !== 'DRAFT'}
-        <TrackingTimeline proposalId={proposal.id} proposalStatus={proposal.status} />
+        <TrackingTimeline proposalId={proposal.id} proposalStatus={proposal.status} proposalBudget={Number(proposal.estimated_total_budget) || 0} />
       {/if}
 
       <!-- Budget Breakdown -->

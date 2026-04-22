@@ -4,10 +4,12 @@
 
     let {
         proposalId = '',
-        proposalStatus = ''
+        proposalStatus = '',
+        proposalBudget = 0
     }: {
         proposalId?: string;
         proposalStatus?: string;
+        proposalBudget?: number;
     } = $props();
 
     let timeline = $state<any[]>([]);
@@ -53,15 +55,22 @@
     const defaultColor = { bg: 'bg-zinc-100 dark:bg-zinc-800', ring: 'ring-zinc-400', text: 'text-zinc-600 dark:text-zinc-400' };
 
     // Possible future steps to show as pending
+    // Budget-aware future steps: <₹10K doesn't need admin approval
+    const needsAdmin = (proposalBudget || 0) >= 10000;
     const futureSteps: Record<string, Array<{ status: string; title: string }>> = {
         submitted: [
-            { status: 'cm_approved', title: 'CM Approval' },
-            { status: 'approved', title: 'Admin Approval' },
+            { status: 'cm_approved', title: 'CMA Approval' },
+            ...(needsAdmin ? [{ status: 'approved', title: 'Admin Approval' }] : []),
+            { status: 'vendor_assigned', title: 'Vendor Assignment' },
+            { status: 'delivered', title: 'Delivery' }
+        ],
+        cm_approved: [
+            ...(needsAdmin ? [{ status: 'approved', title: 'Admin Approval' }] : []),
             { status: 'vendor_assigned', title: 'Vendor Assignment' },
             { status: 'delivered', title: 'Delivery' }
         ],
         approved_l1: [
-            { status: 'approved', title: 'Admin Approval' },
+            ...(needsAdmin ? [{ status: 'approved', title: 'Admin Approval' }] : []),
             { status: 'vendor_assigned', title: 'Vendor Assignment' },
             { status: 'delivered', title: 'Delivery' }
         ],

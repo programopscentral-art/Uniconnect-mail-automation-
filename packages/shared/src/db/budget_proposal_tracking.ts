@@ -75,12 +75,20 @@ export async function backfillTrackingFromProposal(proposal: any) {
     await ensureTrackingTable();
     const pid = proposal.id;
 
-    // Check if already backfilled
+    // Check if already backfilled — but if entries exist only from 'uniconnect'
+    // source (auto-backfill), clear and re-backfill to pick up budget-aware logic.
     const existing = await db.query(
-        `SELECT COUNT(*)::int AS count FROM budget_proposal_tracking WHERE proposal_id = $1`,
+        `SELECT COUNT(*)::int AS count,
+                COUNT(*) FILTER (WHERE source = 'facilities') AS facilities_count
+         FROM budget_proposal_tracking WHERE proposal_id = $1`,
         [pid]
     );
-    if (existing.rows[0].count > 0) return;
+    // If facilities has sent updates, don't re-backfill (would lose real data)
+    if (existing.rows[0].facilities_count > 0) return;
+    // If only uniconnect entries exist, clear and re-backfill with correct budget logic
+    if (existing.rows[0].count > 0) {
+        await db.query(`DELETE FROM budget_proposal_tracking WHERE proposal_id = $1 AND source = 'uniconnect'`, [pid]);
+    }
 
     const entries: Array<{ status: string; title: string; description?: string; name?: string; date?: string }> = [];
 
@@ -97,19 +105,34 @@ export async function backfillTrackingFromProposal(proposal: any) {
     const statusOrder = ['SUBMITTED', 'UNDER_REVIEW', 'APPROVED_L1', 'APPROVED_L2', 'APPROVED', 'EVENT_COMPLETED', 'REPORT_SUBMITTED', 'CLOSED'];
     const currentIdx = statusOrder.indexOf(proposal.status);
 
+    const budget = Number(proposal.estimated_total_budget) || 0;
+    const needsAdmin = budget >= 10000;
+
     if (currentIdx >= statusOrder.indexOf('APPROVED_L1')) {
         entries.push({
             status: 'cm_approved',
-            title: 'CM Approved',
-            description: 'University manager approved this proposal',
+            title: 'CMA Approved',
+            description: needsAdmin
+                ? `CMA approved — awaiting Admin approval (₹${budget.toLocaleString('en-IN')} ≥₹10K)`
+                : `CMA approved — ready for procurement (₹${budget.toLocaleString('en-IN')} <₹10K)`,
             date: proposal.updated_at
         });
     }
-    if (currentIdx >= statusOrder.indexOf('APPROVED')) {
+    // Only add admin_approved step for ≥₹10K proposals that reached APPROVED
+    if (needsAdmin && currentIdx >= statusOrder.indexOf('APPROVED')) {
         entries.push({
             status: 'admin_approved',
             title: 'Admin Approved',
             description: `Budget approved: ₹${proposal.approved_total_budget || proposal.estimated_total_budget}`,
+            date: proposal.updated_at
+        });
+    }
+    // For <₹10K, CMA approval = final approval, mark as sent to facilities
+    if (!needsAdmin && currentIdx >= statusOrder.indexOf('APPROVED_L1')) {
+        entries.push({
+            status: 'sent_to_facilities',
+            title: 'Sent to Facilities',
+            description: 'CMA approval is sufficient for budgets under ₹10,000. Procurement can proceed.',
             date: proposal.updated_at
         });
     }
