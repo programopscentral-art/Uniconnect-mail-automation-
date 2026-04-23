@@ -8,7 +8,7 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     try {
         const assigned_to = url.searchParams.get('assigned_to') || undefined;
-        let university_id = url.searchParams.get('university_id') || undefined;
+        let university_id = url.searchParams.get('university_id')?.trim() || undefined;
         const status = url.searchParams.get('status') as any || undefined;
         const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
 
