@@ -336,17 +336,44 @@
         } catch {}
     }
 
-    function setCoachCalls(coachId: string, field: 'student' | 'parent' | 'target' | 'notes', value: any, defaultTarget = 15) {
+    // Use a separate plain object for input values so Svelte doesn't
+    // re-render and reset the input mid-typing. Only sync to coachCallData
+    // on blur (when user finishes typing).
+    let coachInputValues = $state<Record<string, { student: string; parent: string; target: string; notes: string }>>({});
+
+    function getCoachInput(coachId: string, field: 'student' | 'parent' | 'target' | 'notes'): string {
+        if (coachInputValues[coachId]?.[field] !== undefined) return coachInputValues[coachId][field];
+        const cd = coachCallData.get(coachId);
+        if (!cd) return field === 'target' ? '15' : '';
+        if (field === 'student') return cd.student > 0 ? String(cd.student) : '';
+        if (field === 'parent') return cd.parent > 0 ? String(cd.parent) : '';
+        if (field === 'target') return String(cd.target);
+        return cd.notes || '';
+    }
+
+    function updateCoachInput(coachId: string, field: 'student' | 'parent' | 'target' | 'notes', value: string) {
+        if (!coachInputValues[coachId]) coachInputValues[coachId] = { student: '', parent: '', target: '', notes: '' };
+        coachInputValues[coachId][field] = value;
+        coachInputValues = { ...coachInputValues };
+    }
+
+    function commitCoachInput(coachId: string, defaultTarget = 15) {
+        const inp = coachInputValues[coachId];
+        if (!inp) return;
         const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: defaultTarget, notes: '' };
-        if (field === 'student') existing.student = parseInt(String(value)) || 0;
-        else if (field === 'parent') existing.parent = parseInt(String(value)) || 0;
-        else if (field === 'target') existing.target = parseInt(String(value)) || defaultTarget;
-        else existing.notes = String(value);
+        if (inp.student !== '') existing.student = parseInt(inp.student) || 0;
+        if (inp.parent !== '') existing.parent = parseInt(inp.parent) || 0;
+        if (inp.target !== '') existing.target = parseInt(inp.target) || defaultTarget;
+        if (inp.notes !== undefined) existing.notes = inp.notes;
         coachCallData.set(coachId, existing);
         coachCallData = new Map(coachCallData);
     }
 
     async function submitCoachLogs() {
+        // Commit any pending input values before checking
+        for (const coachId of Object.keys(coachInputValues)) {
+            commitCoachInput(coachId);
+        }
         if (coachCallData.size === 0) { flash('No call data entered', true); return; }
         savingCoach = true;
         try {
@@ -853,9 +880,9 @@
                                         <span class="text-[9px] text-zinc-400 uppercase font-bold">Student</span>
                                         <input
                                             type="number" min="0" max="200" placeholder="0"
-                                            value={cd?.student ?? ''}
-                                            onchange={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
-                                            onblur={(e) => setCoachCalls(row.coach_id, 'student', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                            value={getCoachInput(row.coach_id, 'student')}
+                                            oninput={(e) => updateCoachInput(row.coach_id, 'student', (e.target as HTMLInputElement).value)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -863,9 +890,9 @@
                                         <span class="text-[9px] text-zinc-400 uppercase font-bold">Parent</span>
                                         <input
                                             type="number" min="0" max="200" placeholder="0"
-                                            value={cd?.parent ?? ''}
-                                            onchange={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
-                                            onblur={(e) => setCoachCalls(row.coach_id, 'parent', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                            value={getCoachInput(row.coach_id, 'parent')}
+                                            oninput={(e) => updateCoachInput(row.coach_id, 'parent', (e.target as HTMLInputElement).value)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -922,14 +949,18 @@
                                     <div class="flex gap-3">
                                     <div class="flex items-center gap-2 flex-1">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
-                                        <input type="number" min="1" max="200" value={cd?.target || target}
-                                            onchange={(e) => setCoachCalls(row.coach_id, 'target', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                        <input type="number" min="1" max="200"
+                                            value={getCoachInput(row.coach_id, 'target') || target}
+                                            oninput={(e) => updateCoachInput(row.coach_id, 'target', (e.target as HTMLInputElement).value)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
                                             class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
                                     </div>
                                     <div class="flex items-center gap-2 flex-[2]">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Notes</span>
-                                        <input type="text" placeholder="Notes (optional)" value={cd?.notes || ''}
-                                            onchange={(e) => setCoachCalls(row.coach_id, 'notes', (e.target as HTMLInputElement).value, Number(row.daily_call_target) || 15)}
+                                        <input type="text" placeholder="Notes (optional)"
+                                            value={getCoachInput(row.coach_id, 'notes')}
+                                            oninput={(e) => updateCoachInput(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
                                             class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
                                     </div>
                                     </div>
