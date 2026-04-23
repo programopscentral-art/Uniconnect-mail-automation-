@@ -5,14 +5,17 @@ import { error } from '@sveltejs/kit';
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
-    // If URL has universityId param, use it. If "All" was selected, it's absent.
     const urlUnivId = url.searchParams.get('universityId');
 
-    // Only default to user's primary university on FIRST load (no param at all).
-    // Once user explicitly picks "All Universities", universityId stays empty.
-    let universityId = urlUnivId || null;
-    if (universityId === null && !url.searchParams.has('universityId')) {
-        // First load — no param in URL. Default to user's primary.
+    let universityId: string | null = null;
+    if (urlUnivId === 'all' || urlUnivId === '') {
+        // User explicitly selected "All Universities"
+        universityId = null;
+    } else if (urlUnivId) {
+        // User selected a specific university
+        universityId = urlUnivId;
+    } else {
+        // First load — no param. Default to primary university.
         universityId = locals.user.university_id || null;
     }
 

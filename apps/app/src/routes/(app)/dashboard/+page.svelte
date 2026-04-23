@@ -118,10 +118,10 @@
 
   // ─── Client-side Data Loading ──────────────────────────────────────────
   async function loadDashboardData() {
-    // When "All Universities" is selected, selectedUniversityId is null/empty.
-    // Don't fall back to defaultUniversityId — pass no filter so APIs return ALL data.
+    // When "All Universities" is selected, selectedUniversityId is null.
+    // Pass no filter so APIs return ALL data from every university.
     const univParam = data.selectedUniversityId || '';
-    const qs = univParam ? `?university_id=${univParam}` : '';
+    const qs = (univParam && univParam !== 'all') ? `?university_id=${univParam}` : '';
 
     try {
       const fetches: Promise<any>[] = [
@@ -533,7 +533,7 @@
     }
     const url = new URL(window.location.href);
     if (val) url.searchParams.set('universityId', val);
-    else url.searchParams.delete('universityId');
+    else url.searchParams.set('universityId', 'all');
     goto(url.toString());
   }
 
