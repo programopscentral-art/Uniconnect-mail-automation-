@@ -6,10 +6,17 @@ import { addNotificationJob } from '$lib/server/queue';
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401);
 
-    const urlUnivId = url.searchParams.get('university_id')?.trim() || null;
-    const allAccessRoles = ['ADMIN', 'PROGRAM_OPS', 'COS', 'CMA', 'CMA_MANAGER', 'BOA'];
+    const rawUnivId = url.searchParams.get('university_id')?.trim() || null;
+    const isAllRequested = rawUnivId === 'all' || rawUnivId === '';
+    const urlUnivId = isAllRequested ? null : rawUnivId;
 
-    // No specific university selected → return ALL events for global roles
+    // "All Universities" explicitly selected OR global role with no filter → return ALL events
+    if (!urlUnivId && isAllRequested) {
+        const events = await getScheduleEvents(undefined, locals.user.id);
+        return json(events);
+    }
+
+    const allAccessRoles = ['ADMIN', 'PROGRAM_OPS', 'COS', 'CMA', 'CMA_MANAGER', 'BOA'];
     if (!urlUnivId && allAccessRoles.includes(locals.user.role)) {
         const events = await getScheduleEvents();
         return json(events);

@@ -8,7 +8,9 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
     try {
         const assigned_to = url.searchParams.get('assigned_to') || undefined;
-        let university_id = url.searchParams.get('university_id')?.trim() || undefined;
+        const rawUnivId = url.searchParams.get('university_id')?.trim() || undefined;
+        const isAllRequested = rawUnivId === 'all' || rawUnivId === '';
+        let university_id = (isAllRequested ? undefined : rawUnivId);
         const status = url.searchParams.get('status') as any || undefined;
         const limit = url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!) : undefined;
 
@@ -20,14 +22,12 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         const activeUniv = (locals.user as any).universities?.find((u: any) => u.id === (university_id || locals.user!.university_id));
         const isCentralTeam = !isGlobalAdmin && (!locals.user.university_id || activeUniv?.is_team);
 
-        if (!isGlobalAdmin && !isCentralTeam) {
+        // When user explicitly selects "All Universities", skip university filter
+        if (!isAllRequested && !isGlobalAdmin && !isCentralTeam) {
             university_id = locals.user.university_id || undefined;
         }
-        // For Central BOA: use the requested university_id (their team's id) to see all team tasks
 
-        // ALWAYS pass creator_id for non-admin users so they see their own tasks
-        // Previously central BOA got creator_id=undefined, which meant tasks with
-        // NULL university_id (created when form didn't pre-fill) were invisible
+        // ALWAYS pass creator_id for non-admin users so they see their own tasks + assigned tasks
         const tasks = await getTasks({
             assigned_to,
             university_id,

@@ -8,7 +8,9 @@ const SE_ROLES = ['SE', 'STUDENT_ENGAGEMENT', 'SE_MANAGER', 'SE_TEAM'];
 export const GET: RequestHandler = async ({ url, locals }) => {
     if (!locals.user) throw error(401);
 
-    const universityId = url.searchParams.get('university_id')?.trim() || undefined;
+    const rawUnivId = url.searchParams.get('university_id')?.trim() || undefined;
+    const isAllRequested = rawUnivId === 'all' || rawUnivId === '';
+    const universityId = isAllRequested ? undefined : rawUnivId;
     const startDate = url.searchParams.get('start_date');
     const endDate = url.searchParams.get('end_date');
 

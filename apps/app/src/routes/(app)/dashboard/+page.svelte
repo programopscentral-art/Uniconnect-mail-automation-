@@ -119,9 +119,9 @@
   // ─── Client-side Data Loading ──────────────────────────────────────────
   async function loadDashboardData() {
     // When "All Universities" is selected, selectedUniversityId is null.
-    // Pass no filter so APIs return ALL data from every university.
+    // Send university_id=all so APIs know user explicitly wants cross-university data.
     const univParam = data.selectedUniversityId || '';
-    const qs = (univParam && univParam !== 'all') ? `?university_id=${univParam}` : '';
+    const qs = (univParam && univParam !== 'all') ? `?university_id=${univParam}` : '?university_id=all';
 
     try {
       const fetches: Promise<any>[] = [
@@ -1572,16 +1572,17 @@
   table { border-collapse: collapse; width: 100%; }
   td, th { border: 1px solid #D1D5DB; padding: 6px 10px; font-size: 11px; }
   th { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .title { font-size: 18px; font-weight: 700; color: #1F2937; border: none; }
-  .subtitle { font-size: 11px; color: #6B7280; border: none; }
-  .univ-header { font-size: 14px; font-weight: 700; color: #FFFFFF; border: none; }
-  .univ-stats { font-size: 10px; color: #FFFFFF; border: none; opacity: 0.9; }
-  .cat-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: none; }
-  .summary-header { background: #1F2937; color: #FFFFFF; font-weight: 700; }
+  .title { font-size: 18px; font-weight: 700; color: #1F2937; border: none; text-align: center; }
+  .subtitle { font-size: 11px; color: #6B7280; border: none; text-align: center; }
+  .univ-header { font-size: 14px; font-weight: 700; color: #FFFFFF; border: none; text-align: center; }
+  .univ-stats { font-size: 10px; color: #FFFFFF; border: none; text-align: center; }
+  .cat-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: none; text-align: center; }
+  .summary-header { background: #1F2937; color: #FFFFFF; font-weight: 700; text-align: center; }
+  th { text-align: center; }
 </style></head><body>`;
 
-    html += `<table><tr><td class="title" colspan="10">UniConnect Calendar — ${month} ${year}</td></tr>`;
-    html += `<tr><td class="subtitle" colspan="5">Generated: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="subtitle" colspan="5">Total entries: ${allEntries.length} · Universities: ${sortedUnivs.length}</td></tr>`;
+    html += `<table><tr><td class="title" colspan="10" style="text-align:center;">UniConnect Calendar — ${month} ${year}</td></tr>`;
+    html += `<tr><td class="subtitle" colspan="10" style="text-align:center;">Generated: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · Total entries: ${allEntries.length} · Universities: ${sortedUnivs.length}</td></tr>`;
     html += `<tr><td colspan="10" style="border:none;">&nbsp;</td></tr></table>`;
 
     sortedUnivs.forEach((univName, ui) => {
@@ -1594,9 +1595,9 @@
       const headerBg = ['#1E40AF', '#065F46', '#92400E', '#6B21A8', '#991B1B', '#0C4A6E', '#1E3A5F', '#4C1D95', '#78350F', '#064E3B'][ui % 10];
 
       html += `<table>`;
-      html += `<tr><td class="univ-header" colspan="10" style="background:${headerBg};">${univName.toUpperCase()}</td></tr>`;
-      html += `<tr><td class="univ-stats" colspan="10" style="background:${headerBg};">${entries.length} entries · ${holidays} holidays · ${exams} exams · ${activities} activities · ${freezes} freezes · ${events} events</td></tr>`;
-      html += `<tr style="background:#F3F4F6;"><th>Date</th><th>Day</th><th>Category</th><th>Type</th><th>Title</th><th>Description</th><th>Priority</th><th>Status</th><th>Time</th><th>Assignees</th></tr>`;
+      html += `<tr><td class="univ-header" colspan="10" style="background:${headerBg};text-align:center;">${univName.toUpperCase()}</td></tr>`;
+      html += `<tr><td class="univ-stats" colspan="10" style="background:${headerBg};text-align:center;">${entries.length} entries · ${holidays} holidays · ${exams} exams · ${activities} activities · ${freezes} freezes · ${events} events</td></tr>`;
+      html += `<tr style="background:#F3F4F6;"><th style="text-align:center;">Date</th><th style="text-align:center;">Day</th><th style="text-align:center;">Category</th><th style="text-align:center;">Type</th><th style="text-align:center;">Title</th><th style="text-align:center;">Description</th><th style="text-align:center;">Priority</th><th style="text-align:center;">Status</th><th style="text-align:center;">Time</th><th style="text-align:center;">Assignees</th></tr>`;
 
       const categoryOrder = ['HOLIDAY', 'EXAM', 'FREEZE', 'ACTIVITY', 'ACADEMIC', 'EVENT'];
       const sorted = [...entries].sort((a, b) => {
@@ -1609,7 +1610,7 @@
         if (e.category !== lastCategory) {
           const cc = categoryColors[e.category] || { bg: '#F9FAFB', text: '#374151' };
           const catLabel = { HOLIDAY: 'Holidays', EXAM: 'Exams', FREEZE: 'Frozen Dates', ACTIVITY: 'Activities', ACADEMIC: 'Academic', EVENT: 'Events' }[e.category] || e.category;
-          html += `<tr><td class="cat-header" colspan="10" style="background:${cc.bg};color:${cc.text};">■ ${catLabel}</td></tr>`;
+          html += `<tr><td class="cat-header" colspan="10" style="background:${cc.bg};color:${cc.text};text-align:center;">■ ${catLabel}</td></tr>`;
           lastCategory = e.category;
         }
         const cc = categoryColors[e.category] || { bg: '#FFFFFF', text: '#374151' };
@@ -1631,8 +1632,8 @@
     });
 
     // Summary table
-    html += `<table><tr><td class="summary-header" colspan="7">SUMMARY</td></tr>`;
-    html += `<tr style="background:#F3F4F6;"><th>University</th><th>Total</th><th>Holidays</th><th>Exams</th><th>Activities</th><th>Freezes</th><th>Events</th></tr>`;
+    html += `<table><tr><td class="summary-header" colspan="7" style="text-align:center;font-size:14px;">SUMMARY</td></tr>`;
+    html += `<tr style="background:#F3F4F6;"><th style="text-align:center;">University</th><th style="text-align:center;">Total</th><th style="text-align:center;">Holidays</th><th style="text-align:center;">Exams</th><th style="text-align:center;">Activities</th><th style="text-align:center;">Freezes</th><th style="text-align:center;">Events</th></tr>`;
     let grandTotal = 0;
     for (const univName of sortedUnivs) {
       const entries = byUniv.get(univName)!;
