@@ -48,38 +48,38 @@ function buildBudgetProposalEmail(proposal: FullProposal, bodyText: string, base
     const priorityColor = PRIORITY_COLOR[proposal.priority] || '#6B7280';
     const statusLabel = isL1Under10K ? 'CMA APPROVED' : isL1Over10K ? 'NEEDS ADMIN APPROVAL' : (STATUS_LABEL[proposal.status] || proposal.status);
 
+    // Mobile-friendly: use 3-column layout (Description combines category, Qty, Amount)
     const itemRows = (proposal.items || []).map(item => `
         <tr>
-            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;">${CATEGORY_LABEL[item.category] || item.category}</td>
-            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;">${item.description}</td>
-            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:center;">${item.qty}</td>
-            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;text-align:right;">${fmtINR(item.unit_cost)}</td>
-            <td style="padding:9px 12px;border-bottom:1px solid #F1F5F9;font-size:13px;font-weight:700;text-align:right;">${fmtINR(item.amount)}</td>
+            <td style="padding:8px 6px;border-bottom:1px solid #F1F5F9;font-size:12px;word-break:break-word;">
+                <div style="font-weight:600;color:#374151;">${item.description}</div>
+                <div style="font-size:10px;color:#9CA3AF;margin-top:2px;">${CATEGORY_LABEL[item.category] || item.category}${item.unit_cost ? ' · ' + fmtINR(item.unit_cost) + '/unit' : ''}</div>
+            </td>
+            <td style="padding:8px 4px;border-bottom:1px solid #F1F5F9;font-size:12px;text-align:center;white-space:nowrap;">${item.qty || '—'}</td>
+            <td style="padding:8px 6px;border-bottom:1px solid #F1F5F9;font-size:12px;font-weight:700;text-align:right;white-space:nowrap;">${fmtINR(item.amount)}</td>
         </tr>`).join('');
 
     const itemsSection = (proposal.items || []).length > 0 ? `
         <div style="margin-bottom:24px;">
             <h3 style="margin:0 0 10px;font-size:14px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.5px;">💰 Budget Breakdown</h3>
-            <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;table-layout:fixed;">
                 <thead>
                     <tr style="background:#F8FAFC;">
-                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:left;">Category</th>
-                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:left;">Description</th>
-                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:center;">Qty</th>
-                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:right;">Unit Cost</th>
-                        <th style="padding:8px 12px;font-size:11px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:right;">Amount</th>
+                        <th style="padding:8px 6px;font-size:10px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:left;width:60%;">Item</th>
+                        <th style="padding:8px 4px;font-size:10px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:center;width:15%;">Qty</th>
+                        <th style="padding:8px 6px;font-size:10px;text-transform:uppercase;font-weight:700;color:#6B7280;text-align:right;width:25%;">Amount</th>
                     </tr>
                 </thead>
                 <tbody>${itemRows}</tbody>
                 <tfoot>
                     <tr style="background:#F0FDF4;">
-                        <td colspan="4" style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right;border-top:2px solid #16A34A;">Total Estimated Budget</td>
-                        <td style="padding:10px 12px;font-size:14px;font-weight:700;color:#16A34A;text-align:right;border-top:2px solid #16A34A;">${fmtINR(proposal.estimated_total_budget)}</td>
+                        <td colspan="2" style="padding:10px 6px;font-size:12px;font-weight:700;text-align:right;border-top:2px solid #16A34A;">Total Estimated Budget</td>
+                        <td style="padding:10px 6px;font-size:13px;font-weight:700;color:#16A34A;text-align:right;border-top:2px solid #16A34A;">${fmtINR(proposal.estimated_total_budget)}</td>
                     </tr>
                     ${proposal.approved_total_budget !== null && proposal.approved_total_budget !== undefined ? `
                     <tr style="background:#EFF6FF;">
-                        <td colspan="4" style="padding:10px 12px;font-size:13px;font-weight:700;text-align:right;border-top:1px solid #BFDBFE;">Approved Budget</td>
-                        <td style="padding:10px 12px;font-size:14px;font-weight:700;color:#2563EB;text-align:right;border-top:1px solid #BFDBFE;">${fmtINR(proposal.approved_total_budget)}</td>
+                        <td colspan="2" style="padding:10px 6px;font-size:12px;font-weight:700;text-align:right;border-top:1px solid #BFDBFE;">Approved Budget</td>
+                        <td style="padding:10px 6px;font-size:13px;font-weight:700;color:#2563EB;text-align:right;border-top:1px solid #BFDBFE;">${fmtINR(proposal.approved_total_budget)}</td>
                     </tr>` : ''}
                 </tfoot>
             </table>
