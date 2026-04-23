@@ -1403,63 +1403,94 @@
   }
 
   function downloadCalendarCSV() {
-    // Build a lookup of university names
     const univMap = new Map<string, string>();
     for (const u of data.universities || []) {
       univMap.set(u.id, u.short_name || u.name || u.id);
     }
 
-    const rows: string[][] = [];
-    rows.push(['Date', 'Day', 'Type', 'Title', 'Description', 'University', 'Priority', 'Status', 'Start Time', 'End Time']);
+    // Proper CSV quoting — wraps fields in quotes if they contain commas/quotes/newlines
+    const q = (v: string) => {
+      const s = String(v || '').trim();
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
 
-    // Schedule events (exams, events, holidays, etc.)
+    // Map raw type codes to clean readable labels
+    const typeLabel = (t: string) => {
+      const map: Record<string, string> = {
+        'EVENT': 'Event', 'HOLIDAY': 'Holiday', 'EXAM': 'Exam',
+        'CURRICULAR': 'Curricular', 'CO_CURRICULAR': 'Co-Curricular',
+        'CLUB_ACTIVITY': 'Club Activity', 'CULTURAL_ACTIVITY': 'Cultural Activity',
+        'ACADEMIC': 'Academic', 'FROZEN': 'Freeze'
+      };
+      return map[t] || t;
+    };
+
+    // Category grouping for visual clarity
+    const typeCategory = (t: string) => {
+      if (t === 'HOLIDAY') return 'Holiday';
+      if (t === 'EXAM') return 'Exam';
+      if (t === 'FROZEN') return 'Freeze';
+      if (['CURRICULAR', 'CO_CURRICULAR', 'CLUB_ACTIVITY', 'CULTURAL_ACTIVITY'].includes(t)) return 'Activity';
+      if (t === 'ACADEMIC') return 'Academic';
+      return 'Event';
+    };
+
+    const rows: string[] = [];
+    rows.push(['Date', 'Day', 'Category', 'Type', 'Title', 'University', 'Description', 'Priority', 'Status', 'Start Time', 'End Time', 'Assignees'].map(q).join(','));
+
+    // Schedule events
     for (const ev of scheduleEvents) {
       const start = new Date(ev.start_date);
       const end = ev.due_date ? new Date(ev.due_date) : start;
-      const univName = univMap.get(ev.university_id) || ev.university_name || '—';
+      const univName = univMap.get(ev.university_id) || ev.university_name || '';
       const day = start.toLocaleDateString('en-IN', { weekday: 'long' });
+      const assignees = (ev.assignees || []).map((a: any) => a.name || a.email).join('; ');
       rows.push([
         start.toISOString().split('T')[0],
         day,
-        ev.type || '—',
-        (ev.title || '').replace(/,/g, ';'),
-        (ev.description || '').replace(/,/g, ';').replace(/\n/g, ' '),
+        typeCategory(ev.type),
+        typeLabel(ev.type),
+        ev.title || '',
         univName,
+        (ev.description || '').replace(/\n/g, ' ').trim(),
         ev.priority || 'MEDIUM',
         ev.status || 'ACTIVE',
         start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
-      ]);
+        end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        assignees
+      ].map(q).join(','));
     }
 
-    // Calendar freezes (frozen dates)
+    // Calendar freezes
     for (const fr of calendarFreezes) {
-      const dates = fr.frozen_dates || [];
-      const univName = univMap.get(fr.university_id) || '—';
+      const dates = fr.frozen_dates || (fr.freeze_date ? [fr.freeze_date] : []);
+      const univName = univMap.get(fr.university_id) || '';
       for (const d of dates) {
-        const dt = new Date(d);
+        const dt = new Date(String(d).split('T')[0] + 'T00:00');
+        if (isNaN(dt.getTime())) continue;
         rows.push([
           dt.toISOString().split('T')[0],
           dt.toLocaleDateString('en-IN', { weekday: 'long' }),
-          'FROZEN',
-          `Frozen: ${(fr.reason || 'No reason').replace(/,/g, ';')}`,
-          (fr.reason || '').replace(/,/g, ';'),
+          'Freeze',
+          'Calendar Freeze',
+          fr.reason || 'Frozen Date',
           univName,
+          fr.reason || '',
           'HIGH',
           'ACTIVE',
-          '—',
-          '—'
-        ]);
+          '',
+          '',
+          ''
+        ].map(q).join(','));
       }
     }
 
-    // Sort by date
-    rows.sort((a, b) => {
-      if (a[0] === 'Date') return -1;
-      return a[0].localeCompare(b[0]);
-    });
+    // Sort by date (skip header)
+    const header = rows[0];
+    const dataRows = rows.slice(1).sort((a, b) => a.split(',')[0].localeCompare(b.split(',')[0]));
 
-    const csv = rows.map(r => r.join(',')).join('\n');
+    const csv = [header, ...dataRows].join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
