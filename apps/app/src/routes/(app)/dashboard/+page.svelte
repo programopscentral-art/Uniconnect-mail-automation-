@@ -118,7 +118,9 @@
 
   // ─── Client-side Data Loading ──────────────────────────────────────────
   async function loadDashboardData() {
-    const univParam = data.selectedUniversityId || data.defaultUniversityId || '';
+    // When "All Universities" is selected, selectedUniversityId is null/empty.
+    // Don't fall back to defaultUniversityId — pass no filter so APIs return ALL data.
+    const univParam = data.selectedUniversityId || '';
     const qs = univParam ? `?university_id=${univParam}` : '';
 
     try {
@@ -1408,95 +1410,156 @@
       univMap.set(u.id, u.short_name || u.name || u.id);
     }
 
-    // Proper CSV quoting — wraps fields in quotes if they contain commas/quotes/newlines
     const q = (v: string) => {
       const s = String(v || '').trim();
       if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
       return s;
     };
 
-    // Map raw type codes to clean readable labels
     const typeLabel = (t: string) => {
       const map: Record<string, string> = {
         'EVENT': 'Event', 'HOLIDAY': 'Holiday', 'EXAM': 'Exam',
         'CURRICULAR': 'Curricular', 'CO_CURRICULAR': 'Co-Curricular',
         'CLUB_ACTIVITY': 'Club Activity', 'CULTURAL_ACTIVITY': 'Cultural Activity',
-        'ACADEMIC': 'Academic', 'FROZEN': 'Freeze'
+        'ACADEMIC': 'Academic', 'FROZEN': 'Calendar Freeze'
       };
       return map[t] || t;
     };
-
-    // Category grouping for visual clarity
     const typeCategory = (t: string) => {
-      if (t === 'HOLIDAY') return 'Holiday';
-      if (t === 'EXAM') return 'Exam';
-      if (t === 'FROZEN') return 'Freeze';
-      if (['CURRICULAR', 'CO_CURRICULAR', 'CLUB_ACTIVITY', 'CULTURAL_ACTIVITY'].includes(t)) return 'Activity';
-      if (t === 'ACADEMIC') return 'Academic';
-      return 'Event';
+      if (t === 'HOLIDAY') return 'HOLIDAY';
+      if (t === 'EXAM') return 'EXAM';
+      if (t === 'FROZEN') return 'FREEZE';
+      if (['CURRICULAR', 'CO_CURRICULAR', 'CLUB_ACTIVITY', 'CULTURAL_ACTIVITY'].includes(t)) return 'ACTIVITY';
+      if (t === 'ACADEMIC') return 'ACADEMIC';
+      return 'EVENT';
     };
 
-    const rows: string[] = [];
-    rows.push(['Date', 'Day', 'Category', 'Type', 'Title', 'University', 'Description', 'Priority', 'Status', 'Start Time', 'End Time', 'Assignees'].map(q).join(','));
+    // Collect all entries with university info
+    type Entry = { date: string; day: string; category: string; type: string; title: string; university: string; universityId: string; description: string; priority: string; status: string; startTime: string; endTime: string; assignees: string };
+    const allEntries: Entry[] = [];
 
-    // Schedule events
     for (const ev of scheduleEvents) {
       const start = new Date(ev.start_date);
       const end = ev.due_date ? new Date(ev.due_date) : start;
-      const univName = univMap.get(ev.university_id) || ev.university_name || '';
-      const day = start.toLocaleDateString('en-IN', { weekday: 'long' });
-      const assignees = (ev.assignees || []).map((a: any) => a.name || a.email).join('; ');
-      rows.push([
-        start.toISOString().split('T')[0],
-        day,
-        typeCategory(ev.type),
-        typeLabel(ev.type),
-        ev.title || '',
-        univName,
-        (ev.description || '').replace(/\n/g, ' ').trim(),
-        ev.priority || 'MEDIUM',
-        ev.status || 'ACTIVE',
-        start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-        assignees
-      ].map(q).join(','));
+      allEntries.push({
+        date: start.toISOString().split('T')[0],
+        day: start.toLocaleDateString('en-IN', { weekday: 'long' }),
+        category: typeCategory(ev.type),
+        type: typeLabel(ev.type),
+        title: ev.title || '',
+        university: univMap.get(ev.university_id) || ev.university_name || 'All',
+        universityId: ev.university_id || '',
+        description: (ev.description || '').replace(/\n/g, ' ').trim(),
+        priority: ev.priority || 'MEDIUM',
+        status: ev.status || 'ACTIVE',
+        startTime: start.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        endTime: end.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        assignees: (ev.assignees || []).map((a: any) => a.name || a.email).join('; ')
+      });
     }
 
-    // Calendar freezes
     for (const fr of calendarFreezes) {
       const dates = fr.frozen_dates || (fr.freeze_date ? [fr.freeze_date] : []);
-      const univName = univMap.get(fr.university_id) || '';
+      const univName = univMap.get(fr.university_id) || 'All';
       for (const d of dates) {
         const dt = new Date(String(d).split('T')[0] + 'T00:00');
         if (isNaN(dt.getTime())) continue;
-        rows.push([
-          dt.toISOString().split('T')[0],
-          dt.toLocaleDateString('en-IN', { weekday: 'long' }),
-          'Freeze',
-          'Calendar Freeze',
-          fr.reason || 'Frozen Date',
-          univName,
-          fr.reason || '',
-          'HIGH',
-          'ACTIVE',
-          '',
-          '',
-          ''
-        ].map(q).join(','));
+        allEntries.push({
+          date: dt.toISOString().split('T')[0],
+          day: dt.toLocaleDateString('en-IN', { weekday: 'long' }),
+          category: 'FREEZE', type: 'Calendar Freeze',
+          title: fr.reason || 'Frozen Date', university: univName,
+          universityId: fr.university_id || '',
+          description: fr.reason || '', priority: 'HIGH', status: 'ACTIVE',
+          startTime: '', endTime: '', assignees: ''
+        });
       }
     }
 
-    // Sort by date (skip header)
-    const header = rows[0];
-    const dataRows = rows.slice(1).sort((a, b) => a.split(',')[0].localeCompare(b.split(',')[0]));
+    // Group by university
+    const byUniv = new Map<string, Entry[]>();
+    for (const e of allEntries) {
+      const key = e.university || 'Other';
+      if (!byUniv.has(key)) byUniv.set(key, []);
+      byUniv.get(key)!.push(e);
+    }
 
-    const csv = [header, ...dataRows].join('\n');
+    // Sort universities alphabetically, entries by date within each
+    const sortedUnivs = [...byUniv.keys()].sort();
+
+    const month = monthNames[currentDate.getMonth()];
+    const year = currentDate.getFullYear();
+    const rows: string[] = [];
+
+    // Title row
+    rows.push([`UniConnect Calendar — ${month} ${year}`, '', '', '', '', '', '', '', '', '', '', ''].map(q).join(','));
+    rows.push([`Generated: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, '', '', '', `Total entries: ${allEntries.length}`, '', '', `Universities: ${sortedUnivs.length}`, '', '', '', ''].map(q).join(','));
+    rows.push(''); // blank line
+
+    for (const univName of sortedUnivs) {
+      const entries = byUniv.get(univName)!.sort((a, b) => a.date.localeCompare(b.date));
+
+      // University header section
+      const holidays = entries.filter(e => e.category === 'HOLIDAY').length;
+      const exams = entries.filter(e => e.category === 'EXAM').length;
+      const activities = entries.filter(e => e.category === 'ACTIVITY').length;
+      const freezes = entries.filter(e => e.category === 'FREEZE').length;
+      const events = entries.filter(e => e.category === 'EVENT').length;
+
+      rows.push([`=== ${univName.toUpperCase()} ===`, '', '', '', `${entries.length} entries`, `${holidays} holidays`, `${exams} exams`, `${activities} activities`, `${freezes} freezes`, `${events} events`, '', ''].map(q).join(','));
+
+      // Column headers
+      rows.push(['Date', 'Day', 'Category', 'Type', 'Title', 'Description', 'Priority', 'Status', 'Start Time', 'End Time', 'Assignees', ''].map(q).join(','));
+
+      // Data rows grouped by category
+      const categoryOrder = ['HOLIDAY', 'EXAM', 'FREEZE', 'ACTIVITY', 'ACADEMIC', 'EVENT'];
+      const sorted = [...entries].sort((a, b) => {
+        const catDiff = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+        if (catDiff !== 0) return catDiff;
+        return a.date.localeCompare(b.date);
+      });
+
+      let lastCategory = '';
+      for (const e of sorted) {
+        if (e.category !== lastCategory) {
+          // Category sub-header
+          const catLabel = { HOLIDAY: '— Holidays —', EXAM: '— Exams —', FREEZE: '— Frozen Dates —', ACTIVITY: '— Activities (Curricular / Co-Curricular / Club / Cultural) —', ACADEMIC: '— Academic —', EVENT: '— Events —' }[e.category] || `— ${e.category} —`;
+          rows.push([catLabel, '', '', '', '', '', '', '', '', '', '', ''].map(q).join(','));
+          lastCategory = e.category;
+        }
+        rows.push([
+          e.date, e.day, e.category, e.type, e.title,
+          e.description, e.priority, e.status,
+          e.startTime, e.endTime, e.assignees, ''
+        ].map(q).join(','));
+      }
+
+      rows.push(''); // blank line between universities
+    }
+
+    // Summary at bottom
+    rows.push('');
+    rows.push(['=== SUMMARY ===', '', '', '', '', '', '', '', '', '', '', ''].map(q).join(','));
+    rows.push(['University', 'Total', 'Holidays', 'Exams', 'Activities', 'Freezes', 'Events', '', '', '', '', ''].map(q).join(','));
+    for (const univName of sortedUnivs) {
+      const entries = byUniv.get(univName)!;
+      rows.push([
+        univName,
+        String(entries.length),
+        String(entries.filter(e => e.category === 'HOLIDAY').length),
+        String(entries.filter(e => e.category === 'EXAM').length),
+        String(entries.filter(e => e.category === 'ACTIVITY').length),
+        String(entries.filter(e => e.category === 'FREEZE').length),
+        String(entries.filter(e => e.category === 'EVENT').length),
+        '', '', '', '', ''
+      ].map(q).join(','));
+    }
+
+    const csv = rows.join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const month = monthNames[currentDate.getMonth()];
-    const year = currentDate.getFullYear();
     a.download = `UniConnect_Calendar_${month}_${year}.csv`;
     a.click();
     URL.revokeObjectURL(url);
