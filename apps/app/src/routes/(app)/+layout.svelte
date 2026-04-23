@@ -675,19 +675,14 @@
         <div
           class="w-full max-w-[1280px] px-4 sm:px-6 md:px-8 py-2 md:py-3 flex justify-end items-center gap-2 sm:gap-4"
         >
-          <!-- University Selector (visible when user has multiple universities) -->
-          {#if userUniversities.length > 1}
-            <select
-              bind:value={selectedUniversityId}
-              class="text-xs font-semibold rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 max-w-[180px]"
-            >
-              {#each userUniversities as u}
-                <option value={u.id}>{u.name}</option>
-              {/each}
-            </select>
-          {:else if userUniversities.length === 1}
+          <!-- University name badge (info only — each page has its own filter) -->
+          {#if userUniversities.length === 1}
             <div class="text-xs font-bold text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/40">
               {userUniversities[0].name}
+            </div>
+          {:else if userUniversities.length > 1}
+            <div class="text-xs font-bold text-gray-600 dark:text-gray-300 px-3 py-1.5 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+              {userUniversities.length} Universities
             </div>
           {/if}
 
