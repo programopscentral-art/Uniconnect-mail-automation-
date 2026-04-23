@@ -1555,12 +1555,104 @@
       ].map(q).join(','));
     }
 
-    const csv = rows.join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    // Generate styled HTML table that Excel opens with colors + borders
+    const categoryColors: Record<string, { bg: string; text: string }> = {
+      HOLIDAY: { bg: '#FEE2E2', text: '#991B1B' },
+      EXAM: { bg: '#DBEAFE', text: '#1E40AF' },
+      FREEZE: { bg: '#F3E8FF', text: '#6B21A8' },
+      ACTIVITY: { bg: '#D1FAE5', text: '#065F46' },
+      ACADEMIC: { bg: '#FEF3C7', text: '#92400E' },
+      EVENT: { bg: '#F0F9FF', text: '#0C4A6E' }
+    };
+    const univColors = ['#EFF6FF', '#F0FDF4', '#FFF7ED', '#FAF5FF', '#FEF2F2', '#ECFDF5', '#FFFBEB', '#F5F3FF', '#FFF1F2', '#F0FDFA', '#FEFCE8', '#FCE7F3', '#EDE9FE', '#CFFAFE', '#FEF9C3', '#E0E7FF', '#D1FAE5', '#FFE4E6'];
+
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="utf-8"><style>
+  body { font-family: Calibri, Arial, sans-serif; }
+  table { border-collapse: collapse; width: 100%; }
+  td, th { border: 1px solid #D1D5DB; padding: 6px 10px; font-size: 11px; }
+  th { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .title { font-size: 18px; font-weight: 700; color: #1F2937; border: none; }
+  .subtitle { font-size: 11px; color: #6B7280; border: none; }
+  .univ-header { font-size: 14px; font-weight: 700; color: #FFFFFF; border: none; }
+  .univ-stats { font-size: 10px; color: #FFFFFF; border: none; opacity: 0.9; }
+  .cat-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border: none; }
+  .summary-header { background: #1F2937; color: #FFFFFF; font-weight: 700; }
+</style></head><body>`;
+
+    html += `<table><tr><td class="title" colspan="10">UniConnect Calendar — ${month} ${year}</td></tr>`;
+    html += `<tr><td class="subtitle" colspan="5">Generated: ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="subtitle" colspan="5">Total entries: ${allEntries.length} · Universities: ${sortedUnivs.length}</td></tr>`;
+    html += `<tr><td colspan="10" style="border:none;">&nbsp;</td></tr></table>`;
+
+    sortedUnivs.forEach((univName, ui) => {
+      const entries = byUniv.get(univName)!.sort((a, b) => a.date.localeCompare(b.date));
+      const holidays = entries.filter(e => e.category === 'HOLIDAY').length;
+      const exams = entries.filter(e => e.category === 'EXAM').length;
+      const activities = entries.filter(e => e.category === 'ACTIVITY').length;
+      const freezes = entries.filter(e => e.category === 'FREEZE').length;
+      const events = entries.filter(e => e.category === 'EVENT').length;
+      const headerBg = ['#1E40AF', '#065F46', '#92400E', '#6B21A8', '#991B1B', '#0C4A6E', '#1E3A5F', '#4C1D95', '#78350F', '#064E3B'][ui % 10];
+
+      html += `<table>`;
+      html += `<tr><td class="univ-header" colspan="10" style="background:${headerBg};">${univName.toUpperCase()}</td></tr>`;
+      html += `<tr><td class="univ-stats" colspan="10" style="background:${headerBg};">${entries.length} entries · ${holidays} holidays · ${exams} exams · ${activities} activities · ${freezes} freezes · ${events} events</td></tr>`;
+      html += `<tr style="background:#F3F4F6;"><th>Date</th><th>Day</th><th>Category</th><th>Type</th><th>Title</th><th>Description</th><th>Priority</th><th>Status</th><th>Time</th><th>Assignees</th></tr>`;
+
+      const categoryOrder = ['HOLIDAY', 'EXAM', 'FREEZE', 'ACTIVITY', 'ACADEMIC', 'EVENT'];
+      const sorted = [...entries].sort((a, b) => {
+        const catDiff = categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+        return catDiff !== 0 ? catDiff : a.date.localeCompare(b.date);
+      });
+
+      let lastCategory = '';
+      for (const e of sorted) {
+        if (e.category !== lastCategory) {
+          const cc = categoryColors[e.category] || { bg: '#F9FAFB', text: '#374151' };
+          const catLabel = { HOLIDAY: 'Holidays', EXAM: 'Exams', FREEZE: 'Frozen Dates', ACTIVITY: 'Activities', ACADEMIC: 'Academic', EVENT: 'Events' }[e.category] || e.category;
+          html += `<tr><td class="cat-header" colspan="10" style="background:${cc.bg};color:${cc.text};">■ ${catLabel}</td></tr>`;
+          lastCategory = e.category;
+        }
+        const cc = categoryColors[e.category] || { bg: '#FFFFFF', text: '#374151' };
+        const rowBg = cc.bg + '80';
+        html += `<tr style="background:${rowBg};">`;
+        html += `<td style="white-space:nowrap;">${e.date}</td>`;
+        html += `<td>${e.day}</td>`;
+        html += `<td style="background:${cc.bg};color:${cc.text};font-weight:600;text-align:center;font-size:10px;">${e.category}</td>`;
+        html += `<td>${e.type}</td>`;
+        html += `<td style="font-weight:600;">${e.title}</td>`;
+        html += `<td style="max-width:200px;word-wrap:break-word;">${e.description || ''}</td>`;
+        html += `<td style="text-align:center;font-size:10px;font-weight:600;${e.priority === 'HIGH' || e.priority === 'URGENT' ? 'color:#DC2626;' : ''}">${e.priority}</td>`;
+        html += `<td style="text-align:center;font-size:10px;">${e.status}</td>`;
+        html += `<td style="white-space:nowrap;font-size:10px;">${e.startTime}${e.endTime ? ' – ' + e.endTime : ''}</td>`;
+        html += `<td style="font-size:10px;">${e.assignees}</td>`;
+        html += `</tr>`;
+      }
+      html += `<tr><td colspan="10" style="border:none;">&nbsp;</td></tr></table>`;
+    });
+
+    // Summary table
+    html += `<table><tr><td class="summary-header" colspan="7">SUMMARY</td></tr>`;
+    html += `<tr style="background:#F3F4F6;"><th>University</th><th>Total</th><th>Holidays</th><th>Exams</th><th>Activities</th><th>Freezes</th><th>Events</th></tr>`;
+    let grandTotal = 0;
+    for (const univName of sortedUnivs) {
+      const entries = byUniv.get(univName)!;
+      grandTotal += entries.length;
+      html += `<tr><td style="font-weight:600;">${univName}</td>`;
+      html += `<td style="text-align:center;font-weight:700;">${entries.length}</td>`;
+      html += `<td style="text-align:center;background:#FEE2E2;">${entries.filter(e => e.category === 'HOLIDAY').length}</td>`;
+      html += `<td style="text-align:center;background:#DBEAFE;">${entries.filter(e => e.category === 'EXAM').length}</td>`;
+      html += `<td style="text-align:center;background:#D1FAE5;">${entries.filter(e => e.category === 'ACTIVITY').length}</td>`;
+      html += `<td style="text-align:center;background:#F3E8FF;">${entries.filter(e => e.category === 'FREEZE').length}</td>`;
+      html += `<td style="text-align:center;background:#F0F9FF;">${entries.filter(e => e.category === 'EVENT').length}</td></tr>`;
+    }
+    html += `<tr style="background:#1F2937;color:#FFFFFF;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">${grandTotal}</td><td colspan="5"></td></tr>`;
+    html += `</table></body></html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `UniConnect_Calendar_${month}_${year}.csv`;
+    a.download = `UniConnect_Calendar_${month}_${year}.xls`;
     a.click();
     URL.revokeObjectURL(url);
   }
