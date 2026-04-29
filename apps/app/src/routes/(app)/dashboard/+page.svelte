@@ -165,6 +165,14 @@
   let activeUniv = $derived(data.user?.universities?.find((u: any) => u.id === data.user?.university_id));
   let isCentralBOA = $derived(data.user?.role === 'BOA' && (!data.user?.university_id || activeUniv?.is_team));
 
+  // University ID → short name map (for showing university badge on events)
+  let univNameMap = $derived.by(() => {
+    const m = new Map<string, string>();
+    for (const u of data.universities || []) m.set(u.id, u.short_name || u.name || '');
+    return m;
+  });
+  let isAllUnivMode = $derived(!data.selectedUniversityId);
+
   const taskStats = $derived({
     total: (rawTaskStats.PENDING || 0) + (rawTaskStats.IN_PROGRESS || 0) + (rawTaskStats.COMPLETED || 0) + (rawTaskStats.CANCELLED || 0),
     completed: rawTaskStats.COMPLETED || 0,
@@ -2035,7 +2043,7 @@
                     <!-- svelte-ignore a11y_click_events_have_key_events -->
                     <div role="button" tabindex="0" class="text-[10px] font-medium px-1.5 py-0.5 rounded truncate {style.bg} {style.text} border-l-2 {style.border}"
                       onclick={(e) => handleEventClick(e, event)}>
-                      {event.title}
+                      {#if isAllUnivMode && event.university_id && univNameMap.get(event.university_id)}<span class="opacity-60 font-bold">{univNameMap.get(event.university_id)}</span> · {/if}{event.title}
                     </div>
                   {/each}
                   {#if getEventsForDate(date).length > 3}
@@ -2143,7 +2151,7 @@
                       <div class="px-1.5 py-0.5 h-full flex flex-col justify-start">
                         <p class="text-[10px] font-semibold truncate leading-snug drop-shadow-sm">{ev.title}</p>
                         {#if chipH > 30}
-                          <p class="text-[9px] opacity-80 truncate leading-snug">{formatTime(ev.startDate)}</p>
+                          <p class="text-[9px] opacity-80 truncate leading-snug">{formatTime(ev.startDate)}{#if isAllUnivMode && ev.university_id && univNameMap.get(ev.university_id)} · {univNameMap.get(ev.university_id)}{/if}</p>
                         {/if}
                       </div>
                     </button>
@@ -2244,7 +2252,12 @@
                     onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); if (ev.eventType === 'task') openTaskDetail(ev); } }}
                   >
                     <div class="px-3 py-1.5 h-full flex flex-col justify-start">
-                      <p class="text-sm font-semibold truncate drop-shadow-sm">{ev.title}</p>
+                      <div class="flex items-center gap-1.5">
+                        <p class="text-sm font-semibold truncate drop-shadow-sm flex-1">{ev.title}</p>
+                        {#if isAllUnivMode && ev.university_id && univNameMap.get(ev.university_id)}
+                          <span class="text-[8px] font-bold uppercase bg-white/25 px-1.5 py-0.5 rounded-full flex-shrink-0 tracking-wide">{univNameMap.get(ev.university_id)}</span>
+                        {/if}
+                      </div>
                       {#if chipH > 36}
                         <p class="text-[11px] opacity-85 truncate">{formatTime(ev.startDate)} – {formatTime(ev.endDate)}</p>
                       {/if}
@@ -2598,13 +2611,18 @@
         <!-- Header -->
         <div class="flex items-start justify-between mb-4">
           <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
                 {selectedTask.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                  selectedTask.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                  'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}">
                 {selectedTask.status}
               </span>
+              {#if selectedTask.university_id && univNameMap.get(selectedTask.university_id)}
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  {univNameMap.get(selectedTask.university_id)}
+                </span>
+              {/if}
               <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
                 {selectedTask.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
                  selectedTask.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
@@ -2895,10 +2913,15 @@
         <!-- Header -->
         <div class="flex items-start justify-between">
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
+            <div class="flex items-center gap-2 mb-1 flex-wrap">
               <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full" style="background:{getChipColor(selectedEvent).solid}; color:white;">
                 {selectedEvent.type?.replace(/_/g, ' ')}
               </span>
+              {#if selectedEvent.university_id && univNameMap.get(selectedEvent.university_id)}
+                <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  {univNameMap.get(selectedEvent.university_id)}
+                </span>
+              {/if}
               {#if selectedEvent.priority && selectedEvent.priority !== 'MEDIUM'}
                 <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full
                   {selectedEvent.priority === 'URGENT' ? 'bg-red-100 text-red-700' : selectedEvent.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'}">
