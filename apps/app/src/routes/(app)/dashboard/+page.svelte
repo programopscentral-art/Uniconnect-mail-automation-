@@ -1442,6 +1442,15 @@
       return 'EVENT';
     };
 
+    // Restrict export to the currently-displayed month only.
+    // Without this, the export dumps every event/freeze ever loaded — which
+    // confuses users who expect "Download for April" to only contain April.
+    const exportYear = currentDate.getFullYear();
+    const exportMonth = currentDate.getMonth();
+    const monthStart = new Date(exportYear, exportMonth, 1);
+    const monthEnd = new Date(exportYear, exportMonth + 1, 1); // exclusive
+    const isInMonth = (d: Date) => d >= monthStart && d < monthEnd;
+
     // Collect all entries with university info
     type Entry = { date: string; day: string; category: string; type: string; title: string; university: string; universityId: string; description: string; priority: string; status: string; startTime: string; endTime: string; assignees: string };
     const allEntries: Entry[] = [];
@@ -1449,6 +1458,9 @@
     for (const ev of scheduleEvents) {
       const start = new Date(ev.start_date);
       const end = ev.due_date ? new Date(ev.due_date) : start;
+      // Include event if it overlaps the selected month at all (start in month OR end in month OR spans across)
+      const overlaps = isInMonth(start) || isInMonth(end) || (start < monthStart && end >= monthEnd);
+      if (!overlaps) continue;
       allEntries.push({
         date: start.toISOString().split('T')[0],
         day: start.toLocaleDateString('en-IN', { weekday: 'long' }),
@@ -1472,6 +1484,7 @@
       for (const d of dates) {
         const dt = new Date(String(d).split('T')[0] + 'T00:00');
         if (isNaN(dt.getTime())) continue;
+        if (!isInMonth(dt)) continue;
         allEntries.push({
           date: dt.toISOString().split('T')[0],
           day: dt.toLocaleDateString('en-IN', { weekday: 'long' }),
