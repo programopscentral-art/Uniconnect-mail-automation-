@@ -161,10 +161,17 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
         updates.assignee_id = locals.user!.id;
         updates.assignee_status = updates.status;
 
-        // For multi-assignee tasks: don't force global status — let auto-promotion handle it
-        // Only force global status if the user is the sole assignee, or is admin/assigner on a single-assignee task
+        // For team-assigned tasks, when any assignee marks COMPLETED the whole task
+        // is considered done (matches user mental model: "I finished my task").
+        // For IN_PROGRESS, only flip global status if the task was still PENDING
+        // — so we don't downgrade a COMPLETED task back to IN_PROGRESS.
+        // For PENDING (reopening): only flip global if the user is sole assignee or admin/assigner.
         const multiAssignee = (task.assignee_ids?.length || 0) > 1;
-        if (multiAssignee || (!isGlobalAdmin && !isAssigner)) {
+        if (updates.status === 'PENDING' && multiAssignee && !isGlobalAdmin && !isAssigner) {
+            delete (updates as any).status;
+        }
+        if (updates.status === 'IN_PROGRESS' && task.status === 'COMPLETED') {
+            // Don't downgrade — keep global as COMPLETED
             delete (updates as any).status;
         }
     }
