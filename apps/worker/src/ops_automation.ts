@@ -90,8 +90,9 @@ export async function processDailyReport() {
         const aiSummary = await generateAISummary(report, compliance);
 
         // 4. Build HTML email using v2 template
+        // "Full Report" CTA points to the rich /full-report endpoint, not the email body /view-report
         const dashUrl = 'https://uniconnect-app.up.railway.app/ops-dashboard';
-        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=daily&date=${todayStr}`;
+        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/full-report?type=daily&date=${todayStr}`;
         const html = buildOpsReportV2({
             mode: 'daily',
             periodLabel: formatDate(todayStr),
@@ -586,8 +587,9 @@ export async function processWeeklyAnalyticsReport() {
         const aiSummary = await generateWeeklyAI(weeklyReport, rankings, taskPatterns, peerComparison);
 
         // 3. Build comprehensive HTML email using v2 template
+        // "Full Report" CTA points to /full-report (rich page with budgets/faculty/coaches/etc.)
         const dashUrl = 'https://uniconnect-app.up.railway.app/ops-dashboard';
-        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=weekly&start=${weekStart}&end=${weekEnd}`;
+        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/full-report?type=weekly&weekStart=${weekStart}&weekEnd=${weekEnd}`;
         const html = buildOpsReportV2({
             mode: 'weekly',
             periodLabel: formatDateRange(weekStart, weekEnd),
@@ -755,9 +757,10 @@ export async function processMonthlyReport() {
         const aiSummary = await generateMonthlyAI(monthlyReport, rankings);
 
         // 4. Build HTML using v2 template
+        // "Full Report" CTA points to /full-report (rich page with budgets/faculty/coaches/etc.)
         const monthName = new Date(year, month - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
         const dashUrl = 'https://uniconnect-app.up.railway.app/ops-dashboard';
-        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/view-report?type=monthly&year=${year}&month=${month}`;
+        const reportUrl = `https://uniconnect-app.up.railway.app/api/ops/full-report?type=monthly&year=${year}&month=${month}`;
         const html = buildOpsReportV2({
             mode: 'monthly',
             periodLabel: monthName,

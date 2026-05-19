@@ -81,8 +81,9 @@ export const GET: RequestHandler = async ({ url, request }) => {
     let year = 0; let month = 0;
 
     if (type === 'weekly') {
-        weekStart = url.searchParams.get('weekStart') || '';
-        weekEnd = url.searchParams.get('weekEnd') || '';
+        // Accept both weekStart/weekEnd (canonical) and start/end (legacy aliases used in older emails)
+        weekStart = url.searchParams.get('weekStart') || url.searchParams.get('start') || '';
+        weekEnd = url.searchParams.get('weekEnd') || url.searchParams.get('end') || '';
         if (!weekStart || !weekEnd) throw error(400, 'weekStart and weekEnd required for weekly reports');
         report = await getOpsWeeklyReport(weekStart, weekEnd);
         try {

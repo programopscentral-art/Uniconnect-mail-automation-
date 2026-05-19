@@ -76,8 +76,9 @@ export const GET: RequestHandler = async ({ url, request }) => {
     let budgetEnd = '';
 
     if (type === 'weekly') {
-        const weekStart = url.searchParams.get('weekStart');
-        const weekEnd = url.searchParams.get('weekEnd');
+        // Accept both weekStart/weekEnd (canonical) and start/end (legacy aliases used in older emails)
+        const weekStart = url.searchParams.get('weekStart') || url.searchParams.get('start');
+        const weekEnd = url.searchParams.get('weekEnd') || url.searchParams.get('end');
         if (!weekStart || !weekEnd) throw error(400, 'weekStart and weekEnd required');
         report = await getOpsWeeklyReport(weekStart, weekEnd);
         periodLabel = `${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
