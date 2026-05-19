@@ -240,6 +240,14 @@ export async function markBulkAttendance(entries: Array<{
     return results;
 }
 
+export async function clearAttendance(instructorId: string, date: string) {
+    await db.query(
+        `DELETE FROM instructor_attendance WHERE instructor_id = $1 AND date = $2`,
+        [instructorId, date]
+    );
+    return { success: true };
+}
+
 // ─── Daily Workload Log ─────────────────────────────────────────────
 
 export async function getWorkloadForDate(universityId: string, date: string) {

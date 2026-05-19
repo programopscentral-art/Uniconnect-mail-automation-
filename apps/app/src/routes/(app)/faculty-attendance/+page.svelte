@@ -152,10 +152,90 @@
 
     // ─── Actions ──────────────────────────────────────────
 
-    function setStatus(instructorId: string, status: AttStatus) {
+    // Track per-row save state for instant visual feedback
+    let rowSaving = $state<Map<string, boolean>>(new Map());
+    // Track if user has acknowledged the Sunday warning (per-page-load)
+    let sundayConfirmed = $state(false);
+
+    function isWeekend(dateStr: string): boolean {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.getDay() === 0; // 0 = Sunday
+    }
+
+    function dateLabel(dateStr: string): string {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    async function setStatus(instructorId: string, status: AttStatus, instructorName: string) {
+        // Sunday warning: confirm before marking on a Sunday
+        if (isWeekend(selectedDate) && !sundayConfirmed) {
+            const confirmed = confirm(
+                `⚠️ You're marking attendance for ${dateLabel(selectedDate)}.\n\n` +
+                `This is a SUNDAY. Are you sure you have the right date?\n\n` +
+                `Click OK to continue marking, or Cancel to change the date first.`
+            );
+            if (!confirmed) return;
+            sundayConfirmed = true;
+        }
+
         const existing = pendingChanges.get(instructorId);
+
+        // Toggle: clicking the same status again → clear the mark
+        if (existing?.status === status) {
+            pendingChanges.delete(instructorId);
+            pendingChanges = new Map(pendingChanges);
+            rowSaving.set(instructorId, true);
+            rowSaving = new Map(rowSaving);
+            try {
+                await fetch('/api/faculty-attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'clear-attendance', instructor_id: instructorId, date: selectedDate })
+                });
+                flash(`Cleared attendance for ${instructorName}`);
+            } catch (e: any) {
+                flash(e?.message || 'Failed to clear', true);
+            } finally {
+                rowSaving.delete(instructorId);
+                rowSaving = new Map(rowSaving);
+            }
+            return;
+        }
+
+        // Set new status — update UI immediately, then auto-save in background
         pendingChanges.set(instructorId, { status, notes: existing?.notes || '' });
-        pendingChanges = new Map(pendingChanges); // trigger reactivity
+        pendingChanges = new Map(pendingChanges);
+        rowSaving.set(instructorId, true);
+        rowSaving = new Map(rowSaving);
+
+        try {
+            const res = await fetch('/api/faculty-attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'mark-attendance',
+                    instructor_id: instructorId,
+                    university_id: universityId,
+                    date: selectedDate,
+                    status,
+                    notes: existing?.notes || undefined
+                })
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                flash(j.message || `Save failed for ${instructorName}`, true);
+                // Roll back UI on failure
+                if (existing) pendingChanges.set(instructorId, existing);
+                else pendingChanges.delete(instructorId);
+                pendingChanges = new Map(pendingChanges);
+            }
+        } catch (e: any) {
+            flash(e?.message || 'Save failed', true);
+        } finally {
+            rowSaving.delete(instructorId);
+            rowSaving = new Map(rowSaving);
+        }
     }
 
     function setNotes(instructorId: string, notes: string) {
@@ -179,29 +259,31 @@
     }
 
     async function submitAttendance() {
-        if (pendingChanges.size === 0) { flash('No attendance marked yet', true); return; }
+        // Status is auto-saved per-click via setStatus().
+        // This button now only re-saves notes + workload (which still need explicit save
+        // because they're free-text inputs that we don't want to fire requests on every keystroke).
         saving = true;
         try {
-            // 1. Save attendance
-            const entries = Array.from(pendingChanges.entries()).map(([instructor_id, { status, notes }]) => ({
-                instructor_id,
-                university_id: universityId,
-                date: selectedDate,
-                status,
-                notes: notes || undefined
-            }));
-            const res = await fetch('/api/faculty-attendance', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'mark-bulk-attendance', entries })
-            });
-            if (!res.ok) {
-                const j = await res.json().catch(() => ({}));
-                flash(j.message || `Save failed: ${res.status}`, true);
-                saving = false;
-                return;
+            // 1. Re-save attendance with current notes (status hasn't changed since it auto-saves)
+            let savedCount = 0;
+            if (pendingChanges.size > 0) {
+                const entries = Array.from(pendingChanges.entries()).map(([instructor_id, { status, notes }]) => ({
+                    instructor_id,
+                    university_id: universityId,
+                    date: selectedDate,
+                    status,
+                    notes: notes || undefined
+                }));
+                const res = await fetch('/api/faculty-attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'mark-bulk-attendance', entries })
+                });
+                if (res.ok) {
+                    const j = await res.json();
+                    savedCount = j.count || 0;
+                }
             }
-            const j = await res.json();
 
             // 2. Save workload logs for those who have topics/sessions filled
             let workloadCount = 0;
@@ -225,7 +307,11 @@
                 }
             }
 
-            flash(`Saved: ${j.count} attendance${workloadCount > 0 ? ` + ${workloadCount} workload logs` : ''}`);
+            if (savedCount === 0 && workloadCount === 0) {
+                flash('Nothing to save — attendance is already auto-saved.');
+            } else {
+                flash(`Saved notes/workload: ${savedCount} entries${workloadCount > 0 ? ` + ${workloadCount} workload logs` : ''}`);
+            }
             await loadAttendance();
         } catch (e: any) {
             flash(e?.message || 'Save failed', true);
@@ -453,6 +539,8 @@
 
     $effect(() => {
         selectedDate;
+        // Reset Sunday acknowledgment when user changes date — so they're reminded again
+        sundayConfirmed = false;
         if (!universityId) return;
         if (activeTab === 'attendance') loadAttendance();
         else if (activeTab === 'coaches') loadCoachLogs();
@@ -548,21 +636,43 @@
                         <span class="text-emerald-600 dark:text-emerald-400">{presentCount} P</span>
                         <span class="text-rose-600 dark:text-rose-400">{absentCount} A</span>
                     </div>
+                    <span class="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle size={12} /> Auto-saved
+                    </span>
                     <button
                         onclick={submitAttendance}
-                        disabled={saving || pendingChanges.size === 0}
+                        disabled={saving || (pendingChanges.size === 0 && workloadData.size === 0)}
                         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold
-                               bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                               bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Save notes and workload entries (status is auto-saved on click)"
                     >
                         {#if saving}
                             <Loader2 size={14} class="animate-spin" />
                         {:else}
                             <Save size={14} />
                         {/if}
-                        Submit Attendance
+                        Save Notes & Workload
                     </button>
                 </div>
             </div>
+
+            <!-- Sunday warning banner -->
+            {#if isWeekend(selectedDate)}
+                <div class="mb-4 flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800">
+                    <AlertTriangle size={18} class="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                    <div class="flex-1 text-sm">
+                        <div class="font-bold text-amber-900 dark:text-amber-200">
+                            Heads-up — you're marking attendance for a SUNDAY ({dateLabel(selectedDate)})
+                        </div>
+                        <div class="text-amber-700 dark:text-amber-300 mt-0.5">
+                            Most faculty don't work on Sundays. Double-check the date before marking. You'll be asked to confirm on first click.
+                        </div>
+                    </div>
+                    <button onclick={today} class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white whitespace-nowrap">
+                        Go to Today
+                    </button>
+                </div>
+            {/if}
 
             <!-- Attendance grid -->
             {#if loading}
@@ -609,17 +719,21 @@
                                     </div>
                                 </button>
 
-                                <!-- Status buttons — full labels on md+, short on mobile -->
+                                <!-- Status buttons — full labels on md+, short on mobile. Click again to clear. -->
                                 <div class="flex items-center gap-1 flex-wrap">
+                                    {#if rowSaving.get(row.instructor_id)}
+                                        <Loader2 size={14} class="animate-spin text-sky-500 mr-1" />
+                                    {/if}
                                     {#each Object.entries(statusMeta) as [key, meta]}
                                         {@const isActive = current?.status === key}
                                         <button
-                                            onclick={() => setStatus(row.instructor_id, key as AttStatus)}
-                                            class="px-2 md:px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold transition-all border
+                                            onclick={() => setStatus(row.instructor_id, key as AttStatus, row.name)}
+                                            disabled={rowSaving.get(row.instructor_id)}
+                                            class="px-2 md:px-3 py-1.5 rounded-lg text-[10px] md:text-[11px] font-bold transition-all border disabled:opacity-50
                                                    {isActive
                                                        ? `${meta.bg} ${meta.darkBg} ${meta.color} dark:${meta.color.replace('700', '300')} border-current shadow-sm`
                                                        : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700'}"
-                                            title={meta.label}
+                                            title={isActive ? `${meta.label} (click again to clear)` : meta.label}
                                         >
                                             <span class="md:hidden">{meta.short}</span>
                                             <span class="hidden md:inline">{meta.label}</span>

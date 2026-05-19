@@ -11,7 +11,7 @@ import type { RequestHandler } from './$types';
 import {
     getInstructorsByUniversity, getInstructorProfile,
     createInstructorProfile, updateInstructorProfile, deactivateInstructor,
-    getAttendanceForDate, markAttendance, markBulkAttendance,
+    getAttendanceForDate, markAttendance, markBulkAttendance, clearAttendance,
     getWorkloadForDate, upsertWorkloadLog,
     getAttendanceSummary, getAttendanceByDate, getMonthlyInstructorReport,
     ensureInstructorTables,
@@ -145,6 +145,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 entries.map((e: any) => ({ ...e, marked_by: userId }))
             );
             return json({ success: true, count: results.length });
+        }
+
+        case 'clear-attendance': {
+            const { instructor_id, date: d } = body;
+            if (!instructor_id || !d) throw error(400, 'instructor_id and date required');
+            await clearAttendance(instructor_id, d);
+            return json({ success: true });
         }
 
         // ─── Workload logging ─────────────────────────────
