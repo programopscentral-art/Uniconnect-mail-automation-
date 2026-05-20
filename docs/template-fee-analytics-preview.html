@@ -1,218 +1,526 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Fee Collection Analytics — NIAT</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Analytics — UniConnect Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; padding: 0; background: #f6f5f3; color: #1a1a1a; font-family: Georgia, 'Times New Roman', serif; }
-        .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 64px; }
-        h1 { font-family: Georgia, serif; font-size: 32px; font-weight: 700; letter-spacing: -0.5px; color: #A52D2D; margin: 0; }
-        h2 { font-family: Georgia, serif; font-size: 18px; font-weight: 700; color: #1a1a1a; margin: 28px 0 14px; padding-bottom: 8px; border-bottom: 2px solid #A52D2D; }
-        h3 { font-family: Georgia, serif; font-size: 14px; font-weight: 700; color: #1a1a1a; margin: 0 0 12px; }
-        .card { background: #ffffff; border: 1px solid #e8e4dd; border-radius: 4px; padding: 24px; box-shadow: 0 1px 3px rgba(165,45,45,0.05); }
-        .grid { display: grid; gap: 20px; }
-        .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
-        .grid-2 { grid-template-columns: 1fr 1fr; }
-        .grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-        @media (max-width: 768px) { .grid-3, .grid-4, .grid-2 { grid-template-columns: 1fr; } }
-        table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; }
-        th { padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #8a6d3b; border-bottom: 2px solid #e0d8c8; background: #faf6ee; }
-        td { padding: 12px 14px; border-bottom: 1px solid #f0e8d8; font-size: 13px; color: #1a1a1a; }
-        .kpi-label { font-size: 11px; font-weight: 700; color: #8a6d3b; text-transform: uppercase; letter-spacing: 2px; }
-        .kpi-value { font-family: Georgia, serif; font-size: 30px; font-weight: 700; color: #1a1a1a; margin-top: 6px; line-height: 1; }
-        .kpi-sub { font-size: 12px; color: #8a8a8a; margin-top: 6px; }
-        .pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .glass { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        body { background: linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e1b4b 100%); min-height: 100vh; color: white; }
     </style>
 </head>
-<body>
-    <div class="wrap">
-        <header style="background:#ffffff;border:1px solid #e8e4dd;border-bottom:4px solid #A52D2D;border-radius:4px;padding:28px 32px;margin-bottom:32px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center">
-            <div>
-                <img src="../apps/app/static/niat-logo.jpg" alt="NIAT" width="86" height="86" style="border-radius:10px;display:block" />
-            </div>
-            <div>
-                <div style="font-size:11px;font-weight:700;color:#8a6d3b;text-transform:uppercase;letter-spacing:2.5px">Office of Fee Collection</div>
-                <h1 style="margin-top:6px">Fee Collection Analytics</h1>
-                <div style="font-size:14px;color:#666;margin-top:6px">NIAT · Batch 2022-26 · Term 2 · 7,511 students across 18 universities</div>
-            </div>
-            <div style="text-align:right">
-                <a href="javascript:window.print()" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;font-family:Georgia,serif;font-size:12px;font-weight:700;padding:10px 20px;border-radius:3px;letter-spacing:1px">PRINT / SAVE PDF</a>
-            </div>
-        </header>
+<body class="text-white">
+<div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        <div class="grid grid-4" style="margin-bottom:32px">
-            <div class="card"><div class="kpi-label">Total Payable</div><div class="kpi-value">₹13.15 Cr</div><div class="kpi-sub">7,511 students</div></div>
-            <div class="card"><div class="kpi-label">Total Paid</div><div class="kpi-value" style="color:#0f7a3f">₹12.45 Cr</div><div class="kpi-sub">69% fully paid</div></div>
-            <div class="card"><div class="kpi-label">Pending</div><div class="kpi-value" style="color:#A52D2D">₹70 L</div><div class="kpi-sub">1,963 not paid · 362 partial</div></div>
-            <div class="card"><div class="kpi-label">Collection Efficiency</div><div class="kpi-value" style="color:#0f7a3f">94.6%</div><div class="kpi-sub">across 18 universities</div></div>
+    <!-- Header bar -->
+    <div class="glass rounded-[2rem] p-6 flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-4">
+            <a href="#" class="w-10 h-10 rounded-2xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-300"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </a>
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-600 to-red-700 flex items-center justify-center shadow-xl shadow-rose-500/30 overflow-hidden">
+                <img src="../apps/app/static/niat-logo.jpg" alt="NIAT" class="w-full h-full object-cover" />
+            </div>
+            <div>
+                <div class="text-[10px] font-black text-rose-400 uppercase tracking-[0.25em]">Office of Fee Collection</div>
+                <h1 class="text-2xl font-black text-white tracking-tight">Fee Collection Analytics</h1>
+                <div class="text-xs text-slate-400 mt-0.5">NIAT · Batch 2022-26 · Term 2 · 7,511 students · 18 universities</div>
+            </div>
         </div>
+        <div class="flex items-center gap-2">
+            <select class="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-sm font-bold text-white">
+                <option>NIAT · Batch 2022-26 · Term 2</option>
+            </select>
+            <button class="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print / Save PDF
+            </button>
+        </div>
+    </div>
 
-        <h2>Performance Rings</h2>
-        <div class="card grid grid-3" style="text-align:center">
-            <div>
-                <div style="position:relative;width:180px;height:180px;display:inline-block">
-                    <svg width="180" height="180" style="transform:rotate(-90deg)">
-                        <circle cx="90" cy="90" r="81" stroke="#f0e8d8" stroke-width="18" fill="none"/>
-                        <circle cx="90" cy="90" r="81" stroke="#A52D2D" stroke-width="18" fill="none" stroke-linecap="round" stroke-dasharray="509" stroke-dashoffset="27.5"/>
-                    </svg>
-                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:Georgia,serif">
-                        <div style="font-size:11px;font-weight:700;color:#8a6d3b;text-transform:uppercase;letter-spacing:2px">Collection Eff.</div>
-                        <div style="font-size:36px;font-weight:700;color:#1a1a1a;line-height:1;margin-top:4px">95%</div>
-                    </div>
+    <!-- KPI cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass rounded-[2rem] p-5 relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-400 to-slate-600"></div>
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Payable</div>
+            <div class="text-3xl font-black text-white mt-2">₹13.15 Cr</div>
+            <div class="text-[11px] text-slate-400 mt-1">7,511 students</div>
+        </div>
+        <div class="glass rounded-[2rem] p-5 relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500"></div>
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Total Paid</div>
+            <div class="text-3xl font-black text-emerald-400 mt-2">₹12.45 Cr</div>
+            <div class="text-[11px] text-slate-400 mt-1">69% fully paid</div>
+        </div>
+        <div class="glass rounded-[2rem] p-5 relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-600"></div>
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pending</div>
+            <div class="text-3xl font-black text-rose-400 mt-2">₹70 L</div>
+            <div class="text-[11px] text-slate-400 mt-1">1,963 unpaid · 362 partial</div>
+        </div>
+        <div class="glass rounded-[2rem] p-5 relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-600"></div>
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Collection Efficiency</div>
+            <div class="text-3xl font-black text-emerald-400 mt-2">94.6%</div>
+            <div class="text-[11px] text-slate-400 mt-1">across 18 universities</div>
+        </div>
+    </div>
+
+    <!-- Performance Rings -->
+    <div class="glass rounded-[2rem] p-6">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-black text-white">Performance Rings</h2>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Live snapshot</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <!-- Collection Efficiency Ring -->
+            <div class="flex flex-col items-center text-center">
+                <svg viewBox="0 0 120 120" class="w-40 h-40 -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="url(#gradEff)" stroke-width="12" stroke-linecap="round" stroke-dasharray="297 314" />
+                    <defs><linearGradient id="gradEff" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#A52D2D"/><stop offset="100%" stop-color="#dc2626"/></linearGradient></defs>
+                </svg>
+                <div class="mt-3">
+                    <div class="text-4xl font-black bg-gradient-to-br from-rose-500 to-red-600 bg-clip-text text-transparent">95%</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mt-1">Collection Efficiency</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Of total payable, collected</div>
                 </div>
-                <div style="font-size:12px;color:#666;margin-top:8px">Of total payable, how much collected</div>
             </div>
-            <div>
-                <div style="position:relative;width:180px;height:180px;display:inline-block">
-                    <svg width="180" height="180" style="transform:rotate(-90deg)">
-                        <circle cx="90" cy="90" r="81" stroke="#f0e8d8" stroke-width="18" fill="none"/>
-                        <circle cx="90" cy="90" r="81" stroke="#0f7a3f" stroke-width="18" fill="none" stroke-linecap="round" stroke-dasharray="509" stroke-dashoffset="158"/>
-                    </svg>
-                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:Georgia,serif">
-                        <div style="font-size:11px;font-weight:700;color:#8a6d3b;text-transform:uppercase;letter-spacing:2px">Fully Paid</div>
-                        <div style="font-size:36px;font-weight:700;color:#1a1a1a;line-height:1;margin-top:4px">69%</div>
-                    </div>
+            <!-- Fully Paid Ring -->
+            <div class="flex flex-col items-center text-center">
+                <svg viewBox="0 0 120 120" class="w-40 h-40 -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="url(#gradFull)" stroke-width="12" stroke-linecap="round" stroke-dasharray="217 314" />
+                    <defs><linearGradient id="gradFull" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#10b981"/><stop offset="100%" stop-color="#0d9488"/></linearGradient></defs>
+                </svg>
+                <div class="mt-3">
+                    <div class="text-4xl font-black bg-gradient-to-br from-emerald-400 to-teal-500 bg-clip-text text-transparent">69%</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mt-1">Fully Paid</div>
+                    <div class="text-[11px] text-slate-400 mt-1">5,186 students with zero pending</div>
                 </div>
-                <div style="font-size:12px;color:#666;margin-top:8px">5,186 students with zero pending</div>
             </div>
-            <div>
-                <div style="position:relative;width:180px;height:180px;display:inline-block">
-                    <svg width="180" height="180" style="transform:rotate(-90deg)">
-                        <circle cx="90" cy="90" r="81" stroke="#f0e8d8" stroke-width="18" fill="none"/>
-                        <circle cx="90" cy="90" r="81" stroke="#d4af37" stroke-width="18" fill="none" stroke-linecap="round" stroke-dasharray="509" stroke-dashoffset="351"/>
-                    </svg>
-                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:Georgia,serif">
-                        <div style="font-size:11px;font-weight:700;color:#8a6d3b;text-transform:uppercase;letter-spacing:2px">Open Cases</div>
-                        <div style="font-size:36px;font-weight:700;color:#1a1a1a;line-height:1;margin-top:4px">31%</div>
-                    </div>
+            <!-- Open Cases Ring -->
+            <div class="flex flex-col items-center text-center">
+                <svg viewBox="0 0 120 120" class="w-40 h-40 -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="12" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="url(#gradOpen)" stroke-width="12" stroke-linecap="round" stroke-dasharray="97 314" />
+                    <defs><linearGradient id="gradOpen" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#ea580c"/></linearGradient></defs>
+                </svg>
+                <div class="mt-3">
+                    <div class="text-4xl font-black bg-gradient-to-br from-amber-400 to-orange-500 bg-clip-text text-transparent">31%</div>
+                    <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mt-1">Open Cases</div>
+                    <div class="text-[11px] text-slate-400 mt-1">2,325 need follow-up</div>
                 </div>
-                <div style="font-size:12px;color:#666;margin-top:8px">2,325 students need follow-up</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-university horizontal stacked bars -->
+    <div class="glass rounded-[2rem] p-6">
+        <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
+            <div>
+                <h2 class="text-lg font-black text-white">Payment Status — Per University</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Each bar is 100%. Easy to compare proportions across universities of any size.</p>
+            </div>
+            <div class="flex items-center gap-3 text-[10px] font-bold text-slate-300">
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gradient-to-br from-emerald-500 to-teal-600"></span>Fully Paid</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gradient-to-br from-amber-400 to-yellow-500"></span>Partial</span>
+                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gradient-to-br from-rose-500 to-red-600"></span>Not Paid</span>
+            </div>
+        </div>
+        <div class="space-y-2.5">
+            <!-- Yenepoya 99% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">Yenepoya</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:98.5%">195</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:1%"></div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:0.5%"></div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">198</div><div class="text-[9px] font-bold text-emerald-500">99% full</div></div>
+            </div>
+            <!-- CDU 98.5% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">CDU</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:98.5%">1294</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:0.4%"></div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:1.1%">15</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">1,314</div><div class="text-[9px] font-bold text-emerald-500">98% full</div></div>
+            </div>
+            <!-- NIU 96% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">NIU</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:96%">309</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:2.2%"></div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:1.8%"></div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">322</div><div class="text-[9px] font-bold text-emerald-500">96% full</div></div>
+            </div>
+            <!-- Mallaredy 95% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">Mallaredy</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:95.2%">418</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:4.6%">20</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:0.2%"></div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">439</div><div class="text-[9px] font-bold text-emerald-500">95% full</div></div>
+            </div>
+            <!-- KKH 94% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">KKH Batch-2</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:94.4%">935</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:2.7%">27</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:2.9%">28</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">990</div><div class="text-[9px] font-bold text-emerald-500">94% full</div></div>
+            </div>
+            <!-- Aurora 93% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">Aurora</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:93.3%">1300</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:2%">28</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:4.7%">66</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">1,394</div><div class="text-[9px] font-bold text-emerald-500">93% full</div></div>
+            </div>
+            <!-- ADYPU 92% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">ADYPU</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:91.8%">314</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:3.5%">12</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:4.7%">16</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">342</div><div class="text-[9px] font-bold text-emerald-500">92% full</div></div>
+            </div>
+            <!-- VGU 92% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">VGU</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:92.5%">407</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:4.1%">18</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:3.4%">15</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">440</div><div class="text-[9px] font-bold text-emerald-500">92% full</div></div>
+            </div>
+            <!-- NSRIT 79% -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">NSRIT</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:78.8%">63</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:8.8%">7</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:12.4%">10</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">80</div><div class="text-[9px] font-bold text-amber-500">79% full</div></div>
+            </div>
+            <!-- AMET 54% (worst) -->
+            <div class="flex items-center gap-3 group">
+                <div class="w-36 text-xs font-bold text-slate-200 text-right truncate">AMET</div>
+                <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm">
+                    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black" style="width:53.8%">64</div>
+                    <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black" style="width:36.1%">43</div>
+                    <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black" style="width:10.1%">12</div>
+                </div>
+                <div class="w-20 text-right"><div class="text-xs font-black text-slate-200">119</div><div class="text-[9px] font-bold text-rose-500">54% full</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending bars (horizontal) -->
+    <div class="glass rounded-[2rem] p-6">
+        <h2 class="text-lg font-black text-white mb-1">Pending Amount — Per University</h2>
+        <p class="text-xs text-slate-400 mb-5">Outstanding fees still to be collected</p>
+        <div class="space-y-2.5">
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">KKH Batch-2</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-rose-500 to-red-600 rounded-lg transition-all duration-700 group-hover:opacity-90" style="width:100%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹1.06 Cr</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">28 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">Aurora</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-rose-500 to-red-600 rounded-lg" style="width:91%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹96.18 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">66 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">AMET</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-rose-500 to-red-600 rounded-lg" style="width:38%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹40.07 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">12 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">CDU</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-lg" style="width:18%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹19.48 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">15 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">Takshashila</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-lg" style="width:15%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹16.37 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">15 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">NSRIT</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-lg" style="width:15%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹15.95 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">10 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">VGU</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg" style="width:10%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹10.72 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">15 unpaid</div>
+            </div>
+            <div class="flex items-center gap-3 group">
+                <div class="w-32 text-xs font-bold text-slate-300 text-right truncate">Mallaredy</div>
+                <div class="flex-1 h-7 bg-white/5 rounded-lg overflow-hidden relative">
+                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg" style="width:6%"></div>
+                    <div class="absolute inset-0 flex items-center px-3 text-[10px] font-black text-white">₹7.05 L</div>
+                </div>
+                <div class="w-16 text-[10px] font-bold text-slate-400 text-right">1 unpaid</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 + Bottom 5 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="glass rounded-[2rem] p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white text-lg shadow-lg shadow-emerald-500/30">🏆</div>
+                <div>
+                    <h2 class="text-base font-black text-white">Top 5 Performers</h2>
+                    <p class="text-[10px] text-slate-400">Highest collection efficiency</p>
+                </div>
+            </div>
+            <div class="space-y-2.5">
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow-md">1</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">NIU</div><div class="text-[10px] text-slate-400">₹4.84 Cr paid</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-emerald-400">100.4%</div><div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow-md">2</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">Yenepoya</div><div class="text-[10px] text-slate-400">₹2.59 Cr paid</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-emerald-400">100.2%</div><div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow-md">3</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">CDU</div><div class="text-[10px] text-slate-400">₹19.47 Cr paid</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-emerald-400">99.0%</div><div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow-md">4</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">SGU</div><div class="text-[10px] text-slate-400">₹4.17 Cr paid</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-emerald-400">99.0%</div><div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-black text-sm shadow-md">5</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">NRI</div><div class="text-[10px] text-slate-400">₹2.87 Cr paid</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-emerald-400">98.8%</div><div class="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Eff</div></div>
+                </div>
             </div>
         </div>
 
-        <h2>Student Payment Status — Per University</h2>
-        <div class="card">
-            <h3>How many students fully paid / partially paid / not paid in each university</h3>
-            <svg width="100%" viewBox="0 0 720 280" style="max-width:100%">
-                <g>
-                    <!-- AMET -->
-                    <rect x="60" y="140" width="28" height="60" fill="#0f7a3f"/>
-                    <rect x="60" y="125" width="28" height="15" fill="#d4af37"/>
-                    <rect x="60" y="80" width="28" height="45" fill="#A52D2D"/>
-                    <text x="74" y="74" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700" fill="#1a1a1a">119</text>
-                    <text x="74" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">AMET</text>
-                    <!-- VGU -->
-                    <rect x="120" y="60" width="28" height="140" fill="#0f7a3f"/>
-                    <rect x="120" y="55" width="28" height="5" fill="#d4af37"/>
-                    <rect x="120" y="45" width="28" height="10" fill="#A52D2D"/>
-                    <text x="134" y="39" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700" fill="#1a1a1a">437</text>
-                    <text x="134" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">VGU</text>
-                    <!-- NIU -->
-                    <rect x="180" y="80" width="28" height="120" fill="#0f7a3f"/>
-                    <rect x="180" y="75" width="28" height="5" fill="#d4af37"/>
-                    <rect x="180" y="68" width="28" height="7" fill="#A52D2D"/>
-                    <text x="194" y="62" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700" fill="#1a1a1a">322</text>
-                    <text x="194" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">NIU</text>
-                    <!-- Aurora -->
-                    <rect x="240" y="20" width="28" height="180" fill="#0f7a3f"/>
-                    <rect x="240" y="18" width="28" height="2" fill="#d4af37"/>
-                    <rect x="240" y="8" width="28" height="10" fill="#A52D2D"/>
-                    <text x="254" y="2" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700" fill="#1a1a1a">1394</text>
-                    <text x="254" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Aurora</text>
-                    <!-- CDU -->
-                    <rect x="300" y="30" width="28" height="170" fill="#0f7a3f"/>
-                    <rect x="300" y="28" width="28" height="2" fill="#d4af37"/>
-                    <rect x="300" y="18" width="28" height="10" fill="#A52D2D"/>
-                    <text x="314" y="12" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700" fill="#1a1a1a">1314</text>
-                    <text x="314" y="226" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">CDU</text>
-                    <!-- Y-axis line -->
-                    <line x1="40" y1="10" x2="40" y2="220" stroke="#e0d8c8" stroke-width="1"/>
-                    <line x1="40" y1="220" x2="710" y2="220" stroke="#e0d8c8" stroke-width="1"/>
-                </g>
-                <!-- Legend -->
-                <g transform="translate(40, 264)">
-                    <rect x="0" y="-8" width="12" height="10" fill="#0f7a3f"/>
-                    <text x="16" y="0" font-family="Georgia,serif" font-size="11" fill="#1a1a1a">Fully Paid</text>
-                    <rect x="100" y="-8" width="12" height="10" fill="#d4af37"/>
-                    <text x="116" y="0" font-family="Georgia,serif" font-size="11" fill="#1a1a1a">Partial</text>
-                    <rect x="180" y="-8" width="12" height="10" fill="#A52D2D"/>
-                    <text x="196" y="0" font-family="Georgia,serif" font-size="11" fill="#1a1a1a">Not Paid</text>
-                </g>
-            </svg>
-        </div>
-
-        <h2>Top &amp; Bottom Performers</h2>
-        <div class="grid grid-2">
-            <div class="card">
-                <h3 style="color:#0f7a3f">🏆 Top 5 — Highest Collection Efficiency</h3>
-                <table>
-                    <tr><th>Rank</th><th>University</th><th style="text-align:right">Efficiency</th><th style="text-align:right">Paid</th></tr>
-                    <tr><td><strong>1</strong></td><td>NIU</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">100.4%</span></td><td style="text-align:right;color:#0f7a3f;font-weight:700">₹4.84 Cr</td></tr>
-                    <tr><td><strong>2</strong></td><td>Yenepoya</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">100.2%</span></td><td style="text-align:right;color:#0f7a3f;font-weight:700">₹2.59 Cr</td></tr>
-                    <tr><td><strong>3</strong></td><td>CDU</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">99.0%</span></td><td style="text-align:right;color:#0f7a3f;font-weight:700">₹19.47 Cr</td></tr>
-                    <tr><td><strong>4</strong></td><td>NRI</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">98.8%</span></td><td style="text-align:right;color:#0f7a3f;font-weight:700">₹2.87 Cr</td></tr>
-                    <tr><td><strong>5</strong></td><td>SGU</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">99.0%</span></td><td style="text-align:right;color:#0f7a3f;font-weight:700">₹4.17 Cr</td></tr>
-                </table>
+        <div class="glass rounded-[2rem] p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white text-lg shadow-lg shadow-rose-500/30">⚠️</div>
+                <div>
+                    <h2 class="text-base font-black text-white">Need Attention</h2>
+                    <p class="text-[10px] text-slate-400">Lowest collection efficiency</p>
+                </div>
             </div>
-            <div class="card">
-                <h3 style="color:#A52D2D">⚠️ Bottom 5 — Need Attention</h3>
-                <table>
-                    <tr><th>Rank</th><th>University</th><th style="text-align:right">Efficiency</th><th style="text-align:right">Pending</th></tr>
-                    <tr><td><strong>1</strong></td><td>AMET</td><td style="text-align:right"><span class="pill" style="background:#fde2e2;color:#A52D2D">76.5%</span></td><td style="text-align:right;color:#A52D2D;font-weight:700">₹40.07 L</td></tr>
-                    <tr><td><strong>2</strong></td><td>NSRIT</td><td style="text-align:right"><span class="pill" style="background:#fde2e2;color:#A52D2D">82.9%</span></td><td style="text-align:right;color:#A52D2D;font-weight:700">₹15.95 L</td></tr>
-                    <tr><td><strong>3</strong></td><td>KKH Batch-2</td><td style="text-align:right"><span class="pill" style="background:#fef3c7;color:#8a6d3b">94.4%</span></td><td style="text-align:right;color:#A52D2D;font-weight:700">₹1.06 Cr</td></tr>
-                    <tr><td><strong>4</strong></td><td>Takshashila</td><td style="text-align:right"><span class="pill" style="background:#fef3c7;color:#8a6d3b">94.5%</span></td><td style="text-align:right;color:#A52D2D;font-weight:700">₹16.37 L</td></tr>
-                    <tr><td><strong>5</strong></td><td>Annamacharya</td><td style="text-align:right"><span class="pill" style="background:#fef3c7;color:#8a6d3b">95.8%</span></td><td style="text-align:right;color:#A52D2D;font-weight:700">₹9.19 L</td></tr>
-                </table>
+            <div class="space-y-2.5">
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white font-black text-sm shadow-md">1</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">AMET</div><div class="text-[10px] text-rose-400 font-bold">₹40.07 L pending</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-rose-400">76.5%</div><div class="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white font-black text-sm shadow-md">2</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">NSRIT</div><div class="text-[10px] text-rose-400 font-bold">₹15.95 L pending</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-rose-400">82.9%</div><div class="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white font-black text-sm shadow-md">3</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">KKH Batch-2</div><div class="text-[10px] text-rose-400 font-bold">₹1.06 Cr pending</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-rose-400">94.4%</div><div class="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white font-black text-sm shadow-md">4</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">Aurora</div><div class="text-[10px] text-rose-400 font-bold">₹96.18 L pending</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-rose-400">94.5%</div><div class="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Eff</div></div>
+                </div>
+                <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center text-white font-black text-sm shadow-md">5</div>
+                    <div class="flex-1"><div class="text-sm font-black text-white">Takshashila</div><div class="text-[10px] text-rose-400 font-bold">₹16.37 L pending</div></div>
+                    <div class="text-right"><div class="text-lg font-black text-rose-400">94.5%</div><div class="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Eff</div></div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <h2>Case Tags Breakdown</h2>
-        <div class="card">
-            <h3>Students by tagged case type</h3>
-            <svg width="100%" viewBox="0 0 720 200" style="max-width:100%">
-                <line x1="40" y1="10" x2="40" y2="160" stroke="#e0d8c8" stroke-width="1"/>
-                <line x1="40" y1="160" x2="710" y2="160" stroke="#e0d8c8" stroke-width="1"/>
-                <rect x="80" y="40" width="36" height="120" fill="#A52D2D"/>
-                <text x="98" y="34" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700">52</text>
-                <text x="98" y="178" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Dropout</text>
-                <rect x="200" y="60" width="36" height="100" fill="#3b82f6"/>
-                <text x="218" y="54" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700">38</text>
-                <text x="218" y="178" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Loan</text>
-                <rect x="320" y="110" width="36" height="50" fill="#d4af37"/>
-                <text x="338" y="104" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700">12</text>
-                <text x="338" y="178" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Waiver</text>
-                <rect x="440" y="125" width="36" height="35" fill="#0f7a3f"/>
-                <text x="458" y="119" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700">8</text>
-                <text x="458" y="178" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Scholarship</text>
-                <rect x="560" y="135" width="36" height="25" fill="#7c3aed"/>
-                <text x="578" y="129" text-anchor="middle" font-family="Georgia,serif" font-size="9" font-weight="700">5</text>
-                <text x="578" y="178" text-anchor="middle" font-family="Georgia,serif" font-size="10" fill="#666">Deferral</text>
-            </svg>
+    <!-- Case tags -->
+    <div class="glass rounded-[2rem] p-6">
+        <h2 class="text-lg font-black text-white mb-1">Case Tags Distribution</h2>
+        <p class="text-xs text-slate-400 mb-5">Students by tagged case type</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div class="rounded-2xl bg-white/5 p-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-gradient-to-br from-rose-500 to-red-600 opacity-20 blur-2xl"></div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dropout</div>
+                <div class="text-3xl font-black bg-gradient-to-br from-rose-500 to-red-600 bg-clip-text text-transparent mt-2">52</div>
+                <div class="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-rose-500 to-red-600 rounded-full" style="width:100%"></div></div>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 opacity-20 blur-2xl"></div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Loan Case</div>
+                <div class="text-3xl font-black bg-gradient-to-br from-blue-500 to-cyan-500 bg-clip-text text-transparent mt-2">38</div>
+                <div class="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full" style="width:73%"></div></div>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-yellow-500 opacity-20 blur-2xl"></div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Fee Waiver</div>
+                <div class="text-3xl font-black bg-gradient-to-br from-amber-500 to-yellow-500 bg-clip-text text-transparent mt-2">12</div>
+                <div class="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full" style="width:23%"></div></div>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 opacity-20 blur-2xl"></div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Scholarship</div>
+                <div class="text-3xl font-black bg-gradient-to-br from-emerald-500 to-teal-500 bg-clip-text text-transparent mt-2">8</div>
+                <div class="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full" style="width:15%"></div></div>
+            </div>
+            <div class="rounded-2xl bg-white/5 p-4 relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 opacity-20 blur-2xl"></div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Deferral</div>
+                <div class="text-3xl font-black bg-gradient-to-br from-violet-500 to-purple-600 bg-clip-text text-transparent mt-2">5</div>
+                <div class="mt-2 h-1.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-violet-500 to-purple-600 rounded-full" style="width:10%"></div></div>
+            </div>
         </div>
+    </div>
 
-        <h2>All Universities — Detailed Breakdown</h2>
-        <div class="card" style="padding:0;overflow-x:auto">
-            <table>
-                <thead><tr><th>University</th><th style="text-align:right">Strength</th><th style="text-align:right">Full</th><th style="text-align:right">Partial</th><th style="text-align:right">Not Paid</th><th style="text-align:right">Payable</th><th style="text-align:right">Paid</th><th style="text-align:right">Pending</th><th style="text-align:right">Eff %</th></tr></thead>
+    <!-- Full table -->
+    <div class="glass rounded-[2rem] overflow-hidden">
+        <div class="p-5 border-b border-white/10">
+            <h2 class="text-lg font-black text-white">All Universities · Detailed Breakdown</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Complete per-university metrics</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <th class="py-3 px-4 text-left">University</th>
+                        <th class="py-3 px-2 text-right">Strength</th>
+                        <th class="py-3 px-2 text-right">Full</th>
+                        <th class="py-3 px-2 text-right">Partial</th>
+                        <th class="py-3 px-2 text-right">Not Paid</th>
+                        <th class="py-3 px-2 text-right">Payable</th>
+                        <th class="py-3 px-2 text-right">Paid</th>
+                        <th class="py-3 px-2 text-right">Pending</th>
+                        <th class="py-3 px-2 text-right">Eff %</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    <tr><td><strong>Aurora</strong></td><td style="text-align:right">1,394</td><td style="text-align:right;color:#0f7a3f"><strong>1,300</strong></td><td style="text-align:right;color:#d4af37">28</td><td style="text-align:right;color:#A52D2D">66</td><td style="text-align:right">₹17.37 Cr</td><td style="text-align:right;color:#0f7a3f">₹16.41 Cr</td><td style="text-align:right;color:#A52D2D">₹96.17 L</td><td style="text-align:right"><span class="pill" style="background:#fef3c7;color:#8a6d3b">94.5%</span></td></tr>
-                    <tr><td><strong>CDU</strong></td><td style="text-align:right">1,314</td><td style="text-align:right;color:#0f7a3f"><strong>1,294</strong></td><td style="text-align:right;color:#d4af37">5</td><td style="text-align:right;color:#A52D2D">15</td><td style="text-align:right">₹19.67 Cr</td><td style="text-align:right;color:#0f7a3f">₹19.47 Cr</td><td style="text-align:right;color:#A52D2D">₹19.48 L</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">99.0%</span></td></tr>
-                    <tr><td><strong>KKH Batch-2</strong></td><td style="text-align:right">990</td><td style="text-align:right;color:#0f7a3f"><strong>935</strong></td><td style="text-align:right;color:#d4af37">27</td><td style="text-align:right;color:#A52D2D">28</td><td style="text-align:right">₹18.94 Cr</td><td style="text-align:right;color:#0f7a3f">₹17.88 Cr</td><td style="text-align:right;color:#A52D2D">₹1.06 Cr</td><td style="text-align:right"><span class="pill" style="background:#fef3c7;color:#8a6d3b">94.4%</span></td></tr>
-                    <tr><td><strong>VGU</strong></td><td style="text-align:right">440</td><td style="text-align:right;color:#0f7a3f"><strong>407</strong></td><td style="text-align:right;color:#d4af37">18</td><td style="text-align:right;color:#A52D2D">15</td><td style="text-align:right">₹4.40 Cr</td><td style="text-align:right;color:#0f7a3f">₹4.29 Cr</td><td style="text-align:right;color:#A52D2D">₹10.72 L</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">97.6%</span></td></tr>
-                    <tr><td><strong>Mallaredy</strong></td><td style="text-align:right">439</td><td style="text-align:right;color:#0f7a3f"><strong>418</strong></td><td style="text-align:right;color:#d4af37">20</td><td style="text-align:right;color:#A52D2D">1</td><td style="text-align:right">₹6.48 Cr</td><td style="text-align:right;color:#0f7a3f">₹6.41 Cr</td><td style="text-align:right;color:#A52D2D">₹7.05 L</td><td style="text-align:right"><span class="pill" style="background:#dcf6e1;color:#0f7a3f">98.9%</span></td></tr>
-                    <tr><td><strong>AMET</strong></td><td style="text-align:right">119</td><td style="text-align:right;color:#0f7a3f"><strong>64</strong></td><td style="text-align:right;color:#d4af37">43</td><td style="text-align:right;color:#A52D2D">12</td><td style="text-align:right">₹1.70 Cr</td><td style="text-align:right;color:#0f7a3f">₹1.30 Cr</td><td style="text-align:right;color:#A52D2D">₹40.07 L</td><td style="text-align:right"><span class="pill" style="background:#fde2e2;color:#A52D2D">76.5%</span></td></tr>
-                    <tr><td colspan="9" style="text-align:center;color:#8a8a8a;font-style:italic;padding:20px">… 12 more universities in the actual report</td></tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">NIU</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">322</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">309</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">7</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">6</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹4.82 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹4.84 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">-₹1.71 L</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-emerald-500/20 text-emerald-400">100.4%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">Yenepoya</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">198</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">195</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">2</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">1</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹2.59 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹2.59 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">-₹47K</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-emerald-500/20 text-emerald-400">100.2%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">CDU</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">1,314</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">1,294</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">5</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">15</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹19.67 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹19.47 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">₹19.48 L</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-emerald-500/20 text-emerald-400">99.0%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">Aurora</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">1,394</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">1,300</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">28</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">66</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹17.37 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹16.41 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">₹96.17 L</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-amber-500/20 text-amber-400">94.5%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">VGU</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">440</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">407</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">18</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">15</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹4.40 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹4.29 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">₹10.72 L</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-emerald-500/20 text-emerald-400">97.6%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5 hover:bg-white/5 transition">
+                        <td class="py-3 px-4 font-black text-white">AMET</td>
+                        <td class="py-3 px-2 text-right font-bold text-slate-300">119</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-black">64</td>
+                        <td class="py-3 px-2 text-right text-amber-400 font-bold">43</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">12</td>
+                        <td class="py-3 px-2 text-right text-slate-300">₹1.70 Cr</td>
+                        <td class="py-3 px-2 text-right text-emerald-400 font-bold">₹1.30 Cr</td>
+                        <td class="py-3 px-2 text-right text-rose-400 font-bold">₹40.07 L</td>
+                        <td class="py-3 px-2 text-right"><span class="inline-block px-2.5 py-0.5 rounded-lg text-[11px] font-black bg-rose-500/20 text-rose-400">76.5%</span></td>
+                    </tr>
+                    <tr class="border-t border-white/5">
+                        <td colspan="9" class="text-center text-slate-500 italic py-5">… 12 more universities in the actual report</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
-
-        <footer style="text-align:center;margin-top:48px;padding-top:24px;border-top:1px solid #e8e4dd;font-size:12px;color:#8a8a8a">
-            <div style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#A52D2D">NXTWAVE · Institute of Advanced Technologies</div>
-            <div style="margin-top:6px">Generated 20 May 2026, 04:30 PM · UniConnect Fee Collection</div>
-        </footer>
     </div>
+
+    <div class="text-center text-xs text-slate-500 py-4">
+        Generated 20 May 2026, 05:30 PM · NxtWave Institute of Advanced Technologies · UniConnect Fee Collection
+    </div>
+</div>
 </body>
 </html>

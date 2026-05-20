@@ -199,12 +199,12 @@
             </div>
         </div>
 
-        <!-- Per-university stacked bars -->
+        <!-- Per-university horizontal stacked bars -->
         <div class="glass rounded-[2rem] p-6">
             <div class="flex items-center justify-between mb-5 flex-wrap gap-2">
                 <div>
                     <h2 class="text-lg font-black text-slate-900 dark:text-white">Payment Status — Per University</h2>
-                    <p class="text-xs text-slate-500 mt-0.5">Stacked bars showing fully paid / partial / not paid breakdown</p>
+                    <p class="text-xs text-slate-500 mt-0.5">Each bar is 100%. Easy to compare proportions across universities of any size.</p>
                 </div>
                 <div class="flex items-center gap-3 text-[10px] font-bold">
                     <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gradient-to-br from-emerald-500 to-teal-600"></span>Fully Paid</span>
@@ -212,21 +212,41 @@
                     <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-gradient-to-br from-rose-500 to-red-600"></span>Not Paid</span>
                 </div>
             </div>
-            <div class="flex items-end gap-3 h-72 overflow-x-auto pb-2">
-                {#each byUniv as u}
+            <div class="space-y-2.5">
+                {#each [...byUniv].sort((a, b) => (n(b.fully_paid) / Math.max(1, n(b.fully_paid) + n(b.partial_paid) + n(b.not_paid))) - (n(a.fully_paid) / Math.max(1, n(a.fully_paid) + n(a.partial_paid) + n(a.not_paid)))) as u}
                     {@const total = n(u.fully_paid) + n(u.partial_paid) + n(u.not_paid)}
-                    {@const barH = (total / maxStrength) * 240}
-                    {@const fullH = total > 0 ? (n(u.fully_paid) / total) * barH : 0}
-                    {@const partH = total > 0 ? (n(u.partial_paid) / total) * barH : 0}
-                    {@const nullH = total > 0 ? (n(u.not_paid) / total) * barH : 0}
-                    <div class="flex flex-col items-center min-w-[42px] group">
-                        <div class="text-[9px] font-black text-slate-700 dark:text-slate-300 mb-1">{total}</div>
-                        <div class="w-9 flex flex-col rounded-lg overflow-hidden shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all">
-                            <div class="bg-gradient-to-br from-rose-500 to-red-600" style="height:{nullH}px" title="Not Paid: {u.not_paid}"></div>
-                            <div class="bg-gradient-to-br from-amber-400 to-yellow-500" style="height:{partH}px" title="Partial: {u.partial_paid}"></div>
-                            <div class="bg-gradient-to-br from-emerald-500 to-teal-600" style="height:{fullH}px" title="Full: {u.fully_paid}"></div>
+                    {@const fullPct = total > 0 ? (n(u.fully_paid) / total) * 100 : 0}
+                    {@const partPct = total > 0 ? (n(u.partial_paid) / total) * 100 : 0}
+                    {@const nullPct = total > 0 ? (n(u.not_paid) / total) * 100 : 0}
+                    <div class="flex items-center gap-3 group">
+                        <div class="w-36 text-xs font-bold text-slate-700 dark:text-slate-200 text-right truncate">{u.university_name}</div>
+                        <div class="flex-1 flex h-8 rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-shadow">
+                            {#if fullPct > 0}
+                                <div class="bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-center text-white text-[10px] font-black"
+                                     style="width:{fullPct}%"
+                                     title="Fully Paid: {u.fully_paid} ({fullPct.toFixed(1)}%)">
+                                    {#if fullPct > 8}{u.fully_paid}{/if}
+                                </div>
+                            {/if}
+                            {#if partPct > 0}
+                                <div class="bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center text-white text-[10px] font-black"
+                                     style="width:{partPct}%"
+                                     title="Partial: {u.partial_paid} ({partPct.toFixed(1)}%)">
+                                    {#if partPct > 8}{u.partial_paid}{/if}
+                                </div>
+                            {/if}
+                            {#if nullPct > 0}
+                                <div class="bg-gradient-to-r from-rose-500 to-red-600 flex items-center justify-center text-white text-[10px] font-black"
+                                     style="width:{nullPct}%"
+                                     title="Not Paid: {u.not_paid} ({nullPct.toFixed(1)}%)">
+                                    {#if nullPct > 8}{u.not_paid}{/if}
+                                </div>
+                            {/if}
                         </div>
-                        <div class="text-[9px] font-bold text-slate-500 mt-2 max-w-[42px] truncate">{u.university_name}</div>
+                        <div class="w-20 text-right">
+                            <div class="text-xs font-black text-slate-700 dark:text-slate-200">{total.toLocaleString()}</div>
+                            <div class="text-[9px] font-bold text-emerald-500">{fullPct.toFixed(0)}% full</div>
+                        </div>
                     </div>
                 {/each}
             </div>
