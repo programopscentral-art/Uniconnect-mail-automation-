@@ -10,7 +10,7 @@
 
     let { data } = $props();
 
-    type Tab = 'collection' | 'students' | 'cases' | 'daily' | 'universities' | 'overview';
+    type Tab = 'collection' | 'students' | 'cases' | 'daily' | 'universities' | 'docs' | 'overview';
     let activeTab = $state<Tab>('collection');
     let activePeriodId = $state<string>(data.activePeriod?.id || data.periods[0]?.id || '');
 
@@ -56,6 +56,84 @@
     let showDailyForm = $state(false);
     let dailyForm = $state({ university_id: '', date: new Date().toISOString().split('T')[0], amount: 0, students_count: 0, notes: '' });
     let savingDaily = $state(false);
+
+    // ─── Doc Request state ────────────────────────────────────────────
+    let docMissingStudents = $state<any[]>([]);
+    let docRequests = $state<any[]>([]);
+    let docStats = $state<any>({ total_sent: 0, opened: 0, acknowledged: 0, uploaded: 0 });
+    let docFilterUni = $state('');
+    let docOnlyUnpaid = $state(true);
+    let selectedForDocRequest = $state<Set<string>>(new Set());
+    let showSendDocModal = $state(false);
+    let docMessage = $state('Dear Student,\n\nWe noticed your billing receipts or fee proofs have not been uploaded yet. Please upload the required documents using the form linked below and acknowledge this notice.\n\nThank you,\nNxtWave Operations');
+    let docEmailSubject = $state('Action Required: Submit Your Fee Receipts');
+    let docFormUrl = $state('');
+    let docSending = $state(false);
+
+    async function loadDocMissing() {
+        if (!activePeriodId) return;
+        try {
+            const q = new URLSearchParams({ period_id: activePeriodId, view: 'missing' });
+            if (docFilterUni) q.set('university_id', docFilterUni);
+            if (docOnlyUnpaid) q.set('only_unpaid', 'true');
+            const res = await fetch(`/api/fees/doc-requests?${q}`);
+            if (res.ok) docMissingStudents = await res.json();
+        } catch {}
+    }
+    async function loadDocRequests() {
+        if (!activePeriodId) return;
+        try {
+            const [r1, r2] = await Promise.all([
+                fetch(`/api/fees/doc-requests?period_id=${activePeriodId}`),
+                fetch(`/api/fees/doc-requests?period_id=${activePeriodId}&view=stats`),
+            ]);
+            if (r1.ok) docRequests = await r1.json();
+            if (r2.ok) docStats = await r2.json();
+        } catch {}
+    }
+    async function sendDocRequests() {
+        if (!selectedForDocRequest.size) { flash('Select at least one student', true); return; }
+        if (!docMessage.trim() || !docEmailSubject.trim()) { flash('Subject and message required', true); return; }
+        docSending = true;
+        try {
+            const res = await fetch('/api/fees/doc-requests', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    period_id: activePeriodId,
+                    student_payment_ids: Array.from(selectedForDocRequest),
+                    doc_type: 'billing_receipt',
+                    message: docMessage,
+                    upload_form_url: docFormUrl || undefined,
+                    email_subject: docEmailSubject,
+                })
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                throw new Error(j.message || `Send failed (${res.status})`);
+            }
+            const j = await res.json();
+            flash(`Sent ${j.requests.length} email(s). Batch ID: ${j.batch_id.slice(0, 8)}`);
+            showSendDocModal = false;
+            selectedForDocRequest = new Set();
+            await Promise.all([loadDocMissing(), loadDocRequests()]);
+        } catch (e: any) {
+            flash(e?.message || 'Send failed', true);
+        } finally {
+            docSending = false;
+        }
+    }
+    function toggleDocSelection(id: string) {
+        if (selectedForDocRequest.has(id)) selectedForDocRequest.delete(id);
+        else selectedForDocRequest.add(id);
+        selectedForDocRequest = new Set(selectedForDocRequest);
+    }
+    function selectAllMissing() {
+        selectedForDocRequest = new Set(docMissingStudents.map(s => s.id));
+    }
+    function clearDocSelection() {
+        selectedForDocRequest = new Set();
+    }
 
     // ─── Import modal ─────────────────────────────────────────────────
     let showImportModal = $state(false);
@@ -190,6 +268,7 @@
         if (t === 'students') loadStudents(1);
         else if (t === 'cases') loadCases();
         else if (t === 'daily') loadDaily();
+        else if (t === 'docs') { loadDocMissing(); loadDocRequests(); }
     }
 
     // KPI summary derived values
@@ -508,6 +587,7 @@
                 { id: 'students',   label: 'Students Data',       icon: Building2 },
                 { id: 'cases',      label: 'Tag Cases',           icon: AlertCircle },
                 { id: 'daily',      label: 'Daily Report',        icon: Banknote },
+                { id: 'docs',       label: 'Doc Requests',        icon: MessageSquare },
                 { id: 'universities', label: 'Universities',      icon: Building2 },
                 { id: 'overview',   label: 'Overview',            icon: TrendingUp },
             ] as t}
@@ -784,6 +864,105 @@
                 </div>
             </div>
 
+        <!-- ═══════ DOC REQUESTS TAB ═══════ -->
+        {:else if activeTab === 'docs'}
+            <!-- Stats cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Sent</div>
+                    <div class="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">{docStats.total_sent || 0}</div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Opened</div>
+                    <div class="text-2xl font-extrabold text-blue-600 mt-1">{docStats.opened || 0}</div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Acknowledged</div>
+                    <div class="text-2xl font-extrabold text-emerald-600 mt-1">{docStats.acknowledged || 0}</div>
+                </div>
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Uploaded</div>
+                    <div class="text-2xl font-extrabold text-purple-600 mt-1">{docStats.uploaded || 0}</div>
+                </div>
+            </div>
+
+            <!-- Students missing docs -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden mb-4">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Students Missing Documents</div>
+                        <div class="text-xs text-slate-500 mt-0.5">No billing receipts or fee proofs uploaded — {docMissingStudents.length} students</div>
+                    </div>
+                    <div class="flex gap-2 flex-wrap items-center">
+                        <select bind:value={docFilterUni} onchange={loadDocMissing} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Universities</option>
+                            {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
+                        </select>
+                        <label class="flex items-center gap-2 text-xs font-bold">
+                            <input type="checkbox" bind:checked={docOnlyUnpaid} onchange={loadDocMissing} class="rounded" />
+                            Only unpaid/partial
+                        </label>
+                        {#if data.access.canEditRemarks}
+                            <button onclick={selectAllMissing} class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Select all</button>
+                            <button onclick={clearDocSelection} class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Clear</button>
+                            <button disabled={!selectedForDocRequest.size} onclick={() => showSendDocModal = true} class="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-2 disabled:opacity-50">
+                                <MessageSquare size={12} /> Send to {selectedForDocRequest.size || 0} students
+                            </button>
+                        {/if}
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase text-slate-500 sticky top-0">
+                            <tr><th class="py-3 px-3 w-8"></th><th class="py-3 px-3 text-left">Student</th><th class="py-3 px-3 text-left">University</th><th class="py-3 px-2 text-right">Pending</th><th class="py-3 px-2">Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {#if !docMissingStudents.length}<tr><td colspan="5" class="text-center py-12 text-slate-400">All students have uploaded documents 🎉</td></tr>{/if}
+                            {#each docMissingStudents as s}
+                                <tr class="border-t border-slate-100 dark:border-slate-800">
+                                    <td class="py-2 px-3"><input type="checkbox" checked={selectedForDocRequest.has(s.id)} onchange={() => toggleDocSelection(s.id)} class="rounded" /></td>
+                                    <td class="py-2 px-3 font-medium">{s.student_name || s.zoho_user_id?.slice(0, 8)}</td>
+                                    <td class="py-2 px-3">{s.university_name}</td>
+                                    <td class="py-2 px-2 text-right text-rose-600 font-bold">{fmtInr(s.pending)}</td>
+                                    <td class="py-2 px-2"><span class="text-[10px] px-2 py-0.5 rounded {statusColor(s.status)}">{s.status}</span></td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sent requests history -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Sent Requests · Acknowledgment Status</div>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase text-slate-500 sticky top-0">
+                            <tr><th class="py-3 px-3 text-left">Student</th><th class="py-3 px-3 text-left">University</th><th class="py-3 px-3 text-left">Sent</th><th class="py-3 px-3 text-left">Opened</th><th class="py-3 px-3 text-left">Acknowledged</th><th class="py-3 px-2">Status</th></tr>
+                        </thead>
+                        <tbody>
+                            {#if !docRequests.length}<tr><td colspan="6" class="text-center py-12 text-slate-400">No requests sent yet.</td></tr>{/if}
+                            {#each docRequests as r}
+                                <tr class="border-t border-slate-100 dark:border-slate-800">
+                                    <td class="py-2 px-3 font-medium">{r.student_name || r.zoho_user_id?.slice(0, 8)}</td>
+                                    <td class="py-2 px-3">{r.university_name}</td>
+                                    <td class="py-2 px-3 text-xs text-slate-500">{fmtDateTime(r.sent_at)}</td>
+                                    <td class="py-2 px-3 text-xs">{r.opened_at ? fmtDateTime(r.opened_at) : '—'}</td>
+                                    <td class="py-2 px-3 text-xs">{r.acknowledged_at ? fmtDateTime(r.acknowledged_at) : '—'}</td>
+                                    <td class="py-2 px-2">
+                                        <span class="text-[10px] px-2 py-0.5 rounded {r.status === 'acknowledged' ? 'bg-emerald-100 text-emerald-700' : r.status === 'opened' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}">
+                                            {r.status}
+                                        </span>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         <!-- ═══════ UNIVERSITIES TAB ═══════ -->
         {:else if activeTab === 'universities'}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1013,6 +1192,45 @@
                         {#if importing}<Loader2 class="animate-spin" size={16} /> Importing...{:else}<RefreshCw size={16} /> Run Import{/if}
                     </button>
                     <button onclick={() => showImportModal = false} class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-sm">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- ═══════ SEND DOC REQUEST MODAL ═══════ -->
+{#if showSendDocModal}
+    <div transition:fade={{ duration: 150 }} class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onclick={() => showSendDocModal = false} role="presentation">
+        <div transition:fly={{ y: 30 }} class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="presentation">
+            <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <div class="font-extrabold text-lg">Send Document Request</div>
+                    <div class="text-xs text-slate-500 mt-0.5">To {selectedForDocRequest.size} students via email</div>
+                </div>
+                <button onclick={() => showSendDocModal = false} class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><X size={16} /></button>
+            </div>
+            <div class="p-5 space-y-3">
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Email Subject</label>
+                    <input bind:value={docEmailSubject} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Message</label>
+                    <textarea bind:value={docMessage} rows="6" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm resize-y"></textarea>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Google Form URL (optional, for document uploads)</label>
+                    <input bind:value={docFormUrl} placeholder="https://forms.google.com/..." class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
+                    <div class="text-[10px] text-slate-500 mt-1">Each student gets an Acknowledge button + this upload link in their email.</div>
+                </div>
+                <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">
+                    ⚠️ Note: students must have an email on file (linked via Zoho UUID to the students table). Students without email addresses will be silently skipped from sending.
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button disabled={docSending} onclick={sendDocRequests} class="flex-1 px-4 py-3 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                        {#if docSending}<Loader2 class="animate-spin" size={16} /> Sending...{:else}<MessageSquare size={16} /> Send to {selectedForDocRequest.size} students{/if}
+                    </button>
+                    <button onclick={() => showSendDocModal = false} class="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-sm">Cancel</button>
                 </div>
             </div>
         </div>

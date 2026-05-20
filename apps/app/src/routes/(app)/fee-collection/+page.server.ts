@@ -17,13 +17,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     let periods = await getFeePeriods();
     let active = await getActiveFeePeriod();
 
-    // Bootstrap: if no period exists, auto-create one ("NIAT 2025 · Term 2") so the page is usable on first load
+    // Bootstrap: if no period exists, auto-create one so the page is usable on first load
     if (!periods.length) {
         const p = await createFeePeriod({
-            name: 'NIAT 2025 · Term 2',
-            program: 'NIAT 2025',
+            name: 'NIAT · Batch 2022-26 · Term 2',
+            program: 'NIAT',
             term: 2,
             academic_year: '2025-26',
+            batch_start_year: 2022,
+            batch_end_year: 2026,
             created_by: locals.user.id
         });
         periods = [p];

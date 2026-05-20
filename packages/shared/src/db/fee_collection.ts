@@ -28,11 +28,15 @@ export async function ensureFeeTables() {
                 program text,
                 term int NOT NULL CHECK (term BETWEEN 1 AND 8),
                 academic_year text,
+                batch_start_year int,
+                batch_end_year int,
                 status text NOT NULL DEFAULT 'active',
                 created_by uuid REFERENCES users(id),
                 created_at timestamptz NOT NULL DEFAULT now(),
                 updated_at timestamptz NOT NULL DEFAULT now()
             );
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS batch_start_year int;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS batch_end_year int;
 
             CREATE TABLE IF NOT EXISTS fee_university_meta (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -133,6 +137,31 @@ export async function ensureFeeTables() {
                 UNIQUE (zoho_user_id, payment_date, period_id)
             );
 
+            CREATE TABLE IF NOT EXISTS fee_doc_requests (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                period_id uuid NOT NULL REFERENCES fee_periods(id) ON DELETE CASCADE,
+                student_payment_id uuid NOT NULL REFERENCES fee_student_payments(id) ON DELETE CASCADE,
+                doc_type text NOT NULL DEFAULT 'billing_receipt',
+                message text,
+                upload_form_url text,
+                email_to text,
+                email_subject text,
+                ack_token text NOT NULL UNIQUE,
+                sent_at timestamptz NOT NULL DEFAULT now(),
+                opened_at timestamptz,
+                acknowledged_at timestamptz,
+                uploaded_at timestamptz,
+                ack_ip text,
+                ack_user_agent text,
+                sent_by uuid REFERENCES users(id),
+                status text NOT NULL DEFAULT 'sent',
+                batch_send_id text
+            );
+            CREATE INDEX IF NOT EXISTS idx_fee_doc_requests_period ON fee_doc_requests(period_id, status);
+            CREATE INDEX IF NOT EXISTS idx_fee_doc_requests_student ON fee_doc_requests(student_payment_id);
+            CREATE INDEX IF NOT EXISTS idx_fee_doc_requests_token ON fee_doc_requests(ack_token);
+            CREATE INDEX IF NOT EXISTS idx_fee_doc_requests_batch ON fee_doc_requests(batch_send_id);
+
             CREATE INDEX IF NOT EXISTS idx_fee_student_payments_period_uni ON fee_student_payments(period_id, university_id);
             CREATE INDEX IF NOT EXISTS idx_fee_student_payments_status ON fee_student_payments(status);
             CREATE INDEX IF NOT EXISTS idx_fee_student_payments_zoho ON fee_student_payments(zoho_user_id);
@@ -169,13 +198,163 @@ export async function getActiveFeePeriod() {
 }
 
 export async function createFeePeriod(data: {
-    name: string; program?: string; term: number; academic_year?: string; created_by?: string;
+    name: string; program?: string; term: number; academic_year?: string;
+    batch_start_year?: number; batch_end_year?: number; created_by?: string;
 }) {
     await ensureFeeTables();
     const res = await db.query(
-        `INSERT INTO fee_periods (name, program, term, academic_year, created_by)
-         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-        [data.name, data.program || null, data.term, data.academic_year || null, data.created_by || null]
+        `INSERT INTO fee_periods (name, program, term, academic_year, batch_start_year, batch_end_year, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        [data.name, data.program || null, data.term, data.academic_year || null,
+         data.batch_start_year || null, data.batch_end_year || null, data.created_by || null]
+    );
+    return res.rows[0];
+}
+
+// ─── Doc Requests / Acknowledgments ────────────────────────────────
+
+import * as crypto from 'crypto';
+
+export type DocRequestStatus = 'sent' | 'opened' | 'acknowledged' | 'uploaded';
+
+export async function findStudentsWithoutDocs(periodId: string, opts: {
+    university_id?: string;
+    only_unpaid?: boolean;
+} = {}) {
+    await ensureFeeTables();
+    const conditions: string[] = ['sp.period_id = $1'];
+    const params: any[] = [periodId];
+    let i = 2;
+
+    // "No docs" = no remarks have any attachments
+    conditions.push(`NOT EXISTS (
+        SELECT 1 FROM fee_remarks r
+        JOIN fee_remark_attachments a ON a.remark_id = r.id
+        WHERE r.student_payment_id = sp.id
+    )`);
+
+    if (opts.university_id) {
+        conditions.push(`sp.university_id = $${i++}`);
+        params.push(opts.university_id);
+    }
+    if (opts.only_unpaid) {
+        conditions.push(`sp.status IN ('Yet To Pay', 'Partially Paid')`);
+    }
+
+    const res = await db.query(
+        `SELECT sp.*, COALESCE(u.short_name, u.name) AS university_name
+         FROM fee_student_payments sp
+         JOIN universities u ON u.id = sp.university_id
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY sp.university_id, sp.student_name`,
+        params
+    );
+    return res.rows;
+}
+
+export async function createDocRequests(data: {
+    period_id: string;
+    student_payment_ids: string[];
+    doc_type: string;
+    message: string;
+    upload_form_url?: string;
+    email_subject: string;
+    sent_by: string;
+    batch_send_id?: string;
+}) {
+    await ensureFeeTables();
+    const batchId = data.batch_send_id || crypto.randomBytes(8).toString('hex');
+    const inserted: any[] = [];
+    for (const spId of data.student_payment_ids) {
+        const token = crypto.randomBytes(24).toString('hex');
+        const res = await db.query(
+            `INSERT INTO fee_doc_requests
+                (period_id, student_payment_id, doc_type, message, upload_form_url,
+                 email_subject, ack_token, sent_by, batch_send_id, status)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'sent')
+             RETURNING *`,
+            [data.period_id, spId, data.doc_type, data.message,
+             data.upload_form_url || null, data.email_subject, token,
+             data.sent_by, batchId]
+        );
+        inserted.push(res.rows[0]);
+    }
+    return { batch_id: batchId, requests: inserted };
+}
+
+export async function getDocRequests(periodId: string, filters: { status?: string; batch_send_id?: string } = {}) {
+    await ensureFeeTables();
+    const conditions: string[] = ['dr.period_id = $1'];
+    const params: any[] = [periodId];
+    let i = 2;
+    if (filters.status) { conditions.push(`dr.status = $${i++}`); params.push(filters.status); }
+    if (filters.batch_send_id) { conditions.push(`dr.batch_send_id = $${i++}`); params.push(filters.batch_send_id); }
+    const res = await db.query(
+        `SELECT dr.*, sp.student_name, sp.zoho_user_id, COALESCE(u.short_name, u.name) AS university_name
+         FROM fee_doc_requests dr
+         JOIN fee_student_payments sp ON sp.id = dr.student_payment_id
+         JOIN universities u ON u.id = sp.university_id
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY dr.sent_at DESC`,
+        params
+    );
+    return res.rows;
+}
+
+export async function getDocRequestByToken(token: string) {
+    await ensureFeeTables();
+    const res = await db.query(
+        `SELECT dr.*, sp.student_name, sp.zoho_user_id, sp.payable, sp.paid, sp.pending,
+                COALESCE(u.short_name, u.name) AS university_name,
+                p.name AS period_name
+         FROM fee_doc_requests dr
+         JOIN fee_student_payments sp ON sp.id = dr.student_payment_id
+         JOIN universities u ON u.id = sp.university_id
+         JOIN fee_periods p ON p.id = dr.period_id
+         WHERE dr.ack_token = $1`,
+        [token]
+    );
+    return res.rows[0] || null;
+}
+
+export async function markDocRequestOpened(token: string, meta: { ip?: string; ua?: string }) {
+    await ensureFeeTables();
+    await db.query(
+        `UPDATE fee_doc_requests
+         SET opened_at = COALESCE(opened_at, now()),
+             ack_ip = COALESCE(ack_ip, $2),
+             ack_user_agent = COALESCE(ack_user_agent, $3),
+             status = CASE WHEN status = 'sent' THEN 'opened' ELSE status END
+         WHERE ack_token = $1`,
+        [token, meta.ip || null, meta.ua || null]
+    );
+}
+
+export async function acknowledgeDocRequest(token: string, meta: { ip?: string; ua?: string }) {
+    await ensureFeeTables();
+    const res = await db.query(
+        `UPDATE fee_doc_requests
+         SET acknowledged_at = COALESCE(acknowledged_at, now()),
+             ack_ip = COALESCE(ack_ip, $2),
+             ack_user_agent = COALESCE(ack_user_agent, $3),
+             status = CASE WHEN status IN ('sent', 'opened') THEN 'acknowledged' ELSE status END
+         WHERE ack_token = $1
+         RETURNING *`,
+        [token, meta.ip || null, meta.ua || null]
+    );
+    return res.rows[0];
+}
+
+export async function getDocRequestStats(periodId: string) {
+    await ensureFeeTables();
+    const res = await db.query(
+        `SELECT
+            COUNT(*)::int AS total_sent,
+            COUNT(*) FILTER (WHERE opened_at IS NOT NULL)::int AS opened,
+            COUNT(*) FILTER (WHERE acknowledged_at IS NOT NULL)::int AS acknowledged,
+            COUNT(*) FILTER (WHERE uploaded_at IS NOT NULL)::int AS uploaded
+         FROM fee_doc_requests WHERE period_id = $1`,
+        [periodId]
     );
     return res.rows[0];
 }
