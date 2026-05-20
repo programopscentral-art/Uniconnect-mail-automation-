@@ -5,7 +5,7 @@
         Wallet, Building2, TrendingUp, CheckCircle2, AlertCircle,
         Banknote, UserMinus, MessageSquare, Search, Filter,
         ChevronLeft, ChevronRight, Download, X, Loader2, Plus,
-        Lock, ShieldCheck, FileText, Paperclip, Trash2
+        Lock, ShieldCheck, FileText, Paperclip, Trash2, Upload, RefreshCw
     } from 'lucide-svelte';
 
     let { data } = $props();
@@ -56,6 +56,16 @@
     let showDailyForm = $state(false);
     let dailyForm = $state({ university_id: '', date: new Date().toISOString().split('T')[0], amount: 0, students_count: 0, notes: '' });
     let savingDaily = $state(false);
+
+    // ─── Import modal ─────────────────────────────────────────────────
+    let showImportModal = $state(false);
+    let importMode = $state<'sheet' | 'csv'>('sheet');
+    let importSheetId = $state('1TAhrH4303o81dqps1j-ZNYt1QjWHhfmY5gjwnz_2GBM');
+    let importTabName = $state('Userwise Data');
+    let importDataset = $state<'userwise' | 'daywise' | 'summary'>('userwise');
+    let importFile = $state<File | null>(null);
+    let importing = $state(false);
+    let importResult = $state<any>(null);
 
     // ─── Helpers ──────────────────────────────────────────────────────
     const TAG_META: Record<string, { label: string; cls: string }> = {
@@ -350,6 +360,48 @@
         } catch (e: any) { flash(e?.message || 'Delete failed', true); }
     }
 
+    // ─── Import ───────────────────────────────────────────────────────
+    async function runImport() {
+        if (!activePeriodId) { flash('No active period', true); return; }
+        importing = true;
+        importResult = null;
+        try {
+            let res: Response;
+            if (importMode === 'sheet') {
+                if (!importSheetId || !importTabName) { flash('Sheet ID and tab name required', true); importing = false; return; }
+                res = await fetch('/api/fees/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        period_id: activePeriodId,
+                        mode: 'sheet',
+                        sheet_id: importSheetId,
+                        tab_name: importTabName,
+                        dataset: importDataset,
+                    })
+                });
+            } else {
+                if (!importFile) { flash('Choose a CSV file', true); importing = false; return; }
+                const fd = new FormData();
+                fd.append('file', importFile);
+                fd.append('period_id', activePeriodId);
+                fd.append('dataset', importDataset);
+                res = await fetch('/api/fees/import', { method: 'POST', body: fd });
+            }
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.message || 'Import failed');
+            importResult = j;
+            flash(`Imported ${j.ok || 0} rows · ${j.skipped || 0} skipped · ${j.remarksImported || 0} remarks · ${j.tagged || 0} auto-tagged`);
+            // Refresh data after import
+            await loadRollup();
+            if (activeTab === 'students') await loadStudents(1);
+        } catch (e: any) {
+            flash(e?.message || 'Import failed', true);
+        } finally {
+            importing = false;
+        }
+    }
+
     // ─── Export CSV ───────────────────────────────────────────────────
     function exportCollectionCSV() {
         const head = 'University,Strength,Fully Paid,Partial,Not Paid,Payable,Paid,Pending,Eff %,Fully %,Not Paid %\n';
@@ -388,6 +440,11 @@
                         <option value={p.id}>{p.name}</option>
                     {/each}
                 </select>
+                {#if data.access.canAdmin}
+                    <button onclick={() => { showImportModal = true; importResult = null; }} class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-indigo-500/30">
+                        <Upload size={14} /> Import Data
+                    </button>
+                {/if}
                 {#if data.access.canEditRemarks}
                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                         <ShieldCheck size={12} /> {data.access.canAdmin ? 'Admin' : 'Editor'}
@@ -871,6 +928,92 @@
                 </button>
             </div>
         {/if}
+    </div>
+{/if}
+
+<!-- ═══════ IMPORT MODAL ═══════ -->
+{#if showImportModal}
+    <div transition:fade={{ duration: 150 }} class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onclick={() => showImportModal = false} role="presentation">
+        <div transition:fly={{ y: 30 }} class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-xl max-h-[90vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="presentation">
+            <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div>
+                    <div class="font-extrabold text-lg text-slate-900 dark:text-white">Import Fee Data</div>
+                    <div class="text-xs text-slate-500 mt-0.5">From Google Sheets or CSV file</div>
+                </div>
+                <button onclick={() => showImportModal = false} class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><X size={16} /></button>
+            </div>
+
+            <div class="p-5 space-y-4">
+                <!-- Mode toggle -->
+                <div class="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    <button onclick={() => importMode = 'sheet'} class="flex-1 px-3 py-2 rounded-lg text-sm font-bold transition-all {importMode === 'sheet' ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow' : 'text-slate-500'}">
+                        Google Sheets
+                    </button>
+                    <button onclick={() => importMode = 'csv'} class="flex-1 px-3 py-2 rounded-lg text-sm font-bold transition-all {importMode === 'csv' ? 'bg-white dark:bg-slate-900 text-indigo-600 shadow' : 'text-slate-500'}">
+                        CSV Upload
+                    </button>
+                </div>
+
+                <!-- Dataset type -->
+                <div>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Dataset Type</label>
+                    <select bind:value={importDataset} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                        <option value="userwise">Userwise Data (main student-level data)</option>
+                        <option value="daywise">Day-wise Payments (transaction log)</option>
+                        <option value="summary">University Summary (Fully / Partial / Null counts)</option>
+                    </select>
+                </div>
+
+                {#if importMode === 'sheet'}
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Google Sheet ID</label>
+                        <input bind:value={importSheetId} placeholder="From the URL between /d/ and /edit" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
+                        <div class="text-[10px] text-slate-400 mt-1">Make sure the sheet is shared with "Anyone with the link → Viewer".</div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Tab Name</label>
+                        <input bind:value={importTabName} placeholder="e.g. Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                        <div class="text-[10px] text-slate-400 mt-1">
+                            Suggested: <button onclick={() => importTabName = 'Userwise Data'} class="text-indigo-500 hover:underline font-mono">Userwise Data</button> ·
+                            <button onclick={() => importTabName = 'Day_Wise_Payments'} class="text-indigo-500 hover:underline font-mono">Day_Wise_Payments</button> ·
+                            <button onclick={() => importTabName = 'Sheet1'} class="text-indigo-500 hover:underline font-mono">Sheet1</button>
+                        </div>
+                    </div>
+                {:else}
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">CSV File</label>
+                        <input type="file" accept=".csv" onchange={(e) => importFile = (e.target as HTMLInputElement).files?.[0] || null} class="w-full text-sm" />
+                        <div class="text-[10px] text-slate-400 mt-1">Expected columns: User ID, University, Payable, Paid, Status, etc.</div>
+                    </div>
+                {/if}
+
+                {#if importResult}
+                    <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-sm">
+                        <div class="font-bold text-emerald-700 dark:text-emerald-400 mb-2">✅ Import Complete</div>
+                        <div class="text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                            <div>• <strong>{importResult.ok || 0}</strong> rows imported</div>
+                            <div>• <strong>{importResult.skipped || 0}</strong> rows skipped</div>
+                            {#if importResult.remarksImported}<div>• <strong>{importResult.remarksImported}</strong> legacy remarks migrated</div>{/if}
+                            {#if importResult.tagged}<div>• <strong>{importResult.tagged}</strong> students auto-tagged</div>{/if}
+                            {#if importResult.errors && importResult.errors.length}
+                                <details class="mt-2"><summary class="cursor-pointer font-bold">⚠️ {importResult.errors.length} errors</summary>
+                                    <ul class="mt-1 ml-4 text-[11px] text-rose-700 dark:text-rose-400 space-y-0.5">
+                                        {#each importResult.errors.slice(0, 10) as err}<li>{err}</li>{/each}
+                                    </ul>
+                                </details>
+                            {/if}
+                        </div>
+                    </div>
+                {/if}
+
+                <div class="flex gap-2 pt-2">
+                    <button disabled={importing} onclick={runImport} class="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50">
+                        {#if importing}<Loader2 class="animate-spin" size={16} /> Importing...{:else}<RefreshCw size={16} /> Run Import{/if}
+                    </button>
+                    <button onclick={() => showImportModal = false} class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-sm">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 {/if}
 
