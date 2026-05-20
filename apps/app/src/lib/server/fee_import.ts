@@ -230,21 +230,18 @@ export async function importDayWisePayments(
     const spMap = new Map<string, { university_id: string; id: string }>();
     for (const r of spRes.rows) spMap.set(r.zoho_user_id, { university_id: r.university_id, id: r.id });
 
+    const errors: string[] = [];
     for (const row of rows) {
         try {
             const zoho = String(pick(row, ['payment link user id', 'user id', 'userid']) || '').trim();
             const dateRaw = pick(row, ['payment date', 'date']);
             if (!zoho || !dateRaw) { skipped++; continue; }
 
-            // Parse date — accepts MM/DD/YYYY or ISO
-            let dateStr = '';
-            if (typeof dateRaw === 'string' && dateRaw.includes('/')) {
-                const [m, d, y] = dateRaw.split('/');
-                dateStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-            } else if (dateRaw instanceof Date) {
-                dateStr = dateRaw.toISOString().split('T')[0];
-            } else {
-                dateStr = String(dateRaw);
+            const dateStr = parseGvizDate(dateRaw);
+            if (!dateStr) {
+                if (errors.length < 5) errors.push(`Bad date "${String(dateRaw).slice(0, 30)}" for ${zoho.slice(0, 8)}`);
+                skipped++;
+                continue;
             }
 
             const mapped = spMap.get(zoho);
@@ -255,12 +252,56 @@ export async function importDayWisePayments(
                 university_id: mapped?.university_id,
             });
             ok++;
-        } catch {
+        } catch (e: any) {
+            if (errors.length < 5) errors.push(e?.message?.slice(0, 100) || 'unknown');
             skipped++;
         }
     }
 
-    return { ok, skipped };
+    return { ok, skipped, errors } as any;
+}
+
+/**
+ * Parse any date format the Google Sheets gviz endpoint might return:
+ * - "Date(2026,1,8)"  — JSON format (month is 0-indexed!)
+ * - "8/2/2026"        — CSV format (MM/DD/YYYY)
+ * - "2026-02-08"      — ISO
+ * - Date object
+ * Returns "YYYY-MM-DD" or empty string on failure.
+ */
+function parseGvizDate(raw: any): string {
+    if (!raw) return '';
+    if (raw instanceof Date) return raw.toISOString().split('T')[0];
+
+    const s = String(raw).trim();
+    if (!s) return '';
+
+    // gviz JSON: "Date(2026,1,8)" → 2026-02-08 (month is 0-indexed in JS)
+    const gvizMatch = s.match(/^Date\((\d+),(\d+),(\d+)/);
+    if (gvizMatch) {
+        const y = parseInt(gvizMatch[1]);
+        const m = parseInt(gvizMatch[2]) + 1; // 0-indexed!
+        const d = parseInt(gvizMatch[3]);
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    // ISO: "2026-02-08" already
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+
+    // MM/DD/YYYY or DD/MM/YYYY: ambiguous but US format is more common
+    if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length === 3) {
+            const [m, d, y] = parts;
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+    }
+
+    // Last resort: try Date parsing
+    const parsed = new Date(s);
+    if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
+
+    return '';
 }
 
 /**
@@ -271,15 +312,20 @@ export async function importDayWisePayments(
 export async function importUniversitySummary(
     periodId: string,
     rows: SheetRow[]
-): Promise<{ ok: number; skipped: number }> {
+): Promise<{ ok: number; skipped: number; errors: string[] }> {
     const uniIdx = await buildUniversityIndex();
     let ok = 0, skipped = 0;
+    const errors: string[] = [];
     for (const row of rows) {
         try {
             const uniRaw = String(pick(row, ['university', 'college']) || '').trim();
             if (!uniRaw || norm(uniRaw) === 'total') { skipped++; continue; }
             const uId = findUniversityId(uniIdx, uniRaw);
-            if (!uId) { skipped++; continue; }
+            if (!uId) {
+                if (errors.length < 10) errors.push(`Unknown university "${uniRaw}"`);
+                skipped++;
+                continue;
+            }
             const full = toNum(pick(row, ['count of students paid fully', 'fully paid', 'full']));
             const partial = toNum(pick(row, ['count of students paid partially', 'partial']));
             const nullCount = toNum(pick(row, ['count of students paid null', 'null', 'not paid']));
@@ -289,9 +335,12 @@ export async function importUniversitySummary(
                 strength: full + partial + nullCount,
             });
             ok++;
-        } catch { skipped++; }
+        } catch (e: any) {
+            if (errors.length < 10) errors.push(e?.message?.slice(0, 100) || 'unknown');
+            skipped++;
+        }
     }
-    return { ok, skipped };
+    return { ok, skipped, errors };
 }
 
 /**
@@ -300,17 +349,28 @@ export async function importUniversitySummary(
  */
 export async function fetchSheetTab(sheetId: string, tabName: string): Promise<SheetRow[]> {
     const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
-    const r = await fetch(url);
-    const t = await r.text();
-    const j = JSON.parse(t.substring(t.indexOf('{'), t.lastIndexOf('}') + 1));
-    const cols = j.table.cols.map((c: any) => c.label || c.id || '');
-    return j.table.rows.map((row: any) => {
-        const o: SheetRow = {};
-        cols.forEach((c: string, i: number) => {
-            o[c] = row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+    try {
+        const r = await fetch(url, { signal: controller.signal });
+        const t = await r.text();
+        if (!r.ok) throw new Error(`Sheet fetch failed: HTTP ${r.status}. Make sure the sheet is shared "Anyone with the link → Viewer".`);
+        const startIdx = t.indexOf('{');
+        const endIdx = t.lastIndexOf('}');
+        if (startIdx === -1 || endIdx === -1) throw new Error('Sheet returned invalid JSON. Check that the tab name is exact (case-sensitive) and the sheet is public.');
+        const j = JSON.parse(t.substring(startIdx, endIdx + 1));
+        if (j.status === 'error') throw new Error(`Sheet error: ${(j.errors?.[0]?.detailed_message || j.errors?.[0]?.message || 'unknown').slice(0, 200)}`);
+        const cols = j.table.cols.map((c: any) => c.label || c.id || '');
+        return j.table.rows.map((row: any) => {
+            const o: SheetRow = {};
+            cols.forEach((c: string, i: number) => {
+                o[c] = row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '';
+            });
+            return o;
         });
-        return o;
-    });
+    } finally {
+        clearTimeout(timeout);
+    }
 }
 
 /** Simple CSV parser — handles quoted fields with commas + escaped quotes. */

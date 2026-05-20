@@ -106,7 +106,7 @@ function buildDocRequestEmail(opts: {
     baseUrl?: string;
 }): string {
     const fmt = (n: number) => '₹' + (Number(n) || 0).toLocaleString('en-IN');
-    const logoUrl = (opts.baseUrl || 'https://uniconnect-app.up.railway.app') + '/niat-logo.svg';
+    const logoUrl = (opts.baseUrl || 'https://uniconnect-app.up.railway.app') + '/niat-logo.jpg';
     const completionPct = opts.payable > 0 ? Math.round((opts.paid / opts.payable) * 100) : 0;
     return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NIAT — Fee Documents</title></head>
@@ -117,7 +117,7 @@ function buildDocRequestEmail(opts: {
 
             <!-- Header with logo strip -->
             <tr><td style="background:#ffffff;padding:24px 32px;border-bottom:3px solid #A52D2D;text-align:center">
-                <img src="${logoUrl}" alt="NIAT" width="56" height="68" style="display:inline-block;margin:0 auto" />
+                <img src="${logoUrl}" alt="NIAT" width="68" height="68" style="display:inline-block;margin:0 auto;border-radius:6px" />
                 <div style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;color:#A52D2D;margin-top:8px;letter-spacing:1px">NXTWAVE INSTITUTE OF ADVANCED TECHNOLOGIES</div>
                 <div style="font-size:11px;color:#8a8a8a;margin-top:2px;letter-spacing:2px;text-transform:uppercase">Office of Fee Collection</div>
             </td></tr>

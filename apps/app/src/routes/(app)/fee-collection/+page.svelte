@@ -1226,15 +1226,20 @@
                 {/if}
 
                 {#if importResult}
-                    <div class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-sm">
-                        <div class="font-bold text-emerald-700 dark:text-emerald-400 mb-2">✅ Import Complete</div>
-                        <div class="text-xs text-emerald-800 dark:text-emerald-300 space-y-1">
+                    {@const success = (importResult.ok || 0) > 0}
+                    <div class="p-4 rounded-xl {success ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800' : 'bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800'} text-sm">
+                        <div class="font-bold {success ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'} mb-2">
+                            {success ? '✅ Import Complete' : '⚠️ Import Completed With Issues'}
+                        </div>
+                        <div class="text-xs space-y-1">
                             <div>• <strong>{importResult.ok || 0}</strong> rows imported</div>
                             <div>• <strong>{importResult.skipped || 0}</strong> rows skipped</div>
                             {#if importResult.remarksImported}<div>• <strong>{importResult.remarksImported}</strong> legacy remarks migrated</div>{/if}
                             {#if importResult.tagged}<div>• <strong>{importResult.tagged}</strong> students auto-tagged</div>{/if}
+                            {#if importResult.elapsed_ms}<div class="opacity-70">• Completed in {(importResult.elapsed_ms / 1000).toFixed(1)}s</div>{/if}
                             {#if importResult.errors && importResult.errors.length}
-                                <details class="mt-2"><summary class="cursor-pointer font-bold">⚠️ {importResult.errors.length} errors</summary>
+                                <details class="mt-2" open={!success}>
+                                    <summary class="cursor-pointer font-bold text-rose-700 dark:text-rose-400">⚠️ Sample errors ({importResult.errors.length})</summary>
                                     <ul class="mt-1 ml-4 text-[11px] text-rose-700 dark:text-rose-400 space-y-0.5">
                                         {#each importResult.errors.slice(0, 10) as err}<li>{err}</li>{/each}
                                     </ul>

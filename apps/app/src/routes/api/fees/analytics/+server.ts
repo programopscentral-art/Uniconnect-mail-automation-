@@ -38,7 +38,8 @@ export const GET: RequestHandler = async ({ url, locals }) => {
     ]);
 
     const period = periodInfo.rows[0] || { name: 'Active Period' };
-    const html = buildFeeAnalyticsHtml({ summary, byUniv, tagCounts: tagCounts.rows, period });
+    const baseUrl = new URL(url).origin;
+    const html = buildFeeAnalyticsHtml({ summary, byUniv, tagCounts: tagCounts.rows, period, baseUrl });
     return new Response(html, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 };
 
@@ -137,7 +138,7 @@ function stackedBarSVG(rows: { name: string; full: number; partial: number; null
     </svg>`;
 }
 
-function buildFeeAnalyticsHtml(data: { summary: any; byUniv: any[]; tagCounts: any[]; period: any }): string {
+function buildFeeAnalyticsHtml(data: { summary: any; byUniv: any[]; tagCounts: any[]; period: any; baseUrl?: string }): string {
     const s = data.summary || {};
     const eff = Number(s.avg_efficiency || 0);
     const totalStudents = n(s.fully_paid) + n(s.partial_paid) + n(s.not_paid);
@@ -192,12 +193,7 @@ function buildFeeAnalyticsHtml(data: { summary: any; byUniv: any[]; tagCounts: a
         <!-- Header with logo -->
         <header style="background:#ffffff;border:1px solid #e8e4dd;border-bottom:4px solid #A52D2D;border-radius:4px;padding:28px 32px;margin-bottom:32px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center">
             <div>
-                <svg viewBox="0 0 100 120" width="64" height="76">
-                    <path d="M5 10 Q5 5 10 5 L90 5 Q95 5 95 10 L95 65 Q95 95 50 115 Q5 95 5 65 Z" fill="#A52D2D"/>
-                    <text x="50" y="50" text-anchor="middle" fill="#ffffff" font-family="Georgia, serif" font-weight="700" font-size="28" letter-spacing="3">NI</text>
-                    <line x1="20" y1="62" x2="80" y2="62" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
-                    <text x="50" y="88" text-anchor="middle" fill="#ffffff" font-family="Georgia, serif" font-weight="700" font-size="28" letter-spacing="3">AT</text>
-                </svg>
+                <img src="${data.baseUrl || ''}/niat-logo.jpg" alt="NIAT" width="76" height="76" style="border-radius:8px;display:block" />
             </div>
             <div>
                 <div style="font-size:11px;font-weight:700;color:#8a6d3b;text-transform:uppercase;letter-spacing:2.5px">Office of Fee Collection</div>
