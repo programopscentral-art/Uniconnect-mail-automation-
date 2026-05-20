@@ -14,6 +14,80 @@ export interface OpsReportV2Options {
     dashboardUrl: string;
     reportUrl: string;
     prevSummary?: any;
+    feeData?: any;
+}
+
+function feeMoney(n: any): string {
+    const num = Number(n) || 0;
+    if (num >= 1e7) return '₹' + (num / 1e7).toFixed(2) + ' Cr';
+    if (num >= 1e5) return '₹' + (num / 1e5).toFixed(2) + ' L';
+    if (num >= 1e3) return '₹' + (num / 1e3).toFixed(1) + 'K';
+    return '₹' + Math.round(num).toLocaleString('en-IN');
+}
+
+function renderFeeSection(fee: any, accent1: string, dashboardUrl: string): string {
+    if (!fee || !fee.summary) return '';
+    const s = fee.summary;
+    const totalStudents = (s.fully_paid || 0) + (s.partial_paid || 0) + (s.not_paid || 0);
+    const fullyPaidPct = totalStudents > 0 ? Math.round((s.fully_paid / totalStudents) * 100) : 0;
+    const eff = Number(s.avg_efficiency || 0);
+    const effColor = eff >= 85 ? '#059669' : eff >= 60 ? '#d97706' : '#e11d48';
+
+    const bottomList = (fee.bottomUniversities || []).slice(0, 3).map((u: any) => `
+        <tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;font-weight:600;color:#0f172a">${u.university_name}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#e11d48;font-weight:700">${u.efficiency}%</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#475569">${feeMoney(u.pending)} pending</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;text-align:right;font-size:12px;color:#94a3b8">${u.not_paid} unpaid</td>
+        </tr>
+    `).join('');
+
+    const loans = (fee.tagCounts || []).find((t: any) => t.tag === 'loan')?.count || 0;
+    const dropouts = (fee.tagCounts || []).find((t: any) => t.tag === 'dropout')?.count || 0;
+
+    return `
+    <tr><td style="padding:28px 28px 10px">
+        <div style="font-size:16px;font-weight:700;color:#0f172a;letter-spacing:-0.2px">💰 Fee Collection · ${fee.period_name || 'Active period'}</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px">Cross-cohort fee status snapshot</div>
+    </td></tr>
+    <tr><td style="padding:0 28px 16px">
+        <table width="100%" cellspacing="0" cellpadding="0" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,0.04)">
+            <tr><td style="padding:22px">
+                <table width="100%" cellspacing="0" cellpadding="0">
+                    <tr>
+                        <td width="25%" valign="top" style="padding-right:8px">
+                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Total Paid</div>
+                            <div style="font-size:22px;font-weight:800;color:#059669;line-height:1;margin-top:5px">${feeMoney(s.total_paid)}</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:3px">of ${feeMoney(s.total_payable)}</div>
+                        </td>
+                        <td width="25%" valign="top" style="padding-right:8px;padding-left:8px;border-left:1px solid #f1f5f9">
+                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Pending</div>
+                            <div style="font-size:22px;font-weight:800;color:#e11d48;line-height:1;margin-top:5px">${feeMoney(s.total_pending)}</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:3px">${s.not_paid || 0} students unpaid</div>
+                        </td>
+                        <td width="25%" valign="top" style="padding-right:8px;padding-left:8px;border-left:1px solid #f1f5f9">
+                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Avg Efficiency</div>
+                            <div style="font-size:22px;font-weight:800;color:${effColor};line-height:1;margin-top:5px">${eff.toFixed(1)}%</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:3px">${fullyPaidPct}% fully paid</div>
+                        </td>
+                        <td width="25%" valign="top" style="padding-left:8px;border-left:1px solid #f1f5f9">
+                            <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">Cases</div>
+                            <div style="font-size:22px;font-weight:800;color:#0f172a;line-height:1;margin-top:5px">${loans + dropouts}</div>
+                            <div style="font-size:10px;color:#94a3b8;margin-top:3px">${loans} loans · ${dropouts} dropouts</div>
+                        </td>
+                    </tr>
+                </table>
+                ${bottomList ? `
+                <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9">
+                    <div style="font-size:11px;font-weight:700;color:#9f1239;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px">⚠️ Universities Needing Attention (lowest efficiency)</div>
+                    <table width="100%" cellspacing="0" cellpadding="0">${bottomList}</table>
+                </div>` : ''}
+                <div style="margin-top:14px;text-align:right">
+                    <a href="${dashboardUrl.replace('/ops-dashboard', '/fee-collection')}" style="font-size:11px;color:${accent1};text-decoration:none;font-weight:700">Open Fee Collection →</a>
+                </div>
+            </td></tr>
+        </table>
+    </td></tr>`;
 }
 
 const n = (v: any) => {
@@ -173,7 +247,7 @@ function universityTable(rows: any[], limit = 10): string {
 }
 
 export function buildOpsReportV2(opts: OpsReportV2Options): string {
-    const { mode, periodLabel, report, aiSummary, dashboardUrl, reportUrl, prevSummary } = opts;
+    const { mode, periodLabel, report, aiSummary, dashboardUrl, reportUrl, prevSummary, feeData } = opts;
     const s = report?.summary || {};
     const byUniv = report?.byUniversity || [];
 
@@ -388,6 +462,9 @@ export function buildOpsReportV2(opts: OpsReportV2Options): string {
 
             <!-- Events & Exams -->
             ${card(eventsContent)}
+
+            <!-- Fee Collection (only renders if feeData supplied) -->
+            ${renderFeeSection(feeData, accent1, dashboardUrl)}
 
             <!-- AI Insights -->
             ${sectionHeader('AI insights', 'Ops Copilot analysis')}

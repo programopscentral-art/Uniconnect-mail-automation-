@@ -1,5 +1,6 @@
 import {
     getOpsDailyReport, getOpsWeeklyReport, getOpsMonthlyReport,
+    getFeeReportSnapshot,
 } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
@@ -140,6 +141,7 @@ export const GET: RequestHandler = async ({ url, request }) => {
     } else {
         const origin = request.headers.get('origin') || new URL(request.url).origin;
         const reportUrl = new URL(request.url).toString();
+        const feeData = await getFeeReportSnapshot().catch(() => null);
         html = buildOpsReportV2({
             mode: type as any,
             periodLabel,
@@ -147,7 +149,8 @@ export const GET: RequestHandler = async ({ url, request }) => {
             aiSummary,
             dashboardUrl: `${origin}/ops-dashboard/v2`,
             reportUrl,
-            prevSummary
+            prevSummary,
+            feeData
         });
     }
 

@@ -626,6 +626,75 @@ export async function upsertFeeTransaction(data: {
     return res.rows[0];
 }
 
+/**
+ * Returns a concise fee summary for embedding in daily/weekly/monthly ops reports.
+ * Picks the most-recent active period if periodId is omitted.
+ */
+export async function getFeeReportSnapshot(periodId?: string) {
+    await ensureFeeTables();
+    let pid = periodId;
+    if (!pid) {
+        const active = await db.query(`SELECT id FROM fee_periods WHERE status = 'active' ORDER BY created_at DESC LIMIT 1`);
+        if (!active.rows.length) return null;
+        pid = active.rows[0].id;
+    }
+
+    const summary = await getFeeOverallSummary(pid!);
+    const topUniversities = await db.query(
+        `SELECT COALESCE(u.short_name, u.name) AS university_name,
+                COUNT(sp.id)::int AS strength,
+                COUNT(sp.id) FILTER (WHERE sp.status = 'Fully Paid')::int AS fully_paid,
+                COUNT(sp.id) FILTER (WHERE sp.status = 'Yet To Pay')::int AS not_paid,
+                COALESCE(SUM(sp.payable), 0)::numeric AS payable,
+                COALESCE(SUM(sp.paid), 0)::numeric AS paid,
+                COALESCE(SUM(sp.pending), 0)::numeric AS pending,
+                CASE WHEN SUM(sp.payable) > 0
+                    THEN ROUND((SUM(sp.paid)::numeric / SUM(sp.payable)::numeric) * 100, 1)
+                    ELSE 0 END AS efficiency
+         FROM fee_student_payments sp
+         JOIN universities u ON u.id = sp.university_id
+         WHERE sp.period_id = $1
+         GROUP BY u.short_name, u.name
+         ORDER BY efficiency DESC
+         LIMIT 5`,
+        [pid]
+    );
+    const bottomUniversities = await db.query(
+        `SELECT COALESCE(u.short_name, u.name) AS university_name,
+                COUNT(sp.id)::int AS strength,
+                COUNT(sp.id) FILTER (WHERE sp.status = 'Yet To Pay')::int AS not_paid,
+                COALESCE(SUM(sp.pending), 0)::numeric AS pending,
+                CASE WHEN SUM(sp.payable) > 0
+                    THEN ROUND((SUM(sp.paid)::numeric / SUM(sp.payable)::numeric) * 100, 1)
+                    ELSE 0 END AS efficiency
+         FROM fee_student_payments sp
+         JOIN universities u ON u.id = sp.university_id
+         WHERE sp.period_id = $1
+         GROUP BY u.short_name, u.name
+         ORDER BY efficiency ASC
+         LIMIT 5`,
+        [pid]
+    );
+    const tagCounts = await db.query(
+        `SELECT tag, COUNT(*)::int AS count
+         FROM fee_student_tags t
+         JOIN fee_student_payments sp ON sp.id = t.student_payment_id
+         WHERE sp.period_id = $1
+         GROUP BY tag ORDER BY count DESC`,
+        [pid]
+    );
+    const periodInfo = await db.query(`SELECT name FROM fee_periods WHERE id = $1`, [pid]);
+
+    return {
+        period_id: pid,
+        period_name: periodInfo.rows[0]?.name || 'Active Period',
+        summary,
+        topUniversities: topUniversities.rows,
+        bottomUniversities: bottomUniversities.rows,
+        tagCounts: tagCounts.rows,
+    };
+}
+
 export async function getDailyPaymentRollup(periodId: string, filters: { university_id?: string; month?: number; year?: number } = {}) {
     await ensureFeeTables();
     const conditions: string[] = ['t.period_id = $1'];

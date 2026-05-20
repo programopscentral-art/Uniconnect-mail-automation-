@@ -21,6 +21,7 @@ import {
     getOpsPeerComparison,
     normalizeOpsUniversityNames,
     buildOpsReportV2,
+    getFeeReportSnapshot,
 } from '@uniconnect/shared';
 import * as admin from 'firebase-admin';
 import { Queue } from 'bullmq';
@@ -78,10 +79,11 @@ export async function processDailyReport() {
         const aggregated = await aggregateAllUniversities(todayStr);
         console.log(`[OPS-AUTO] Aggregated data for ${aggregated.length} universities`);
 
-        // 2. Get the full report + faculty/coach/budget data in parallel
-        const [report, compliance] = await Promise.all([
+        // 2. Get the full report + fee snapshot in parallel
+        const [report, compliance, feeData] = await Promise.all([
             getOpsDailyReport(todayStr),
             getDailyFormComplianceStatus(todayStr),
+            getFeeReportSnapshot().catch(() => null),
         ]);
         const submitted = compliance.filter((c: any) => c.submitted);
         const missing = compliance.filter((c: any) => !c.submitted);
@@ -100,6 +102,7 @@ export async function processDailyReport() {
             aiSummary,
             dashboardUrl: dashUrl,
             reportUrl,
+            feeData,
         });
 
         // 6. Get admin emails
@@ -575,12 +578,13 @@ export async function processWeeklyAnalyticsReport() {
     console.log(`[OPS-AUTO] Generating weekly report for ${weekStart} to ${weekEnd}...`);
 
     try {
-        // 1. Gather ALL data — ops data + analytics + faculty/coach/budget
-        const [weeklyReport, rankings, taskPatterns, peerComparison] = await Promise.all([
+        // 1. Gather ALL data — ops data + analytics + fee snapshot
+        const [weeklyReport, rankings, taskPatterns, peerComparison, feeData] = await Promise.all([
             getOpsWeeklyReport(weekStart, weekEnd),
             getOpsUniversityRankings(weekStart, weekEnd),
             getOpsTaskPatterns(weekStart, weekEnd),
             getOpsPeerComparison(weekStart, weekEnd),
+            getFeeReportSnapshot().catch(() => null),
         ]);
 
         // 2. Generate AI summary with full data
@@ -597,6 +601,7 @@ export async function processWeeklyAnalyticsReport() {
             aiSummary,
             dashboardUrl: dashUrl,
             reportUrl,
+            feeData,
         });
 
         // 4. Send to admins
@@ -750,8 +755,11 @@ export async function processMonthlyReport() {
         // 1. Fetch full month data
         const monthlyReport = await getOpsMonthlyReport(year, month);
 
-        // 2. Fetch rankings + faculty/coach/budget for the month in parallel
-        const rankings = await getOpsUniversityRankings(monthlyReport.startDate, monthlyReport.endDate);
+        // 2. Fetch rankings + fee snapshot in parallel
+        const [rankings, feeData] = await Promise.all([
+            getOpsUniversityRankings(monthlyReport.startDate, monthlyReport.endDate),
+            getFeeReportSnapshot().catch(() => null),
+        ]);
 
         // 3. Generate AI summary
         const aiSummary = await generateMonthlyAI(monthlyReport, rankings);
@@ -768,6 +776,7 @@ export async function processMonthlyReport() {
             aiSummary,
             dashboardUrl: dashUrl,
             reportUrl,
+            feeData,
         });
 
         // 5. Send to admins
