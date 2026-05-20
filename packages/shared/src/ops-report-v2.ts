@@ -82,8 +82,9 @@ function renderFeeSection(fee: any, accent1: string, dashboardUrl: string): stri
                     <div style="font-size:11px;font-weight:700;color:#9f1239;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:8px">⚠️ Universities Needing Attention (lowest efficiency)</div>
                     <table width="100%" cellspacing="0" cellpadding="0">${bottomList}</table>
                 </div>` : ''}
-                <div style="margin-top:14px;text-align:right">
-                    <a href="${dashboardUrl.replace('/ops-dashboard', '/fee-collection')}" style="font-size:11px;color:${accent1};text-decoration:none;font-weight:700">Open Fee Collection →</a>
+                <div style="margin-top:18px;text-align:center">
+                    <a href="${dashboardUrl.replace('/ops-dashboard', '/api/fees/analytics')}" style="display:inline-block;background:#A52D2D;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;padding:10px 20px;border-radius:6px;letter-spacing:0.5px">📊 VIEW FULL FEE ANALYTICS</a>
+                    <a href="${dashboardUrl.replace('/ops-dashboard', '/fee-collection')}" style="display:inline-block;font-size:11px;color:${accent1};text-decoration:none;font-weight:700;margin-left:12px">Open Dashboard →</a>
                 </div>
             </td></tr>
         </table>

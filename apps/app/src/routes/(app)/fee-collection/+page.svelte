@@ -161,6 +161,19 @@
         other:            { label: 'Other',             cls: 'tag-other' },
     };
 
+    function weeklyStart(): string {
+        const d = new Date();
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+        d.setDate(diff);
+        return d.toISOString().split('T')[0];
+    }
+    function weeklyEnd(): string {
+        const d = new Date(weeklyStart());
+        d.setDate(d.getDate() + 6);
+        return d.toISOString().split('T')[0];
+    }
+
     function fmtInr(n: any): string {
         const num = Number(n) || 0;
         if (num >= 1e7) return '₹' + (num / 1e7).toFixed(2) + ' Cr';
@@ -531,12 +544,22 @@
                         <Upload size={14} /> Import Data
                     </button>
                 {/if}
+                <a href="/api/fees/analytics" target="_blank" class="px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-xs font-bold flex items-center gap-1.5 border border-red-200 dark:border-red-800" title="Full fee analytics page with charts">
+                    📊 Fee Analytics
+                </a>
                 <a href="/api/fees/preview-email" target="_blank" class="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5 border border-purple-200 dark:border-purple-800" title="Preview the doc-request email">
                     👁 Email Preview
                 </a>
-                <a href="/api/ops/view-report?type=daily" target="_blank" class="px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 border border-blue-200 dark:border-blue-800" title="Preview the daily ops report (includes fee section)">
-                    👁 Report Preview
-                </a>
+                <div class="relative group">
+                    <button class="px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 border border-blue-200 dark:border-blue-800">
+                        👁 Report Preview ▾
+                    </button>
+                    <div class="hidden group-hover:block absolute right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-1 z-30 min-w-[200px]">
+                        <a href="/api/ops/view-report?type=daily" target="_blank" class="block px-3 py-2 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">📅 Daily Report</a>
+                        <a href={`/api/ops/view-report?type=weekly&weekStart=${weeklyStart()}&weekEnd=${weeklyEnd()}`} target="_blank" class="block px-3 py-2 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">📊 Weekly Report</a>
+                        <a href={`/api/ops/view-report?type=monthly&year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}`} target="_blank" class="block px-3 py-2 text-xs font-bold rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">📈 Monthly Report</a>
+                    </div>
+                </div>
                 {#if data.access.canEditRemarks}
                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                         <ShieldCheck size={12} /> {data.access.canAdmin ? 'Admin' : 'Editor'}
