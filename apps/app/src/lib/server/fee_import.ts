@@ -9,6 +9,7 @@ import {
     db,
     getAllUniversities,
     upsertFeeStudentPayment,
+    bulkUpsertFeeStudentPayments,
     createFeeRemark,
     toggleFeeStudentTag,
     upsertFeeTransaction,
@@ -86,11 +87,27 @@ function pick(row: SheetRow, candidates: string[]): any {
 export async function importUserwiseRows(
     periodId: string,
     rows: SheetRow[],
-    userId?: string
+    userId?: string,
+    opts: { importRemarks?: boolean } = {}
 ): Promise<{ ok: number; skipped: number; errors: string[]; tagged: number; remarksImported: number }> {
     const uniIdx = await buildUniversityIndex();
-    let ok = 0, skipped = 0, tagged = 0, remarksImported = 0;
+    let skipped = 0, tagged = 0, remarksImported = 0;
     const errors: string[] = [];
+
+    // Pass 1: validate + collect all rows into a single bulk insert
+    type ParsedRow = {
+        zoho: string;
+        universityId: string;
+        payable: number;
+        paid: number;
+        status: string;
+        studentName: string;
+        coach: string;
+        activeStatus: string;
+        paymentMethod: string | null;
+        legacyRemarks: Array<{ text: string; case?: string }>;
+    };
+    const parsed: ParsedRow[] = [];
 
     for (const row of rows) {
         try {
@@ -100,7 +117,7 @@ export async function importUserwiseRows(
 
             const universityId = findUniversityId(uniIdx, uniRaw);
             if (!universityId) {
-                errors.push(`Unknown university "${uniRaw}" for student ${zoho.slice(0, 8)}`);
+                if (errors.length < 20) errors.push(`Unknown university "${uniRaw}" for student ${zoho.slice(0, 8)}`);
                 skipped++;
                 continue;
             }
@@ -113,75 +130,88 @@ export async function importUserwiseRows(
             const studentName = String(pick(row, ['student name', 'name', 'names']) || '').trim();
             const status = normalizeStatus(statusRaw, payable, paid);
 
-            // Detect payment method
             const link = pick(row, ['link']);
             const escrow = pick(row, ['escrow']);
             const paymentMethod = link ? 'link' : escrow ? 'escrow' : null;
 
-            const sp = await upsertFeeStudentPayment({
-                period_id: periodId,
-                university_id: universityId,
-                zoho_user_id: zoho,
-                student_name: studentName || undefined,
-                payable, paid, status,
-                success_coach_name: coach || undefined,
-                active_status: activeStatus || undefined,
-                payment_method: paymentMethod || undefined,
-            });
-            ok++;
-
-            // Migrate legacy remarks (single text fields) into the new remarks table
-            const legacyRemark = String(pick(row, ['remarks', 'remark']) || '').trim();
-            const unpaidRemark = String(pick(row, ['unpaid remarks']) || '').trim();
-            const otherRemark = String(pick(row, ['other remarks']) || '').trim();
-            const dropoutNote = String(pick(row, ['dropout']) || '').trim();
-            const loanNote = String(pick(row, ['loan']) || '').trim();
-
-            const remarks: Array<{ text: string; case?: string }> = [];
-            if (legacyRemark && legacyRemark !== '#N/A' && legacyRemark !== 'N/A') remarks.push({ text: legacyRemark });
-            if (unpaidRemark && unpaidRemark !== '#N/A') remarks.push({ text: `[Unpaid] ${unpaidRemark}` });
-            if (otherRemark && otherRemark !== '#N/A') remarks.push({ text: `[Other] ${otherRemark}` });
-            if (dropoutNote && dropoutNote !== '#N/A' && norm(dropoutNote) !== 'no') {
-                remarks.push({ text: `Dropout flagged: ${dropoutNote}`, case: 'dropout' });
-            }
-            if (loanNote && loanNote !== '#N/A' && norm(loanNote) !== 'no') {
-                remarks.push({ text: `Loan note: ${loanNote}`, case: 'loan' });
+            // Collect legacy remarks but don't INSERT yet
+            const legacyRemarks: Array<{ text: string; case?: string }> = [];
+            if (opts.importRemarks) {
+                const legacyRemark = String(pick(row, ['remarks', 'remark']) || '').trim();
+                const unpaidRemark = String(pick(row, ['unpaid remarks']) || '').trim();
+                const otherRemark = String(pick(row, ['other remarks']) || '').trim();
+                const dropoutNote = String(pick(row, ['dropout']) || '').trim();
+                const loanNote = String(pick(row, ['loan']) || '').trim();
+                if (legacyRemark && legacyRemark !== '#N/A' && legacyRemark !== 'N/A') legacyRemarks.push({ text: legacyRemark });
+                if (unpaidRemark && unpaidRemark !== '#N/A') legacyRemarks.push({ text: `[Unpaid] ${unpaidRemark}` });
+                if (otherRemark && otherRemark !== '#N/A') legacyRemarks.push({ text: `[Other] ${otherRemark}` });
+                if (dropoutNote && dropoutNote !== '#N/A' && norm(dropoutNote) !== 'no') legacyRemarks.push({ text: `Dropout flagged: ${dropoutNote}`, case: 'dropout' });
+                if (loanNote && loanNote !== '#N/A' && norm(loanNote) !== 'no') legacyRemarks.push({ text: `Loan note: ${loanNote}`, case: 'loan' });
             }
 
-            for (const r of remarks) {
-                // Skip if this exact import remark already exists (idempotent re-imports)
-                const existing = await db.query(
-                    `SELECT id FROM fee_remarks WHERE student_payment_id = $1 AND text = $2 AND source = 'import' LIMIT 1`,
-                    [sp.id, r.text]
-                );
-                if (existing.rows.length === 0) {
-                    await createFeeRemark({
-                        student_payment_id: sp.id,
-                        author_id: userId,
-                        author_name: 'System Import',
-                        role: 'System',
-                        case_type: r.case,
-                        text: r.text,
-                        source: 'import'
-                    });
-                    remarksImported++;
-                }
-                if (r.case) {
-                    try { await toggleFeeStudentTag(sp.id, r.case, userId); tagged++; } catch {}
-                }
-            }
-
-            // Auto-tag dropouts based on Active Status
+            // Auto-tag dropouts based on Active Status (queued for batch later)
             if (norm(activeStatus).includes('dropout') || norm(activeStatus).includes('inactive')) {
-                try { await toggleFeeStudentTag(sp.id, 'dropout', userId); tagged++; } catch {}
+                legacyRemarks.push({ text: '', case: 'dropout' }); // marker
             }
+
+            parsed.push({ zoho, universityId, payable, paid, status, studentName, coach, activeStatus, paymentMethod, legacyRemarks });
         } catch (e: any) {
-            errors.push(e?.message || String(e));
+            if (errors.length < 20) errors.push(e?.message || String(e));
             skipped++;
         }
     }
 
-    return { ok, skipped, errors, tagged, remarksImported };
+    // Pass 2: bulk INSERT all student payments in one shot
+    if (parsed.length > 0) {
+        await bulkUpsertFeeStudentPayments(periodId, parsed.map(p => ({
+            university_id: p.universityId,
+            zoho_user_id: p.zoho,
+            student_name: p.studentName,
+            payable: p.payable,
+            paid: p.paid,
+            status: p.status,
+            success_coach_name: p.coach || undefined,
+            active_status: p.activeStatus || undefined,
+            payment_method: p.paymentMethod || undefined,
+        })));
+    }
+
+    // Pass 3: if remarks/tags requested, do them in a second pass (one query per remark, accepted as cost)
+    if (opts.importRemarks && parsed.length > 0) {
+        // Map zoho_user_id -> student_payment_id
+        const idRes = await db.query(
+            `SELECT id, zoho_user_id FROM fee_student_payments WHERE period_id = $1 AND zoho_user_id = ANY($2::text[])`,
+            [periodId, parsed.map(p => p.zoho)]
+        );
+        const idMap = new Map<string, string>();
+        for (const r of idRes.rows) idMap.set(r.zoho_user_id, r.id);
+
+        for (const p of parsed) {
+            const spId = idMap.get(p.zoho);
+            if (!spId) continue;
+            for (const r of p.legacyRemarks) {
+                if (r.text) {
+                    try {
+                        await createFeeRemark({
+                            student_payment_id: spId,
+                            author_id: userId,
+                            author_name: 'System Import',
+                            role: 'System',
+                            case_type: r.case,
+                            text: r.text,
+                            source: 'import',
+                        });
+                        remarksImported++;
+                    } catch {}
+                }
+                if (r.case) {
+                    try { await toggleFeeStudentTag(spId, r.case, userId); tagged++; } catch {}
+                }
+            }
+        }
+    }
+
+    return { ok: parsed.length, skipped, errors, tagged, remarksImported };
 }
 
 /**

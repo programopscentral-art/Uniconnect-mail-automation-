@@ -22,12 +22,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     checkFeeAccess(locals, 'admin');
     const contentType = request.headers.get('content-type') || '';
 
-    let periodId = ''; let dataset = 'userwise'; let rows: any[] = [];
+    let periodId = ''; let dataset = 'userwise'; let rows: any[] = []; let importRemarks = false;
 
     if (contentType.includes('multipart/form-data')) {
         const form = await request.formData();
         periodId = String(form.get('period_id') || '');
         dataset = String(form.get('dataset') || 'userwise');
+        importRemarks = form.get('import_remarks') === 'true';
         const file = form.get('file') as File;
         if (!file) throw error(400, 'No file uploaded');
         const text = await file.text();
@@ -36,6 +37,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const body = await request.json();
         periodId = body.period_id;
         dataset = body.dataset || 'userwise';
+        importRemarks = !!body.import_remarks;
         if (body.mode === 'sheet') {
             if (!body.sheet_id || !body.tab_name) throw error(400, 'sheet_id and tab_name required');
             try {
@@ -53,9 +55,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     if (!periodId) throw error(400, 'period_id required');
     if (!rows.length) return json({ ok: 0, skipped: 0, message: 'No rows found' });
 
+    const t0 = Date.now();
     let result: any;
     if (dataset === 'userwise') {
-        result = await importUserwiseRows(periodId, rows, locals.user!.id);
+        result = await importUserwiseRows(periodId, rows, locals.user!.id, { importRemarks });
     } else if (dataset === 'daywise') {
         result = await importDayWisePayments(periodId, rows);
     } else if (dataset === 'summary') {
@@ -63,6 +66,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     } else {
         throw error(400, `Unknown dataset: ${dataset}`);
     }
+    const elapsedMs = Date.now() - t0;
 
-    return json({ ...result, total_rows: rows.length, dataset });
+    return json({ ...result, total_rows: rows.length, dataset, elapsed_ms: elapsedMs });
 };

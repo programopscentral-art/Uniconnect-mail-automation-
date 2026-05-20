@@ -142,6 +142,7 @@
     let importTabName = $state('Userwise Data');
     let importDataset = $state<'userwise' | 'daywise' | 'summary'>('userwise');
     let importFile = $state<File | null>(null);
+    let importRemarks = $state(false);
     let importing = $state(false);
     let importResult = $state<any>(null);
 
@@ -461,6 +462,7 @@
                         sheet_id: importSheetId,
                         tab_name: importTabName,
                         dataset: importDataset,
+                        import_remarks: importRemarks,
                     })
                 });
             } else {
@@ -469,6 +471,7 @@
                 fd.append('file', importFile);
                 fd.append('period_id', activePeriodId);
                 fd.append('dataset', importDataset);
+                fd.append('import_remarks', String(importRemarks));
                 res = await fetch('/api/fees/import', { method: 'POST', body: fd });
             }
             const j = await res.json();
@@ -528,6 +531,12 @@
                         <Upload size={14} /> Import Data
                     </button>
                 {/if}
+                <a href="/api/fees/preview-email" target="_blank" class="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5 border border-purple-200 dark:border-purple-800" title="Preview the doc-request email">
+                    👁 Email Preview
+                </a>
+                <a href="/api/ops/view-report?type=daily" target="_blank" class="px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center gap-1.5 border border-blue-200 dark:border-blue-800" title="Preview the daily ops report (includes fee section)">
+                    👁 Report Preview
+                </a>
                 {#if data.access.canEditRemarks}
                     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
                         <ShieldCheck size={12} /> {data.access.canAdmin ? 'Admin' : 'Editor'}
@@ -1135,15 +1144,40 @@
                     </button>
                 </div>
 
-                <!-- Dataset type -->
+                <!-- Dataset type with clear descriptions -->
                 <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Dataset Type</label>
-                    <select bind:value={importDataset} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
-                        <option value="userwise">Userwise Data (main student-level data)</option>
-                        <option value="daywise">Day-wise Payments (transaction log)</option>
-                        <option value="summary">University Summary (Fully / Partial / Null counts)</option>
-                    </select>
+                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">What are you importing?</label>
+                    <div class="space-y-2">
+                        <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all {importDataset === 'userwise' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                            <input type="radio" bind:group={importDataset} value="userwise" class="mt-1" />
+                            <div class="flex-1">
+                                <div class="font-bold text-sm">📋 Main Student Data <span class="text-[10px] font-normal text-emerald-600 ml-1">← Start here</span></div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">Per-student fee status (payable, paid, pending, status). From the <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">Userwise Data</code> tab. ~600 rows.</div>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all {importDataset === 'daywise' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                            <input type="radio" bind:group={importDataset} value="daywise" class="mt-1" />
+                            <div class="flex-1">
+                                <div class="font-bold text-sm">💸 Daily Payment Transactions</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">When each payment was made. From <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">Day_Wise_Payments</code> tab. ~1,500 rows.</div>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all {importDataset === 'summary' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                            <input type="radio" bind:group={importDataset} value="summary" class="mt-1" />
+                            <div class="flex-1">
+                                <div class="font-bold text-sm">📊 University-level Counts Only</div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">Just Fully/Partial/Null counts per university. From <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">Sheet1</code>. ~20 rows.</div>
+                            </div>
+                        </label>
+                    </div>
                 </div>
+
+                {#if importDataset === 'userwise'}
+                    <label class="flex items-center gap-2 text-xs">
+                        <input type="checkbox" bind:checked={importRemarks} class="rounded" />
+                        <span><strong>Also import legacy remarks</strong> (slower, ~2 min). Migrates the "Remarks", "Dropout", "loan" columns into per-student remarks + tags. Skip this if you just want the fee data fast.</span>
+                    </label>
+                {/if}
 
                 {#if importMode === 'sheet'}
                     <div>

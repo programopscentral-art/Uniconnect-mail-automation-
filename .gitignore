@@ -9,3 +9,15 @@ build
 *.log
 package-lock.json
 .turbo
+
+# Build outputs
+.next/
+.svelte-kit/
+dist/
+build/
+.turbo/
+
+# Local artifacts
+*.zip
+test-email-preview.mjs
+next-env.d.ts

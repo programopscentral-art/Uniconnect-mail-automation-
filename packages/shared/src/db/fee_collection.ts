@@ -529,6 +529,62 @@ export async function getFeeStudentById(id: string) {
     return res.rows[0] || null;
 }
 
+/**
+ * Bulk upsert — much faster than calling upsertFeeStudentPayment N times.
+ * Uses a single multi-row INSERT...ON CONFLICT statement.
+ */
+export async function bulkUpsertFeeStudentPayments(periodId: string, rows: Array<{
+    university_id: string;
+    zoho_user_id: string;
+    student_name?: string;
+    payable: number;
+    paid: number;
+    status: string;
+    success_coach_name?: string;
+    active_status?: string;
+    payment_method?: string;
+}>) {
+    await ensureFeeTables();
+    if (!rows.length) return 0;
+
+    const CHUNK = 200;
+    let total = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const params: any[] = [periodId];
+        const valueRows: string[] = [];
+        let p = 2;
+        for (const r of chunk) {
+            valueRows.push(`($1, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, $${p++}, now())`);
+            params.push(
+                r.university_id, r.zoho_user_id, r.student_name || null,
+                r.payable, r.paid, r.status,
+                r.success_coach_name || null, r.active_status || null, r.payment_method || null
+            );
+        }
+        const res = await db.query(
+            `INSERT INTO fee_student_payments
+                (period_id, university_id, zoho_user_id, student_name, payable, paid, status,
+                 success_coach_name, active_status, payment_method, imported_at)
+             VALUES ${valueRows.join(', ')}
+             ON CONFLICT (period_id, zoho_user_id) DO UPDATE SET
+                university_id = EXCLUDED.university_id,
+                student_name = COALESCE(EXCLUDED.student_name, fee_student_payments.student_name),
+                payable = EXCLUDED.payable,
+                paid = EXCLUDED.paid,
+                status = EXCLUDED.status,
+                success_coach_name = COALESCE(EXCLUDED.success_coach_name, fee_student_payments.success_coach_name),
+                active_status = COALESCE(EXCLUDED.active_status, fee_student_payments.active_status),
+                payment_method = COALESCE(EXCLUDED.payment_method, fee_student_payments.payment_method),
+                imported_at = now(),
+                updated_at = now()`,
+            params
+        );
+        total += res.rowCount || chunk.length;
+    }
+    return total;
+}
+
 export async function upsertFeeStudentPayment(data: {
     period_id: string; university_id: string;
     zoho_user_id: string; student_name?: string;
