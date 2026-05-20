@@ -192,6 +192,10 @@
         else if (t === 'daily') loadDaily();
     }
 
+    // KPI summary derived values
+    let s = $derived(summary || {});
+    let totalStr = $derived((s.fully_paid || 0) + (s.partial_paid || 0) + (s.not_paid || 0));
+
     // ─── Sorted/filtered collection ──────────────────────────────────
     let sortedRollup = $derived.by(() => {
         let arr = [...uniRollup];
@@ -459,8 +463,6 @@
 
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {@const s = summary || {}}
-            {@const totalStr = (s.fully_paid || 0) + (s.partial_paid || 0) + (s.not_paid || 0)}
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400"></div>
                 <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Paid</div>
