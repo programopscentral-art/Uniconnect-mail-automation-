@@ -544,7 +544,7 @@
                         <Upload size={14} /> Import Data
                     </button>
                 {/if}
-                <a href="/api/fees/analytics" target="_blank" class="px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-xs font-bold flex items-center gap-1.5 border border-red-200 dark:border-red-800" title="Full fee analytics page with charts">
+                <a href="/fee-collection/analytics" class="px-3 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-rose-500/30 hover:shadow-rose-500/50 transition-shadow" title="Full fee analytics page with charts">
                     📊 Fee Analytics
                 </a>
                 <a href="/api/fees/preview-email" target="_blank" class="px-3 py-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1.5 border border-purple-200 dark:border-purple-800" title="Preview the doc-request email">

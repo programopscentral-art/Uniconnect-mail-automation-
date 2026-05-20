@@ -83,7 +83,7 @@ function renderFeeSection(fee: any, accent1: string, dashboardUrl: string): stri
                     <table width="100%" cellspacing="0" cellpadding="0">${bottomList}</table>
                 </div>` : ''}
                 <div style="margin-top:18px;text-align:center">
-                    <a href="${dashboardUrl.replace('/ops-dashboard', '/api/fees/analytics')}" style="display:inline-block;background:#A52D2D;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;padding:10px 20px;border-radius:6px;letter-spacing:0.5px">📊 VIEW FULL FEE ANALYTICS</a>
+                    <a href="${dashboardUrl.replace('/ops-dashboard', '/fee-collection/analytics')}" style="display:inline-block;background:#A52D2D;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;padding:10px 20px;border-radius:6px;letter-spacing:0.5px">📊 VIEW FULL FEE ANALYTICS</a>
                     <a href="${dashboardUrl.replace('/ops-dashboard', '/fee-collection')}" style="display:inline-block;font-size:11px;color:${accent1};text-decoration:none;font-weight:700;margin-left:12px">Open Dashboard →</a>
                 </div>
             </td></tr>
