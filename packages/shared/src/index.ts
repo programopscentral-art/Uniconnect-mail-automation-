@@ -87,5 +87,6 @@ export * from './services/meeting-intelligence.service';
 export * from './db/faculty_attendance';
 export * from './db/success_coaches';
 export * from './db/budget_proposal_tracking';
+export * from './db/fee_collection';
 export * from './ops-report-v2';
 export * from './ops-full-report';
