@@ -1,0 +1,888 @@
+<script lang="ts">
+    import { onMount } from 'svelte';
+    import { fade, fly } from 'svelte/transition';
+    import {
+        Wallet, Building2, TrendingUp, CheckCircle2, AlertCircle,
+        Banknote, UserMinus, MessageSquare, Search, Filter,
+        ChevronLeft, ChevronRight, Download, X, Loader2, Plus,
+        Lock, ShieldCheck, FileText, Paperclip, Trash2
+    } from 'lucide-svelte';
+
+    let { data } = $props();
+
+    type Tab = 'collection' | 'students' | 'cases' | 'daily' | 'universities' | 'overview';
+    let activeTab = $state<Tab>('collection');
+    let activePeriodId = $state<string>(data.activePeriod?.id || data.periods[0]?.id || '');
+
+    // ─── Data state ───────────────────────────────────────────────────
+    let summary = $state<any>(null);
+    let uniRollup = $state<any[]>([]);
+    let students = $state<any[]>([]);
+    let studentsTotal = $state(0);
+    let stuPage = $state(1);
+    const STU_PER_PAGE = 50;
+    let casesList = $state<any[]>([]);
+    let dailyLog = $state<any[]>([]);
+    let allRemarks = $state<any[]>([]);
+    let loading = $state(false);
+    let successMsg = $state('');
+    let errorMsg = $state('');
+
+    // ─── Filters ──────────────────────────────────────────────────────
+    let collSearch = $state('');
+    let collSort = $state('');
+    let stuSearch = $state('');
+    let stuFilterUni = $state('');
+    let stuFilterStatus = $state('');
+    let stuFilterTag = $state('');
+    let caseFilterTag = $state('');
+    let caseSearch = $state('');
+    let dailyFilterUni = $state('');
+    let dailyFilterMonth = $state<number | ''>('');
+
+    // ─── Drawer state ─────────────────────────────────────────────────
+    let drawerOpen = $state(false);
+    let drawerStudent = $state<any>(null);
+    let drawerRemarks = $state<any[]>([]);
+    let drawerLoading = $state(false);
+    let remarkAuthor = $state(data.userName || '');
+    let remarkRole = $state(data.userRole === 'COS' ? 'COS' : data.userRole === 'PM' ? 'PM' : data.userRole === 'PMA' ? 'PMA' : 'PM');
+    let remarkCaseType = $state('');
+    let remarkText = $state('');
+    let savingRemark = $state(false);
+    let stagedFiles = $state<File[]>([]);
+
+    // ─── Daily entry form ─────────────────────────────────────────────
+    let showDailyForm = $state(false);
+    let dailyForm = $state({ university_id: '', date: new Date().toISOString().split('T')[0], amount: 0, students_count: 0, notes: '' });
+    let savingDaily = $state(false);
+
+    // ─── Helpers ──────────────────────────────────────────────────────
+    const TAG_META: Record<string, { label: string; cls: string }> = {
+        loan:             { label: 'Loan Case',         cls: 'tag-loan' },
+        dropout:          { label: 'Dropout',           cls: 'tag-dropout' },
+        waiver:           { label: 'Fee Waiver',        cls: 'tag-waiver' },
+        scholar:          { label: 'Scholarship',       cls: 'tag-scholar' },
+        defer:            { label: 'Deferral',          cls: 'tag-defer' },
+        will_pay:         { label: 'Will Pay',          cls: 'tag-other' },
+        want_to_drop:     { label: 'Want to Drop',      cls: 'tag-dropout' },
+        pending_payment:  { label: 'Pending Payment',   cls: 'tag-waiver' },
+        day_wise_followup:{ label: 'Day-wise Follow-up',cls: 'tag-other' },
+        applied_for_loan: { label: 'Applied for Loan',  cls: 'tag-loan' },
+        other:            { label: 'Other',             cls: 'tag-other' },
+    };
+
+    function fmtInr(n: any): string {
+        const num = Number(n) || 0;
+        if (num >= 1e7) return '₹' + (num / 1e7).toFixed(2) + ' Cr';
+        if (num >= 1e5) return '₹' + (num / 1e5).toFixed(2) + ' L';
+        if (num >= 1e3) return '₹' + (num / 1e3).toFixed(1) + 'K';
+        return '₹' + Math.round(num).toLocaleString('en-IN');
+    }
+    function fmtFull(n: any): string { return '₹' + (Number(n) || 0).toLocaleString('en-IN'); }
+    function fmtDate(d: any): string {
+        if (!d) return '—';
+        try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); }
+        catch { return String(d); }
+    }
+    function fmtDateTime(d: any): string {
+        if (!d) return '—';
+        try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) + ' ' + new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }); }
+        catch { return String(d); }
+    }
+    function pct(a: number, b: number): number { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
+    function pctColor(v: number): string { return v >= 85 ? '#10b981' : v >= 60 ? '#f59e0b' : '#ef4444'; }
+    function statusColor(s: string): string {
+        return s === 'Fully Paid' ? 'text-emerald-700 bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
+             : s === 'Partially Paid' ? 'text-amber-700 bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300'
+             : 'text-rose-700 bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300';
+    }
+    function flash(msg: string, isErr = false) {
+        if (isErr) { errorMsg = msg; setTimeout(() => errorMsg = '', 4000); }
+        else { successMsg = msg; setTimeout(() => successMsg = '', 3000); }
+    }
+
+    // ─── Loaders ──────────────────────────────────────────────────────
+    async function loadRollup() {
+        if (!activePeriodId) return;
+        try {
+            const res = await fetch(`/api/fees/universities?period_id=${activePeriodId}`);
+            if (res.ok) {
+                const j = await res.json();
+                uniRollup = j.universities || [];
+                summary = j.summary || {};
+            }
+        } catch (e: any) { flash(e?.message || 'Failed to load rollup', true); }
+    }
+    async function loadStudents(page = 1) {
+        if (!activePeriodId) return;
+        stuPage = page;
+        loading = true;
+        try {
+            const q = new URLSearchParams({ period_id: activePeriodId });
+            if (stuSearch) q.set('search', stuSearch);
+            if (stuFilterUni) q.set('university_id', stuFilterUni);
+            if (stuFilterStatus) q.set('status', stuFilterStatus);
+            if (stuFilterTag) q.set('tag', stuFilterTag);
+            q.set('limit', String(STU_PER_PAGE));
+            q.set('offset', String((page - 1) * STU_PER_PAGE));
+            const res = await fetch(`/api/fees/students?${q}`);
+            if (res.ok) {
+                const j = await res.json();
+                students = j.rows || [];
+                studentsTotal = j.total || 0;
+            }
+        } catch (e: any) { flash(e?.message || 'Failed to load students', true); }
+        finally { loading = false; }
+    }
+    async function loadCases() {
+        if (!activePeriodId) return;
+        try {
+            const q = new URLSearchParams({ period_id: activePeriodId });
+            if (caseFilterTag) q.set('tag', caseFilterTag);
+            if (caseSearch) q.set('search', caseSearch);
+            const res = await fetch(`/api/fees/cases?${q}`);
+            if (res.ok) casesList = await res.json();
+        } catch {}
+    }
+    async function loadDaily() {
+        if (!activePeriodId) return;
+        try {
+            const q = new URLSearchParams({ period_id: activePeriodId });
+            if (dailyFilterUni) q.set('university_id', dailyFilterUni);
+            if (dailyFilterMonth) {
+                q.set('month', String(dailyFilterMonth));
+                q.set('year', String(new Date().getFullYear()));
+            }
+            const res = await fetch(`/api/fees/daily-log?${q}`);
+            if (res.ok) dailyLog = await res.json();
+        } catch {}
+    }
+    async function loadAllRemarks() {
+        if (!activePeriodId) return;
+        try {
+            const res = await fetch(`/api/fees/remarks?period_id=${activePeriodId}`);
+            if (res.ok) allRemarks = await res.json();
+        } catch {}
+    }
+
+    $effect(() => {
+        if (activePeriodId) {
+            loadRollup();
+            if (activeTab === 'students') loadStudents(1);
+            else if (activeTab === 'cases') loadCases();
+            else if (activeTab === 'daily') loadDaily();
+        }
+    });
+
+    function switchTab(t: Tab) {
+        activeTab = t;
+        if (t === 'students') loadStudents(1);
+        else if (t === 'cases') loadCases();
+        else if (t === 'daily') loadDaily();
+    }
+
+    // ─── Sorted/filtered collection ──────────────────────────────────
+    let sortedRollup = $derived.by(() => {
+        let arr = [...uniRollup];
+        if (collSearch) {
+            const q = collSearch.toLowerCase();
+            arr = arr.filter(u => u.university_name.toLowerCase().includes(q));
+        }
+        if (collSort === 'eff-desc') arr.sort((a, b) => +b.collection_efficiency - +a.collection_efficiency);
+        else if (collSort === 'eff-asc') arr.sort((a, b) => +a.collection_efficiency - +b.collection_efficiency);
+        else if (collSort === 'paid-desc') arr.sort((a, b) => +b.paid - +a.paid);
+        else if (collSort === 'pending-desc') arr.sort((a, b) => +b.pending - +a.pending);
+        return arr;
+    });
+
+    // ─── Drawer actions ───────────────────────────────────────────────
+    async function openDrawer(stu: any) {
+        drawerStudent = stu;
+        drawerOpen = true;
+        drawerLoading = true;
+        try {
+            const res = await fetch(`/api/fees/students/${stu.id}/remarks`);
+            if (res.ok) drawerRemarks = await res.json();
+        } catch {}
+        finally { drawerLoading = false; }
+        document.body.style.overflow = 'hidden';
+    }
+    function closeDrawer() {
+        drawerOpen = false;
+        drawerStudent = null;
+        drawerRemarks = [];
+        stagedFiles = [];
+        remarkText = '';
+        remarkCaseType = '';
+        document.body.style.overflow = '';
+    }
+
+    async function toggleTag(tag: string) {
+        if (!drawerStudent || !data.access.canEditRemarks) return;
+        try {
+            const res = await fetch(`/api/fees/students/${drawerStudent.id}/tags`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ tag })
+            });
+            if (res.ok) {
+                const j = await res.json();
+                const tags: string[] = Array.isArray(drawerStudent.tags) ? [...drawerStudent.tags] : [];
+                if (j.added) tags.push(tag); else tags.splice(tags.indexOf(tag), 1);
+                drawerStudent.tags = tags;
+                drawerStudent = { ...drawerStudent };
+                // refresh students list to reflect tag changes
+                if (activeTab === 'students') loadStudents(stuPage);
+                else if (activeTab === 'cases') loadCases();
+            }
+        } catch (e: any) { flash(e?.message || 'Failed to toggle tag', true); }
+    }
+
+    function stageFiles(evt: Event) {
+        const files = (evt.target as HTMLInputElement).files;
+        if (!files) return;
+        const arr: File[] = [];
+        const MAX = 5 * 1024 * 1024;
+        for (let i = 0; i < files.length && stagedFiles.length + arr.length < 5; i++) {
+            const f = files[i];
+            if (f.size > MAX) { flash(`${f.name} exceeds 5 MB`, true); continue; }
+            arr.push(f);
+        }
+        stagedFiles = [...stagedFiles, ...arr];
+        (evt.target as HTMLInputElement).value = '';
+    }
+
+    async function saveRemark() {
+        if (!drawerStudent || !remarkAuthor || !remarkText) {
+            flash('Enter your name and remark', true);
+            return;
+        }
+        savingRemark = true;
+        try {
+            const res = await fetch(`/api/fees/students/${drawerStudent.id}/remarks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    author_name: remarkAuthor,
+                    role: remarkRole,
+                    case_type: remarkCaseType || undefined,
+                    text: remarkText
+                })
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                throw new Error(j.message || `Save failed (${res.status})`);
+            }
+            const newRemark = await res.json();
+
+            // Upload staged proof files
+            for (const f of stagedFiles) {
+                const fd = new FormData();
+                fd.append('file', f);
+                await fetch(`/api/fees/remarks/${newRemark.id}/attachments`, { method: 'POST', body: fd });
+            }
+
+            // Refresh
+            const r2 = await fetch(`/api/fees/students/${drawerStudent.id}/remarks`);
+            if (r2.ok) drawerRemarks = await r2.json();
+            // Auto-tag was set on server if case_type selected — reflect in UI
+            if (remarkCaseType && !(drawerStudent.tags || []).includes(remarkCaseType)) {
+                drawerStudent.tags = [...(drawerStudent.tags || []), remarkCaseType];
+            }
+            remarkText = ''; remarkCaseType = ''; stagedFiles = [];
+            if (activeTab === 'students') loadStudents(stuPage);
+            flash('Remark saved');
+        } catch (e: any) { flash(e?.message || 'Save failed', true); }
+        finally { savingRemark = false; }
+    }
+
+    async function deleteRemark(rmkId: string) {
+        if (!confirm('Delete this remark?')) return;
+        try {
+            const res = await fetch(`/api/fees/students/${drawerStudent.id}/remarks?remark_id=${rmkId}`, { method: 'DELETE' });
+            if (res.ok) {
+                drawerRemarks = drawerRemarks.filter(r => r.id !== rmkId);
+                if (activeTab === 'students') loadStudents(stuPage);
+                flash('Remark deleted');
+            }
+        } catch (e: any) { flash(e?.message || 'Delete failed', true); }
+    }
+
+    // ─── Daily entry ──────────────────────────────────────────────────
+    async function saveDailyEntry() {
+        if (!dailyForm.university_id || !dailyForm.date || !dailyForm.amount) {
+            flash('Fill university, date and amount', true);
+            return;
+        }
+        savingDaily = true;
+        try {
+            const res = await fetch('/api/fees/daily-log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    period_id: activePeriodId,
+                    university_id: dailyForm.university_id,
+                    date: dailyForm.date,
+                    amount: dailyForm.amount,
+                    students_count: dailyForm.students_count,
+                    notes: dailyForm.notes,
+                })
+            });
+            if (!res.ok) {
+                const j = await res.json().catch(() => ({}));
+                throw new Error(j.message || `Save failed (${res.status})`);
+            }
+            await loadDaily();
+            showDailyForm = false;
+            dailyForm = { university_id: '', date: new Date().toISOString().split('T')[0], amount: 0, students_count: 0, notes: '' };
+            flash('Daily entry saved');
+        } catch (e: any) { flash(e?.message || 'Save failed', true); }
+        finally { savingDaily = false; }
+    }
+
+    async function deleteDailyEntry(id: string) {
+        if (!confirm('Delete this entry?')) return;
+        try {
+            const res = await fetch(`/api/fees/daily-log?id=${id}`, { method: 'DELETE' });
+            if (res.ok) { await loadDaily(); flash('Entry deleted'); }
+            else { const j = await res.json().catch(() => ({})); flash(j.message || 'Delete failed', true); }
+        } catch (e: any) { flash(e?.message || 'Delete failed', true); }
+    }
+
+    // ─── Export CSV ───────────────────────────────────────────────────
+    function exportCollectionCSV() {
+        const head = 'University,Strength,Fully Paid,Partial,Not Paid,Payable,Paid,Pending,Eff %,Fully %,Not Paid %\n';
+        const rows = sortedRollup.map(u => `"${u.university_name}",${u.strength},${u.fully_paid},${u.partial_paid},${u.not_paid},${u.payable},${u.paid},${u.pending},${u.collection_efficiency},${u.fully_paid_pct},${u.not_paid_pct}`).join('\n');
+        const blob = new Blob(['﻿' + head + rows], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `fee_collection_${data.activePeriod?.name?.replace(/\s+/g, '_') || 'period'}.csv`;
+        a.click();
+    }
+
+    onMount(() => { loadRollup(); });
+</script>
+
+<svelte:head><title>Fee Collection · UniConnect</title></svelte:head>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950/20">
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
+
+        <!-- Header -->
+        <div class="flex items-start justify-between flex-wrap gap-4 mb-6">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                        <Wallet size={20} class="text-white" />
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Fee Collection</h1>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Track student payments, manage remarks, monitor cases</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <select bind:value={activePeriodId} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium">
+                    {#each data.periods as p}
+                        <option value={p.id}>{p.name}</option>
+                    {/each}
+                </select>
+                {#if data.access.canEditRemarks}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 text-xs font-bold">
+                        <ShieldCheck size={12} /> {data.access.canAdmin ? 'Admin' : 'Editor'}
+                    </span>
+                {:else}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold">
+                        <FileText size={12} /> View only
+                    </span>
+                {/if}
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+            {@const s = summary || {}}
+            {@const totalStr = (s.fully_paid || 0) + (s.partial_paid || 0) + (s.not_paid || 0)}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-emerald-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Paid</div>
+                <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">{fmtInr(s.total_paid)}</div>
+                <div class="text-[10px] text-slate-400 mt-1">of {fmtInr(s.total_payable)}</div>
+            </div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-orange-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending</div>
+                <div class="text-2xl font-extrabold text-rose-600 dark:text-rose-400 mt-2">{fmtInr(s.total_pending)}</div>
+                <div class="text-[10px] text-slate-400 mt-1">to collect</div>
+            </div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Universities</div>
+                <div class="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">{s.universities || 0}</div>
+                <div class="text-[10px] text-slate-400 mt-1">tracked</div>
+            </div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Avg Efficiency</div>
+                <div class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">{Number(s.avg_efficiency || 0).toFixed(1)}%</div>
+                <div class="text-[10px] text-slate-400 mt-1">collection</div>
+            </div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fully Paid</div>
+                <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">{(s.fully_paid || 0).toLocaleString()}</div>
+                <div class="text-[10px] text-slate-400 mt-1">of {totalStr.toLocaleString()} students</div>
+            </div>
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-pink-400"></div>
+                <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Not Paid</div>
+                <div class="text-2xl font-extrabold text-rose-600 dark:text-rose-400 mt-2">{(s.not_paid || 0).toLocaleString()}</div>
+                <div class="text-[10px] text-slate-400 mt-1">{(s.partial_paid || 0).toLocaleString()} partial</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-1 p-1 mb-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 overflow-x-auto">
+            {#each [
+                { id: 'collection', label: 'Collection Overview', icon: TrendingUp },
+                { id: 'students',   label: 'Students Data',       icon: Building2 },
+                { id: 'cases',      label: 'Tag Cases',           icon: AlertCircle },
+                { id: 'daily',      label: 'Daily Report',        icon: Banknote },
+                { id: 'universities', label: 'Universities',      icon: Building2 },
+                { id: 'overview',   label: 'Overview',            icon: TrendingUp },
+            ] as t}
+                {@const Icon = t.icon}
+                <button onclick={() => switchTab(t.id as Tab)}
+                    class="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all
+                           {activeTab === t.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}">
+                    <Icon size={14} /> {t.label}
+                </button>
+            {/each}
+        </div>
+
+        <!-- ═══════ COLLECTION OVERVIEW ═══════ -->
+        {#if activeTab === 'collection'}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">University-wise Collection</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="relative">
+                            <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input bind:value={collSearch} placeholder="Search university..." class="pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm w-56" />
+                        </div>
+                        <select bind:value={collSort} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">Sort by...</option>
+                            <option value="eff-desc">Efficiency ↓</option>
+                            <option value="eff-asc">Efficiency ↑</option>
+                            <option value="paid-desc">Paid ↓</option>
+                            <option value="pending-desc">Pending ↓</option>
+                        </select>
+                        <button onclick={exportCollectionCSV} class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center gap-2">
+                            <Download size={14} /> Export
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <th class="py-3 px-4 text-left">University</th>
+                                <th class="py-3 px-2 text-right">Strength</th>
+                                <th class="py-3 px-2 text-right">Paid</th>
+                                <th class="py-3 px-2 text-right">Pending</th>
+                                <th class="py-3 px-2">Progress</th>
+                                <th class="py-3 px-2 text-right">Full</th>
+                                <th class="py-3 px-2 text-right">Partial</th>
+                                <th class="py-3 px-2 text-right">Null</th>
+                                <th class="py-3 px-2 text-right">Eff %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#if !sortedRollup.length}
+                                <tr><td colspan="9" class="text-center py-16 text-slate-400">No data yet. Import data from CSV or Google Sheets to get started.</td></tr>
+                            {/if}
+                            {#each sortedRollup as u, i}
+                                {@const p = pct(+u.paid, +u.payable)}
+                                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">{i + 1}. {u.university_name}</td>
+                                    <td class="py-3 px-2 text-right font-medium">{u.strength || 0}</td>
+                                    <td class="py-3 px-2 text-right text-emerald-600 dark:text-emerald-400 font-semibold">{fmtInr(u.paid)}</td>
+                                    <td class="py-3 px-2 text-right text-rose-600 dark:text-rose-400 font-semibold">{fmtInr(u.pending)}</td>
+                                    <td class="py-3 px-2 min-w-[140px]">
+                                        <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                            <div class="h-full rounded-full transition-all duration-500" style="width: {Math.min(100, p)}%; background: {pctColor(p)};"></div>
+                                        </div>
+                                        <div class="text-[10px] text-slate-500 mt-1">{p.toFixed(1)}%</div>
+                                    </td>
+                                    <td class="py-3 px-2 text-right text-emerald-600 font-bold">{u.fully_paid}</td>
+                                    <td class="py-3 px-2 text-right text-amber-600 font-bold">{u.partial_paid}</td>
+                                    <td class="py-3 px-2 text-right text-rose-600 font-bold">{u.not_paid}</td>
+                                    <td class="py-3 px-2 text-right">
+                                        <span class="inline-block px-2 py-0.5 rounded-md text-xs font-bold" style="color: {pctColor(+u.collection_efficiency)}; background: {pctColor(+u.collection_efficiency)}15;">
+                                            {Number(u.collection_efficiency).toFixed(1)}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        <!-- ═══════ STUDENTS DATA ═══════ -->
+        {:else if activeTab === 'students'}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Student-wise Payments</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <div class="relative">
+                            <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input bind:value={stuSearch} oninput={() => loadStudents(1)} placeholder="Search name / Zoho ID..." class="pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm w-52" />
+                        </div>
+                        <select bind:value={stuFilterUni} onchange={() => loadStudents(1)} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Universities</option>
+                            {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
+                        </select>
+                        <select bind:value={stuFilterStatus} onchange={() => loadStudents(1)} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Status</option>
+                            <option value="Fully Paid">Fully Paid</option>
+                            <option value="Partially Paid">Partial</option>
+                            <option value="Yet To Pay">Not Paid</option>
+                        </select>
+                        <select bind:value={stuFilterTag} onchange={() => loadStudents(1)} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Tags</option>
+                            {#each Object.entries(TAG_META) as [k, v]}<option value={k}>{v.label}</option>{/each}
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <th class="py-3 px-3 text-left">#</th>
+                                <th class="py-3 px-3 text-left">Student</th>
+                                <th class="py-3 px-3 text-left">University</th>
+                                <th class="py-3 px-2 text-right">Payable</th>
+                                <th class="py-3 px-2 text-right">Paid</th>
+                                <th class="py-3 px-2 text-right">Pending</th>
+                                <th class="py-3 px-2">Status</th>
+                                <th class="py-3 px-2">Tags</th>
+                                <th class="py-3 px-2">Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {#if loading}
+                                <tr><td colspan="9" class="text-center py-12"><Loader2 class="animate-spin inline" /> Loading...</td></tr>
+                            {:else if !students.length}
+                                <tr><td colspan="9" class="text-center py-16 text-slate-400">No students. Import data from Google Sheets or CSV.</td></tr>
+                            {/if}
+                            {#each students as stu, i}
+                                <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                                    <td class="py-3 px-3 text-slate-400">{(stuPage - 1) * STU_PER_PAGE + i + 1}</td>
+                                    <td class="py-3 px-3">
+                                        <div class="font-bold text-slate-900 dark:text-slate-100">{stu.student_name || '(no name)'}</div>
+                                        <div class="text-[10px] text-slate-400 font-mono">{stu.zoho_user_id?.slice(0, 8)}...</div>
+                                    </td>
+                                    <td class="py-3 px-3 font-medium">{stu.university_name}</td>
+                                    <td class="py-3 px-2 text-right">{fmtInr(stu.payable)}</td>
+                                    <td class="py-3 px-2 text-right text-emerald-600 font-semibold">{fmtInr(stu.paid)}</td>
+                                    <td class="py-3 px-2 text-right text-rose-600 font-semibold">{fmtInr(stu.pending)}</td>
+                                    <td class="py-3 px-2"><span class="px-2 py-0.5 rounded-md text-[10px] font-bold {statusColor(stu.status)}">{stu.status}</span></td>
+                                    <td class="py-3 px-2">
+                                        <div class="flex flex-wrap gap-1">
+                                            {#each (stu.tags || []) as t}
+                                                <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold {TAG_META[t]?.cls || 'tag-other'}">{TAG_META[t]?.label || t}</span>
+                                            {/each}
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-2">
+                                        <button onclick={() => openDrawer(stu)} class="px-2.5 py-1 rounded-lg text-[10px] font-bold {stu.remarks_count > 0 ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
+                                            💬 {stu.remarks_count > 0 ? `${stu.remarks_count}` : 'Add'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+                {#if studentsTotal > STU_PER_PAGE}
+                    {@const pages = Math.ceil(studentsTotal / STU_PER_PAGE)}
+                    <div class="flex items-center justify-between p-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+                        <span class="text-slate-500">Showing {(stuPage - 1) * STU_PER_PAGE + 1}–{Math.min(stuPage * STU_PER_PAGE, studentsTotal)} of {studentsTotal.toLocaleString()}</span>
+                        <div class="flex gap-1">
+                            <button disabled={stuPage <= 1} onclick={() => loadStudents(stuPage - 1)} class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-40 font-bold">← Prev</button>
+                            <span class="px-3 py-1.5 font-bold">{stuPage} / {pages}</span>
+                            <button disabled={stuPage >= pages} onclick={() => loadStudents(stuPage + 1)} class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 disabled:opacity-40 font-bold">Next →</button>
+                        </div>
+                    </div>
+                {/if}
+            </div>
+
+        <!-- ═══════ TAG CASES ═══════ -->
+        {:else if activeTab === 'cases'}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Tagged Cases — Loan / Dropout / Specific</div>
+                    <div class="flex gap-2 flex-wrap">
+                        <select bind:value={caseFilterTag} onchange={loadCases} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Tags</option>
+                            {#each Object.entries(TAG_META) as [k, v]}<option value={k}>{v.label}</option>{/each}
+                        </select>
+                        <div class="relative">
+                            <Search size={14} class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input bind:value={caseSearch} oninput={loadCases} placeholder="Search student..." class="pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm w-52" />
+                        </div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase text-slate-500">
+                            <tr><th class="py-3 px-3 text-left">#</th><th class="py-3 px-3 text-left">Student</th><th class="py-3 px-3 text-left">University</th><th class="py-3 px-2 text-right">Pending</th><th class="py-3 px-2">Tags</th><th class="py-3 px-2">Remarks</th><th class="py-3 px-2">Action</th></tr>
+                        </thead>
+                        <tbody>
+                            {#if !casesList.length}
+                                <tr><td colspan="7" class="text-center py-16 text-slate-400">No tagged cases yet. Tag students from the Students tab.</td></tr>
+                            {/if}
+                            {#each casesList as c, i}
+                                <tr class="border-t border-slate-100 dark:border-slate-800">
+                                    <td class="py-3 px-3 text-slate-400">{i + 1}</td>
+                                    <td class="py-3 px-3 font-bold">{c.student_name || c.zoho_user_id?.slice(0, 8)}</td>
+                                    <td class="py-3 px-3">{c.university_name}</td>
+                                    <td class="py-3 px-2 text-right text-rose-600 font-semibold">{fmtInr(c.pending)}</td>
+                                    <td class="py-3 px-2"><div class="flex flex-wrap gap-1">{#each (c.tags || []) as t}<span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold {TAG_META[t]?.cls || 'tag-other'}">{TAG_META[t]?.label || t}</span>{/each}</div></td>
+                                    <td class="py-3 px-2 text-purple-600 font-semibold">{c.remarks_count > 0 ? `${c.remarks_count} remark${c.remarks_count > 1 ? 's' : ''}` : '—'}</td>
+                                    <td class="py-3 px-2"><button onclick={() => openDrawer(c)} class="text-indigo-600 dark:text-indigo-400 text-xs font-bold hover:underline">Open →</button></td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        <!-- ═══════ DAILY REPORT ═══════ -->
+        {:else if activeTab === 'daily'}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        Daily Collection Log
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold"><Lock size={10} /> Locks 8 PM IST</span>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <select bind:value={dailyFilterUni} onchange={loadDaily} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                            <option value="">All Universities</option>
+                            {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
+                        </select>
+                        {#if data.access.canEditRemarks}
+                            <button onclick={() => showDailyForm = !showDailyForm} class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center gap-2 hover:bg-emerald-700">
+                                <Plus size={14} /> Add Entry
+                            </button>
+                        {/if}
+                    </div>
+                </div>
+                {#if showDailyForm}
+                    <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                            <select bind:value={dailyForm.university_id} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm">
+                                <option value="">University…</option>
+                                {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
+                            </select>
+                            <input type="date" bind:value={dailyForm.date} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input type="number" bind:value={dailyForm.amount} placeholder="Amount ₹" class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input type="number" bind:value={dailyForm.students_count} placeholder="# Students" class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input bind:value={dailyForm.notes} placeholder="Notes..." class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                        </div>
+                        <div class="mt-3 flex gap-2">
+                            <button disabled={savingDaily} onclick={saveDailyEntry} class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{savingDaily ? 'Saving…' : 'Save Entry'}</button>
+                            <button onclick={() => showDailyForm = false} class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold">Cancel</button>
+                        </div>
+                    </div>
+                {/if}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase text-slate-500">
+                            <tr><th class="py-3 px-3 text-left">Date</th><th class="py-3 px-3 text-left">University</th><th class="py-3 px-2 text-right">Amount</th><th class="py-3 px-2 text-right">Students</th><th class="py-3 px-2 text-left">Notes</th><th class="py-3 px-2">Status</th><th class="py-3 px-2"></th></tr>
+                        </thead>
+                        <tbody>
+                            {#if !dailyLog.length}<tr><td colspan="7" class="text-center py-16 text-slate-400">No daily entries yet.</td></tr>{/if}
+                            {#each dailyLog as e}
+                                {@const isLocked = e.locked_at != null}
+                                <tr class="border-t border-slate-100 dark:border-slate-800">
+                                    <td class="py-3 px-3 font-mono text-xs">{fmtDate(e.date)}</td>
+                                    <td class="py-3 px-3 font-bold">{e.university_name}</td>
+                                    <td class="py-3 px-2 text-right text-emerald-600 font-bold">{fmtFull(e.amount)}</td>
+                                    <td class="py-3 px-2 text-right font-semibold">{e.students_count}</td>
+                                    <td class="py-3 px-2 text-slate-500 max-w-xs truncate">{e.notes || '—'}</td>
+                                    <td class="py-3 px-2">
+                                        {#if isLocked}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[10px] font-bold"><Lock size={9}/> Locked</span>
+                                        {:else}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">Open</span>{/if}
+                                    </td>
+                                    <td class="py-3 px-2">{#if !isLocked && data.access.canEditRemarks}<button onclick={() => deleteDailyEntry(e.id)} class="text-rose-500 hover:text-rose-700"><Trash2 size={14} /></button>{/if}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        <!-- ═══════ UNIVERSITIES TAB ═══════ -->
+        {:else if activeTab === 'universities'}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {#each sortedRollup as u}
+                    {@const p = pct(+u.paid, +u.payable)}
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="font-bold text-slate-900 dark:text-slate-100">{u.university_name}</div>
+                            <span class="text-lg font-extrabold" style="color: {pctColor(p)};">{p.toFixed(1)}%</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-3">
+                            <div class="h-full rounded-full" style="width: {Math.min(100, p)}%; background: {pctColor(p)};"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                            <div><div class="font-bold text-emerald-600">{u.fully_paid}</div><div class="text-[9px] text-slate-400">Full</div></div>
+                            <div><div class="font-bold text-amber-600">{u.partial_paid}</div><div class="text-[9px] text-slate-400">Partial</div></div>
+                            <div><div class="font-bold text-rose-600">{u.not_paid}</div><div class="text-[9px] text-slate-400">Null</div></div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-between text-xs">
+                            <span class="text-slate-500">Paid: <span class="font-bold text-emerald-600">{fmtInr(u.paid)}</span></span>
+                            <span class="text-slate-500">Pending: <span class="font-bold text-rose-600">{fmtInr(u.pending)}</span></span>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+        <!-- ═══════ OVERVIEW ═══════ -->
+        {:else if activeTab === 'overview'}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-8 text-center">
+                <div class="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2">Charts & Trends</div>
+                <div class="text-xs text-slate-500">Trend charts coming after CSV import + Sheet sync are wired up.</div>
+            </div>
+        {/if}
+
+    </div>
+</div>
+
+<!-- ═══════ REMARKS DRAWER ═══════ -->
+{#if drawerOpen && drawerStudent}
+    <div transition:fade={{ duration: 150 }} class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onclick={closeDrawer} role="presentation"></div>
+    <div transition:fly={{ x: 500, duration: 250 }} class="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-slate-900 z-50 shadow-2xl border-l border-slate-200 dark:border-slate-700 flex flex-col">
+        <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-start justify-between">
+            <div>
+                <div class="font-extrabold text-lg text-slate-900 dark:text-white">{drawerStudent.student_name || '(no name)'}</div>
+                <div class="text-xs text-slate-500 font-mono mt-1">{drawerStudent.university_name} · {drawerStudent.zoho_user_id?.slice(0, 16)}…</div>
+            </div>
+            <button onclick={closeDrawer} class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><X size={16}/></button>
+        </div>
+        <div class="grid grid-cols-3 border-b border-slate-200 dark:border-slate-700">
+            <div class="p-3 border-r border-slate-200 dark:border-slate-700">
+                <div class="text-[9px] font-bold uppercase text-slate-400">Payable</div>
+                <div class="text-lg font-extrabold text-amber-600">{fmtInr(drawerStudent.payable)}</div>
+            </div>
+            <div class="p-3 border-r border-slate-200 dark:border-slate-700">
+                <div class="text-[9px] font-bold uppercase text-slate-400">Paid</div>
+                <div class="text-lg font-extrabold text-emerald-600">{fmtInr(drawerStudent.paid)}</div>
+            </div>
+            <div class="p-3">
+                <div class="text-[9px] font-bold uppercase text-slate-400">Pending</div>
+                <div class="text-lg font-extrabold text-rose-600">{fmtInr(drawerStudent.pending)}</div>
+            </div>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+            <!-- Tags editor -->
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Case Tags</div>
+                <div class="flex flex-wrap gap-1.5">
+                    {#each Object.entries(TAG_META) as [k, v]}
+                        {@const active = (drawerStudent.tags || []).includes(k)}
+                        <button disabled={!data.access.canEditRemarks} onclick={() => toggleTag(k)}
+                            class="px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all {active ? `${v.cls} opacity-100` : 'border-slate-200 dark:border-slate-700 text-slate-500 opacity-50 hover:opacity-100'} disabled:cursor-not-allowed">
+                            {v.label}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+            <!-- Remarks list -->
+            <div class="p-4">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Remarks ({drawerRemarks.length})</div>
+                {#if drawerLoading}<div class="text-center text-slate-400 py-6"><Loader2 class="animate-spin inline" /> Loading...</div>{/if}
+                {#if !drawerLoading && !drawerRemarks.length}<div class="text-center text-slate-400 py-6 text-sm">No remarks yet. Add one below.</div>{/if}
+                {#each drawerRemarks as r}
+                    <div class="bg-slate-50 dark:bg-slate-800/50 border-l-2 border-purple-500 rounded-lg p-3 mb-3">
+                        <div class="flex items-center justify-between mb-1.5 flex-wrap gap-2">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="font-bold text-sm text-purple-700 dark:text-purple-300">{r.author_name}</span>
+                                <span class="text-[9px] font-bold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">{r.role}</span>
+                                {#if r.case_type}<span class="text-[9px] font-bold {TAG_META[r.case_type]?.cls} px-1.5 py-0.5 rounded">{TAG_META[r.case_type]?.label}</span>{/if}
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <span class="text-[10px] text-slate-400">{fmtDateTime(r.created_at)}</span>
+                                {#if data.access.canEditRemarks}<button onclick={() => deleteRemark(r.id)} class="text-slate-400 hover:text-rose-500"><Trash2 size={12} /></button>{/if}
+                            </div>
+                        </div>
+                        <div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">{r.text}</div>
+                        {#if r.attachments && r.attachments.length}
+                            <div class="mt-2 flex flex-wrap gap-1.5">
+                                {#each r.attachments as a}
+                                    <a href={a.file_url} target="_blank" class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[10px] hover:border-indigo-400">
+                                        <Paperclip size={10} /> {a.file_name}
+                                        <span class="text-slate-400">{(a.size_bytes / 1024 / 1024).toFixed(2)}MB</span>
+                                    </a>
+                                {/each}
+                            </div>
+                        {/if}
+                    </div>
+                {/each}
+            </div>
+        </div>
+        <!-- Add remark form -->
+        {#if data.access.canEditRemarks}
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30">
+                <div class="grid grid-cols-2 gap-2 mb-2">
+                    <input bind:value={remarkAuthor} placeholder="Your name" class="px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                    <select bind:value={remarkRole} class="px-3 py-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm">
+                        <option value="PM">PM</option><option value="COS">COS</option><option value="PMA">PMA</option><option value="CMA">CMA</option><option value="BOA">BOA</option><option value="Finance">Finance</option><option value="Counselor">Counselor</option><option value="Other">Other</option>
+                    </select>
+                </div>
+                <select bind:value={remarkCaseType} class="w-full px-3 py-2 mb-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm">
+                    <option value="">General remark (no case type)</option>
+                    {#each Object.entries(TAG_META) as [k, v]}<option value={k}>{v.label}</option>{/each}
+                </select>
+                <textarea bind:value={remarkText} placeholder="Enter remark…" rows="3" class="w-full px-3 py-2 mb-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm resize-y"></textarea>
+                <div class="flex items-center gap-2 mb-2">
+                    <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer hover:border-indigo-400">
+                        <Paperclip size={12} /> Attach Proofs
+                        <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" onchange={stageFiles} class="hidden" />
+                    </label>
+                    <span class="text-[10px] text-slate-500">{stagedFiles.length}/5 staged · 5MB each max</span>
+                </div>
+                {#if stagedFiles.length}
+                    <div class="flex flex-wrap gap-1 mb-2">
+                        {#each stagedFiles as f, i}
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-950/40 text-purple-700 text-[10px] font-bold">
+                                {f.name.length > 20 ? f.name.slice(0, 20) + '…' : f.name}
+                                <button onclick={() => stagedFiles = stagedFiles.filter((_, j) => j !== i)}>×</button>
+                            </span>
+                        {/each}
+                    </div>
+                {/if}
+                <button disabled={savingRemark} onclick={saveRemark} class="w-full px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+                    {#if savingRemark}<Loader2 class="animate-spin" size={14} />{:else}<MessageSquare size={14} />{/if}
+                    Save Remark
+                </button>
+            </div>
+        {/if}
+    </div>
+{/if}
+
+<!-- Toast -->
+{#if successMsg}<div transition:fly={{ y: 20 }} class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold shadow-2xl">{successMsg}</div>{/if}
+{#if errorMsg}<div transition:fly={{ y: 20 }} class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-rose-600 text-white text-sm font-bold shadow-2xl">{errorMsg}</div>{/if}
+
+<style>
+    :global(.tag-loan) { background: rgba(59,130,246,.15); color: #3b82f6; border-color: rgba(59,130,246,.3); }
+    :global(.tag-dropout) { background: rgba(239,68,68,.15); color: #ef4444; border-color: rgba(239,68,68,.3); }
+    :global(.tag-waiver) { background: rgba(245,158,11,.15); color: #f59e0b; border-color: rgba(245,158,11,.3); }
+    :global(.tag-scholar) { background: rgba(16,185,129,.15); color: #10b981; border-color: rgba(16,185,129,.3); }
+    :global(.tag-defer) { background: rgba(167,139,250,.15); color: #a78bfa; border-color: rgba(167,139,250,.3); }
+    :global(.tag-other) { background: rgba(251,146,60,.15); color: #fb923c; border-color: rgba(251,146,60,.3); }
+</style>
