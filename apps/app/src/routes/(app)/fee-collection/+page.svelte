@@ -146,6 +146,24 @@
     let importing = $state(false);
     let importResult = $state<any>(null);
 
+    // Default tab names per dataset — auto-fills when user picks a radio
+    const DATASET_DEFAULT_TAB: Record<string, string> = {
+        userwise: 'Userwise Data',
+        daywise: 'Day_Wise_Payments',
+        summary: 'Sheet1',
+    };
+    // When dataset changes, override the tab name to match (unless user has typed a custom one)
+    let lastDatasetForTab = $state<string>('userwise');
+    $effect(() => {
+        // Track changes to importDataset
+        const ds = importDataset;
+        if (ds !== lastDatasetForTab) {
+            importTabName = DATASET_DEFAULT_TAB[ds] || importTabName;
+            lastDatasetForTab = ds;
+            importResult = null; // clear stale result
+        }
+    });
+
     // ─── Helpers ──────────────────────────────────────────────────────
     const TAG_META: Record<string, { label: string; cls: string }> = {
         loan:             { label: 'Loan Case',         cls: 'tag-loan' },
@@ -1210,11 +1228,16 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Tab Name</label>
-                        <input bind:value={importTabName} placeholder="e.g. Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                        <input bind:value={importTabName} placeholder="e.g. Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
+                        {#if importTabName !== DATASET_DEFAULT_TAB[importDataset]}
+                            <div class="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300">
+                                ⚠️ Tab name doesn't match your dataset choice. Expected: <button onclick={() => importTabName = DATASET_DEFAULT_TAB[importDataset]} class="font-bold font-mono underline">{DATASET_DEFAULT_TAB[importDataset]}</button>
+                            </div>
+                        {/if}
                         <div class="text-[10px] text-slate-400 mt-1">
-                            Suggested: <button onclick={() => importTabName = 'Userwise Data'} class="text-indigo-500 hover:underline font-mono">Userwise Data</button> ·
-                            <button onclick={() => importTabName = 'Day_Wise_Payments'} class="text-indigo-500 hover:underline font-mono">Day_Wise_Payments</button> ·
-                            <button onclick={() => importTabName = 'Sheet1'} class="text-indigo-500 hover:underline font-mono">Sheet1</button>
+                            Quick-pick: <button onclick={() => { importDataset = 'userwise'; importTabName = 'Userwise Data'; }} class="text-indigo-500 hover:underline font-mono">Userwise Data</button> ·
+                            <button onclick={() => { importDataset = 'daywise'; importTabName = 'Day_Wise_Payments'; }} class="text-indigo-500 hover:underline font-mono">Day_Wise_Payments</button> ·
+                            <button onclick={() => { importDataset = 'summary'; importTabName = 'Sheet1'; }} class="text-indigo-500 hover:underline font-mono">Sheet1</button>
                         </div>
                     </div>
                 {:else}
