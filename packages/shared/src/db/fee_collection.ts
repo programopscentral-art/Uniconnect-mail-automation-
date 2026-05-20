@@ -862,6 +862,52 @@ export async function upsertFeeTransaction(data: {
 }
 
 /**
+ * Bulk upsert for payment transactions — 50x faster than calling
+ * upsertFeeTransaction in a loop for 1,500+ rows.
+ */
+export async function bulkUpsertFeeTransactions(periodId: string, rows: Array<{
+    zoho_user_id: string;
+    payment_date: string;
+    amount?: number | null;
+    source?: string | null;
+    university_id?: string | null;
+}>) {
+    await ensureFeeTables();
+    if (!rows.length) return 0;
+
+    const CHUNK = 300;
+    let total = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const params: any[] = [periodId];
+        const valueRows: string[] = [];
+        let p = 2;
+        for (const r of chunk) {
+            valueRows.push(`($1, $${p++}, $${p++}, $${p++}, $${p++}, $${p++})`);
+            params.push(
+                r.zoho_user_id,
+                r.payment_date,
+                r.amount ?? null,
+                r.source ?? null,
+                r.university_id ?? null
+            );
+        }
+        const res = await db.query(
+            `INSERT INTO fee_payment_transactions
+                (period_id, zoho_user_id, payment_date, amount, source, university_id)
+             VALUES ${valueRows.join(', ')}
+             ON CONFLICT (zoho_user_id, payment_date, period_id) DO UPDATE SET
+                amount = COALESCE(EXCLUDED.amount, fee_payment_transactions.amount),
+                source = COALESCE(EXCLUDED.source, fee_payment_transactions.source),
+                university_id = COALESCE(EXCLUDED.university_id, fee_payment_transactions.university_id)`,
+            params
+        );
+        total += res.rowCount || chunk.length;
+    }
+    return total;
+}
+
+/**
  * Returns a concise fee summary for embedding in daily/weekly/monthly ops reports.
  * Picks the most-recent active period if periodId is omitted.
  */

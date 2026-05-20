@@ -13,6 +13,7 @@ import {
     createFeeRemark,
     toggleFeeStudentTag,
     upsertFeeTransaction,
+    bulkUpsertFeeTransactions,
     upsertFeeUniversityMeta,
 } from '@uniconnect/shared';
 
@@ -220,17 +221,20 @@ export async function importUserwiseRows(
 export async function importDayWisePayments(
     periodId: string,
     rows: SheetRow[]
-): Promise<{ ok: number; skipped: number }> {
-    let ok = 0, skipped = 0;
+): Promise<{ ok: number; skipped: number; errors: string[] }> {
+    let skipped = 0;
+    const errors: string[] = [];
+
     // Pre-fetch student payments to map zoho_user_id → university_id
     const spRes = await db.query(
-        `SELECT zoho_user_id, university_id, id FROM fee_student_payments WHERE period_id = $1`,
+        `SELECT zoho_user_id, university_id FROM fee_student_payments WHERE period_id = $1`,
         [periodId]
     );
-    const spMap = new Map<string, { university_id: string; id: string }>();
-    for (const r of spRes.rows) spMap.set(r.zoho_user_id, { university_id: r.university_id, id: r.id });
+    const spMap = new Map<string, string>();
+    for (const r of spRes.rows) spMap.set(r.zoho_user_id, r.university_id);
 
-    const errors: string[] = [];
+    // Pass 1: parse + validate all rows into a batch
+    const validRows: Array<{ zoho_user_id: string; payment_date: string; university_id: string | null }> = [];
     for (const row of rows) {
         try {
             const zoho = String(pick(row, ['payment link user id', 'user id', 'userid']) || '').trim();
@@ -244,21 +248,29 @@ export async function importDayWisePayments(
                 continue;
             }
 
-            const mapped = spMap.get(zoho);
-            await upsertFeeTransaction({
-                period_id: periodId,
+            validRows.push({
                 zoho_user_id: zoho,
                 payment_date: dateStr,
-                university_id: mapped?.university_id,
+                university_id: spMap.get(zoho) || null,
             });
-            ok++;
         } catch (e: any) {
             if (errors.length < 5) errors.push(e?.message?.slice(0, 100) || 'unknown');
             skipped++;
         }
     }
 
-    return { ok, skipped, errors } as any;
+    // Pass 2: bulk INSERT all transactions in one go
+    let ok = 0;
+    if (validRows.length > 0) {
+        try {
+            ok = await bulkUpsertFeeTransactions(periodId, validRows);
+        } catch (e: any) {
+            errors.push(`Bulk insert failed: ${e.message?.slice(0, 100)}`);
+            skipped += validRows.length;
+        }
+    }
+
+    return { ok, skipped, errors };
 }
 
 /**
