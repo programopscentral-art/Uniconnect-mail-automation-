@@ -85,15 +85,19 @@
 
     // Comparison view
     let isPct = $derived(rankMetric === 'efficiency');
-    // Efficiency is capped to [0, 100] for both display and bar width — collection
-    // efficiency can technically exceed 100% if a student overpays, but a bar at
-    // "104%" doesn't add information and makes comparisons harder to read.
-    let metricValOf = (u: any) => rankMetric === 'pending' ? num(u.pending) :
-                                  rankMetric === 'paid' ? num(u.paid) :
-                                  rankMetric === 'efficiency' ? Math.min(100, num(u.collection_efficiency)) :
-                                  num(u.strength);
-    // For percentage metrics, the bar always scales against 100 so a 60% uni
-    // looks like a 60% bar (not a bar that's 60% of the leading uni's 100.4%).
+    // When ranking by "paid" and a date range is set, use the in-window total
+    // so the bar chart reflects the chosen window. For "all time", fall back
+    // to the lifetime total. Strength/efficiency/pending are inherently
+    // current-state metrics — range doesn't change them.
+    let rangeIsWindow = $derived(range !== 'all');
+    let metricValOf = (u: any) => {
+        if (rankMetric === 'pending') return num(u.pending);
+        if (rankMetric === 'paid') {
+            return rangeIsWindow ? num(u.paid_in_window) : num(u.paid);
+        }
+        if (rankMetric === 'efficiency') return Math.min(100, num(u.collection_efficiency));
+        return num(u.strength);
+    };
     let maxBar = $derived(rankMetric === 'efficiency' ? 100 : Math.max(1, ...rankedByMetric.map((u: any) => metricValOf(u))));
     const COLOR_BY_METRIC: Record<string, string> = {
         pending: 'from-rose-500 to-pink-600',
@@ -106,6 +110,48 @@
     let fullyDonutPct = $derived(statusTotal > 0 ? statusByName['Fully Paid'] / statusTotal * 100 : 0);
     let partialDonutPct = $derived(statusTotal > 0 ? statusByName['Partially Paid'] / statusTotal * 100 : 0);
     let fullyDonutOffset = $derived(donutDash(fullyDonutPct, 75).split(' ')[0]);
+
+    // Trend chart hover state
+    let hoverIdx = $state<number | null>(null);
+    function onTrendMouseMove(e: MouseEvent) {
+        const target = e.currentTarget as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(1, x / rect.width));
+        const i = Math.min(trendSeries.length - 1, Math.max(0, Math.floor(pct * trendSeries.length)));
+        hoverIdx = i;
+    }
+    function onTrendMouseLeave() { hoverIdx = null; }
+
+    // Smooth cubic-bezier path through the trend points
+    function smoothPath(points: { x: number; y: number }[]): string {
+        if (!points.length) return '';
+        let d = `M ${points[0].x} ${points[0].y}`;
+        for (let i = 0; i < points.length - 1; i++) {
+            const p0 = i === 0 ? points[0] : points[i - 1];
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const p3 = i === points.length - 2 ? p2 : points[i + 2];
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+        }
+        return d;
+    }
+
+    // Cache trend chart geometry so hover overlay can position correctly
+    let trendPoints = $derived.by(() => {
+        if (!trendSeries.length) return [] as Array<{ x: number; y: number }>;
+        const n = trendSeries.length;
+        return trendSeries.map((p: any, i: number) => ({
+            x: (i + 0.5) * (100 / n),
+            y: 100 - (p.value / trendMaxV) * 95,
+        }));
+    });
+    let trendSmoothD = $derived(smoothPath(trendPoints));
+    let trendAreaD = $derived(trendPoints.length ? `M 0 100 L ${trendPoints[0].x} ${trendPoints[0].y} ${smoothPath(trendPoints).slice(trendSmoothD.indexOf(' ') + 1)} L 100 100 Z` : '');
 
     // Trend data series
     let trendSeries = $derived(granularity === 'month'
@@ -328,23 +374,27 @@
                             <div class="text-xs text-slate-500 mt-1">Try widening the range or run a sync of the day-wise sheet.</div>
                         </div>
                     {:else}
-                        {@const maxV = Math.max(1, ...trendSeries.map((p: any) => p.value))}
-                        {@const w = 100 / Math.max(trendSeries.length, 1)}
                         <div class="relative h-56">
-                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full">
+                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full overflow-visible">
                                 <defs>
                                     <linearGradient id="ovGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.5" />
-                                        <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+                                        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
+                                        <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+                                    </linearGradient>
+                                    <linearGradient id="ovStroke" x1="0" y1="0" x2="1" y2="0">
+                                        <stop offset="0%" stop-color="#6366f1" />
+                                        <stop offset="100%" stop-color="#a855f7" />
                                     </linearGradient>
                                 </defs>
-                                <path d={`M 0 100 ${trendSeries.map((p: any, i: number) => `L ${i * w + w/2} ${100 - (p.value / maxV) * 90}`).join(' ')} L 100 100 Z`} fill="url(#ovGrad)" />
-                                <polyline points={trendSeries.map((p: any, i: number) => `${i * w + w/2},${100 - (p.value / maxV) * 90}`).join(' ')} fill="none" stroke="#6366f1" stroke-width="0.8" vector-effect="non-scaling-stroke" />
+                                {#if trendPoints.length}
+                                    <path d={`${trendSmoothD} L ${trendPoints[trendPoints.length - 1].x} 100 L ${trendPoints[0].x} 100 Z`} fill="url(#ovGrad)" />
+                                    <path d={trendSmoothD} fill="none" stroke="url(#ovStroke)" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+                                {/if}
                             </svg>
                         </div>
-                        <div class="flex justify-between text-[10px] text-slate-400 mt-2">
-                            <span>{trendSeries[0]?.label}</span>
-                            <span>{trendSeries[trendSeries.length - 1]?.label}</span>
+                        <div class="flex justify-between text-[10px] text-slate-400 mt-2 font-mono">
+                            <span>{trendSeries.length ? (granularity === 'month' ? trendSeries[0].label : fmtDate(trendSeries[0].label)) : ''}</span>
+                            <span>{trendSeries.length ? (granularity === 'month' ? trendSeries[trendSeries.length - 1].label : fmtDate(trendSeries[trendSeries.length - 1].label)) : ''}</span>
                         </div>
                     {/if}
                 </div>
@@ -439,36 +489,67 @@
                         <div class="text-xs text-slate-500 mt-1">Try a wider date range or import day-wise data.</div>
                     </div>
                 {:else}
-                    <div class="relative h-80 mb-3">
-                        <!-- Grid lines -->
-                        <div class="absolute inset-0 flex flex-col justify-between text-[9px] text-slate-400">
+                    <div class="relative h-96 mb-3 select-none"
+                         onmousemove={onTrendMouseMove}
+                         onmouseleave={onTrendMouseLeave}
+                         role="presentation">
+                        <!-- Y-axis labels + gridlines -->
+                        <div class="absolute inset-0 flex flex-col justify-between text-[10px] text-slate-400 pointer-events-none">
                             {#each [0, 0.25, 0.5, 0.75, 1] as p}
                                 <div class="flex items-center gap-2">
-                                    <span class="w-12 text-right flex-shrink-0">{fmtInr(trendMaxV * (1 - p))}</span>
-                                    <div class="flex-1 border-t border-slate-100 dark:border-slate-800"></div>
+                                    <span class="w-14 text-right flex-shrink-0 font-mono">{fmtInr(trendMaxV * (1 - p))}</span>
+                                    <div class="flex-1 border-t border-dashed border-slate-200/60 dark:border-slate-700/60"></div>
                                 </div>
                             {/each}
                         </div>
-                        <!-- Chart -->
-                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 ml-14 w-[calc(100%-3.5rem)] h-full">
+                        <!-- Chart SVG -->
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 ml-16 w-[calc(100%-4rem)] h-full overflow-visible pointer-events-none">
                             <defs>
                                 <linearGradient id="trendBigGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.5" />
+                                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
+                                    <stop offset="60%" stop-color="#a855f7" stop-opacity="0.15" />
                                     <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
                                 </linearGradient>
+                                <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
+                                    <stop offset="0%" stop-color="#6366f1" />
+                                    <stop offset="100%" stop-color="#a855f7" />
+                                </linearGradient>
                             </defs>
-                            <path d={`M 0 100 ${trendSeries.map((p: any, i: number) => `L ${(i + 0.5) * (100 / trendSeries.length)} ${100 - (p.value / trendMaxV) * 95}`).join(' ')} L 100 100 Z`} fill="url(#trendBigGrad)" />
-                            <polyline points={trendSeries.map((p: any, i: number) => `${(i + 0.5) * (100 / trendSeries.length)},${100 - (p.value / trendMaxV) * 95}`).join(' ')} fill="none" stroke="#6366f1" stroke-width="0.6" vector-effect="non-scaling-stroke" />
-                            {#each trendSeries as p, i}
-                                <circle cx={(i + 0.5) * (100 / trendSeries.length)} cy={100 - (p.value / trendMaxV) * 95} r="0.6" fill="#6366f1" vector-effect="non-scaling-stroke">
-                                    <title>{p.label}: {fmtInr(p.value)} ({p.count} students)</title>
-                                </circle>
-                            {/each}
+                            {#if trendPoints.length}
+                                <!-- Area fill (smooth) -->
+                                <path d={`${trendSmoothD} L ${trendPoints[trendPoints.length - 1].x} 100 L ${trendPoints[0].x} 100 Z`} fill="url(#trendBigGrad)" />
+                                <!-- Smooth line -->
+                                <path d={trendSmoothD} fill="none" stroke="url(#trendStroke)" stroke-width="0.7" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+                                <!-- Hover vertical line + marker -->
+                                {#if hoverIdx !== null && trendPoints[hoverIdx]}
+                                    <line x1={trendPoints[hoverIdx].x} y1="0" x2={trendPoints[hoverIdx].x} y2="100" stroke="#6366f1" stroke-width="0.3" stroke-dasharray="1 1" vector-effect="non-scaling-stroke" />
+                                    <circle cx={trendPoints[hoverIdx].x} cy={trendPoints[hoverIdx].y} r="1.2" fill="#fff" stroke="#6366f1" stroke-width="0.7" vector-effect="non-scaling-stroke" />
+                                {/if}
+                            {/if}
                         </svg>
+                        <!-- Hover tooltip (HTML, positioned in % units) -->
+                        {#if hoverIdx !== null && trendSeries[hoverIdx]}
+                            {@const hovered = trendSeries[hoverIdx]}
+                            {@const leftPct = ((hoverIdx + 0.5) / trendSeries.length) * 100}
+                            <div class="pointer-events-none absolute top-2 z-10 transition-all"
+                                 style:left={`calc(4rem + ${leftPct}% * (100% - 4rem) / 100% - 80px)`}>
+                                <div class="bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 shadow-2xl min-w-[180px]">
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{granularity === 'month' ? hovered.label : fmtDate(hovered.label)}</div>
+                                    <div class="text-lg font-extrabold text-emerald-400 mt-0.5">{fmtInr(hovered.value)}</div>
+                                    <div class="text-[10px] text-slate-300 mt-0.5">{hovered.count.toLocaleString()} student{hovered.count === 1 ? '' : 's'}</div>
+                                </div>
+                            </div>
+                        {/if}
                     </div>
-                    <div class="flex justify-between text-[10px] text-slate-400 ml-14">
-                        {#each [0, Math.floor(trendSeries.length / 4), Math.floor(trendSeries.length / 2), Math.floor(3 * trendSeries.length / 4), trendSeries.length - 1] as idx}
-                            {#if trendSeries[idx]}<span>{granularity === 'month' ? trendSeries[idx].label : fmtDate(trendSeries[idx].label)}</span>{/if}
+                    <!-- X-axis labels -->
+                    <div class="relative ml-16 h-4 text-[10px] text-slate-400 font-mono">
+                        {#each [0, 0.25, 0.5, 0.75, 1] as t}
+                            {@const idx = Math.min(trendSeries.length - 1, Math.floor(t * (trendSeries.length - 1)))}
+                            {#if trendSeries[idx]}
+                                <span class="absolute" style:left={`${t * 100}%`} style:transform={t === 1 ? 'translateX(-100%)' : t === 0 ? '' : 'translateX(-50%)'}>
+                                    {granularity === 'month' ? trendSeries[idx].label : fmtDate(trendSeries[idx].label)}
+                                </span>
+                            {/if}
                         {/each}
                     </div>
 
@@ -500,8 +581,19 @@
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
                 <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
                     <div>
-                        <div class="text-sm font-bold text-slate-900 dark:text-white">University Comparison</div>
-                        <div class="text-xs text-slate-500 mt-0.5">Ranked by {rankMetric.replace('_', ' ')}</div>
+                        <div class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            University Comparison
+                            {#if rankMetric === 'paid' && rangeIsWindow}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">
+                                    📅 Window: {range === '7d' ? 'Last 7 days' : range === '30d' ? 'Last 30 days' : 'Last 90 days'}
+                                </span>
+                            {/if}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-0.5">
+                            {#if rankMetric === 'paid' && rangeIsWindow}Sum of transactions in the selected window
+                            {:else if rankMetric === 'paid'}Total paid across the whole period
+                            {:else}Ranked by {rankMetric.replace('_', ' ')} (current state){/if}
+                        </div>
                     </div>
                     <div class="flex items-center gap-0 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
                         {#each [
@@ -546,6 +638,11 @@
 
         <!-- DISTRIBUTION -->
         {:else if view === 'distribution'}
+            <div class="space-y-3">
+                <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Distribution reflects <strong class="text-slate-900 dark:text-white">current state</strong> of all students in the period. The date range filter does not apply to current state — only to Overview/Trend/Comparison-by-paid.
+                </div>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
                     <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Payment Status Mix</div>
@@ -594,9 +691,15 @@
                     {/if}
                 </div>
             </div>
+            </div>
 
         <!-- CASES -->
         {:else if view === 'cases'}
+            <div class="space-y-3">
+                <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Case tags reflect <strong class="text-slate-900 dark:text-white">current state</strong> for all students in the period. The date range filter doesn't apply here.
+                </div>
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
                 <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Tagged Cases Across All Universities</div>
                 <div class="text-xs text-slate-500 mb-5">{tagTotal.toLocaleString()} total tagged students. Click a tag to view those students.</div>
@@ -626,6 +729,7 @@
                         {/each}
                     </div>
                 {/if}
+            </div>
             </div>
         {/if}
 

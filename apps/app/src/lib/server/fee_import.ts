@@ -329,6 +329,12 @@ export async function importDayWisePayments(
     let skipped = 0;
     const errors: string[] = [];
 
+    // The day-wise sheet is the single source of truth for fee_payment_transactions
+    // — wipe and re-import each sync. This is necessary because dates may change
+    // (e.g. when we fix locale parsing bugs, old rows under a wrong date stay
+    // orphaned because UPSERT keys on (zoho, payment_date, period_id)).
+    await db.query(`DELETE FROM fee_payment_transactions WHERE period_id = $1`, [periodId]);
+
     // Pre-fetch student payments to map zoho_user_id → university_id
     const spRes = await db.query(
         `SELECT zoho_user_id, university_id FROM fee_student_payments WHERE period_id = $1`,
@@ -404,11 +410,26 @@ export async function importDayWisePayments(
 }
 
 /**
- * Parse any date format the Google Sheets gviz endpoint might return:
- * - "Date(2026,1,8)"  — JSON format (month is 0-indexed!)
- * - "8/2/2026"        — CSV format (MM/DD/YYYY)
- * - "2026-02-08"      — ISO
+ * Parse any date format the Google Sheets gviz endpoint might return.
+ *
+ * Crucial wrinkle: in Indian sheets people type dates as DD/MM/YYYY, but the
+ * sheet's locale is often left as US (MM/DD/YYYY). So "12/01/2026" typed
+ * meaning "12 Jan 2026" gets stored as Dec 1, 2026 — wrong by 11 months.
+ *
+ * To recover the user's intent we look at the formatted display string (.f)
+ * which is what they originally typed, and parse it as DD-MM-YYYY when it
+ * matches that shape. Only if the formatted string is unparseable do we fall
+ * back to the raw Date(Y,M,D) value.
+ *
+ * fetchSheetTab packs both fields as "raw||formatted" when both exist.
+ *
+ * Supported formats:
+ * - "12/01/2026" or "12-01-2026"     → DD-MM-YYYY (Indian)
+ * - "12 Jan 2026" / "12-Jan-26"      → unambiguous month-name
+ * - "Date(2026,11,1)"                → gviz fallback (month 0-indexed)
+ * - "2026-02-08"                     → ISO
  * - Date object
+ *
  * Returns "YYYY-MM-DD" or empty string on failure.
  */
 function parseGvizDate(raw: any): string {
@@ -418,32 +439,91 @@ function parseGvizDate(raw: any): string {
     const s = String(raw).trim();
     if (!s) return '';
 
-    // gviz JSON: "Date(2026,1,8)" → 2026-02-08 (month is 0-indexed in JS)
-    const gvizMatch = s.match(/^Date\((\d+),(\d+),(\d+)/);
+    // Split off the formatted display if fetchSheetTab packed it ("raw||formatted")
+    let formatted = '';
+    let core = s;
+    const sepIdx = s.indexOf('||');
+    if (sepIdx >= 0) {
+        core = s.slice(0, sepIdx);
+        formatted = s.slice(sepIdx + 2).trim();
+    }
+
+    // 1. Try the formatted display first — it captures the user's intent better
+    //    than the locale-mangled raw value.
+    if (formatted) {
+        const parsed = parseDisplayDate(formatted);
+        if (parsed) return parsed;
+    }
+
+    // 2. ISO: "2026-02-08"
+    if (/^\d{4}-\d{2}-\d{2}/.test(core)) return core.slice(0, 10);
+
+    // 3. gviz JSON: "Date(2026,1,8)" — fallback only when display string was unusable
+    const gvizMatch = core.match(/^Date\((\d+),(\d+),(\d+)/);
     if (gvizMatch) {
         const y = parseInt(gvizMatch[1]);
-        const m = parseInt(gvizMatch[2]) + 1; // 0-indexed!
+        const mo = parseInt(gvizMatch[2]) + 1;
         const d = parseInt(gvizMatch[3]);
-        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     }
 
-    // ISO: "2026-02-08" already
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    // 4. Plain DD/MM or DD-MM in the raw string
+    const dm = parseDisplayDate(core);
+    if (dm) return dm;
 
-    // MM/DD/YYYY or DD/MM/YYYY: ambiguous but US format is more common
-    if (s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length === 3) {
-            const [m, d, y] = parts;
-            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-        }
-    }
-
-    // Last resort: try Date parsing
-    const parsed = new Date(s);
+    // 5. Last resort
+    const parsed = new Date(core);
     if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
 
     return '';
+}
+
+const MONTH_NAMES: Record<string, number> = {
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, sept: 9, oct: 10, nov: 11, dec: 12,
+    january: 1, february: 2, march: 3, april: 4, june: 6, july: 7,
+    august: 8, september: 9, october: 10, november: 11, december: 12,
+};
+
+/**
+ * Parse a human-displayed date string with Indian DD/MM/YYYY bias.
+ * Handles "12/01/2026", "12-01-2026 14:30:00", "12-Jan-26", "12 Jan 2026", etc.
+ * Returns YYYY-MM-DD or empty.
+ */
+function parseDisplayDate(s: string): string {
+    if (!s) return '';
+    // Strip any time portion
+    const datePart = s.split(/[T\s]/)[0];
+    const parts = datePart.split(/[\/\-\.]/);
+    if (parts.length !== 3) return '';
+    const [a, b, c] = parts.map(p => p.trim());
+
+    // Month-name case (unambiguous)
+    const bLow = b.toLowerCase();
+    if (MONTH_NAMES[bLow]) {
+        const day = parseInt(a);
+        const mo = MONTH_NAMES[bLow];
+        let y = parseInt(c);
+        if (y < 100) y += y < 50 ? 2000 : 1900;
+        if (!day || !y) return '';
+        return `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    // All-numeric: assume DD-MM-YYYY (Indian). If first part > 12 it MUST be a
+    // day, so we're definitely in DD-MM. If first part <= 12 it's ambiguous, and
+    // we still bias to DD-MM since this codebase serves Indian institutions.
+    const n1 = parseInt(a), n2 = parseInt(b), n3 = parseInt(c);
+    if (!n1 || !n2 || !n3) return '';
+    if (n1 > 31 || n2 > 31) return '';
+    if (n3 < 100) return '';  // need 4-digit year for confidence
+
+    // If n1 > 12, n1 is day, n2 is month
+    // Otherwise assume DD-MM-YYYY
+    if (n2 > 12) {
+        // Must be MM-DD-YYYY (n2 can't be a month)
+        return `${n3}-${String(n1).padStart(2, '0')}-${String(n2).padStart(2, '0')}`;
+    }
+    return `${n3}-${String(n2).padStart(2, '0')}-${String(n1).padStart(2, '0')}`;
 }
 
 /**
@@ -527,7 +607,20 @@ export async function fetchSheetTab(sheetId: string, tabName: string): Promise<S
         return dataRows.map((row: any) => {
             const o: SheetRow = {};
             cols.forEach((c: string, i: number) => {
-                o[c] = row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '';
+                const cell = row.c[i];
+                if (!cell) { o[c] = ''; return; }
+                // For date-shaped cells the .v is "Date(Y,M,D...)" with 0-indexed
+                // month, but .f is the human-displayed string (e.g. "12/01/2026"
+                // typed in Indian DD/MM by the user but stored as Dec 1 because
+                // the sheet's locale is US). We expose BOTH so parseGvizDate can
+                // prefer the formatted string for ambiguous DD/MM vs MM/DD cases.
+                const v = cell.v ?? '';
+                const f = cell.f ?? '';
+                if (typeof v === 'string' && v.startsWith('Date(') && f) {
+                    o[c] = `${v}||${f}`;
+                } else {
+                    o[c] = v !== '' ? v : f;
+                }
             });
             return o;
         });

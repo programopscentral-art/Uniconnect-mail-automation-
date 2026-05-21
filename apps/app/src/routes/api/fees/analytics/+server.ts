@@ -61,7 +61,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         uniFilterParams.push(universityId);
     }
 
-    const [summary, byUniv, tagCountsRes, periodInfo, dailyTrend, monthlyTrend, statusMix] = await Promise.all([
+    // Per-university transaction totals in the selected window — powers
+    // the "Paid in window" metric in Comparison so the date filter visibly
+    // affects that view too (not just Trend/Overview).
+    const paidByUniParams: any[] = [periodId];
+    let paidByUniSql = `t.period_id = $1`;
+    let pi = 2;
+    if (interval) {
+        paidByUniSql += ` AND t.payment_date >= (CURRENT_DATE - $${pi++}::interval)`;
+        paidByUniParams.push(interval);
+    }
+
+    const [summary, byUniv, tagCountsRes, periodInfo, dailyTrend, monthlyTrend, statusMix, paidByUniInWindow] = await Promise.all([
         getFeeOverallSummary(periodId),
         getFeeUniversityRollup(periodId),
         db.query(
@@ -100,12 +111,32 @@ export const GET: RequestHandler = async ({ url, locals }) => {
              GROUP BY sp.status`,
             uniFilterParams
         ),
+        db.query(
+            `SELECT t.university_id,
+                    COALESCE(SUM(t.amount), 0)::bigint AS paid_in_window,
+                    COUNT(DISTINCT t.zoho_user_id)::int AS students_in_window
+             FROM fee_payment_transactions t
+             WHERE ${paidByUniSql}
+             GROUP BY t.university_id`,
+            paidByUniParams
+        ),
     ]);
+
+    // Merge paid_in_window into byUniv rows
+    const winMap = new Map<string, { paid: number; students: number }>();
+    for (const r of paidByUniInWindow.rows) {
+        winMap.set(r.university_id, { paid: Number(r.paid_in_window), students: Number(r.students_in_window) });
+    }
+    const byUnivEnriched = byUniv.map((u: any) => ({
+        ...u,
+        paid_in_window: winMap.get(u.university_id)?.paid ?? 0,
+        students_in_window: winMap.get(u.university_id)?.students ?? 0,
+    }));
 
     return json({
         period: periodInfo.rows[0] || { name: 'Active Period' },
         summary,
-        byUniv,
+        byUniv: byUnivEnriched,
         tagCounts: tagCountsRes.rows,
         dailyTrend: dailyTrend.rows,
         monthlyTrend: monthlyTrend.rows,
