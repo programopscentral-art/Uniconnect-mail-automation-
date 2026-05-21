@@ -51,7 +51,16 @@ export const handle: Handle = async ({ event, resolve }) => {
     const path = event.url.pathname;
     const isPublic = path.startsWith('/api/auth') || path === '/login' || path === '/accept-invite' || path.startsWith('/track') || path.startsWith('/ack') || path.startsWith('/api/documents/serve') || path === '/api/health' || path.startsWith('/api/ops/view-report') || path.startsWith('/api/ops/full-report') || path.startsWith('/api/webhooks/') || path.startsWith('/fee-ack/') || path.startsWith('/api/fees/doc-ack/');
 
-    if (!isPublic && !event.locals.user) {
+    // Internal worker → app calls authenticate via x-internal-sync-token header
+    // (shared secret), not via session cookie. Without this bypass the hooks
+    // redirect to /login before the endpoint even sees the request, and the
+    // worker gets HTML instead of JSON. The endpoint still validates the
+    // token itself; this just lets the request through to that check.
+    const internalToken = event.request.headers.get('x-internal-sync-token');
+    const expectedInternalToken = env.INTERNAL_SYNC_TOKEN || '';
+    const isInternalCall = !!expectedInternalToken && internalToken === expectedInternalToken;
+
+    if (!isPublic && !isInternalCall && !event.locals.user) {
         return new Response(null, {
             status: 302,
             headers: { Location: '/login' }
