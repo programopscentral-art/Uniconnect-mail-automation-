@@ -611,25 +611,82 @@
                     </div>
                 </div>
 
-                <div class="space-y-2">
+                <!-- Header row -->
+                <div class="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    <div class="col-span-1">#</div>
+                    <div class="col-span-3">University</div>
+                    <div class="col-span-1 text-right">Students</div>
+                    <div class="col-span-5">Paid vs Pending</div>
+                    <div class="col-span-1 text-right">Eff %</div>
+                    <div class="col-span-1 text-right">Pending</div>
+                </div>
+
+                <div class="divide-y divide-slate-100 dark:divide-slate-800">
                     {#each rankedByMetric as u, i}
-                        {@const barVal = metricValOf(u)}
                         {@const rawEff = num(u.collection_efficiency)}
-                        {@const displayVal = isPct ? rawEff :
-                                             rankMetric === 'pending' ? num(u.pending) :
-                                             rankMetric === 'paid' ? num(u.paid) :
-                                             num(u.strength)}
-                        {@const pctW = Math.min(100, (barVal / maxBar) * 100)}
-                        <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }} class="w-full text-left group">
-                            <div class="flex items-center gap-3 mb-1">
-                                <div class="w-7 text-right text-xs font-bold text-slate-400">{i + 1}</div>
-                                <div class="flex-1 text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600">{u.university_name}</div>
-                                <div class="text-sm font-extrabold text-slate-900 dark:text-white">
-                                    {isPct ? `${displayVal.toFixed(1)}%` : (rankMetric === 'strength' ? displayVal.toLocaleString() : fmtInr(displayVal))}
+                        {@const cappedEff = Math.min(100, rawEff)}
+                        {@const paidVal = rangeIsWindow ? num(u.paid_in_window) : num(u.paid)}
+                        {@const pendingVal = num(u.pending)}
+                        {@const payableVal = paidVal + pendingVal}
+                        {@const paidPctOfTotal = payableVal > 0 ? (paidVal / payableVal) * 100 : 0}
+                        {@const pendingPctOfTotal = payableVal > 0 ? (pendingVal / payableVal) * 100 : 0}
+                        {@const effColor = cappedEff >= 95 ? 'text-emerald-600 dark:text-emerald-400' : cappedEff >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
+                        <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }}
+                                class="w-full grid grid-cols-12 gap-3 px-3 py-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-left group transition-colors">
+                            <!-- Rank -->
+                            <div class="col-span-1 flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0
+                                            {i < 3 ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
+                                    {i + 1}
                                 </div>
                             </div>
-                            <div class="ml-10 h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <div class={`h-full bg-gradient-to-r ${COLOR_BY_METRIC[rankMetric]} rounded-full transition-all`} style:width={`${pctW}%`}></div>
+                            <!-- University name -->
+                            <div class="col-span-3 min-w-0">
+                                <div class="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{u.university_name}</div>
+                                <div class="text-[10px] text-slate-400 truncate">{fmtInr(payableVal)} payable</div>
+                            </div>
+                            <!-- Students -->
+                            <div class="col-span-1 text-right">
+                                <div class="text-sm font-bold text-slate-900 dark:text-white">{num(u.strength).toLocaleString()}</div>
+                                <div class="text-[10px] text-slate-400">{num(u.fully_paid)} ✓ · {num(u.not_paid)} ✗</div>
+                            </div>
+                            <!-- Stacked paid/pending bar -->
+                            <div class="col-span-5">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 h-6 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 flex">
+                                        <div title={`Paid: ${fmtInr(paidVal)}`}
+                                             class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-end pr-1.5"
+                                             style:width={`${paidPctOfTotal}%`}>
+                                            {#if paidPctOfTotal > 20}
+                                                <span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(paidVal)}</span>
+                                            {/if}
+                                        </div>
+                                        <div title={`Pending: ${fmtInr(pendingVal)}`}
+                                             class="h-full bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-start pl-1.5"
+                                             style:width={`${pendingPctOfTotal}%`}>
+                                            {#if pendingPctOfTotal > 15}
+                                                <span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(pendingVal)}</span>
+                                            {/if}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-bold">{paidPctOfTotal.toFixed(0)}% paid</span>
+                                    {#if rangeIsWindow}<span class="text-indigo-500 font-bold">in {range}</span>{/if}
+                                    <span class="text-rose-600 dark:text-rose-400 font-bold">{pendingPctOfTotal.toFixed(0)}% pending</span>
+                                </div>
+                            </div>
+                            <!-- Efficiency -->
+                            <div class="col-span-1 text-right">
+                                <div class="text-sm font-extrabold {effColor}">{rawEff.toFixed(1)}%</div>
+                                <div class="h-1 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div class="h-full rounded-full {cappedEff >= 95 ? 'bg-emerald-500' : cappedEff >= 80 ? 'bg-amber-500' : 'bg-rose-500'}" style:width={`${cappedEff}%`}></div>
+                                </div>
+                            </div>
+                            <!-- Pending amount -->
+                            <div class="col-span-1 text-right">
+                                <div class="text-sm font-extrabold {pendingVal > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">{fmtInr(pendingVal)}</div>
+                                <div class="text-[10px] text-slate-400">{num(u.not_paid) + num(u.partial_paid)} owe</div>
                             </div>
                         </button>
                     {/each}
@@ -638,38 +695,147 @@
 
         <!-- DISTRIBUTION -->
         {:else if view === 'distribution'}
-            <div class="space-y-3">
+            <div class="space-y-4">
                 <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
                     <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    Distribution reflects <strong class="text-slate-900 dark:text-white">current state</strong> of all students in the period. The date range filter does not apply to current state — only to Overview/Trend/Comparison-by-paid.
+                    Distribution reflects <strong class="text-slate-900 dark:text-white">current state</strong> of all students. Date range filter only applies to Overview/Trend/Comparison-by-paid.
                 </div>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Payment Status Mix</div>
-                    <div class="text-xs text-slate-500 mb-5">{statusTotal.toLocaleString()} students</div>
-                    <div class="flex items-center justify-center mb-5">
-                        <svg viewBox="0 0 200 200" class="w-56 h-56 -rotate-90">
-                            <circle cx="100" cy="100" r="75" fill="none" stroke="#e2e8f0" stroke-width="24" class="dark:stroke-slate-800" />
-                            <circle cx="100" cy="100" r="75" fill="none" stroke="#10b981" stroke-width="24"
-                                    stroke-dasharray={donutDash(fullyDonutPct, 75)} stroke-linecap="round" />
-                            <circle cx="100" cy="100" r="75" fill="none" stroke="#f59e0b" stroke-width="24"
-                                    stroke-dasharray={donutDash(partialDonutPct, 75)} stroke-dashoffset={-Number(fullyDonutOffset)} stroke-linecap="round" />
-                        </svg>
-                    </div>
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span>Fully Paid</span><span class="font-extrabold">{statusByName['Fully Paid'].toLocaleString()} <span class="text-xs text-slate-400">({fullyPct}%)</span></span></div>
-                        <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500"></span>Partially Paid</span><span class="font-extrabold">{statusByName['Partially Paid'].toLocaleString()} <span class="text-xs text-slate-400">({partialPct}%)</span></span></div>
-                        <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-700"></span>Yet to Pay</span><span class="font-extrabold">{statusByName['Yet To Pay'].toLocaleString()} <span class="text-xs text-slate-400">({notPaidPct}%)</span></span></div>
+
+                <!-- Big hero status card -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
+                        <!-- Big donut with center label -->
+                        <div class="lg:col-span-2 flex flex-col items-center">
+                            <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Payment Status Mix</div>
+                            <div class="text-xs text-slate-500 mb-3">{statusTotal.toLocaleString()} students</div>
+                            <div class="relative w-64 h-64">
+                                <svg viewBox="0 0 200 200" class="w-full h-full -rotate-90">
+                                    <defs>
+                                        <linearGradient id="grStatusFull" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0%" stop-color="#10b981" />
+                                            <stop offset="100%" stop-color="#14b8a6" />
+                                        </linearGradient>
+                                        <linearGradient id="grStatusPartial" x1="0" y1="0" x2="1" y2="1">
+                                            <stop offset="0%" stop-color="#f59e0b" />
+                                            <stop offset="100%" stop-color="#f97316" />
+                                        </linearGradient>
+                                    </defs>
+                                    <circle cx="100" cy="100" r="80" fill="none" stroke="#e2e8f0" stroke-width="22" class="dark:stroke-slate-800" />
+                                    <circle cx="100" cy="100" r="80" fill="none" stroke="url(#grStatusFull)" stroke-width="22"
+                                            stroke-dasharray={donutDash(fullyDonutPct, 80)} stroke-linecap="round" />
+                                    <circle cx="100" cy="100" r="80" fill="none" stroke="url(#grStatusPartial)" stroke-width="22"
+                                            stroke-dasharray={donutDash(partialDonutPct, 80)}
+                                            stroke-dashoffset={-Number(donutDash(fullyDonutPct, 80).split(' ')[0])} stroke-linecap="round" />
+                                </svg>
+                                <!-- Center text -->
+                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                    <div class="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">{fullyPct}%</div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">fully paid</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status breakdown column -->
+                        <div class="lg:col-span-3 space-y-4">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500"></span>
+                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Fully Paid</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{statusByName['Fully Paid'].toLocaleString()}</span>
+                                        <span class="text-xs text-slate-400 ml-1">({fullyPct}%)</span>
+                                    </div>
+                                </div>
+                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style:width={`${fullyPct}%`}></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-amber-500 to-orange-500"></span>
+                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Partially Paid</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-lg font-extrabold text-amber-600 dark:text-amber-400">{statusByName['Partially Paid'].toLocaleString()}</span>
+                                        <span class="text-xs text-slate-400 ml-1">({partialPct}%)</span>
+                                    </div>
+                                </div>
+                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style:width={`${partialPct}%`}></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-rose-500 to-pink-500"></span>
+                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Yet to Pay</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-lg font-extrabold text-rose-600 dark:text-rose-400">{statusByName['Yet To Pay'].toLocaleString()}</span>
+                                        <span class="text-xs text-slate-400 ml-1">({notPaidPct}%)</span>
+                                    </div>
+                                </div>
+                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-rose-500 to-pink-500" style:width={`${notPaidPct}%`}></div>
+                                </div>
+                            </div>
+                            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
+                                <div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Paid</div>
+                                    <div class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{fmtInr(s.total_paid)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending</div>
+                                    <div class="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-1">{fmtInr(s.total_pending)}</div>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avg Eff</div>
+                                    <div class="text-base font-extrabold text-purple-600 dark:text-purple-400 mt-1">{eff.toFixed(1)}%</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
+                <!-- Per-university status stacked bars -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                    <div class="flex items-center justify-between mb-1">
+                        <div>
+                            <div class="text-sm font-bold text-slate-900 dark:text-white">Status Per University</div>
+                            <div class="text-xs text-slate-500 mt-0.5">Stacked: green = fully · amber = partial · rose = not paid</div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 mt-4">
+                        {#each [...byUniv].sort((a: any, b: any) => num(b.strength) - num(a.strength)) as u}
+                            {@const total = num(u.strength) || 1}
+                            {@const fpPct = (num(u.fully_paid) / total) * 100}
+                            {@const ppPct = (num(u.partial_paid) / total) * 100}
+                            {@const npPct = (num(u.not_paid) / total) * 100}
+                            <div class="grid grid-cols-12 gap-3 items-center text-xs">
+                                <div class="col-span-3 truncate font-bold text-slate-900 dark:text-white">{u.university_name}</div>
+                                <div class="col-span-1 text-right text-slate-500">{total.toLocaleString()}</div>
+                                <div class="col-span-7">
+                                    <div class="h-4 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex">
+                                        <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style:width={`${fpPct}%`} title={`Fully: ${u.fully_paid}`}></div>
+                                        <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style:width={`${ppPct}%`} title={`Partial: ${u.partial_paid}`}></div>
+                                        <div class="h-full bg-gradient-to-r from-rose-500 to-pink-500" style:width={`${npPct}%`} title={`Not paid: ${u.not_paid}`}></div>
+                                    </div>
+                                </div>
+                                <div class="col-span-1 text-right font-bold text-emerald-600 dark:text-emerald-400">{fpPct.toFixed(0)}%</div>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+
+                <!-- Bottom: case tags -->
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
                     <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Case Tag Distribution</div>
                     <div class="text-xs text-slate-500 mb-5">{tagTotal.toLocaleString()} tagged students</div>
                     {#if !tagCounts.length}
-                        <div class="text-center py-16">
-                            <div class="text-sm text-slate-500">No tagged cases yet</div>
-                        </div>
+                        <div class="text-center py-12 text-sm text-slate-500">No tagged cases yet</div>
                     {:else}
                         <div class="space-y-3">
                             {#each tagCounts as t}
@@ -690,7 +856,6 @@
                         </div>
                     {/if}
                 </div>
-            </div>
             </div>
 
         <!-- CASES -->
