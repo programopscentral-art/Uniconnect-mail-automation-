@@ -547,10 +547,20 @@ export async function bulkUpsertFeeStudentPayments(periodId: string, rows: Array
     await ensureFeeTables();
     if (!rows.length) return 0;
 
+    // Dedupe by zoho_user_id — Postgres ON CONFLICT can't update the same
+    // row twice in one statement. If a student appears in multiple per-uni
+    // tabs or duplicated within one tab, keep the latest occurrence.
+    const seen = new Map<string, typeof rows[0]>();
+    for (const r of rows) {
+        if (!r.zoho_user_id) continue;
+        seen.set(r.zoho_user_id, r);
+    }
+    const deduped = Array.from(seen.values());
+
     const CHUNK = 200;
     let total = 0;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-        const chunk = rows.slice(i, i + CHUNK);
+    for (let i = 0; i < deduped.length; i += CHUNK) {
+        const chunk = deduped.slice(i, i + CHUNK);
         const params: any[] = [periodId];
         const valueRows: string[] = [];
         let p = 2;

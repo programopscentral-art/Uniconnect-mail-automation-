@@ -1298,6 +1298,30 @@
                                 <div class="text-emerald-600 dark:text-emerald-400">• <strong>{importResult.createdUniversities.length}</strong> universities auto-created: {importResult.createdUniversities.join(', ')}</div>
                             {/if}
                             {#if importResult.elapsed_ms}<div class="opacity-70">• Completed in {(importResult.elapsed_ms / 1000).toFixed(1)}s</div>{/if}
+
+                            {#if importResult.perTab && importResult.perTab.length}
+                                <details class="mt-3" open>
+                                    <summary class="cursor-pointer font-bold text-slate-700 dark:text-slate-300 mb-2">📊 Per-tab breakdown ({importResult.perTab.length} tabs)</summary>
+                                    <div class="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                                        <table class="w-full text-[11px]">
+                                            <thead class="bg-slate-100 dark:bg-slate-800">
+                                                <tr><th class="px-2 py-1.5 text-left">Tab → University</th><th class="px-2 py-1.5 text-right">Rows in tab</th><th class="px-2 py-1.5 text-right">Imported</th><th class="px-2 py-1.5 text-right">Skipped</th><th class="px-2 py-1.5">Status</th></tr>
+                                            </thead>
+                                            <tbody>
+                                                {#each importResult.perTab as t}
+                                                    <tr class="border-t border-slate-100 dark:border-slate-800">
+                                                        <td class="px-2 py-1.5"><div class="font-mono">{t.tab}</div><div class="text-[10px] text-slate-500">→ {t.university}</div></td>
+                                                        <td class="px-2 py-1.5 text-right text-slate-500">{t.rows ?? '—'}</td>
+                                                        <td class="px-2 py-1.5 text-right font-bold {t.ok > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}">{t.ok || 0}</td>
+                                                        <td class="px-2 py-1.5 text-right text-slate-500">{t.skipped || 0}</td>
+                                                        <td class="px-2 py-1.5">{#if t.error}<span class="text-rose-600 text-[10px]">❌ Failed</span>{:else if t.ok > 0}<span class="text-emerald-600 text-[10px]">✓ OK</span>{:else}<span class="text-amber-600 text-[10px]">⚠ 0 imported</span>{/if}</td>
+                                                    </tr>
+                                                {/each}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </details>
+                            {/if}
                             {#if importResult.errors && importResult.errors.length}
                                 {@const hasRealErrors = importResult.errors.some((e: string) => !e.includes('duplicate') && !e.includes('Total'))}
                                 <details class="mt-3" open={hasRealErrors}>
