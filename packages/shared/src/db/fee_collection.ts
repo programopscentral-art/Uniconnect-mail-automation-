@@ -346,7 +346,6 @@ export async function mergeUniversities(sourceId: string, targetId: string): Pro
     student_payments: number;
     transactions: number;
     daily_log: number;
-    summary_deleted: number;
     meta_moved: number;
 }> {
     if (sourceId === targetId) throw new Error('Source and target must differ');
@@ -381,11 +380,8 @@ export async function mergeUniversities(sourceId: string, targetId: string): Pro
         );
         await client.query(`DELETE FROM fee_daily_log WHERE university_id = $1`, [sourceId]);
 
-        // 4. University summary — UNIQUE (period_id, university_id). Prefer target's row, drop source.
-        const sum = await client.query(
-            `DELETE FROM fee_university_summary WHERE university_id = $1`,
-            [sourceId]
-        );
+        // 4. (Removed) fee_university_summary doesn't exist in the schema —
+        // rollup is computed on the fly by getFeeUniversityRollup. Nothing to merge.
 
         // 5. Per-uni meta — UNIQUE (period_id, university_id). If target already
         // has a row for the same period, the source row's fields are merged in
@@ -424,7 +420,6 @@ export async function mergeUniversities(sourceId: string, targetId: string): Pro
             student_payments: sp.rowCount || 0,
             transactions: tx.rowCount || 0,
             daily_log: dl.rowCount || 0,
-            summary_deleted: sum.rowCount || 0,
             meta_moved: metaMoved,
         };
     } catch (e) {
