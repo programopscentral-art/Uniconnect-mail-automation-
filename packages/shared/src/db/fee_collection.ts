@@ -278,6 +278,91 @@ export async function getPeriodsDueForSync() {
     return res.rows;
 }
 
+/**
+ * Merge two universities — moves all fee data from source → target, then
+ * deletes the source row. Used to clean up duplicates created by name
+ * variants in the source sheet (e.g. "Mallareddy" + "MRV").
+ *
+ * Returns counts of rows moved per table. Wrapped in a transaction; either
+ * the whole merge succeeds or nothing changes.
+ */
+export async function mergeUniversities(sourceId: string, targetId: string): Promise<{
+    student_payments: number;
+    transactions: number;
+    daily_log: number;
+    summary_deleted: number;
+    meta_moved: number;
+}> {
+    if (sourceId === targetId) throw new Error('Source and target must differ');
+    await ensureFeeTables();
+
+    const client = await db.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Student payments — uniqueness is (period_id, zoho_user_id), independent of uni
+        const sp = await client.query(
+            `UPDATE fee_student_payments SET university_id = $1 WHERE university_id = $2`,
+            [targetId, sourceId]
+        );
+
+        // 2. Transactions — uniqueness is (zoho_user_id, payment_date, period_id)
+        const tx = await client.query(
+            `UPDATE fee_payment_transactions SET university_id = $1 WHERE university_id = $2`,
+            [targetId, sourceId]
+        );
+
+        // 3. Daily log — UNIQUE (period_id, university_id, date). Merge by summing.
+        const dl = await client.query(
+            `INSERT INTO fee_daily_log (period_id, university_id, date, amount, students_count, notes, created_by)
+             SELECT period_id, $1::uuid, date, amount, students_count, notes, created_by
+             FROM fee_daily_log WHERE university_id = $2
+             ON CONFLICT (period_id, university_id, date) DO UPDATE SET
+                amount = fee_daily_log.amount + EXCLUDED.amount,
+                students_count = fee_daily_log.students_count + EXCLUDED.students_count
+             RETURNING 1`,
+            [targetId, sourceId]
+        );
+        await client.query(`DELETE FROM fee_daily_log WHERE university_id = $1`, [sourceId]);
+
+        // 4. University summary — UNIQUE (period_id, university_id). Prefer target's row, drop source.
+        const sum = await client.query(
+            `DELETE FROM fee_university_summary WHERE university_id = $1`,
+            [sourceId]
+        );
+
+        // 5. Per-uni meta — move (no conflict expected; one row per (period, uni))
+        let metaMoved = 0;
+        try {
+            const meta = await client.query(
+                `UPDATE fee_university_meta SET university_id = $1 WHERE university_id = $2`,
+                [targetId, sourceId]
+            );
+            metaMoved = meta.rowCount || 0;
+        } catch {
+            // table may not exist in older DBs — ignore
+        }
+
+        // 6. Finally delete the source university row itself
+        await client.query(`DELETE FROM universities WHERE id = $1`, [sourceId]);
+
+        await client.query('COMMIT');
+
+        return {
+            student_payments: sp.rowCount || 0,
+            transactions: tx.rowCount || 0,
+            daily_log: dl.rowCount || 0,
+            summary_deleted: sum.rowCount || 0,
+            meta_moved: metaMoved,
+        };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        throw e;
+    } finally {
+        client.release();
+    }
+}
+
 // ─── Doc Requests / Acknowledgments ────────────────────────────────
 
 import * as crypto from 'crypto';

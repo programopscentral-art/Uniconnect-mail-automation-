@@ -49,6 +49,36 @@ function normalizeStatus(raw: string, payable: number, paid: number): string {
     return 'Yet To Pay';
 }
 
+/**
+ * Known university name aliases — different sources spell the same university
+ * differently (full name vs abbreviation, summary tab vs per-uni tab). Keys are
+ * the normalized form (lower-case, alphanumerics only); values are the
+ * canonical normalized form they should resolve to.
+ *
+ * Add entries here whenever the dashboard shows two rows that are the same
+ * real-world university.
+ */
+const UNIVERSITY_ALIASES: Record<string, string> = {
+    'mallareddy': 'mrv',
+    'mallareddyuniversity': 'mrv',
+    'mallareddyvishwavidyapeeth': 'mrv',
+    'kkhhyderabad': 'kkh',
+    'kkhbatch2': 'kkh',
+    'ametuniversity': 'amet',
+    'ametterm3': 'amet',
+    'amettermand3userwisedata': 'amet',
+    'cietcitychalapathi': 'ciet',
+    'auroradeemedtobeuniversity': 'aurora',
+    'aurorauniversity': 'aurora',
+    'crescentuniversity': 'crescent',
+    'takshasilauniversity': 'takshasila',
+    'sguimport': 'sgu',
+};
+
+function applyAlias(key: string): string {
+    return UNIVERSITY_ALIASES[key] || key;
+}
+
 /** Build a fuzzy university name → id map */
 async function buildUniversityIndex(): Promise<Map<string, string>> {
     const all = await getAllUniversities();
@@ -65,14 +95,20 @@ function findUniversityId(idx: Map<string, string>, raw: string): string | null 
     const key = norm(raw);
     if (idx.has(key)) return idx.get(key)!;
 
+    // Alias map: "Mallareddy" → "mrv", "KKH Hyderabad" → "kkh", etc.
+    const aliased = applyAlias(key);
+    if (aliased !== key && idx.has(aliased)) return idx.get(aliased)!;
+
     // Strip common batch/term suffixes that prevent matching
     // "KKH Batch-2" → "kkh", "AMET Term-3" → "amet", "CIET&CITY-Chalapathi" → try "ciet" first
     const stripped = key
         .replace(/batch\d*$/i, '')
         .replace(/term\d*$/i, '')
         .replace(/chalapathi$/i, '');
+    const strippedAliased = applyAlias(stripped);
     if (stripped !== key && stripped.length > 1) {
         if (idx.has(stripped)) return idx.get(stripped)!;
+        if (strippedAliased !== stripped && idx.has(strippedAliased)) return idx.get(strippedAliased)!;
         for (const [k, v] of idx.entries()) {
             if (k.startsWith(stripped) || stripped.startsWith(k)) return v;
         }
