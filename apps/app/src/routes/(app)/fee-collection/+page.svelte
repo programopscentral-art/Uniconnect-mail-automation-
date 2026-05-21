@@ -63,6 +63,85 @@
     let dailyForm = $state({ university_id: '', date: new Date().toISOString().split('T')[0], amount: 0, students_count: 0, notes: '' });
     let savingDaily = $state(false);
 
+    // ─── Daily Report filter state ───────────────────────────────────
+    let dailyRange = $state<'today' | 'week' | 'month' | 'all'>('all');
+    let dailyHideFuture = $state(false);
+
+    const todayStr = () => new Date().toISOString().split('T')[0];
+    function daysAgoStr(n: number) {
+        const d = new Date();
+        d.setDate(d.getDate() - n);
+        return d.toISOString().split('T')[0];
+    }
+    function startOfMonthStr() {
+        const d = new Date();
+        return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+    }
+    function isFutureDate(iso: string): boolean { return iso > todayStr(); }
+    function isToday(iso: string): boolean { return iso === todayStr(); }
+
+    let filteredDaily = $derived.by(() => {
+        const today = todayStr();
+        const monthStart = startOfMonthStr();
+        const weekStart = daysAgoStr(6);
+        return dailyLog.filter((e: any) => {
+            const d = (e.date || '').split('T')[0];
+            if (!d) return false;
+            if (dailyHideFuture && d > today) return false;
+            if (dailyRange === 'today' && d !== today) return false;
+            if (dailyRange === 'week' && (d < weekStart || d > today)) return false;
+            if (dailyRange === 'month' && (d < monthStart || d > today)) return false;
+            return true;
+        });
+    });
+
+    let dailyKpis = $derived.by(() => {
+        const today = todayStr();
+        const monthStart = startOfMonthStr();
+        const weekStart = daysAgoStr(6);
+        let todaySum = 0, weekSum = 0, monthSum = 0, allSum = 0, futureSum = 0;
+        for (const e of dailyLog) {
+            const d = (e.date || '').split('T')[0];
+            const amt = Number(e.amount) || 0;
+            allSum += amt;
+            if (d > today) { futureSum += amt; continue; }
+            if (d === today) todaySum += amt;
+            if (d >= weekStart && d <= today) weekSum += amt;
+            if (d >= monthStart && d <= today) monthSum += amt;
+        }
+        return { today: todaySum, week: weekSum, month: monthSum, all: allSum, future: futureSum };
+    });
+
+    // Group filtered entries by YYYY-MM, sorted descending
+    let dailyByMonth = $derived.by(() => {
+        const map = new Map<string, any[]>();
+        for (const e of filteredDaily) {
+            const d = (e.date || '').split('T')[0];
+            const key = d.slice(0, 7); // YYYY-MM
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(e);
+        }
+        const groups = Array.from(map.entries())
+            .map(([month, entries]) => ({
+                month,
+                entries: entries.sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+                total: entries.reduce((s, e) => s + (Number(e.amount) || 0), 0),
+                students: entries.reduce((s, e) => s + (Number(e.students_count) || 0), 0),
+            }))
+            .sort((a, b) => b.month.localeCompare(a.month));
+        return groups;
+    });
+    function fmtMonth(yyyymm: string): string {
+        try {
+            const [y, m] = yyyymm.split('-').map(Number);
+            return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        } catch { return yyyymm; }
+    }
+    function fmtDow(iso: string): string {
+        try { return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short' }); }
+        catch { return ''; }
+    }
+
     // ─── Doc Request state ────────────────────────────────────────────
     let docMissingStudents = $state<any[]>([]);
     let docRequests = $state<any[]>([]);
@@ -1135,67 +1214,165 @@
 
         <!-- ═══════ DAILY REPORT ═══════ -->
         {:else if activeTab === 'daily'}
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
-                <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap">
-                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                        Daily Collection Log
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold"><Lock size={10} /> Locks 8 PM IST</span>
+            <div class="space-y-4">
+                <!-- KPI strip -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Today</div>
+                        <div class="text-2xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-2">{fmtInr(dailyKpis.today)}</div>
+                        <div class="text-[10px] text-slate-400 mt-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
                     </div>
-                    <div class="flex gap-2 flex-wrap">
-                        <select bind:value={dailyFilterUni} onchange={loadDaily} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
-                            <option value="">All Universities</option>
-                            {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
-                        </select>
-                        {#if data.access.canEditRemarks}
-                            <button onclick={() => showDailyForm = !showDailyForm} class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold flex items-center gap-2 hover:bg-emerald-700">
-                                <Plus size={14} /> Add Entry
-                            </button>
-                        {/if}
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500"></div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Last 7 Days</div>
+                        <div class="text-2xl font-extrabold text-blue-600 dark:text-blue-400 mt-2">{fmtInr(dailyKpis.week)}</div>
+                        <div class="text-[10px] text-slate-400 mt-1">rolling week</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">This Month</div>
+                        <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">{fmtInr(dailyKpis.month)}</div>
+                        <div class="text-[10px] text-slate-400 mt-1">{new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Scheduled (Future)</div>
+                        <div class="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-2">{fmtInr(dailyKpis.future)}</div>
+                        <div class="text-[10px] text-slate-400 mt-1">after {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</div>
                     </div>
                 </div>
+
+                <!-- Filter bar -->
+                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex items-center gap-3 flex-wrap">
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                        <Banknote size={14} class="text-emerald-500" /> Daily Collection Log
+                        <span title="Manual entries lock after 8 PM IST. Auto-aggregated rows from sync are always editable." class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold"><Lock size={10} /> Locks 8 PM IST</span>
+                    </div>
+                    <div class="flex-1"></div>
+                    <div class="flex items-center gap-0 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
+                        {#each [
+                            { id: 'today', label: 'Today' },
+                            { id: 'week', label: '7d' },
+                            { id: 'month', label: 'This month' },
+                            { id: 'all', label: 'All' },
+                        ] as r}
+                            <button onclick={() => dailyRange = r.id as any}
+                                class="px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors
+                                       {dailyRange === r.id ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">
+                                {r.label}
+                            </button>
+                        {/each}
+                    </div>
+                    <label class="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer">
+                        <input type="checkbox" bind:checked={dailyHideFuture} class="w-3.5 h-3.5 rounded accent-indigo-600" />
+                        Hide future
+                    </label>
+                    <select bind:value={dailyFilterUni} onchange={loadDaily} class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                        <option value="">All Universities</option>
+                        {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
+                    </select>
+                    {#if data.access.canEditRemarks}
+                        <button onclick={() => showDailyForm = !showDailyForm} class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5">
+                            <Plus size={12} /> Add Entry
+                        </button>
+                    {/if}
+                </div>
+
                 {#if showDailyForm}
-                    <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4">
+                        <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">New Manual Entry</div>
                         <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                            <select bind:value={dailyForm.university_id} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm">
+                            <select bind:value={dailyForm.university_id} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
                                 <option value="">University…</option>
                                 {#each data.universities as u}<option value={u.id}>{u.short_name || u.name}</option>{/each}
                             </select>
-                            <input type="date" bind:value={dailyForm.date} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
-                            <input type="number" bind:value={dailyForm.amount} placeholder="Amount ₹" class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
-                            <input type="number" bind:value={dailyForm.students_count} placeholder="# Students" class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
-                            <input bind:value={dailyForm.notes} placeholder="Notes..." class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input type="date" bind:value={dailyForm.date} class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input type="number" bind:value={dailyForm.amount} placeholder="Amount ₹" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input type="number" bind:value={dailyForm.students_count} placeholder="# Students" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            <input bind:value={dailyForm.notes} placeholder="Notes…" class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
                         </div>
                         <div class="mt-3 flex gap-2">
-                            <button disabled={savingDaily} onclick={saveDailyEntry} class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{savingDaily ? 'Saving…' : 'Save Entry'}</button>
+                            <button disabled={savingDaily} onclick={saveDailyEntry} class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold disabled:opacity-50">{savingDaily ? 'Saving…' : 'Save Entry'}</button>
                             <button onclick={() => showDailyForm = false} class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-sm font-bold">Cancel</button>
                         </div>
                     </div>
                 {/if}
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead class="bg-slate-50 dark:bg-slate-800/50 text-[10px] font-bold uppercase text-slate-500">
-                            <tr><th class="py-3 px-3 text-left">Date</th><th class="py-3 px-3 text-left">University</th><th class="py-3 px-2 text-right">Amount</th><th class="py-3 px-2 text-right">Students</th><th class="py-3 px-2 text-left">Notes</th><th class="py-3 px-2">Status</th><th class="py-3 px-2"></th></tr>
-                        </thead>
-                        <tbody>
-                            {#if !dailyLog.length}<tr><td colspan="7" class="text-center py-16 text-slate-400">No daily entries yet.</td></tr>{/if}
-                            {#each dailyLog as e}
+
+                <!-- Grouped by month -->
+                {#if !filteredDaily.length}
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl py-16 text-center">
+                        <Banknote size={28} class="inline text-slate-300 dark:text-slate-700" />
+                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 mt-3">No entries in this range</div>
+                        <div class="text-xs text-slate-500 mt-1">Try a wider range or uncheck "Hide future".</div>
+                    </div>
+                {/if}
+                {#each dailyByMonth as group (group.month)}
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
+                        <!-- Month header -->
+                        <div class="px-4 py-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/50 dark:to-slate-900 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-extrabold shadow-md">
+                                    {new Date(group.month + '-01').toLocaleDateString('en-IN', { month: 'short' }).toUpperCase()}
+                                </div>
+                                <div>
+                                    <div class="text-sm font-extrabold text-slate-900 dark:text-white">{fmtMonth(group.month)}</div>
+                                    <div class="text-[10px] text-slate-500">{group.entries.length} {group.entries.length === 1 ? 'entry' : 'entries'} · {group.students.toLocaleString()} students</div>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{fmtInr(group.total)}</div>
+                                <div class="text-[10px] text-slate-400 uppercase tracking-wider">collected</div>
+                            </div>
+                        </div>
+                        <!-- Rows -->
+                        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                            {#each group.entries as e}
+                                {@const dStr = (e.date || '').split('T')[0]}
+                                {@const isFuture = isFutureDate(dStr)}
+                                {@const isTodayRow = isToday(dStr)}
                                 {@const isLocked = e.locked_at != null}
-                                <tr class="border-t border-slate-100 dark:border-slate-800">
-                                    <td class="py-3 px-3 font-mono text-xs">{fmtDate(e.date)}</td>
-                                    <td class="py-3 px-3 font-bold">{e.university_name}</td>
-                                    <td class="py-3 px-2 text-right text-emerald-600 font-bold">{fmtFull(e.amount)}</td>
-                                    <td class="py-3 px-2 text-right font-semibold">{e.students_count}</td>
-                                    <td class="py-3 px-2 text-slate-500 max-w-xs truncate">{e.notes || '—'}</td>
-                                    <td class="py-3 px-2">
-                                        {#if isLocked}<span title="Past 8 PM IST cutoff — cannot edit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-[10px] font-bold"><Lock size={9}/> Locked</span>
-                                        {:else}<span title="Still editable until 8 PM IST" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">Editable</span>{/if}
-                                    </td>
-                                    <td class="py-3 px-2">{#if !isLocked && data.access.canEditRemarks}<button onclick={() => deleteDailyEntry(e.id)} class="text-rose-500 hover:text-rose-700"><Trash2 size={14} /></button>{/if}</td>
-                                </tr>
+                                {@const isAuto = e.notes === 'auto: aggregated from transactions'}
+                                <div class="px-4 py-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <!-- Date column -->
+                                    <div class="flex-shrink-0 w-20 text-center">
+                                        <div class="text-2xl font-extrabold {isTodayRow ? 'text-indigo-600 dark:text-indigo-400' : isFuture ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'} leading-none">
+                                            {new Date(dStr).getDate()}
+                                        </div>
+                                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{fmtDow(dStr)}</div>
+                                    </div>
+                                    <!-- Vertical separator -->
+                                    <div class="h-10 w-px bg-slate-200 dark:bg-slate-700"></div>
+                                    <!-- University + badges -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-sm font-bold text-slate-900 dark:text-white">{e.university_name}</span>
+                                            {#if isTodayRow}<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-100 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300">TODAY</span>{/if}
+                                            {#if isFuture}<span title="This date is after today — likely a scheduled / projected payment from your sheet" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300">SCHEDULED</span>{/if}
+                                            {#if isAuto}<span title="Aggregated from synced transactions — re-runs on each sync" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500"><RefreshCw size={8} /> AUTO</span>
+                                            {:else}<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300">MANUAL</span>{/if}
+                                        </div>
+                                        <div class="text-[10px] text-slate-400 mt-0.5">
+                                            {e.students_count} student{e.students_count === 1 ? '' : 's'}
+                                            {#if !isAuto && e.notes}· {e.notes}{/if}
+                                        </div>
+                                    </div>
+                                    <!-- Amount -->
+                                    <div class="text-right flex-shrink-0">
+                                        <div class="text-lg font-extrabold {isFuture ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}">{fmtInr(e.amount)}</div>
+                                        {#if isLocked}<div class="text-[9px] text-rose-500 font-bold uppercase tracking-wider mt-0.5 flex items-center gap-0.5 justify-end"><Lock size={8} /> Locked</div>{/if}
+                                    </div>
+                                    <!-- Delete (manual only) -->
+                                    <div class="flex-shrink-0 w-7 flex justify-center">
+                                        {#if !isAuto && !isLocked && data.access.canEditRemarks}
+                                            <button onclick={() => deleteDailyEntry(e.id)} title="Delete this manual entry" class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30"><Trash2 size={14} /></button>
+                                        {/if}
+                                    </div>
+                                </div>
                             {/each}
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                    </div>
+                {/each}
             </div>
 
         <!-- ═══════ DOC REQUESTS TAB ═══════ -->
