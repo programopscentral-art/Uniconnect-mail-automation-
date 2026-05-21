@@ -118,7 +118,7 @@ function buildDocRequestEmail(opts: {
             <!-- Header with logo strip -->
             <tr><td style="background:#ffffff;padding:24px 32px;border-bottom:3px solid #A52D2D;text-align:center">
                 <img src="${logoUrl}" alt="NIAT" width="68" height="68" style="display:inline-block;margin:0 auto;border-radius:6px" />
-                <div style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;color:#A52D2D;margin-top:8px;letter-spacing:1px">NXTWAVE INSTITUTE OF ADVANCED TECHNOLOGIES</div>
+                <div style="font-family:Georgia,'Times New Roman',serif;font-size:20px;font-weight:700;color:#A52D2D;margin-top:8px;letter-spacing:1px">NXTWAVE INNOVATION IN ADVANCED TECHNOLOGIES</div>
                 <div style="font-size:11px;color:#8a8a8a;margin-top:2px;letter-spacing:2px;text-transform:uppercase">Office of Fee Collection</div>
             </td></tr>
 
@@ -204,14 +204,14 @@ function buildDocRequestEmail(opts: {
                 <p style="margin:0;font-family:Georgia,serif;font-size:13px;color:#1a1a1a;line-height:1.7">
                     Regards,<br/>
                     <strong>Office of Fee Collection</strong><br/>
-                    NxtWave Institute of Advanced Technologies<br/>
+                    NxtWave Innovation in Advanced Technologies<br/>
                     <span style="color:#8a8a8a;font-size:12px">${opts.universityName}</span>
                 </p>
             </td></tr>
 
             <!-- Footer -->
             <tr><td style="padding:18px 32px;background:#1a1a1a;color:#ffffff;text-align:center">
-                <div style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d4af37">NxtWave · Institute of Advanced Technologies</div>
+                <div style="font-family:Georgia,serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#d4af37">NxtWave · Innovation in Advanced Technologies</div>
                 <div style="font-family:Georgia,serif;font-size:10px;color:#888;margin-top:4px">This is an automated notice from UniConnect Fee Collection · Do not reply to this email</div>
             </td></tr>
 

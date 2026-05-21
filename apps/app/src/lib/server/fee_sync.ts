@@ -9,6 +9,7 @@
 import {
     recordSyncResult,
     bulkUpsertFeeStudentPayments,
+    aggregateTransactionsToDailyLog,
 } from '@uniconnect/shared';
 import {
     fetchSheetTab,
@@ -110,6 +111,14 @@ export async function runFullSync(period: {
             } catch (e: any) {
                 perStep.push({ step: 'summary', tab: cfg.summary_tab, ok: 0, skipped: 0, errors: [e.message?.slice(0, 200)] });
             }
+        }
+
+        // 5. Aggregate transactions → daily collection log (powers Daily Report tab)
+        try {
+            const aggRows = await aggregateTransactionsToDailyLog(period.id);
+            perStep.push({ step: 'aggregate-daily-log', ok: aggRows, skipped: 0 });
+        } catch (e: any) {
+            perStep.push({ step: 'aggregate-daily-log', ok: 0, skipped: 0, errors: [e.message?.slice(0, 200)] });
         }
 
     } catch (e: any) {

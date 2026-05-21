@@ -279,6 +279,47 @@ export async function getPeriodsDueForSync() {
 }
 
 /**
+ * Aggregate every payment transaction in a period into the per-day-per-university
+ * collection log. Called at the end of a sync so the Daily Report tab has data
+ * without anyone manually adding entries.
+ *
+ * Strategy:
+ *   - DELETE all existing auto-generated rows for the period (rows we created
+ *     before this run — identified by notes='auto: aggregated from transactions')
+ *   - INSERT one row per (university_id, date) with SUM(amount) + COUNT(*) students
+ *   - Manual entries (with different notes) are left untouched
+ */
+export async function aggregateTransactionsToDailyLog(periodId: string): Promise<number> {
+    await ensureFeeTables();
+    await db.query(
+        `DELETE FROM fee_daily_log
+         WHERE period_id = $1 AND notes = 'auto: aggregated from transactions'`,
+        [periodId]
+    );
+    const res = await db.query(
+        `INSERT INTO fee_daily_log (period_id, university_id, date, amount, students_count, notes, created_by)
+         SELECT
+            t.period_id,
+            t.university_id,
+            t.payment_date,
+            COALESCE(SUM(t.amount), 0),
+            COUNT(DISTINCT t.zoho_user_id),
+            'auto: aggregated from transactions',
+            NULL
+         FROM fee_payment_transactions t
+         WHERE t.period_id = $1 AND t.university_id IS NOT NULL
+         GROUP BY t.period_id, t.university_id, t.payment_date
+         ON CONFLICT (period_id, university_id, date) DO UPDATE SET
+            amount = EXCLUDED.amount,
+            students_count = EXCLUDED.students_count,
+            notes = EXCLUDED.notes
+         RETURNING 1`,
+        [periodId]
+    );
+    return res.rowCount || 0;
+}
+
+/**
  * Merge two universities — moves all fee data from source → target, then
  * deletes the source row. Used to clean up duplicates created by name
  * variants in the source sheet (e.g. "Mallareddy" + "MRV").
@@ -390,7 +431,10 @@ export async function findStudentsWithoutDocs(periodId: string, opts: {
         params.push(opts.university_id);
     }
     if (opts.only_unpaid) {
-        conditions.push(`sp.status IN ('Yet To Pay', 'Partially Paid')`);
+        // "Unpaid/partial" = actually owes money. Status alone is unreliable
+        // because per-uni tabs without a payable column default to "Yet To Pay"
+        // with payable=0 — those students don't really owe anything.
+        conditions.push(`sp.status IN ('Yet To Pay', 'Partially Paid') AND sp.pending_amount > 0`);
     }
 
     const res = await db.query(
