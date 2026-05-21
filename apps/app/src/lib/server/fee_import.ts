@@ -87,7 +87,11 @@ function applyAlias(key: string): string {
  *
  * Returns the list of merges performed for logging in the sync result.
  */
-export async function autoMergeAliasDuplicates(): Promise<Array<{ from: string; to: string; moved: any }>> {
+export async function autoMergeAliasDuplicates(): Promise<{
+    merged: Array<{ from: string; to: string; moved: any }>;
+    failed: Array<{ from: string; to: string; error: string }>;
+    universities_scanned: number;
+}> {
     const all = await getAllUniversities();
     // Build lookup: normalized_name → array of {id, name}
     const byKey = new Map<string, Array<{ id: string; name: string }>>();
@@ -98,28 +102,28 @@ export async function autoMergeAliasDuplicates(): Promise<Array<{ from: string; 
         byKey.get(key)!.push({ id: u.id, name: u.name });
     }
 
-    const merges: Array<{ from: string; to: string; moved: any }> = [];
+    const merged: Array<{ from: string; to: string; moved: any }> = [];
+    const failed: Array<{ from: string; to: string; error: string }> = [];
 
     // For each alias entry, find both sides and merge source → target
     for (const [aliasKey, canonicalKey] of Object.entries(UNIVERSITY_ALIASES)) {
         const sources = byKey.get(aliasKey) || [];
         const targets = byKey.get(canonicalKey) || [];
         if (!sources.length || !targets.length) continue;
-
-        // Use first target as canonical; merge every source into it
         const target = targets[0];
         for (const source of sources) {
             if (source.id === target.id) continue;
             try {
                 const moved = await mergeUniversities(source.id, target.id);
-                merges.push({ from: source.name, to: target.name, moved });
+                merged.push({ from: source.name, to: target.name, moved });
             } catch (e: any) {
-                // Best effort — keep going if one merge fails
-                console.error(`[autoMergeAliasDuplicates] Failed to merge "${source.name}" → "${target.name}":`, e.message);
+                const msg = e?.message?.slice(0, 300) || String(e);
+                console.error(`[autoMergeAliasDuplicates] "${source.name}" → "${target.name}":`, msg);
+                failed.push({ from: source.name, to: target.name, error: msg });
             }
         }
     }
-    return merges;
+    return { merged, failed, universities_scanned: all.length };
 }
 
 /** Build a fuzzy university name → id map */

@@ -34,8 +34,15 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
     checkFeeAccess(locals, 'admin');
     const body = await request.json();
     if (body.action === 'auto-merge') {
-        const merges = await autoMergeAliasDuplicates();
-        return json({ ok: true, merged: merges.length, details: merges });
+        const result = await autoMergeAliasDuplicates();
+        return json({
+            ok: true,
+            merged: result.merged.length,
+            failed: result.failed.length,
+            universities_scanned: result.universities_scanned,
+            details: result.merged,
+            errors: result.failed,
+        });
     }
     if (body.action === 'merge') {
         if (!body.source_id || !body.target_id) throw error(400, 'source_id and target_id required');

@@ -59,13 +59,16 @@ export async function runFullSync(period: {
         // 0. Auto-merge alias-duplicate universities (e.g. "Mallareddy" + "MRV")
         //    so we start with a clean university list before importing new rows.
         try {
-            const merges = await autoMergeAliasDuplicates();
-            if (merges.length > 0) {
+            const result = await autoMergeAliasDuplicates();
+            if (result.merged.length > 0 || result.failed.length > 0) {
                 perStep.push({
                     step: 'auto-merge',
-                    ok: merges.length,
-                    skipped: 0,
-                    errors: merges.map(m => `Merged "${m.from}" → "${m.to}"`),
+                    ok: result.merged.length,
+                    skipped: result.failed.length,
+                    errors: [
+                        ...result.merged.map(m => `Merged "${m.from}" → "${m.to}"`),
+                        ...result.failed.map(f => `Failed "${f.from}" → "${f.to}": ${f.error}`),
+                    ],
                 });
             }
         } catch (e: any) {

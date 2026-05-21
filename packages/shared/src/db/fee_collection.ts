@@ -387,16 +387,32 @@ export async function mergeUniversities(sourceId: string, targetId: string): Pro
             [sourceId]
         );
 
-        // 5. Per-uni meta — move (no conflict expected; one row per (period, uni))
+        // 5. Per-uni meta — UNIQUE (period_id, university_id). If target already
+        // has a row for the same period, the source row's fields are merged in
+        // (target wins on collisions), then source is deleted. If target has no
+        // row for that period, the source row is moved over.
         let metaMoved = 0;
         try {
-            const meta = await client.query(
-                `UPDATE fee_university_meta SET university_id = $1 WHERE university_id = $2`,
+            // For every period where source has meta but target doesn't, move
+            // source → target.
+            const moved = await client.query(
+                `UPDATE fee_university_meta SET university_id = $1
+                 WHERE university_id = $2
+                   AND period_id NOT IN (
+                     SELECT period_id FROM fee_university_meta WHERE university_id = $1
+                   )`,
                 [targetId, sourceId]
             );
-            metaMoved = meta.rowCount || 0;
-        } catch {
-            // table may not exist in older DBs — ignore
+            metaMoved = moved.rowCount || 0;
+            // Drop any remaining source meta rows (target already has its own
+            // for those periods — keep target's values).
+            await client.query(
+                `DELETE FROM fee_university_meta WHERE university_id = $1`,
+                [sourceId]
+            );
+        } catch (e) {
+            // Table may not exist in older DBs — log but don't abort the txn
+            console.warn('[mergeUniversities] fee_university_meta merge:', (e as any).message);
         }
 
         // 6. Finally delete the source university row itself

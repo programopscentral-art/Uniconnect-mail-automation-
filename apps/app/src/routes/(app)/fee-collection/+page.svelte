@@ -340,8 +340,11 @@
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.message || 'Cleanup failed');
-            if (j.merged === 0) {
-                flash('No duplicate universities found — already clean.');
+            if (j.failed > 0) {
+                const firstErr = j.errors?.[0];
+                flash(`Merged ${j.merged}, ${j.failed} failed: ${firstErr ? `${firstErr.from} → ${firstErr.to}: ${firstErr.error}` : 'see server logs'}`, true);
+            } else if (j.merged === 0) {
+                flash(`No duplicates found (scanned ${j.universities_scanned} universities).`);
             } else {
                 const names = (j.details || []).map((d: any) => `${d.from} → ${d.to}`).join(', ');
                 flash(`Merged ${j.merged} duplicate${j.merged === 1 ? '' : 's'}: ${names}`);
