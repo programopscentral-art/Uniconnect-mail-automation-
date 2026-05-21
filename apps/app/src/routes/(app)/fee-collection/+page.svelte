@@ -477,6 +477,10 @@
     }
     function pct(a: number, b: number): number { return b > 0 ? Math.round((a / b) * 1000) / 10 : 0; }
     function pctColor(v: number): string { return v >= 85 ? '#10b981' : v >= 60 ? '#f59e0b' : '#ef4444'; }
+    // Cap any efficiency/progress percentage at 100% for display. Real value
+    // can mathematically exceed 100% if a student overpaid; raw number is still
+    // available for sorting/CSV export, but the UI never confuses with "100.4%".
+    function capPct(v: any): number { return Math.min(100, Math.max(0, Number(v) || 0)); }
     function statusColor(s: string): string {
         return s === 'Fully Paid' ? 'text-emerald-700 bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300'
              : s === 'Partially Paid' ? 'text-amber-700 bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300'
@@ -973,7 +977,7 @@
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-400"></div>
                 <div class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Avg Efficiency</div>
-                <div class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">{Number(s.avg_efficiency || 0).toFixed(1)}%</div>
+                <div class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">{capPct(s.avg_efficiency).toFixed(1)}%</div>
                 <div class="text-[10px] text-slate-400 mt-1">collection</div>
             </div>
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
@@ -1052,6 +1056,8 @@
                             {/if}
                             {#each sortedRollup as u, i}
                                 {@const p = pct(+u.paid, +u.payable)}
+                                {@const pc = capPct(p)}
+                                {@const eff = capPct(u.collection_efficiency)}
                                 <tr class="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                                     <td class="py-3 px-4 font-bold text-slate-900 dark:text-slate-100">{i + 1}. {u.university_name}</td>
                                     <td class="py-3 px-2 text-right font-medium">{u.strength || 0}</td>
@@ -1059,16 +1065,16 @@
                                     <td class="py-3 px-2 text-right text-rose-600 dark:text-rose-400 font-semibold">{fmtInr(u.pending)}</td>
                                     <td class="py-3 px-2 min-w-[140px]">
                                         <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div class="h-full rounded-full transition-all duration-500" style="width: {Math.min(100, p)}%; background: {pctColor(p)};"></div>
+                                            <div class="h-full rounded-full transition-all duration-500" style="width: {pc}%; background: {pctColor(pc)};"></div>
                                         </div>
-                                        <div class="text-[10px] text-slate-500 mt-1">{p.toFixed(1)}%</div>
+                                        <div class="text-[10px] text-slate-500 mt-1">{pc.toFixed(1)}%</div>
                                     </td>
                                     <td class="py-3 px-2 text-right text-emerald-600 font-bold">{u.fully_paid}</td>
                                     <td class="py-3 px-2 text-right text-amber-600 font-bold">{u.partial_paid}</td>
                                     <td class="py-3 px-2 text-right text-rose-600 font-bold">{u.not_paid}</td>
                                     <td class="py-3 px-2 text-right">
-                                        <span class="inline-block px-2 py-0.5 rounded-md text-xs font-bold" style="color: {pctColor(+u.collection_efficiency)}; background: {pctColor(+u.collection_efficiency)}15;">
-                                            {Number(u.collection_efficiency).toFixed(1)}%
+                                        <span class="inline-block px-2 py-0.5 rounded-md text-xs font-bold" style="color: {pctColor(eff)}; background: {pctColor(eff)}15;">
+                                            {eff.toFixed(1)}%
                                         </span>
                                     </td>
                                 </tr>
@@ -1474,14 +1480,14 @@
         {:else if activeTab === 'universities'}
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {#each sortedRollup as u}
-                    {@const p = pct(+u.paid, +u.payable)}
+                    {@const p = capPct(pct(+u.paid, +u.payable))}
                     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
                         <div class="flex items-center justify-between mb-3">
                             <div class="font-bold text-slate-900 dark:text-slate-100">{u.university_name}</div>
                             <span class="text-lg font-extrabold" style="color: {pctColor(p)};">{p.toFixed(1)}%</span>
                         </div>
                         <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden mb-3">
-                            <div class="h-full rounded-full" style="width: {Math.min(100, p)}%; background: {pctColor(p)};"></div>
+                            <div class="h-full rounded-full" style="width: {p}%; background: {pctColor(p)};"></div>
                         </div>
                         <div class="grid grid-cols-3 gap-2 text-center text-xs">
                             <div><div class="font-bold text-emerald-600">{u.fully_paid}</div><div class="text-[9px] text-slate-400">Full</div></div>
