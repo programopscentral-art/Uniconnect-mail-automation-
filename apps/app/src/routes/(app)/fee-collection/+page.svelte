@@ -1299,14 +1299,17 @@
                             {/if}
                             {#if importResult.elapsed_ms}<div class="opacity-70">• Completed in {(importResult.elapsed_ms / 1000).toFixed(1)}s</div>{/if}
                             {#if importResult.errors && importResult.errors.length}
-                                <details class="mt-3" open>
-                                    <summary class="cursor-pointer font-bold text-rose-700 dark:text-rose-400 mb-2">⚠️ {importResult.errors.length} row{importResult.errors.length === 1 ? '' : 's'} need attention — click to see why</summary>
-                                    <ul class="mt-1 ml-4 text-[11px] text-rose-700 dark:text-rose-400 space-y-0.5 font-mono bg-rose-50/50 dark:bg-rose-950/30 p-2 rounded-lg border border-rose-200/50 dark:border-rose-800/50">
+                                {@const hasRealErrors = importResult.errors.some((e: string) => !e.includes('duplicate') && !e.includes('Total'))}
+                                <details class="mt-3" open={hasRealErrors}>
+                                    <summary class="cursor-pointer font-bold {hasRealErrors ? 'text-rose-700 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'} mb-2">
+                                        {hasRealErrors ? '⚠️' : 'ℹ️'} {importResult.errors.length} note{importResult.errors.length === 1 ? '' : 's'} — click to see details
+                                    </summary>
+                                    <ul class="mt-1 ml-4 text-[11px] {hasRealErrors ? 'text-rose-700 dark:text-rose-400 bg-rose-50/50 dark:bg-rose-950/30 border-rose-200/50 dark:border-rose-800/50' : 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'} space-y-0.5 font-mono p-2 rounded-lg border">
                                         {#each importResult.errors.slice(0, 10) as err}<li>• {err}</li>{/each}
                                     </ul>
-                                    {#if importResult.errors[0]?.includes('Unknown university')}
+                                    {#if importResult.errors.some((e: string) => e.includes('Unknown university')) && hasRealErrors}
                                         <div class="mt-2 text-[11px] text-amber-700 dark:text-amber-400 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                                            💡 <strong>Fix:</strong> Either rename these universities in your Google Sheet to match exactly what's in your Universities admin, OR add the missing universities to UniConnect first.
+                                            💡 <strong>Fix:</strong> These universities will now be auto-created on next import. Just re-run.
                                         </div>
                                     {/if}
                                 </details>
