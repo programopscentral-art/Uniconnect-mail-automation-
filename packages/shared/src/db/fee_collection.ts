@@ -352,78 +352,69 @@ export async function mergeUniversities(sourceId: string, targetId: string): Pro
     await ensureFeeTables();
 
     const client = await db.connect();
+
+    // Run a query inside a SAVEPOINT so that if it fails, only that step rolls
+    // back — the rest of the merge continues. Without this, any single error
+    // inside a Postgres txn poisons every subsequent query with "current
+    // transaction is aborted, commands ignored".
+    async function step(name: string, sql: string, params: any[]): Promise<number> {
+        const sp = `sp_${name}`;
+        try {
+            await client.query(`SAVEPOINT ${sp}`);
+            const res = await client.query(sql, params);
+            await client.query(`RELEASE SAVEPOINT ${sp}`);
+            return res.rowCount || 0;
+        } catch (e: any) {
+            console.warn(`[mergeUniversities:${name}] ${e.message}`);
+            try { await client.query(`ROLLBACK TO SAVEPOINT ${sp}`); } catch {}
+            return 0;
+        }
+    }
+
     try {
         await client.query('BEGIN');
 
-        // 1. Student payments — uniqueness is (period_id, zoho_user_id), independent of uni
-        const sp = await client.query(
-            `UPDATE fee_student_payments SET university_id = $1 WHERE university_id = $2`,
-            [targetId, sourceId]
-        );
+        // 1. Student payments — uniqueness is (period_id, zoho_user_id), uni-independent
+        const sp = await step('sp', `UPDATE fee_student_payments SET university_id = $1 WHERE university_id = $2`, [targetId, sourceId]);
 
-        // 2. Transactions — uniqueness is (zoho_user_id, payment_date, period_id)
-        const tx = await client.query(
-            `UPDATE fee_payment_transactions SET university_id = $1 WHERE university_id = $2`,
-            [targetId, sourceId]
-        );
+        // 2. Transactions
+        const tx = await step('tx', `UPDATE fee_payment_transactions SET university_id = $1 WHERE university_id = $2`, [targetId, sourceId]);
 
-        // 3. Daily log — UNIQUE (period_id, university_id, date). Merge by summing.
-        const dl = await client.query(
+        // 3. Daily log — merge by summing on (period, uni, date) conflicts
+        const dl = await step('dl_insert',
             `INSERT INTO fee_daily_log (period_id, university_id, date, amount, students_count, notes, created_by)
              SELECT period_id, $1::uuid, date, amount, students_count, notes, created_by
              FROM fee_daily_log WHERE university_id = $2
              ON CONFLICT (period_id, university_id, date) DO UPDATE SET
                 amount = fee_daily_log.amount + EXCLUDED.amount,
-                students_count = fee_daily_log.students_count + EXCLUDED.students_count
-             RETURNING 1`,
-            [targetId, sourceId]
-        );
-        await client.query(`DELETE FROM fee_daily_log WHERE university_id = $1`, [sourceId]);
+                students_count = fee_daily_log.students_count + EXCLUDED.students_count`,
+            [targetId, sourceId]);
+        await step('dl_del', `DELETE FROM fee_daily_log WHERE university_id = $1`, [sourceId]);
 
-        // 4. (Removed) fee_university_summary doesn't exist in the schema —
-        // rollup is computed on the fly by getFeeUniversityRollup. Nothing to merge.
+        // 4. Per-uni meta — UNIQUE (period_id, university_id). Move where target
+        // doesn't already have a row for that period, then drop the rest.
+        const metaMoved = await step('meta_move',
+            `UPDATE fee_university_meta SET university_id = $1
+             WHERE university_id = $2
+               AND period_id NOT IN (SELECT period_id FROM fee_university_meta WHERE university_id = $1)`,
+            [targetId, sourceId]);
+        await step('meta_del', `DELETE FROM fee_university_meta WHERE university_id = $1`, [sourceId]);
 
-        // 5. Per-uni meta — UNIQUE (period_id, university_id). If target already
-        // has a row for the same period, the source row's fields are merged in
-        // (target wins on collisions), then source is deleted. If target has no
-        // row for that period, the source row is moved over.
-        let metaMoved = 0;
-        try {
-            // For every period where source has meta but target doesn't, move
-            // source → target.
-            const moved = await client.query(
-                `UPDATE fee_university_meta SET university_id = $1
-                 WHERE university_id = $2
-                   AND period_id NOT IN (
-                     SELECT period_id FROM fee_university_meta WHERE university_id = $1
-                   )`,
-                [targetId, sourceId]
-            );
-            metaMoved = moved.rowCount || 0;
-            // Drop any remaining source meta rows (target already has its own
-            // for those periods — keep target's values).
-            await client.query(
-                `DELETE FROM fee_university_meta WHERE university_id = $1`,
-                [sourceId]
-            );
-        } catch (e) {
-            // Table may not exist in older DBs — log but don't abort the txn
-            console.warn('[mergeUniversities] fee_university_meta merge:', (e as any).message);
-        }
-
-        // 6. Finally delete the source university row itself
-        await client.query(`DELETE FROM universities WHERE id = $1`, [sourceId]);
+        // 5. Finally delete the source university row itself. Any straggler
+        // children get CASCADE-deleted (we tried to move them above; anything
+        // left is target's anyway).
+        await step('uni_del', `DELETE FROM universities WHERE id = $1`, [sourceId]);
 
         await client.query('COMMIT');
 
         return {
-            student_payments: sp.rowCount || 0,
-            transactions: tx.rowCount || 0,
-            daily_log: dl.rowCount || 0,
+            student_payments: sp,
+            transactions: tx,
+            daily_log: dl,
             meta_moved: metaMoved,
         };
     } catch (e) {
-        await client.query('ROLLBACK');
+        try { await client.query('ROLLBACK'); } catch {}
         throw e;
     } finally {
         client.release();
