@@ -140,17 +140,21 @@
     let importMode = $state<'sheet' | 'csv'>('sheet');
     let importSheetId = $state('1TAhrH4303o81dqps1j-ZNYt1QjWHhfmY5gjwnz_2GBM');
     let importTabName = $state('Userwise Data');
-    let importDataset = $state<'userwise' | 'daywise' | 'summary'>('userwise');
+    let importDataset = $state<'userwise' | 'daywise' | 'summary' | 'multi-tab'>('userwise');
     let importFile = $state<File | null>(null);
     let importRemarks = $state(false);
     let importing = $state(false);
     let importResult = $state<any>(null);
+
+    // Multi-tab state
+    let multiTabList = $state('Aurora University\nCrescent University\nMalla Reddy\nTakshasila University\nSGU_Import\nMRV\namet term 2 & 3 userwise data');
 
     // Default tab names per dataset — auto-fills when user picks a radio
     const DATASET_DEFAULT_TAB: Record<string, string> = {
         userwise: 'Userwise Data',
         daywise: 'Day_Wise_Payments',
         summary: 'Sheet1',
+        'multi-tab': '',
     };
     // When dataset changes, override the tab name to match (unless user has typed a custom one)
     let lastDatasetForTab = $state<string>('userwise');
@@ -482,7 +486,21 @@
         importResult = null;
         try {
             let res: Response;
-            if (importMode === 'sheet') {
+            if (importMode === 'sheet' && importDataset === 'multi-tab') {
+                const tabs = multiTabList.split('\n').map(t => t.trim()).filter(Boolean);
+                if (!tabs.length) { flash('Add at least one tab name', true); importing = false; return; }
+                res = await fetch('/api/fees/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        period_id: activePeriodId,
+                        mode: 'multi-tab',
+                        sheet_id: importSheetId,
+                        tabs: tabs.map(t => ({ name: t, university_name: t.replace(/\s*University\s*$/i, '').replace(/_Import$/i, '').replace(/\s+userwise data$/i, '').trim() })),
+                        import_remarks: importRemarks,
+                    })
+                });
+            } else if (importMode === 'sheet') {
                 if (!importSheetId || !importTabName) { flash('Sheet ID and tab name required', true); importing = false; return; }
                 res = await fetch('/api/fees/import', {
                     method: 'POST',
@@ -1210,6 +1228,13 @@
                                 <div class="text-[11px] text-slate-500 mt-0.5">Just Fully/Partial/Null counts per university. From <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">Sheet1</code>. ~20 rows.</div>
                             </div>
                         </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all {importDataset === 'multi-tab' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' : 'border-slate-200 dark:border-slate-700'}">
+                            <input type="radio" bind:group={importDataset} value="multi-tab" class="mt-1" />
+                            <div class="flex-1">
+                                <div class="font-bold text-sm">🌐 All Universities (multi-tab) <span class="text-[10px] font-normal text-emerald-600 ml-1">← For sheets with one tab per university</span></div>
+                                <div class="text-[11px] text-slate-500 mt-0.5">Imports student data from multiple per-university tabs at once. University name auto-derived from the tab name.</div>
+                            </div>
+                        </label>
                     </div>
                 </div>
 
@@ -1220,26 +1245,36 @@
                     </label>
                 {/if}
 
+                {#if importDataset === 'multi-tab' && importMode === 'sheet'}
+                    <div>
+                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Tab names — one per line</label>
+                        <textarea bind:value={multiTabList} rows="8" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono"></textarea>
+                        <div class="text-[10px] text-slate-400 mt-1">University name is auto-derived from each tab name (e.g. "Aurora University" → "Aurora"). Universities not in your system will be auto-created.</div>
+                    </div>
+                {/if}
+
                 {#if importMode === 'sheet'}
                     <div>
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Google Sheet ID</label>
                         <input bind:value={importSheetId} placeholder="From the URL between /d/ and /edit" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
                         <div class="text-[10px] text-slate-400 mt-1">Make sure the sheet is shared with "Anyone with the link → Viewer".</div>
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Tab Name</label>
-                        <input bind:value={importTabName} placeholder="e.g. Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
-                        {#if importTabName !== DATASET_DEFAULT_TAB[importDataset]}
-                            <div class="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300">
-                                ⚠️ Tab name doesn't match your dataset choice. Expected: <button onclick={() => importTabName = DATASET_DEFAULT_TAB[importDataset]} class="font-bold font-mono underline">{DATASET_DEFAULT_TAB[importDataset]}</button>
+                    {#if importDataset !== 'multi-tab'}
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Tab Name</label>
+                            <input bind:value={importTabName} placeholder="e.g. Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
+                            {#if importTabName !== DATASET_DEFAULT_TAB[importDataset]}
+                                <div class="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-700 dark:text-amber-300">
+                                    ⚠️ Tab name doesn't match your dataset choice. Expected: <button onclick={() => importTabName = DATASET_DEFAULT_TAB[importDataset]} class="font-bold font-mono underline">{DATASET_DEFAULT_TAB[importDataset]}</button>
+                                </div>
+                            {/if}
+                            <div class="text-[10px] text-slate-400 mt-1">
+                                Quick-pick: <button onclick={() => { importDataset = 'userwise'; importTabName = 'Userwise Data'; }} class="text-indigo-500 hover:underline font-mono">Userwise Data</button> ·
+                                <button onclick={() => { importDataset = 'daywise'; importTabName = 'Day_Wise_Payments'; }} class="text-indigo-500 hover:underline font-mono">Day_Wise_Payments</button> ·
+                                <button onclick={() => { importDataset = 'summary'; importTabName = 'Sheet1'; }} class="text-indigo-500 hover:underline font-mono">Sheet1</button>
                             </div>
-                        {/if}
-                        <div class="text-[10px] text-slate-400 mt-1">
-                            Quick-pick: <button onclick={() => { importDataset = 'userwise'; importTabName = 'Userwise Data'; }} class="text-indigo-500 hover:underline font-mono">Userwise Data</button> ·
-                            <button onclick={() => { importDataset = 'daywise'; importTabName = 'Day_Wise_Payments'; }} class="text-indigo-500 hover:underline font-mono">Day_Wise_Payments</button> ·
-                            <button onclick={() => { importDataset = 'summary'; importTabName = 'Sheet1'; }} class="text-indigo-500 hover:underline font-mono">Sheet1</button>
                         </div>
-                    </div>
+                    {/if}
                 {:else}
                     <div>
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">CSV File</label>

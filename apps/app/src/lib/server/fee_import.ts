@@ -139,12 +139,22 @@ export async function importUserwiseRows(
     periodId: string,
     rows: SheetRow[],
     userId?: string,
-    opts: { importRemarks?: boolean } = {}
+    opts: { importRemarks?: boolean; forcedUniversityName?: string } = {}
 ): Promise<{ ok: number; skipped: number; errors: string[]; tagged: number; remarksImported: number; createdUniversities: string[] }> {
     const uniIdx = await buildUniversityIndex();
     const createdUniversities: string[] = [];
     let skipped = 0, tagged = 0, remarksImported = 0;
     const errors: string[] = [];
+
+    // If forcedUniversityName is given (per-uni tab import), resolve it ONCE
+    // and use the same university_id for every row in this batch.
+    let forcedUniversityId: string | null = null;
+    if (opts.forcedUniversityName) {
+        forcedUniversityId = await findOrCreateUniversity(uniIdx, opts.forcedUniversityName, createdUniversities);
+        if (!forcedUniversityId) {
+            return { ok: 0, skipped: rows.length, errors: [`Could not find or create university "${opts.forcedUniversityName}"`], tagged: 0, remarksImported: 0, createdUniversities };
+        }
+    }
 
     // Pass 1: validate + collect all rows into a single bulk insert
     type ParsedRow = {
@@ -163,23 +173,30 @@ export async function importUserwiseRows(
 
     for (const row of rows) {
         try {
-            const zoho = String(pick(row, ['user id', 'userid', 'student id', 'zoho user id', 'payment link user id']) || '').trim();
-            const uniRaw = String(pick(row, ['university', 'college', 'uni']) || '').trim();
-            if (!zoho || !uniRaw) { skipped++; continue; }
+            const zoho = String(pick(row, ['user id', 'userid', 'uid', 'student id', 'zoho user id', 'payment link user id']) || '').trim();
 
-            const universityId = await findOrCreateUniversity(uniIdx, uniRaw, createdUniversities);
-            if (!universityId) {
-                if (errors.length < 20) errors.push(`Could not match or create university "${uniRaw}" for ${zoho.slice(0, 8)}`);
-                skipped++;
-                continue;
+            let universityId: string | null;
+            if (forcedUniversityId) {
+                // Per-uni tab — use forced university for every row
+                if (!zoho) { skipped++; continue; }
+                universityId = forcedUniversityId;
+            } else {
+                const uniRaw = String(pick(row, ['university', 'college', 'uni']) || '').trim();
+                if (!zoho || !uniRaw) { skipped++; continue; }
+                universityId = await findOrCreateUniversity(uniIdx, uniRaw, createdUniversities);
+                if (!universityId) {
+                    if (errors.length < 20) errors.push(`Could not match or create university "${uniRaw}" for ${zoho.slice(0, 8)}`);
+                    skipped++;
+                    continue;
+                }
             }
 
-            const payable = toNum(pick(row, ['total term 2 fee payabale', 'total term 2 fee payable', 'payable', 'fee']));
-            const paid = toNum(pick(row, ['total term 2 fee paid', 'paid amount', 'paid']));
+            const payable = toNum(pick(row, ['total term 2 fee payabale', 'total term 2 fee payable', 'payable', 'fee', 'amount']));
+            const paid = toNum(pick(row, ['total term 2 fee paid', 'paid amount', '2nd sem fee paid', 'paid']));
             const statusRaw = String(pick(row, ['payment status', 'status']) || '').trim();
             const coach = String(pick(row, ['success coach name', 'success coach', 'coach']) || '').trim();
             const activeStatus = String(pick(row, ['active status from zoho', 'active status', 'zoho status']) || '').trim();
-            const studentName = String(pick(row, ['student name', 'name', 'names']) || '').trim();
+            const studentName = String(pick(row, ['student name', 'name as per ssc', 'name', 'names']) || '').trim();
             const status = normalizeStatus(statusRaw, payable, paid);
 
             const link = pick(row, ['link']);

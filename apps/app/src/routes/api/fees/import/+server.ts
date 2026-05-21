@@ -23,7 +23,56 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const contentType = request.headers.get('content-type') || '';
 
     let periodId = ''; let dataset = 'userwise'; let rows: any[] = []; let importRemarks = false;
+    const body = contentType.includes('multipart/form-data') ? null : await request.json();
 
+    // ── MULTI-TAB MODE: loop through several per-university tabs ──
+    // body: { period_id, mode: 'multi-tab', sheet_id, tabs: [{name, university_name}, ...] }
+    if (body?.mode === 'multi-tab') {
+        if (!body.period_id || !body.sheet_id || !Array.isArray(body.tabs)) {
+            throw error(400, 'period_id, sheet_id, and tabs[] required for multi-tab mode');
+        }
+        const t0 = Date.now();
+        const perTab: any[] = [];
+        let totalOk = 0, totalSkipped = 0, totalCreated = 0, totalTagged = 0;
+        const allErrors: string[] = [];
+        const allCreatedUnis: string[] = [];
+
+        for (const tab of body.tabs) {
+            const tabName = typeof tab === 'string' ? tab : tab.name;
+            const forcedUniName = typeof tab === 'string' ? tab : (tab.university_name || tab.name);
+            try {
+                const tabRows = await fetchSheetTab(body.sheet_id, tabName);
+                const result = await importUserwiseRows(body.period_id, tabRows, locals.user!.id, {
+                    importRemarks: !!body.import_remarks,
+                    forcedUniversityName: forcedUniName,
+                });
+                totalOk += result.ok;
+                totalSkipped += result.skipped;
+                totalCreated += result.createdUniversities.length;
+                totalTagged += result.tagged;
+                allErrors.push(...result.errors.slice(0, 3).map((e: string) => `[${tabName}] ${e}`));
+                allCreatedUnis.push(...result.createdUniversities);
+                perTab.push({ tab: tabName, university: forcedUniName, ok: result.ok, skipped: result.skipped, rows: tabRows.length });
+            } catch (e: any) {
+                allErrors.push(`[${tabName}] Failed to fetch: ${e.message?.slice(0, 80)}`);
+                perTab.push({ tab: tabName, university: forcedUniName, ok: 0, skipped: 0, error: e.message });
+            }
+        }
+
+        return json({
+            mode: 'multi-tab',
+            ok: totalOk,
+            skipped: totalSkipped,
+            tagged: totalTagged,
+            createdUniversities: allCreatedUnis,
+            errors: allErrors,
+            perTab,
+            tabs_processed: body.tabs.length,
+            elapsed_ms: Date.now() - t0,
+        });
+    }
+
+    // ── SINGLE-TAB MODE (existing flow) ──
     if (contentType.includes('multipart/form-data')) {
         const form = await request.formData();
         periodId = String(form.get('period_id') || '');
@@ -34,7 +83,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const text = await file.text();
         rows = parseCSV(text);
     } else {
-        const body = await request.json();
         periodId = body.period_id;
         dataset = body.dataset || 'userwise';
         importRemarks = !!body.import_remarks;
