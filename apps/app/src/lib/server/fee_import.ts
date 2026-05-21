@@ -512,18 +512,21 @@ function parseDisplayDate(s: string): string {
     // All-numeric: assume DD-MM-YYYY (Indian). If first part > 12 it MUST be a
     // day, so we're definitely in DD-MM. If first part <= 12 it's ambiguous, and
     // we still bias to DD-MM since this codebase serves Indian institutions.
-    const n1 = parseInt(a), n2 = parseInt(b), n3 = parseInt(c);
-    if (!n1 || !n2 || !n3) return '';
+    const n1 = parseInt(a), n2 = parseInt(b), n3raw = parseInt(c);
+    if (!n1 || !n2 || !n3raw) return '';
     if (n1 > 31 || n2 > 31) return '';
-    if (n3 < 100) return '';  // need 4-digit year for confidence
 
-    // If n1 > 12, n1 is day, n2 is month
-    // Otherwise assume DD-MM-YYYY
+    // Expand 2-digit year. "26" → 2026, "98" → 1998.
+    let y = n3raw;
+    if (y < 100) y += y < 50 ? 2000 : 1900;
+    if (y < 1900 || y > 2100) return '';
+
+    // If n2 > 12, n2 can't be a month → must be MM-DD-YYYY
     if (n2 > 12) {
-        // Must be MM-DD-YYYY (n2 can't be a month)
-        return `${n3}-${String(n1).padStart(2, '0')}-${String(n2).padStart(2, '0')}`;
+        return `${y}-${String(n1).padStart(2, '0')}-${String(n2).padStart(2, '0')}`;
     }
-    return `${n3}-${String(n2).padStart(2, '0')}-${String(n1).padStart(2, '0')}`;
+    // Otherwise assume DD-MM-YYYY (Indian bias)
+    return `${y}-${String(n2).padStart(2, '0')}-${String(n1).padStart(2, '0')}`;
 }
 
 /**
