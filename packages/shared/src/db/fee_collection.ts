@@ -255,10 +255,25 @@ export async function updateFeePeriodSync(id: string, updates: {
 
 export async function recordSyncResult(periodId: string, summary: any, error?: string | null) {
     await ensureFeeTables();
-    await db.query(
-        `UPDATE fee_periods SET last_synced_at = now(), last_sync_summary = $2, last_sync_error = $3 WHERE id = $1`,
-        [periodId, JSON.stringify(summary || {}), error || null]
-    );
+    // Only bump last_synced_at on a real success (no error AND we got a summary
+    // with something imported). Failures still update last_sync_error so the
+    // banner shows, but the "Last synced X ago" timestamp keeps reflecting the
+    // last actually-successful run.
+    if (!error && summary) {
+        await db.query(
+            `UPDATE fee_periods
+                SET last_synced_at = now(),
+                    last_sync_summary = $2,
+                    last_sync_error = NULL
+              WHERE id = $1`,
+            [periodId, JSON.stringify(summary)]
+        );
+    } else {
+        await db.query(
+            `UPDATE fee_periods SET last_sync_error = $2 WHERE id = $1`,
+            [periodId, error || 'unknown error']
+        );
+    }
 }
 
 /**
