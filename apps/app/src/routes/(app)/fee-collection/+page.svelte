@@ -14,6 +14,12 @@
     let activeTab = $state<Tab>('collection');
     let activePeriodId = $state<string>(data.activePeriod?.id || data.periods[0]?.id || '');
 
+    // Local reactive copy of periods so Sync Now can refresh sync metadata
+    // (last_synced_at, last_sync_error, last_sync_summary) without a page reload.
+    // Mutating data.periods directly doesn't trigger reactivity because data comes
+    // from $props().
+    let periods = $state<any[]>([...data.periods]);
+
     // ─── Data state ───────────────────────────────────────────────────
     let summary = $state<any>(null);
     let uniRollup = $state<any[]>([]);
@@ -156,7 +162,7 @@
     let syncingPeriodId = $state<string | null>(null);
     let syncResult = $state<any>(null);
 
-    let activePeriod = $derived(data.periods.find((p: any) => p.id === activePeriodId) || data.periods[0]);
+    let activePeriod = $derived(periods.find((p: any) => p.id === activePeriodId) || periods[0]);
 
     function openNewBatch() {
         batchForm = {
@@ -229,7 +235,13 @@
             if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.message || `Failed (${res.status})`); }
             flash(batchForm.id ? 'Batch updated' : 'Batch created');
             showBatchModal = false;
-            window.location.reload(); // refresh periods list
+            await refreshActivePeriod();
+            // If we just created a new batch, switch to it
+            if (!batchForm.id) {
+                const fresh = await fetch('/api/fees/periods').then(r => r.json()).catch(() => []);
+                const newOne = fresh[0];
+                if (newOne) activePeriodId = newOne.id;
+            }
         } catch (e: any) {
             flash(e?.message || 'Save failed', true);
         } finally {
@@ -255,18 +267,13 @@
     }
 
     // Refresh the active period's sync metadata (last_synced_at, last_sync_error, last_sync_summary)
-    // so the status strip + error banner reflect the latest state without a full page reload.
+    // so the status strip + error banner reflect the latest state without a page reload.
     async function refreshActivePeriod() {
         try {
             const res = await fetch('/api/fees/periods');
             if (!res.ok) return;
             const fresh = await res.json();
-            // Replace the period objects in data.periods in place so $derived picks it up
-            for (let i = 0; i < data.periods.length; i++) {
-                const updated = fresh.find((p: any) => p.id === data.periods[i].id);
-                if (updated) data.periods[i] = updated;
-            }
-            data.periods = [...data.periods];
+            periods = fresh;
         } catch {}
     }
 
@@ -770,7 +777,7 @@
             </div>
             <div class="flex items-center gap-2 flex-wrap">
                 <select bind:value={activePeriodId} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm font-medium">
-                    {#each data.periods as p}
+                    {#each periods as p}
                         <option value={p.id}>{p.name}</option>
                     {/each}
                 </select>
