@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getFeeUniversityRollup, getFeeOverallSummary, upsertFeeUniversityMeta, mergeUniversities } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
+import { autoMergeAliasDuplicates } from '$lib/server/fee_import';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
     checkFeeAccess(locals, 'view');
@@ -24,16 +25,22 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 };
 
 /**
- * Merge duplicate universities: moves all fee data from `source_id` into
- * `target_id`, then deletes the source row. Admin only.
- *
- * Example: POST /api/fees/universities/merge { source_id, target_id }
+ * Two admin actions:
+ *   - action='merge' { source_id, target_id }  — manual one-to-one merge
+ *   - action='auto-merge'                       — runs autoMergeAliasDuplicates,
+ *     cleaning up every known alias-pair in one go (e.g. "Mallareddy" → "MRV")
  */
 export const PATCH: RequestHandler = async ({ request, locals }) => {
     checkFeeAccess(locals, 'admin');
     const body = await request.json();
-    if (body.action !== 'merge') throw error(400, 'action must be "merge"');
-    if (!body.source_id || !body.target_id) throw error(400, 'source_id and target_id required');
-    const result = await mergeUniversities(body.source_id, body.target_id);
-    return json({ ok: true, ...result });
+    if (body.action === 'auto-merge') {
+        const merges = await autoMergeAliasDuplicates();
+        return json({ ok: true, merged: merges.length, details: merges });
+    }
+    if (body.action === 'merge') {
+        if (!body.source_id || !body.target_id) throw error(400, 'source_id and target_id required');
+        const result = await mergeUniversities(body.source_id, body.target_id);
+        return json({ ok: true, ...result });
+    }
+    throw error(400, 'action must be "merge" or "auto-merge"');
 };

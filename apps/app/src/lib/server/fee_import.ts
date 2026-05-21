@@ -16,6 +16,7 @@ import {
     upsertFeeTransaction,
     bulkUpsertFeeTransactions,
     upsertFeeUniversityMeta,
+    mergeUniversities,
 } from '@uniconnect/shared';
 
 type SheetRow = Record<string, any>;
@@ -87,7 +88,6 @@ function applyAlias(key: string): string {
  * Returns the list of merges performed for logging in the sync result.
  */
 export async function autoMergeAliasDuplicates(): Promise<Array<{ from: string; to: string; moved: any }>> {
-    const { mergeUniversities, getAllUniversities } = await import('@uniconnect/shared');
     const all = await getAllUniversities();
     // Build lookup: normalized_name → array of {id, name}
     const byKey = new Map<string, Array<{ id: string; name: string }>>();

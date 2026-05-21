@@ -328,6 +328,32 @@
         }
     }
 
+    let cleaningDuplicates = $state(false);
+    async function cleanupDuplicates() {
+        if (cleaningDuplicates) return;
+        cleaningDuplicates = true;
+        try {
+            const res = await fetch('/api/fees/universities', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'auto-merge' }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.message || 'Cleanup failed');
+            if (j.merged === 0) {
+                flash('No duplicate universities found — already clean.');
+            } else {
+                const names = (j.details || []).map((d: any) => `${d.from} → ${d.to}`).join(', ');
+                flash(`Merged ${j.merged} duplicate${j.merged === 1 ? '' : 's'}: ${names}`);
+            }
+            await loadRollup();
+        } catch (e: any) {
+            flash(e?.message || 'Cleanup failed', true);
+        } finally {
+            cleaningDuplicates = false;
+        }
+    }
+
     async function syncNow(periodId: string) {
         syncingPeriodId = periodId;
         syncResult = null;
@@ -839,6 +865,13 @@
                             {/if}
                         </button>
                     {/if}
+                    <button onclick={cleanupDuplicates} disabled={cleaningDuplicates} class="px-2.5 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-bold border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/60 disabled:opacity-60 flex items-center gap-1.5" title="Merge alias-duplicate universities (e.g. Mallareddy → MRV)">
+                        {#if cleaningDuplicates}
+                            <Loader2 size={12} class="animate-spin" /> Merging…
+                        {:else}
+                            🧹 Clean Duplicates
+                        {/if}
+                    </button>
                     <button onclick={() => { showImportModal = true; importResult = null; }} class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-indigo-500/30">
                         <Upload size={14} /> Import Data
                     </button>
