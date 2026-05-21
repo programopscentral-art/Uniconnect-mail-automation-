@@ -338,7 +338,7 @@ export async function importDayWisePayments(
     for (const r of spRes.rows) spMap.set(r.zoho_user_id, r.university_id);
 
     // Pass 1: parse + validate all rows into a batch
-    const validRows: Array<{ zoho_user_id: string; payment_date: string; university_id: string | null }> = [];
+    const validRows: Array<{ zoho_user_id: string; payment_date: string; amount: number; university_id: string | null }> = [];
     for (const row of rows) {
         try {
             const zoho = String(pick(row, ['payment link user id', 'user id', 'userid']) || '').trim();
@@ -352,9 +352,15 @@ export async function importDayWisePayments(
                 continue;
             }
 
+            // Pick the payment amount — covers "Amount", "Nxtwave Share",
+            // "Payment Amount", "Amount Paid" variants seen across tabs.
+            const amountRaw = pick(row, ['amount', 'nxtwave share', 'payment amount', 'amount paid', 'paid amount']);
+            const amount = Number(String(amountRaw || '').replace(/[₹,\s]/g, '')) || 0;
+
             validRows.push({
                 zoho_user_id: zoho,
                 payment_date: dateStr,
+                amount,
                 university_id: spMap.get(zoho) || null,
             });
         } catch (e: any) {
@@ -364,20 +370,23 @@ export async function importDayWisePayments(
     }
 
     // Dedupe by (zoho_user_id, payment_date) — Postgres ON CONFLICT can't
-    // update the same row twice in one statement, so collapse duplicates.
+    // update the same row twice in one statement. Sum amounts for collisions
+    // (a single student paying multiple times on the same date is real data).
     const seen = new Map<string, typeof validRows[0]>();
     let dupes = 0;
     for (const r of validRows) {
         const key = `${r.zoho_user_id}|${r.payment_date}`;
-        if (seen.has(key)) {
+        const existing = seen.get(key);
+        if (existing) {
+            existing.amount = (existing.amount || 0) + (r.amount || 0);
             dupes++;
-            continue;
+        } else {
+            seen.set(key, { ...r });
         }
-        seen.set(key, r);
     }
     const deduped = Array.from(seen.values());
     if (dupes > 0 && errors.length < 5) {
-        errors.push(`Skipped ${dupes} duplicate (student, date) entries — kept first.`);
+        errors.push(`Merged ${dupes} same-day duplicate transactions (amounts summed).`);
     }
 
     // Pass 2: bulk INSERT all transactions in one go

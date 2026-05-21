@@ -246,12 +246,28 @@
             if (!res.ok) throw new Error(j.message || 'Sync failed');
             syncResult = j;
             flash(`Synced ${j.totalImported} rows in ${(j.elapsed_ms / 1000).toFixed(1)}s`);
-            await loadRollup();
+            await Promise.all([loadRollup(), refreshActivePeriod()]);
         } catch (e: any) {
             flash(e?.message || 'Sync failed', true);
         } finally {
             syncingPeriodId = null;
         }
+    }
+
+    // Refresh the active period's sync metadata (last_synced_at, last_sync_error, last_sync_summary)
+    // so the status strip + error banner reflect the latest state without a full page reload.
+    async function refreshActivePeriod() {
+        try {
+            const res = await fetch('/api/fees/periods');
+            if (!res.ok) return;
+            const fresh = await res.json();
+            // Replace the period objects in data.periods in place so $derived picks it up
+            for (let i = 0; i < data.periods.length; i++) {
+                const updated = fresh.find((p: any) => p.id === data.periods[i].id);
+                if (updated) data.periods[i] = updated;
+            }
+            data.periods = [...data.periods];
+        } catch {}
     }
 
     function fmtTimeAgo(iso: string | null): string {
@@ -717,7 +733,21 @@
         a.click();
     }
 
-    onMount(() => { loadRollup(); });
+    onMount(() => {
+        loadRollup();
+        // Honor ?tag= and ?university_id= deep-links (e.g. from analytics Cases tab)
+        try {
+            const qs = new URLSearchParams(window.location.search);
+            const tag = qs.get('tag');
+            const uni = qs.get('university_id');
+            if (tag || uni) {
+                if (tag) stuFilterTag = tag;
+                if (uni) stuFilterUni = uni;
+                activeTab = 'students';
+                loadStudents(1);
+            }
+        } catch {}
+    });
 </script>
 
 <svelte:head><title>Fee Collection · UniConnect</title></svelte:head>
@@ -1150,8 +1180,8 @@
                                     <td class="py-3 px-2 text-right font-semibold">{e.students_count}</td>
                                     <td class="py-3 px-2 text-slate-500 max-w-xs truncate">{e.notes || '—'}</td>
                                     <td class="py-3 px-2">
-                                        {#if isLocked}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 text-[10px] font-bold"><Lock size={9}/> Locked</span>
-                                        {:else}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-bold">Open</span>{/if}
+                                        {#if isLocked}<span title="Past 8 PM IST cutoff — cannot edit" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-[10px] font-bold"><Lock size={9}/> Locked</span>
+                                        {:else}<span title="Still editable until 8 PM IST" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">Editable</span>{/if}
                                     </td>
                                     <td class="py-3 px-2">{#if !isLocked && data.access.canEditRemarks}<button onclick={() => deleteDailyEntry(e.id)} class="text-rose-500 hover:text-rose-700"><Trash2 size={14} /></button>{/if}</td>
                                 </tr>

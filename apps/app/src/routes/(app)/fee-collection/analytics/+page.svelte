@@ -85,11 +85,16 @@
 
     // Comparison view
     let isPct = $derived(rankMetric === 'efficiency');
+    // Efficiency is capped to [0, 100] for both display and bar width — collection
+    // efficiency can technically exceed 100% if a student overpays, but a bar at
+    // "104%" doesn't add information and makes comparisons harder to read.
     let metricValOf = (u: any) => rankMetric === 'pending' ? num(u.pending) :
                                   rankMetric === 'paid' ? num(u.paid) :
-                                  rankMetric === 'efficiency' ? num(u.collection_efficiency) :
+                                  rankMetric === 'efficiency' ? Math.min(100, num(u.collection_efficiency)) :
                                   num(u.strength);
-    let maxBar = $derived(Math.max(1, ...rankedByMetric.map((u: any) => metricValOf(u))));
+    // For percentage metrics, the bar always scales against 100 so a 60% uni
+    // looks like a 60% bar (not a bar that's 60% of the leading uni's 100.4%).
+    let maxBar = $derived(rankMetric === 'efficiency' ? 100 : Math.max(1, ...rankedByMetric.map((u: any) => metricValOf(u))));
     const COLOR_BY_METRIC: Record<string, string> = {
         pending: 'from-rose-500 to-pink-600',
         paid: 'from-emerald-500 to-teal-600',
@@ -516,14 +521,19 @@
 
                 <div class="space-y-2">
                     {#each rankedByMetric as u, i}
-                        {@const val = metricValOf(u)}
-                        {@const pctW = (val / maxBar) * 100}
+                        {@const barVal = metricValOf(u)}
+                        {@const rawEff = num(u.collection_efficiency)}
+                        {@const displayVal = isPct ? rawEff :
+                                             rankMetric === 'pending' ? num(u.pending) :
+                                             rankMetric === 'paid' ? num(u.paid) :
+                                             num(u.strength)}
+                        {@const pctW = Math.min(100, (barVal / maxBar) * 100)}
                         <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }} class="w-full text-left group">
                             <div class="flex items-center gap-3 mb-1">
                                 <div class="w-7 text-right text-xs font-bold text-slate-400">{i + 1}</div>
                                 <div class="flex-1 text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600">{u.university_name}</div>
                                 <div class="text-sm font-extrabold text-slate-900 dark:text-white">
-                                    {isPct ? `${val.toFixed(1)}%` : (rankMetric === 'strength' ? val.toLocaleString() : fmtInr(val))}
+                                    {isPct ? `${displayVal.toFixed(1)}%` : (rankMetric === 'strength' ? displayVal.toLocaleString() : fmtInr(displayVal))}
                                 </div>
                             </div>
                             <div class="ml-10 h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
