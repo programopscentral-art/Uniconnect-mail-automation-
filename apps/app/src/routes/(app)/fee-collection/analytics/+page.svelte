@@ -1,22 +1,17 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { fade } from 'svelte/transition';
     import {
         Wallet, TrendingUp, AlertCircle, Building2, ArrowLeft, Loader2,
-        Download, BarChart3, PieChart as PieIcon, LineChart, GitCompare,
-        Calendar, Filter, RefreshCw, ChevronRight, Users
+        Download, BarChart3, RefreshCw, ChevronRight, Users, Filter, Calendar
     } from 'lucide-svelte';
 
     let { data } = $props();
 
     // ─── Filter state ─────────────────────────────────────────────
     let activePeriodId = $state(data.activePeriod?.id || data.periods[0]?.id || '');
-    let selectedUni = $state<string>('');               // '' = all
+    let selectedUni = $state<string>('');
     let range = $state<'7d' | '30d' | '90d' | 'all'>('30d');
-    type View = 'overview' | 'trend' | 'comparison' | 'distribution' | 'cases';
-    let view = $state<View>('overview');
     let granularity = $state<'day' | 'month'>('day');
-    let rankMetric = $state<'pending' | 'paid' | 'efficiency' | 'strength'>('pending');
 
     // ─── Data ─────────────────────────────────────────────────────
     let analytics = $state<any>(null);
@@ -34,11 +29,10 @@
         finally { loading = false; }
     }
 
-    $effect(() => {
-        if (activePeriodId) { range; selectedUni; load(); }
-    });
+    $effect(() => { if (activePeriodId) { range; selectedUni; load(); } });
 
     // ─── Helpers ──────────────────────────────────────────────────
+    const TODAY = new Date().toISOString().slice(0, 10);
     function fmtInr(n: any): string {
         const num = Number(n) || 0;
         if (num >= 1e7) return '₹' + (num / 1e7).toFixed(2) + ' Cr';
@@ -52,10 +46,18 @@
         try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); }
         catch { return String(d); }
     }
+    function fmtDow(d: any): string {
+        if (!d) return '';
+        try { return new Date(d).toLocaleDateString('en-IN', { weekday: 'short' }); }
+        catch { return ''; }
+    }
     function donutDash(p: number, r: number): string {
         const c = 2 * Math.PI * r;
         return `${(p / 100) * c} ${c}`;
     }
+    // Efficiency cap — collection efficiency >100% is mathematically possible
+    // (over-payment) but visually confusing. Always display capped at 100%.
+    const eff100 = (v: any) => Math.min(100, num(v));
 
     // ─── Derived ──────────────────────────────────────────────────
     let s = $derived(analytics?.summary || {});
@@ -70,60 +72,20 @@
     let fullyPct = $derived(totalStudents > 0 ? Math.round((num(s.fully_paid) / totalStudents) * 100) : 0);
     let partialPct = $derived(totalStudents > 0 ? Math.round((num(s.partial_paid) / totalStudents) * 100) : 0);
     let notPaidPct = $derived(totalStudents > 0 ? Math.round((num(s.not_paid) / totalStudents) * 100) : 0);
-    let eff = $derived(Number(s.avg_efficiency || 0));
+    let avgEff = $derived(eff100(s.avg_efficiency));
 
-    let sortedByEff = $derived([...byUniv].sort((a: any, b: any) => num(b.collection_efficiency) - num(a.collection_efficiency)));
-    let top5 = $derived(sortedByEff.slice(0, 5));
-    let bottom5 = $derived([...sortedByEff].reverse().slice(0, 5));
-    let bottomByPend = $derived([...byUniv].sort((a: any, b: any) => num(b.pending) - num(a.pending)).slice(0, 8));
-    let maxPending = $derived(Math.max(1, ...bottomByPend.map((u: any) => num(u.pending))));
-
-    // Trend view stats
+    // Trend data
+    let trendSeries = $derived(granularity === 'month'
+        ? monthlyTrend.map((r: any) => ({ label: r.month, value: num(r.amount), count: num(r.students) }))
+        : dailyTrend.map((r: any) => ({ label: r.date, value: num(r.amount), count: num(r.students) }))
+    );
+    let trendTotal = $derived(trendSeries.reduce((a: number, p: any) => a + p.value, 0));
+    let trendStudents = $derived(trendSeries.reduce((a: number, p: any) => a + p.count, 0));
     let trendAvg = $derived(trendTotal / Math.max(1, trendSeries.length));
     let trendPeak = $derived(trendSeries.length ? trendSeries.reduce((a: any, b: any) => b.value > a.value ? b : a, trendSeries[0]) : null);
     let trendMaxV = $derived(Math.max(1, ...trendSeries.map((p: any) => p.value)));
 
-    // Comparison view
-    let isPct = $derived(rankMetric === 'efficiency');
-    // When ranking by "paid" and a date range is set, use the in-window total
-    // so the bar chart reflects the chosen window. For "all time", fall back
-    // to the lifetime total. Strength/efficiency/pending are inherently
-    // current-state metrics — range doesn't change them.
-    let rangeIsWindow = $derived(range !== 'all');
-    let metricValOf = (u: any) => {
-        if (rankMetric === 'pending') return num(u.pending);
-        if (rankMetric === 'paid') {
-            return rangeIsWindow ? num(u.paid_in_window) : num(u.paid);
-        }
-        if (rankMetric === 'efficiency') return Math.min(100, num(u.collection_efficiency));
-        return num(u.strength);
-    };
-    let maxBar = $derived(rankMetric === 'efficiency' ? 100 : Math.max(1, ...rankedByMetric.map((u: any) => metricValOf(u))));
-    const COLOR_BY_METRIC: Record<string, string> = {
-        pending: 'from-rose-500 to-pink-600',
-        paid: 'from-emerald-500 to-teal-600',
-        efficiency: 'from-indigo-500 to-purple-600',
-        strength: 'from-blue-500 to-cyan-600',
-    };
-
-    // Distribution donut percentages
-    let fullyDonutPct = $derived(statusTotal > 0 ? statusByName['Fully Paid'] / statusTotal * 100 : 0);
-    let partialDonutPct = $derived(statusTotal > 0 ? statusByName['Partially Paid'] / statusTotal * 100 : 0);
-    let fullyDonutOffset = $derived(donutDash(fullyDonutPct, 75).split(' ')[0]);
-
-    // Trend chart hover state
-    let hoverIdx = $state<number | null>(null);
-    function onTrendMouseMove(e: MouseEvent) {
-        const target = e.currentTarget as HTMLElement;
-        const rect = target.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const pct = Math.max(0, Math.min(1, x / rect.width));
-        const i = Math.min(trendSeries.length - 1, Math.max(0, Math.floor(pct * trendSeries.length)));
-        hoverIdx = i;
-    }
-    function onTrendMouseLeave() { hoverIdx = null; }
-
-    // Smooth cubic-bezier path through the trend points
+    // Smooth bezier path
     function smoothPath(points: { x: number; y: number }[]): string {
         if (!points.length) return '';
         let d = `M ${points[0].x} ${points[0].y}`;
@@ -141,47 +103,78 @@
         return d;
     }
 
-    // Cache trend chart geometry so hover overlay can position correctly
     let trendPoints = $derived.by(() => {
         if (!trendSeries.length) return [] as Array<{ x: number; y: number }>;
         const n = trendSeries.length;
         return trendSeries.map((p: any, i: number) => ({
             x: (i + 0.5) * (100 / n),
-            y: 100 - (p.value / trendMaxV) * 95,
+            y: 100 - (p.value / trendMaxV) * 90,
         }));
     });
     let trendSmoothD = $derived(smoothPath(trendPoints));
-    let trendAreaD = $derived(trendPoints.length ? `M 0 100 L ${trendPoints[0].x} ${trendPoints[0].y} ${smoothPath(trendPoints).slice(trendSmoothD.indexOf(' ') + 1)} L 100 100 Z` : '');
 
-    // Trend data series
-    let trendSeries = $derived(granularity === 'month'
-        ? monthlyTrend.map((r: any) => ({ label: r.month, value: num(r.amount), count: num(r.students) }))
-        : dailyTrend.map((r: any) => ({ label: r.date, value: num(r.amount), count: num(r.students) }))
-    );
-    let trendTotal = $derived(trendSeries.reduce((acc: number, p: any) => acc + p.value, 0));
-    let trendStudents = $derived(trendSeries.reduce((acc: number, p: any) => acc + p.count, 0));
+    // Hover state for trend chart
+    let hoverIdx = $state<number | null>(null);
+    function onTrendMouseMove(e: MouseEvent) {
+        if (!trendSeries.length) return;
+        const target = e.currentTarget as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const pct = Math.max(0, Math.min(1, x / rect.width));
+        hoverIdx = Math.min(trendSeries.length - 1, Math.max(0, Math.floor(pct * trendSeries.length)));
+    }
+    function onTrendMouseLeave() { hoverIdx = null; }
 
-    // Ranking for Comparison view
-    let rankedByMetric = $derived.by(() => {
-        const arr = [...byUniv];
-        const getter: Record<string, (u: any) => number> = {
-            pending: u => num(u.pending),
-            paid: u => num(u.paid),
-            efficiency: u => num(u.collection_efficiency),
-            strength: u => num(u.strength),
-        };
-        arr.sort((a, b) => getter[rankMetric](b) - getter[rankMetric](a));
-        return arr;
+    // Today marker position
+    let todayMarkerX = $derived.by(() => {
+        if (granularity !== 'day' || !trendSeries.length) return null;
+        const idx = trendSeries.findIndex((p: any) => p.label === TODAY);
+        if (idx === -1) return null;
+        return (idx + 0.5) * (100 / trendSeries.length);
     });
 
-    // Status mix counts (for distribution donut)
+    // Status mix counts (donut)
     let statusByName = $derived.by(() => {
         const m: Record<string, number> = { 'Fully Paid': 0, 'Partially Paid': 0, 'Yet To Pay': 0 };
         for (const r of statusMix) m[r.status] = num(r.count);
         return m;
     });
     let statusTotal = $derived(statusByName['Fully Paid'] + statusByName['Partially Paid'] + statusByName['Yet To Pay']);
+    let fullyDonutPct = $derived(statusTotal > 0 ? statusByName['Fully Paid'] / statusTotal * 100 : 0);
+    let partialDonutPct = $derived(statusTotal > 0 ? statusByName['Partially Paid'] / statusTotal * 100 : 0);
+    let fullyDashStart = $derived(donutDash(fullyDonutPct, 75).split(' ')[0]);
 
+    // Sorted university table (default: by pending desc)
+    let sortKey = $state<'pending' | 'paid' | 'efficiency' | 'strength' | 'name'>('pending');
+    let sortDir = $state<'asc' | 'desc'>('desc');
+    function toggleSort(k: typeof sortKey) {
+        if (sortKey === k) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        else { sortKey = k; sortDir = 'desc'; }
+    }
+    let rangeIsWindow = $derived(range !== 'all');
+    let sortedUniversities = $derived.by(() => {
+        const arr = [...byUniv];
+        const getter: Record<string, (u: any) => any> = {
+            pending: u => num(u.pending),
+            paid: u => rangeIsWindow ? num(u.paid_in_window) : num(u.paid),
+            efficiency: u => eff100(u.collection_efficiency),
+            strength: u => num(u.strength),
+            name: u => String(u.university_name || '').toLowerCase(),
+        };
+        const g = getter[sortKey];
+        arr.sort((a, b) => {
+            const av = g(a), bv = g(b);
+            const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+        return arr;
+    });
+
+    // Top movers (always sorted independently of table)
+    let top5Efficient = $derived([...byUniv].sort((a: any, b: any) => eff100(b.collection_efficiency) - eff100(a.collection_efficiency)).slice(0, 5));
+    let top5Pending = $derived([...byUniv].sort((a: any, b: any) => num(b.pending) - num(a.pending)).slice(0, 5));
+
+    // Tags
     const TAG_COLORS: Record<string, string> = {
         loan: '#3b82f6', dropout: '#ef4444', waiver: '#f59e0b', scholar: '#10b981',
         defer: '#a78bfa', will_pay: '#fb923c', want_to_drop: '#ef4444',
@@ -202,7 +195,7 @@
     function exportCSV() {
         const head = 'University,Strength,Paid,Pending,Payable,Eff %,Fully,Partial,Not Paid\n';
         const rows = byUniv.map((u: any) =>
-            `"${u.university_name}",${u.strength},${u.paid},${u.pending},${u.payable},${u.collection_efficiency},${u.fully_paid},${u.partial_paid},${u.not_paid}`
+            `"${u.university_name}",${u.strength},${u.paid},${u.pending},${u.payable},${eff100(u.collection_efficiency).toFixed(1)},${u.fully_paid},${u.partial_paid},${u.not_paid}`
         ).join('\n');
         const blob = new Blob(['﻿' + head + rows], { type: 'text/csv;charset=utf-8;' });
         const a = document.createElement('a');
@@ -257,7 +250,7 @@
                 {/each}
             </select>
 
-            <select bind:value={selectedUni} class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold max-w-[200px]">
+            <select bind:value={selectedUni} class="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold max-w-[220px]">
                 <option value="">All Universities</option>
                 {#each byUniv as u}
                     <option value={u.university_id}>{u.university_name}</option>
@@ -269,20 +262,10 @@
                     <button onclick={() => range = r as any}
                         class="px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors
                                {range === r ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}">
-                        {r === 'all' ? 'All time' : r === '7d' ? 'Last 7 days' : r === '30d' ? 'Last 30 days' : 'Last 90 days'}
+                        {r === 'all' ? 'All time' : r === '7d' ? 'Last 7d' : r === '30d' ? 'Last 30d' : 'Last 90d'}
                     </button>
                 {/each}
             </div>
-
-            {#if selectedUni}
-                {@const sel = byUniv.find((u: any) => u.university_id === selectedUni)}
-                {#if sel}
-                    <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold border border-indigo-200 dark:border-indigo-800">
-                        <Building2 size={11} /> {sel.university_name}
-                        <button onclick={() => selectedUni = ''} class="ml-1 hover:text-indigo-900 dark:hover:text-indigo-100">✕</button>
-                    </div>
-                {/if}
-            {/if}
 
             <div class="flex-1"></div>
             {#if loading}<Loader2 size={14} class="animate-spin text-slate-400" />{/if}
@@ -305,7 +288,7 @@
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-pink-400"></div>
                 <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Efficiency</div>
-                <div class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">{eff.toFixed(1)}%</div>
+                <div class="text-2xl font-extrabold text-purple-600 dark:text-purple-400 mt-2">{avgEff.toFixed(1)}%</div>
                 <div class="text-[10px] text-slate-400 mt-1">collection</div>
             </div>
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 relative overflow-hidden">
@@ -328,574 +311,328 @@
             </div>
         </div>
 
-        <!-- ═══════ VIEW TABS ═══════ -->
-        <div class="flex gap-1 p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            {#each [
-                { id: 'overview', label: 'Overview', icon: TrendingUp },
-                { id: 'trend', label: 'Trend', icon: LineChart },
-                { id: 'comparison', label: 'Comparison', icon: GitCompare },
-                { id: 'distribution', label: 'Distribution', icon: PieIcon },
-                { id: 'cases', label: 'Cases', icon: AlertCircle },
-            ] as v}
-                {@const Icon = v.icon}
-                <button onclick={() => view = v.id as View}
-                    class="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all
-                           {view === v.id ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}">
-                    <Icon size={14} /> {v.label}
-                </button>
-            {/each}
-        </div>
-
-        <!-- ═══════ CONTENT ═══════ -->
         {#if loading && !analytics}
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl py-20 text-center">
                 <Loader2 size={32} class="inline animate-spin text-indigo-500" />
                 <div class="text-sm text-slate-500 mt-3">Loading analytics…</div>
             </div>
+        {:else}
 
-        <!-- OVERVIEW -->
-        {:else if view === 'overview'}
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <!-- Left: trend chart -->
-                <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <div class="text-sm font-bold text-slate-900 dark:text-white">Collection Trend</div>
-                            <div class="text-xs text-slate-500 mt-0.5">{trendSeries.length} {granularity === 'month' ? 'months' : 'days'} · {trendStudents.toLocaleString()} students</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{fmtInr(trendTotal)}</div>
-                            <div class="text-[10px] text-slate-400 uppercase tracking-wider">in window</div>
-                        </div>
+        <!-- ═══════ COLLECTION TREND ═══════ -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+            <div class="flex items-center justify-between flex-wrap gap-3 mb-1">
+                <div>
+                    <div class="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Calendar size={16} class="text-indigo-500" /> Collection Trend
                     </div>
-                    {#if !trendSeries.length}
-                        <div class="text-center py-12">
-                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">No transaction data in this window</div>
-                            <div class="text-xs text-slate-500 mt-1">Try widening the range or run a sync of the day-wise sheet.</div>
-                        </div>
-                    {:else}
-                        <div class="relative h-56">
-                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full overflow-visible">
-                                <defs>
-                                    <linearGradient id="ovGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
-                                        <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
-                                    </linearGradient>
-                                    <linearGradient id="ovStroke" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0%" stop-color="#6366f1" />
-                                        <stop offset="100%" stop-color="#a855f7" />
-                                    </linearGradient>
-                                </defs>
-                                {#if trendPoints.length}
-                                    <path d={`${trendSmoothD} L ${trendPoints[trendPoints.length - 1].x} 100 L ${trendPoints[0].x} 100 Z`} fill="url(#ovGrad)" />
-                                    <path d={trendSmoothD} fill="none" stroke="url(#ovStroke)" stroke-width="0.9" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
-                                {/if}
-                            </svg>
-                        </div>
-                        <div class="flex justify-between text-[10px] text-slate-400 mt-2 font-mono">
-                            <span>{trendSeries.length ? (granularity === 'month' ? trendSeries[0].label : fmtDate(trendSeries[0].label)) : ''}</span>
-                            <span>{trendSeries.length ? (granularity === 'month' ? trendSeries[trendSeries.length - 1].label : fmtDate(trendSeries[trendSeries.length - 1].label)) : ''}</span>
-                        </div>
-                    {/if}
-                </div>
-
-                <!-- Right: payment status mini-donut -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="text-sm font-bold text-slate-900 dark:text-white mb-4">Payment Status</div>
-                    <div class="flex items-center justify-center mb-4">
-                        <svg viewBox="0 0 120 120" class="w-40 h-40 -rotate-90">
-                            <circle cx="60" cy="60" r="45" fill="none" stroke="#e2e8f0" stroke-width="14" class="dark:stroke-slate-800" />
-                            <!-- Fully -->
-                            <circle cx="60" cy="60" r="45" fill="none" stroke="#10b981" stroke-width="14"
-                                    stroke-dasharray={donutDash(fullyPct, 45)} stroke-dashoffset="0" stroke-linecap="round" />
-                            <!-- Partial -->
-                            <circle cx="60" cy="60" r="45" fill="none" stroke="#f59e0b" stroke-width="14"
-                                    stroke-dasharray={donutDash(partialPct, 45)} stroke-dashoffset={-donutDash(fullyPct, 45).split(' ')[0]} stroke-linecap="round" />
-                        </svg>
-                    </div>
-                    <div class="space-y-2 text-xs">
-                        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Fully Paid</span><span class="font-bold">{(s.fully_paid || 0).toLocaleString()} ({fullyPct}%)</span></div>
-                        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Partial</span><span class="font-bold">{(s.partial_paid || 0).toLocaleString()} ({partialPct}%)</span></div>
-                        <div class="flex justify-between"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span>Yet to Pay</span><span class="font-bold">{(s.not_paid || 0).toLocaleString()} ({notPaidPct}%)</span></div>
+                    <div class="text-xs text-slate-500 mt-1">
+                        Total ₹ collected per {granularity === 'day' ? 'day' : 'month'}
+                        {#if selectedUni}{@const sel = byUniv.find((u: any) => u.university_id === selectedUni)}{#if sel} · {sel.university_name} only{/if}{:else} · all universities{/if}
+                        {#if range !== 'all'} · {range === '7d' ? 'last 7 days' : range === '30d' ? 'last 30 days' : 'last 90 days'}{:else} · all time{/if}
                     </div>
                 </div>
-
-                <!-- Top movers -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">↑</span>
-                        Top 5 by Efficiency
-                    </div>
-                    <div class="space-y-2">
-                        {#each top5 as u, i}
-                            <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }} class="w-full flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg p-1 transition-colors">
-                                <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">{i + 1}</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
-                                    <div class="text-[10px] text-slate-500">{fmtInr(u.paid)} paid · {u.strength} students</div>
-                                </div>
-                                <div class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">{Number(u.collection_efficiency).toFixed(1)}%</div>
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <div class="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                        <span class="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs">!</span>
-                        Universities Needing Attention <span class="text-[10px] font-normal text-slate-400">(highest pending)</span>
-                    </div>
-                    <div class="space-y-2">
-                        {#each bottomByPend as u}
-                            <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }} class="w-full text-left group">
-                                <div class="flex items-center justify-between text-xs mb-1">
-                                    <span class="font-bold text-slate-900 dark:text-white truncate group-hover:text-rose-600">{u.university_name}</span>
-                                    <span class="font-extrabold text-rose-600 dark:text-rose-400">{fmtInr(u.pending)}</span>
-                                </div>
-                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-rose-500 to-pink-500 rounded-full" style:width={`${(num(u.pending) / maxPending) * 100}%`}></div>
-                                </div>
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-            </div>
-
-        <!-- TREND -->
-        {:else if view === 'trend'}
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
-                    <div>
-                        <div class="text-sm font-bold text-slate-900 dark:text-white">Collection Over Time</div>
-                        <div class="text-xs text-slate-500 mt-0.5">
-                            {trendSeries.length} data points · {trendStudents.toLocaleString()} students · {fmtInr(trendTotal)} total
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-0 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
-                        {#each ['day', 'month'] as g}
-                            <button onclick={() => granularity = g as any}
-                                class="px-3 py-1 rounded-md text-[11px] font-bold transition-colors
-                                       {granularity === g ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'}">
-                                {g === 'day' ? 'Daily' : 'Monthly'}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                {#if !trendSeries.length}
-                    <div class="text-center py-16">
-                        <Calendar size={32} class="inline text-slate-300 dark:text-slate-700" />
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 mt-3">No transactions in this window</div>
-                        <div class="text-xs text-slate-500 mt-1">Try a wider date range or import day-wise data.</div>
-                    </div>
-                {:else}
-                    <div class="relative h-96 mb-3 select-none"
-                         onmousemove={onTrendMouseMove}
-                         onmouseleave={onTrendMouseLeave}
-                         role="presentation">
-                        <!-- Y-axis labels + gridlines -->
-                        <div class="absolute inset-0 flex flex-col justify-between text-[10px] text-slate-400 pointer-events-none">
-                            {#each [0, 0.25, 0.5, 0.75, 1] as p}
-                                <div class="flex items-center gap-2">
-                                    <span class="w-14 text-right flex-shrink-0 font-mono">{fmtInr(trendMaxV * (1 - p))}</span>
-                                    <div class="flex-1 border-t border-dashed border-slate-200/60 dark:border-slate-700/60"></div>
-                                </div>
-                            {/each}
-                        </div>
-                        <!-- Chart SVG -->
-                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 ml-16 w-[calc(100%-4rem)] h-full overflow-visible pointer-events-none">
-                            <defs>
-                                <linearGradient id="trendBigGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
-                                    <stop offset="60%" stop-color="#a855f7" stop-opacity="0.15" />
-                                    <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
-                                </linearGradient>
-                                <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stop-color="#6366f1" />
-                                    <stop offset="100%" stop-color="#a855f7" />
-                                </linearGradient>
-                            </defs>
-                            {#if trendPoints.length}
-                                <!-- Area fill (smooth) -->
-                                <path d={`${trendSmoothD} L ${trendPoints[trendPoints.length - 1].x} 100 L ${trendPoints[0].x} 100 Z`} fill="url(#trendBigGrad)" />
-                                <!-- Smooth line -->
-                                <path d={trendSmoothD} fill="none" stroke="url(#trendStroke)" stroke-width="0.7" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
-                                <!-- Hover vertical line + marker -->
-                                {#if hoverIdx !== null && trendPoints[hoverIdx]}
-                                    <line x1={trendPoints[hoverIdx].x} y1="0" x2={trendPoints[hoverIdx].x} y2="100" stroke="#6366f1" stroke-width="0.3" stroke-dasharray="1 1" vector-effect="non-scaling-stroke" />
-                                    <circle cx={trendPoints[hoverIdx].x} cy={trendPoints[hoverIdx].y} r="1.2" fill="#fff" stroke="#6366f1" stroke-width="0.7" vector-effect="non-scaling-stroke" />
-                                {/if}
-                            {/if}
-                        </svg>
-                        <!-- Hover tooltip (HTML, positioned in % units) -->
-                        {#if hoverIdx !== null && trendSeries[hoverIdx]}
-                            {@const hovered = trendSeries[hoverIdx]}
-                            {@const leftPct = ((hoverIdx + 0.5) / trendSeries.length) * 100}
-                            <div class="pointer-events-none absolute top-2 z-10 transition-all"
-                                 style:left={`calc(4rem + ${leftPct}% * (100% - 4rem) / 100% - 80px)`}>
-                                <div class="bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 shadow-2xl min-w-[180px]">
-                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{granularity === 'month' ? hovered.label : fmtDate(hovered.label)}</div>
-                                    <div class="text-lg font-extrabold text-emerald-400 mt-0.5">{fmtInr(hovered.value)}</div>
-                                    <div class="text-[10px] text-slate-300 mt-0.5">{hovered.count.toLocaleString()} student{hovered.count === 1 ? '' : 's'}</div>
-                                </div>
-                            </div>
-                        {/if}
-                    </div>
-                    <!-- X-axis labels -->
-                    <div class="relative ml-16 h-4 text-[10px] text-slate-400 font-mono">
-                        {#each [0, 0.25, 0.5, 0.75, 1] as t}
-                            {@const idx = Math.min(trendSeries.length - 1, Math.floor(t * (trendSeries.length - 1)))}
-                            {#if trendSeries[idx]}
-                                <span class="absolute" style:left={`${t * 100}%`} style:transform={t === 1 ? 'translateX(-100%)' : t === 0 ? '' : 'translateX(-50%)'}>
-                                    {granularity === 'month' ? trendSeries[idx].label : fmtDate(trendSeries[idx].label)}
-                                </span>
-                            {/if}
-                        {/each}
-                    </div>
-
-                    <!-- Stats row -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-100 dark:border-slate-800">
-                        <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Daily Average</div>
-                            <div class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">{fmtInr(trendAvg)}</div>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Peak {granularity === 'month' ? 'Month' : 'Day'}</div>
-                            <div class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{fmtInr(trendPeak?.value || 0)}</div>
-                            <div class="text-[10px] text-slate-400">{granularity === 'month' ? trendPeak?.label : fmtDate(trendPeak?.label)}</div>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Students</div>
-                            <div class="text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-1">{trendStudents.toLocaleString()}</div>
-                        </div>
-                        <div>
-                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avg per Student</div>
-                            <div class="text-lg font-extrabold text-purple-600 dark:text-purple-400 mt-1">{fmtInr(trendTotal / Math.max(1, trendStudents))}</div>
-                        </div>
-                    </div>
-                {/if}
-            </div>
-
-        <!-- COMPARISON -->
-        {:else if view === 'comparison'}
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                <div class="flex items-center justify-between flex-wrap gap-3 mb-5">
-                    <div>
-                        <div class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            University Comparison
-                            {#if rankMetric === 'paid' && rangeIsWindow}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold">
-                                    📅 Window: {range === '7d' ? 'Last 7 days' : range === '30d' ? 'Last 30 days' : 'Last 90 days'}
-                                </span>
-                            {/if}
-                        </div>
-                        <div class="text-xs text-slate-500 mt-0.5">
-                            {#if rankMetric === 'paid' && rangeIsWindow}Sum of transactions in the selected window
-                            {:else if rankMetric === 'paid'}Total paid across the whole period
-                            {:else}Ranked by {rankMetric.replace('_', ' ')} (current state){/if}
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-0 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
-                        {#each [
-                            { id: 'pending', label: 'Pending' },
-                            { id: 'paid', label: 'Paid' },
-                            { id: 'efficiency', label: 'Efficiency' },
-                            { id: 'strength', label: 'Strength' },
-                        ] as m}
-                            <button onclick={() => rankMetric = m.id as any}
-                                class="px-3 py-1 rounded-md text-[11px] font-bold transition-colors
-                                       {rankMetric === m.id ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'}">
-                                {m.label}
-                            </button>
-                        {/each}
-                    </div>
-                </div>
-
-                <!-- Header row -->
-                <div class="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    <div class="col-span-1">#</div>
-                    <div class="col-span-3">University</div>
-                    <div class="col-span-1 text-right">Students</div>
-                    <div class="col-span-5">Paid vs Pending</div>
-                    <div class="col-span-1 text-right">Eff %</div>
-                    <div class="col-span-1 text-right">Pending</div>
-                </div>
-
-                <div class="divide-y divide-slate-100 dark:divide-slate-800">
-                    {#each rankedByMetric as u, i}
-                        {@const rawEff = num(u.collection_efficiency)}
-                        {@const cappedEff = Math.min(100, rawEff)}
-                        {@const paidVal = rangeIsWindow ? num(u.paid_in_window) : num(u.paid)}
-                        {@const pendingVal = num(u.pending)}
-                        {@const payableVal = paidVal + pendingVal}
-                        {@const paidPctOfTotal = payableVal > 0 ? (paidVal / payableVal) * 100 : 0}
-                        {@const pendingPctOfTotal = payableVal > 0 ? (pendingVal / payableVal) * 100 : 0}
-                        {@const effColor = cappedEff >= 95 ? 'text-emerald-600 dark:text-emerald-400' : cappedEff >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
-                        <button onclick={() => { selectedUni = u.university_id; view = 'trend'; }}
-                                class="w-full grid grid-cols-12 gap-3 px-3 py-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-left group transition-colors">
-                            <!-- Rank -->
-                            <div class="col-span-1 flex items-center gap-2">
-                                <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold flex-shrink-0
-                                            {i < 3 ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
-                                    {i + 1}
-                                </div>
-                            </div>
-                            <!-- University name -->
-                            <div class="col-span-3 min-w-0">
-                                <div class="text-sm font-bold text-slate-900 dark:text-white truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{u.university_name}</div>
-                                <div class="text-[10px] text-slate-400 truncate">{fmtInr(payableVal)} payable</div>
-                            </div>
-                            <!-- Students -->
-                            <div class="col-span-1 text-right">
-                                <div class="text-sm font-bold text-slate-900 dark:text-white">{num(u.strength).toLocaleString()}</div>
-                                <div class="text-[10px] text-slate-400">{num(u.fully_paid)} ✓ · {num(u.not_paid)} ✗</div>
-                            </div>
-                            <!-- Stacked paid/pending bar -->
-                            <div class="col-span-5">
-                                <div class="flex items-center gap-2">
-                                    <div class="flex-1 h-6 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 flex">
-                                        <div title={`Paid: ${fmtInr(paidVal)}`}
-                                             class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-end pr-1.5"
-                                             style:width={`${paidPctOfTotal}%`}>
-                                            {#if paidPctOfTotal > 20}
-                                                <span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(paidVal)}</span>
-                                            {/if}
-                                        </div>
-                                        <div title={`Pending: ${fmtInr(pendingVal)}`}
-                                             class="h-full bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-start pl-1.5"
-                                             style:width={`${pendingPctOfTotal}%`}>
-                                            {#if pendingPctOfTotal > 15}
-                                                <span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(pendingVal)}</span>
-                                            {/if}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="flex justify-between text-[9px] text-slate-400 mt-1">
-                                    <span class="text-emerald-600 dark:text-emerald-400 font-bold">{paidPctOfTotal.toFixed(0)}% paid</span>
-                                    {#if rangeIsWindow}<span class="text-indigo-500 font-bold">in {range}</span>{/if}
-                                    <span class="text-rose-600 dark:text-rose-400 font-bold">{pendingPctOfTotal.toFixed(0)}% pending</span>
-                                </div>
-                            </div>
-                            <!-- Efficiency -->
-                            <div class="col-span-1 text-right">
-                                <div class="text-sm font-extrabold {effColor}">{rawEff.toFixed(1)}%</div>
-                                <div class="h-1 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div class="h-full rounded-full {cappedEff >= 95 ? 'bg-emerald-500' : cappedEff >= 80 ? 'bg-amber-500' : 'bg-rose-500'}" style:width={`${cappedEff}%`}></div>
-                                </div>
-                            </div>
-                            <!-- Pending amount -->
-                            <div class="col-span-1 text-right">
-                                <div class="text-sm font-extrabold {pendingVal > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}">{fmtInr(pendingVal)}</div>
-                                <div class="text-[10px] text-slate-400">{num(u.not_paid) + num(u.partial_paid)} owe</div>
-                            </div>
+                <div class="flex items-center gap-0 rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
+                    {#each ['day', 'month'] as g}
+                        <button onclick={() => granularity = g as any}
+                            class="px-3 py-1 rounded-md text-[11px] font-bold transition-colors
+                                   {granularity === g ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500'}">
+                            {g === 'day' ? 'Daily' : 'Monthly'}
                         </button>
                     {/each}
                 </div>
             </div>
 
-        <!-- DISTRIBUTION -->
-        {:else if view === 'distribution'}
-            <div class="space-y-4">
-                <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    Distribution reflects <strong class="text-slate-900 dark:text-white">current state</strong> of all students. Date range filter only applies to Overview/Trend/Comparison-by-paid.
+            {#if !trendSeries.length}
+                <div class="text-center py-16">
+                    <Calendar size={32} class="inline text-slate-300 dark:text-slate-700" />
+                    <div class="text-sm font-bold text-slate-700 dark:text-slate-300 mt-3">No collection data in this window</div>
+                    <div class="text-xs text-slate-500 mt-1">Try a wider range or run Sync Now from /fee-collection.</div>
                 </div>
-
-                <!-- Big hero status card -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6">
-                    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
-                        <!-- Big donut with center label -->
-                        <div class="lg:col-span-2 flex flex-col items-center">
-                            <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Payment Status Mix</div>
-                            <div class="text-xs text-slate-500 mb-3">{statusTotal.toLocaleString()} students</div>
-                            <div class="relative w-64 h-64">
-                                <svg viewBox="0 0 200 200" class="w-full h-full -rotate-90">
-                                    <defs>
-                                        <linearGradient id="grStatusFull" x1="0" y1="0" x2="1" y2="1">
-                                            <stop offset="0%" stop-color="#10b981" />
-                                            <stop offset="100%" stop-color="#14b8a6" />
-                                        </linearGradient>
-                                        <linearGradient id="grStatusPartial" x1="0" y1="0" x2="1" y2="1">
-                                            <stop offset="0%" stop-color="#f59e0b" />
-                                            <stop offset="100%" stop-color="#f97316" />
-                                        </linearGradient>
-                                    </defs>
-                                    <circle cx="100" cy="100" r="80" fill="none" stroke="#e2e8f0" stroke-width="22" class="dark:stroke-slate-800" />
-                                    <circle cx="100" cy="100" r="80" fill="none" stroke="url(#grStatusFull)" stroke-width="22"
-                                            stroke-dasharray={donutDash(fullyDonutPct, 80)} stroke-linecap="round" />
-                                    <circle cx="100" cy="100" r="80" fill="none" stroke="url(#grStatusPartial)" stroke-width="22"
-                                            stroke-dasharray={donutDash(partialDonutPct, 80)}
-                                            stroke-dashoffset={-Number(donutDash(fullyDonutPct, 80).split(' ')[0])} stroke-linecap="round" />
-                                </svg>
-                                <!-- Center text -->
-                                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <div class="text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">{fullyPct}%</div>
-                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">fully paid</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Status breakdown column -->
-                        <div class="lg:col-span-3 space-y-4">
-                            <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500"></span>
-                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Fully Paid</span>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">{statusByName['Fully Paid'].toLocaleString()}</span>
-                                        <span class="text-xs text-slate-400 ml-1">({fullyPct}%)</span>
-                                    </div>
-                                </div>
-                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style:width={`${fullyPct}%`}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-amber-500 to-orange-500"></span>
-                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Partially Paid</span>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-lg font-extrabold text-amber-600 dark:text-amber-400">{statusByName['Partially Paid'].toLocaleString()}</span>
-                                        <span class="text-xs text-slate-400 ml-1">({partialPct}%)</span>
-                                    </div>
-                                </div>
-                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style:width={`${partialPct}%`}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex items-center justify-between mb-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-rose-500 to-pink-500"></span>
-                                        <span class="text-sm font-bold text-slate-900 dark:text-white">Yet to Pay</span>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="text-lg font-extrabold text-rose-600 dark:text-rose-400">{statusByName['Yet To Pay'].toLocaleString()}</span>
-                                        <span class="text-xs text-slate-400 ml-1">({notPaidPct}%)</span>
-                                    </div>
-                                </div>
-                                <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                    <div class="h-full bg-gradient-to-r from-rose-500 to-pink-500" style:width={`${notPaidPct}%`}></div>
-                                </div>
-                            </div>
-                            <div class="pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-3">
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total Paid</div>
-                                    <div class="text-base font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{fmtInr(s.total_paid)}</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending</div>
-                                    <div class="text-base font-extrabold text-rose-600 dark:text-rose-400 mt-1">{fmtInr(s.total_pending)}</div>
-                                </div>
-                                <div>
-                                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Avg Eff</div>
-                                    <div class="text-base font-extrabold text-purple-600 dark:text-purple-400 mt-1">{eff.toFixed(1)}%</div>
-                                </div>
-                            </div>
-                        </div>
+            {:else}
+                <!-- Stats row above chart -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 mb-4">
+                    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Total in window</div>
+                        <div class="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">{fmtInr(trendTotal)}</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{granularity === 'day' ? 'Daily' : 'Monthly'} average</div>
+                        <div class="text-lg font-extrabold text-slate-900 dark:text-white mt-1">{fmtInr(trendAvg)}</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Peak {granularity === 'day' ? 'day' : 'month'}</div>
+                        <div class="text-lg font-extrabold text-purple-600 dark:text-purple-400 mt-1">{fmtInr(trendPeak?.value || 0)}</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">{trendPeak ? (granularity === 'month' ? trendPeak.label : fmtDate(trendPeak.label)) : ''}</div>
+                    </div>
+                    <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Students paid</div>
+                        <div class="text-lg font-extrabold text-blue-600 dark:text-blue-400 mt-1">{trendStudents.toLocaleString()}</div>
                     </div>
                 </div>
 
-                <!-- Per-university status stacked bars -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="flex items-center justify-between mb-1">
-                        <div>
-                            <div class="text-sm font-bold text-slate-900 dark:text-white">Status Per University</div>
-                            <div class="text-xs text-slate-500 mt-0.5">Stacked: green = fully · amber = partial · rose = not paid</div>
-                        </div>
-                    </div>
-                    <div class="space-y-2 mt-4">
-                        {#each [...byUniv].sort((a: any, b: any) => num(b.strength) - num(a.strength)) as u}
-                            {@const total = num(u.strength) || 1}
-                            {@const fpPct = (num(u.fully_paid) / total) * 100}
-                            {@const ppPct = (num(u.partial_paid) / total) * 100}
-                            {@const npPct = (num(u.not_paid) / total) * 100}
-                            <div class="grid grid-cols-12 gap-3 items-center text-xs">
-                                <div class="col-span-3 truncate font-bold text-slate-900 dark:text-white">{u.university_name}</div>
-                                <div class="col-span-1 text-right text-slate-500">{total.toLocaleString()}</div>
-                                <div class="col-span-7">
-                                    <div class="h-4 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800 flex">
-                                        <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-500" style:width={`${fpPct}%`} title={`Fully: ${u.fully_paid}`}></div>
-                                        <div class="h-full bg-gradient-to-r from-amber-500 to-orange-500" style:width={`${ppPct}%`} title={`Partial: ${u.partial_paid}`}></div>
-                                        <div class="h-full bg-gradient-to-r from-rose-500 to-pink-500" style:width={`${npPct}%`} title={`Not paid: ${u.not_paid}`}></div>
-                                    </div>
-                                </div>
-                                <div class="col-span-1 text-right font-bold text-emerald-600 dark:text-emerald-400">{fpPct.toFixed(0)}%</div>
+                <!-- Chart -->
+                <div class="relative h-80 select-none"
+                     onmousemove={onTrendMouseMove}
+                     onmouseleave={onTrendMouseLeave}
+                     role="presentation">
+                    <!-- Y-axis grid + labels -->
+                    <div class="absolute inset-0 flex flex-col justify-between text-[10px] text-slate-400 pointer-events-none">
+                        {#each [0, 0.25, 0.5, 0.75, 1] as p}
+                            <div class="flex items-center gap-2">
+                                <span class="w-14 text-right flex-shrink-0 font-mono">{fmtInr(trendMaxV * (1 - p))}</span>
+                                <div class="flex-1 border-t border-dashed border-slate-200/60 dark:border-slate-700/60"></div>
                             </div>
                         {/each}
                     </div>
-                </div>
-
-                <!-- Bottom: case tags -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Case Tag Distribution</div>
-                    <div class="text-xs text-slate-500 mb-5">{tagTotal.toLocaleString()} tagged students</div>
-                    {#if !tagCounts.length}
-                        <div class="text-center py-12 text-sm text-slate-500">No tagged cases yet</div>
-                    {:else}
-                        <div class="space-y-3">
-                            {#each tagCounts as t}
-                                {@const tagPct = tagTotal > 0 ? (num(t.count) / tagTotal) * 100 : 0}
-                                <div>
-                                    <div class="flex justify-between text-xs mb-1">
-                                        <span class="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                            <span class="w-3 h-3 rounded-full" style:background={TAG_COLORS[t.tag] || '#94a3b8'}></span>
-                                            {TAG_LABELS[t.tag] || t.tag}
-                                        </span>
-                                        <span class="font-bold text-slate-600 dark:text-slate-300">{t.count} <span class="text-slate-400">({tagPct.toFixed(1)}%)</span></span>
-                                    </div>
-                                    <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                        <div class="h-full rounded-full" style:width={`${tagPct}%`} style:background={TAG_COLORS[t.tag] || '#94a3b8'}></div>
-                                    </div>
-                                </div>
-                            {/each}
+                    <!-- SVG chart -->
+                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 ml-16 w-[calc(100%-4rem)] h-full overflow-visible pointer-events-none">
+                        <defs>
+                            <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
+                                <stop offset="60%" stop-color="#a855f7" stop-opacity="0.15" />
+                                <stop offset="100%" stop-color="#a855f7" stop-opacity="0" />
+                            </linearGradient>
+                            <linearGradient id="trendStroke" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stop-color="#6366f1" />
+                                <stop offset="100%" stop-color="#a855f7" />
+                            </linearGradient>
+                        </defs>
+                        {#if trendPoints.length}
+                            <path d={`${trendSmoothD} L ${trendPoints[trendPoints.length - 1].x} 100 L ${trendPoints[0].x} 100 Z`} fill="url(#trendGrad)" />
+                            <path d={trendSmoothD} fill="none" stroke="url(#trendStroke)" stroke-width="0.7" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+                            {#if todayMarkerX !== null}
+                                <line x1={todayMarkerX} y1="0" x2={todayMarkerX} y2="100" stroke="#10b981" stroke-width="0.4" stroke-dasharray="2 1" vector-effect="non-scaling-stroke" />
+                            {/if}
+                            {#if hoverIdx !== null && trendPoints[hoverIdx]}
+                                <line x1={trendPoints[hoverIdx].x} y1="0" x2={trendPoints[hoverIdx].x} y2="100" stroke="#6366f1" stroke-width="0.3" stroke-dasharray="1 1" vector-effect="non-scaling-stroke" />
+                                <circle cx={trendPoints[hoverIdx].x} cy={trendPoints[hoverIdx].y} r="1.4" fill="#fff" stroke="#6366f1" stroke-width="0.7" vector-effect="non-scaling-stroke" />
+                            {/if}
+                        {/if}
+                    </svg>
+                    <!-- Hover tooltip -->
+                    {#if hoverIdx !== null && trendSeries[hoverIdx]}
+                        {@const hovered = trendSeries[hoverIdx]}
+                        {@const leftPct = ((hoverIdx + 0.5) / trendSeries.length) * 100}
+                        <div class="pointer-events-none absolute top-2 z-10"
+                             style:left={`calc(4rem + ${leftPct}% * (100% - 4rem) / 100% - 90px)`}>
+                            <div class="bg-slate-900 dark:bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 shadow-2xl min-w-[180px]">
+                                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{granularity === 'month' ? hovered.label : fmtDate(hovered.label) + ' · ' + fmtDow(hovered.label)}</div>
+                                <div class="text-lg font-extrabold text-emerald-400 mt-0.5">{fmtInr(hovered.value)}</div>
+                                <div class="text-[10px] text-slate-300 mt-0.5">{hovered.count.toLocaleString()} student{hovered.count === 1 ? '' : 's'} paid</div>
+                            </div>
                         </div>
                     {/if}
                 </div>
-            </div>
-
-        <!-- CASES -->
-        {:else if view === 'cases'}
-            <div class="space-y-3">
-                <div class="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400 flex items-center gap-2">
-                    <span class="inline-block w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    Case tags reflect <strong class="text-slate-900 dark:text-white">current state</strong> for all students in the period. The date range filter doesn't apply here.
+                <!-- X-axis labels -->
+                <div class="relative ml-16 h-4 mt-1 text-[10px] text-slate-400 font-mono">
+                    {#each [0, 0.25, 0.5, 0.75, 1] as t}
+                        {@const idx = Math.min(trendSeries.length - 1, Math.floor(t * (trendSeries.length - 1)))}
+                        {#if trendSeries[idx]}
+                            <span class="absolute" style:left={`${t * 100}%`} style:transform={t === 1 ? 'translateX(-100%)' : t === 0 ? '' : 'translateX(-50%)'}>
+                                {granularity === 'month' ? trendSeries[idx].label : fmtDate(trendSeries[idx].label)}
+                            </span>
+                        {/if}
+                    {/each}
                 </div>
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                <div class="text-sm font-bold text-slate-900 dark:text-white mb-1">Tagged Cases Across All Universities</div>
-                <div class="text-xs text-slate-500 mb-5">{tagTotal.toLocaleString()} total tagged students. Click a tag to view those students.</div>
-                {#if !tagCounts.length}
-                    <div class="text-center py-16">
-                        <AlertCircle size={32} class="inline text-slate-300 dark:text-slate-700" />
-                        <div class="text-sm font-bold text-slate-700 dark:text-slate-300 mt-3">No tagged cases yet</div>
-                        <div class="text-xs text-slate-500 mt-1">Tag students in the Students Data tab to track case workflows.</div>
-                    </div>
-                {:else}
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {#each tagCounts as t}
-                            <a href={`/fee-collection?tag=${t.tag}`}
-                               class="block bg-slate-50 dark:bg-slate-800 rounded-xl p-4 hover:shadow-md transition-shadow border border-slate-100 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <span class="w-3 h-3 rounded-full" style:background={TAG_COLORS[t.tag] || '#94a3b8'}></span>
-                                        <span class="text-sm font-bold text-slate-900 dark:text-white">{TAG_LABELS[t.tag] || t.tag}</span>
-                                    </div>
-                                    <ChevronRight size={14} class="text-slate-400" />
-                                </div>
-                                <div class="mt-3 flex items-end justify-between">
-                                    <div class="text-3xl font-extrabold text-slate-900 dark:text-white">{t.count}</div>
-                                    <div class="text-[10px] text-slate-500">{((num(t.count) / Math.max(1, tagTotal)) * 100).toFixed(1)}% of cases</div>
-                                </div>
-                            </a>
-                        {/each}
+                {#if todayMarkerX !== null}
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-2 ml-16 flex items-center gap-1">
+                        <span class="w-3 h-px bg-emerald-500"></span> Green dashed line marks today ({fmtDate(TODAY)})
                     </div>
                 {/if}
+                <div class="text-[10px] text-slate-400 mt-1 ml-16">💡 Hover the chart to see the exact amount and student count for any date.</div>
+            {/if}
+        </div>
+
+        <!-- ═══════ STATUS DONUT + TOP MOVERS ═══════ -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <!-- Donut -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                <div class="text-sm font-extrabold text-slate-900 dark:text-white mb-1">Payment Status</div>
+                <div class="text-xs text-slate-500 mb-4">Current state · {statusTotal.toLocaleString()} students</div>
+                <div class="relative w-56 h-56 mx-auto mb-4">
+                    <svg viewBox="0 0 200 200" class="w-full h-full -rotate-90">
+                        <defs>
+                            <linearGradient id="grFull" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#10b981" /><stop offset="100%" stop-color="#14b8a6" />
+                            </linearGradient>
+                            <linearGradient id="grPartial" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#f59e0b" /><stop offset="100%" stop-color="#f97316" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="100" cy="100" r="75" fill="none" stroke="#e2e8f0" stroke-width="22" class="dark:stroke-slate-800" />
+                        <circle cx="100" cy="100" r="75" fill="none" stroke="url(#grFull)" stroke-width="22"
+                                stroke-dasharray={donutDash(fullyDonutPct, 75)} stroke-linecap="round" />
+                        <circle cx="100" cy="100" r="75" fill="none" stroke="url(#grPartial)" stroke-width="22"
+                                stroke-dasharray={donutDash(partialDonutPct, 75)}
+                                stroke-dashoffset={-Number(fullyDashStart)} stroke-linecap="round" />
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <div class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 leading-none">{fullyPct}%</div>
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mt-1">fully paid</div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500"></span>Fully Paid</span><span class="font-extrabold">{statusByName['Fully Paid'].toLocaleString()}</span></div>
+                    <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-gradient-to-br from-amber-500 to-orange-500"></span>Partially Paid</span><span class="font-extrabold">{statusByName['Partially Paid'].toLocaleString()}</span></div>
+                    <div class="flex justify-between items-center"><span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-300 dark:bg-slate-700"></span>Yet to Pay</span><span class="font-extrabold">{statusByName['Yet To Pay'].toLocaleString()}</span></div>
+                </div>
             </div>
+
+            <!-- Top by efficiency -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                <div class="text-sm font-extrabold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-md bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">↑</span>
+                    Top Performers
+                </div>
+                <div class="text-xs text-slate-500 mb-4">Highest collection efficiency</div>
+                <div class="space-y-3">
+                    {#each top5Efficient as u, i}
+                        {@const e = eff100(u.collection_efficiency)}
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
+                                <div class="text-[10px] text-slate-400">{fmtInr(u.paid)} of {fmtInr(u.payable)}</div>
+                            </div>
+                            <div class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">{e.toFixed(1)}%</div>
+                        </div>
+                    {/each}
+                </div>
             </div>
+
+            <!-- Needs attention -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                <div class="text-sm font-extrabold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-md bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs">!</span>
+                    Needs Attention
+                </div>
+                <div class="text-xs text-slate-500 mb-4">Highest pending amounts</div>
+                <div class="space-y-3">
+                    {#each top5Pending as u, i}
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-lg bg-rose-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">{i + 1}</div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
+                                <div class="text-[10px] text-slate-400">{u.not_paid} not paid · {u.partial_paid} partial</div>
+                            </div>
+                            <div class="text-sm font-extrabold text-rose-600 dark:text-rose-400">{fmtInr(u.pending)}</div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════ UNIVERSITY TABLE ═══════ -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+            <div class="flex items-center justify-between flex-wrap gap-2 mb-4">
+                <div>
+                    <div class="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Building2 size={16} class="text-blue-500" /> University Performance
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">All {byUniv.length} universities · click column headers to sort</div>
+                </div>
+                <div class="text-[10px] text-slate-400">Stacked bar: <span class="text-emerald-600 font-bold">paid</span> + <span class="text-rose-600 font-bold">pending</span> = total payable</div>
+            </div>
+
+            <!-- Header row -->
+            <div class="grid grid-cols-12 gap-3 px-3 pb-2 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <button onclick={() => toggleSort('name')} class="col-span-3 text-left hover:text-indigo-600 dark:hover:text-indigo-400">
+                    University {sortKey === 'name' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </button>
+                <button onclick={() => toggleSort('strength')} class="col-span-1 text-right hover:text-indigo-600 dark:hover:text-indigo-400">
+                    Students {sortKey === 'strength' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </button>
+                <div class="col-span-5">Paid vs Pending</div>
+                <button onclick={() => toggleSort('efficiency')} class="col-span-1 text-right hover:text-indigo-600 dark:hover:text-indigo-400">
+                    Eff % {sortKey === 'efficiency' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </button>
+                <button onclick={() => toggleSort('pending')} class="col-span-2 text-right hover:text-indigo-600 dark:hover:text-indigo-400">
+                    Pending {sortKey === 'pending' ? (sortDir === 'asc' ? '↑' : '↓') : ''}
+                </button>
+            </div>
+
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                {#each sortedUniversities as u, i}
+                    {@const e = eff100(u.collection_efficiency)}
+                    {@const paidVal = rangeIsWindow ? num(u.paid_in_window) : num(u.paid)}
+                    {@const pendingVal = num(u.pending)}
+                    {@const totalVal = paidVal + pendingVal}
+                    {@const paidPctOfTotal = totalVal > 0 ? (paidVal / totalVal) * 100 : 0}
+                    {@const pendingPctOfTotal = totalVal > 0 ? (pendingVal / totalVal) * 100 : 0}
+                    {@const effColor = e >= 95 ? 'text-emerald-600 dark:text-emerald-400' : e >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'}
+                    <div class="grid grid-cols-12 gap-3 px-3 py-3 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <div class="col-span-3 flex items-center gap-2 min-w-0">
+                            <span class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                            <div class="min-w-0">
+                                <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
+                                <div class="text-[10px] text-slate-400 truncate">{fmtInr(totalVal)} total</div>
+                            </div>
+                        </div>
+                        <div class="col-span-1 text-right">
+                            <div class="text-sm font-bold text-slate-900 dark:text-white">{num(u.strength).toLocaleString()}</div>
+                            <div class="text-[10px] text-slate-400">{num(u.fully_paid)} ✓</div>
+                        </div>
+                        <div class="col-span-5">
+                            <div class="flex items-center h-5 rounded-md overflow-hidden bg-slate-100 dark:bg-slate-800">
+                                <div title={`Paid: ${fmtInr(paidVal)}`}
+                                     class="h-full bg-gradient-to-r from-emerald-500 to-teal-500 flex items-center justify-end pr-1.5"
+                                     style:width={`${paidPctOfTotal}%`}>
+                                    {#if paidPctOfTotal > 25}<span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(paidVal)}</span>{/if}
+                                </div>
+                                <div title={`Pending: ${fmtInr(pendingVal)}`}
+                                     class="h-full bg-gradient-to-r from-rose-500 to-pink-500 flex items-center justify-start pl-1.5"
+                                     style:width={`${pendingPctOfTotal}%`}>
+                                    {#if pendingPctOfTotal > 20}<span class="text-[10px] font-extrabold text-white whitespace-nowrap">{fmtInr(pendingVal)}</span>{/if}
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-[9px] text-slate-400 mt-1">
+                                <span class="text-emerald-600 dark:text-emerald-400 font-bold">{paidPctOfTotal.toFixed(0)}% paid</span>
+                                <span class="text-rose-600 dark:text-rose-400 font-bold">{pendingPctOfTotal.toFixed(0)}% pending</span>
+                            </div>
+                        </div>
+                        <div class="col-span-1 text-right">
+                            <div class={`text-sm font-extrabold ${effColor}`}>{e.toFixed(1)}%</div>
+                            <div class="h-1 mt-1 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <div class={`h-full rounded-full ${e >= 95 ? 'bg-emerald-500' : e >= 80 ? 'bg-amber-500' : 'bg-rose-500'}`} style:width={`${e}%`}></div>
+                            </div>
+                        </div>
+                        <div class="col-span-2 text-right">
+                            <div class={`text-sm font-extrabold ${pendingVal > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{fmtInr(pendingVal)}</div>
+                            <div class="text-[10px] text-slate-400">{num(u.not_paid) + num(u.partial_paid)} owe</div>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
+
+        <!-- ═══════ CASE TAGS ═══════ -->
+        {#if tagCounts.length}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                <div class="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <AlertCircle size={16} class="text-amber-500" /> Case Tags
+                </div>
+                <div class="text-xs text-slate-500 mt-1 mb-4">{tagTotal.toLocaleString()} tagged students · click a tag to filter the students table</div>
+                <div class="space-y-3">
+                    {#each tagCounts as t}
+                        {@const tagPct = tagTotal > 0 ? (num(t.count) / tagTotal) * 100 : 0}
+                        <a href={`/fee-collection?tag=${t.tag}`} class="block group">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="font-bold text-slate-900 dark:text-white flex items-center gap-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                                    <span class="w-3 h-3 rounded-full" style:background={TAG_COLORS[t.tag] || '#94a3b8'}></span>
+                                    {TAG_LABELS[t.tag] || t.tag}
+                                    <ChevronRight size={10} class="text-slate-400" />
+                                </span>
+                                <span class="font-bold text-slate-600 dark:text-slate-300">{t.count} <span class="text-slate-400">({tagPct.toFixed(1)}%)</span></span>
+                            </div>
+                            <div class="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                <div class="h-full rounded-full" style:width={`${tagPct}%`} style:background={TAG_COLORS[t.tag] || '#94a3b8'}></div>
+                            </div>
+                        </a>
+                    {/each}
+                </div>
+            </div>
+        {/if}
+
         {/if}
 
         <!-- Footer -->

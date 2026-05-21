@@ -10,7 +10,7 @@
 
     let { data } = $props();
 
-    type Tab = 'collection' | 'students' | 'cases' | 'daily' | 'universities' | 'docs' | 'overview';
+    type Tab = 'collection' | 'students' | 'cases' | 'daily' | 'universities' | 'docs';
     let activeTab = $state<Tab>('collection');
     let activePeriodId = $state<string>(data.activePeriod?.id || data.periods[0]?.id || '');
 
@@ -537,46 +537,7 @@
         else if (t === 'cases') loadCases();
         else if (t === 'daily') loadDaily();
         else if (t === 'docs') { loadDocMissing(); loadDocRequests(); }
-        else if (t === 'overview') loadOverview();
     }
-
-    // ─── Overview tab data ──────────────────────────────────────────
-    let overviewDaily = $state<any[]>([]);
-    let overviewLoading = $state(false);
-    async function loadOverview() {
-        if (!activePeriodId) return;
-        overviewLoading = true;
-        try {
-            const res = await fetch(`/api/fees/daily-log?period_id=${activePeriodId}`);
-            if (res.ok) overviewDaily = await res.json();
-            // Doc requests for "recent activity"
-            if (!docRequests.length) await loadDocRequests();
-        } catch {} finally { overviewLoading = false; }
-    }
-
-    // Aggregate daily-log by date for the trend chart (last 30 days)
-    let trendData = $derived.by(() => {
-        const byDate = new Map<string, { date: string; amount: number; count: number }>();
-        for (const r of overviewDaily) {
-            const d = r.date?.split('T')[0] || r.date;
-            if (!d) continue;
-            const cur = byDate.get(d) || { date: d, amount: 0, count: 0 };
-            cur.amount += Number(r.amount) || 0;
-            cur.count += Number(r.students_count) || 0;
-            byDate.set(d, cur);
-        }
-        return Array.from(byDate.values())
-            .sort((a, b) => a.date.localeCompare(b.date))
-            .slice(-30);
-    });
-
-    let topEfficient = $derived(
-        [...uniRollup].sort((a, b) => +b.collection_efficiency - +a.collection_efficiency).slice(0, 5)
-    );
-    let topPending = $derived(
-        [...uniRollup].sort((a, b) => +b.pending - +a.pending).slice(0, 5)
-    );
-    let recentDocs = $derived([...docRequests].slice(0, 8));
 
     // KPI summary derived values
     let s = $derived(summary || {});
@@ -1002,7 +963,6 @@
                 { id: 'daily',      label: 'Daily Report',        icon: Banknote },
                 { id: 'docs',       label: 'Doc Requests',        icon: MessageSquare },
                 { id: 'universities', label: 'Universities',      icon: Building2 },
-                { id: 'overview',   label: 'Overview',            icon: TrendingUp },
             ] as t}
                 {@const Icon = t.icon}
                 <button onclick={() => switchTab(t.id as Tab)}
@@ -1500,182 +1460,6 @@
                 {/each}
             </div>
 
-        <!-- ═══════ OVERVIEW ═══════ -->
-        {:else if activeTab === 'overview'}
-            <div class="space-y-5">
-                <!-- 30-day collection trend -->
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                    <div class="flex items-center justify-between mb-4">
-                        <div>
-                            <div class="text-sm font-bold text-slate-900 dark:text-white">Collection Trend</div>
-                            <div class="text-xs text-slate-500 mt-0.5">Last 30 days, aggregated across all universities</div>
-                        </div>
-                        {#if trendData.length}
-                            <div class="text-right">
-                                <div class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">{fmtInr(trendData.reduce((s, d) => s + d.amount, 0))}</div>
-                                <div class="text-[10px] text-slate-400 uppercase tracking-wider">total in window</div>
-                            </div>
-                        {/if}
-                    </div>
-                    {#if overviewLoading}
-                        <div class="text-center py-12 text-sm text-slate-500"><Loader2 class="inline animate-spin" size={16} /> Loading…</div>
-                    {:else if !trendData.length}
-                        <div class="text-center py-12">
-                            <div class="text-sm font-bold text-slate-700 dark:text-slate-300">No daily activity yet</div>
-                            <div class="text-xs text-slate-500 mt-1">Run a sync — the day-wise sheet feeds this chart automatically.</div>
-                        </div>
-                    {:else}
-                        {@const maxA = Math.max(1, ...trendData.map(d => d.amount))}
-                        {@const w = 100 / Math.max(trendData.length, 1)}
-                        <div class="relative h-48">
-                            <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-full">
-                                <defs>
-                                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4" />
-                                        <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
-                                    </linearGradient>
-                                </defs>
-                                <!-- Area fill -->
-                                <path d={`M 0 100 ${trendData.map((d, i) => `L ${i * w + w/2} ${100 - (d.amount / maxA) * 90}`).join(' ')} L 100 100 Z`} fill="url(#trendGrad)" />
-                                <!-- Line -->
-                                <polyline points={trendData.map((d, i) => `${i * w + w/2},${100 - (d.amount / maxA) * 90}`).join(' ')} fill="none" stroke="#6366f1" stroke-width="0.7" vector-effect="non-scaling-stroke" />
-                                <!-- Points -->
-                                {#each trendData as d, i}
-                                    <circle cx={i * w + w/2} cy={100 - (d.amount / maxA) * 90} r="0.8" fill="#6366f1" vector-effect="non-scaling-stroke" />
-                                {/each}
-                            </svg>
-                        </div>
-                        <div class="flex justify-between text-[10px] text-slate-400 mt-2">
-                            <span>{fmtDate(trendData[0]?.date)}</span>
-                            <span>{trendData.length} day{trendData.length === 1 ? '' : 's'}</span>
-                            <span>{fmtDate(trendData[trendData.length - 1]?.date)}</span>
-                        </div>
-                    {/if}
-                </div>
-
-                <!-- Top movers grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                        <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs">↑</span>
-                            Top 5 by Efficiency
-                        </div>
-                        {#if !topEfficient.length}
-                            <div class="text-xs text-slate-500 py-4">No universities yet.</div>
-                        {:else}
-                            <div class="space-y-2">
-                                {#each topEfficient as u, i}
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">{i + 1}</div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
-                                            <div class="text-[10px] text-slate-500">{fmtInr(u.paid)} paid · {u.strength} students</div>
-                                        </div>
-                                        <div class="text-sm font-extrabold text-emerald-600 dark:text-emerald-400 flex-shrink-0">{Number(u.collection_efficiency).toFixed(1)}%</div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                        <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                            <span class="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center text-xs">!</span>
-                            Top 5 by Pending Amount
-                        </div>
-                        {#if !topPending.length}
-                            <div class="text-xs text-slate-500 py-4">No universities yet.</div>
-                        {:else}
-                            <div class="space-y-2">
-                                {#each topPending as u, i}
-                                    <div class="flex items-center gap-3">
-                                        <div class="w-6 h-6 rounded-lg bg-rose-600 text-white text-xs font-extrabold flex items-center justify-center flex-shrink-0">{i + 1}</div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{u.university_name}</div>
-                                            <div class="text-[10px] text-slate-500">{u.not_paid} not paid · {u.partial_paid} partial</div>
-                                        </div>
-                                        <div class="text-sm font-extrabold text-rose-600 dark:text-rose-400 flex-shrink-0">{fmtInr(u.pending)}</div>
-                                    </div>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-
-                <!-- Last sync + recent doc requests -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                        <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                            <RefreshCw size={14} class="text-indigo-500" /> Last Sync
-                        </div>
-                        {#if activePeriod?.last_synced_at}
-                            <div class="space-y-3 text-sm">
-                                <div class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                    <span class="text-slate-500">When</span>
-                                    <span class="font-bold text-slate-900 dark:text-white">{fmtTimeAgo(activePeriod.last_synced_at)} ({fmtDateTime(activePeriod.last_synced_at)})</span>
-                                </div>
-                                {#if activePeriod.last_sync_summary}
-                                    {@const sum = activePeriod.last_sync_summary}
-                                    <div class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                        <span class="text-slate-500">Rows imported</span>
-                                        <span class="font-bold text-emerald-600 dark:text-emerald-400">{sum.totalImported?.toLocaleString() || 0}</span>
-                                    </div>
-                                    <div class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                        <span class="text-slate-500">Skipped</span>
-                                        <span class="font-bold text-amber-600 dark:text-amber-400">{sum.totalSkipped?.toLocaleString() || 0}</span>
-                                    </div>
-                                    <div class="flex justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                                        <span class="text-slate-500">Duration</span>
-                                        <span class="font-bold text-slate-900 dark:text-white">{((sum.elapsed_ms || 0) / 1000).toFixed(1)}s</span>
-                                    </div>
-                                    {#if sum.perStep?.length}
-                                        <div class="pt-1">
-                                            <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Per-step breakdown</div>
-                                            <div class="space-y-1 max-h-40 overflow-y-auto">
-                                                {#each sum.perStep as st}
-                                                    <div class="flex justify-between items-center text-xs gap-2">
-                                                        <span class="text-slate-600 dark:text-slate-400 truncate" title={st.tab || st.step}>
-                                                            <span class="font-mono text-[10px] text-slate-400 mr-1">{st.step}</span>
-                                                            {st.tab || ''}
-                                                        </span>
-                                                        <span class="font-bold {st.ok > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'} flex-shrink-0">{st.ok}</span>
-                                                    </div>
-                                                {/each}
-                                            </div>
-                                        </div>
-                                    {/if}
-                                {/if}
-                            </div>
-                        {:else}
-                            <div class="text-xs text-slate-500 py-4">Never synced.</div>
-                        {/if}
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                        <div class="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                            <MessageSquare size={14} class="text-purple-500" /> Recent Doc Requests
-                        </div>
-                        {#if !recentDocs.length}
-                            <div class="text-xs text-slate-500 py-4">No requests sent yet.</div>
-                        {:else}
-                            <div class="space-y-2 max-h-72 overflow-y-auto">
-                                {#each recentDocs as r}
-                                    <div class="flex items-center gap-3 py-1 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                                        <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 {r.status === 'acknowledged' || r.status === 'uploaded' ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600' : r.status === 'opened' ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}">
-                                            {#if r.status === 'acknowledged' || r.status === 'uploaded'}✓{:else if r.status === 'opened'}👁{:else}✉{/if}
-                                        </div>
-                                        <div class="flex-1 min-w-0">
-                                            <div class="text-sm font-bold text-slate-900 dark:text-white truncate">{r.student_name || '—'}</div>
-                                            <div class="text-[10px] text-slate-500">{r.university_name || '—'} · {fmtTimeAgo(r.sent_at)}</div>
-                                        </div>
-                                        <span class="text-[10px] font-bold uppercase tracking-wider {r.status === 'acknowledged' || r.status === 'uploaded' ? 'text-emerald-600' : r.status === 'opened' ? 'text-blue-600' : 'text-slate-400'}">{r.status}</span>
-                                    </div>
-                                {/each}
-                            </div>
-                        {/if}
-                    </div>
-                </div>
-            </div>
         {/if}
 
     </div>
