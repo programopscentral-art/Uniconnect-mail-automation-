@@ -135,6 +135,136 @@
         selectedForDocRequest = new Set();
     }
 
+    // ─── Batch / Period management ───────────────────────────────────
+    let showBatchModal = $state(false);
+    let batchForm = $state({
+        id: '' as string,
+        name: '',
+        program: 'NIAT',
+        term: 2,
+        batch_start_year: 2022,
+        batch_end_year: 2026,
+        sheet_id: '',
+        userwise_tab: 'Userwise Data',
+        daywise_tab: 'Day_Wise_Payments',
+        summary_tab: 'Sheet1',
+        multi_tabs: '',
+        auto_sync_enabled: false,
+        auto_sync_interval_minutes: 30,
+    });
+    let savingBatch = $state(false);
+    let syncingPeriodId = $state<string | null>(null);
+    let syncResult = $state<any>(null);
+
+    let activePeriod = $derived(data.periods.find((p: any) => p.id === activePeriodId) || data.periods[0]);
+
+    function openNewBatch() {
+        batchForm = {
+            id: '',
+            name: 'NIAT · Batch 2023-27 · Term 1',
+            program: 'NIAT',
+            term: 1,
+            batch_start_year: 2023,
+            batch_end_year: 2027,
+            sheet_id: '',
+            userwise_tab: 'Userwise Data',
+            daywise_tab: 'Day_Wise_Payments',
+            summary_tab: 'Sheet1',
+            multi_tabs: '',
+            auto_sync_enabled: false,
+            auto_sync_interval_minutes: 30,
+        };
+        showBatchModal = true;
+    }
+
+    function openEditBatch(p: any) {
+        const cfg = p.sheet_tabs_config || {};
+        batchForm = {
+            id: p.id,
+            name: p.name,
+            program: p.program || 'NIAT',
+            term: p.term || 1,
+            batch_start_year: p.batch_start_year || new Date().getFullYear(),
+            batch_end_year: p.batch_end_year || new Date().getFullYear() + 4,
+            sheet_id: p.sheet_id || '',
+            userwise_tab: cfg.userwise_tab || 'Userwise Data',
+            daywise_tab: cfg.daywise_tab || 'Day_Wise_Payments',
+            summary_tab: cfg.summary_tab || 'Sheet1',
+            multi_tabs: (cfg.multi_tabs || []).join('\n'),
+            auto_sync_enabled: !!p.auto_sync_enabled,
+            auto_sync_interval_minutes: p.auto_sync_interval_minutes || 30,
+        };
+        showBatchModal = true;
+    }
+
+    async function saveBatch() {
+        if (!batchForm.name || !batchForm.term) { flash('Name and term required', true); return; }
+        savingBatch = true;
+        try {
+            const sheet_tabs_config = {
+                userwise_tab: batchForm.userwise_tab || undefined,
+                daywise_tab: batchForm.daywise_tab || undefined,
+                summary_tab: batchForm.summary_tab || undefined,
+                multi_tabs: batchForm.multi_tabs.split('\n').map(t => t.trim()).filter(Boolean),
+            };
+            const payload = {
+                ...(batchForm.id ? { id: batchForm.id } : {}),
+                name: batchForm.name,
+                program: batchForm.program,
+                term: Number(batchForm.term),
+                batch_start_year: Number(batchForm.batch_start_year),
+                batch_end_year: Number(batchForm.batch_end_year),
+                academic_year: `${batchForm.batch_start_year}-${String(batchForm.batch_end_year).slice(-2)}`,
+                sheet_id: batchForm.sheet_id || null,
+                sheet_tabs_config,
+                auto_sync_enabled: batchForm.auto_sync_enabled,
+                auto_sync_interval_minutes: Number(batchForm.auto_sync_interval_minutes),
+            };
+            const method = batchForm.id ? 'PATCH' : 'POST';
+            const res = await fetch('/api/fees/periods', {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.message || `Failed (${res.status})`); }
+            flash(batchForm.id ? 'Batch updated' : 'Batch created');
+            showBatchModal = false;
+            window.location.reload(); // refresh periods list
+        } catch (e: any) {
+            flash(e?.message || 'Save failed', true);
+        } finally {
+            savingBatch = false;
+        }
+    }
+
+    async function syncNow(periodId: string) {
+        syncingPeriodId = periodId;
+        syncResult = null;
+        try {
+            const res = await fetch(`/api/fees/periods/${periodId}/sync`, { method: 'POST' });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.message || 'Sync failed');
+            syncResult = j;
+            flash(`Synced ${j.totalImported} rows in ${(j.elapsed_ms / 1000).toFixed(1)}s`);
+            await loadRollup();
+        } catch (e: any) {
+            flash(e?.message || 'Sync failed', true);
+        } finally {
+            syncingPeriodId = null;
+        }
+    }
+
+    function fmtTimeAgo(iso: string | null): string {
+        if (!iso) return 'never';
+        const diff = Date.now() - new Date(iso).getTime();
+        const m = Math.floor(diff / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return `${m}m ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h}h ago`;
+        return `${Math.floor(h / 24)}d ago`;
+    }
+
     // ─── Import modal ─────────────────────────────────────────────────
     let showImportModal = $state(false);
     let importMode = $state<'sheet' | 'csv'>('sheet');
@@ -576,6 +706,23 @@
                     {/each}
                 </select>
                 {#if data.access.canAdmin}
+                    <button onclick={openNewBatch} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-800" title="Create a new batch with Google Sheet auto-sync">
+                        <Plus size={14} /> New Batch
+                    </button>
+                    {#if activePeriod}
+                        <button onclick={() => openEditBatch(activePeriod)} class="px-2.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800" title="Edit batch settings (sheet ID, auto-sync)">
+                            ⚙ Settings
+                        </button>
+                    {/if}
+                    {#if activePeriod?.sheet_id}
+                        <button onclick={() => syncNow(activePeriod.id)} disabled={!!syncingPeriodId} class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-500/30" title="Sync now from Google Sheet">
+                            {#if syncingPeriodId === activePeriod.id}
+                                <Loader2 size={14} class="animate-spin" /> Syncing…
+                            {:else}
+                                <RefreshCw size={14} /> Sync Now
+                            {/if}
+                        </button>
+                    {/if}
                     <button onclick={() => { showImportModal = true; importResult = null; }} class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-indigo-500/30">
                         <Upload size={14} /> Import Data
                     </button>
@@ -607,6 +754,49 @@
                 {/if}
             </div>
         </div>
+
+        <!-- Sync status strip (active period only) -->
+        {#if activePeriod?.sheet_id}
+            <div class="mb-4 flex items-center justify-between gap-3 flex-wrap px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-3 text-xs">
+                    <span class="inline-flex items-center gap-1.5 font-bold text-slate-600 dark:text-slate-300">
+                        <RefreshCw size={12} class="text-emerald-500" />
+                        Last synced <span class="text-slate-900 dark:text-white">{fmtTimeAgo(activePeriod.last_synced_at)}</span>
+                    </span>
+                    {#if activePeriod.auto_sync_enabled}
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold">
+                            ● Auto-sync every {activePeriod.auto_sync_interval_minutes || 30} min
+                        </span>
+                    {:else}
+                        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                            ○ Auto-sync off
+                        </span>
+                    {/if}
+                    {#if activePeriod.last_sync_summary}
+                        <span class="text-slate-400">
+                            · Last run: {activePeriod.last_sync_summary.totalImported || 0} imported
+                        </span>
+                    {/if}
+                </div>
+                <a href={`https://docs.google.com/spreadsheets/d/${activePeriod.sheet_id}/edit`} target="_blank" rel="noopener" class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Open Sheet →
+                </a>
+            </div>
+            {#if activePeriod.last_sync_error}
+                <div class="mb-4 px-4 py-3 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 flex items-start gap-3">
+                    <AlertCircle size={16} class="text-rose-600 dark:text-rose-400 flex-shrink-0 mt-0.5" />
+                    <div class="flex-1 text-xs">
+                        <div class="font-bold text-rose-700 dark:text-rose-300">Last auto-sync failed</div>
+                        <div class="text-rose-600 dark:text-rose-400 mt-1 break-words">{activePeriod.last_sync_error}</div>
+                    </div>
+                    {#if data.access.canAdmin}
+                        <button onclick={() => syncNow(activePeriod.id)} class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex-shrink-0">
+                            Retry
+                        </button>
+                    {/if}
+                </div>
+            {/if}
+        {/if}
 
         <!-- KPI Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -1386,6 +1576,140 @@
                         {#if docSending}<Loader2 class="animate-spin" size={16} /> Sending...{:else}<MessageSquare size={16} /> Send to {selectedForDocRequest.size} students{/if}
                     </button>
                     <button onclick={() => showSendDocModal = false} class="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-sm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+<!-- ═══════ BATCH WIZARD MODAL ═══════ -->
+{#if showBatchModal}
+    <div transition:fade={{ duration: 150 }} class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onclick={() => showBatchModal = false} role="presentation">
+        <div transition:fly={{ y: 30 }} class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-3xl max-h-[92vh] overflow-y-auto" onclick={(e) => e.stopPropagation()} role="presentation">
+            <div class="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between sticky top-0 bg-white dark:bg-slate-900 z-10">
+                <div>
+                    <div class="font-extrabold text-lg flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                            <Wallet size={16} class="text-white" />
+                        </div>
+                        {batchForm.id ? 'Edit Batch Settings' : 'Create New Batch'}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-1">Link a Google Sheet and enable auto-sync to keep fee data fresh.</div>
+                </div>
+                <button onclick={() => showBatchModal = false} class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center"><X size={16} /></button>
+            </div>
+
+            <div class="p-5 space-y-5">
+                <!-- Basics -->
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Batch Details</div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Batch Name</label>
+                            <input bind:value={batchForm.name} placeholder="e.g. NIAT · Batch 2023-27 · Term 1" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Program</label>
+                            <select bind:value={batchForm.program} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                                <option value="NIAT">NIAT</option>
+                                <option value="CCBP">CCBP</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Term</label>
+                            <select bind:value={batchForm.term} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm">
+                                <option value={1}>Term 1</option>
+                                <option value={2}>Term 2</option>
+                                <option value={3}>Term 3</option>
+                                <option value={4}>Term 4</option>
+                                <option value={5}>Term 5</option>
+                                <option value={6}>Term 6</option>
+                                <option value={7}>Term 7</option>
+                                <option value={8}>Term 8</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Batch Start Year</label>
+                            <input type="number" bind:value={batchForm.batch_start_year} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Batch End Year</label>
+                            <input type="number" bind:value={batchForm.batch_end_year} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sheet config -->
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Google Sheet Connection</div>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Sheet ID</label>
+                            <input bind:value={batchForm.sheet_id} placeholder="1TAhrH4303o81dqps1j-ZNYt1QjWHhfmY5gjwnz_2GBM" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono" />
+                            <div class="text-[10px] text-slate-500 mt-1">
+                                Paste from the URL: docs.google.com/spreadsheets/d/<span class="text-indigo-600 dark:text-indigo-400 font-bold">SHEET_ID</span>/edit · Sheet must be "Anyone with link can view".
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Userwise tab</label>
+                                <input bind:value={batchForm.userwise_tab} placeholder="Userwise Data" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Day-wise tab</label>
+                                <input bind:value={batchForm.daywise_tab} placeholder="Day_Wise_Payments" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Summary tab</label>
+                                <input bind:value={batchForm.summary_tab} placeholder="Sheet1" class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm" />
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Per-university tabs (one per line, optional)</label>
+                            <textarea bind:value={batchForm.multi_tabs} rows="5" placeholder={'Aurora University\nCrescent University\nMalla Reddy\nTakshasila University\nSGU_Import\nMRV\namet term 2 & 3 userwise data'} class="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-mono resize-y"></textarea>
+                            <div class="text-[10px] text-slate-500 mt-1">If your sheet has one tab per university, list them here. The sync will import each and auto-create universities as needed.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auto-sync -->
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Auto-sync</div>
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-800/50">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <input type="checkbox" bind:checked={batchForm.auto_sync_enabled} class="mt-1 w-4 h-4 rounded accent-indigo-600" />
+                            <div class="flex-1">
+                                <div class="text-sm font-bold text-slate-900 dark:text-white">Keep data in sync automatically</div>
+                                <div class="text-xs text-slate-500 mt-0.5">A background worker will pull fresh data from the sheet on a fixed interval. Failures show a red banner here.</div>
+                            </div>
+                        </label>
+                        {#if batchForm.auto_sync_enabled}
+                            <div class="mt-3 pl-7">
+                                <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 block">Sync every</label>
+                                <select bind:value={batchForm.auto_sync_interval_minutes} class="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm">
+                                    <option value={5}>5 minutes</option>
+                                    <option value={15}>15 minutes</option>
+                                    <option value={30}>30 minutes (recommended)</option>
+                                    <option value={60}>1 hour</option>
+                                    <option value={180}>3 hours</option>
+                                    <option value={360}>6 hours</option>
+                                    <option value={1440}>Daily</option>
+                                </select>
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-800 dark:text-blue-300">
+                    ℹ️ After saving, use the <strong>Sync Now</strong> button on the dashboard to run the first import. Then auto-sync (if enabled) takes over.
+                </div>
+
+                <div class="flex gap-2 pt-2 sticky bottom-0 bg-white dark:bg-slate-900 pb-1">
+                    <button disabled={savingBatch} onclick={saveBatch} class="flex-1 px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 shadow-md shadow-indigo-500/30">
+                        {#if savingBatch}<Loader2 class="animate-spin" size={16} /> Saving…{:else}<CheckCircle2 size={16} /> {batchForm.id ? 'Save Changes' : 'Create Batch'}{/if}
+                    </button>
+                    <button onclick={() => showBatchModal = false} class="px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-sm">Cancel</button>
                 </div>
             </div>
         </div>

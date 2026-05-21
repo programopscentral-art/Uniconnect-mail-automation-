@@ -5,6 +5,7 @@ import { db, getCommunicationTasksForReminders, getUserFcmTokens, updateCommunic
 import * as admin from 'firebase-admin';
 import { processBudgetProposalsWorker } from './budget_proposals';
 import { processOpsAutomation } from './ops_automation';
+import { processFeeAutoSync } from './fee_auto_sync';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -347,6 +348,10 @@ async function processWeeklyReports() {
 // Check every 30 seconds for better responsiveness
 setInterval(processCommunicationTasks, 30 * 1000);
 processCommunicationTasks();
+
+// Fee Collection auto-sync — runs every minute, fires only for periods due
+setInterval(() => processFeeAutoSync().catch(e => console.error('[FEE_AUTO_SYNC]', e)), 60 * 1000);
+processFeeAutoSync().catch(() => {});
 
 // BULLMQ: Listen for instant triggers from the main app
 const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {

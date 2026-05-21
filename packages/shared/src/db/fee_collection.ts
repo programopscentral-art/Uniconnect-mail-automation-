@@ -37,6 +37,13 @@ export async function ensureFeeTables() {
             );
             ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS batch_start_year int;
             ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS batch_end_year int;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS sheet_id text;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS sheet_tabs_config jsonb;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS auto_sync_enabled boolean NOT NULL DEFAULT false;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS auto_sync_interval_minutes int NOT NULL DEFAULT 30;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS last_synced_at timestamptz;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS last_sync_error text;
+            ALTER TABLE fee_periods ADD COLUMN IF NOT EXISTS last_sync_summary jsonb;
 
             CREATE TABLE IF NOT EXISTS fee_university_meta (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -182,7 +189,11 @@ export async function ensureFeeTables() {
 export async function getFeePeriods() {
     await ensureFeeTables();
     const res = await db.query(
-        `SELECT id, name, program, term, academic_year, status, created_at
+        `SELECT id, name, program, term, academic_year, status, created_at,
+                batch_start_year, batch_end_year,
+                sheet_id, sheet_tabs_config,
+                auto_sync_enabled, auto_sync_interval_minutes,
+                last_synced_at, last_sync_error, last_sync_summary
          FROM fee_periods
          ORDER BY academic_year DESC NULLS LAST, term DESC, created_at DESC`
     );
@@ -200,15 +211,71 @@ export async function getActiveFeePeriod() {
 export async function createFeePeriod(data: {
     name: string; program?: string; term: number; academic_year?: string;
     batch_start_year?: number; batch_end_year?: number; created_by?: string;
+    sheet_id?: string; sheet_tabs_config?: any;
+    auto_sync_enabled?: boolean; auto_sync_interval_minutes?: number;
 }) {
     await ensureFeeTables();
     const res = await db.query(
-        `INSERT INTO fee_periods (name, program, term, academic_year, batch_start_year, batch_end_year, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        `INSERT INTO fee_periods (name, program, term, academic_year, batch_start_year, batch_end_year, created_by,
+            sheet_id, sheet_tabs_config, auto_sync_enabled, auto_sync_interval_minutes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
         [data.name, data.program || null, data.term, data.academic_year || null,
-         data.batch_start_year || null, data.batch_end_year || null, data.created_by || null]
+         data.batch_start_year || null, data.batch_end_year || null, data.created_by || null,
+         data.sheet_id || null, data.sheet_tabs_config ? JSON.stringify(data.sheet_tabs_config) : null,
+         data.auto_sync_enabled || false, data.auto_sync_interval_minutes || 30]
     );
     return res.rows[0];
+}
+
+export async function updateFeePeriodSync(id: string, updates: {
+    sheet_id?: string | null;
+    sheet_tabs_config?: any;
+    auto_sync_enabled?: boolean;
+    auto_sync_interval_minutes?: number;
+}) {
+    await ensureFeeTables();
+    const fields: string[] = [];
+    const params: any[] = [];
+    let i = 1;
+    if (updates.sheet_id !== undefined) { fields.push(`sheet_id = $${i++}`); params.push(updates.sheet_id); }
+    if (updates.sheet_tabs_config !== undefined) {
+        fields.push(`sheet_tabs_config = $${i++}`);
+        params.push(updates.sheet_tabs_config ? JSON.stringify(updates.sheet_tabs_config) : null);
+    }
+    if (updates.auto_sync_enabled !== undefined) { fields.push(`auto_sync_enabled = $${i++}`); params.push(updates.auto_sync_enabled); }
+    if (updates.auto_sync_interval_minutes !== undefined) { fields.push(`auto_sync_interval_minutes = $${i++}`); params.push(updates.auto_sync_interval_minutes); }
+    if (!fields.length) return null;
+    params.push(id);
+    const res = await db.query(
+        `UPDATE fee_periods SET ${fields.join(', ')}, updated_at = now() WHERE id = $${i} RETURNING *`,
+        params
+    );
+    return res.rows[0];
+}
+
+export async function recordSyncResult(periodId: string, summary: any, error?: string | null) {
+    await ensureFeeTables();
+    await db.query(
+        `UPDATE fee_periods SET last_synced_at = now(), last_sync_summary = $2, last_sync_error = $3 WHERE id = $1`,
+        [periodId, JSON.stringify(summary || {}), error || null]
+    );
+}
+
+/**
+ * Find all periods due for an auto-sync run.
+ * Returns periods where auto_sync_enabled=true AND
+ * (last_synced_at is null OR now - last_synced_at >= interval minutes).
+ */
+export async function getPeriodsDueForSync() {
+    await ensureFeeTables();
+    const res = await db.query(
+        `SELECT * FROM fee_periods
+         WHERE auto_sync_enabled = true
+           AND sheet_id IS NOT NULL
+           AND (last_synced_at IS NULL OR now() - last_synced_at >= (auto_sync_interval_minutes || ' minutes')::interval)
+         ORDER BY last_synced_at NULLS FIRST`
+    );
+    return res.rows;
 }
 
 // ─── Doc Requests / Acknowledgments ────────────────────────────────
