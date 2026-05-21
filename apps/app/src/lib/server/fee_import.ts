@@ -412,25 +412,22 @@ export async function importDayWisePayments(
 /**
  * Parse any date format the Google Sheets gviz endpoint might return.
  *
- * Crucial wrinkle: in Indian sheets people type dates as DD/MM/YYYY, but the
- * sheet's locale is often left as US (MM/DD/YYYY). So "12/01/2026" typed
- * meaning "12 Jan 2026" gets stored as Dec 1, 2026 — wrong by 11 months.
+ * The hard problem: in Indian sheets people type "12/01/2026" meaning DD/MM
+ * (Jan 12), but if the sheet's locale is US it gets stored as MM/DD (Dec 1) —
+ * 11 months wrong. We want to recover Jan 12 in that case.
  *
- * To recover the user's intent we look at the formatted display string (.f)
- * which is what they originally typed, and parse it as DD-MM-YYYY when it
- * matches that shape. Only if the formatted string is unparseable do we fall
- * back to the raw Date(Y,M,D) value.
+ * BUT — many rows store dates correctly: e.g. "2/11/2026" stored as
+ * Date(2026,1,11) = Feb 11, 2026. Blindly flipping all DD/MM-shaped strings
+ * gives Nov 2, which is also wrong.
+ *
+ * Heuristic: trust the raw gviz value EXCEPT when it lands in the future
+ * (impossible for actual past payments) AND the DD-MM interpretation of the
+ * formatted display puts it in the past. That's the signature of a locale
+ * mistake, and the DD-MM reading is what the human meant.
  *
  * fetchSheetTab packs both fields as "raw||formatted" when both exist.
  *
- * Supported formats:
- * - "12/01/2026" or "12-01-2026"     → DD-MM-YYYY (Indian)
- * - "12 Jan 2026" / "12-Jan-26"      → unambiguous month-name
- * - "Date(2026,11,1)"                → gviz fallback (month 0-indexed)
- * - "2026-02-08"                     → ISO
- * - Date object
- *
- * Returns "YYYY-MM-DD" or empty string on failure.
+ * Returns "YYYY-MM-DD" or empty on failure.
  */
 function parseGvizDate(raw: any): string {
     if (!raw) return '';
@@ -448,30 +445,48 @@ function parseGvizDate(raw: any): string {
         formatted = s.slice(sepIdx + 2).trim();
     }
 
-    // 1. Try the formatted display first — it captures the user's intent better
-    //    than the locale-mangled raw value.
-    if (formatted) {
-        const parsed = parseDisplayDate(formatted);
-        if (parsed) return parsed;
-    }
-
-    // 2. ISO: "2026-02-08"
+    // ISO
     if (/^\d{4}-\d{2}-\d{2}/.test(core)) return core.slice(0, 10);
 
-    // 3. gviz JSON: "Date(2026,1,8)" — fallback only when display string was unusable
+    const todayISO = new Date().toISOString().slice(0, 10);
     const gvizMatch = core.match(/^Date\((\d+),(\d+),(\d+)/);
+
+    // Has a raw gviz value? Treat it as authoritative unless it's locale-broken.
     if (gvizMatch) {
         const y = parseInt(gvizMatch[1]);
         const mo = parseInt(gvizMatch[2]) + 1;
         const d = parseInt(gvizMatch[3]);
-        return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const gvizISO = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+        if (formatted) {
+            // Unambiguous month-name display ("12-Dec-25") always wins.
+            const monthNameLike = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(formatted);
+            if (monthNameLike) {
+                const named = parseDisplayDate(formatted);
+                if (named) return named;
+            }
+            // Locale-bug recovery: gviz date is in the future AND a DD-MM read
+            // of the formatted string lands in the past → the human typed DD-MM
+            // but the sheet stored it as MM-DD. Use the DD-MM reading.
+            if (gvizISO > todayISO) {
+                const ddmm = parseDisplayDate(formatted);
+                if (ddmm && ddmm <= todayISO) return ddmm;
+            }
+        }
+
+        // Otherwise the gviz value is correct (whether past or genuinely future).
+        return gvizISO;
     }
 
-    // 4. Plain DD/MM or DD-MM in the raw string
+    // No gviz value — fall back to parsing the formatted/core string.
+    if (formatted) {
+        const p = parseDisplayDate(formatted);
+        if (p) return p;
+    }
     const dm = parseDisplayDate(core);
     if (dm) return dm;
 
-    // 5. Last resort
+    // Last resort
     const parsed = new Date(core);
     if (!isNaN(parsed.getTime())) return parsed.toISOString().split('T')[0];
 
