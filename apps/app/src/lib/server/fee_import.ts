@@ -79,6 +79,49 @@ function applyAlias(key: string): string {
     return UNIVERSITY_ALIASES[key] || key;
 }
 
+/**
+ * Scan the universities table for alias-duplicates (e.g. "Mallareddy" + "MRV")
+ * and auto-merge them into the canonical entry. Called at the start of every
+ * sync so the user doesn't have to manually invoke the merge endpoint.
+ *
+ * Returns the list of merges performed for logging in the sync result.
+ */
+export async function autoMergeAliasDuplicates(): Promise<Array<{ from: string; to: string; moved: any }>> {
+    const { mergeUniversities, getAllUniversities } = await import('@uniconnect/shared');
+    const all = await getAllUniversities();
+    // Build lookup: normalized_name → array of {id, name}
+    const byKey = new Map<string, Array<{ id: string; name: string }>>();
+    for (const u of all) {
+        const key = norm(u.name || '');
+        if (!key) continue;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key)!.push({ id: u.id, name: u.name });
+    }
+
+    const merges: Array<{ from: string; to: string; moved: any }> = [];
+
+    // For each alias entry, find both sides and merge source → target
+    for (const [aliasKey, canonicalKey] of Object.entries(UNIVERSITY_ALIASES)) {
+        const sources = byKey.get(aliasKey) || [];
+        const targets = byKey.get(canonicalKey) || [];
+        if (!sources.length || !targets.length) continue;
+
+        // Use first target as canonical; merge every source into it
+        const target = targets[0];
+        for (const source of sources) {
+            if (source.id === target.id) continue;
+            try {
+                const moved = await mergeUniversities(source.id, target.id);
+                merges.push({ from: source.name, to: target.name, moved });
+            } catch (e: any) {
+                // Best effort — keep going if one merge fails
+                console.error(`[autoMergeAliasDuplicates] Failed to merge "${source.name}" → "${target.name}":`, e.message);
+            }
+        }
+    }
+    return merges;
+}
+
 /** Build a fuzzy university name → id map */
 async function buildUniversityIndex(): Promise<Map<string, string>> {
     const all = await getAllUniversities();

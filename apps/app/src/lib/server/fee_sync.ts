@@ -16,6 +16,7 @@ import {
     importUserwiseRows,
     importDayWisePayments,
     importUniversitySummary,
+    autoMergeAliasDuplicates,
 } from './fee_import';
 
 export interface SheetTabsConfig {
@@ -55,6 +56,22 @@ export async function runFullSync(period: {
     let error: string | undefined;
 
     try {
+        // 0. Auto-merge alias-duplicate universities (e.g. "Mallareddy" + "MRV")
+        //    so we start with a clean university list before importing new rows.
+        try {
+            const merges = await autoMergeAliasDuplicates();
+            if (merges.length > 0) {
+                perStep.push({
+                    step: 'auto-merge',
+                    ok: merges.length,
+                    skipped: 0,
+                    errors: merges.map(m => `Merged "${m.from}" → "${m.to}"`),
+                });
+            }
+        } catch (e: any) {
+            perStep.push({ step: 'auto-merge', ok: 0, skipped: 0, errors: [e.message?.slice(0, 200)] });
+        }
+
         // 1. Main student data
         if (cfg.userwise_tab) {
             try {
