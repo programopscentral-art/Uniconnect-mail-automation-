@@ -8,6 +8,7 @@
 import {
     db,
     getAllUniversities,
+    createUniversity,
     upsertFeeStudentPayment,
     bulkUpsertFeeStudentPayments,
     createFeeRemark,
@@ -63,11 +64,60 @@ function findUniversityId(idx: Map<string, string>, raw: string): string | null 
     if (!raw) return null;
     const key = norm(raw);
     if (idx.has(key)) return idx.get(key)!;
-    // Try partial matches
+
+    // Strip common batch/term suffixes that prevent matching
+    // "KKH Batch-2" → "kkh", "AMET Term-3" → "amet", "CIET&CITY-Chalapathi" → try "ciet" first
+    const stripped = key
+        .replace(/batch\d*$/i, '')
+        .replace(/term\d*$/i, '')
+        .replace(/chalapathi$/i, '');
+    if (stripped !== key && stripped.length > 1) {
+        if (idx.has(stripped)) return idx.get(stripped)!;
+        for (const [k, v] of idx.entries()) {
+            if (k.startsWith(stripped) || stripped.startsWith(k)) return v;
+        }
+    }
+
+    // Try partial matches (contains either way)
     for (const [k, v] of idx.entries()) {
-        if (k.includes(key) || key.includes(k)) return v;
+        if (k.length >= 3 && (k.includes(key) || key.includes(k))) return v;
     }
     return null;
+}
+
+/**
+ * Find a university by name, or auto-create it if missing.
+ * Side effect: adds the new university to the index map so subsequent
+ * lookups in the same import find it.
+ */
+async function findOrCreateUniversity(
+    idx: Map<string, string>,
+    raw: string,
+    createdList: string[]
+): Promise<string | null> {
+    const found = findUniversityId(idx, raw);
+    if (found) return found;
+    if (!raw || raw.trim().length < 2) return null;
+
+    // Build a slug from the name
+    const cleanName = raw.trim();
+    const slug = norm(cleanName).slice(0, 40) || `uni-${Date.now()}`;
+    try {
+        const u = await createUniversity(cleanName, slug);
+        idx.set(norm(cleanName), u.id);
+        createdList.push(cleanName);
+        return u.id;
+    } catch (e: any) {
+        // Slug collision — try with timestamp suffix
+        try {
+            const u = await createUniversity(cleanName, `${slug}-${Date.now()}`);
+            idx.set(norm(cleanName), u.id);
+            createdList.push(cleanName);
+            return u.id;
+        } catch {
+            return null;
+        }
+    }
 }
 
 /** Get value from a row by trying many candidate column names (case/space-insensitive) */
@@ -90,8 +140,9 @@ export async function importUserwiseRows(
     rows: SheetRow[],
     userId?: string,
     opts: { importRemarks?: boolean } = {}
-): Promise<{ ok: number; skipped: number; errors: string[]; tagged: number; remarksImported: number }> {
+): Promise<{ ok: number; skipped: number; errors: string[]; tagged: number; remarksImported: number; createdUniversities: string[] }> {
     const uniIdx = await buildUniversityIndex();
+    const createdUniversities: string[] = [];
     let skipped = 0, tagged = 0, remarksImported = 0;
     const errors: string[] = [];
 
@@ -116,9 +167,9 @@ export async function importUserwiseRows(
             const uniRaw = String(pick(row, ['university', 'college', 'uni']) || '').trim();
             if (!zoho || !uniRaw) { skipped++; continue; }
 
-            const universityId = findUniversityId(uniIdx, uniRaw);
+            const universityId = await findOrCreateUniversity(uniIdx, uniRaw, createdUniversities);
             if (!universityId) {
-                if (errors.length < 20) errors.push(`Unknown university "${uniRaw}" for student ${zoho.slice(0, 8)}`);
+                if (errors.length < 20) errors.push(`Could not match or create university "${uniRaw}" for ${zoho.slice(0, 8)}`);
                 skipped++;
                 continue;
             }
@@ -212,7 +263,7 @@ export async function importUserwiseRows(
         }
     }
 
-    return { ok: parsed.length, skipped, errors, tagged, remarksImported };
+    return { ok: parsed.length, skipped, errors, tagged, remarksImported, createdUniversities };
 }
 
 /**
@@ -259,18 +310,35 @@ export async function importDayWisePayments(
         }
     }
 
+    // Dedupe by (zoho_user_id, payment_date) — Postgres ON CONFLICT can't
+    // update the same row twice in one statement, so collapse duplicates.
+    const seen = new Map<string, typeof validRows[0]>();
+    let dupes = 0;
+    for (const r of validRows) {
+        const key = `${r.zoho_user_id}|${r.payment_date}`;
+        if (seen.has(key)) {
+            dupes++;
+            continue;
+        }
+        seen.set(key, r);
+    }
+    const deduped = Array.from(seen.values());
+    if (dupes > 0 && errors.length < 5) {
+        errors.push(`Skipped ${dupes} duplicate (student, date) entries — kept first.`);
+    }
+
     // Pass 2: bulk INSERT all transactions in one go
     let ok = 0;
-    if (validRows.length > 0) {
+    if (deduped.length > 0) {
         try {
-            ok = await bulkUpsertFeeTransactions(periodId, validRows);
+            ok = await bulkUpsertFeeTransactions(periodId, deduped);
         } catch (e: any) {
             errors.push(`Bulk insert failed: ${e.message?.slice(0, 100)}`);
-            skipped += validRows.length;
+            skipped += deduped.length;
         }
     }
 
-    return { ok, skipped, errors };
+    return { ok, skipped: skipped + dupes, errors };
 }
 
 /**
@@ -324,17 +392,18 @@ function parseGvizDate(raw: any): string {
 export async function importUniversitySummary(
     periodId: string,
     rows: SheetRow[]
-): Promise<{ ok: number; skipped: number; errors: string[] }> {
+): Promise<{ ok: number; skipped: number; errors: string[]; createdUniversities: string[] }> {
     const uniIdx = await buildUniversityIndex();
+    const createdUniversities: string[] = [];
     let ok = 0, skipped = 0;
     const errors: string[] = [];
     for (const row of rows) {
         try {
             const uniRaw = String(pick(row, ['university', 'college']) || '').trim();
             if (!uniRaw || norm(uniRaw) === 'total') { skipped++; continue; }
-            const uId = findUniversityId(uniIdx, uniRaw);
+            const uId = await findOrCreateUniversity(uniIdx, uniRaw, createdUniversities);
             if (!uId) {
-                if (errors.length < 10) errors.push(`Unknown university "${uniRaw}"`);
+                if (errors.length < 10) errors.push(`Could not match or create university "${uniRaw}"`);
                 skipped++;
                 continue;
             }
@@ -352,7 +421,7 @@ export async function importUniversitySummary(
             skipped++;
         }
     }
-    return { ok, skipped, errors };
+    return { ok, skipped, errors, createdUniversities };
 }
 
 /**

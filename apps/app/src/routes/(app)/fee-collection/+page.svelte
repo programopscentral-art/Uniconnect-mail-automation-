@@ -1259,6 +1259,9 @@
                             <div>• <strong>{importResult.skipped || 0}</strong> rows skipped</div>
                             {#if importResult.remarksImported}<div>• <strong>{importResult.remarksImported}</strong> legacy remarks migrated</div>{/if}
                             {#if importResult.tagged}<div>• <strong>{importResult.tagged}</strong> students auto-tagged</div>{/if}
+                            {#if importResult.createdUniversities && importResult.createdUniversities.length}
+                                <div class="text-emerald-600 dark:text-emerald-400">• <strong>{importResult.createdUniversities.length}</strong> universities auto-created: {importResult.createdUniversities.join(', ')}</div>
+                            {/if}
                             {#if importResult.elapsed_ms}<div class="opacity-70">• Completed in {(importResult.elapsed_ms / 1000).toFixed(1)}s</div>{/if}
                             {#if importResult.errors && importResult.errors.length}
                                 <details class="mt-3" open>
