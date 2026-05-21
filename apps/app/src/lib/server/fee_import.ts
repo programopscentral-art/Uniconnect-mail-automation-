@@ -446,9 +446,10 @@ export async function importUniversitySummary(
  * Sheet must be public (Anyone with link → Viewer).
  */
 export async function fetchSheetTab(sheetId: string, tabName: string): Promise<SheetRow[]> {
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+    // Add headers=1 so gviz uses the first row as column names instead of A/B/C
+    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(tabName)}`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // 25s timeout
+    const timeout = setTimeout(() => controller.abort(), 25000);
     try {
         const r = await fetch(url, { signal: controller.signal });
         const t = await r.text();
@@ -458,8 +459,27 @@ export async function fetchSheetTab(sheetId: string, tabName: string): Promise<S
         if (startIdx === -1 || endIdx === -1) throw new Error('Sheet returned invalid JSON. Check that the tab name is exact (case-sensitive) and the sheet is public.');
         const j = JSON.parse(t.substring(startIdx, endIdx + 1));
         if (j.status === 'error') throw new Error(`Sheet error: ${(j.errors?.[0]?.detailed_message || j.errors?.[0]?.message || 'unknown').slice(0, 200)}`);
-        const cols = j.table.cols.map((c: any) => c.label || c.id || '');
-        return j.table.rows.map((row: any) => {
+
+        let cols: string[] = j.table.cols.map((c: any) => (c.label || '').trim());
+        let dataRows = j.table.rows || [];
+
+        // Fallback: if column labels are blank (gviz failed to detect headers),
+        // use the first DATA row's string values as headers. Common when the
+        // sheet has a title row, merged cells, or non-standard formatting.
+        const labelsBlank = cols.every((c) => !c);
+        if (labelsBlank && dataRows.length > 0) {
+            const firstRow = dataRows[0];
+            const derivedHeaders = (firstRow.c || []).map((cell: any, i: number) =>
+                String(cell?.v ?? cell?.f ?? `Col${i + 1}`).trim()
+            );
+            cols = derivedHeaders;
+            dataRows = dataRows.slice(1); // skip the row we just consumed as headers
+        }
+
+        // Last-resort fallback: if still blank, use gviz column IDs (A, B, C, ...)
+        cols = cols.map((c, i) => c || j.table.cols[i]?.id || `Col${i + 1}`);
+
+        return dataRows.map((row: any) => {
             const o: SheetRow = {};
             cols.forEach((c: string, i: number) => {
                 o[c] = row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '';
