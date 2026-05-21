@@ -793,9 +793,16 @@ export async function bulkUpsertFeeStudentPayments(periodId: string, rows: Array
              ON CONFLICT (period_id, zoho_user_id) DO UPDATE SET
                 university_id = EXCLUDED.university_id,
                 student_name = COALESCE(EXCLUDED.student_name, fee_student_payments.student_name),
-                payable = EXCLUDED.payable,
-                paid = EXCLUDED.paid,
-                status = EXCLUDED.status,
+                -- Per-uni tabs (Aurora, Takshasila) have no payment columns at
+                -- all — every row comes in as payable=0, paid=0 and would wipe
+                -- the real values just imported from Userwise Data. Only
+                -- overwrite when the incoming value is actually non-zero.
+                payable = CASE WHEN EXCLUDED.payable > 0 THEN EXCLUDED.payable ELSE fee_student_payments.payable END,
+                paid = CASE WHEN EXCLUDED.paid > 0 THEN EXCLUDED.paid ELSE fee_student_payments.paid END,
+                status = CASE
+                    WHEN EXCLUDED.payable > 0 OR EXCLUDED.paid > 0 THEN EXCLUDED.status
+                    ELSE fee_student_payments.status
+                END,
                 success_coach_name = COALESCE(EXCLUDED.success_coach_name, fee_student_payments.success_coach_name),
                 active_status = COALESCE(EXCLUDED.active_status, fee_student_payments.active_status),
                 payment_method = COALESCE(EXCLUDED.payment_method, fee_student_payments.payment_method),
@@ -826,9 +833,14 @@ export async function upsertFeeStudentPayment(data: {
             university_id = EXCLUDED.university_id,
             student_id = COALESCE(EXCLUDED.student_id, fee_student_payments.student_id),
             student_name = COALESCE(EXCLUDED.student_name, fee_student_payments.student_name),
-            payable = EXCLUDED.payable,
-            paid = EXCLUDED.paid,
-            status = EXCLUDED.status,
+            -- See bulk version: preserve existing non-zero payable/paid when
+            -- incoming row has no payment data (per-uni list-only tabs).
+            payable = CASE WHEN EXCLUDED.payable > 0 THEN EXCLUDED.payable ELSE fee_student_payments.payable END,
+            paid = CASE WHEN EXCLUDED.paid > 0 THEN EXCLUDED.paid ELSE fee_student_payments.paid END,
+            status = CASE
+                WHEN EXCLUDED.payable > 0 OR EXCLUDED.paid > 0 THEN EXCLUDED.status
+                ELSE fee_student_payments.status
+            END,
             success_coach_name = COALESCE(EXCLUDED.success_coach_name, fee_student_payments.success_coach_name),
             active_status = COALESCE(EXCLUDED.active_status, fee_student_payments.active_status),
             payment_method = COALESCE(EXCLUDED.payment_method, fee_student_payments.payment_method),
