@@ -453,4 +453,8 @@ meetingWorker.on('failed', (job, err) => {
   console.error(`[MEETING-WORKER] ❌ Job ${job?.id} failed:`, err);
 });
 
-console.log('✅ Worker with robust notifications, BullMQ sync, and meeting intelligence started.');
+// ─── Operations OS workers (Phase 0: no-op handlers, topology only) ──
+import { registerOpsOsWorkers } from './ops_os';
+registerOpsOsWorkers();
+
+console.log('✅ Worker with robust notifications, BullMQ sync, meeting intelligence, and ops_os scaffolding started.');

@@ -90,3 +90,8 @@ export * from './db/budget_proposal_tracking';
 export * from './db/fee_collection';
 export * from './ops-report-v2';
 export * from './ops-full-report';
+
+// ─── Operations OS (Phase 0+) ───────────────────────────────────────────
+// Backend foundation: types, event log, idempotency, submission repository.
+// Source-integrations, auto-flag engine, and pattern detection come later.
+export * from './ops_os';
