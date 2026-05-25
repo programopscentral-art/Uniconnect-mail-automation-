@@ -43,10 +43,12 @@
 
     // ─── Coach state ─────────────────────────────────────
     let coachRows = $state<any[]>([]);
-    let coachCallData = $state<Map<string, { student: number; parent: number; target: number; notes: string }>>(new Map());
+    // V1.1: target is optional. undefined means "no target saved for this day yet" — UI renders "—".
+    let coachCallData = $state<Map<string, { student: number; parent: number; target: number | undefined; notes: string }>>(new Map());
     let coaches = $state<any[]>([]);
     let showAddCoachForm = $state(false);
-    let newCoach = $state({ name: '', email: '', phone: '', daily_call_target: 15 });
+    // V1.1: profile-level daily target removed; coaches set target per day instead.
+    let newCoach = $state({ name: '', email: '', phone: '' });
     let addingCoach = $state(false);
     let savingCoach = $state(false);
     let monthlyCoachReport = $state<any[]>([]);
@@ -385,23 +387,25 @@
                 coachRows = j.logs || [];
                 coachCallData = new Map();
                 for (const r of coachRows) {
-                    // Only populate if there's actual logged data for this date
-                    // (student_calls or parent_calls > 0, or notes filled)
+                    // V1.1: populate if ANY per-day state was saved — including
+                    // just a target with no calls (a coach saving target=0
+                    // for an invigilation day before they have any calls).
                     const studentCalls = Number(r.student_calls_made) || 0;
                     const parentCalls = Number(r.parent_calls_made) || 0;
-                    const hasData = studentCalls > 0 || parentCalls > 0 || (r.notes && r.notes.trim());
+                    const savedDayTarget = r.daily_target == null ? null : Number(r.daily_target);
+                    const hasData =
+                        studentCalls > 0 ||
+                        parentCalls > 0 ||
+                        (r.notes && r.notes.trim()) ||
+                        (savedDayTarget !== null && !Number.isNaN(savedDayTarget));
                     if (hasData) {
-                        // Preserve a saved daily_target of 0 (invigilation day).
-                        // Only fall back to profile target if the row didn't save one.
-                        const savedDayTarget = r.daily_target == null ? null : Number(r.daily_target);
-                        const profileTarget = Number(r.daily_call_target);
-                        const resolvedTarget = savedDayTarget !== null && !Number.isNaN(savedDayTarget)
-                            ? savedDayTarget
-                            : (Number.isFinite(profileTarget) ? profileTarget : 15);
                         coachCallData.set(r.coach_id, {
                             student: studentCalls,
                             parent: parentCalls,
-                            target: resolvedTarget,
+                            // Target is per-day only. undefined means "no target saved" — UI shows "—".
+                            target: (savedDayTarget !== null && !Number.isNaN(savedDayTarget))
+                                ? savedDayTarget
+                                : undefined,
                             notes: r.notes || ''
                         });
                     }
@@ -437,10 +441,11 @@
     function getCoachInput(coachId: string, field: 'student' | 'parent' | 'target' | 'notes'): string {
         if (coachInputValues[coachId]?.[field] !== undefined) return coachInputValues[coachId][field];
         const cd = coachCallData.get(coachId);
-        if (!cd) return field === 'target' ? '15' : '';
+        // V1.1: no default; empty means "operator hasn't set this for today yet"
+        if (!cd) return '';
         if (field === 'student') return cd.student > 0 ? String(cd.student) : '';
         if (field === 'parent') return cd.parent > 0 ? String(cd.parent) : '';
-        if (field === 'target') return String(cd.target);
+        if (field === 'target') return cd.target !== undefined ? String(cd.target) : '';
         return cd.notes || '';
     }
 
@@ -450,12 +455,12 @@
         coachInputValues = { ...coachInputValues };
     }
 
-    function commitCoachInput(coachId: string, defaultTarget = 15) {
+    function commitCoachInput(coachId: string) {
         const inp = coachInputValues[coachId];
         if (!inp) return;
-        const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: defaultTarget, notes: '' };
-        // Use Number.isFinite after parseInt so a typed "0" is preserved as 0
-        // (coach on invigilation that day). Empty string still falls back.
+        // V1.1: starting target is undefined (operator hasn't set today's target yet).
+        // Becomes a number once they type one (including 0). No profile fallback.
+        const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: undefined as number | undefined, notes: '' };
         if (inp.student !== '') {
             const n = parseInt(inp.student);
             existing.student = Number.isFinite(n) ? n : 0;
@@ -466,7 +471,8 @@
         }
         if (inp.target !== '') {
             const n = parseInt(inp.target);
-            existing.target = Number.isFinite(n) ? n : defaultTarget;
+            if (Number.isFinite(n)) existing.target = n;
+            // Empty target string → leave existing.target unchanged (could be undefined or a prior value)
         }
         if (inp.notes !== undefined) existing.notes = inp.notes;
         coachCallData.set(coachId, existing);
@@ -482,12 +488,24 @@
         if (coachCallData.size === 0) { flash('No call data entered', true); return; }
         savingCoach = true;
         try {
+            // V1.1: target must be set explicitly per day. Block submission
+            // if any row to be saved has no target — no silent default to 15.
+            const missingTarget: string[] = [];
+            for (const [coach_id, d] of coachCallData.entries()) {
+                const willSave = touchedCoachIds.has(coach_id) || d.student > 0 || d.parent > 0;
+                if (willSave && d.target === undefined) {
+                    const name = coachRows.find(c => c.coach_id === coach_id)?.name || coach_id.slice(0, 8);
+                    missingTarget.push(name);
+                }
+            }
+            if (missingTarget.length > 0) {
+                flash(`Set today's target for: ${missingTarget.join(', ')}`, true);
+                savingCoach = false;
+                return;
+            }
+
             let count = 0;
             for (const [coach_id, d] of coachCallData.entries()) {
-                // Save if the user actually touched this coach's inputs OR
-                // there are non-zero call counts already loaded. The magic
-                // `target !== 15` check is gone — coaches need to be able
-                // to save target=0 for invigilation days.
                 if (touchedCoachIds.has(coach_id) || d.student > 0 || d.parent > 0) {
                     const res = await fetch('/api/faculty-attendance', {
                         method: 'POST',
@@ -512,19 +530,21 @@
         if (!newCoach.name.trim()) { flash('Name required', true); return; }
         addingCoach = true;
         try {
+            // V1.1: daily_call_target intentionally omitted — server defaults
+            // it to 15 internally; profile target is now a vestigial column,
+            // unused by the UI. Day-level targets are the source of truth.
             const res = await fetch('/api/faculty-attendance', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'add-coach', university_id: universityId,
                     name: newCoach.name.trim(), email: newCoach.email.trim() || undefined,
-                    phone: newCoach.phone.trim() || undefined,
-                    daily_call_target: newCoach.daily_call_target ?? 15
+                    phone: newCoach.phone.trim() || undefined
                 })
             });
             if (res.ok) {
                 flash('Success coach added');
-                newCoach = { name: '', email: '', phone: '', daily_call_target: 15 };
+                newCoach = { name: '', email: '', phone: '' };
                 showAddCoachForm = false;
                 await loadCoachLogs(); // refresh the main list immediately
             }
@@ -963,15 +983,13 @@
 
             {#if showAddCoachForm}
                 <div class="rounded-xl bg-white dark:bg-zinc-900 border border-sky-200 dark:border-sky-900/40 p-4 mb-4">
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <!-- V1.1: targets are set per-day, not on the profile. Drop the daily target field from creation. -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                         <input bind:value={newCoach.name} placeholder="Coach name *" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
                         <input bind:value={newCoach.email} placeholder="Email" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
                         <input bind:value={newCoach.phone} placeholder="Phone" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                        <div class="flex items-center gap-2">
-                            <input type="number" bind:value={newCoach.daily_call_target} min="0" max="100" class="w-20 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
-                            <span class="text-xs text-zinc-500">daily target</span>
-                        </div>
                     </div>
+                    <p class="text-[11px] text-zinc-500 dark:text-zinc-400 mb-3">Daily target is set when logging calls for each day — not on the coach profile.</p>
                     <button onclick={addCoach} disabled={addingCoach || !newCoach.name.trim()} class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold bg-sky-600 hover:bg-sky-700 text-white disabled:opacity-50 transition-colors">
                         {#if addingCoach}<Loader2 size={14} class="animate-spin" />{:else}<UserPlus size={14} />{/if} Add
                     </button>
@@ -991,10 +1009,11 @@
                     {#each coachRows as row}
                         {@const cd = coachCallData.get(row.coach_id)}
                         {@const totalCalls = (cd?.student || 0) + (cd?.parent || 0)}
-                        {@const profileTargetNum = Number(row.daily_call_target)}
-                        {@const target = cd?.target !== undefined
-                            ? cd.target
-                            : (Number.isFinite(profileTargetNum) ? profileTargetNum : 15)}
+                        <!-- V1.1: target is per-day only. No profile fallback. -->
+                        <!-- `targetSet` = a target has been saved (or typed) for this day. -->
+                        <!-- `target` is the numeric value used for % math; defaults to 0 if unset (achieved stays 0). -->
+                        {@const targetSet = cd?.target !== undefined}
+                        {@const target = targetSet ? (cd!.target as number) : 0}
                         {@const achieved = target > 0 ? Math.round((totalCalls / target) * 100) : 0}
                         {@const isExpanded = expandedCoach === row.coach_id}
                         <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 overflow-hidden {cd ? 'ring-1 ring-sky-200 dark:ring-sky-900/40' : ''}">
@@ -1007,7 +1026,7 @@
                                             {row.name}
                                         </div>
                                         <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                            Target: {target} calls/day
+                                            Today's target: {targetSet ? target : '—'}
                                             {#if cd && totalCalls > 0} · <span class="font-semibold {achieved >= 100 ? 'text-emerald-600' : achieved >= 70 ? 'text-amber-600' : 'text-rose-600'}">{achieved}% achieved</span>{:else if !cd} · <span class="text-zinc-400 italic">Not filled</span>{/if}
                                         </div>
                                     </div>
@@ -1021,7 +1040,7 @@
                                             type="number" min="0" max="200" placeholder="0"
                                             value={getCoachInput(row.coach_id, 'student')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'student', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
+                                            onblur={() => commitCoachInput(row.coach_id)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -1031,7 +1050,7 @@
                                             type="number" min="0" max="200" placeholder="0"
                                             value={getCoachInput(row.coach_id, 'parent')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'parent', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
+                                            onblur={() => commitCoachInput(row.coach_id)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -1061,7 +1080,8 @@
                                     <!-- Edit coach profile -->
                                     <div class="p-2.5 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-900/40">
                                         <div class="text-[9px] uppercase tracking-wider font-bold text-violet-600 dark:text-violet-400 mb-2">Edit Coach</div>
-                                        <div class="grid grid-cols-3 gap-2">
+                                        <!-- V1.1: profile-level daily target removed. Targets are set per day below. -->
+                                        <div class="grid grid-cols-2 gap-2">
                                             <input type="text" placeholder="Name" value={row.name || ''}
                                                 onchange={async (e) => {
                                                     const val = (e.target as HTMLInputElement).value;
@@ -1074,29 +1094,16 @@
                                                     try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, email: val }) }); flash('Email updated'); } catch {}
                                                 }}
                                                 class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
-                                            <div class="flex items-center gap-1">
-                                                <input type="number" min="0" max="100" placeholder="15" value={row.daily_call_target ?? 15}
-                                                    onchange={async (e) => {
-                                                        const val = Number((e.target as HTMLInputElement).value);
-                                                        try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, daily_call_target: val }) }); row.daily_call_target = val; flash('Target updated'); } catch {}
-                                                    }}
-                                                    class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500" />
-                                                <span class="text-[9px] text-zinc-400">/day</span>
-                                            </div>
                                         </div>
                                     </div>
                                     <div class="flex gap-3">
                                     <div class="flex items-center gap-2 flex-1">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
-                                        <!-- min="0" so coaches can set 0 for invigilation days.
-                                             value uses ?? (not ||) on a numeric so the literal 0 stays 0. -->
-                                        <input type="number" min="0" max="200"
-                                            value={(() => {
-                                                const v = getCoachInput(row.coach_id, 'target');
-                                                return v !== '' ? v : String(target);
-                                            })()}
+                                        <!-- V1.1: per-day target only. Empty = not set yet (placeholder shown). -->
+                                        <input type="number" min="0" max="200" placeholder="Set"
+                                            value={getCoachInput(row.coach_id, 'target')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'target', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
+                                            onblur={() => commitCoachInput(row.coach_id)}
                                             class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
                                     </div>
                                     <div class="flex items-center gap-2 flex-[2]">
@@ -1104,7 +1111,7 @@
                                         <input type="text" placeholder="Notes (optional)"
                                             value={getCoachInput(row.coach_id, 'notes')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
+                                            onblur={() => commitCoachInput(row.coach_id)}
                                             class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
                                     </div>
                                     </div>
