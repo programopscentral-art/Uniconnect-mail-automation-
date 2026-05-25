@@ -8,7 +8,6 @@
 import {
     db,
     getAllUniversities,
-    createUniversity,
     upsertFeeStudentPayment,
     bulkUpsertFeeStudentPayments,
     createFeeRemark,
@@ -59,21 +58,57 @@ function normalizeStatus(raw: string, payable: number, paid: number): string {
  * Add entries here whenever the dashboard shows two rows that are the same
  * real-world university.
  */
+// Alias map: variant-normalized-name → canonical-key. The canonical-key
+// must match the normalized form of a real university's name, short_name,
+// OR slug (since buildUniversityIndex indexes all three).
+//
+// New entries added after migration 0091 covered the second round of fee-
+// sync-created duplicates. Whenever a new variant pattern shows up in
+// production, add it here AND consider whether the underlying matcher
+// (findUniversityId) should learn the generic pattern instead.
 const UNIVERSITY_ALIASES: Record<string, string> = {
+    // Mallareddy variants
     'mallareddy': 'mrv',
     'mallareddyuniversity': 'mrv',
     'mallareddyvishwavidyapeeth': 'mrv',
+    'mrv': 'mallareddy',
+    // KKH variants
     'kkhhyderabad': 'kkh',
     'kkhbatch2': 'kkh',
+    'kkhsem5': 'kkh',
+    'kkhsem': 'kkh',
+    // AMET variants
     'ametuniversity': 'amet',
     'ametterm3': 'amet',
+    'ametterm23': 'amet',
     'amettermand3userwisedata': 'amet',
-    'cietcitychalapathi': 'ciet',
+    'academy': 'amet',
+    'academyofmaritimeeducationtrainingamet': 'amet',
+    // CITY & CIET (Chalapathi) variants
+    'cietcitychalapathi': 'chalapathy',
+    'cietcity': 'chalapathy',
+    'citycietchalapathi': 'chalapathy',
+    // Aurora
     'auroradeemedtobeuniversity': 'aurora',
     'aurorauniversity': 'aurora',
+    // Crescent
     'crescentuniversity': 'crescent',
-    'takshasilauniversity': 'takshasila',
+    // Takshashila (canonical) + Takshasila (alt spelling) + Taksahashila (typo)
+    'takshasila': 'takshashila',
+    'takshasilauniversity': 'takshashila',
+    'taksahashila': 'takshashila',
+    'taksahashilauniversity': 'takshashila',
+    // SGU
     'sguimport': 'sgu',
+    // ADYPU short-form → canonical slug
+    'adypu': 'adypatil',
+    'adypuuniversity': 'adypatil',
+    // NIU short-form → canonical slug
+    'niu': 'noidaint',
+    'niuuniversity': 'noidaint',
+    // Yenepoya (typo)
+    'yennapoya': 'yenepoya',
+    'yenepoyauniversity': 'yenepoya',
 };
 
 function applyAlias(key: string): string {
@@ -126,13 +161,18 @@ export async function autoMergeAliasDuplicates(): Promise<{
     return { merged, failed, universities_scanned: all.length };
 }
 
-/** Build a fuzzy university name → id map */
+/** Build a fuzzy university name → id map.
+ *  Indexes name + short_name + slug — all three fields can be the resolved
+ *  target of an alias map entry. Without slug indexing, aliases like
+ *  'adypu' → 'adypatil' would fail because 'adypatil' is the slug (not the
+ *  name or short_name) of the canonical Ajeenkya row. */
 async function buildUniversityIndex(): Promise<Map<string, string>> {
     const all = await getAllUniversities();
     const idx = new Map<string, string>();
     for (const u of all) {
         if (u.name) idx.set(norm(u.name), u.id);
         if (u.short_name) idx.set(norm(u.short_name), u.id);
+        if (u.slug) idx.set(norm(u.slug), u.id);
     }
     return idx;
 }
@@ -146,11 +186,20 @@ function findUniversityId(idx: Map<string, string>, raw: string): string | null 
     const aliased = applyAlias(key);
     if (aliased !== key && idx.has(aliased)) return idx.get(aliased)!;
 
-    // Strip common batch/term suffixes that prevent matching
-    // "KKH Batch-2" → "kkh", "AMET Term-3" → "amet", "CIET&CITY-Chalapathi" → try "ciet" first
+    // Strip common batch/term/sem/sheet suffixes that prevent matching.
+    // Examples:
+    //   "KKH Batch-2"     → "kkh"
+    //   "AMET Term-3"     → "amet"
+    //   "amet term 2 & 3" → "amettermand23" → strip term+digits → "amet"
+    //   "KKH (sem 5)"     → "kkhsem5" → strip sem+digits → "kkh"
+    //   "AMET Userwise Data" → strip userwisedata → "amet"
+    //   "CIET&CITY-Chalapathi" → strip chalapathi → "cietcity"
     const stripped = key
+        .replace(/userwise(data)?$/i, '')
+        .replace(/sheet\d*$/i, '')
+        .replace(/sem\d*$/i, '')
         .replace(/batch\d*$/i, '')
-        .replace(/term\d*$/i, '')
+        .replace(/term(and)?\d*$/i, '')
         .replace(/chalapathi$/i, '');
     const strippedAliased = applyAlias(stripped);
     if (stripped !== key && stripped.length > 1) {
@@ -169,38 +218,37 @@ function findUniversityId(idx: Map<string, string>, raw: string): string | null 
 }
 
 /**
- * Find a university by name, or auto-create it if missing.
- * Side effect: adds the new university to the index map so subsequent
- * lookups in the same import find it.
+ * Find a university by name. Returns null if no match — caller should
+ * skip the row and report the unmatched name to the operator.
+ *
+ * Auto-create was REMOVED (after migrations 0089 + 0091 fixed two rounds
+ * of duplicates created by this exact path). The fee sheet ingest must
+ * not silently create universities; operators must either correct the
+ * sheet name or explicitly create the university via the admin UI. The
+ * `createdList` argument is preserved for backwards compatibility but
+ * is no longer appended to from here.
  */
 async function findOrCreateUniversity(
     idx: Map<string, string>,
     raw: string,
-    createdList: string[]
+    _createdList: string[]
 ): Promise<string | null> {
     const found = findUniversityId(idx, raw);
     if (found) return found;
     if (!raw || raw.trim().length < 2) return null;
 
-    // Build a slug from the name
-    const cleanName = raw.trim();
-    const slug = norm(cleanName).slice(0, 40) || `uni-${Date.now()}`;
-    try {
-        const u = await createUniversity(cleanName, slug);
-        idx.set(norm(cleanName), u.id);
-        createdList.push(cleanName);
-        return u.id;
-    } catch (e: any) {
-        // Slug collision — try with timestamp suffix
-        try {
-            const u = await createUniversity(cleanName, `${slug}-${Date.now()}`);
-            idx.set(norm(cleanName), u.id);
-            createdList.push(cleanName);
-            return u.id;
-        } catch {
-            return null;
-        }
-    }
+    console.warn(
+        JSON.stringify({
+            ts: new Date().toISOString(),
+            level: 'warn',
+            scope: 'fee_import.unmatched_university',
+            msg: 'No matching university; row skipped (auto-create disabled)',
+            raw_name: raw.trim(),
+            normalized: norm(raw),
+            hint: 'Add an alias in UNIVERSITY_ALIASES or create the university manually',
+        }),
+    );
+    return null;
 }
 
 /** Get value from a row by trying many candidate column names (case/space-insensitive) */
