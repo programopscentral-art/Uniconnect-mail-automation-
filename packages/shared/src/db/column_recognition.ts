@@ -320,11 +320,34 @@ export async function importStudentsFromSheet(
     }
 
     if (students.length > 0) {
+        // Dedupe against BOTH UNIQUE constraints on the students table —
+        // see createStudentsBulk in db/students.ts for the full rationale.
+        // Two source rows colliding on (university_id, external_id) within
+        // the same INSERT triggers "ON CONFLICT DO UPDATE command cannot
+        // affect row a second time"; collisions on (university_id, email)
+        // trigger a UNIQUE-violation. Last-write-wins on both keys.
+        const byExtId = new Map<string, typeof students[0]>();
+        for (const s of students) {
+            const effectiveExtId = String(s.external_id || s.email || '').trim();
+            if (!effectiveExtId) continue;
+            byExtId.set(`${s.university_id}:${effectiveExtId}`, s);
+        }
+        const byEmail = new Map<string, typeof students[0]>();
+        for (const s of byExtId.values()) {
+            byEmail.set(`${s.university_id}:${s.email.trim().toLowerCase()}`, s);
+        }
+        const uniqueStudents = Array.from(byEmail.values());
+        const dedupDropped = students.length - uniqueStudents.length;
+        if (dedupDropped > 0) {
+            skipped += dedupDropped;
+            console.warn(`[importStudentsFromSheet] dropped ${dedupDropped} duplicate rows (${students.length} → ${uniqueStudents.length}); last-write-wins`);
+        }
+
         try {
             // Batch insert with ON CONFLICT
             const batchSize = 100;
-            for (let i = 0; i < students.length; i += batchSize) {
-                const batch = students.slice(i, i + batchSize);
+            for (let i = 0; i < uniqueStudents.length; i += batchSize) {
+                const batch = uniqueStudents.slice(i, i + batchSize);
                 const values: any[] = [];
                 const placeholders: string[] = [];
                 batch.forEach((s, idx) => {
