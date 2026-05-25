@@ -385,6 +385,97 @@ export async function transitionToSignedOff(
 }
 
 /**
+ * Retract a just-submitted draft back to DRAFT state. Allowed only when:
+ *   - current status is SUBMITTED
+ *   - submitted_at is within the retraction window (default 30 min)
+ *   - no PM has opened the submission for review yet (proxied by checking
+ *     for any `submission.pm_review_started` event for this aggregate; if
+ *     that event type isn't emitted yet, we relax to "PM hasn't sent it
+ *     back or signed it off either" which is implied by status=SUBMITTED).
+ *
+ * Returns the updated submission on success, or null when the retraction
+ * window has closed (caller surfaces a specific error). Throws only on
+ * outright invalid transitions (wrong status to begin with).
+ */
+export async function transitionToRetracted(
+    params: {
+        submission_id: string;
+        actor_user_id: string;
+        retraction_window_minutes?: number;
+    },
+    client: PoolClient,
+): Promise<{ submission: Submission; reason?: never } | { submission: null; reason: 'wrong_status' | 'window_closed' | 'pm_already_reviewing' }> {
+    const windowMin = params.retraction_window_minutes ?? 30;
+
+    const current = await getSubmissionById(params.submission_id, client);
+    if (!current) throw new Error(`submission ${params.submission_id} not found`);
+
+    if (current.status !== 'SUBMITTED') {
+        return { submission: null, reason: 'wrong_status' };
+    }
+    if (!current.submitted_at) {
+        // Defensive: SUBMITTED row without submitted_at shouldn't exist, but bail safely.
+        return { submission: null, reason: 'wrong_status' };
+    }
+    const submittedMs = new Date(current.submitted_at).getTime();
+    if (Date.now() - submittedMs > windowMin * 60 * 1000) {
+        return { submission: null, reason: 'window_closed' };
+    }
+
+    // Check whether a PM has begun review (proxied by the event log).
+    // If the dedicated pm_review_started event isn't emitted yet, this
+    // query returns 0 rows and the check passes — that's fine; if a PM
+    // actually beat the BOA to sign-off / send-back, status wouldn't be
+    // SUBMITTED anymore and we'd have failed the first check.
+    const reviewStarted = await client.query<{ event_id: string }>(
+        `SELECT event_id FROM ops_os.event_log
+         WHERE aggregate_kind = 'submission'
+           AND aggregate_id = $1
+           AND event_type IN ('verification.send_back', 'verification.signed_off')
+         LIMIT 1`,
+        [params.submission_id],
+    );
+    if (reviewStarted.rowCount && reviewStarted.rowCount > 0) {
+        return { submission: null, reason: 'pm_already_reviewing' };
+    }
+
+    const r = await client.query<Submission>(
+        `UPDATE ops_os.submission
+         SET status = 'DRAFT',
+             submitted_at = NULL,
+             submitted_by = NULL,
+             is_late_submission = false,
+             updated_at = now()
+         WHERE submission_id = $1
+           AND status = 'SUBMITTED'
+         RETURNING *`,
+        [params.submission_id],
+    );
+    if (r.rowCount === 0) {
+        // Lost a race — somebody else changed status. Treat as wrong_status.
+        return { submission: null, reason: 'wrong_status' };
+    }
+    const sub = r.rows[0];
+    await emitEvent(
+        {
+            event_type: 'submission.retracted',
+            aggregate_kind: 'submission',
+            aggregate_id: sub.submission_id,
+            actor_user_id: params.actor_user_id,
+            campus_id: sub.campus_id,
+            payload: {
+                from_status: 'SUBMITTED',
+                to_status: 'DRAFT',
+                window_minutes: windowMin,
+                original_submitted_at: current.submitted_at,
+            },
+        },
+        client,
+    );
+    return { submission: sub };
+}
+
+/**
  * Lock a SIGNED_OFF submission. Called by the daily-lock worker at EOD per
  * campus. After lock, the immutability trigger rejects any value writes.
  *

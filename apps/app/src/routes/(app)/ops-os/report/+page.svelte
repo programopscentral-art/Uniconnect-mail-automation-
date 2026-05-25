@@ -85,6 +85,13 @@
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
 
+  // Retraction window state — populated from submission.submitted_at
+  let submittedAtMs = $state<number | null>(null);
+  let nowMs = $state(Date.now());
+  let retracting = $state(false);
+  let retractError = $state<string | null>(null);
+  const RETRACTION_WINDOW_MS = 30 * 60 * 1000;
+
   // Debounce timers per metric_id
   const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
@@ -92,6 +99,10 @@
 
   onMount(() => {
     if (selectedCampusId) ensureDraft();
+    // Tick nowMs every 30s so the retract window countdown stays current
+    // without being jittery. Granularity matches the 30-min window.
+    const tick = setInterval(() => { nowMs = Date.now(); }, 30 * 1000);
+    return () => clearInterval(tick);
   });
 
   $effect(() => {
@@ -130,6 +141,7 @@
       sentBackReasonCode = sub.sent_back_reason_code;
       sentBackReasonText = sub.sent_back_reason_text;
       pmRemark = sub.pm_remark;
+      submittedAtMs = sub.submitted_at ? new Date(sub.submitted_at).getTime() : null;
 
       // Load existing values
       const detail = await fetch(`/api/ops-os/submissions/${submissionId}`);
@@ -239,10 +251,53 @@
       }
       const updated = await res.json();
       submissionStatus = updated.status;
+      submittedAtMs = updated.submitted_at ? new Date(updated.submitted_at).getTime() : null;
     } catch (e) {
       submitError = (e as Error).message;
     } finally {
       submitting = false;
+    }
+  }
+
+  // ─── Retract ───────────────────────────────────────────────────────────
+  // Move SUBMITTED → DRAFT within the 30-min window, before PM acts.
+
+  let retractRemainingMs = $derived(
+    submittedAtMs !== null ? (submittedAtMs + RETRACTION_WINDOW_MS) - nowMs : 0,
+  );
+  let canRetract = $derived(
+    submissionStatus === 'SUBMITTED' && retractRemainingMs > 0 && !retracting,
+  );
+
+  function fmtMmSs(ms: number): string {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}m ${String(r).padStart(2, '0')}s`;
+  }
+
+  async function retractReport() {
+    if (!submissionId || !canRetract) return;
+    retracting = true;
+    retractError = null;
+    try {
+      const idempotency_key = `boa.retract.${submissionId}.${Date.now()}`;
+      const res = await fetch(`/api/ops-os/submissions/${submissionId}/retract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idempotency_key }),
+      });
+      if (!res.ok) {
+        retractError = (await res.text()) || `HTTP ${res.status}`;
+        return;
+      }
+      const updated = await res.json();
+      submissionStatus = updated.status;
+      submittedAtMs = null;
+    } catch (e) {
+      retractError = (e as Error).message;
+    } finally {
+      retracting = false;
     }
   }
 
@@ -417,7 +472,35 @@
         </div>
       {:else if submissionStatus === 'SUBMITTED'}
         <div class="rounded border border-blue-800 bg-blue-950/30 px-4 py-3 text-sm text-blue-200">
-          Submitted. Awaiting PM review.
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div>Submitted. Awaiting PM review.</div>
+              {#if canRetract}
+                <div class="mt-1 text-xs text-blue-300/80">
+                  You can retract this for edits within {fmtMmSs(retractRemainingMs)}, while PM hasn't started review.
+                </div>
+              {:else if submittedAtMs !== null && retractRemainingMs <= 0}
+                <div class="mt-1 text-xs text-blue-300/60">
+                  Retraction window closed. Ask PM to send back if you need to edit.
+                </div>
+              {/if}
+            </div>
+            {#if canRetract}
+              <button
+                type="button"
+                class="shrink-0 rounded border border-blue-700 bg-blue-900/50 px-3 py-1.5 text-xs font-medium text-blue-100 hover:bg-blue-900 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={retracting}
+                onclick={retractReport}
+              >
+                {retracting ? 'Retracting…' : 'Retract'}
+              </button>
+            {/if}
+          </div>
+          {#if retractError}
+            <div class="mt-2 border-t border-blue-900 pt-2 text-xs text-red-300">
+              {retractError}
+            </div>
+          {/if}
         </div>
       {:else if submissionStatus === 'SIGNED_OFF'}
         <div class="rounded border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-200">
