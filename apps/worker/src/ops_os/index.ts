@@ -17,6 +17,7 @@
 
 import { Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
+import { startDailyLockLoop } from './daily_lock';
 
 const QUEUE_NAMES = [
     'ops_os.source_pull',
@@ -84,6 +85,11 @@ export function registerOpsOsWorkers(): void {
         workers.set(name, w);
         console.log(`[OPS_OS_WORKER] ✅ Registered: ${name}`);
     }
+
+    // V1: start the daily-lock loop (setInterval-based, not BullMQ-driven).
+    // Idempotent at the row level; safe to run concurrently across instances
+    // since transitionToLocked only matches rows still in SIGNED_OFF state.
+    startDailyLockLoop();
 }
 
 /** Graceful shutdown — call on SIGTERM. */

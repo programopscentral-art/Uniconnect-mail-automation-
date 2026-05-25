@@ -15,6 +15,7 @@ export type SubmissionStatus =
     | 'PM_REVIEW'
     | 'SENT_BACK'
     | 'SIGNED_OFF'
+    | 'LOCKED'
     | 'RETRACTED';
 
 export type ValueType = 'numeric' | 'text' | 'boolean' | 'percentage' | 'currency';
@@ -123,6 +124,8 @@ export interface Submission {
     is_late_submission: boolean;
     is_late_sign_off: boolean;
     supersedes: string | null;
+    locked_at: string | null;
+    locked_by: string | null;
     created_at: string;
     updated_at: string;
 }

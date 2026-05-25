@@ -384,6 +384,115 @@ export async function transitionToSignedOff(
     return sub;
 }
 
+/**
+ * Lock a SIGNED_OFF submission. Called by the daily-lock worker at EOD per
+ * campus. After lock, the immutability trigger rejects any value writes.
+ *
+ * Idempotent at the row level: re-locking an already-LOCKED row is a no-op
+ * (RETURNING returns no rows; caller treats as success).
+ */
+export async function transitionToLocked(
+    params: { submission_id: string; locked_by: string | null },
+    client: PoolClient,
+): Promise<Submission | null> {
+    const r = await client.query<Submission>(
+        `UPDATE ops_os.submission
+         SET status = 'LOCKED',
+             locked_at = now(),
+             locked_by = $2,
+             updated_at = now()
+         WHERE submission_id = $1
+           AND status = 'SIGNED_OFF'
+         RETURNING *`,
+        [params.submission_id, params.locked_by],
+    );
+    if (r.rowCount === 0) return null;
+    const sub = r.rows[0];
+    await emitEvent(
+        {
+            event_type: 'submission.signed_off', // reused for V1; dedicated lock event added later
+            aggregate_kind: 'submission',
+            aggregate_id: sub.submission_id,
+            actor_user_id: params.locked_by,
+            campus_id: sub.campus_id,
+            payload: { transition: 'locked', locked_at: sub.locked_at },
+        },
+        client,
+    );
+    return sub;
+}
+
+/**
+ * Find SIGNED_OFF submissions ready to be locked for a given cadence + date.
+ * Used by the daily-lock worker. Does NOT honor RLS (worker runs with
+ * elevated privileges); callers must be system-only.
+ */
+export async function findSubmissionsToLock(
+    params: { cadence: Cadence; period_end: string },
+    client: PoolClient,
+): Promise<Submission[]> {
+    const r = await client.query<Submission>(
+        `SELECT * FROM ops_os.submission
+         WHERE cadence = $1
+           AND period_end = $2
+           AND status = 'SIGNED_OFF'
+           AND locked_at IS NULL
+         ORDER BY campus_id`,
+        [params.cadence, params.period_end],
+    );
+    return r.rows;
+}
+
+/**
+ * List submissions visible to the caller (RLS-scoped) for a given status set
+ * and optional date range. Used by the PM review queue and BOA dashboard.
+ */
+export async function listSubmissions(
+    params: {
+        statuses?: SubmissionStatus[];
+        cadence?: Cadence;
+        campus_id?: string;
+        period_start_from?: string;
+        period_start_to?: string;
+        limit?: number;
+    },
+    client: PoolClient,
+): Promise<Submission[]> {
+    const where: string[] = ['1=1'];
+    const args: unknown[] = [];
+    if (params.statuses && params.statuses.length > 0) {
+        args.push(params.statuses);
+        where.push(`status = ANY($${args.length}::text[])`);
+    }
+    if (params.cadence) {
+        args.push(params.cadence);
+        where.push(`cadence = $${args.length}`);
+    }
+    if (params.campus_id) {
+        args.push(params.campus_id);
+        where.push(`campus_id = $${args.length}`);
+    }
+    if (params.period_start_from) {
+        args.push(params.period_start_from);
+        where.push(`period_start >= $${args.length}`);
+    }
+    if (params.period_start_to) {
+        args.push(params.period_start_to);
+        where.push(`period_start <= $${args.length}`);
+    }
+    args.push(params.limit ?? 100);
+    const limitClause = `LIMIT $${args.length}`;
+
+    const r = await client.query<Submission>(
+        `SELECT * FROM ops_os.submission
+         WHERE ${where.join(' AND ')}
+         ORDER BY period_start DESC, submitted_at DESC NULLS LAST
+         ${limitClause}`,
+        args,
+    );
+    return r.rows;
+}
+
 export async function transitionToSentBack(
     params: {
         submission_id: string;
