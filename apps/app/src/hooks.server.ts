@@ -49,7 +49,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     }
 
     const path = event.url.pathname;
-    const isPublic = path.startsWith('/api/auth') || path === '/login' || path === '/accept-invite' || path.startsWith('/track') || path.startsWith('/ack') || path.startsWith('/api/documents/serve') || path === '/api/health' || path.startsWith('/api/ops/view-report') || path.startsWith('/api/ops/full-report') || path.startsWith('/api/webhooks/') || path.startsWith('/fee-ack/') || path.startsWith('/api/fees/doc-ack/');
+    const isPublic = path.startsWith('/api/auth') || path === '/login' || path === '/accept-invite' || path.startsWith('/track') || path.startsWith('/ack') || path.startsWith('/api/track/') || path.startsWith('/api/documents/serve') || path === '/api/health' || path.startsWith('/api/ops/view-report') || path.startsWith('/api/ops/full-report') || path.startsWith('/api/webhooks/') || path.startsWith('/fee-ack/') || path.startsWith('/api/fees/doc-ack/');
 
     // Internal worker → app calls authenticate via x-internal-sync-token header
     // (shared secret), not via session cookie. Without this bypass the hooks
