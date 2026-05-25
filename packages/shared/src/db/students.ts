@@ -74,27 +74,40 @@ export async function createStudent(data: { university_id: string; name: string;
 export async function createStudentsBulk(students: Array<{ university_id: string; name: string; email: string; external_id: string; created_by?: string; metadata?: any; sort_order?: number }>) {
     if (students.length === 0) return;
 
-    // Deduplicate by BOTH email and external_id in memory
-    // This prevents "duplicate key" errors within the same INSERT statement
-    const byEmail = new Map();
-    const byExternalId = new Map();
+    // Dedupe against BOTH unique constraints on the students table:
+    //   UNIQUE(university_id, external_id) — matches the ON CONFLICT clause below
+    //   UNIQUE(university_id, email)
+    // The INSERT writes `external_id || email` as the external_id (so rows
+    // missing an external_id fall back to email), and the dedup must use that
+    // same effective value or Postgres throws "ON CONFLICT DO UPDATE command
+    // cannot affect row a second time" when the file has duplicate IDs.
+    // Last-write-wins so a later row in the file overrides an earlier one.
+    // Build the dedup key from the SAME expression the INSERT uses below
+    // (`String(s.external_id || s.email).trim()`) so the in-memory dedup
+    // matches Postgres' case-sensitive uniqueness exactly — otherwise we
+    // could collapse case-variants here that the DB would treat as distinct.
+    const byExtId = new Map<string, typeof students[0]>();
+    for (const s of students) {
+        const effectiveExtId = String(s.external_id || s.email || '').trim();
+        if (!effectiveExtId) continue;
+        byExtId.set(`${s.university_id}:${effectiveExtId}`, s);
+    }
 
-    students.forEach(s => {
+    // Second pass guards the (university_id, email) UNIQUE constraint —
+    // without it the INSERT throws "duplicate key value violates unique
+    // constraint" when two surviving rows share an email but differ on
+    // external_id.
+    const byEmail = new Map<string, typeof students[0]>();
+    for (const s of byExtId.values()) {
         const emailKey = `${s.university_id}:${s.email.trim().toLowerCase()}`;
-        const extKey = s.external_id ? `${s.university_id}:${String(s.external_id).trim().toLowerCase()}` : null;
+        byEmail.set(emailKey, s);
+    }
 
-        // If we've seen this email OR this external ID, we'll overwrite it
-        // This effectively takes the "last" record in the file as the source of truth
-        const existingByEmail = byEmail.get(emailKey);
-        const existingByExt = extKey ? byExternalId.get(extKey) : null;
-
-        const studentToUse = s;
-        byEmail.set(emailKey, studentToUse);
-        if (extKey) byExternalId.set(extKey, studentToUse);
-    });
-
-    // The final set of students to insert must be unique across both fields
-    const uniqueStudents = Array.from(new Set(byEmail.values()));
+    const uniqueStudents = Array.from(byEmail.values());
+    const dropped = students.length - uniqueStudents.length;
+    if (dropped > 0) {
+        console.warn(`[createStudentsBulk] dropped ${dropped} duplicate rows (${students.length} → ${uniqueStudents.length}); last-write-wins on (university, external_id) and (university, email)`);
+    }
 
     // Build multi-row insert query
     // This is significantly faster for large imports
