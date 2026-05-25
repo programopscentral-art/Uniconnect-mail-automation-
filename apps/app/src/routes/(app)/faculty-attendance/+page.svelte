@@ -1021,7 +1021,7 @@
                                             type="number" min="0" max="200" placeholder="0"
                                             value={getCoachInput(row.coach_id, 'student')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'student', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -1031,7 +1031,7 @@
                                             type="number" min="0" max="200" placeholder="0"
                                             value={getCoachInput(row.coach_id, 'parent')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'parent', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
                                             class="w-16 text-center text-sm font-bold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-1 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         />
                                     </div>
@@ -1088,10 +1088,15 @@
                                     <div class="flex gap-3">
                                     <div class="flex items-center gap-2 flex-1">
                                         <span class="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider w-12 shrink-0">Target</span>
-                                        <input type="number" min="1" max="200"
-                                            value={getCoachInput(row.coach_id, 'target') || target}
+                                        <!-- min="0" so coaches can set 0 for invigilation days.
+                                             value uses ?? (not ||) on a numeric so the literal 0 stays 0. -->
+                                        <input type="number" min="0" max="200"
+                                            value={(() => {
+                                                const v = getCoachInput(row.coach_id, 'target');
+                                                return v !== '' ? v : String(target);
+                                            })()}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'target', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
                                             class="w-16 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500" />
                                     </div>
                                     <div class="flex items-center gap-2 flex-[2]">
@@ -1099,7 +1104,7 @@
                                         <input type="text" placeholder="Notes (optional)"
                                             value={getCoachInput(row.coach_id, 'notes')}
                                             oninput={(e) => updateCoachInput(row.coach_id, 'notes', (e.target as HTMLInputElement).value)}
-                                            onblur={() => commitCoachInput(row.coach_id, Number(row.daily_call_target) || 15)}
+                                            onblur={() => commitCoachInput(row.coach_id, Number.isFinite(Number(row.daily_call_target)) ? Number(row.daily_call_target) : 15)}
                                             class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400" />
                                     </div>
                                     </div>
