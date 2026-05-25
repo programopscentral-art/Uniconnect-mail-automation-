@@ -11,7 +11,14 @@ export interface University {
     updated_at: Date;
 }
 
-export async function getAllUniversities(teamId?: string) {
+// Teams (Central Team, CRM, Student Engagement) live in the universities table
+// flagged is_team=true so user_universities can link members to them. They are
+// NOT universities and must not appear in university dropdowns. Default-filter
+// them out; pass { includeTeams: true } for the rare admin view that wants them.
+export async function getAllUniversities(opts?: { teamId?: string; includeTeams?: boolean }) {
+    const teamId = opts?.teamId;
+    const includeTeams = opts?.includeTeams ?? false;
+
     if (teamId) {
         const result = await db.query(`
             SELECT DISTINCT u.*
@@ -23,7 +30,9 @@ export async function getAllUniversities(teamId?: string) {
         `, [teamId]);
         return result.rows as University[];
     }
-    const result = await db.query(`SELECT * FROM universities ORDER BY name ASC`);
+
+    const whereClause = includeTeams ? '' : 'WHERE is_team = false';
+    const result = await db.query(`SELECT * FROM universities ${whereClause} ORDER BY name ASC`);
     return result.rows as University[];
 }
 
