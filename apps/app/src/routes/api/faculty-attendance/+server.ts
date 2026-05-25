@@ -175,7 +175,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!university_id || !name) throw error(400, 'university_id and name required');
             const coach = await createCoachProfile({
                 university_id, name, email, phone,
-                daily_call_target: daily_call_target || 15, created_by: userId
+                // ?? not || so target=0 (invigilation-only profile) is preserved
+                daily_call_target: daily_call_target ?? 15, created_by: userId
             });
             return json({ success: true, coach });
         }
@@ -196,9 +197,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             if (!coach_id || !university_id || !d) throw error(400, 'coach_id, university_id, date required');
             const log = await upsertCoachDailyLog({
                 coach_id, university_id, date: d,
-                student_calls_made: student_calls_made || 0,
-                parent_calls_made: parent_calls_made || 0,
-                daily_target: daily_target || 15,
+                // ?? not || so a coach's invigilation day (calls=0, target=0)
+                // saves as 0, not silently replaced by 15.
+                student_calls_made: student_calls_made ?? 0,
+                parent_calls_made: parent_calls_made ?? 0,
+                daily_target: daily_target ?? 15,
                 notes: n, logged_by: userId
             });
             return json({ success: true, log });

@@ -74,8 +74,10 @@ export async function createCoachProfile(data: {
     const res = await db.query(
         `INSERT INTO success_coach_profiles (university_id, name, email, phone, daily_call_target, user_id, created_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+        // Use ?? not || on the target: a coach with daily_call_target=0
+        // (e.g. invigilation-only days at creation) must stick at 0.
         [data.university_id, data.name, data.email || null, data.phone || null,
-         data.daily_call_target || 15, data.user_id || null, data.created_by]
+         data.daily_call_target ?? 15, data.user_id || null, data.created_by]
     );
     return res.rows[0];
 }
@@ -139,9 +141,12 @@ export async function upsertCoachDailyLog(data: {
             logged_by = EXCLUDED.logged_by,
             updated_at = now()
          RETURNING *`,
+        // Use ?? for count + target fields so a legitimate 0 (e.g. coach
+        // out on invigilation, target=0/calls=0 for that day) is preserved
+        // instead of being silently substituted with 15.
         [data.coach_id, data.university_id, data.date,
-         data.student_calls_made || 0, data.parent_calls_made || 0,
-         data.daily_target || 15, data.notes || null, data.logged_by]
+         data.student_calls_made ?? 0, data.parent_calls_made ?? 0,
+         data.daily_target ?? 15, data.notes ?? null, data.logged_by]
     );
     return res.rows[0];
 }

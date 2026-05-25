@@ -391,10 +391,17 @@
                     const parentCalls = Number(r.parent_calls_made) || 0;
                     const hasData = studentCalls > 0 || parentCalls > 0 || (r.notes && r.notes.trim());
                     if (hasData) {
+                        // Preserve a saved daily_target of 0 (invigilation day).
+                        // Only fall back to profile target if the row didn't save one.
+                        const savedDayTarget = r.daily_target == null ? null : Number(r.daily_target);
+                        const profileTarget = Number(r.daily_call_target);
+                        const resolvedTarget = savedDayTarget !== null && !Number.isNaN(savedDayTarget)
+                            ? savedDayTarget
+                            : (Number.isFinite(profileTarget) ? profileTarget : 15);
                         coachCallData.set(r.coach_id, {
                             student: studentCalls,
                             parent: parentCalls,
-                            target: Number(r.daily_target) || Number(r.daily_call_target) || 15,
+                            target: resolvedTarget,
                             notes: r.notes || ''
                         });
                     }
@@ -447,9 +454,20 @@
         const inp = coachInputValues[coachId];
         if (!inp) return;
         const existing = coachCallData.get(coachId) || { student: 0, parent: 0, target: defaultTarget, notes: '' };
-        if (inp.student !== '') existing.student = parseInt(inp.student) || 0;
-        if (inp.parent !== '') existing.parent = parseInt(inp.parent) || 0;
-        if (inp.target !== '') existing.target = parseInt(inp.target) || defaultTarget;
+        // Use Number.isFinite after parseInt so a typed "0" is preserved as 0
+        // (coach on invigilation that day). Empty string still falls back.
+        if (inp.student !== '') {
+            const n = parseInt(inp.student);
+            existing.student = Number.isFinite(n) ? n : 0;
+        }
+        if (inp.parent !== '') {
+            const n = parseInt(inp.parent);
+            existing.parent = Number.isFinite(n) ? n : 0;
+        }
+        if (inp.target !== '') {
+            const n = parseInt(inp.target);
+            existing.target = Number.isFinite(n) ? n : defaultTarget;
+        }
         if (inp.notes !== undefined) existing.notes = inp.notes;
         coachCallData.set(coachId, existing);
         coachCallData = new Map(coachCallData);
@@ -457,7 +475,8 @@
 
     async function submitCoachLogs() {
         // Commit any pending input values before checking
-        for (const coachId of Object.keys(coachInputValues)) {
+        const touchedCoachIds = new Set(Object.keys(coachInputValues));
+        for (const coachId of touchedCoachIds) {
             commitCoachInput(coachId);
         }
         if (coachCallData.size === 0) { flash('No call data entered', true); return; }
@@ -465,8 +484,11 @@
         try {
             let count = 0;
             for (const [coach_id, d] of coachCallData.entries()) {
-                // Save if calls were entered OR if the target was changed from default
-                if (d.student > 0 || d.parent > 0 || d.target !== 15) {
+                // Save if the user actually touched this coach's inputs OR
+                // there are non-zero call counts already loaded. The magic
+                // `target !== 15` check is gone — coaches need to be able
+                // to save target=0 for invigilation days.
+                if (touchedCoachIds.has(coach_id) || d.student > 0 || d.parent > 0) {
                     const res = await fetch('/api/faculty-attendance', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -497,7 +519,7 @@
                     action: 'add-coach', university_id: universityId,
                     name: newCoach.name.trim(), email: newCoach.email.trim() || undefined,
                     phone: newCoach.phone.trim() || undefined,
-                    daily_call_target: newCoach.daily_call_target || 15
+                    daily_call_target: newCoach.daily_call_target ?? 15
                 })
             });
             if (res.ok) {
@@ -946,7 +968,7 @@
                         <input bind:value={newCoach.email} placeholder="Email" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
                         <input bind:value={newCoach.phone} placeholder="Phone" class="text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
                         <div class="flex items-center gap-2">
-                            <input type="number" bind:value={newCoach.daily_call_target} min="1" max="100" class="w-20 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
+                            <input type="number" bind:value={newCoach.daily_call_target} min="0" max="100" class="w-20 text-sm rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500" />
                             <span class="text-xs text-zinc-500">daily target</span>
                         </div>
                     </div>
@@ -969,7 +991,10 @@
                     {#each coachRows as row}
                         {@const cd = coachCallData.get(row.coach_id)}
                         {@const totalCalls = (cd?.student || 0) + (cd?.parent || 0)}
-                        {@const target = cd?.target || Number(row.daily_call_target) || 15}
+                        {@const profileTargetNum = Number(row.daily_call_target)}
+                        {@const target = cd?.target !== undefined
+                            ? cd.target
+                            : (Number.isFinite(profileTargetNum) ? profileTargetNum : 15)}
                         {@const achieved = target > 0 ? Math.round((totalCalls / target) * 100) : 0}
                         {@const isExpanded = expandedCoach === row.coach_id}
                         <div class="rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 overflow-hidden {cd ? 'ring-1 ring-sky-200 dark:ring-sky-900/40' : ''}">
@@ -1050,7 +1075,7 @@
                                                 }}
                                                 class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
                                             <div class="flex items-center gap-1">
-                                                <input type="number" min="1" max="100" placeholder="15" value={row.daily_call_target || 15}
+                                                <input type="number" min="0" max="100" placeholder="15" value={row.daily_call_target ?? 15}
                                                     onchange={async (e) => {
                                                         const val = Number((e.target as HTMLInputElement).value);
                                                         try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, daily_call_target: val }) }); row.daily_call_target = val; flash('Target updated'); } catch {}
