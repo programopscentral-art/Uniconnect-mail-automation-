@@ -154,17 +154,28 @@ export async function createRecipients(campaignId: string, students: any[], reci
             );
         }
 
-        // Also insert skipped students with SKIPPED status so they appear in recipient list
+        // Also insert skipped students with SKIPPED status so they appear in recipient list.
+        // Each insert is wrapped in a SAVEPOINT: if one fails (FK violation, bad data,
+        // anything), only that single row rolls back — the outer transaction stays alive.
+        // Without SAVEPOINTs, a single failure puts the whole txn into "aborted" state
+        // and every subsequent query (including the stats SELECT and the campaigns UPDATE
+        // below) silently fails with "current transaction is aborted".
         if (skippedStudents.length > 0) {
             for (const sk of skippedStudents) {
+                const sp = `sp_skip_${crypto.randomBytes(4).toString('hex')}`;
                 try {
+                    await client.query(`SAVEPOINT ${sp}`);
                     await client.query(
                         `INSERT INTO campaign_recipients (campaign_id, student_id, to_email, tracking_token, status, error_message)
                          VALUES ($1, $2, $3, $4, 'SKIPPED', $5)
                          ON CONFLICT (campaign_id, student_id) DO NOTHING`,
                         [campaignId, sk.id, sk.email || '', crypto.randomBytes(16).toString('hex'), sk.reason]
                     );
-                } catch { /* skip if insert fails */ }
+                    await client.query(`RELEASE SAVEPOINT ${sp}`);
+                } catch (e: any) {
+                    try { await client.query(`ROLLBACK TO SAVEPOINT ${sp}`); } catch {}
+                    console.warn(`[CAMPAIGN] skipped-row insert failed for ${sk.id}: ${e?.message?.slice(0, 120)}`);
+                }
             }
         }
 
@@ -227,10 +238,20 @@ export async function getCampaignRecipients(campaignId: string, updatedSince?: D
 }
 
 export async function markRecipientOpen(token: string) {
+    // Always record the open event (open_count + opened_at), but NEVER downgrade
+    // a more-meaningful terminal status. ACKNOWLEDGED in particular: email clients
+    // refetch tracking pixels (Gmail prefetches them once, then on each re-render),
+    // so without this guard a student who ACKs and later re-views their email gets
+    // silently flipped back to OPENED and disappears from the dashboard.
+    // Same logic protects FAILED (don't reset a failed send to OPENED on a stray pixel).
     const res = await db.query(
-        `UPDATE campaign_recipients 
-         SET status = 'OPENED', opened_at = NOW(), open_count = open_count + 1, updated_at = NOW() 
-         WHERE tracking_token = $1 RETURNING id, campaign_id, open_count`,
+        `UPDATE campaign_recipients
+         SET status = CASE WHEN status IN ('ACKNOWLEDGED', 'FAILED') THEN status ELSE 'OPENED' END,
+             opened_at = COALESCE(opened_at, NOW()),
+             open_count = open_count + 1,
+             updated_at = NOW()
+         WHERE tracking_token = $1
+         RETURNING id, campaign_id, open_count, status`,
         [token]
     );
     if (res.rows[0] && res.rows[0].open_count === 1) {
