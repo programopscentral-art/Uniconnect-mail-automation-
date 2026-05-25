@@ -14,3 +14,4 @@ export * from './auth_context';
 export * from './event_log';
 export * from './idempotency';
 export * from './submissions';
+export * from './operations';
