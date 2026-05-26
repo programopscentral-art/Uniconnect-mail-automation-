@@ -21,7 +21,7 @@ export type OpsOsAccessMode = 'view' | 'submit' | 'review' | 'sign_off' | 'send_
 
 const ROLE_PERMISSIONS: Record<OpsOsAccessMode, ReadonlyArray<string>> = {
     view: ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA', 'BOA', 'CMA', 'CMA_MANAGER', 'HR'],
-    submit: ['ADMIN', 'PROGRAM_OPS', 'BOA'],
+    submit: ['ADMIN', 'PROGRAM_OPS', 'BOA', 'PMA'],
     review: ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA'],
     sign_off: ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA'],
     send_back: ['ADMIN', 'PROGRAM_OPS', 'COS', 'PM', 'PMA'],

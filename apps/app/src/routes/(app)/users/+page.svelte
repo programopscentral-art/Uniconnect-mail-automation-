@@ -12,7 +12,10 @@
     try {
       const fetches: Promise<any>[] = [
         fetch('/api/users').then(r => r.ok ? r.json() : []),
-        fetch('/api/universities').then(r => r.ok ? r.json() : []),
+        // includeTeams=true so the team dropdown in the edit modal can list
+        // teams (universities with is_team=true) — without it the dropdown
+        // is empty and admins can't change a user's team assignment.
+        fetch('/api/universities?includeTeams=true').then(r => r.ok ? r.json() : []),
       ];
       if (data.isGlobalAdmin) {
         fetches.push(fetch('/api/users/access-requests').then(r => r.ok ? r.json() : []));

@@ -41,6 +41,8 @@ export interface ReminderRunResult {
 // ── Recipient queries ────────────────────────────────────────────────────
 
 async function queryBoaRecipients(periodDate: string, client: PoolClient) {
+    // Includes BOA-role assignments. PMA users have a BOA-role assignment
+    // row inserted by auto_assign, so they're picked up here automatically.
     const r = await client.query<{
         user_id: string;
         user_email: string | null;
@@ -60,6 +62,7 @@ async function queryBoaRecipients(periodDate: string, client: PoolClient) {
            JOIN public.users u ON u.id = uca.user_id
                                 AND (u.is_active IS NULL OR u.is_active = true)
                                 AND u.email IS NOT NULL
+                                AND u.role IN ('BOA', 'PMA')
            LEFT JOIN ops_os.submission s
                   ON s.campus_id = cd.campus_id
                  AND s.cadence = 'DAILY'

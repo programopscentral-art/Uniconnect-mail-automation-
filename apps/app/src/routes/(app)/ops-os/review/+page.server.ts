@@ -28,8 +28,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const campusFilter = url.searchParams.get('campus') ?? '';
 
     const { campuses, rows } = await withReadOnlyUserContext(userId, role, async (client) => {
-        const campusesResult = (role === 'PM' || role === 'PMA')
-            ? await client.query<{ campus_id: string; code: string; display_name: string }>(
+        let campusesResult;
+        if (role === 'PM' || role === 'PMA') {
+            // 1. Explicit assignments first (PM role on assignment table —
+            //    PMA users get a PM-role row via auto_assign).
+            campusesResult = await client.query<{ campus_id: string; code: string; display_name: string }>(
                 `SELECT c.campus_id, c.code, c.display_name
                  FROM ops_os.campus_dim c
                  JOIN ops_os.user_campus_assignment uca
@@ -40,11 +43,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                  WHERE c.status = 'active'
                  ORDER BY c.display_name`,
                 [userId],
-            )
-            : await client.query<{ campus_id: string; code: string; display_name: string }>(
+            );
+            // 2. Fallback to university-derived campuses if no assignment yet
+            if (campusesResult.rowCount === 0) {
+                campusesResult = await client.query<{ campus_id: string; code: string; display_name: string }>(
+                    `SELECT DISTINCT cd.campus_id, cd.code, cd.display_name
+                       FROM ops_os.campus_dim cd
+                       LEFT JOIN public.users u ON u.id = $1
+                       LEFT JOIN public.user_universities uu ON uu.user_id = $1
+                      WHERE cd.status = 'active'
+                        AND (cd.university_id = u.university_id OR cd.university_id = uu.university_id)
+                      ORDER BY cd.display_name`,
+                    [userId],
+                );
+            }
+        } else {
+            campusesResult = await client.query<{ campus_id: string; code: string; display_name: string }>(
                 `SELECT campus_id, code, display_name FROM ops_os.campus_dim
                  WHERE status = 'active' ORDER BY display_name`,
             );
+        }
 
         const subs: Submission[] = await listSubmissions(
             {

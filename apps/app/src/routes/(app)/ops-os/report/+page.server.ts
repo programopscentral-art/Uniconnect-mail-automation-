@@ -28,14 +28,16 @@ import {
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw redirect(302, '/login');
     const role = locals.user.role as string;
-    if (!['ADMIN', 'PROGRAM_OPS', 'BOA'].includes(role)) {
-        throw error(403, 'BOA daily report is available to BOA, PROGRAM_OPS, or ADMIN roles only');
+    if (!['ADMIN', 'PROGRAM_OPS', 'BOA', 'PMA'].includes(role)) {
+        throw error(403, 'Daily report is available to BOA, PMA, PROGRAM_OPS, or ADMIN roles only');
     }
 
     const userId = locals.user.id as string;
     const today = new Date().toISOString().slice(0, 10);
 
     const campuses = await withReadOnlyUserContext(userId, role, async (client) => {
+        // 1. Try explicit assignments first (BOA role on assignment table —
+        //    PMA users get a BOA-role row via auto_assign).
         const r = await client.query<{ campus_id: string; code: string; display_name: string }>(
             `SELECT c.campus_id, c.code, c.display_name
              FROM ops_os.campus_dim c
@@ -48,7 +50,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
              ORDER BY c.display_name`,
             [userId],
         );
-        if (r.rows.length === 0 && (role === 'ADMIN' || role === 'PROGRAM_OPS')) {
+        if (r.rows.length > 0) return r.rows;
+
+        // 2. ADMIN / PROGRAM_OPS fallback — see all campuses.
+        if (role === 'ADMIN' || role === 'PROGRAM_OPS') {
             const all = await client.query<{ campus_id: string; code: string; display_name: string }>(
                 `SELECT campus_id, code, display_name FROM ops_os.campus_dim
                  WHERE status = 'active'
@@ -56,7 +61,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             );
             return all.rows;
         }
-        return r.rows;
+
+        // 3. BOA / PMA fallback — derive from public.user_universities so a
+        //    user without an explicit assignment can still see campuses in
+        //    their university. Note: RLS WILL block save attempts until the
+        //    auto_assign helper runs and creates the user_campus_assignment
+        //    row; we surface the campus in the dropdown so the user knows
+        //    coverage exists.
+        const fallback = await client.query<{ campus_id: string; code: string; display_name: string }>(
+            `SELECT DISTINCT cd.campus_id, cd.code, cd.display_name
+               FROM ops_os.campus_dim cd
+               LEFT JOIN public.users u ON u.id = $1
+               LEFT JOIN public.user_universities uu ON uu.user_id = $1
+              WHERE cd.status = 'active'
+                AND (cd.university_id = u.university_id OR cd.university_id = uu.university_id)
+              ORDER BY cd.display_name`,
+            [userId],
+        );
+        return fallback.rows;
     });
 
     const requestedCampus = url.searchParams.get('campus') ?? '';

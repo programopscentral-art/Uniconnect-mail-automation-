@@ -2,7 +2,7 @@ import { getAllUniversities, createUniversity } from '@uniconnect/shared';
 import type { RequestHandler } from './$types';
 import { json, error } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
     // Allow read access for roles that need university listings
@@ -10,7 +10,11 @@ export const GET: RequestHandler = async ({ locals }) => {
     if (!readAllowedRoles.includes(locals.user.role as string)) {
         throw error(403, 'Forbidden');
     }
-    const universities = await getAllUniversities();
+    // Teams are universities with is_team=true. Default response excludes them
+    // (they're a different concept), but the team-assignment dropdown on the
+    // user management page needs them — caller passes ?includeTeams=true.
+    const includeTeams = url.searchParams.get('includeTeams') === 'true';
+    const universities = await getAllUniversities({ includeTeams });
     return json(universities);
 };
 

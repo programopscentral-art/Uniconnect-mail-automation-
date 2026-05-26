@@ -56,7 +56,7 @@ export const load: PageServerLoad = async ({ locals }) => {
             cos_user_id: string | null;
         }>(
             `SELECT cd.campus_id, cd.code, cd.display_name,
-                    cd.cluster_id, cl.cluster_name, cl.cos_user_id
+                    cd.cluster_id, cl.name AS cluster_name, cl.cos_user_id
                FROM ops_os.campus_dim cd
                JOIN ops_os.cluster_dim cl ON cl.cluster_id = cd.cluster_id
               WHERE cd.status = 'active'

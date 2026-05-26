@@ -29,7 +29,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "sheets", "fee-collection"],
     'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "sheets", "fee-collection", "ops-os-review", "ops-os-operations"],
     'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "fee-collection", "ops-os-review"],
-    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-review"],
+    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-review", "ops-os-report"],
     'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-report"],
     'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection"],
     'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection"],
@@ -104,7 +104,7 @@ export async function ensureCorePermissions(): Promise<void> {
             'PROGRAM_OPS':  ['ops-os-report', 'ops-os-review', 'ops-os-operations'],
             'COS':          ['ops-os-review', 'ops-os-operations'],
             'PM':           ['ops-os-review'],
-            'PMA':          ['ops-os-review'],
+            'PMA':          ['ops-os-review', 'ops-os-report'],
             'BOA':          ['ops-os-report'],
         };
         for (const [role, addons] of Object.entries(opsOsAddons)) {

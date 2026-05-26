@@ -62,7 +62,7 @@
   let reminderForce = $state(false);
   let reminderBroadcast = $state(true);  // Default ON since assignments aren't set up yet
 
-  let autoSyncResult = $state<{ boas_scanned: number; rows_inserted: number; skipped_revoked: number } | null>(null);
+  let autoSyncResult = $state<{ users_scanned: number; rows_inserted: number; skipped_revoked: number } | null>(null);
   async function autoSyncBoas() {
     busy[`autosync`] = true; errorMsg = null; autoSyncResult = null;
     try {
@@ -231,7 +231,7 @@
         >{busy[`autosync`] ? 'Syncing…' : 'Run auto-sync now'}</button>
         {#if autoSyncResult}
           <div class="text-xs text-emerald-200">
-            Scanned <strong class="tabular-nums">{autoSyncResult.boas_scanned}</strong> BOA users ·
+            Scanned <strong class="tabular-nums">{autoSyncResult.users_scanned}</strong> BOA/PM/PMA users ·
             Created <strong class="tabular-nums text-emerald-300">{autoSyncResult.rows_inserted}</strong> new assignments ·
             <span class="text-amber-300">{autoSyncResult.skipped_revoked}</span> previously revoked pairs preserved
           </div>

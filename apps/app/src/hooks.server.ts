@@ -21,7 +21,7 @@ ensureCorePermissions().catch(e => console.error('[HOOKS] ensureCorePermissions 
 // out of the box without admins having to assign each user manually.
 // Idempotent on row level — safe to run every boot.
 ensureBoaCampusAssignments()
-    .then((r) => console.log(`[HOOKS] ensureBoaCampusAssignments: scanned=${r.boas_scanned} inserted=${r.rows_inserted} skipped_revoked=${r.skipped_revoked}`))
+    .then((r) => console.log(`[HOOKS] ensureBoaCampusAssignments: users_scanned=${r.users_scanned} inserted=${r.rows_inserted} skipped_revoked=${r.skipped_revoked}`))
     .catch(e => console.error('[HOOKS] ensureBoaCampusAssignments failed:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {
