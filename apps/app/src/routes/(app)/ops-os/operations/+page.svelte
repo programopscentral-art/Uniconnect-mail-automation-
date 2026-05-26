@@ -14,6 +14,7 @@
     is_late_submission: boolean;
     is_late_sign_off: boolean;
     sent_back_count: number;
+    auto_signed_off: boolean;
     pm_remark_preview: string | null;
     pm_remark_truncated: boolean;
     incident_count: number;
@@ -59,10 +60,11 @@
     const inFlight = data.rows.filter(r => ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK', 'DRAFT', 'NEW'].includes(r.status)).length;
     const noSub = data.rows.filter(r => r.status === 'NO_SUBMISSION').length;
     const late = data.rows.filter(r => r.is_late_submission || r.is_late_sign_off).length;
+    const autoSignedOff = data.rows.filter(r => r.auto_signed_off).length;
     const incidents = data.rows.reduce((s, r) => s + r.incident_count, 0);
     const infraIssue = data.rows.filter(r => r.has_infra_issue).length;
     const completionPct = total > 0 ? Math.round((signedOff / total) * 100) : 0;
-    return { total, signedOff, inFlight, noSub, late, incidents, infraIssue, completionPct };
+    return { total, signedOff, inFlight, noSub, late, autoSignedOff, incidents, infraIssue, completionPct };
   });
 
   function statusBadgeClass(status: string): string {
@@ -174,6 +176,14 @@
           <div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{summary.infraIssue}</div>
         </div>
       </div>
+
+      {#if summary.autoSignedOff > 0}
+        <div class="mt-3 rounded-lg border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs text-amber-100">
+          <strong class="text-amber-200">{summary.autoSignedOff} campus{summary.autoSignedOff === 1 ? '' : 'es'} auto-signed-off</strong>
+          — PM did not respond by 6:30 PM IST. Non-response counter incremented on assigned PMs.
+          <a href="/ops-os/access-rights" class="ml-1 underline decoration-amber-500/50 hover:decoration-amber-200">Review assignments →</a>
+        </div>
+      {/if}
     </div>
 
     <!-- ── Filters ────────────────────────────────────────────────────── -->
@@ -282,6 +292,9 @@
                   <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(r.status)}">
                     {statusDisplay(r.status)}
                   </span>
+                  {#if r.auto_signed_off}
+                    <span class="ml-1 rounded-md bg-amber-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-amber-200" title="System auto-signed-off because PM did not respond by 6:30 PM IST">auto</span>
+                  {/if}
                   {#if r.is_late_submission || r.is_late_sign_off}
                     <span class="ml-1 rounded-md bg-red-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-red-200">late</span>
                   {/if}

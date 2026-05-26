@@ -40,6 +40,7 @@ export interface DailyOpsRow {
     is_late_submission: boolean;
     is_late_sign_off: boolean;
     sent_back_count: number;
+    auto_signed_off: boolean;
 
     pm_remark_preview: string | null;
     pm_remark_truncated: boolean;
@@ -117,6 +118,7 @@ export async function getDailyOperationsOverview(
                 COALESCE(s.is_late_submission, false) AS is_late_submission,
                 COALESCE(s.is_late_sign_off,   false) AS is_late_sign_off,
                 COALESCE(s.sent_back_count, 0) AS sent_back_count,
+                COALESCE(s.auto_signed_off, false) AS auto_signed_off,
 
                 CASE
                     WHEN s.pm_remark IS NULL THEN NULL

@@ -385,6 +385,65 @@ export async function transitionToSignedOff(
 }
 
 /**
+ * System auto-sign-off when PM hasn't acted by the deadline.
+ *
+ * Allowed from SUBMITTED, PM_REVIEW, or SENT_BACK. Sets:
+ *   - status        = 'SIGNED_OFF'
+ *   - signed_off_by = NULL (system; the event_log records actor_user_id=NULL too)
+ *   - signed_off_at = now()
+ *   - auto_signed_off = true
+ *   - pm_remark    = caller-provided string (typically "Auto-signed-off — PM did not respond")
+ *
+ * Also increments non_response_count on every active PM assignment for this
+ * campus so the COS dashboard reflects who missed.
+ */
+export async function transitionToAutoSignedOff(
+    params: { submission_id: string; pm_remark: string },
+    client: PoolClient,
+): Promise<Submission | null> {
+    const r = await client.query<Submission>(
+        `UPDATE ops_os.submission
+         SET status = 'SIGNED_OFF',
+             signed_off_by = NULL,
+             signed_off_at = now(),
+             auto_signed_off = true,
+             pm_remark = $2,
+             is_late_sign_off = true,
+             updated_at = now()
+         WHERE submission_id = $1
+           AND status IN ('SUBMITTED', 'PM_REVIEW', 'SENT_BACK')
+         RETURNING *`,
+        [params.submission_id, params.pm_remark],
+    );
+    if (r.rowCount === 0) return null;
+    const sub = r.rows[0];
+
+    // Increment non-response counters on all active PM assignments for this campus
+    await client.query(
+        `UPDATE ops_os.user_campus_assignment
+            SET non_response_count = non_response_count + 1,
+                last_non_response_at = now()
+          WHERE campus_id = $1
+            AND role = 'PM'
+            AND revoked_at IS NULL`,
+        [sub.campus_id],
+    );
+
+    await emitEvent(
+        {
+            event_type: 'submission.signed_off',
+            aggregate_kind: 'submission',
+            aggregate_id: sub.submission_id,
+            actor_user_id: null,
+            campus_id: sub.campus_id,
+            payload: { auto_signed_off: true, reason: 'pm_did_not_respond_by_deadline' },
+        },
+        client,
+    );
+    return sub;
+}
+
+/**
  * Retract a just-submitted draft back to DRAFT state. Allowed only when:
  *   - current status is SUBMITTED
  *   - submitted_at is within the retraction window (default 30 min)

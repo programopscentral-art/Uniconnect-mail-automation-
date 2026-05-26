@@ -20,6 +20,7 @@
     is_late_submission: boolean;
     is_late_sign_off: boolean;
     locked_at: string | null;
+    auto_signed_off: boolean;
   };
   type ValueRow = {
     metric_id: string;
@@ -253,11 +254,20 @@
           </div>
           <div class="flex-shrink-0 text-right">
             <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(data.submission.status)}">{data.submission.status}</span>
+            {#if data.submission.auto_signed_off}
+              <div class="mt-1"><span class="rounded-md bg-amber-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-amber-200" title="System auto-signed-off because PM did not respond by 6:30 PM IST">auto</span></div>
+            {/if}
             {#if data.submission.is_late_submission || data.submission.is_late_sign_off}
               <div class="mt-1"><span class="rounded-md bg-red-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-red-200">late</span></div>
             {/if}
           </div>
         </div>
+
+        {#if data.submission.auto_signed_off}
+          <div class="mt-3 rounded-lg border border-amber-800 bg-amber-950/40 px-3 py-2 text-xs text-amber-100">
+            <strong>Auto-signed-off by system</strong> — PM did not respond by the 6:30 PM IST deadline. The assigned PM's non-response counter has been incremented.
+          </div>
+        {/if}
 
         <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">

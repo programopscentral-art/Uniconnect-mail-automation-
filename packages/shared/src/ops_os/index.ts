@@ -16,3 +16,4 @@ export * from './idempotency';
 export * from './submissions';
 export * from './operations';
 export * from './notifications';
+export * from './email';

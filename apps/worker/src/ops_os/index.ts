@@ -18,6 +18,8 @@
 import { Worker, type Job } from 'bullmq';
 import IORedis from 'ioredis';
 import { startDailyLockLoop } from './daily_lock';
+import { startAutoSignOffLoop } from './auto_sign_off';
+import { startReminderLoop } from './reminders';
 
 const QUEUE_NAMES = [
     'ops_os.source_pull',
@@ -90,6 +92,12 @@ export function registerOpsOsWorkers(): void {
     // Idempotent at the row level; safe to run concurrently across instances
     // since transitionToLocked only matches rows still in SIGNED_OFF state.
     startDailyLockLoop();
+
+    // Phase 4: auto-sign-off + reminders.
+    // Auto-sign-off scans every 5 min; only acts after 6:30 PM IST.
+    // Reminders run every minute; trigger windows live inside the loop.
+    startAutoSignOffLoop();
+    startReminderLoop();
 }
 
 /** Graceful shutdown — call on SIGTERM. */
