@@ -22,6 +22,9 @@
       rows: Row[];
       statusFilter: 'awaiting' | 'all';
       campusFilter: string;
+      dateScope: 'today' | 'week' | 'all' | 'custom';
+      customDate: string;
+      today: string;
     };
   }>();
 
@@ -41,10 +44,14 @@
     return new Date(iso).toLocaleDateString();
   }
 
-  async function updateFilter(name: 'status' | 'campus', value: string) {
+  async function updateFilter(name: 'status' | 'campus' | 'scope' | 'date', value: string) {
     const url = new URL($page.url);
     if (value) url.searchParams.set(name, value);
     else url.searchParams.delete(name);
+    // Switching scope away from custom clears any custom date so the queue
+    // doesn't get stuck on a stale date param.
+    if (name === 'scope' && value !== 'custom') url.searchParams.delete('date');
+    if (name === 'date' && value) url.searchParams.set('scope', 'custom');
     await goto(url.pathname + url.search, { keepFocus: true, noScroll: true, invalidateAll: true });
   }
 
@@ -133,6 +140,31 @@
           <option value="all">All submissions</option>
         </select>
       </div>
+      <div>
+        <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="scope-filter">Date</label>
+        <select
+          id="scope-filter"
+          class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+          value={data.dateScope}
+          onchange={(e) => updateFilter('scope', (e.currentTarget as HTMLSelectElement).value)}
+        >
+          <option value="today">Today ({data.today})</option>
+          <option value="week">Last 7 days</option>
+          <option value="all">All dates</option>
+          <option value="custom">Custom date…</option>
+        </select>
+      </div>
+      {#if data.dateScope === 'custom'}
+        <div>
+          <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="custom-date">Pick a date</label>
+          <input
+            id="custom-date" type="date"
+            class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-blue-600 focus:outline-none"
+            value={data.customDate || data.today}
+            onchange={(e) => updateFilter('date', (e.currentTarget as HTMLInputElement).value)}
+          />
+        </div>
+      {/if}
       {#if data.campuses.length > 1}
         <div>
           <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="campus-filter">Campus</label>

@@ -3,18 +3,28 @@
  *
  * Loads the queue rows server-side in one DB roundtrip so the page renders
  * with data already populated — no client "Loading…" flash. Filters live in
- * URL search params (?status=&campus=) so changing them re-runs this load.
+ * URL search params (?status=&campus=&date=) so changing them re-runs this load.
+ *
+ * Date filter defaults to today (IST). Without this default, every campus
+ * with a draft on multiple days appears as N rows in the queue — confusing
+ * the PM into thinking the same campus is duplicated. With the default, the
+ * PM sees one row per campus per day, and can change the date dropdown to
+ * "Last 7 days" or "All" to widen the view.
  */
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
     withReadOnlyUserContext,
     listSubmissions,
+    todayInIst,
     type Submission,
     type SubmissionStatus,
 } from '@uniconnect/shared';
 
 const AWAITING_STATUSES: SubmissionStatus[] = ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK'];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+type DateScope = 'today' | 'week' | 'all' | 'custom';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw redirect(302, '/login');
@@ -26,6 +36,31 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const userId = locals.user.id as string;
     const statusFilter = (url.searchParams.get('status') ?? 'awaiting') as 'awaiting' | 'all';
     const campusFilter = url.searchParams.get('campus') ?? '';
+
+    // Date scope: today / week / all / custom. Default "today".
+    const rawScope = url.searchParams.get('scope') ?? '';
+    const rawDate = url.searchParams.get('date') ?? '';
+    const dateScope: DateScope = ['today', 'week', 'all', 'custom'].includes(rawScope)
+        ? (rawScope as DateScope)
+        : (rawDate && DATE_RE.test(rawDate) ? 'custom' : 'today');
+    const customDate = DATE_RE.test(rawDate) ? rawDate : '';
+
+    const today = todayInIst();
+    let periodFrom: string | undefined;
+    let periodTo: string | undefined;
+    if (dateScope === 'today') {
+        periodFrom = today; periodTo = today;
+    } else if (dateScope === 'week') {
+        const d = new Date(today + 'T00:00:00Z');
+        d.setUTCDate(d.getUTCDate() - 6);
+        periodFrom = d.toISOString().slice(0, 10);
+        periodTo = today;
+    } else if (dateScope === 'custom' && customDate) {
+        periodFrom = customDate; periodTo = customDate;
+    } else {
+        // 'all' — no period bounds
+        periodFrom = undefined; periodTo = undefined;
+    }
 
     const { campuses, rows } = await withReadOnlyUserContext(userId, role, async (client) => {
         let campusesResult;
@@ -69,6 +104,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                 statuses: statusFilter === 'awaiting' ? AWAITING_STATUSES : undefined,
                 cadence: 'DAILY',
                 campus_id: campusFilter || undefined,
+                period_start_from: periodFrom,
+                period_start_to: periodTo,
                 limit: 100,
             },
             client,
@@ -83,5 +120,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         rows,
         statusFilter,
         campusFilter,
+        dateScope,
+        customDate,
+        today,
     };
 };
