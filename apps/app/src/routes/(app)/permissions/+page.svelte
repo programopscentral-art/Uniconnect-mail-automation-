@@ -94,6 +94,21 @@
       label: "Permissions",
       desc: "Feature management configuration",
     },
+    {
+      id: "ops-os-report",
+      label: "Daily Report (BOA)",
+      desc: "Daily campus operations report — for BOAs to fill out",
+    },
+    {
+      id: "ops-os-review",
+      label: "PM Review Queue",
+      desc: "Queue of submissions awaiting PM sign-off or send-back",
+    },
+    {
+      id: "ops-os-operations",
+      label: "Operations Overview",
+      desc: "Daily campus health view for COS / leadership",
+    },
   ];
 
   let selectedRole = $state(roles[0]);

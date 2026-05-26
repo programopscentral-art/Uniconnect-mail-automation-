@@ -608,9 +608,6 @@
             user?.role === 'ADMIN' ||
             user?.role === 'PROGRAM_OPS' ||
             (item.id === 'budget-proposals' && (user?.role === 'CMA_MANAGER' || user?.role === 'CMA')) ||
-            (item.id === 'ops-os-report' && ['BOA', 'PM', 'PMA'].includes(user?.role)) ||
-            (item.id === 'ops-os-review' && ['PM', 'PMA', 'COS'].includes(user?.role)) ||
-            (item.id === 'ops-os-operations' && ['COS'].includes(user?.role)) ||
             (user?.permissions || []).includes(item.id)
           )}
           {#if visibleItems.length > 0}
