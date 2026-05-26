@@ -18,3 +18,4 @@ export * from './operations';
 export * from './notifications';
 export * from './email';
 export * from './reminders';
+export * from './auto_assign';

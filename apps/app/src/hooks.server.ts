@@ -1,6 +1,6 @@
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { validateSession, getRolePermissions, ensureCorePermissions } from '@uniconnect/shared';
+import { validateSession, getRolePermissions, ensureCorePermissions, ensureBoaCampusAssignments } from '@uniconnect/shared';
 
 // EMERGENCY FIX: Bypass SSL certificate verification for production stability
 // Resolves: "self-signed certificate in certificate chain" errors
@@ -15,6 +15,14 @@ import '$lib/server/firebase-admin';
 // Auto-ensure core permissions (tasks, dashboard) for all roles at boot
 // This is the programmatic equivalent of migration 0070
 ensureCorePermissions().catch(e => console.error('[HOOKS] ensureCorePermissions failed:', e));
+
+// Auto-grant every active BOA an ops_os.user_campus_assignment row for
+// every active campus in their university so the daily report page works
+// out of the box without admins having to assign each user manually.
+// Idempotent on row level — safe to run every boot.
+ensureBoaCampusAssignments()
+    .then((r) => console.log(`[HOOKS] ensureBoaCampusAssignments: scanned=${r.boas_scanned} inserted=${r.rows_inserted} skipped_revoked=${r.skipped_revoked}`))
+    .catch(e => console.error('[HOOKS] ensureBoaCampusAssignments failed:', e));
 
 export const handle: Handle = async ({ event, resolve }) => {
     const token = event.cookies.get(env.COOKIE_NAME || 'uniconnect_session');

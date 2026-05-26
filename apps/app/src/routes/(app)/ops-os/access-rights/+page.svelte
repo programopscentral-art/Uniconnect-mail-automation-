@@ -62,6 +62,19 @@
   let reminderForce = $state(false);
   let reminderBroadcast = $state(true);  // Default ON since assignments aren't set up yet
 
+  let autoSyncResult = $state<{ boas_scanned: number; rows_inserted: number; skipped_revoked: number } | null>(null);
+  async function autoSyncBoas() {
+    busy[`autosync`] = true; errorMsg = null; autoSyncResult = null;
+    try {
+      const res = await fetch('/api/ops-os/assignments/auto-sync-boas', { method: 'POST' });
+      if (!res.ok) { flash((await res.text()) || `HTTP ${res.status}`, 'err'); return; }
+      autoSyncResult = await res.json();
+      flash(`Auto-sync complete — ${autoSyncResult?.rows_inserted ?? 0} new assignments`, 'ok');
+      await invalidateAll();
+    } catch (e) { flash((e as Error).message, 'err'); }
+    finally { delete busy[`autosync`]; }
+  }
+
   async function fireReminder(kind: ReminderKind) {
     busy[`reminder:${kind}`] = true; errorMsg = null; reminderResult = null;
     try {
@@ -198,6 +211,33 @@
         <div class="mt-3 rounded-lg border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{successMsg}</div>
       {/if}
     </div>
+
+    <!-- Auto-sync BOAs (bulk grant from public.users → ops_os.user_campus_assignment) -->
+    <section class="mb-6 overflow-hidden rounded-2xl border border-emerald-900 bg-emerald-950/20">
+      <header class="border-b border-emerald-900/50 px-4 py-3">
+        <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Bulk grant</div>
+        <div class="text-sm font-semibold text-emerald-100">Auto-assign every BOA to their university's campuses</div>
+        <div class="mt-0.5 text-xs text-emerald-200/70">
+          Reads every user with role=BOA, looks up their university (primary + linked), and creates a
+          campus assignment for every active campus in those universities.
+          Runs automatically at app boot — click to run again any time. Idempotent; previously revoked rows stay revoked.
+        </div>
+      </header>
+      <div class="px-4 py-3 flex flex-wrap items-center gap-3">
+        <button
+          class="rounded-md bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500"
+          disabled={!!busy[`autosync`]}
+          onclick={autoSyncBoas}
+        >{busy[`autosync`] ? 'Syncing…' : 'Run auto-sync now'}</button>
+        {#if autoSyncResult}
+          <div class="text-xs text-emerald-200">
+            Scanned <strong class="tabular-nums">{autoSyncResult.boas_scanned}</strong> BOA users ·
+            Created <strong class="tabular-nums text-emerald-300">{autoSyncResult.rows_inserted}</strong> new assignments ·
+            <span class="text-amber-300">{autoSyncResult.skipped_revoked}</span> previously revoked pairs preserved
+          </div>
+        {/if}
+      </div>
+    </section>
 
     <!-- Manual reminder fire (testing aid) -->
     <section class="mb-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
