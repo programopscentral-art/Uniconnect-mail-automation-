@@ -203,9 +203,17 @@
     return { tone: 'wait' as const, title: s, body: '' };
   });
 
-  // Incident count (for surfacing)
-  let incidentCount = $derived(Number(rawValue('daily.incidents.count') ?? 0));
+  // Holiday flag — when BOA marked today as a campus holiday, the rest of
+  // the form is empty by design. Show a prominent banner and skip the
+  // "Attention: incidents" surfacing (it'd be a false positive on a holiday).
+  let isHoliday = $derived(rawValue('daily.day_type.is_holiday') === true);
+  let holidayReason = $derived(String(rawValue('daily.day_type.holiday_reason') ?? '').trim());
+
+  // Incident count (for surfacing) — suppressed when isHoliday so we don't
+  // panic on a campus that simply marked the day as closed.
+  let incidentCount = $derived(isHoliday ? 0 : Number(rawValue('daily.incidents.count') ?? 0));
   let hasAnyIncidentFlag = $derived(
+    !isHoliday &&
     [
       'daily.incidents.posh_pocso',
       'daily.incidents.anti_ragging',
@@ -334,6 +342,24 @@
       </div>
     </div>
 
+    <!-- Holiday banner: campus reported nothing happened today -->
+    {#if isHoliday}
+      <div class="mb-4 rounded-xl border border-amber-700 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="font-semibold">🏖 Campus marked today as a HOLIDAY</div>
+            {#if holidayReason}
+              <div class="mt-1 text-xs text-amber-200">Reason: <span class="font-medium">{holidayReason}</span></div>
+            {:else}
+              <div class="mt-1 text-xs text-amber-200/70">No reason provided.</div>
+            {/if}
+          </div>
+          <span class="rounded-md bg-amber-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">Holiday</span>
+        </div>
+        <div class="mt-2 text-xs text-amber-200/80">No daily operations data was filled. Sign off to acknowledge or send back if you believe a report is still needed.</div>
+      </div>
+    {/if}
+
     <!-- Highlight banner: critical signals -->
     {#if hasAnyIncidentFlag || incidentCount > 0}
       <div class="mb-4 rounded-xl border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-100">
@@ -362,6 +388,7 @@
     {/if}
 
     <!-- ── Sections ───────────────────────────────────────────────────── -->
+    {#if !isHoliday}
     {#each SECTIONS as section (section.code)}
       <section
         class="mb-4 overflow-hidden rounded-xl border bg-zinc-900"
@@ -417,6 +444,7 @@
         </div>
       </section>
     {/each}
+    {/if}
 
     {#if !canAct}
       <!-- Non-actionable closing note -->

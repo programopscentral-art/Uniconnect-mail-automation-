@@ -196,8 +196,12 @@
     return out;
   });
 
-  let incidentCount = $derived(Number(rawValue('daily.incidents.count') ?? 0));
+  let isHoliday = $derived(rawValue('daily.day_type.is_holiday') === true);
+  let holidayReason = $derived(String(rawValue('daily.day_type.holiday_reason') ?? '').trim());
+
+  let incidentCount = $derived(isHoliday ? 0 : Number(rawValue('daily.incidents.count') ?? 0));
   let hasAnyIncidentFlag = $derived(
+    !isHoliday &&
     [
       'daily.incidents.posh_pocso',
       'daily.incidents.anti_ragging',
@@ -290,6 +294,20 @@
       </div>
     </div>
 
+    {#if isHoliday}
+      <div class="mb-4 rounded-xl border border-amber-700 bg-amber-950/40 px-4 py-3 text-sm text-amber-100">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <div class="font-semibold">🏖 Campus marked today as a HOLIDAY</div>
+            {#if holidayReason}
+              <div class="mt-1 text-xs text-amber-200">Reason: <span class="font-medium">{holidayReason}</span></div>
+            {/if}
+          </div>
+          <span class="rounded-md bg-amber-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">Holiday</span>
+        </div>
+      </div>
+    {/if}
+
     {#if hasAnyIncidentFlag || incidentCount > 0}
       <div class="mb-4 rounded-xl border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-100">
         <span class="font-semibold">⚠ Incidents flagged</span> · Read Section 7 carefully.
@@ -311,6 +329,7 @@
     {/if}
 
     <!-- ── Sections ───────────────────────────────────────────────────── -->
+    {#if !isHoliday}
     {#each SECTIONS as section (section.code)}
       <section
         class="mb-4 overflow-hidden rounded-xl border bg-zinc-900"
@@ -359,6 +378,7 @@
         </div>
       </section>
     {/each}
+    {/if}
 
     <!-- ── Timeline ───────────────────────────────────────────────────── -->
     <section class="mb-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">

@@ -19,6 +19,8 @@
     pm_remark_truncated: boolean;
     incident_count: number;
     has_infra_issue: boolean;
+    is_holiday: boolean;
+    holiday_reason: string | null;
   };
 
   let { data } = $props<{
@@ -56,15 +58,19 @@
 
   let summary = $derived.by(() => {
     const total = data.rows.length;
+    const holiday = data.rows.filter(r => r.is_holiday).length;
     const signedOff = data.rows.filter(r => r.status === 'SIGNED_OFF' || r.status === 'LOCKED').length;
     const inFlight = data.rows.filter(r => ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK', 'DRAFT', 'NEW'].includes(r.status)).length;
     const noSub = data.rows.filter(r => r.status === 'NO_SUBMISSION').length;
     const late = data.rows.filter(r => r.is_late_submission || r.is_late_sign_off).length;
     const autoSignedOff = data.rows.filter(r => r.auto_signed_off).length;
-    const incidents = data.rows.reduce((s, r) => s + r.incident_count, 0);
-    const infraIssue = data.rows.filter(r => r.has_infra_issue).length;
-    const completionPct = total > 0 ? Math.round((signedOff / total) * 100) : 0;
-    return { total, signedOff, inFlight, noSub, late, autoSignedOff, incidents, infraIssue, completionPct };
+    // Holiday submissions don't contain incident data, so exclude from incident totals.
+    const incidents = data.rows.filter(r => !r.is_holiday).reduce((s, r) => s + r.incident_count, 0);
+    const infraIssue = data.rows.filter(r => !r.is_holiday && r.has_infra_issue).length;
+    // Completion is based on campuses that owe a report. Holidays count as
+    // accounted-for, so they're added to the numerator.
+    const completionPct = total > 0 ? Math.round(((signedOff + holiday) / total) * 100) : 0;
+    return { total, signedOff, inFlight, noSub, late, autoSignedOff, incidents, infraIssue, holiday, completionPct };
   });
 
   function statusBadgeClass(status: string): string {
@@ -91,6 +97,9 @@
   // Row health: green = signed off & no issues, amber = in flight or has issues, red = late or incidents
   function rowHealth(r: Row): 'good' | 'warn' | 'bad' | 'idle' {
     if (r.status === 'NO_SUBMISSION') return 'idle';
+    // Holiday submissions are accounted for — show as good regardless of
+    // status, since no operational data is expected.
+    if (r.is_holiday) return 'good';
     if (r.is_late_submission || r.is_late_sign_off || r.incident_count > 0) return 'bad';
     if (r.status === 'SIGNED_OFF' || r.status === 'LOCKED') {
       if (r.has_infra_issue) return 'warn';
@@ -289,9 +298,13 @@
                   <div class="text-[10px] uppercase tracking-wider text-zinc-500">{r.campus_code}</div>
                 </td>
                 <td class="px-3 py-3">
-                  <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(r.status)}">
-                    {statusDisplay(r.status)}
-                  </span>
+                  {#if r.is_holiday}
+                    <span class="rounded-md bg-amber-700 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white" title={r.holiday_reason ?? 'No reason given'}>Holiday</span>
+                  {:else}
+                    <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(r.status)}">
+                      {statusDisplay(r.status)}
+                    </span>
+                  {/if}
                   {#if r.auto_signed_off}
                     <span class="ml-1 rounded-md bg-amber-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-amber-200" title="System auto-signed-off because PM did not respond by 6:30 PM IST">auto</span>
                   {/if}

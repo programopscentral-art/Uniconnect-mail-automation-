@@ -350,7 +350,15 @@
   let sectionsCompleteCount = $derived(SECTIONS.filter(s => sectionState(s) === 'complete').length);
   let sectionsTotalCount = $derived(SECTIONS.length);
 
+  // Holiday flag — when set, the campus reported nothing happened today;
+  // form sections collapse and required-field validation is skipped.
+  let isHoliday = $derived(values['daily.day_type.is_holiday'] === true);
+
   let missingRequired = $derived.by(() => {
+    // Holiday mode skips all per-section required-field validation.
+    // The PM still sees the submission marked HOLIDAY on the review page.
+    if (isHoliday) return [];
+
     const missing: string[] = [];
     for (const s of SECTIONS) {
       for (const f of s.fields) {
@@ -379,6 +387,10 @@
   let canSubmit = $derived(
     !!submissionId && !submitting && !isReadOnly && missingRequired.length === 0,
   );
+
+  function setHoliday(flag: boolean) {
+    onValueChange('daily.day_type.is_holiday', 'boolean', flag, false);
+  }
 
   // ─── Submit / Retract ─────────────────────────────────────────────────
 
@@ -549,7 +561,68 @@
         {/if}
       </div>
 
+      <!-- ── Day type: Working day vs Holiday ─────────────────────────── -->
+      <section class="mb-4 overflow-hidden rounded-xl border bg-zinc-900"
+        class:border-amber-700={isHoliday}
+        class:border-zinc-800={!isHoliday}
+      >
+        <header class="border-b border-zinc-800 px-4 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Day type</div>
+          <div class="text-sm font-semibold">Is the campus operating today?</div>
+          <div class="mt-0.5 text-xs text-zinc-500">
+            If today is a declared holiday, mark it here. The rest of the form is skipped and you can submit immediately.
+          </div>
+        </header>
+        <div class="px-4 py-3 flex flex-col gap-2">
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              class:border-emerald-600={!isHoliday}
+              class:bg-emerald-600={!isHoliday}
+              class:text-white={!isHoliday}
+              class:border-zinc-700={isHoliday}
+              class:bg-zinc-950={isHoliday}
+              class:text-zinc-300={isHoliday}
+              disabled={isReadOnly}
+              onclick={() => setHoliday(false)}
+            >Working day — fill report</button>
+            <button
+              type="button"
+              class="flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              class:border-amber-600={isHoliday}
+              class:bg-amber-600={isHoliday}
+              class:text-white={isHoliday}
+              class:border-zinc-700={!isHoliday}
+              class:bg-zinc-950={!isHoliday}
+              class:text-zinc-300={!isHoliday}
+              disabled={isReadOnly}
+              onclick={() => setHoliday(true)}
+            >Holiday — skip report</button>
+          </div>
+          {#if isHoliday}
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-amber-400 mt-1" for="holiday-reason">Holiday reason (optional)</label>
+              <input
+                id="holiday-reason"
+                type="text"
+                class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-amber-600 focus:outline-none disabled:opacity-50"
+                value={values['daily.day_type.holiday_reason'] ?? ''}
+                placeholder="e.g. Sankranti, local festival, university notice 2026-05-26"
+                disabled={isReadOnly}
+                oninput={(e) => onValueChange('daily.day_type.holiday_reason', 'text', (e.currentTarget as HTMLInputElement).value)}
+                onblur={() => onValueChange('daily.day_type.holiday_reason', 'text', values['daily.day_type.holiday_reason'], false)}
+              />
+            </div>
+            <div class="mt-1 rounded-md bg-amber-950/40 border border-amber-800 px-3 py-2 text-xs text-amber-100">
+              All daily report sections are disabled. Tap <strong>Submit report</strong> below to send the holiday notice to your PM.
+            </div>
+          {/if}
+        </div>
+      </section>
+
       <!-- ── Sections ────────────────────────────────────────────────── -->
+      {#if !isHoliday}
       {#each SECTIONS as section (section.code)}
         {@const st = sectionState(section)}
         <section class="mb-4 rounded-xl border border-zinc-800 bg-zinc-900">
@@ -749,6 +822,7 @@
           Reserved for PM. Submit your sections first — PM completes this at review.
         </div>
       </section>
+      {/if}
     {/if}
   </div>
 
@@ -766,14 +840,19 @@
         {/if}
         <div class="flex items-center justify-between gap-3">
           <div class="text-xs text-zinc-500">
-            {sectionsCompleteCount} of {sectionsTotalCount} sections complete
+            {#if isHoliday}
+              <span class="text-amber-300 font-medium">Holiday mode</span> · sections skipped
+            {:else}
+              {sectionsCompleteCount} of {sectionsTotalCount} sections complete
+            {/if}
           </div>
           <button
-            class="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+            class="rounded-lg px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500
+                   {isHoliday ? 'bg-amber-600 hover:bg-amber-500' : 'bg-blue-600 hover:bg-blue-500'}"
             disabled={!canSubmit}
             onclick={submitReport}
           >
-            {submitting ? 'Submitting…' : submissionStatus === 'SENT_BACK' ? 'Resubmit' : 'Submit for PM review'}
+            {submitting ? 'Submitting…' : isHoliday ? 'Submit holiday notice' : submissionStatus === 'SENT_BACK' ? 'Resubmit' : 'Submit for PM review'}
           </button>
         </div>
       </div>

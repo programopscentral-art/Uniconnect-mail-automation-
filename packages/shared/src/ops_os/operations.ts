@@ -47,6 +47,9 @@ export interface DailyOpsRow {
 
     incident_count: number;
     has_infra_issue: boolean;
+
+    is_holiday: boolean;
+    holiday_reason: string | null;
 }
 
 export interface DailyOpsFilters {
@@ -143,7 +146,21 @@ export async function getDailyOperationsOverview(
                         OR (metric_id = 'daily.infra.connectivity_status' AND value_text IS NOT NULL AND value_text <> 'normal')
                         OR (metric_id = 'daily.infra.open_issues'         AND value_text IS NOT NULL AND TRIM(value_text) <> '')
                        )
-                ) AS has_infra_issue
+                ) AS has_infra_issue,
+
+                COALESCE(
+                    (SELECT value_boolean
+                       FROM ops_os.submission_value
+                      WHERE submission_id = s.submission_id
+                        AND metric_id = 'daily.day_type.is_holiday'),
+                    false
+                ) AS is_holiday,
+
+                (SELECT value_text
+                   FROM ops_os.submission_value
+                  WHERE submission_id = s.submission_id
+                    AND metric_id = 'daily.day_type.holiday_reason'
+                ) AS holiday_reason
 
             FROM ops_os.campus_dim c
             LEFT JOIN ops_os.submission s
