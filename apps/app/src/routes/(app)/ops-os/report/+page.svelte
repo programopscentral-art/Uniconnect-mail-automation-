@@ -666,9 +666,9 @@
                       ></textarea>
                     {/if}
                   {:else if f.kind === 'yesno'}
+                    {@const yes = values[f.metric_id] === true}
+                    {@const no  = values[f.metric_id] === false}
                     <div class="flex gap-2">
-                      {@const yes = values[f.metric_id] === true}
-                      {@const no  = values[f.metric_id] === false}
                       <button
                         type="button"
                         class="flex-1 rounded-lg border px-3 py-2 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
