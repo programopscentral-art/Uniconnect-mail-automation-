@@ -52,10 +52,11 @@ export const POST: RequestHandler = async ({ request, url, locals }) => {
         body?.date ?? url.searchParams.get('date'),
     );
     const force = body?.force === true || url.searchParams.get('force') === '1';
+    const broadcast = body?.broadcast === true || url.searchParams.get('broadcast') === '1';
 
     const client = await db.connect();
     try {
-        const result = await runReminder(kind, date, client, { force });
+        const result = await runReminder(kind, date, client, { force, broadcast });
         return json({
             ok: true,
             kind: result.kind,
@@ -81,10 +82,11 @@ export const GET: RequestHandler = async ({ url, locals }) => {
         url.searchParams.get('kind'),
         url.searchParams.get('date'),
     );
+    const broadcast = url.searchParams.get('broadcast') === '1';
 
     const client = await db.connect();
     try {
-        const result = await runReminder(kind, date, client, { diagnose_only: true });
+        const result = await runReminder(kind, date, client, { diagnose_only: true, broadcast });
         return json({
             ok: true,
             mode: 'diagnose',

@@ -60,13 +60,14 @@
   };
   let reminderResult = $state<ReminderResult | null>(null);
   let reminderForce = $state(false);
+  let reminderBroadcast = $state(true);  // Default ON since assignments aren't set up yet
 
   async function fireReminder(kind: ReminderKind) {
     busy[`reminder:${kind}`] = true; errorMsg = null; reminderResult = null;
     try {
       const res = await fetch('/api/ops-os/reminders/fire', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, force: reminderForce }),
+        body: JSON.stringify({ kind, force: reminderForce, broadcast: reminderBroadcast }),
       });
       if (!res.ok) { flash((await res.text()) || `HTTP ${res.status}`, 'err'); return; }
       reminderResult = await res.json();
@@ -79,6 +80,7 @@
     busy[`diagnose:${kind}`] = true; errorMsg = null; reminderResult = null;
     try {
       const params = new URLSearchParams({ kind });
+      if (reminderBroadcast) params.set('broadcast', '1');
       const res = await fetch(`/api/ops-os/reminders/fire?${params.toString()}`);
       if (!res.ok) { flash((await res.text()) || `HTTP ${res.status}`, 'err'); return; }
       reminderResult = await res.json();
@@ -207,6 +209,10 @@
         </div>
       </header>
       <div class="px-4 py-3 space-y-3">
+        <label class="inline-flex items-center gap-2 text-xs text-zinc-200 cursor-pointer rounded-md border border-blue-800 bg-blue-950/30 px-3 py-2 hover:bg-blue-950/60">
+          <input type="checkbox" bind:checked={reminderBroadcast} class="accent-blue-500" />
+          <span><strong class="text-blue-200">Broadcast mode</strong> — send to every active user with the matching role (BOA / PM / PMA), ignoring campus assignments. Use when assignments aren't set up yet.</span>
+        </label>
         <label class="inline-flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
           <input type="checkbox" bind:checked={reminderForce} class="accent-amber-500" />
           Force re-send (ignore dedupe — recipients pinged earlier today will get the email again)

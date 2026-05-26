@@ -111,6 +111,66 @@ async function queryRecipients(kind: ReminderKind, periodDate: string, client: P
     return queryPmRecipients(periodDate, client);
 }
 
+/**
+ * Broadcast mode: ignore ops_os.user_campus_assignment and instead pull every
+ * active user whose public.users.role matches the reminder kind. Used during
+ * rollout when campus assignments don't exist yet and we still want every
+ * BOA / PM to receive the nudge.
+ *
+ * Returned rows have campus_id = null and submission_id = null. The reminder
+ * dispatch unique index handles null via COALESCE so per-user dedupe still
+ * works (one row per user per kind per day).
+ */
+async function queryBroadcastRecipients(
+    kind: ReminderKind,
+    client: PoolClient,
+): Promise<Array<{
+    user_id: string;
+    user_email: string | null;
+    user_name: string | null;
+    campus_id: string | null;
+    campus_name: string;
+    campus_code: string;
+    submission_id: string | null;
+}>> {
+    const rolesByKind: Record<ReminderKind, string[]> = {
+        boa_submit_due_soon: ['BOA'],
+        pm_review_open:      ['PM', 'PMA'],
+        pm_review_final:     ['PM', 'PMA'],
+    };
+    const roles = rolesByKind[kind];
+
+    const r = await client.query<{
+        user_id: string;
+        user_email: string | null;
+        user_name: string | null;
+        university_name: string | null;
+    }>(
+        `SELECT u.id AS user_id,
+                u.email AS user_email,
+                COALESCE(u.name, u.email) AS user_name,
+                uni.name AS university_name
+           FROM public.users u
+           LEFT JOIN public.universities uni ON uni.id = u.university_id
+          WHERE u.role = ANY($1::text[])
+            AND (u.is_active IS NULL OR u.is_active = true)
+            AND u.email IS NOT NULL
+            AND u.email <> ''
+          ORDER BY u.email`,
+        [roles],
+    );
+
+    return r.rows.map(row => ({
+        user_id: row.user_id,
+        user_email: row.user_email,
+        user_name: row.user_name,
+        campus_id: null,
+        campus_name: row.university_name ?? 'your campus',
+        campus_code: '',
+        submission_id: null,
+    }));
+}
+
 // ── Mail content ─────────────────────────────────────────────────────────
 
 interface ReminderContent {
@@ -124,17 +184,30 @@ interface ReminderContent {
     tone: 'info' | 'warn' | 'alert';
 }
 
-function buildBoaContent(periodDate: string, campusName: string, campusId: string): ReminderContent {
+function buildBoaContent(periodDate: string, campusName: string, campusId: string | null): ReminderContent {
+    const isBroadcast = !campusId;
+    const ctaUrl = campusId ? `/ops-os/report?campus=${campusId}` : '/ops-os/report';
     return {
-        subject: `[NIAT Ops] Daily report due in 30 min · ${campusName}`,
-        intro: 'Reminder · 30 min to deadline',
-        bodyHtml: `
-            <p>Your daily report for <strong>${campusName}</strong> on <strong>${periodDate}</strong> isn't submitted yet.</p>
-            <p>The submission deadline is <strong>4:00 PM IST</strong>. Anything later is flagged as late on the PM's queue and counts toward the campus reliability metric.</p>`,
-        notification_title: `Daily report due in 30 min · ${campusName}`,
-        notification_body: `Submit your ${periodDate} report before 4:00 PM IST. After that it's flagged as late.`,
+        subject: isBroadcast
+            ? `[NIAT Ops] Daily report — submit before 4:00 PM IST`
+            : `[NIAT Ops] Daily report due in 30 min · ${campusName}`,
+        intro: isBroadcast
+            ? 'Daily report due today'
+            : 'Reminder · 30 min to deadline',
+        bodyHtml: isBroadcast
+            ? `<p>This is a reminder that your <strong>${periodDate}</strong> daily report needs to be submitted before <strong>4:00 PM IST</strong> today.</p>
+               <p>Open the Daily Report page in UniConnect and complete every section. Reports submitted after the deadline are flagged as late on the PM's queue.</p>
+               <p style="color:#71717a;font-size:12px;">If you don't see the Daily Report page, contact your admin to be assigned to a campus in Access Rights.</p>`
+            : `<p>Your daily report for <strong>${campusName}</strong> on <strong>${periodDate}</strong> isn't submitted yet.</p>
+               <p>The submission deadline is <strong>4:00 PM IST</strong>. Anything later is flagged as late on the PM's queue and counts toward the campus reliability metric.</p>`,
+        notification_title: isBroadcast
+            ? `Daily report due today before 4:00 PM`
+            : `Daily report due in 30 min · ${campusName}`,
+        notification_body: isBroadcast
+            ? `Submit your ${periodDate} report before 4:00 PM IST.`
+            : `Submit your ${periodDate} report before 4:00 PM IST. After that it's flagged as late.`,
         ctaLabel: 'Open daily report',
-        ctaUrl: `/ops-os/report?campus=${campusId}`,
+        ctaUrl,
         tone: 'warn',
     };
 }
@@ -143,9 +216,36 @@ function buildPmContent(
     kind: 'pm_review_open' | 'pm_review_final',
     periodDate: string,
     campusName: string,
-    submissionId: string,
+    submissionId: string | null,
 ): ReminderContent {
     const isFinal = kind === 'pm_review_final';
+    const isBroadcast = !submissionId;
+    const ctaUrl = submissionId ? `/ops-os/review/${submissionId}` : '/ops-os/review';
+
+    if (isBroadcast) {
+        return {
+            subject: isFinal
+                ? `[NIAT Ops] FINAL · sign off any pending reports in 30 min`
+                : `[NIAT Ops] Daily submissions ready for your review`,
+            intro: isFinal ? 'Auto-sign-off in 30 minutes' : 'PM review window open',
+            bodyHtml: isFinal
+                ? `<p>This is the FINAL reminder before <strong>6:30 PM IST</strong> auto-sign-off.</p>
+                   <p>Any daily report you haven't signed off by then will be marked <strong>auto-signed-off</strong> and a <strong>non-response</strong> will be logged against your assignment.</p>
+                   <p>Open the PM Review Queue and clear pending items.</p>`
+                : `<p>Daily reports for ${periodDate} are landing in the PM Review Queue. Please sign off or send back each submission for the campuses you cover.</p>
+                   <p>Sign-off deadline is <strong>6:30 PM IST</strong>. After that the system auto-completes anything still pending and logs a non-response.</p>`,
+            notification_title: isFinal
+                ? `⚠ Final reminder · sign off pending in 30 min`
+                : `Daily review queue open`,
+            notification_body: isFinal
+                ? `Sign off before 6:30 PM. After that, auto-closed + non-response logged.`
+                : `Open the PM Review Queue and clear pending items before 6:30 PM IST.`,
+            ctaLabel: 'Open review queue',
+            ctaUrl,
+            tone: isFinal ? 'alert' : 'info',
+        };
+    }
+
     return {
         subject: isFinal
             ? `[NIAT Ops] FINAL · sign off in 30 min or system auto-closes · ${campusName}`
@@ -163,7 +263,7 @@ function buildPmContent(
             ? `Sign off before 6:30 PM. After that, auto-closed + non-response logged.`
             : `${campusName} · ${periodDate}. Sign off or send back before 6:30 PM IST.`,
         ctaLabel: 'Open review',
-        ctaUrl: `/ops-os/review/${submissionId}`,
+        ctaUrl,
         tone: isFinal ? 'alert' : 'info',
     };
 }
@@ -175,6 +275,14 @@ export interface RunReminderOptions {
     force?: boolean;
     /** Skip the email/notification send and just return who would be reminded. */
     diagnose_only?: boolean;
+    /**
+     * Broadcast mode: send to every active user whose role matches the kind
+     * (BOA / PM / PMA), ignoring ops_os.user_campus_assignment. Useful when
+     * campus assignments haven't been set up yet but you still want to
+     * notify every BOA/PM. Recipients have no campus context — email +
+     * notification copy is generic.
+     */
+    broadcast?: boolean;
 }
 
 export async function runReminder(
@@ -191,7 +299,9 @@ export async function runReminder(
         );
     }
 
-    const rows = await queryRecipients(kind, periodDate, client);
+    const rows = opts.broadcast
+        ? await queryBroadcastRecipients(kind, client)
+        : await queryRecipients(kind, periodDate, client);
     const recipients: ReminderRecipient[] = [];
     let sent = 0;
     let skipped = 0;
@@ -202,7 +312,9 @@ export async function runReminder(
             const existing = await client.query(
                 `SELECT 1 FROM ops_os.reminder_dispatch
                   WHERE kind = $1 AND period_start = $2::date
-                    AND recipient_user_id = $3 AND campus_id = $4`,
+                    AND recipient_user_id = $3
+                    AND COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid)
+                      = COALESCE($4::uuid, '00000000-0000-0000-0000-000000000000'::uuid)`,
                 [kind, periodDate, row.user_id, row.campus_id],
             );
             recipients.push({
@@ -221,7 +333,7 @@ export async function runReminder(
 
         const dedup = await client.query(
             `INSERT INTO ops_os.reminder_dispatch (kind, period_start, campus_id, submission_id, recipient_user_id)
-             VALUES ($1, $2::date, $3, $4, $5)
+             VALUES ($1, $2::date, $3::uuid, $4::uuid, $5)
              ON CONFLICT DO NOTHING
              RETURNING reminder_id`,
             [kind, periodDate, row.campus_id, row.submission_id, row.user_id],
@@ -249,7 +361,7 @@ export async function runReminder(
                     kind as 'pm_review_open' | 'pm_review_final',
                     periodDate,
                     row.campus_name,
-                    row.submission_id ?? '',
+                    row.submission_id,
                 );
 
         // In-app notification
