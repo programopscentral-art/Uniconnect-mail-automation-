@@ -15,6 +15,9 @@ import {
     claimIdempotency,
     recordIdempotencyResult,
     getSubmissionById,
+    notifyPmsOnSubmission,
+    notifyOnIncidents,
+    detectSetIncidentFlags,
 } from '@uniconnect/shared';
 import { checkOpsOsAccess } from '$lib/server/ops_os/access';
 import { createLogger } from '$lib/server/ops_os/logger';
@@ -46,6 +49,21 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             client,
         );
         await recordIdempotencyResult(idempotency_key, updated.submission_id, client);
+
+        // Fan out handoff notifications inside the same transaction so they
+        // roll back with the transition if anything below fails.
+        const campusRow = await client.query<{ display_name: string; code: string }>(
+            `SELECT display_name, code FROM ops_os.campus_dim WHERE campus_id = $1`,
+            [updated.campus_id],
+        );
+        const campus = campusRow.rows[0] ?? null;
+        await notifyPmsOnSubmission(updated, campus, client);
+
+        const flags = await detectSetIncidentFlags(updated.submission_id, client);
+        if (flags.length > 0) {
+            await notifyOnIncidents(updated, campus, flags, client);
+        }
+
         return updated;
     });
 

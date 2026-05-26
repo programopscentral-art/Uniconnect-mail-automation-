@@ -15,6 +15,7 @@ import {
     claimIdempotency,
     recordIdempotencyResult,
     getSubmissionById,
+    notifyBoaOnSendBack,
     type SendBackReasonCode,
 } from '@uniconnect/shared';
 import { checkOpsOsAccess } from '$lib/server/ops_os/access';
@@ -61,6 +62,13 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             client,
         );
         await recordIdempotencyResult(idempotency_key, updated.submission_id, client);
+
+        const campusRow = await client.query<{ display_name: string; code: string }>(
+            `SELECT display_name, code FROM ops_os.campus_dim WHERE campus_id = $1`,
+            [updated.campus_id],
+        );
+        await notifyBoaOnSendBack(updated, campusRow.rows[0] ?? null, reason_code, reason_text ?? null, client);
+
         return updated;
     });
 

@@ -17,6 +17,7 @@ import {
     claimIdempotency,
     recordIdempotencyResult,
     getSubmissionById,
+    notifyPmsOnRetract,
 } from '@uniconnect/shared';
 import { checkOpsOsAccess } from '$lib/server/ops_os/access';
 import { createLogger } from '$lib/server/ops_os/logger';
@@ -58,6 +59,13 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         }
 
         await recordIdempotencyResult(idempotency_key, outcome.submission.submission_id, client);
+
+        const campusRow = await client.query<{ display_name: string; code: string }>(
+            `SELECT display_name, code FROM ops_os.campus_dim WHERE campus_id = $1`,
+            [outcome.submission.campus_id],
+        );
+        await notifyPmsOnRetract(outcome.submission, campusRow.rows[0] ?? null, client);
+
         return { kind: 'ok' as const, submission: outcome.submission };
     });
 
