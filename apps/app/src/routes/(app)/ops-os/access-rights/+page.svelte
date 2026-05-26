@@ -41,6 +41,52 @@
   let errorMsg = $state<string | null>(null);
   let successMsg = $state<string | null>(null);
 
+  // Manual reminder fire (testing aid)
+  type ReminderKind = 'boa_submit_due_soon' | 'pm_review_open' | 'pm_review_final';
+  type ReminderResult = {
+    ok: boolean;
+    kind: ReminderKind;
+    period_start: string;
+    sent: number;
+    skipped_already_sent: number;
+    email_attempts: number;
+    recipients: Array<{
+      user_name: string | null;
+      user_email: string | null;
+      campus_name: string;
+      already_sent: boolean;
+    }>;
+    note?: string;
+  };
+  let reminderResult = $state<ReminderResult | null>(null);
+  let reminderForce = $state(false);
+
+  async function fireReminder(kind: ReminderKind) {
+    busy[`reminder:${kind}`] = true; errorMsg = null; reminderResult = null;
+    try {
+      const res = await fetch('/api/ops-os/reminders/fire', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, force: reminderForce }),
+      });
+      if (!res.ok) { flash((await res.text()) || `HTTP ${res.status}`, 'err'); return; }
+      reminderResult = await res.json();
+      flash(`Reminder fired: ${reminderResult?.sent ?? 0} sent, ${reminderResult?.skipped_already_sent ?? 0} skipped`, 'ok');
+    } catch (e) { flash((e as Error).message, 'err'); }
+    finally { delete busy[`reminder:${kind}`]; }
+  }
+
+  async function diagnoseReminder(kind: ReminderKind) {
+    busy[`diagnose:${kind}`] = true; errorMsg = null; reminderResult = null;
+    try {
+      const params = new URLSearchParams({ kind });
+      const res = await fetch(`/api/ops-os/reminders/fire?${params.toString()}`);
+      if (!res.ok) { flash((await res.text()) || `HTTP ${res.status}`, 'err'); return; }
+      reminderResult = await res.json();
+      flash(`Diagnose: ${reminderResult?.recipients?.length ?? 0} eligible recipients`, 'ok');
+    } catch (e) { flash((e as Error).message, 'err'); }
+    finally { delete busy[`diagnose:${kind}`]; }
+  }
+
   // Per-campus add inputs
   let addInputs = $state<Record<string, { user_id: string; role: 'BOA' | 'PM' }>>(
     Object.fromEntries(data.campuses.map((c: CampusAccess) => [c.campus_id, { user_id: '', role: 'BOA' as const }])),
@@ -150,6 +196,87 @@
         <div class="mt-3 rounded-lg border border-emerald-800 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-200">{successMsg}</div>
       {/if}
     </div>
+
+    <!-- Manual reminder fire (testing aid) -->
+    <section class="mb-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <header class="border-b border-zinc-800 px-4 py-3">
+        <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Testing aid</div>
+        <div class="text-sm font-semibold">Fire reminder emails now</div>
+        <div class="mt-0.5 text-xs text-zinc-500">
+          Bypass the time-of-day window. Use <strong>Diagnose</strong> first to see who'd be reminded without sending anything.
+        </div>
+      </header>
+      <div class="px-4 py-3 space-y-3">
+        <label class="inline-flex items-center gap-2 text-xs text-zinc-300 cursor-pointer">
+          <input type="checkbox" bind:checked={reminderForce} class="accent-amber-500" />
+          Force re-send (ignore dedupe — recipients pinged earlier today will get the email again)
+        </label>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {#each ['boa_submit_due_soon', 'pm_review_open', 'pm_review_final'] as kind}
+            {@const label = kind === 'boa_submit_due_soon' ? 'BOA · submit due soon (3:30 PM)'
+                          : kind === 'pm_review_open' ? 'PM · review open (4:30 PM)'
+                          : 'PM · final reminder (6:00 PM)'}
+            <div class="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+              <div class="text-xs font-medium text-zinc-200">{label}</div>
+              <div class="mt-2 flex gap-2">
+                <button
+                  class="flex-1 rounded-md border border-zinc-700 px-2 py-1.5 text-[11px] text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
+                  disabled={!!busy[`diagnose:${kind}`]}
+                  onclick={() => diagnoseReminder(kind as ReminderKind)}
+                >{busy[`diagnose:${kind}`] ? '…' : 'Diagnose'}</button>
+                <button
+                  class="flex-1 rounded-md bg-blue-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-500 disabled:bg-zinc-800 disabled:text-zinc-500"
+                  disabled={!!busy[`reminder:${kind}`]}
+                  onclick={() => fireReminder(kind as ReminderKind)}
+                >{busy[`reminder:${kind}`] ? '…' : 'Fire now'}</button>
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        {#if reminderResult}
+          <div class="mt-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs">
+            <div class="flex flex-wrap items-center gap-3 mb-2">
+              <span class="rounded-md bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wider">{reminderResult.kind}</span>
+              <span class="text-zinc-400">period <span class="text-zinc-200 tabular-nums">{reminderResult.period_start}</span></span>
+              {#if reminderResult.sent !== undefined}
+                <span class="text-emerald-400">sent: <strong class="tabular-nums">{reminderResult.sent}</strong></span>
+                <span class="text-amber-400">already sent: <strong class="tabular-nums">{reminderResult.skipped_already_sent}</strong></span>
+                <span class="text-blue-400">email attempts: <strong class="tabular-nums">{reminderResult.email_attempts}</strong></span>
+              {/if}
+            </div>
+            {#if reminderResult.note}
+              <div class="mb-2 text-zinc-400">{reminderResult.note}</div>
+            {/if}
+            {#if reminderResult.recipients.length === 0}
+              <div class="text-zinc-500 italic">No eligible recipients. Check: BOA/PM assignments exist? Submission status correct for the kind?</div>
+            {:else}
+              <table class="w-full text-[11px]">
+                <thead class="text-zinc-500">
+                  <tr><th class="text-left py-1">User</th><th class="text-left py-1">Email</th><th class="text-left py-1">Campus</th><th class="text-right py-1">Status</th></tr>
+                </thead>
+                <tbody>
+                  {#each reminderResult.recipients as r}
+                    <tr class="border-t border-zinc-800">
+                      <td class="py-1 text-zinc-200">{r.user_name ?? '—'}</td>
+                      <td class="py-1 text-zinc-400">{r.user_email ?? '—'}</td>
+                      <td class="py-1 text-zinc-300">{r.campus_name}</td>
+                      <td class="py-1 text-right">
+                        {#if r.already_sent}
+                          <span class="text-amber-400">already sent</span>
+                        {:else}
+                          <span class="text-emerald-400">sent now</span>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    </section>
 
     <!-- Cluster COS panel -->
     <section class="mb-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
