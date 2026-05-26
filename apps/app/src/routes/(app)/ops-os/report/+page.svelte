@@ -1,7 +1,31 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/stores';
 
-  let { data } = $props<{ data: { campuses: Array<{ campus_id: string; code: string; display_name: string }>; today: string; role: string } }>();
+  type SubmissionRow = {
+    submission_id: string;
+    status: string;
+    sent_back_reason_code: string | null;
+    sent_back_reason_text: string | null;
+    pm_remark: string | null;
+    submitted_at: string | null;
+  };
+  type ValueRow = {
+    metric_id: string;
+    value_numeric: number | null;
+    value_text: string | null;
+    value_boolean: boolean | null;
+  };
+
+  let { data } = $props<{ data: {
+    campuses: Array<{ campus_id: string; code: string; display_name: string }>;
+    today: string;
+    role: string;
+    activeCampusId: string;
+    submission: SubmissionRow | null;
+    values: ValueRow[];
+  } }>();
 
   // ─── Field model (V2) ────────────────────────────────────────────────
   //
@@ -187,27 +211,36 @@
   // PM remark is a reserved section displayed in the form but not edited by BOA
   // It's a column on the submission row, populated only on PM sign-off.
 
-  // ─── State ─────────────────────────────────────────────────────────────
+  // ─── State (hydrated from server data — no client fetch waterfall) ────
 
-  let selectedCampusId = $state(data.campuses[0]?.campus_id ?? '');
-  let submissionId = $state<string | null>(null);
-  let submissionStatus = $state<string>('');
-  let sentBackReasonCode = $state<string | null>(null);
-  let sentBackReasonText = $state<string | null>(null);
-  let pmRemark = $state<string | null>(null);
+  function valuesFromServer(rows: ValueRow[]): Record<string, string | number | boolean | null> {
+    const out: Record<string, string | number | boolean | null> = {};
+    for (const v of rows) {
+      out[v.metric_id] = v.value_numeric ?? v.value_text ?? v.value_boolean ?? null;
+    }
+    return out;
+  }
 
-  // Field values (keyed by metric_id)
-  let values = $state<Record<string, string | number | boolean | null>>({});
+  let selectedCampusId = $state(data.activeCampusId);
+  let submissionId    = $state<string | null>(data.submission?.submission_id ?? null);
+  let submissionStatus = $state<string>(data.submission?.status ?? '');
+  let sentBackReasonCode = $state<string | null>(data.submission?.sent_back_reason_code ?? null);
+  let sentBackReasonText = $state<string | null>(data.submission?.sent_back_reason_text ?? null);
+  let pmRemark = $state<string | null>(data.submission?.pm_remark ?? null);
+
+  // Field values (keyed by metric_id) — hydrated from server load
+  let values = $state<Record<string, string | number | boolean | null>>(valuesFromServer(data.values));
   let saveState = $state<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({});
   let saveError = $state<Record<string, string | null>>({});
 
-  let loading = $state(true);
   let loadError = $state<string | null>(null);
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
 
   // Retract state
-  let submittedAtMs = $state<number | null>(null);
+  let submittedAtMs = $state<number | null>(
+    data.submission?.submitted_at ? new Date(data.submission.submitted_at).getTime() : null,
+  );
   let nowMs = $state(Date.now());
   let retracting = $state(false);
   let retractError = $state<string | null>(null);
@@ -216,59 +249,34 @@
   const debounceTimers: Record<string, ReturnType<typeof setTimeout>> = {};
 
   // ─── Lifecycle ─────────────────────────────────────────────────────────
+  // Tick the retract-window clock. Data refresh happens via server reload
+  // when the URL changes (handled by onCampusChange).
 
   onMount(() => {
-    if (selectedCampusId) ensureDraft();
     const tick = setInterval(() => { nowMs = Date.now(); }, 30 * 1000);
     return () => clearInterval(tick);
   });
 
+  // Re-hydrate state when SvelteKit replaces `data` (e.g. after goto/invalidate).
   $effect(() => {
-    if (selectedCampusId) ensureDraft();
-  });
-
-  async function ensureDraft() {
-    loading = true;
-    loadError = null;
-    submissionId = null;
-    values = {};
+    const sub = data.submission;
+    submissionId = sub?.submission_id ?? null;
+    submissionStatus = sub?.status ?? '';
+    sentBackReasonCode = sub?.sent_back_reason_code ?? null;
+    sentBackReasonText = sub?.sent_back_reason_text ?? null;
+    pmRemark = sub?.pm_remark ?? null;
+    submittedAtMs = sub?.submitted_at ? new Date(sub.submitted_at).getTime() : null;
+    values = valuesFromServer(data.values);
+    selectedCampusId = data.activeCampusId;
     saveState = {};
     saveError = {};
+  });
 
-    try {
-      const idempotency_key = `boa.draft.${selectedCampusId}.${data.today}`;
-      const res = await fetch('/api/ops-os/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campus_id: selectedCampusId, cadence: 'DAILY',
-          period_start: data.today, period_end: data.today, idempotency_key,
-        }),
-      });
-      if (!res.ok) {
-        loadError = (await res.text()) || `Failed to load draft (HTTP ${res.status})`;
-        return;
-      }
-      const sub = await res.json();
-      submissionId = sub.submission_id;
-      submissionStatus = sub.status;
-      sentBackReasonCode = sub.sent_back_reason_code;
-      sentBackReasonText = sub.sent_back_reason_text;
-      pmRemark = sub.pm_remark;
-      submittedAtMs = sub.submitted_at ? new Date(sub.submitted_at).getTime() : null;
-
-      const detail = await fetch(`/api/ops-os/submissions/${submissionId}`);
-      if (detail.ok) {
-        const j = await detail.json();
-        for (const v of j.values ?? []) {
-          values[v.metric_id] = v.value_numeric ?? v.value_text ?? v.value_boolean ?? null;
-        }
-      }
-    } catch (e) {
-      loadError = (e as Error).message;
-    } finally {
-      loading = false;
-    }
+  async function onCampusChange(newCampusId: string) {
+    if (newCampusId === selectedCampusId) return;
+    const url = new URL($page.url);
+    url.searchParams.set('campus', newCampusId);
+    await goto(url.pathname + url.search, { keepFocus: true, noScroll: true, invalidateAll: true });
   }
 
   // ─── Save ──────────────────────────────────────────────────────────────
@@ -391,6 +399,8 @@
       const updated = await res.json();
       submissionStatus = updated.status;
       submittedAtMs = updated.submitted_at ? new Date(updated.submitted_at).getTime() : null;
+      // Pull fresh server-side truth (pm_remark, sent_back, etc.)
+      await invalidateAll();
     } catch (e) {
       submitError = (e as Error).message;
     } finally {
@@ -425,6 +435,7 @@
       const updated = await res.json();
       submissionStatus = updated.status;
       submittedAtMs = null;
+      await invalidateAll();
     } catch (e) {
       retractError = (e as Error).message;
     } finally {
@@ -475,7 +486,8 @@
           <select
             id="campus-sel"
             class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-            bind:value={selectedCampusId}
+            value={selectedCampusId}
+            onchange={(e) => onCampusChange((e.currentTarget as HTMLSelectElement).value)}
           >
             {#each data.campuses as c (c.campus_id)}
               <option value={c.campus_id}>{c.display_name}</option>
@@ -485,9 +497,7 @@
       {/if}
     </div>
 
-    {#if loading}
-      <div class="py-12 text-center text-sm text-zinc-500">Loading draft…</div>
-    {:else if loadError}
+    {#if loadError}
       <div class="rounded-lg border border-red-800 bg-red-950/30 p-4 text-sm text-red-200">{loadError}</div>
     {:else if data.campuses.length === 0}
       <div class="rounded-lg border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-200">

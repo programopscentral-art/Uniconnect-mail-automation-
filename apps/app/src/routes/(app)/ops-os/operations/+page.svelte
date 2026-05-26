@@ -1,13 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
-  let { data } = $props<{
-    data: {
-      campuses: Array<{ campus_id: string; code: string; display_name: string }>;
-      today: string;
-      role: string;
-    };
-  }>();
+  import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/stores';
 
   type Row = {
     campus_id: string;
@@ -27,15 +20,15 @@
     has_infra_issue: boolean;
   };
 
-  let selectedDate = $state(data.today);
-  let selectedCampusId = $state<string>('');
-  let statusFilter = $state<string>('');
-  let lateOnly = $state(false);
-  let incidentOnly = $state(false);
-
-  let rows = $state<Row[]>([]);
-  let loading = $state(true);
-  let loadError = $state<string | null>(null);
+  let { data } = $props<{
+    data: {
+      campuses: Array<{ campus_id: string; code: string; display_name: string }>;
+      today: string;
+      role: string;
+      rows: Row[];
+      filters: { date: string; campus: string; status: string; late: boolean; incidents: boolean };
+    };
+  }>();
 
   function fmtRelative(iso: string | null): string {
     if (!iso) return '—';
@@ -52,36 +45,22 @@
     return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  async function loadRows() {
-    loading = true; loadError = null;
-    try {
-      const params = new URLSearchParams();
-      params.set('date', selectedDate);
-      if (selectedCampusId) params.set('campuses', selectedCampusId);
-      if (statusFilter) params.set('status', statusFilter);
-      if (lateOnly) params.set('late_only', 'true');
-      if (incidentOnly) params.set('incident_only', 'true');
-      const res = await fetch(`/api/ops-os/operations/daily?${params.toString()}`);
-      if (!res.ok) { loadError = (await res.text()) || `HTTP ${res.status}`; return; }
-      rows = (await res.json()).rows ?? [];
-    } catch (e) { loadError = (e as Error).message; }
-    finally { loading = false; }
+  async function updateFilter(name: string, value: string | boolean) {
+    const url = new URL($page.url);
+    const v = typeof value === 'boolean' ? (value ? '1' : '') : value;
+    if (v) url.searchParams.set(name, v);
+    else url.searchParams.delete(name);
+    await goto(url.pathname + url.search, { keepFocus: true, noScroll: true, invalidateAll: true });
   }
 
-  onMount(loadRows);
-  $effect(() => {
-    selectedDate; selectedCampusId; statusFilter; lateOnly; incidentOnly;
-    loadRows();
-  });
-
   let summary = $derived.by(() => {
-    const total = rows.length;
-    const signedOff = rows.filter(r => r.status === 'SIGNED_OFF' || r.status === 'LOCKED').length;
-    const inFlight = rows.filter(r => ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK', 'DRAFT', 'NEW'].includes(r.status)).length;
-    const noSub = rows.filter(r => r.status === 'NO_SUBMISSION').length;
-    const late = rows.filter(r => r.is_late_submission || r.is_late_sign_off).length;
-    const incidents = rows.reduce((s, r) => s + r.incident_count, 0);
-    const infraIssue = rows.filter(r => r.has_infra_issue).length;
+    const total = data.rows.length;
+    const signedOff = data.rows.filter(r => r.status === 'SIGNED_OFF' || r.status === 'LOCKED').length;
+    const inFlight = data.rows.filter(r => ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK', 'DRAFT', 'NEW'].includes(r.status)).length;
+    const noSub = data.rows.filter(r => r.status === 'NO_SUBMISSION').length;
+    const late = data.rows.filter(r => r.is_late_submission || r.is_late_sign_off).length;
+    const incidents = data.rows.reduce((s, r) => s + r.incident_count, 0);
+    const infraIssue = data.rows.filter(r => r.has_infra_issue).length;
     return { total, signedOff, inFlight, noSub, late, incidents, infraIssue };
   });
 
@@ -112,11 +91,11 @@
         <div>
           <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Operations</div>
           <div class="mt-1 text-base font-semibold">Daily campus overview</div>
-          <div class="mt-0.5 text-xs text-zinc-400">{selectedDate}</div>
+          <div class="mt-0.5 text-xs text-zinc-400">{data.filters.date}</div>
         </div>
         <button
           class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          onclick={loadRows}
+          onclick={() => invalidateAll()}
         >Refresh</button>
       </div>
     </div>
@@ -160,7 +139,8 @@
         <input
           id="date-filter" type="date"
           class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-blue-600 focus:outline-none"
-          bind:value={selectedDate}
+          value={data.filters.date}
+          onchange={(e) => updateFilter('date', (e.currentTarget as HTMLInputElement).value)}
         />
       </div>
       <div>
@@ -168,7 +148,8 @@
         <select
           id="campus-filter"
           class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-          bind:value={selectedCampusId}
+          value={data.filters.campus}
+          onchange={(e) => updateFilter('campus', (e.currentTarget as HTMLSelectElement).value)}
         >
           <option value="">All campuses</option>
           {#each data.campuses as c (c.campus_id)}
@@ -181,7 +162,8 @@
         <select
           id="status-filter"
           class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-          bind:value={statusFilter}
+          value={data.filters.status}
+          onchange={(e) => updateFilter('status', (e.currentTarget as HTMLSelectElement).value)}
         >
           <option value="">All</option>
           <option value="NO_SUBMISSION">No submission</option>
@@ -193,21 +175,27 @@
         </select>
       </div>
       <label class="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-800">
-        <input type="checkbox" bind:checked={lateOnly} class="accent-amber-500" />
+        <input
+          type="checkbox"
+          checked={data.filters.late}
+          onchange={(e) => updateFilter('late', (e.currentTarget as HTMLInputElement).checked)}
+          class="accent-amber-500"
+        />
         Late only
       </label>
       <label class="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm cursor-pointer hover:bg-zinc-800">
-        <input type="checkbox" bind:checked={incidentOnly} class="accent-rose-500" />
+        <input
+          type="checkbox"
+          checked={data.filters.incidents}
+          onchange={(e) => updateFilter('incidents', (e.currentTarget as HTMLInputElement).checked)}
+          class="accent-rose-500"
+        />
         Incidents only
       </label>
     </div>
 
     <!-- Table -->
-    {#if loading}
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>
-    {:else if loadError}
-      <div class="rounded-lg border border-red-800 bg-red-950/30 p-4 text-sm text-red-200">{loadError}</div>
-    {:else if rows.length === 0}
+    {#if data.rows.length === 0}
       <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center text-sm text-zinc-500">
         No campuses match the current filters.
       </div>
@@ -228,7 +216,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-800">
-            {#each rows as r (r.campus_id)}
+            {#each data.rows as r (r.campus_id)}
               <tr class="hover:bg-zinc-800/40 transition-colors">
                 <td class="px-3 py-2.5">
                   <div class="font-medium">{r.campus_name}</div>

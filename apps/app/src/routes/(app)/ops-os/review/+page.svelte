@@ -1,9 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
-  let { data } = $props<{
-    data: { campuses: Array<{ campus_id: string; code: string; display_name: string }>; role: string };
-  }>();
+  import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/stores';
 
   type Row = {
     submission_id: string;
@@ -18,11 +15,15 @@
     revision: number;
   };
 
-  let statusFilter = $state<'awaiting' | 'all'>('awaiting');
-  let campusFilter = $state<string>('');
-  let rows = $state<Row[]>([]);
-  let loading = $state(true);
-  let loadError = $state<string | null>(null);
+  let { data } = $props<{
+    data: {
+      campuses: Array<{ campus_id: string; code: string; display_name: string }>;
+      role: string;
+      rows: Row[];
+      statusFilter: 'awaiting' | 'all';
+      campusFilter: string;
+    };
+  }>();
 
   const campusName = (id: string) =>
     data.campuses.find(c => c.campus_id === id)?.display_name ?? id.slice(0, 8);
@@ -38,25 +39,12 @@
     return new Date(iso).toLocaleDateString();
   }
 
-  async function loadRows() {
-    loading = true; loadError = null;
-    try {
-      const params = new URLSearchParams();
-      params.set('cadence', 'DAILY');
-      params.set('limit', '100');
-      if (statusFilter === 'awaiting') {
-        params.set('statuses', 'SUBMITTED,PM_REVIEW,SENT_BACK');
-      }
-      if (campusFilter) params.set('campus_id', campusFilter);
-      const res = await fetch(`/api/ops-os/submissions/list?${params.toString()}`);
-      if (!res.ok) { loadError = (await res.text()) || `HTTP ${res.status}`; return; }
-      rows = (await res.json()).rows ?? [];
-    } catch (e) { loadError = (e as Error).message; }
-    finally { loading = false; }
+  async function updateFilter(name: 'status' | 'campus', value: string) {
+    const url = new URL($page.url);
+    if (value) url.searchParams.set(name, value);
+    else url.searchParams.delete(name);
+    await goto(url.pathname + url.search, { keepFocus: true, noScroll: true, invalidateAll: true });
   }
-
-  onMount(loadRows);
-  $effect(() => { statusFilter; campusFilter; loadRows(); });
 
   function statusBadgeClass(status: string): string {
     switch (status) {
@@ -81,11 +69,11 @@
         <div>
           <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">PM Review</div>
           <div class="mt-1 text-base font-semibold">Submissions awaiting decision</div>
-          <div class="mt-0.5 text-xs text-zinc-400">{rows.length} in current view</div>
+          <div class="mt-0.5 text-xs text-zinc-400">{data.rows.length} in current view</div>
         </div>
         <button
           class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          onclick={loadRows}
+          onclick={() => invalidateAll()}
         >Refresh</button>
       </div>
     </div>
@@ -97,7 +85,8 @@
         <select
           id="status-filter"
           class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-          bind:value={statusFilter}
+          value={data.statusFilter}
+          onchange={(e) => updateFilter('status', (e.currentTarget as HTMLSelectElement).value)}
         >
           <option value="awaiting">Awaiting me (SUBMITTED / PM_REVIEW / SENT_BACK)</option>
           <option value="all">All</option>
@@ -109,7 +98,8 @@
           <select
             id="campus-filter"
             class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-            bind:value={campusFilter}
+            value={data.campusFilter}
+            onchange={(e) => updateFilter('campus', (e.currentTarget as HTMLSelectElement).value)}
           >
             <option value="">All campuses</option>
             {#each data.campuses as c (c.campus_id)}
@@ -121,13 +111,9 @@
     </div>
 
     <!-- Queue -->
-    {#if loading}
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>
-    {:else if loadError}
-      <div class="rounded-lg border border-red-800 bg-red-950/30 p-4 text-sm text-red-200">{loadError}</div>
-    {:else if rows.length === 0}
+    {#if data.rows.length === 0}
       <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center text-sm text-zinc-500">
-        {statusFilter === 'awaiting' ? 'Queue clear. No submissions awaiting your decision.' : 'No submissions match the current filters.'}
+        {data.statusFilter === 'awaiting' ? 'Queue clear. No submissions awaiting your decision.' : 'No submissions match the current filters.'}
       </div>
     {:else}
       <div class="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
@@ -144,7 +130,7 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-800">
-            {#each rows as r (r.submission_id)}
+            {#each data.rows as r (r.submission_id)}
               <tr class="hover:bg-zinc-800/40 transition-colors">
                 <td class="px-3 py-2.5">
                   <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(r.status)}">{r.status}</span>
