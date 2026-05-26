@@ -61,14 +61,15 @@
     const late = data.rows.filter(r => r.is_late_submission || r.is_late_sign_off).length;
     const incidents = data.rows.reduce((s, r) => s + r.incident_count, 0);
     const infraIssue = data.rows.filter(r => r.has_infra_issue).length;
-    return { total, signedOff, inFlight, noSub, late, incidents, infraIssue };
+    const completionPct = total > 0 ? Math.round((signedOff / total) * 100) : 0;
+    return { total, signedOff, inFlight, noSub, late, incidents, infraIssue, completionPct };
   });
 
   function statusBadgeClass(status: string): string {
     switch (status) {
-      case 'NO_SUBMISSION':
+      case 'NO_SUBMISSION': return 'bg-zinc-800 text-zinc-500';
       case 'DRAFT':
-      case 'NEW':         return 'bg-zinc-800 text-zinc-400';
+      case 'NEW':         return 'bg-zinc-800 text-zinc-300';
       case 'SUBMITTED':
       case 'PM_REVIEW':   return 'bg-blue-900 text-blue-200';
       case 'SENT_BACK':   return 'bg-amber-900 text-amber-200';
@@ -78,61 +79,104 @@
     }
   }
   function statusDisplay(status: string): string {
-    return status === 'NO_SUBMISSION' ? 'NO SUB' : status;
+    if (status === 'NO_SUBMISSION') return 'NO SUB';
+    if (status === 'PM_REVIEW') return 'IN REVIEW';
+    if (status === 'SENT_BACK') return 'SENT BACK';
+    if (status === 'SIGNED_OFF') return 'SIGNED OFF';
+    return status;
   }
+
+  // Row health: green = signed off & no issues, amber = in flight or has issues, red = late or incidents
+  function rowHealth(r: Row): 'good' | 'warn' | 'bad' | 'idle' {
+    if (r.status === 'NO_SUBMISSION') return 'idle';
+    if (r.is_late_submission || r.is_late_sign_off || r.incident_count > 0) return 'bad';
+    if (r.status === 'SIGNED_OFF' || r.status === 'LOCKED') {
+      if (r.has_infra_issue) return 'warn';
+      return 'good';
+    }
+    if (r.has_infra_issue || ['SUBMITTED', 'PM_REVIEW', 'SENT_BACK'].includes(r.status)) return 'warn';
+    return 'idle';
+  }
+  function healthDot(h: 'good' | 'warn' | 'bad' | 'idle'): string {
+    if (h === 'good') return 'bg-emerald-500';
+    if (h === 'warn') return 'bg-amber-500';
+    if (h === 'bad')  return 'bg-red-500';
+    return 'bg-zinc-700';
+  }
+
+  // Friendly date label
+  let dateLabel = $derived.by(() => {
+    const d = new Date(data.filters.date + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  });
 </script>
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100">
   <div class="mx-auto max-w-7xl px-4 py-6">
 
-    <!-- Header card -->
-    <div class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-      <div class="flex items-start justify-between">
+    <!-- ── Header card ────────────────────────────────────────────────── -->
+    <div class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+      <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Operations</div>
-          <div class="mt-1 text-base font-semibold">Daily campus overview</div>
-          <div class="mt-0.5 text-xs text-zinc-400">{data.filters.date}</div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Operations Overview</div>
+          <div class="mt-1 text-lg font-semibold">Daily campus health</div>
+          <div class="mt-0.5 text-xs text-zinc-400">{dateLabel}</div>
         </div>
-        <button
-          class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
-          onclick={() => invalidateAll()}
-        >Refresh</button>
+        <div class="flex items-center gap-3">
+          <!-- Completion ring -->
+          <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5">
+            <div class="flex items-center gap-3">
+              <div class="text-right">
+                <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Signed off</div>
+                <div class="text-base font-semibold tabular-nums text-emerald-200">{summary.signedOff} / {summary.total}</div>
+              </div>
+              <div class="h-10 w-10 relative">
+                <svg viewBox="0 0 36 36" class="h-10 w-10 -rotate-90">
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="#27272a" stroke-width="3" />
+                  <circle cx="18" cy="18" r="14" fill="none" stroke="#10b981" stroke-width="3"
+                    stroke-dasharray={`${summary.completionPct * 0.88} 88`} stroke-linecap="round" />
+                </svg>
+                <div class="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular-nums text-emerald-300">{summary.completionPct}%</div>
+              </div>
+            </div>
+          </div>
+          <button
+            class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800"
+            onclick={() => invalidateAll()}
+          >↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- Health tiles -->
+      <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Campuses</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums">{summary.total}</div>
+        </div>
+        <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">In flight</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-200">{summary.inFlight}</div>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">No submission</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-zinc-400">{summary.noSub}</div>
+        </div>
+        <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Late</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{summary.late}</div>
+        </div>
+        <div class="rounded-xl border border-rose-900 bg-rose-950/30 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-rose-400">Incidents</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-rose-200">{summary.incidents}</div>
+        </div>
+        <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Infra issue</div>
+          <div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{summary.infraIssue}</div>
+        </div>
       </div>
     </div>
 
-    <!-- Summary tiles -->
-    <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Campuses</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums">{summary.total}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-500">Signed off</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-300">{summary.signedOff}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-blue-500">In flight</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-300">{summary.inFlight}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">No submission</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-zinc-400">{summary.noSub}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-amber-500">Late</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{summary.late}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-rose-500">Incidents</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-rose-300">{summary.incidents}</div>
-      </div>
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3">
-        <div class="text-[10px] uppercase tracking-[0.18em] text-amber-500">Infra issue</div>
-        <div class="mt-1 text-2xl font-semibold tabular-nums text-amber-300">{summary.infraIssue}</div>
-      </div>
-    </div>
-
-    <!-- Filters -->
+    <!-- ── Filters ────────────────────────────────────────────────────── -->
     <div class="mb-4 flex flex-wrap items-end gap-3">
       <div>
         <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="date-filter">Date</label>
@@ -194,35 +238,47 @@
       </label>
     </div>
 
-    <!-- Table -->
+    <!-- ── Table ──────────────────────────────────────────────────────── -->
     {#if data.rows.length === 0}
-      <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center text-sm text-zinc-500">
-        No campuses match the current filters.
+      <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-16 text-center">
+        <div class="text-3xl">🔍</div>
+        <div class="mt-3 text-base font-semibold text-zinc-200">No campuses match the current filters.</div>
+        <div class="mt-1 text-xs text-zinc-500">Try changing the date or clearing the filters above.</div>
       </div>
     {:else}
-      <div class="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+      <div class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
         <table class="w-full text-sm">
-          <thead class="border-b border-zinc-800 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+          <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
             <tr>
-              <th class="px-3 py-2.5 text-left font-medium">Campus</th>
-              <th class="px-3 py-2.5 text-left font-medium">Status</th>
-              <th class="px-3 py-2.5 text-left font-medium">Submitted</th>
-              <th class="px-3 py-2.5 text-left font-medium">Signed off</th>
-              <th class="px-3 py-2.5 text-right font-medium">Inc.</th>
-              <th class="px-3 py-2.5 text-center font-medium">Infra</th>
-              <th class="px-3 py-2.5 text-right font-medium">SB</th>
-              <th class="px-3 py-2.5 text-left font-medium">PM remark</th>
-              <th class="px-3 py-2.5 text-right font-medium"></th>
+              <th class="w-8 px-2 py-3 text-center font-medium"></th>
+              <th class="px-3 py-3 text-left font-medium">Campus</th>
+              <th class="px-3 py-3 text-left font-medium">Status</th>
+              <th class="px-3 py-3 text-left font-medium">Submitted</th>
+              <th class="px-3 py-3 text-left font-medium">Signed off</th>
+              <th class="px-3 py-3 text-right font-medium">Inc.</th>
+              <th class="px-3 py-3 text-center font-medium">Infra</th>
+              <th class="px-3 py-3 text-right font-medium">SB</th>
+              <th class="px-3 py-3 text-left font-medium">PM remark</th>
+              <th class="px-3 py-3 text-right font-medium"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-zinc-800">
             {#each data.rows as r (r.campus_id)}
-              <tr class="hover:bg-zinc-800/40 transition-colors">
-                <td class="px-3 py-2.5">
+              {@const h = rowHealth(r)}
+              <tr
+                class="transition-colors"
+                class:hover:bg-zinc-800={r.submission_id}
+                class:cursor-pointer={r.submission_id}
+                onclick={r.submission_id ? () => goto(`/ops-os/operations/${r.submission_id}`) : undefined}
+              >
+                <td class="px-2 py-3 text-center">
+                  <div class="mx-auto h-2 w-2 rounded-full {healthDot(h)}" title={h}></div>
+                </td>
+                <td class="px-3 py-3">
                   <div class="font-medium">{r.campus_name}</div>
                   <div class="text-[10px] uppercase tracking-wider text-zinc-500">{r.campus_code}</div>
                 </td>
-                <td class="px-3 py-2.5">
+                <td class="px-3 py-3">
                   <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(r.status)}">
                     {statusDisplay(r.status)}
                   </span>
@@ -230,42 +286,43 @@
                     <span class="ml-1 rounded-md bg-red-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-red-200">late</span>
                   {/if}
                 </td>
-                <td class="px-3 py-2.5 text-zinc-400 tabular-nums" title={r.submitted_at ?? ''}>
+                <td class="px-3 py-3 text-zinc-400 tabular-nums" title={r.submitted_at ?? ''}>
                   {#if r.submitted_at}
                     <div>{fmtTime(r.submitted_at)}</div>
                     <div class="text-[10px] text-zinc-500">{fmtRelative(r.submitted_at)}</div>
                   {:else}<span class="text-zinc-600">—</span>{/if}
                 </td>
-                <td class="px-3 py-2.5 text-zinc-400 tabular-nums" title={r.signed_off_at ?? ''}>
+                <td class="px-3 py-3 text-zinc-400 tabular-nums" title={r.signed_off_at ?? ''}>
                   {#if r.signed_off_at}
                     <div>{fmtTime(r.signed_off_at)}</div>
                     <div class="text-[10px] text-zinc-500">{fmtRelative(r.signed_off_at)}</div>
                   {:else}<span class="text-zinc-600">—</span>{/if}
                 </td>
-                <td class="px-3 py-2.5 text-right">
+                <td class="px-3 py-3 text-right">
                   {#if r.incident_count > 0}
-                    <span class="rounded-md bg-rose-900/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-rose-200">{r.incident_count}</span>
+                    <span class="rounded-md bg-rose-900/60 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-rose-100">{r.incident_count}</span>
                   {:else}<span class="text-zinc-600">—</span>{/if}
                 </td>
-                <td class="px-3 py-2.5 text-center">
+                <td class="px-3 py-3 text-center">
                   {#if r.has_infra_issue}
-                    <span class="text-amber-400" title="Infrastructure issue reported">●</span>
+                    <span class="text-amber-400 text-base leading-none" title="Infrastructure issue reported">●</span>
                   {:else}<span class="text-zinc-700">—</span>{/if}
                 </td>
-                <td class="px-3 py-2.5 text-right tabular-nums {r.sent_back_count > 0 ? 'text-amber-300' : 'text-zinc-500'}">{r.sent_back_count}</td>
-                <td class="px-3 py-2.5 text-zinc-400 max-w-xs">
+                <td class="px-3 py-3 text-right tabular-nums {r.sent_back_count > 0 ? 'text-amber-300 font-medium' : 'text-zinc-500'}">{r.sent_back_count}</td>
+                <td class="px-3 py-3 text-zinc-400 max-w-xs">
                   {#if r.pm_remark_preview}
                     <span title={r.pm_remark_truncated ? r.pm_remark_preview + '…' : r.pm_remark_preview} class="block truncate">
                       {r.pm_remark_preview}{r.pm_remark_truncated ? '…' : ''}
                     </span>
                   {:else}<span class="text-zinc-600">—</span>{/if}
                 </td>
-                <td class="px-3 py-2.5 text-right">
+                <td class="px-3 py-3 text-right">
                   {#if r.submission_id}
                     <a
                       href={`/ops-os/operations/${r.submission_id}`}
-                      class="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
-                    >Open</a>
+                      class="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs font-medium text-zinc-200 hover:bg-zinc-800"
+                      onclick={(e) => e.stopPropagation()}
+                    >Open →</a>
                   {:else}<span class="text-[10px] text-zinc-600">—</span>{/if}
                 </td>
               </tr>

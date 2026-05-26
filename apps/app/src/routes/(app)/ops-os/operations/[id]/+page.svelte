@@ -1,8 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-
-  let { data } = $props<{ data: { submission_id: string; role: string } }>();
 
   type Submission = {
     submission_id: string;
@@ -42,7 +39,15 @@
     payload: Record<string, unknown>;
   };
 
-  // Same display schema as the PM review page.
+  let { data } = $props<{ data: {
+    submission_id: string;
+    role: string;
+    submission: Submission;
+    values: ValueRow[];
+    events: EventRow[];
+    campus: { display_name: string; code: string } | null;
+  } }>();
+
   type Render =
     | { kind: 'pair';  label: string; leftLabel: string; leftMetricId: string; rightLabel: string; rightMetricId: string }
     | { kind: 'pills'; label: string; metric_id: string; options: Array<{ value: string; label: string }>; followUp?: { metric_id: string; label: string } }
@@ -135,36 +140,11 @@
     'edit.captured':            'Edit recorded',
   };
 
-  let submission = $state<Submission | null>(null);
-  let valuesByMetric = $state<Record<string, ValueRow>>({});
-  let events = $state<EventRow[]>([]);
-  let loading = $state(true);
-  let loadError = $state<string | null>(null);
-
-  async function loadAll() {
-    loading = true; loadError = null;
-    try {
-      const [detailRes, eventsRes] = await Promise.all([
-        fetch(`/api/ops-os/submissions/${data.submission_id}`),
-        fetch(`/api/ops-os/submissions/${data.submission_id}/events`),
-      ]);
-      if (!detailRes.ok) {
-        loadError = detailRes.status === 404
-          ? 'Submission not found or out of scope'
-          : (await detailRes.text()) || `HTTP ${detailRes.status}`;
-        return;
-      }
-      const j = await detailRes.json();
-      submission = j.submission;
-      const map: Record<string, ValueRow> = {};
-      for (const v of j.values ?? []) map[v.metric_id] = v;
-      valuesByMetric = map;
-      if (eventsRes.ok) events = (await eventsRes.json()).events ?? [];
-    } catch (e) { loadError = (e as Error).message; }
-    finally { loading = false; }
-  }
-
-  onMount(loadAll);
+  let valuesByMetric = $derived.by(() => {
+    const map: Record<string, ValueRow> = {};
+    for (const v of data.values) map[v.metric_id] = v;
+    return map;
+  });
 
   function rawValue(metric_id: string): unknown {
     const v = valuesByMetric[metric_id];
@@ -193,16 +173,17 @@
   function fmtTimelineTime(iso: string): string {
     return new Date(iso).toLocaleString([], {
       year: 'numeric', month: 'short', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour: '2-digit', minute: '2-digit',
     });
   }
   function eventLabel(t: string): string { return EVENT_LABEL[t] || t; }
 
+  // Collapse runs of field updates into a single line with a count
   let collapsedEvents = $derived.by(() => {
     const out: Array<EventRow & { _runCount?: number }> = [];
     let runStart: EventRow | null = null;
     let runCount = 0;
-    for (const e of events) {
+    for (const e of data.events) {
       if (e.event_type === 'submission.field_updated') {
         if (!runStart) { runStart = e; runCount = 1; } else runCount++;
         continue;
@@ -213,144 +194,186 @@
     if (runStart) out.push({ ...runStart, _runCount: runCount });
     return out;
   });
+
+  let incidentCount = $derived(Number(rawValue('daily.incidents.count') ?? 0));
+  let hasAnyIncidentFlag = $derived(
+    [
+      'daily.incidents.posh_pocso',
+      'daily.incidents.anti_ragging',
+      'daily.incidents.safety_on_campus',
+      'daily.incidents.parent_complaint',
+      'daily.incidents.ceo_visible',
+    ].some(id => rawValue(id) === true),
+  );
+
+  function statusBadgeClass(status: string): string {
+    switch (status) {
+      case 'DRAFT':
+      case 'NEW':         return 'bg-zinc-800 text-zinc-300';
+      case 'SUBMITTED':
+      case 'PM_REVIEW':   return 'bg-blue-900 text-blue-200';
+      case 'SENT_BACK':   return 'bg-amber-900 text-amber-200';
+      case 'SIGNED_OFF':  return 'bg-emerald-900 text-emerald-200';
+      case 'LOCKED':      return 'bg-violet-900 text-violet-200';
+      case 'RETRACTED':   return 'bg-zinc-800 text-zinc-400';
+      default:            return 'bg-zinc-800 text-zinc-400';
+    }
+  }
+
+  function eventDotClass(t: string): string {
+    if (t.includes('signed_off')) return 'bg-emerald-500';
+    if (t.includes('sent_back') || t.includes('send_back')) return 'bg-amber-500';
+    if (t.includes('submitted')) return 'bg-blue-500';
+    if (t.includes('locked')) return 'bg-violet-500';
+    if (t.includes('retracted')) return 'bg-zinc-500';
+    return 'bg-zinc-600';
+  }
 </script>
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100">
-  <div class="mx-auto max-w-5xl px-4 py-6">
+  <div class="mx-auto max-w-5xl px-4 py-6 pb-12">
+
     <div class="mb-3">
-      <button class="text-xs text-zinc-400 hover:text-zinc-200" onclick={() => goto('/ops-os/operations')}>← Back to overview</button>
+      <button class="text-xs text-zinc-400 hover:text-zinc-200 inline-flex items-center gap-1.5" onclick={() => goto('/ops-os/operations')}>
+        <span>←</span> Back to overview
+      </button>
     </div>
 
-    {#if loading}
-      <div class="py-12 text-center text-sm text-zinc-500">Loading…</div>
-    {:else if loadError}
-      <div class="rounded-lg border border-red-800 bg-red-950/30 p-4 text-sm text-red-200">{loadError}</div>
-    {:else if submission}
-      <!-- Header -->
-      <div class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-        <div class="flex items-start justify-between">
-          <div>
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Operations</div>
-            <div class="mt-1 text-base font-semibold">Submission (read-only)</div>
-            <div class="mt-0.5 text-xs text-zinc-400">{submission.cadence} · {submission.period_start}</div>
+    <!-- ── Header card ────────────────────────────────────────────────── -->
+    <div class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+      <div class="px-5 py-4">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Operations · {data.submission.cadence}</div>
+            <div class="mt-1 text-lg font-semibold truncate">
+              {data.campus?.display_name ?? 'Unknown campus'}
+              {#if data.campus}<span class="ml-2 text-xs font-normal text-zinc-500">{data.campus.code}</span>{/if}
+            </div>
+            <div class="mt-0.5 text-sm text-zinc-400 tabular-nums">{data.submission.period_start}</div>
           </div>
-          <div class="text-right">
-            <span
-              class="rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-              class:bg-zinc-800={submission.status === 'DRAFT' || submission.status === 'NEW'}
-              class:text-zinc-400={submission.status === 'DRAFT' || submission.status === 'NEW'}
-              class:bg-blue-900={submission.status === 'SUBMITTED' || submission.status === 'PM_REVIEW'}
-              class:text-blue-200={submission.status === 'SUBMITTED' || submission.status === 'PM_REVIEW'}
-              class:bg-amber-900={submission.status === 'SENT_BACK'}
-              class:text-amber-200={submission.status === 'SENT_BACK'}
-              class:bg-emerald-900={submission.status === 'SIGNED_OFF'}
-              class:text-emerald-200={submission.status === 'SIGNED_OFF'}
-              class:bg-violet-900={submission.status === 'LOCKED'}
-              class:text-violet-200={submission.status === 'LOCKED'}
-            >{submission.status}</span>
-            {#if submission.is_late_submission || submission.is_late_sign_off}
-              <span class="ml-1 rounded bg-red-900 px-1 py-0.5 text-[9px] uppercase text-red-200">late</span>
+          <div class="flex-shrink-0 text-right">
+            <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {statusBadgeClass(data.submission.status)}">{data.submission.status}</span>
+            {#if data.submission.is_late_submission || data.submission.is_late_sign_off}
+              <div class="mt-1"><span class="rounded-md bg-red-900 px-1.5 py-0.5 text-[9px] uppercase font-semibold text-red-200">late</span></div>
             {/if}
           </div>
         </div>
-        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div>
+
+        <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
             <div class="text-[10px] uppercase tracking-wider text-zinc-500">Submitted</div>
-            <div class="mt-0.5 text-xs">{fmtAbs(submission.submitted_at)}</div>
+            <div class="mt-0.5 text-xs">{fmtAbs(data.submission.submitted_at)}</div>
           </div>
-          <div>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
             <div class="text-[10px] uppercase tracking-wider text-zinc-500">Signed off</div>
-            <div class="mt-0.5 text-xs">{fmtAbs(submission.signed_off_at)}</div>
+            <div class="mt-0.5 text-xs">{fmtAbs(data.submission.signed_off_at)}</div>
           </div>
-          <div>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
             <div class="text-[10px] uppercase tracking-wider text-zinc-500">Locked</div>
-            <div class="mt-0.5 text-xs">{fmtAbs(submission.locked_at)}</div>
+            <div class="mt-0.5 text-xs">{fmtAbs(data.submission.locked_at)}</div>
           </div>
-          <div>
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
             <div class="text-[10px] uppercase tracking-wider text-zinc-500">Send-backs</div>
-            <div class="mt-0.5 text-xs tabular-nums">{submission.sent_back_count}</div>
+            <div class="mt-0.5 text-xs tabular-nums {data.submission.sent_back_count > 0 ? 'text-amber-300' : ''}">{data.submission.sent_back_count}</div>
           </div>
         </div>
       </div>
+    </div>
 
-      {#if submission.pm_remark}
-        <div class="mb-4 rounded-xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm">
-          <div class="text-[10px] uppercase tracking-wider text-emerald-500">PM remark</div>
-          <div class="mt-1 whitespace-pre-wrap text-emerald-200">{submission.pm_remark}</div>
-        </div>
-      {/if}
+    {#if hasAnyIncidentFlag || incidentCount > 0}
+      <div class="mb-4 rounded-xl border border-red-800 bg-red-950/30 px-4 py-3 text-sm text-red-100">
+        <span class="font-semibold">⚠ Incidents flagged</span> · Read Section 7 carefully.
+      </div>
+    {/if}
 
-      {#if submission.status === 'SENT_BACK' && submission.sent_back_reason_code}
-        <div class="mb-4 rounded-xl border border-amber-800 bg-amber-950/30 px-4 py-3 text-sm">
-          <div class="text-[10px] uppercase tracking-wider text-amber-500">Last sent back</div>
-          <div class="mt-1 text-amber-200">{submission.sent_back_reason_code}{submission.sent_back_reason_text ? ` — ${submission.sent_back_reason_text}` : ''}</div>
-        </div>
-      {/if}
+    {#if data.submission.pm_remark}
+      <div class="mb-4 rounded-xl border border-emerald-800 bg-emerald-950/30 px-4 py-3 text-sm">
+        <div class="text-[10px] uppercase tracking-wider text-emerald-500">PM remark</div>
+        <div class="mt-1 whitespace-pre-wrap text-emerald-200">{data.submission.pm_remark}</div>
+      </div>
+    {/if}
 
-      <!-- Sections -->
-      {#each SECTIONS as section (section.code)}
-        <section class="mb-4 rounded-xl border border-zinc-800 bg-zinc-900">
-          <header class="border-b border-zinc-800 px-4 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Section {section.index}</div>
-            <div class="text-sm font-semibold">{section.title}</div>
-          </header>
-          <div class="divide-y divide-zinc-800">
-            {#each section.fields as f}
-              <div class="flex items-start justify-between gap-4 px-4 py-2.5 text-sm">
-                <div class="text-zinc-400">{f.label}</div>
-                <div class="max-w-[60%] text-right">
-                  {#if f.kind === 'pair'}
-                    <span class="font-medium tabular-nums">{pairText(f.leftMetricId, f.rightMetricId)}</span>
-                  {:else if f.kind === 'pills'}
-                    {@const v = rawValue(f.metric_id)}
-                    {#if v === null || v === ''}
-                      <span class="text-zinc-600">—</span>
-                    {:else}
-                      <span class="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs font-medium">{pillsLabel(f.metric_id, f.options)}</span>
-                    {/if}
-                    {#if f.followUp && valueText(f.followUp.metric_id) !== '—'}
-                      <div class="mt-1 text-xs text-zinc-400 whitespace-pre-wrap">{valueText(f.followUp.metric_id)}</div>
-                    {/if}
-                  {:else if f.kind === 'yesno'}
-                    {@const v = rawValue(f.metric_id)}
-                    {#if v === true}
-                      <span class="rounded-md bg-red-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-200">Yes</span>
-                    {:else if v === false}
-                      <span class="rounded-md bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">No</span>
-                    {:else}
-                      <span class="text-zinc-600">—</span>
-                    {/if}
-                    {#if f.followUp && valueText(f.followUp.metric_id) !== '—'}
-                      <div class="mt-1 text-xs text-zinc-400 whitespace-pre-wrap">{valueText(f.followUp.metric_id)}</div>
-                    {/if}
-                  {:else}
-                    <span class="font-medium whitespace-pre-wrap">{valueText(f.metric_id)}</span>
-                  {/if}
-                </div>
-              </div>
-            {/each}
-          </div>
-        </section>
-      {/each}
+    {#if data.submission.status === 'SENT_BACK' && data.submission.sent_back_reason_code}
+      <div class="mb-4 rounded-xl border border-amber-800 bg-amber-950/30 px-4 py-3 text-sm">
+        <div class="text-[10px] uppercase tracking-wider text-amber-500">Last sent back</div>
+        <div class="mt-1 text-amber-200">{data.submission.sent_back_reason_code}{data.submission.sent_back_reason_text ? ` — ${data.submission.sent_back_reason_text}` : ''}</div>
+      </div>
+    {/if}
 
-      <!-- Timeline -->
-      <section class="mb-4 rounded-xl border border-zinc-800 bg-zinc-900">
+    <!-- ── Sections ───────────────────────────────────────────────────── -->
+    {#each SECTIONS as section (section.code)}
+      <section
+        class="mb-4 overflow-hidden rounded-xl border bg-zinc-900"
+        class:border-red-800={section.code === 'incidents' && (hasAnyIncidentFlag || incidentCount > 0)}
+        class:border-zinc-800={!(section.code === 'incidents' && (hasAnyIncidentFlag || incidentCount > 0))}
+      >
         <header class="border-b border-zinc-800 px-4 py-3">
-          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Audit</div>
-          <div class="text-sm font-semibold">Timeline</div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Section {section.index}</div>
+          <div class="text-sm font-semibold">{section.title}</div>
         </header>
-        {#if collapsedEvents.length === 0}
-          <div class="px-4 py-6 text-center text-xs text-zinc-500">No events recorded.</div>
-        {:else}
-          <ol class="divide-y divide-zinc-800">
-            {#each collapsedEvents as e (e.event_id)}
-              <li class="px-4 py-3">
-                <div class="flex items-start justify-between gap-4">
+        <div class="divide-y divide-zinc-800">
+          {#each section.fields as f}
+            <div class="flex items-start justify-between gap-4 px-4 py-2.5 text-sm">
+              <div class="text-zinc-400">{f.label}</div>
+              <div class="max-w-[60%] text-right">
+                {#if f.kind === 'pair'}
+                  <span class="font-medium tabular-nums">{pairText(f.leftMetricId, f.rightMetricId)}</span>
+                {:else if f.kind === 'pills'}
+                  {@const v = rawValue(f.metric_id)}
+                  {#if v === null || v === ''}
+                    <span class="text-zinc-600">—</span>
+                  {:else}
+                    <span class="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-0.5 text-xs font-medium">{pillsLabel(f.metric_id, f.options)}</span>
+                  {/if}
+                  {#if f.followUp && valueText(f.followUp.metric_id) !== '—'}
+                    <div class="mt-1 text-xs text-zinc-400 whitespace-pre-wrap">{valueText(f.followUp.metric_id)}</div>
+                  {/if}
+                {:else if f.kind === 'yesno'}
+                  {@const v = rawValue(f.metric_id)}
+                  {#if v === true}
+                    <span class="rounded-md bg-red-900/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-red-100">Yes</span>
+                  {:else if v === false}
+                    <span class="rounded-md bg-emerald-900/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200">No</span>
+                  {:else}
+                    <span class="text-zinc-600">—</span>
+                  {/if}
+                  {#if f.followUp && valueText(f.followUp.metric_id) !== '—'}
+                    <div class="mt-1 text-xs text-zinc-400 whitespace-pre-wrap">{valueText(f.followUp.metric_id)}</div>
+                  {/if}
+                {:else}
+                  <span class="font-medium whitespace-pre-wrap">{valueText(f.metric_id)}</span>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      </section>
+    {/each}
+
+    <!-- ── Timeline ───────────────────────────────────────────────────── -->
+    <section class="mb-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+      <header class="border-b border-zinc-800 px-4 py-3">
+        <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Audit</div>
+        <div class="text-sm font-semibold">Timeline</div>
+      </header>
+      {#if collapsedEvents.length === 0}
+        <div class="px-4 py-6 text-center text-xs text-zinc-500">No events recorded.</div>
+      {:else}
+        <ol class="relative px-4 py-3">
+          {#each collapsedEvents as e (e.event_id)}
+            <li class="relative flex gap-3 pb-4 last:pb-0">
+              <!-- Vertical line + dot -->
+              <div class="flex flex-col items-center">
+                <div class="h-2.5 w-2.5 rounded-full {eventDotClass(e.event_type)} ring-2 ring-zinc-900 z-10"></div>
+                <div class="mt-1 w-px flex-1 bg-zinc-800"></div>
+              </div>
+              <div class="flex-1 min-w-0 -mt-0.5">
+                <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <div class="text-sm font-medium">
                       {eventLabel(e.event_type)}
-                      {#if (e as any)._runCount > 1}
-                        <span class="ml-1 text-[10px] text-zinc-500">×{(e as any)._runCount}</span>
+                      {#if (e as { _runCount?: number })._runCount && (e as { _runCount?: number })._runCount! > 1}
+                        <span class="ml-1 text-[10px] text-zinc-500">×{(e as { _runCount?: number })._runCount}</span>
                       {/if}
                     </div>
                     <div class="mt-0.5 text-[11px] text-zinc-500">{e.actor_name ?? e.actor_email ?? 'system'}</div>
@@ -358,16 +381,16 @@
                   <div class="shrink-0 text-[11px] tabular-nums text-zinc-500">{fmtTimelineTime(e.recorded_at)}</div>
                 </div>
                 {#if e.event_type === 'submission.sent_back' && e.payload?.reason_code}
-                  <div class="mt-1 text-[11px] text-amber-300">Reason: {e.payload.reason_code}</div>
+                  <div class="mt-1 text-[11px] text-amber-300">Reason: {e.payload.reason_code as string}</div>
                 {/if}
                 {#if e.event_type === 'submission.signed_off' && e.payload?.transition === 'locked'}
                   <div class="mt-1 text-[11px] text-violet-300">Transitioned to LOCKED</div>
                 {/if}
-              </li>
-            {/each}
-          </ol>
-        {/if}
-      </section>
-    {/if}
+              </div>
+            </li>
+          {/each}
+        </ol>
+      {/if}
+    </section>
   </div>
 </div>
