@@ -121,9 +121,36 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 metadata[normalizedKey] = typeof v === 'string' ? v.trim() : v;
             });
 
-            // Note: We used to delete matched keys from metadata here. 
+            // Note: We used to delete matched keys from metadata here.
             // We'll keep them now so users see their "Correct Headers" in the table too.
             // ['Name', 'name', 'Email', 'email', 'ExternalID', 'external_id'].forEach(k => delete metadata[k]);
+
+            // Promote common parent-contact fields to canonical metadata keys
+            // (father_email, mother_email, father_name, mother_name, etc.) so
+            // the campaign "Recipient Email Column" dropdown and template
+            // placeholders have predictable names regardless of how the
+            // original CSV header was capitalized or punctuated.
+            const aliasMap: Record<string, string[]> = {
+                father_email: ['father email', 'father mail', 'father mail id', "father's email", "father's mail", 'father email id', 'father personal email', 'father personal mail id'],
+                mother_email: ['mother email', 'mother mail', 'mother mail id', "mother's email", "mother's mail", 'mother email id', 'mother personal email', 'mother personal mail id'],
+                guardian_email: ['guardian email', 'guardian mail', 'guardian mail id', 'parent email', 'parent mail', 'parent mail id'],
+                father_phone: ['father phone', 'father mobile', 'father contact', "father's phone", "father's mobile", 'father number', 'father whatsapp'],
+                mother_phone: ['mother phone', 'mother mobile', 'mother contact', "mother's phone", "mother's mobile", 'mother number', 'mother whatsapp'],
+                father_name: ['father name', "father's name", "father full name"],
+                mother_name: ['mother name', "mother's name", "mother full name"],
+            };
+            const lowerKeys: Record<string, string> = {};
+            Object.keys(metadata).forEach(k => { lowerKeys[k.toLowerCase().trim()] = k; });
+            for (const [canonical, aliases] of Object.entries(aliasMap)) {
+                if (metadata[canonical]) continue; // user's sheet already used canonical form
+                for (const alias of aliases) {
+                    const origKey = lowerKeys[alias];
+                    if (origKey && metadata[origKey]) {
+                        metadata[canonical] = metadata[origKey];
+                        break;
+                    }
+                }
+            }
 
             students.push({
                 university_id: universityId,

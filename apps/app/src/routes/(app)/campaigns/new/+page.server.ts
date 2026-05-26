@@ -1,4 +1,16 @@
-import { getTemplates, getMailboxes, getStudents } from '@uniconnect/shared';
+/**
+ * Campaign creation — server load.
+ *
+ * Builds the "Recipient Email Column" dropdown by scanning EVERY student's
+ * metadata for any key whose name contains "email" or "mail" (case-insensitive).
+ * Previously we only scanned the first 100 students which silently hid parent
+ * email columns when a university had more students or the parent columns
+ * weren't populated in those rows.
+ *
+ * The JSONB query uses jsonb_object_keys + DISTINCT to deduplicate at the DB
+ * level, so even a 50k-student table returns just the unique key set.
+ */
+import { db, getTemplates, getMailboxes } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
 import { error } from '@sveltejs/kit';
 
@@ -12,29 +24,32 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     if (!universityId) throw error(400, 'University ID required');
 
-    const [templates, mailboxes, students] = await Promise.all([
+    const [templates, mailboxes, keyRows] = await Promise.all([
         getTemplates(universityId),
         getMailboxes(universityId),
-        getStudents({ universityId: universityId || undefined, limit: 100 })
+        db.query<{ k: string }>(
+            `SELECT DISTINCT jsonb_object_keys(metadata) AS k
+               FROM students
+              WHERE university_id = $1
+                AND metadata IS NOT NULL
+                AND jsonb_typeof(metadata) = 'object'`,
+            [universityId],
+        ),
     ]);
 
-    const keys = new Set<string>();
-    // Add default student email as a first-class option if not already there
-    // Actually, we'll let the user pick from metadata or the default.
-    students.forEach(s => {
-        Object.keys(s.metadata || {}).forEach(k => {
-            if (k.toLowerCase().includes('email') || k.toLowerCase().includes('mail')) {
-                keys.add(k);
-            }
-        });
-    });
-
-    const emailMetadataKeys = Array.from(keys);
+    // Filter for email-like keys (Father Email, Mother Mail ID, Personal Email, etc.)
+    const emailMetadataKeys = keyRows.rows
+        .map(r => r.k)
+        .filter(k => {
+            const low = k.toLowerCase();
+            return low.includes('email') || low.includes('mail');
+        })
+        .sort();
 
     return {
         templates,
         mailboxes,
         universityId,
-        emailMetadataKeys
+        emailMetadataKeys,
     };
 };
