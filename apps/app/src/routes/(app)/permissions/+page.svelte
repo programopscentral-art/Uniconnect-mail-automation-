@@ -105,6 +105,11 @@
       desc: "Queue of submissions awaiting PM sign-off or send-back",
     },
     {
+      id: "ops-os-pm-inbox",
+      label: "PM Inbox",
+      desc: "PM landing page — what needs your attention now (waiting, sent back, missing today, review SLA)",
+    },
+    {
       id: "ops-os-operations",
       label: "Operations Overview",
       desc: "Daily campus health view for COS / leadership",

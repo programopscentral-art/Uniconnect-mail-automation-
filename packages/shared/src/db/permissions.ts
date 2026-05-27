@@ -24,12 +24,12 @@ export async function getAllRolePermissions(): Promise<RolePermission[]> {
 }
 
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
-    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations", "meetings", "sheets", "ops-dashboard", "fee-collection", "ops-os-report", "ops-os-review", "ops-os-operations"],
-    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations", "meetings", "sheets", "ops-dashboard", "fee-collection", "ops-os-report", "ops-os-review", "ops-os-operations"],
+    'ADMIN': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations", "meetings", "sheets", "ops-dashboard", "fee-collection", "ops-os-report", "ops-os-review", "ops-os-operations", "ops-os-pm-inbox"],
+    'PROGRAM_OPS': ["dashboard", "tasks", "universities", "students", "users", "analytics", "mailboxes", "templates", "campaigns", "assessments", "mail-logs", "communication-tasks", "permissions", "budget-proposals", "academic-operations", "meetings", "sheets", "ops-dashboard", "fee-collection", "ops-os-report", "ops-os-review", "ops-os-operations", "ops-os-pm-inbox"],
     'UNIVERSITY_OPERATOR': ["dashboard", "tasks", "students", "analytics", "mailboxes", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "sheets", "fee-collection"],
-    'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "sheets", "fee-collection", "ops-os-review", "ops-os-operations"],
-    'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "fee-collection", "ops-os-review"],
-    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-review", "ops-os-report"],
+    'COS': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "sheets", "fee-collection", "ops-os-review", "ops-os-operations", "ops-os-pm-inbox"],
+    'PM': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "meetings", "fee-collection", "ops-os-review", "ops-os-pm-inbox"],
+    'PMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-review", "ops-os-report", "ops-os-pm-inbox"],
     'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection", "ops-os-report"],
     'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection"],
     'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "fee-collection"],
@@ -100,11 +100,11 @@ export async function ensureCorePermissions(): Promise<void> {
         // Daily Report / PM Review Queue / Operations Overview toggles
         // appear in the permissions UI without admins losing customizations.
         const opsOsAddons: Record<string, string[]> = {
-            'ADMIN':        ['ops-os-report', 'ops-os-review', 'ops-os-operations'],
-            'PROGRAM_OPS':  ['ops-os-report', 'ops-os-review', 'ops-os-operations'],
-            'COS':          ['ops-os-review', 'ops-os-operations'],
-            'PM':           ['ops-os-review'],
-            'PMA':          ['ops-os-review', 'ops-os-report'],
+            'ADMIN':        ['ops-os-report', 'ops-os-review', 'ops-os-operations', 'ops-os-pm-inbox'],
+            'PROGRAM_OPS':  ['ops-os-report', 'ops-os-review', 'ops-os-operations', 'ops-os-pm-inbox'],
+            'COS':          ['ops-os-review', 'ops-os-operations', 'ops-os-pm-inbox'],
+            'PM':           ['ops-os-review', 'ops-os-pm-inbox'],
+            'PMA':          ['ops-os-review', 'ops-os-report', 'ops-os-pm-inbox'],
             'BOA':          ['ops-os-report'],
         };
         for (const [role, addons] of Object.entries(opsOsAddons)) {
