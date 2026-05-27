@@ -633,11 +633,24 @@ export async function listSubmissions(
     args.push(params.limit ?? 100);
     const limitClause = `LIMIT $${args.length}`;
 
+    // Project only the columns the PM Review Queue + admin views actually
+    // render — drops pm_remark (can be large) and other heavy fields from
+    // the network payload. Heavy fields are still readable via getSubmissionById
+    // when a user opens the detail page.
     const r = await client.query<Submission>(
-        `SELECT * FROM ops_os.submission
-         WHERE ${where.join(' AND ')}
-         ORDER BY period_start DESC, submitted_at DESC NULLS LAST
-         ${limitClause}`,
+        `SELECT submission_id, campus_id, cadence, period_start, period_end,
+                status, revision, supersedes,
+                submitted_by, submitted_at,
+                signed_off_by, signed_off_at, locked_at, locked_by,
+                sent_back_count, sent_back_reason_code, sent_back_reason_text,
+                is_late_submission, is_late_sign_off,
+                auto_signed_off,
+                created_at, updated_at,
+                NULL::text AS pm_remark
+           FROM ops_os.submission
+          WHERE ${where.join(' AND ')}
+          ORDER BY period_start DESC, submitted_at DESC NULLS LAST
+          ${limitClause}`,
         args,
     );
     return r.rows;

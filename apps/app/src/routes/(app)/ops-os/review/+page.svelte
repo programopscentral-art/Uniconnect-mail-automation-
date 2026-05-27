@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
-  import { page } from '$app/stores';
+  import { page, navigating } from '$app/stores';
 
   type Row = {
     submission_id: string;
@@ -87,6 +87,13 @@
     return status;
   }
 </script>
+
+<!-- Top progress strip while SvelteKit re-runs the server load on filter change -->
+{#if $navigating}
+  <div class="fixed left-0 right-0 top-0 z-50 h-0.5 overflow-hidden">
+    <div class="h-full w-1/3 animate-pulse bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.7)]"></div>
+  </div>
+{/if}
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100">
   <div class="mx-auto max-w-6xl px-4 py-6">
@@ -184,6 +191,7 @@
     </div>
 
     <!-- ── Queue ──────────────────────────────────────────────────────── -->
+    <div class="transition-opacity" class:opacity-50={$navigating} class:pointer-events-none={$navigating}>
     {#if data.rows.length === 0}
       <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-16 text-center">
         <div class="text-3xl">🎉</div>
@@ -250,5 +258,6 @@
         </table>
       </div>
     {/if}
+    </div>
   </div>
 </div>
