@@ -16,9 +16,9 @@ import {
     withReadOnlyUserContext,
     getDailyOperationsOverview,
     getCampusPeriodOverview,
-    lastCompletedWeek,
+    currentWeekFull,
     weekBoundariesFromIstDate,
-    lastCompletedMonth,
+    currentMonthToDate,
     monthBoundariesFromIstDate,
     type DailyOpsRow,
     type DailyOpsStatus,
@@ -61,11 +61,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     let monthStart = '';
     let periodStart = '';
     let periodEnd = '';
+    // Default to CURRENT period (not last completed) — COS scanning the
+    // org-wide overview wants to see what's happening now, not last week's
+    // closed report. Per-campus weekly/monthly pages still default to last
+    // completed because that's the BOA's "summarize what just ended" view.
     if (cadence === 'weekly') {
         const requestedWeek = url.searchParams.get('week') ?? '';
         const p = DATE_RE.test(requestedWeek)
             ? weekBoundariesFromIstDate(requestedWeek)
-            : lastCompletedWeek();
+            : currentWeekFull();
         weekStart = p.period_start;
         periodStart = p.period_start;
         periodEnd = p.period_end;
@@ -73,7 +77,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         const requestedMonth = url.searchParams.get('month') ?? '';
         const p = DATE_RE.test(requestedMonth)
             ? monthBoundariesFromIstDate(requestedMonth)
-            : lastCompletedMonth();
+            : currentMonthToDate();
         monthStart = p.period_start;
         periodStart = p.period_start;
         periodEnd = p.period_end;

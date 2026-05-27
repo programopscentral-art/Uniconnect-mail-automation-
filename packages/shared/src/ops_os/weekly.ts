@@ -126,6 +126,27 @@ export function currentMonthToDate(now: Date = new Date()): { period_start: stri
     return { period_start: formatYmd(first), period_end: today };
 }
 
+/**
+ * The current week-to-date (this week's Monday → today). For Operations
+ * Overview's Weekly tab — COS wants to see this week's progress, not last
+ * week's completed report.
+ */
+export function currentWeekToDate(now: Date = new Date()): { period_start: string; period_end: string } {
+    const today = todayIstYmd(now);
+    const thisWeek = weekBoundariesFromIstDate(today);
+    return { period_start: thisWeek.period_start, period_end: today };
+}
+
+/**
+ * Full current week (this Monday → next Sunday). For Operations Overview
+ * if you want to see the full week range even if some days are in the
+ * future — non-existent submissions become "no submission".
+ */
+export function currentWeekFull(now: Date = new Date()): { period_start: string; period_end: string } {
+    const today = todayIstYmd(now);
+    return weekBoundariesFromIstDate(today);
+}
+
 // ── Weekly auto-rollup ───────────────────────────────────────────────────
 
 export interface WeeklyRollup {

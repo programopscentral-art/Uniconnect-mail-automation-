@@ -515,6 +515,48 @@
         <div class="text-3xl">🔍</div>
         <div class="mt-3 text-base font-semibold text-zinc-200">No campuses to show for {data.periodStart} → {data.periodEnd}.</div>
       </div>
+    {:else if periodSummary.totalSubmitted === 0}
+      <!-- All campuses listed but no submissions exist in the period yet -->
+      <div class="mb-3 rounded-xl border border-amber-800 bg-amber-950/30 px-4 py-3 text-xs text-amber-200">
+        <strong>No daily submissions yet for {data.periodStart} → {data.periodEnd}.</strong>
+        Each campus row below shows 0 / {data.periodRows?.[0]?.days_in_range ?? 0} until BOAs start submitting reports.
+        Use the period picker above to switch to a range that has data.
+      </div>
+      <div class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+        <table class="w-full text-sm">
+          <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+            <tr>
+              <th class="px-3 py-3 text-left font-medium">Campus</th>
+              <th class="px-3 py-3 text-right font-medium">Reported</th>
+              <th class="px-3 py-3 text-right font-medium">Signed off</th>
+              <th class="px-3 py-3 text-right font-medium">Holiday</th>
+              <th class="px-3 py-3 text-right font-medium">Late</th>
+              <th class="px-3 py-3 text-right font-medium">Sessions held</th>
+              <th class="px-3 py-3 text-right font-medium">Attendance</th>
+              <th class="px-3 py-3 text-right font-medium">Incidents</th>
+              <th class="px-3 py-3 text-right font-medium">Send-backs</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-zinc-800">
+            {#each (data.periodRows ?? []) as r (r.campus_id)}
+              <tr class="text-zinc-500">
+                <td class="px-3 py-3">
+                  <div class="font-medium text-zinc-300">{r.campus_name}</div>
+                  <div class="text-[10px] uppercase tracking-wider text-zinc-600">{r.campus_code}</div>
+                </td>
+                <td class="px-3 py-3 text-right tabular-nums">0 / {r.days_in_range}</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+                <td class="px-3 py-3 text-right tabular-nums">—</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
     {:else}
       <div class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
         <table class="w-full text-sm">
