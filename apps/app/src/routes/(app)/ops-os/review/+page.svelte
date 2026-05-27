@@ -22,7 +22,6 @@
       rows: Row[];
       statusFilter: 'awaiting' | 'all';
       campusFilter: string;
-      cadenceFilter: 'DAILY' | 'WEEKLY' | 'MONTHLY';
       dateScope: 'today' | 'week' | 'all' | 'custom';
       customDate: string;
       today: string;
@@ -45,7 +44,7 @@
     return new Date(iso).toLocaleDateString();
   }
 
-  async function updateFilter(name: 'status' | 'campus' | 'scope' | 'date' | 'cadence', value: string) {
+  async function updateFilter(name: 'status' | 'campus' | 'scope' | 'date', value: string) {
     const url = new URL($page.url);
     if (value) url.searchParams.set(name, value);
     else url.searchParams.delete(name);
@@ -136,19 +135,6 @@
 
     <!-- ── Filters ────────────────────────────────────────────────────── -->
     <div class="mb-4 flex flex-wrap items-end gap-3">
-      <div>
-        <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="cadence-filter">Cadence</label>
-        <select
-          id="cadence-filter"
-          class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
-          value={data.cadenceFilter}
-          onchange={(e) => updateFilter('cadence', (e.currentTarget as HTMLSelectElement).value)}
-        >
-          <option value="DAILY">Daily</option>
-          <option value="WEEKLY">Weekly</option>
-          <option value="MONTHLY">Monthly</option>
-        </select>
-      </div>
       <div>
         <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="status-filter">View</label>
         <select

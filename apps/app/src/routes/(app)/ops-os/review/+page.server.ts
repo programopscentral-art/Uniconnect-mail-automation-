@@ -36,9 +36,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const userId = locals.user.id as string;
     const statusFilter = (url.searchParams.get('status') ?? 'awaiting') as 'awaiting' | 'all';
     const campusFilter = url.searchParams.get('campus') ?? '';
-    const rawCadence = url.searchParams.get('cadence') ?? 'DAILY';
-    const cadenceFilter: 'DAILY' | 'WEEKLY' | 'MONTHLY' =
-        rawCadence === 'WEEKLY' || rawCadence === 'MONTHLY' ? rawCadence : 'DAILY';
 
     // Date scope: today / week / all / custom. Default "today".
     const rawScope = url.searchParams.get('scope') ?? '';
@@ -105,7 +102,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         const subs: Submission[] = await listSubmissions(
             {
                 statuses: statusFilter === 'awaiting' ? AWAITING_STATUSES : undefined,
-                cadence: cadenceFilter,
+                cadence: 'DAILY',
                 campus_id: campusFilter || undefined,
                 period_start_from: periodFrom,
                 period_start_to: periodTo,
@@ -123,7 +120,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         rows,
         statusFilter,
         campusFilter,
-        cadenceFilter,
         dateScope,
         customDate,
         today,

@@ -97,12 +97,7 @@
     {
       id: "ops-os-report",
       label: "Daily Report (BOA)",
-      desc: "Daily campus operations report — for BOAs to fill out",
-    },
-    {
-      id: "ops-os-report-weekly",
-      label: "Weekly Report (BOA)",
-      desc: "Weekly summary report — auto rollup of daily + BOA commentary",
+      desc: "Daily campus operations report — for BOAs to fill out. Also gates the read-only Weekly Summary view linked from the daily page.",
     },
     {
       id: "ops-os-review",
