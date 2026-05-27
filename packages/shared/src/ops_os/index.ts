@@ -19,3 +19,4 @@ export * from './notifications';
 export * from './email';
 export * from './reminders';
 export * from './auto_assign';
+export * from './weekly';

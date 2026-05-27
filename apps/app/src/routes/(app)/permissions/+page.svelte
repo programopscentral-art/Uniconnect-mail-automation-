@@ -100,6 +100,11 @@
       desc: "Daily campus operations report — for BOAs to fill out",
     },
     {
+      id: "ops-os-report-weekly",
+      label: "Weekly Report (BOA)",
+      desc: "Weekly summary report — auto rollup of daily + BOA commentary",
+    },
+    {
       id: "ops-os-review",
       label: "PM Review Queue",
       desc: "Queue of submissions awaiting PM sign-off or send-back",

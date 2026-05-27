@@ -39,7 +39,7 @@ export async function validateSession(token: string): Promise<SessionUser | null
         'dashboard', 'tasks', 'universities', 'students', 'users',
         'analytics', 'mailboxes', 'templates', 'campaigns',
         'assessments', 'mail-logs', 'permissions', 'communication-tasks', 'budget-proposals',
-        'ops-os-report', 'ops-os-review', 'ops-os-operations'
+        'ops-os-report', 'ops-os-report-weekly', 'ops-os-review', 'ops-os-operations'
     ];
 
     try {
