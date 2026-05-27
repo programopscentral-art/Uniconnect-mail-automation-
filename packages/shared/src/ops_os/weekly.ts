@@ -88,6 +88,44 @@ export function lastCompletedWeek(now: Date = new Date()): { period_start: strin
     return { period_start: formatYmd(monPrev), period_end: formatYmd(sunPrev) };
 }
 
+/**
+ * Given an IST calendar date, return the 1st → last day of the month
+ * containing it.
+ */
+export function monthBoundariesFromIstDate(ymd: string): { period_start: string; period_end: string } {
+    const d = parseYmd(ymd);
+    const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+    return { period_start: formatYmd(first), period_end: formatYmd(last) };
+}
+
+/**
+ * The previous calendar month in IST, used as the default period for the
+ * monthly summary view. Today is in the current month; the "completed"
+ * month is always the one before unless today is the 1st (then we use
+ * the month that just ended).
+ */
+export function lastCompletedMonth(now: Date = new Date()): { period_start: string; period_end: string } {
+    const today = todayIstYmd(now);
+    const d = parseYmd(today);
+    // Always show last calendar month for clarity — partial month would
+    // be misleading on a summary view.
+    const firstOfPrev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+    const lastOfPrev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0));
+    return { period_start: formatYmd(firstOfPrev), period_end: formatYmd(lastOfPrev) };
+}
+
+/**
+ * The current month-to-date (1st → today). Useful when the caller wants
+ * the in-progress month rather than the previously completed one.
+ */
+export function currentMonthToDate(now: Date = new Date()): { period_start: string; period_end: string } {
+    const today = todayIstYmd(now);
+    const d = parseYmd(today);
+    const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+    return { period_start: formatYmd(first), period_end: today };
+}
+
 // ── Weekly auto-rollup ───────────────────────────────────────────────────
 
 export interface WeeklyRollup {
@@ -246,4 +284,179 @@ export async function getWeeklyRollup(
         avg_attendance_pct,
         sessions_held_pct,
     };
+}
+
+// getWeeklyRollup works for any date range — alias for clarity at call sites.
+export const getPeriodRollup = getWeeklyRollup;
+export type PeriodRollup = WeeklyRollup;
+
+// ── Org-wide overview across all campuses for a period ───────────────────
+
+export interface CampusPeriodOverviewRow {
+    campus_id: string;
+    campus_code: string;
+    campus_name: string;
+    days_in_range: number;
+    days_submitted: number;
+    days_signed_off: number;
+    days_holiday: number;
+    days_auto_signed_off: number;
+    days_late_submission: number;
+    days_no_submission: number;
+    sent_backs_count: number;
+    total_sessions_held: number;
+    total_sessions_scheduled: number;
+    total_students_present: number;
+    total_students_enrolled: number;
+    total_incidents_flagged: number;
+    avg_attendance_pct: number | null;
+    sessions_held_pct: number | null;
+}
+
+/**
+ * One row per active campus, each containing the period rollup for
+ * (period_start..period_end). Used by Operations Overview's Weekly/Monthly
+ * tabs so COS/leadership can scan all campuses at once without N+1
+ * per-campus queries.
+ */
+export async function getCampusPeriodOverview(
+    params: { period_start: string; period_end: string; campus_ids?: string[] },
+    client: PoolClient,
+): Promise<CampusPeriodOverviewRow[]> {
+    const { period_start, period_end, campus_ids } = params;
+
+    // Two queries (one per group), joined in JS by campus_id. Single-pass
+    // SQL would be faster but harder to maintain — each pulls different
+    // shape of data.
+
+    // Day counters per campus
+    const dayCounters = await client.query<{
+        campus_id: string;
+        days_submitted: string;
+        days_signed_off: string;
+        days_holiday: string;
+        days_auto_signed_off: string;
+        days_late_submission: string;
+        sent_backs_count: string;
+    }>(
+        `WITH active AS (
+            SELECT cd.campus_id FROM ops_os.campus_dim cd
+             WHERE cd.status = 'active'
+               AND ($3::uuid[] IS NULL OR cd.campus_id = ANY($3::uuid[]))
+         )
+         SELECT a.campus_id,
+                COUNT(CASE WHEN s.status IN ('SUBMITTED','PM_REVIEW','SIGNED_OFF','LOCKED','SENT_BACK') THEN 1 END)::text AS days_submitted,
+                COUNT(CASE WHEN s.status IN ('SIGNED_OFF','LOCKED') THEN 1 END)::text AS days_signed_off,
+                COUNT(CASE WHEN EXISTS (
+                    SELECT 1 FROM ops_os.submission_value sv
+                     WHERE sv.submission_id = s.submission_id
+                       AND sv.metric_id = 'daily.day_type.is_holiday'
+                       AND sv.value_boolean = true
+                ) THEN 1 END)::text AS days_holiday,
+                COUNT(CASE WHEN s.auto_signed_off = true THEN 1 END)::text AS days_auto_signed_off,
+                COUNT(CASE WHEN s.is_late_submission = true THEN 1 END)::text AS days_late_submission,
+                COALESCE(SUM(s.sent_back_count), 0)::text AS sent_backs_count
+           FROM active a
+           LEFT JOIN ops_os.submission s
+                  ON s.campus_id = a.campus_id
+                 AND s.cadence = 'DAILY'
+                 AND s.period_start BETWEEN $1::date AND $2::date
+                 AND s.supersedes IS NULL
+          GROUP BY a.campus_id`,
+        [period_start, period_end, campus_ids ?? null],
+    );
+
+    // Numeric sums per campus
+    const numericSums = await client.query<{
+        campus_id: string;
+        sessions_held: string;
+        sessions_scheduled: string;
+        students_present: string;
+        students_enrolled: string;
+        incidents: string;
+    }>(
+        `WITH active AS (
+            SELECT cd.campus_id FROM ops_os.campus_dim cd
+             WHERE cd.status = 'active'
+               AND ($3::uuid[] IS NULL OR cd.campus_id = ANY($3::uuid[]))
+         )
+         SELECT a.campus_id,
+                COALESCE(SUM(CASE WHEN sv.metric_id = 'daily.academic.sessions_conducted' THEN sv.value_numeric END), 0)::text AS sessions_held,
+                COALESCE(SUM(CASE WHEN sv.metric_id = 'daily.academic.sessions_scheduled' THEN sv.value_numeric END), 0)::text AS sessions_scheduled,
+                COALESCE(SUM(CASE WHEN sv.metric_id = 'daily.attendance.present'          THEN sv.value_numeric END), 0)::text AS students_present,
+                COALESCE(SUM(CASE WHEN sv.metric_id = 'daily.attendance.total_enrolled'   THEN sv.value_numeric END), 0)::text AS students_enrolled,
+                COALESCE(SUM(CASE WHEN sv.metric_id = 'daily.incidents.count'             THEN sv.value_numeric END), 0)::text AS incidents
+           FROM active a
+           LEFT JOIN ops_os.submission s
+                  ON s.campus_id = a.campus_id
+                 AND s.cadence = 'DAILY'
+                 AND s.period_start BETWEEN $1::date AND $2::date
+                 AND s.supersedes IS NULL
+                 AND s.status IN ('SUBMITTED','PM_REVIEW','SIGNED_OFF','LOCKED','SENT_BACK')
+           LEFT JOIN ops_os.submission_value sv ON sv.submission_id = s.submission_id
+          GROUP BY a.campus_id`,
+        [period_start, period_end, campus_ids ?? null],
+    );
+
+    // Campus labels
+    const labels = await client.query<{ campus_id: string; code: string; display_name: string }>(
+        `SELECT campus_id, code, display_name FROM ops_os.campus_dim
+          WHERE status = 'active'
+            AND ($1::uuid[] IS NULL OR campus_id = ANY($1::uuid[]))
+          ORDER BY display_name`,
+        [campus_ids ?? null],
+    );
+
+    const dayMap = new Map(dayCounters.rows.map(r => [r.campus_id, r]));
+    const numMap = new Map(numericSums.rows.map(r => [r.campus_id, r]));
+
+    const days_in_range = Math.round(
+        (parseYmd(period_end).getTime() - parseYmd(period_start).getTime()) / 86400_000,
+    ) + 1;
+
+    return labels.rows.map(c => {
+        const d = dayMap.get(c.campus_id);
+        const n = numMap.get(c.campus_id);
+        const days_submitted = Number(d?.days_submitted ?? 0);
+        const days_signed_off = Number(d?.days_signed_off ?? 0);
+        const days_holiday = Number(d?.days_holiday ?? 0);
+        const days_auto_signed_off = Number(d?.days_auto_signed_off ?? 0);
+        const days_late_submission = Number(d?.days_late_submission ?? 0);
+        const sent_backs_count = Number(d?.sent_backs_count ?? 0);
+        const days_no_submission = Math.max(0, days_in_range - days_submitted);
+
+        const total_sessions_held = Number(n?.sessions_held ?? 0);
+        const total_sessions_scheduled = Number(n?.sessions_scheduled ?? 0);
+        const total_students_present = Number(n?.students_present ?? 0);
+        const total_students_enrolled = Number(n?.students_enrolled ?? 0);
+        const total_incidents_flagged = Number(n?.incidents ?? 0);
+
+        const avg_attendance_pct = total_students_enrolled > 0
+            ? Math.round((total_students_present / total_students_enrolled) * 100)
+            : null;
+        const sessions_held_pct = total_sessions_scheduled > 0
+            ? Math.round((total_sessions_held / total_sessions_scheduled) * 100)
+            : null;
+
+        return {
+            campus_id: c.campus_id,
+            campus_code: c.code,
+            campus_name: c.display_name,
+            days_in_range,
+            days_submitted,
+            days_signed_off,
+            days_holiday,
+            days_auto_signed_off,
+            days_late_submission,
+            days_no_submission,
+            sent_backs_count,
+            total_sessions_held,
+            total_sessions_scheduled,
+            total_students_present,
+            total_students_enrolled,
+            total_incidents_flagged,
+            avg_attendance_pct,
+            sessions_held_pct,
+        };
+    });
 }

@@ -477,16 +477,28 @@
         </div>
       </div>
 
-      <!-- Weekly summary view (read-only rollup of this campus's last 7 days) -->
-      <div class="mt-3 flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
-        <div class="min-w-0">
-          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Weekly summary</div>
-          <div class="mt-0.5 text-xs text-zinc-400 truncate">See this campus's totals for the last completed Mon → Sun week (auto-computed).</div>
+      <!-- Period summary views (read-only rollups of this campus's daily reports) -->
+      <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div class="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Weekly summary</div>
+            <div class="mt-0.5 text-xs text-zinc-400 truncate">Last completed Mon → Sun week</div>
+          </div>
+          <a
+            href={`/ops-os/report-weekly${selectedCampusId ? `?campus=${selectedCampusId}` : ''}`}
+            class="shrink-0 inline-flex items-center gap-1 rounded-md border border-blue-700 bg-blue-950/40 px-3 py-1.5 text-xs font-semibold text-blue-100 hover:bg-blue-900/60"
+          >View week →</a>
         </div>
-        <a
-          href={`/ops-os/report-weekly${selectedCampusId ? `?campus=${selectedCampusId}` : ''}`}
-          class="shrink-0 inline-flex items-center gap-1 rounded-md border border-blue-700 bg-blue-950/40 px-3 py-1.5 text-xs font-semibold text-blue-100 hover:bg-blue-900/60"
-        >View week →</a>
+        <div class="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Monthly summary</div>
+            <div class="mt-0.5 text-xs text-zinc-400 truncate">Last completed calendar month</div>
+          </div>
+          <a
+            href={`/ops-os/report-monthly${selectedCampusId ? `?campus=${selectedCampusId}` : ''}`}
+            class="shrink-0 inline-flex items-center gap-1 rounded-md border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-900/60"
+          >View month →</a>
+        </div>
       </div>
 
       <!-- Section progress strip (fixed 7 segments — matches SECTIONS.length) -->
