@@ -99,58 +99,85 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const students: any[] = [];
         const skippedRows: any[] = [];
 
+        // Regex patterns for parent-contact canonical aliases. Match against
+        // a normalized form of each column key (lowercase, underscores/dots →
+        // space, multi-space collapsed) so all of these resolve correctly:
+        //   "Father Email", "Father's Email", "Father Mail ID",
+        //   "Fathers Mail ID", "FATHER EMAIL ID", "father_email",
+        //   "father.email", "Father Personal Mail Id", "Father E-Mail"
+        // The optional possessive 's' covers both with and without apostrophe.
+        const aliasPatterns: Array<{ canonical: string; pattern: RegExp }> = [
+            { canonical: 'father_email',   pattern: /^father'?s?\s*(personal\s*)?(e[\-\s]?mail|mail)(\s*(id|address))?$/i },
+            { canonical: 'mother_email',   pattern: /^mother'?s?\s*(personal\s*)?(e[\-\s]?mail|mail)(\s*(id|address))?$/i },
+            { canonical: 'guardian_email', pattern: /^(guardian|parent)'?s?\s*(personal\s*)?(e[\-\s]?mail|mail)(\s*(id|address))?$/i },
+            { canonical: 'father_phone',   pattern: /^father'?s?\s*(phone|mobile|contact|number|whatsapp|cell)(\s*(no|number))?$/i },
+            { canonical: 'mother_phone',   pattern: /^mother'?s?\s*(phone|mobile|contact|number|whatsapp|cell)(\s*(no|number))?$/i },
+            { canonical: 'father_name',    pattern: /^father'?s?\s*(name|full\s*name)$/i },
+            { canonical: 'mother_name',    pattern: /^mother'?s?\s*(name|full\s*name)$/i },
+        ];
+
+        function normalizeHeader(k: string): string {
+            return k
+                .replace(/[\r\n]+/g, ' ')
+                .replace(/[_.]+/g, ' ')   // father_email / father.email → father email
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+        }
+
         records.forEach((row, index) => {
             const nameResult = getValueByKeywords(row, nameAliases);
             const emailResult = getValueByKeywords(row, emailAliases, true);
             const idResult = getValueByKeywords(row, idAliases);
 
             const name = nameResult?.value;
-            const email = emailResult?.value;
-            const externalId = idResult?.value || email;
+            let email = emailResult?.value;
+            let emailSource: 'student' | 'father' | 'mother' | 'guardian' = 'student';
+
+            // Build cleaned metadata first so we can run the alias resolver and
+            // use any parent_email as a student-email fallback when needed.
+            const metadata: any = {};
+            Object.entries(row).forEach(([k, v]) => {
+                const normalizedKey = k.replace(/[\r\n]+/g, ' ').trim();
+                metadata[normalizedKey] = typeof v === 'string' ? v.trim() : v;
+            });
+
+            // Resolve canonical parent-contact keys via regex on a normalized
+            // version of each header. Preserves the original header in metadata
+            // and adds canonical aliases alongside.
+            for (const k of Object.keys(metadata)) {
+                if (!metadata[k]) continue;
+                const norm = normalizeHeader(k);
+                for (const { canonical, pattern } of aliasPatterns) {
+                    if (metadata[canonical]) continue; // first match wins per canonical
+                    if (pattern.test(norm)) {
+                        metadata[canonical] = String(metadata[k]).trim();
+                        break;
+                    }
+                }
+            }
+
+            // Fallback: if the student's own email column wasn't found, try
+            // father / mother / guardian email so the row still imports.
+            // Records the chosen source in metadata.email_source for auditing.
+            if (!email || !email.includes('@')) {
+                const fallback = (metadata.father_email && String(metadata.father_email).includes('@'))   ? { v: metadata.father_email, s: 'father' as const }
+                              : (metadata.mother_email && String(metadata.mother_email).includes('@'))   ? { v: metadata.mother_email, s: 'mother' as const }
+                              : (metadata.guardian_email && String(metadata.guardian_email).includes('@')) ? { v: metadata.guardian_email, s: 'guardian' as const }
+                              : null;
+                if (fallback) {
+                    email = String(fallback.v).trim();
+                    emailSource = fallback.s;
+                }
+            }
 
             if (!name || !email) {
                 skippedRows.push(row);
                 return;
             }
 
-            // Create cleaned metadata by trimming all keys and values
-            // CRITICAL FIX: Replace newlines in keys with spaces to match template placeholders
-            const metadata: any = {};
-            Object.entries(row).forEach(([k, v]) => {
-                const normalizedKey = k.replace(/[\r\n]+/g, ' ').trim(); // Replace newlines with space, then trim
-                metadata[normalizedKey] = typeof v === 'string' ? v.trim() : v;
-            });
-
-            // Note: We used to delete matched keys from metadata here.
-            // We'll keep them now so users see their "Correct Headers" in the table too.
-            // ['Name', 'name', 'Email', 'email', 'ExternalID', 'external_id'].forEach(k => delete metadata[k]);
-
-            // Promote common parent-contact fields to canonical metadata keys
-            // (father_email, mother_email, father_name, mother_name, etc.) so
-            // the campaign "Recipient Email Column" dropdown and template
-            // placeholders have predictable names regardless of how the
-            // original CSV header was capitalized or punctuated.
-            const aliasMap: Record<string, string[]> = {
-                father_email: ['father email', 'father mail', 'father mail id', "father's email", "father's mail", 'father email id', 'father personal email', 'father personal mail id'],
-                mother_email: ['mother email', 'mother mail', 'mother mail id', "mother's email", "mother's mail", 'mother email id', 'mother personal email', 'mother personal mail id'],
-                guardian_email: ['guardian email', 'guardian mail', 'guardian mail id', 'parent email', 'parent mail', 'parent mail id'],
-                father_phone: ['father phone', 'father mobile', 'father contact', "father's phone", "father's mobile", 'father number', 'father whatsapp'],
-                mother_phone: ['mother phone', 'mother mobile', 'mother contact', "mother's phone", "mother's mobile", 'mother number', 'mother whatsapp'],
-                father_name: ['father name', "father's name", "father full name"],
-                mother_name: ['mother name', "mother's name", "mother full name"],
-            };
-            const lowerKeys: Record<string, string> = {};
-            Object.keys(metadata).forEach(k => { lowerKeys[k.toLowerCase().trim()] = k; });
-            for (const [canonical, aliases] of Object.entries(aliasMap)) {
-                if (metadata[canonical]) continue; // user's sheet already used canonical form
-                for (const alias of aliases) {
-                    const origKey = lowerKeys[alias];
-                    if (origKey && metadata[origKey]) {
-                        metadata[canonical] = metadata[origKey];
-                        break;
-                    }
-                }
-            }
+            metadata.email_source = emailSource;
+            const externalId = idResult?.value || email;
 
             students.push({
                 university_id: universityId,
