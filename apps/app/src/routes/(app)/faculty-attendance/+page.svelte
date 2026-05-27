@@ -806,19 +806,64 @@
                                             <div class="grid grid-cols-2 gap-2">
                                                 <input
                                                     type="text"
+                                                    placeholder="Faculty name"
+                                                    value={row.name || ''}
+                                                    onchange={async (e) => {
+                                                        const input = e.target as HTMLInputElement;
+                                                        const val = input.value.trim();
+                                                        if (!val) {
+                                                            input.value = row.name || '';
+                                                            flash('Name cannot be empty', true);
+                                                            return;
+                                                        }
+                                                        if (val === row.name) return;
+                                                        try {
+                                                            const res = await fetch('/api/faculty-attendance', {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ action: 'update-faculty', id: row.instructor_id, name: val })
+                                                            });
+                                                            if (!res.ok) {
+                                                                const errText = await res.text().catch(() => `HTTP ${res.status}`);
+                                                                input.value = row.name || '';
+                                                                flash(`Failed to update name: ${errText}`, true);
+                                                                return;
+                                                            }
+                                                            row.name = val;
+                                                            flash('Name updated');
+                                                        } catch (err: any) {
+                                                            input.value = row.name || '';
+                                                            flash(err?.message || 'Failed to update name', true);
+                                                        }
+                                                    }}
+                                                    class="col-span-2 text-xs font-semibold rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
+                                                />
+                                                <input
+                                                    type="text"
                                                     placeholder="Designation"
                                                     value={row.designation || ''}
                                                     onchange={async (e) => {
-                                                        const val = (e.target as HTMLInputElement).value;
+                                                        const input = e.target as HTMLInputElement;
+                                                        const val = input.value;
+                                                        if (val === (row.designation || '')) return;
                                                         try {
-                                                            await fetch('/api/faculty-attendance', {
+                                                            const res = await fetch('/api/faculty-attendance', {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json' },
                                                                 body: JSON.stringify({ action: 'update-faculty', id: row.instructor_id, designation: val })
                                                             });
+                                                            if (!res.ok) {
+                                                                const errText = await res.text().catch(() => `HTTP ${res.status}`);
+                                                                input.value = row.designation || '';
+                                                                flash(`Failed: ${errText}`, true);
+                                                                return;
+                                                            }
                                                             row.designation = val;
                                                             flash('Designation updated');
-                                                        } catch {}
+                                                        } catch (err: any) {
+                                                            input.value = row.designation || '';
+                                                            flash(err?.message || 'Failed to update designation', true);
+                                                        }
                                                     }}
                                                     class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
                                                 />
@@ -827,17 +872,27 @@
                                                     placeholder="Subjects (comma-separated)"
                                                     value={(row.subjects || []).join(', ')}
                                                     onchange={async (e) => {
-                                                        const val = (e.target as HTMLInputElement).value;
+                                                        const input = e.target as HTMLInputElement;
+                                                        const val = input.value;
                                                         const subjects = val.split(',').map((s: string) => s.trim()).filter(Boolean);
                                                         try {
-                                                            await fetch('/api/faculty-attendance', {
+                                                            const res = await fetch('/api/faculty-attendance', {
                                                                 method: 'POST',
                                                                 headers: { 'Content-Type': 'application/json' },
                                                                 body: JSON.stringify({ action: 'update-faculty', id: row.instructor_id, subjects })
                                                             });
+                                                            if (!res.ok) {
+                                                                const errText = await res.text().catch(() => `HTTP ${res.status}`);
+                                                                input.value = (row.subjects || []).join(', ');
+                                                                flash(`Failed: ${errText}`, true);
+                                                                return;
+                                                            }
                                                             row.subjects = subjects;
                                                             flash('Subjects updated');
-                                                        } catch {}
+                                                        } catch (err: any) {
+                                                            input.value = (row.subjects || []).join(', ');
+                                                            flash(err?.message || 'Failed to update subjects', true);
+                                                        }
                                                     }}
                                                     class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-sky-500 placeholder-zinc-400"
                                                 />
@@ -1084,14 +1139,57 @@
                                         <div class="grid grid-cols-2 gap-2">
                                             <input type="text" placeholder="Name" value={row.name || ''}
                                                 onchange={async (e) => {
-                                                    const val = (e.target as HTMLInputElement).value;
-                                                    try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, name: val }) }); row.name = val; flash('Name updated'); } catch {}
+                                                    const input = e.target as HTMLInputElement;
+                                                    const val = input.value.trim();
+                                                    if (!val) {
+                                                        input.value = row.name || '';
+                                                        flash('Name cannot be empty', true);
+                                                        return;
+                                                    }
+                                                    if (val === row.name) return;
+                                                    try {
+                                                        const res = await fetch('/api/faculty-attendance', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ action: 'update-coach', id: row.coach_id, name: val })
+                                                        });
+                                                        if (!res.ok) {
+                                                            const errText = await res.text().catch(() => `HTTP ${res.status}`);
+                                                            input.value = row.name || '';
+                                                            flash(`Failed to update name: ${errText}`, true);
+                                                            return;
+                                                        }
+                                                        row.name = val;
+                                                        flash('Name updated');
+                                                    } catch (err: any) {
+                                                        input.value = row.name || '';
+                                                        flash(err?.message || 'Failed to update name', true);
+                                                    }
                                                 }}
                                                 class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
                                             <input type="email" placeholder="Email" value={row.email || ''}
                                                 onchange={async (e) => {
-                                                    const val = (e.target as HTMLInputElement).value;
-                                                    try { await fetch('/api/faculty-attendance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update-coach', id: row.coach_id, email: val }) }); flash('Email updated'); } catch {}
+                                                    const input = e.target as HTMLInputElement;
+                                                    const val = input.value.trim();
+                                                    if (val === (row.email || '')) return;
+                                                    try {
+                                                        const res = await fetch('/api/faculty-attendance', {
+                                                            method: 'POST',
+                                                            headers: { 'Content-Type': 'application/json' },
+                                                            body: JSON.stringify({ action: 'update-coach', id: row.coach_id, email: val })
+                                                        });
+                                                        if (!res.ok) {
+                                                            const errText = await res.text().catch(() => `HTTP ${res.status}`);
+                                                            input.value = row.email || '';
+                                                            flash(`Failed: ${errText}`, true);
+                                                            return;
+                                                        }
+                                                        row.email = val;
+                                                        flash('Email updated');
+                                                    } catch (err: any) {
+                                                        input.value = row.email || '';
+                                                        flash(err?.message || 'Failed to update email', true);
+                                                    }
                                                 }}
                                                 class="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-violet-500 placeholder-zinc-400" />
                                         </div>
