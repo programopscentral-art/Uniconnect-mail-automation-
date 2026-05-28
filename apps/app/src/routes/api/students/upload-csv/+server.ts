@@ -97,7 +97,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         ];
 
         const students: any[] = [];
-        const skippedRows: any[] = [];
+        const skippedRows: Array<{ row: any; reason: string; detected: { name?: string; email?: string; id?: string } }> = [];
+        const detectedHeaders = Object.keys(records[0] || {});
 
         // Regex patterns for parent-contact canonical aliases. Match against
         // a normalized form of each column key (lowercase, underscores/dots →
@@ -172,7 +173,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             }
 
             if (!name || !email) {
-                skippedRows.push(row);
+                const missing: string[] = [];
+                if (!name) missing.push('name');
+                if (!email) missing.push('email (and no usable father/mother/guardian email fallback)');
+                skippedRows.push({
+                    row,
+                    reason: `Missing ${missing.join(' + ')}`,
+                    detected: {
+                        name: nameResult ? `${nameResult.key} → "${nameResult.value}"` : undefined,
+                        email: emailResult ? `${emailResult.key} → "${emailResult.value}"` : undefined,
+                        id: idResult ? `${idResult.key} → "${idResult.value}"` : undefined,
+                    }
+                });
                 return;
             }
 
@@ -197,7 +209,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         return json({
             count: students.length,
             skipped: skippedRows.length,
-            message: skippedRows.length > 0 ? `Imported ${students.length} students. Skipped ${skippedRows.length} rows.` : undefined
+            message: skippedRows.length > 0 ? `Imported ${students.length} students. Skipped ${skippedRows.length} rows.` : undefined,
+            diagnostics: skippedRows.length > 0 ? {
+                detectedHeaders,
+                firstSkipped: skippedRows.slice(0, 3).map(s => ({ reason: s.reason, detected: s.detected }))
+            } : undefined
         });
     } catch (err: any) {
         console.error('File Import Error:', err);

@@ -60,7 +60,15 @@
   let previewRows = $state<any[]>([]);
   let totalPreviewRows = $state(0);
   let masterWorkbook: any = $state(null);
-  let importResult = $state<{ count: number, skipped: number, message?: string } | null>(null);
+  let importResult = $state<{
+    count: number,
+    skipped: number,
+    message?: string,
+    diagnostics?: {
+        detectedHeaders: string[],
+        firstSkipped: Array<{ reason: string; detected: { name?: string; email?: string; id?: string } }>
+    }
+  } | null>(null);
 
   // Parse file when selected
   $effect(() => {
@@ -216,14 +224,17 @@
             // Refresh data immediately
             await loadStudentsData();
             
-            // Auto-close modal after 2.5 seconds if successful
-            setTimeout(() => {
-                if (importResult) {
-                    showUploadModal = false;
-                    resetPreview();
-                    importResult = null;
-                }
-            }, 2500);
+            // Auto-close modal after 2.5 seconds if everything imported cleanly.
+            // When rows were skipped, keep it open so user can read the diagnostics panel.
+            if (result.skipped === 0) {
+                setTimeout(() => {
+                    if (importResult) {
+                        showUploadModal = false;
+                        resetPreview();
+                        importResult = null;
+                    }
+                }, 2500);
+            }
 
         } catch (e) {
             console.error('Upload Error:', e);
@@ -470,9 +481,41 @@
                                 </div>
                             {/if}
                         </div>
-                        <p class="mt-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-80 animate-pulse">Closing session...</p>
+                        <p class="mt-6 text-[10px] font-black uppercase tracking-[0.2em] opacity-80 {importResult.skipped > 0 ? '' : 'animate-pulse'}">{importResult.skipped > 0 ? 'See diagnostics below' : 'Closing session...'}</p>
                     </div>
                 </div>
+
+                {#if importResult.diagnostics}
+                    <div class="mt-6 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-2xl p-6 text-sm">
+                        <h5 class="font-black uppercase tracking-widest text-xs text-amber-900 dark:text-amber-200 mb-3">Why rows were skipped</h5>
+
+                        <div class="mb-4">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 mb-1">Headers the parser saw in your file</p>
+                            <div class="flex flex-wrap gap-1">
+                                {#each importResult.diagnostics.detectedHeaders as h}
+                                    <span class="px-2 py-0.5 bg-white dark:bg-slate-900 rounded text-[11px] font-mono text-zinc-700 dark:text-zinc-300 border border-amber-200 dark:border-amber-800">{h}</span>
+                                {/each}
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 mb-2">First skipped rows</p>
+                            <div class="space-y-2">
+                                {#each importResult.diagnostics.firstSkipped as s, i}
+                                    <div class="bg-white dark:bg-slate-900 rounded-lg p-3 border border-amber-100 dark:border-amber-900/50">
+                                        <p class="text-[11px] font-bold text-red-700 dark:text-red-300 mb-1">Row {i + 1}: {s.reason}</p>
+                                        <ul class="text-[11px] text-zinc-600 dark:text-zinc-400 space-y-0.5 font-mono">
+                                            <li>name: {s.detected.name || '(not detected — no column matched name aliases)'}</li>
+                                            <li>email: {s.detected.email || '(not detected — no column matched email aliases AND no parent email fallback found)'}</li>
+                                            <li>id: {s.detected.id || '(not detected)'}</li>
+                                        </ul>
+                                    </div>
+                                {/each}
+                            </div>
+                            <p class="mt-3 text-[10px] text-amber-800 dark:text-amber-300">Tip: rename your email column to "Student Email", "Email", "Personal Mail Id", or "NIAT Mail Id"; rename your name column to "Student Name" or "Name". Or include a "Father's Email" / "Mother's Email" — it will be used as a fallback.</p>
+                        </div>
+                    </div>
+                {/if}
             </div>
         {/if}
 
