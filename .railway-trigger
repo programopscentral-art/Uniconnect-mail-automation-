@@ -1,10 +1,7 @@
-DEPLOYMENT_TRIGGER_V53
-Timestamp: 2026-05-28T12:45:00+05:30
-Commit: be6ae1f (fee-collection v2 fixes)
-Status: Force rebuild — Phase 7A.7 + tab discovery + sheet-first setup + registration_date column
+DEPLOYMENT_TRIGGER_V54
+Timestamp: 2026-05-28T13:15:00+05:30
+Status: Force rebuild — fix Payable=0 bug from duplicate sheet columns
 Changes:
-  - fix(fee-collection): add fee_student_payments.registration_date column (migration 0098)
-  - fix(fee-collection): tab discovery now matches Google Sheets htmlview format
-  - feat(fee-collection): sheet-first setup modal — paste link, batches auto-fill
-  - feat(fee-collection): auto-discover batch sub-sheets from sheet ID
-  - fix(students): surface why rows are skipped on CSV import
+  - fetchSheetTab now dedups duplicate column headers (suffix __2, __3)
+  - pickValue searches all variants, returns first NON-EMPTY match
+  - sync now computes & writes pending = payable - paid

@@ -88,8 +88,19 @@ function pickValue(row: Record<string, unknown>, candidates: string[]): unknown 
     const keys = Object.keys(row);
     for (const c of candidates) {
         const ck = norm(c);
-        const hit = keys.find(k => norm(k) === ck);
-        if (hit !== undefined) return row[hit];
+        // Look at ALL keys whose base name (with any `__N` duplicate suffix
+        // stripped) matches the candidate, and return the first NON-EMPTY
+        // value. fetchSheetTab suffixes duplicate column headers as
+        // `header__2`, `header__3`, etc. so a sheet with two columns named
+        // "Total Term  Fee Payabale" where the second is empty still gives
+        // us the first column's data.
+        for (const k of keys) {
+            const base = k.replace(/__\d+$/, '');
+            if (norm(base) !== ck) continue;
+            const v = row[k];
+            if (v === null || v === undefined || v === '') continue;
+            return v;
+        }
     }
     return null;
 }
@@ -227,6 +238,11 @@ async function syncBatchSubsheet(
         const current_term_discount = toNum(pickValue(r, ['Current Term Discount']));
         const payable = toNum(pickValue(r, ['Total Term Fee Payable', 'Total Term Fee Payabale']));
         const paid = toNum(pickValue(r, ['Total Term Fee Paid']));
+        // Pending: prefer the sheet's own "(Payable - Paid)" column if
+        // present (so any sheet-level adjustments flow through), else
+        // compute it. Never let it go negative.
+        const pendingFromSheet = toNum(pickValue(r, ['Total Term Fee (Payable - Paid)', 'Total Term Fee (Payable - Paid', 'Total Term Fee Pending', 'Pending']));
+        const pending = pendingFromSheet > 0 ? pendingFromSheet : Math.max(0, payable - paid);
         const status_raw = String(pickValue(r, ['Payment Status']) ?? '').trim() || 'Yet To Pay';
         const registration_date_raw = pickValue(r, ['registration date', 'Registration Date']);
         const registration_date = parseLooseDate(registration_date_raw);
@@ -237,16 +253,17 @@ async function syncBatchSubsheet(
         await db.query(
             `INSERT INTO fee_student_payments
                 (batch_period_id, university_id, zoho_user_id, student_name,
-                 payable, paid, previous_fee_due, current_term_discount,
+                 payable, paid, pending, previous_fee_due, current_term_discount,
                  status, registration_status, registration_date, tag_case,
                  success_coach_name, imported_at, updated_at)
-             VALUES ($1,$2,$3,$4, $5,$6,$7,$8, $9,$10,$11,$12, $13, now(), now())
+             VALUES ($1,$2,$3,$4, $5,$6,$7,$8,$9, $10,$11,$12,$13, $14, now(), now())
              ON CONFLICT (batch_period_id, zoho_user_id) WHERE batch_period_id IS NOT NULL
              DO UPDATE SET
                 university_id        = EXCLUDED.university_id,
                 student_name         = COALESCE(NULLIF(EXCLUDED.student_name, ''), fee_student_payments.student_name),
                 payable              = EXCLUDED.payable,
                 paid                 = EXCLUDED.paid,
+                pending              = EXCLUDED.pending,
                 previous_fee_due     = EXCLUDED.previous_fee_due,
                 current_term_discount = EXCLUDED.current_term_discount,
                 status               = EXCLUDED.status,
@@ -258,7 +275,7 @@ async function syncBatchSubsheet(
                 updated_at           = now()`,
             [
                 bp.id, university_id, zoho_user_id, student_name,
-                payable, paid, previous_fee_due, current_term_discount,
+                payable, paid, pending, previous_fee_due, current_term_discount,
                 status_raw, registration_status, registration_date, tag_case,
                 success_coach_name,
             ],

@@ -719,9 +719,20 @@ export async function fetchSheetTab(sheetId: string, tabName: string): Promise<S
 
         return dataRows.map((row: any) => {
             const o: SheetRow = {};
+            // Some sheets have the same header name appearing in multiple
+            // columns (e.g. a Sem-3 sheet had "Total Term  Fee Payabale" at
+            // both col 5 and col 14, with col 14 empty). Without dedup the
+            // second assignment overwrites the first, wiping out the real
+            // data. Suffix duplicates with __2, __3 ... so EVERY column's
+            // value is preserved; pickValue() in the consumer side handles
+            // selecting the first non-empty match across all variants.
+            const seen = new Map<string, number>();
             cols.forEach((c: string, i: number) => {
                 const cell = row.c[i];
-                if (!cell) { o[c] = ''; return; }
+                const count = (seen.get(c) ?? 0) + 1;
+                seen.set(c, count);
+                const key = count === 1 ? c : `${c}__${count}`;
+                if (!cell) { o[key] = ''; return; }
                 // For date-shaped cells the .v is "Date(Y,M,D...)" with 0-indexed
                 // month, but .f is the human-displayed string (e.g. "12/01/2026"
                 // typed in Indian DD/MM by the user but stored as Dec 1 because
@@ -730,9 +741,9 @@ export async function fetchSheetTab(sheetId: string, tabName: string): Promise<S
                 const v = cell.v ?? '';
                 const f = cell.f ?? '';
                 if (typeof v === 'string' && v.startsWith('Date(') && f) {
-                    o[c] = `${v}||${f}`;
+                    o[key] = `${v}||${f}`;
                 } else {
-                    o[c] = v !== '' ? v : f;
+                    o[key] = v !== '' ? v : f;
                 }
             });
             return o;
