@@ -1,6 +1,10 @@
-DEPLOYMENT_TRIGGER_V55
-Timestamp: 2026-05-28T13:20:00+05:30
-Status: Force rebuild — pending is GENERATED, don't write to it
+DEPLOYMENT_TRIGGER_V56
+Timestamp: 2026-05-28T13:40:00+05:30
+Status: Force rebuild — fee-collection-v2 UX restructure
 Changes:
-  - Drop pending from INSERT/UPDATE; Postgres computes it from payable-paid
-  - Duplicate-column dedup + first-non-empty pickValue still in place
+  - Top nav: Overview | one chip per batch | Custom (replaces tab list)
+  - Batch view: clear "Batch YYYY · Semester N" header, totals card,
+    university-wise breakdown table, click row to filter students
+  - ⚙ Settings drawer per batch (sub-sheet name, sheet link, sync info)
+  - Custom tab: multi-select batches → combined totals + per-batch table
+  - Dropped redundant "Batch + University" tab (rolled into batch view)

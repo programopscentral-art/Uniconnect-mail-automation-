@@ -29,7 +29,7 @@
     userIsAdmin: boolean;
   } }>();
 
-  type Tab = 'overview' | 'batch' | 'batch_uni';
+  type Tab = 'overview' | 'batch' | 'custom';
   let tab = $state<Tab>('overview');
   let selectedBatchId = $state<string>('');
   let selectedUniversityId = $state<string>('');
@@ -38,6 +38,17 @@
   let studentSearch = $state('');
   let statusFilter = $state('');
   let tagFilter = $state('');
+
+  // Per-batch settings drawer
+  let showBatchSettings = $state(false);
+
+  // Custom tab — multi-select batches to combine
+  let customSelected = $state<Set<string>>(new Set());
+  function toggleCustom(id: string) {
+    const next = new Set(customSelected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    customSelected = next;
+  }
 
   // Setup modal
   let showSetup = $state(false);
@@ -208,7 +219,7 @@
   $effect(() => {
     // Re-load whenever filters or batch change
     selectedBatchId; selectedUniversityId; statusFilter; tagFilter;
-    if (tab === 'batch' || tab === 'batch_uni') loadStudents();
+    if (tab === 'batch') loadStudents();
   });
 
   async function setTagCase(studentId: string, newTag: string | null) {
@@ -238,10 +249,52 @@
   });
 
   let activeBatch = $derived(data.batches.find(b => b.id === selectedBatchId) || null);
+  let activeBatchPerBatch = $derived(data.overview?.per_batch?.find(b => b.id === selectedBatchId) || null);
 
-  // Auto-pick the first batch when switching to Batch / Batch+Uni tabs
+  // Per-batch + per-university breakdown — grouped from loaded students
+  let universityBreakdown = $derived.by(() => {
+    type Row = { university_id: string; university_name: string; total: number; fully: number; partial: number; yet: number; payable: number; paid: number; };
+    const map = new Map<string, Row>();
+    for (const s of students) {
+      const id = s.university_id || 'unknown';
+      const r = map.get(id) || { university_id: id, university_name: s.university_name || '—', total: 0, fully: 0, partial: 0, yet: 0, payable: 0, paid: 0 };
+      r.total++;
+      if (s.status === 'Fully Paid') r.fully++;
+      else if (s.status === 'Partially Paid') r.partial++;
+      else r.yet++;
+      r.payable += Number(s.payable || 0);
+      r.paid += Number(s.paid || 0);
+      map.set(id, r);
+    }
+    return Array.from(map.values()).sort((a, b) => b.payable - a.payable);
+  });
+
+  // Aggregated totals across the user's currently-selected batches (Custom tab)
+  let customTotals = $derived.by(() => {
+    if (!data.overview) return null;
+    const rows = data.overview.per_batch.filter(b => customSelected.has(b.id));
+    if (rows.length === 0) return null;
+    return rows.reduce((acc, r) => ({
+      students: acc.students + Number(r.total),
+      fully_paid: acc.fully_paid + Number(r.fully_paid),
+      partial: acc.partial + Number(r.partial),
+      yet_to_pay: acc.yet_to_pay + Number(r.yet_to_pay),
+      dropouts: acc.dropouts + Number(r.dropouts),
+      total_payable: acc.total_payable + Number(r.total_payable),
+      total_paid: acc.total_paid + Number(r.total_paid),
+      batches: acc.batches + 1,
+    }), { students: 0, fully_paid: 0, partial: 0, yet_to_pay: 0, dropouts: 0, total_payable: 0, total_paid: 0, batches: 0 });
+  });
+
+  function selectBatch(id: string) {
+    selectedBatchId = id;
+    selectedUniversityId = '';
+    tab = 'batch';
+  }
+
+  // Auto-pick the first batch when switching to Batch tab without a selection
   $effect(() => {
-    if ((tab === 'batch' || tab === 'batch_uni') && !selectedBatchId && data.batches.length > 0) {
+    if (tab === 'batch' && !selectedBatchId && data.batches.length > 0) {
       selectedBatchId = data.batches[0].id;
     }
   });
@@ -312,15 +365,36 @@
       </div>
     {:else}
 
-      <!-- Tabs -->
-      <div class="mb-4 inline-flex rounded-lg border border-zinc-800 bg-zinc-900 p-1">
-        {#each [{k: 'overview', l: 'Overview'}, {k: 'batch', l: 'Batch'}, {k: 'batch_uni', l: 'Batch + University'}] as t}
+      <!-- Top nav: Overview | one chip per batch | Custom -->
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <button
+          class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors border
+                 {tab === 'overview' ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
+          onclick={() => { tab = 'overview'; }}
+        >Overview</button>
+
+        {#each data.batches as b}
           <button
-            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors
-                   {tab === t.k ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-200'}"
-            onclick={() => { tab = t.k as Tab; }}
-          >{t.l}</button>
+            class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors border
+                   {tab === 'batch' && selectedBatchId === b.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
+            onclick={() => selectBatch(b.id)}
+            title={b.subsheet_name}
+          >
+            NIAT Batch {b.batch_start_year}
+            <span class="ml-1 text-[10px] opacity-70">· Sem {b.semester_number}</span>
+            {#if b.student_count > 0}
+              <span class="ml-1 text-[10px] opacity-60">({b.student_count})</span>
+            {/if}
+          </button>
         {/each}
+
+        {#if data.batches.length > 1}
+          <button
+            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors border
+                   {tab === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
+            onclick={() => { tab = 'custom'; }}
+          >Custom</button>
+        {/if}
       </div>
 
       {#if tab === 'overview' && data.overview}
@@ -488,22 +562,80 @@
         </section>
         {/if}
 
-      {:else if tab === 'batch' || tab === 'batch_uni'}
-        <!-- Batch picker + filters -->
-        <div class="mb-3 flex flex-wrap items-end gap-3">
-          <div>
-            <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500">Batch</label>
-            <select class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={selectedBatchId}>
-              {#each data.batches as b (b.id)}
-                <option value={b.id}>{b.display_name}</option>
-              {/each}
-            </select>
+      {:else if tab === 'batch' && activeBatch}
+        <!-- Batch header card: clearly labels which batch + semester we're viewing -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Viewing batch</div>
+              <div class="mt-1 text-xl font-semibold">
+                NIAT Batch {activeBatch.batch_start_year}
+                <span class="ml-2 text-zinc-400 text-base font-normal">· Semester {activeBatch.semester_number}</span>
+              </div>
+              <div class="mt-1 text-xs text-zinc-500">Source sub-sheet: <span class="font-mono text-zinc-300">{activeBatch.subsheet_name}</span> · {activeBatch.student_count} students synced</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" onclick={() => showBatchSettings = true} title="Per-batch settings">⚙ Settings</button>
+            </div>
           </div>
-          {#if tab === 'batch_uni'}
+          {#if activeBatchPerBatch}
+            <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students</div><div class="mt-1 text-xl font-semibold tabular-nums">{activeBatchPerBatch.total}</div></div>
+              <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div><div class="mt-1 text-xl font-semibold tabular-nums text-emerald-200">{activeBatchPerBatch.fully_paid}</div></div>
+              <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partial</div><div class="mt-1 text-xl font-semibold tabular-nums text-amber-200">{activeBatchPerBatch.partial}</div></div>
+              <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-xl font-semibold tabular-nums text-red-200">{activeBatchPerBatch.yet_to_pay}</div></div>
+              <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div><div class="mt-1 text-xl font-semibold tabular-nums text-zinc-300">{activeBatchPerBatch.dropouts}</div></div>
+              <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div><div class="mt-1 text-xl font-semibold tabular-nums text-blue-200">{fmtMoney(Number(activeBatchPerBatch.total_paid))}</div><div class="text-[11px] text-blue-300/80">of {fmtMoney(Number(activeBatchPerBatch.total_payable))}</div></div>
+              <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div><div class="mt-1 text-xl font-semibold tabular-nums text-emerald-200">{fmtPct(Number(activeBatchPerBatch.total_paid), Number(activeBatchPerBatch.total_payable))}</div></div>
+            </div>
+          {/if}
+        </section>
+
+        <!-- University-wise breakdown for this batch -->
+        {#if universityBreakdown.length > 0 && !selectedUniversityId}
+          <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">University-wise (within this batch · semester {activeBatch.semester_number})</div>
+              <div class="text-sm font-semibold">Click a row to filter the student list to that university</div>
+            </header>
+            <table class="w-full text-sm">
+              <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                <tr>
+                  <th class="px-3 py-2.5 text-left font-medium">University</th>
+                  <th class="px-3 py-2.5 text-right font-medium">Students</th>
+                  <th class="px-3 py-2.5 text-right font-medium text-emerald-400">Fully</th>
+                  <th class="px-3 py-2.5 text-right font-medium text-amber-400">Partial</th>
+                  <th class="px-3 py-2.5 text-right font-medium text-red-400">Yet</th>
+                  <th class="px-3 py-2.5 text-right font-medium">Payable</th>
+                  <th class="px-3 py-2.5 text-right font-medium">Collected</th>
+                  <th class="px-3 py-2.5 text-right font-medium">Coll %</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800">
+                {#each universityBreakdown as u}
+                  <tr class="cursor-pointer hover:bg-zinc-800/40" onclick={() => { selectedUniversityId = u.university_id; }}>
+                    <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{u.total}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300">{u.fully}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-amber-300">{u.partial}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{u.yet}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(u.payable)}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(u.paid)}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtPct(u.paid, u.payable)}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </section>
+        {/if}
+
+        <!-- Filters + student list -->
+        <div class="mb-3 flex flex-wrap items-end gap-3">
+          {#if selectedUniversityId}
             <div>
               <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500">University</label>
               <select class="mt-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={selectedUniversityId}>
-                <option value="">All</option>
+                <option value="">All universities</option>
                 {#each universitiesInBatch as u (u.id)}
                   <option value={u.id}>{u.name}</option>
                 {/each}
@@ -588,10 +720,124 @@
             </table>
           </div>
         {/if}
+
+      {:else if tab === 'custom'}
+        <!-- Custom: multi-select batches and see combined totals -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Custom view</div>
+          <div class="mt-1 text-sm font-semibold">Pick the batches you want to combine</div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {#each data.batches as b}
+              <label class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors
+                            {customSelected.has(b.id) ? 'bg-blue-900/40 border-blue-700 text-blue-100' : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-800'}">
+                <input type="checkbox" checked={customSelected.has(b.id)} onchange={() => toggleCustom(b.id)} class="accent-blue-500" />
+                NIAT Batch {b.batch_start_year} · Sem {b.semester_number}
+              </label>
+            {/each}
+          </div>
+          {#if customSelected.size === 0}
+            <div class="mt-3 text-[11px] text-zinc-500">Select two or more batches above to see combined totals.</div>
+          {/if}
+        </section>
+
+        {#if customTotals}
+          <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Batches</div><div class="mt-1 text-2xl font-semibold tabular-nums">{customTotals.batches}</div></div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students</div><div class="mt-1 text-2xl font-semibold tabular-nums">{customTotals.students}</div></div>
+            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{customTotals.fully_paid}</div></div>
+            <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partial</div><div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{customTotals.partial}</div></div>
+            <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{customTotals.yet_to_pay}</div></div>
+            <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div><div class="mt-1 text-2xl font-semibold tabular-nums text-blue-200">{fmtMoney(customTotals.total_paid)}</div><div class="text-[11px] text-blue-300/80">of {fmtMoney(customTotals.total_payable)}</div></div>
+            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{fmtPct(customTotals.total_paid, customTotals.total_payable)}</div></div>
+          </div>
+
+          <section class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Per batch</div>
+              <div class="text-sm font-semibold">Selected batches breakdown</div>
+            </header>
+            <table class="w-full text-sm">
+              <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                <tr>
+                  <th class="px-3 py-2.5 text-left">Batch · Semester</th>
+                  <th class="px-3 py-2.5 text-right">Students</th>
+                  <th class="px-3 py-2.5 text-right text-emerald-400">Fully</th>
+                  <th class="px-3 py-2.5 text-right text-amber-400">Partial</th>
+                  <th class="px-3 py-2.5 text-right text-red-400">Yet</th>
+                  <th class="px-3 py-2.5 text-right">Payable</th>
+                  <th class="px-3 py-2.5 text-right">Collected</th>
+                  <th class="px-3 py-2.5 text-right">Coll %</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-zinc-800">
+                {#each (data.overview?.per_batch || []).filter(b => customSelected.has(b.id)) as b}
+                  <tr class="cursor-pointer hover:bg-zinc-800/40" onclick={() => selectBatch(b.id)}>
+                    <td class="px-3 py-2.5 font-medium">{b.display_name}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{b.total}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300">{b.fully_paid}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-amber-300">{b.partial}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{b.yet_to_pay}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(Number(b.total_payable))}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(Number(b.total_paid))}</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtPct(Number(b.total_paid), Number(b.total_payable))}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </section>
+        {/if}
       {/if}
     {/if}
   </div>
 </div>
+
+<!-- Per-batch settings drawer -->
+{#if showBatchSettings && activeBatch && data.activeWindow}
+  <div class="fixed inset-0 z-50 flex items-stretch justify-end bg-black/60 backdrop-blur-sm" onclick={() => showBatchSettings = false} role="presentation">
+    <aside class="w-full max-w-md border-l border-zinc-800 bg-zinc-900 p-6 overflow-y-auto" onclick={(e) => e.stopPropagation()} role="dialog">
+      <div class="mb-4 flex items-start justify-between">
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Batch settings</div>
+          <div class="mt-1 text-lg font-semibold">NIAT Batch {activeBatch.batch_start_year} · Semester {activeBatch.semester_number}</div>
+        </div>
+        <button class="text-zinc-400 hover:text-zinc-100" onclick={() => showBatchSettings = false}>✕</button>
+      </div>
+
+      <div class="space-y-3 text-sm">
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Display name</div>
+          <div class="mt-1 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">{activeBatch.display_name}</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Linked sub-sheet</div>
+          <div class="mt-1 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono">{activeBatch.subsheet_name}</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students synced</div>
+          <div class="mt-1 text-sm">{activeBatch.student_count}</div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Source sheet</div>
+          <a href={`https://docs.google.com/spreadsheets/d/${data.activeWindow.sheet_id}/edit`} target="_blank" rel="noopener" class="mt-1 inline-block text-sm text-blue-300 hover:underline">Open Google Sheet ↗</a>
+        </div>
+        {#if data.activeWindow.last_synced_at}
+          <div>
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Window last synced</div>
+            <div class="mt-1 text-sm text-zinc-300">{new Date(data.activeWindow.last_synced_at).toLocaleString()}</div>
+          </div>
+        {/if}
+
+        {#if data.userIsAdmin}
+          <div class="border-t border-zinc-800 pt-3">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Window-level settings</div>
+            <p class="mt-1 text-[11px] text-zinc-500">Batch display names and the linked sheet are inherited from the window. To rename or change the sheet, edit the window.</p>
+            <button class="mt-2 rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" onclick={() => { showBatchSettings = false; openEditSetup(data.activeWindow!); }}>Edit window setup</button>
+          </div>
+        {/if}
+      </div>
+    </aside>
+  </div>
+{/if}
 
 <!-- Toast -->
 {#if toast}
