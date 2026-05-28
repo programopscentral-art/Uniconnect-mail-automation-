@@ -1,5 +1,10 @@
-DEPLOYMENT_TRIGGER_V52
-Timestamp: 2026-03-27T12:00:00+05:30
-Commit: 8ab4bf6 (Security overhaul)
-Status: Force rebuild — PII encryption, signed doc URLs, PIN verification, audit dashboard
-Changes: Comprehensive security overhaul with 7 phases deployed
+DEPLOYMENT_TRIGGER_V53
+Timestamp: 2026-05-28T12:45:00+05:30
+Commit: be6ae1f (fee-collection v2 fixes)
+Status: Force rebuild — Phase 7A.7 + tab discovery + sheet-first setup + registration_date column
+Changes:
+  - fix(fee-collection): add fee_student_payments.registration_date column (migration 0098)
+  - fix(fee-collection): tab discovery now matches Google Sheets htmlview format
+  - feat(fee-collection): sheet-first setup modal — paste link, batches auto-fill
+  - feat(fee-collection): auto-discover batch sub-sheets from sheet ID
+  - fix(students): surface why rows are skipped on CSV import
