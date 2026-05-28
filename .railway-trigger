@@ -1,7 +1,6 @@
-DEPLOYMENT_TRIGGER_V54
-Timestamp: 2026-05-28T13:15:00+05:30
-Status: Force rebuild — fix Payable=0 bug from duplicate sheet columns
+DEPLOYMENT_TRIGGER_V55
+Timestamp: 2026-05-28T13:20:00+05:30
+Status: Force rebuild — pending is GENERATED, don't write to it
 Changes:
-  - fetchSheetTab now dedups duplicate column headers (suffix __2, __3)
-  - pickValue searches all variants, returns first NON-EMPTY match
-  - sync now computes & writes pending = payable - paid
+  - Drop pending from INSERT/UPDATE; Postgres computes it from payable-paid
+  - Duplicate-column dedup + first-non-empty pickValue still in place
