@@ -56,6 +56,7 @@
   let discoveryLoading = $state(false);
   let discoveryError = $state<string | null>(null);
   let discoveryDebounce: ReturnType<typeof setTimeout> | null = null;
+  let showAdvanced = $state(false);
 
   function extractSheetId(raw: string): string {
     const s = raw.trim();
@@ -152,6 +153,7 @@
     setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', auto_sync_enabled: true, auto_sync_interval_minutes: 30 };
     setupError = null; showSetup = true;
     discovery = null; discoveryError = null; discoveryLoading = false;
+    showAdvanced = false;
   }
   function openEditSetup(w: Window) {
     setupForm = {
@@ -161,9 +163,17 @@
       auto_sync_enabled: w.auto_sync_enabled, auto_sync_interval_minutes: w.auto_sync_interval_minutes,
     };
     setupError = null; showSetup = true;
+    discovery = null; discoveryError = null; discoveryLoading = false;
+    showAdvanced = true; // edit flow: surface the existing values
   }
   async function saveSetup() {
-    if (!setupForm.name || !setupForm.sheet_id) { setupError = 'Name and sheet_id required'; return; }
+    if (!setupForm.sheet_id) { setupError = 'Paste the Google Sheet link or ID first'; return; }
+    // Auto-name if user didn't bother — applyDiscovery already sets a suggested
+    // name when batches are found, so this only fires when the sheet had no
+    // recognizable batch tabs (rare).
+    if (!setupForm.name.trim()) {
+      setupForm.name = `Fee window · ${new Date().toISOString().slice(0, 10)}`;
+    }
     savingSetup = true; setupError = null;
     try {
       const url = setupForm.id ? `/api/fees2/windows/${setupForm.id}` : '/api/fees2/windows';
@@ -602,85 +612,94 @@
         </div>
         <button class="text-zinc-400 hover:text-zinc-100" onclick={() => showSetup = false}>✕</button>
       </div>
-      <div class="space-y-3">
+      <div class="space-y-4">
+        <!-- PRIMARY: sheet ID / URL — this is all the user usually needs to fill -->
         <div>
-          <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-name">Name</label>
-          <input id="setup-name" type="text" placeholder="e.g. NIAT Mar–Aug 2026 window" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.name} />
+          <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-sheet">Google Sheet link or ID</label>
+          <input id="setup-sheet" type="text" placeholder="paste the Google Sheet link or ID — batches will be detected automatically" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2.5 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.sheet_id} oninput={onSheetIdInput} />
+          <div class="mt-1 text-[10px] text-zinc-500">The sheet must be shared as "Anyone with the link → Viewer".</div>
         </div>
-        <div>
-          <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-sheet">Google Sheet ID</label>
-          <input id="setup-sheet" type="text" placeholder="paste the sheet URL or just the ID" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.sheet_id} oninput={onSheetIdInput} />
-          <div class="mt-1 text-[10px] text-zinc-500">From the sheet URL: docs.google.com/spreadsheets/d/<strong class="text-blue-300">SHEET_ID</strong>/edit · Share as "Anyone with the link → Viewer".</div>
 
-          {#if discoveryLoading}
-            <div class="mt-2 text-[11px] text-zinc-400">Scanning sheet for batches…</div>
-          {/if}
-          {#if discoveryError}
-            <div class="mt-2 rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-200">{discoveryError} — you can still type the sub-sheet names manually below.</div>
-          {/if}
-          {#if discovery && !discoveryLoading}
-            <div class="mt-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-[11px] text-zinc-300">
-              <div class="flex items-center justify-between">
-                <span class="font-semibold text-zinc-200">Found {discovery.batches.length} batch tab{discovery.batches.length === 1 ? '' : 's'} <span class="text-zinc-500">· {discovery.total_tabs} total tabs in sheet</span></span>
-                {#if discovery.batches.length > 0}
-                  <button type="button" class="rounded-md border border-blue-700 bg-blue-900/40 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-900/60" onclick={applyDiscovery}>Use these ↓</button>
-                {/if}
-              </div>
-              {#if discovery.batches.length > 0}
-                <ul class="mt-2 space-y-1">
-                  {#each discovery.batches as b}
-                    <li class="flex items-center justify-between font-mono">
-                      <span>{b.name}</span>
-                      {#if b.existing_windows > 0}
-                        <span class="text-[10px] text-emerald-300">already tracked in {b.existing_windows} prior window{b.existing_windows === 1 ? '' : 's'} — will continue</span>
-                      {:else}
-                        <span class="text-[10px] text-zinc-500">new batch</span>
-                      {/if}
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-              {#if discovery.dates_tab || discovery.dropout_tab}
-                <div class="mt-2 flex gap-3 text-[10px] text-zinc-400">
-                  {#if discovery.dates_tab}<span>dates: <span class="font-mono text-zinc-200">{discovery.dates_tab}</span></span>{/if}
-                  {#if discovery.dropout_tab}<span>dropout: <span class="font-mono text-zinc-200">{discovery.dropout_tab}</span></span>{/if}
-                </div>
-              {/if}
-              {#if discovery.batches.length === 0}
-                <div class="mt-1 text-[10px] text-amber-300">No tabs named like <code>YYYY-Semester N</code> were found. Type them manually below if the sheet uses a different naming pattern.</div>
-              {/if}
+        {#if discoveryLoading}
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-[11px] text-zinc-400">Scanning sheet for batches…</div>
+        {/if}
+        {#if discoveryError}
+          <div class="rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-200">{discoveryError}</div>
+        {/if}
+
+        {#if discovery && !discoveryLoading}
+          <div class="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-3 text-[12px] text-zinc-300">
+            <div class="font-semibold text-zinc-100">
+              {discovery.batches.length === 0
+                ? 'No batch tabs found in this sheet'
+                : `Detected ${discovery.batches.length} batch${discovery.batches.length === 1 ? '' : 'es'} from the sheet`}
             </div>
-          {/if}
-        </div>
-        <div>
-          <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-batch-subs">Batch sub-sheets (one per line, format <code>YYYY-Semester N</code>)</label>
-          <textarea id="setup-batch-subs" rows="4" placeholder={'2024-Semester 5\n2023-Semester 6\n2025-Semester 3'} class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.batch_subsheets}></textarea>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dates">Dates sub-sheet name</label>
-            <input id="setup-dates" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dates_subsheet} />
+            {#if discovery.batches.length > 0}
+              <ul class="mt-2 space-y-1">
+                {#each discovery.batches as b}
+                  <li class="flex items-center justify-between font-mono text-[11px]">
+                    <span class="text-zinc-200">{b.name}</span>
+                    {#if b.existing_windows > 0}
+                      <span class="text-[10px] text-emerald-300">continuing — already tracked in {b.existing_windows} prior window{b.existing_windows === 1 ? '' : 's'}</span>
+                    {:else}
+                      <span class="text-[10px] text-zinc-500">new batch</span>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              <div class="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-zinc-500">
+                <span>dates sub-sheet: <span class="font-mono text-zinc-300">{discovery.dates_tab || setupForm.dates_subsheet}</span></span>
+                <span>dropout sub-sheet: <span class="font-mono text-zinc-300">{discovery.dropout_tab || setupForm.dropout_subsheet}</span></span>
+              </div>
+            {/if}
           </div>
+
+          <!-- Auto-suggested name — editable inline -->
           <div>
-            <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dropout">Dropout sub-sheet name</label>
-            <input id="setup-dropout" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dropout_subsheet} />
+            <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-name">Window name <span class="text-zinc-600 normal-case tracking-normal">(auto-suggested, edit if you want)</span></label>
+            <input id="setup-name" type="text" placeholder="e.g. NIAT Semester 5 · 2026" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.name} />
           </div>
-        </div>
-        <label class="flex items-center gap-2 text-xs text-zinc-200">
-          <input type="checkbox" bind:checked={setupForm.auto_sync_enabled} class="accent-blue-500" />
-          Auto-sync every
-          <select class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs" bind:value={setupForm.auto_sync_interval_minutes}>
-            <option value={15}>15 minutes</option>
-            <option value={30}>30 minutes (recommended)</option>
-            <option value={60}>1 hour</option>
-          </select>
-        </label>
+        {/if}
+
+        <!-- Advanced — only visible when the user opts in -->
+        <button type="button" class="text-[10px] uppercase tracking-[0.18em] text-zinc-500 hover:text-zinc-300" onclick={() => showAdvanced = !showAdvanced}>
+          {showAdvanced ? '▾' : '▸'} Advanced options
+        </button>
+
+        {#if showAdvanced}
+          <div class="space-y-3 rounded-lg border border-zinc-800 bg-zinc-950/40 p-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-batch-subs">Batch sub-sheets (one per line)</label>
+              <textarea id="setup-batch-subs" rows="3" placeholder="auto-filled from sheet — override only if you want to limit which batches are synced" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.batch_subsheets}></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dates">Dates sub-sheet name</label>
+                <input id="setup-dates" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dates_subsheet} />
+              </div>
+              <div>
+                <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-dropout">Dropout sub-sheet name</label>
+                <input id="setup-dropout" type="text" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={setupForm.dropout_subsheet} />
+              </div>
+            </div>
+            <label class="flex items-center gap-2 text-xs text-zinc-200">
+              <input type="checkbox" bind:checked={setupForm.auto_sync_enabled} class="accent-blue-500" />
+              Auto-sync every
+              <select class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs" bind:value={setupForm.auto_sync_interval_minutes}>
+                <option value={15}>15 minutes</option>
+                <option value={30}>30 minutes (recommended)</option>
+                <option value={60}>1 hour</option>
+              </select>
+            </label>
+          </div>
+        {/if}
+
         {#if setupError}
           <div class="rounded-lg border border-red-800 bg-red-950/40 px-3 py-2 text-xs text-red-200">{setupError}</div>
         {/if}
         <div class="flex justify-end gap-2 pt-2">
           <button class="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800" onclick={() => showSetup = false}>Cancel</button>
-          <button class="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:bg-zinc-700" disabled={savingSetup} onclick={saveSetup}>{savingSetup ? 'Saving…' : (setupForm.id ? 'Save changes' : 'Create window')}</button>
+          <button class="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:bg-zinc-700" disabled={savingSetup || (!setupForm.id && !setupForm.sheet_id)} onclick={saveSetup}>{savingSetup ? 'Saving…' : (setupForm.id ? 'Save changes' : 'Create window')}</button>
         </div>
       </div>
     </div>
