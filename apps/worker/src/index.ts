@@ -457,4 +457,9 @@ meetingWorker.on('failed', (job, err) => {
 import { registerOpsOsWorkers } from './ops_os';
 registerOpsOsWorkers();
 
-console.log('✅ Worker with robust notifications, BullMQ sync, meeting intelligence, and ops_os scaffolding started.');
+// ─── Fee Collection v2 workers ──
+import { startFeeV2AutoSyncLoop, startFeeV2SnapshotLoop } from './fee_v2_workers';
+startFeeV2AutoSyncLoop();
+startFeeV2SnapshotLoop();
+
+console.log('✅ Worker with robust notifications, BullMQ sync, meeting intelligence, ops_os scaffolding, and fee v2 loops started.');

@@ -1,9 +1,14 @@
 import { getAllUniversities, getFeePeriods, getActiveFeePeriod, createFeePeriod } from '@uniconnect/shared';
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async ({ locals }) => {
     if (!locals.user) throw error(401);
+
+    // Phase 7A.6 — redirect to the v2 page. The legacy page + tables remain
+    // in the DB and codebase for read-only reference; this load just sends
+    // anyone hitting /fee-collection to /fee-collection-v2 instead.
+    throw redirect(302, '/fee-collection-v2');
 
     // Permission check: ADMIN/PROGRAM_OPS always allowed; others need 'fee-collection' permission
     const role = locals.user.role as string;
