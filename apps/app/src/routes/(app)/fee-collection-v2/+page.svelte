@@ -49,6 +49,64 @@
   let savingSetup = $state(false);
   let setupError = $state<string | null>(null);
 
+  // Tab-discovery state for the sheet-ID input
+  type DiscoveredBatch = { name: string; gid: string; batch_start_year: number; semester_number: number; existing_windows: number };
+  type Discovery = { total_tabs: number; batches: DiscoveredBatch[]; dates_tab: string | null; dropout_tab: string | null };
+  let discovery = $state<Discovery | null>(null);
+  let discoveryLoading = $state(false);
+  let discoveryError = $state<string | null>(null);
+  let discoveryDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  function extractSheetId(raw: string): string {
+    const s = raw.trim();
+    // Already an ID (alphanum + -_)
+    if (/^[A-Za-z0-9_-]{20,}$/.test(s)) return s;
+    // Pasted full URL: docs.google.com/spreadsheets/d/<ID>/edit...
+    const m = s.match(/\/spreadsheets\/d\/([A-Za-z0-9_-]+)/);
+    return m ? m[1] : s;
+  }
+
+  async function runDiscovery() {
+    const id = extractSheetId(setupForm.sheet_id);
+    if (!id || id.length < 20) { discovery = null; discoveryError = null; return; }
+    // If user pasted a URL, normalize the field to just the ID
+    if (setupForm.sheet_id !== id) setupForm.sheet_id = id;
+    discoveryLoading = true; discoveryError = null;
+    try {
+      const res = await fetch(`/api/fees2/discover-tabs?sheet_id=${encodeURIComponent(id)}`);
+      const j = await res.json();
+      if (!res.ok) { discoveryError = j.message || `HTTP ${res.status}`; discovery = null; return; }
+      discovery = j;
+      // If the batch list is still empty in the form, auto-apply discovery results
+      // so the user doesn't have to click "Use these" for the common case.
+      if (j.batches.length > 0 && !setupForm.batch_subsheets.trim()) applyDiscovery();
+    } catch (e: any) {
+      discoveryError = e?.message || 'Discovery failed';
+      discovery = null;
+    } finally {
+      discoveryLoading = false;
+    }
+  }
+
+  function onSheetIdInput() {
+    if (discoveryDebounce) clearTimeout(discoveryDebounce);
+    discoveryDebounce = setTimeout(runDiscovery, 600);
+  }
+
+  function applyDiscovery() {
+    if (!discovery) return;
+    setupForm.batch_subsheets = discovery.batches.map(b => b.name).join('\n');
+    if (discovery.dates_tab) setupForm.dates_subsheet = discovery.dates_tab;
+    if (discovery.dropout_tab) setupForm.dropout_subsheet = discovery.dropout_tab;
+    // Suggest a window name if empty — based on the highest semester in the batches.
+    if (!setupForm.name.trim() && discovery.batches.length > 0) {
+      const sems = discovery.batches.map(b => b.semester_number);
+      const maxSem = Math.max(...sems);
+      const year = new Date().getFullYear();
+      setupForm.name = `NIAT Semester ${maxSem} · ${year}`;
+    }
+  }
+
   let syncing = $state(false);
   let syncResult = $state<any>(null);
   let toast = $state<{ text: string; tone: 'ok' | 'err' } | null>(null);
@@ -93,6 +151,7 @@
   function openCreateSetup() {
     setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', auto_sync_enabled: true, auto_sync_interval_minutes: 30 };
     setupError = null; showSetup = true;
+    discovery = null; discoveryError = null; discoveryLoading = false;
   }
   function openEditSetup(w: Window) {
     setupForm = {
@@ -550,8 +609,48 @@
         </div>
         <div>
           <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-sheet">Google Sheet ID</label>
-          <input id="setup-sheet" type="text" placeholder="1Ff4oNnqIANfEh6ThO6YbL9GhrOnI4D1q0-Bjqpis0YQ" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.sheet_id} />
+          <input id="setup-sheet" type="text" placeholder="paste the sheet URL or just the ID" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-mono focus:border-blue-600 focus:outline-none" bind:value={setupForm.sheet_id} oninput={onSheetIdInput} />
           <div class="mt-1 text-[10px] text-zinc-500">From the sheet URL: docs.google.com/spreadsheets/d/<strong class="text-blue-300">SHEET_ID</strong>/edit · Share as "Anyone with the link → Viewer".</div>
+
+          {#if discoveryLoading}
+            <div class="mt-2 text-[11px] text-zinc-400">Scanning sheet for batches…</div>
+          {/if}
+          {#if discoveryError}
+            <div class="mt-2 rounded-lg border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-200">{discoveryError} — you can still type the sub-sheet names manually below.</div>
+          {/if}
+          {#if discovery && !discoveryLoading}
+            <div class="mt-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2 text-[11px] text-zinc-300">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-zinc-200">Found {discovery.batches.length} batch tab{discovery.batches.length === 1 ? '' : 's'} <span class="text-zinc-500">· {discovery.total_tabs} total tabs in sheet</span></span>
+                {#if discovery.batches.length > 0}
+                  <button type="button" class="rounded-md border border-blue-700 bg-blue-900/40 px-2 py-1 text-[10px] font-semibold text-blue-200 hover:bg-blue-900/60" onclick={applyDiscovery}>Use these ↓</button>
+                {/if}
+              </div>
+              {#if discovery.batches.length > 0}
+                <ul class="mt-2 space-y-1">
+                  {#each discovery.batches as b}
+                    <li class="flex items-center justify-between font-mono">
+                      <span>{b.name}</span>
+                      {#if b.existing_windows > 0}
+                        <span class="text-[10px] text-emerald-300">already tracked in {b.existing_windows} prior window{b.existing_windows === 1 ? '' : 's'} — will continue</span>
+                      {:else}
+                        <span class="text-[10px] text-zinc-500">new batch</span>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+              {#if discovery.dates_tab || discovery.dropout_tab}
+                <div class="mt-2 flex gap-3 text-[10px] text-zinc-400">
+                  {#if discovery.dates_tab}<span>dates: <span class="font-mono text-zinc-200">{discovery.dates_tab}</span></span>{/if}
+                  {#if discovery.dropout_tab}<span>dropout: <span class="font-mono text-zinc-200">{discovery.dropout_tab}</span></span>{/if}
+                </div>
+              {/if}
+              {#if discovery.batches.length === 0}
+                <div class="mt-1 text-[10px] text-amber-300">No tabs named like <code>YYYY-Semester N</code> were found. Type them manually below if the sheet uses a different naming pattern.</div>
+              {/if}
+            </div>
+          {/if}
         </div>
         <div>
           <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="setup-batch-subs">Batch sub-sheets (one per line, format <code>YYYY-Semester N</code>)</label>
