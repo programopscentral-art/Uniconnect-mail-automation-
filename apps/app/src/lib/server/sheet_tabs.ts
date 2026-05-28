@@ -43,6 +43,13 @@ export async function discoverSheetTabs(sheetId: string): Promise<SheetTab[]> {
         tabs.push({ name: trimmed, gid });
     };
 
+    // htmlview format: items.push({name: "TAB", pageUrl: "...", gid: "12345"
+    // (most reliable for sheets shared as "Anyone with the link → Viewer")
+    for (const m of html.matchAll(/items\.push\(\{\s*name:\s*"((?:\\.|[^"\\])*)"[^}]*?gid:\s*"(\d+)"/g)) {
+        // Unescape JSON-style escape sequences in the name
+        const name = m[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\').replace(/\\\//g, '/');
+        add(name, m[2]);
+    }
     // {"title":"...","sheetId":N}
     for (const m of html.matchAll(/"title"\s*:\s*"([^"]+)"[^}]*?"sheetId"\s*:\s*(\d+)/g)) add(m[1], m[2]);
     // {"sheetId":N,"title":"..."}

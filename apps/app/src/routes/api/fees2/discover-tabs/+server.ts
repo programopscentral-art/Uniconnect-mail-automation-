@@ -17,7 +17,10 @@ import { json, error } from '@sveltejs/kit';
 import { db } from '@uniconnect/shared';
 import { discoverSheetTabs } from '$lib/server/sheet_tabs';
 
-const BATCH_TAB_RE = /^\s*(\d{4})\s*[-–]\s*Semester\s*(\d+)\s*$/i;
+// Accept any common unicode dash between year and "Semester" + tolerate
+// arbitrary whitespace. Covers "2025-Semester 3", "2025 - Semester 3",
+// "2025–Semester 3" (en-dash), "2025—Semester 3" (em-dash).
+const BATCH_TAB_RE = /^\s*(\d{4})\s*[-–—‐‑‒―−]\s*Semester\s*(\d+)\s*$/i;
 const DATES_RE = /^\s*(semester\s*\d*\s*)?dates?\s*$/i;
 const DROPOUT_RE = /^\s*dropouts?\s*$/i;
 

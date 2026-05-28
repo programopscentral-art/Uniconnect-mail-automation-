@@ -46,7 +46,7 @@ export interface SyncSummary {
     elapsed_ms: number;
 }
 
-const BATCH_TAB_RE = /^\s*(\d{4})\s*[-–]\s*Semester\s*(\d+)\s*$/i;
+const BATCH_TAB_RE = /^\s*(\d{4})\s*[-–—‐‑‒―−]\s*Semester\s*(\d+)\s*$/i;
 
 // Lock the canonical tag-case values from the spec.
 export const TAG_CASES = [
