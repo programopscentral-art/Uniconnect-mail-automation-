@@ -405,9 +405,6 @@
           {#if data.activeWindow?.last_synced_at}
             <div class="mt-0.5 text-xs text-zinc-400">
               Last synced: {new Date(data.activeWindow.last_synced_at).toLocaleString()}
-              {#if data.activeWindow.last_sync_error}
-                · <span class="text-red-400">{data.activeWindow.last_sync_error}</span>
-              {/if}
             </div>
           {/if}
         </div>
@@ -438,6 +435,24 @@
         </div>
       </div>
     </div>
+
+    {#if data.activeWindow?.last_sync_error}
+      <div class="mb-4 flex items-start gap-3 rounded-2xl border border-red-800 bg-red-950/40 p-4">
+        <div class="text-2xl leading-none">⚠️</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-red-300">Last sync had errors</div>
+          <div class="mt-1 break-words text-sm text-red-100">{data.activeWindow.last_sync_error}</div>
+          <div class="mt-1 text-[11px] text-red-300/80">
+            Common causes: a sub-sheet was renamed in Google Sheets, the sheet's share access was removed
+            (must be "Anyone with the link → Viewer"), or a university name in the sheet doesn't match any in the registry.
+            Fix the sheet and click <strong>Sync now</strong> again.
+          </div>
+        </div>
+        {#if data.userIsAdmin}
+          <button class="rounded-md border border-red-700 px-3 py-1.5 text-xs text-red-100 hover:bg-red-900/40 disabled:opacity-50" disabled={syncing} onclick={triggerSync}>{syncing ? 'Retrying…' : 'Retry sync'}</button>
+        {/if}
+      </div>
+    {/if}
 
     {#if !data.activeWindow}
       <div class="rounded-2xl border border-amber-800 bg-amber-950/30 p-10 text-center">
@@ -768,6 +783,44 @@
                 {/each}
               </tbody>
             </table>
+          </section>
+        {/if}
+
+        <!-- Collection dates per university (this semester) -->
+        {#if data.overview && data.overview.university_dates.length > 0}
+          <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Collection dates · Semester {activeBatch.semester_number}</div>
+              <div class="text-sm font-semibold">Per-university fee + collection windows from the dates sub-sheet</div>
+            </header>
+            <div class="max-h-[360px] overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 border-b border-zinc-800 bg-zinc-950/95 text-[10px] uppercase tracking-[0.15em] text-zinc-500 backdrop-blur">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left font-medium">University</th>
+                    <th class="px-3 py-2.5 text-right font-medium">Fee / student</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Sem last date</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Collection start</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Collection end</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Next sem start</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each data.overview.university_dates as d}
+                    <tr>
+                      <td class="px-3 py-2.5 font-medium">{d.university_name}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums">{d.fee_per_student ? fmtMoney(Number(d.fee_per_student)) : '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-300">{d.sem_last_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-300">{d.collection_start_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-300">{d.collection_end_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-300">{d.next_sem_start_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400 truncate max-w-[220px]" title={d.meta_remarks ?? ''}>{d.meta_remarks ?? '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           </section>
         {/if}
 

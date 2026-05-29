@@ -1,8 +1,8 @@
-DEPLOYMENT_TRIGGER_V59
-Timestamp: 2026-05-29T15:25:00+05:30
-Status: Force rebuild — fee-collection Phase 7B.2 (dropout review queue)
+DEPLOYMENT_TRIGGER_V60
+Timestamp: 2026-05-29T15:50:00+05:30
+Status: Force rebuild — fee-collection Phase 7B.3 + 7B.4
 Changes:
-  - GET /api/fees2/windows/[id]/dropouts (?batch_period_id=)
-  - Overview: window-wide dropout table (student / uni / batch / dropped / reason)
-  - Batch view: dropouts-in-this-batch section above the student list
-  - Lazy-loaded once per window selection; auto-refreshed when window changes
+  - 7B.3: per-batch view shows "Collection dates · Semester N" table
+    sourced from data.overview.university_dates (no new query)
+  - 7B.4: red banner above content when last_sync_error is set; admin
+    Retry sync button right in the banner
