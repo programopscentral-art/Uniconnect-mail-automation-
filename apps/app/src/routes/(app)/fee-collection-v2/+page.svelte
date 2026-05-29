@@ -247,6 +247,49 @@
     flash(newTag ? `Tagged: ${newTag}` : 'Tag cleared', 'ok');
   }
 
+  // ─── Remarks drawer ─────────────────────────────────────────────────
+  type Remark = { id: string; author_id: string | null; author_name: string; role: string; case_type: string | null; text: string; source: string; created_at: string; };
+  let remarksOpenFor = $state<any | null>(null);
+  let remarks = $state<Remark[]>([]);
+  let remarksLoading = $state(false);
+  let newRemarkText = $state('');
+  let newRemarkCase = $state('');
+  let savingRemark = $state(false);
+
+  async function openRemarks(student: any) {
+    remarksOpenFor = student;
+    remarks = []; newRemarkText = ''; newRemarkCase = student.tag_case || '';
+    remarksLoading = true;
+    try {
+      const res = await fetch(`/api/fees2/students/${student.id}/remarks`);
+      if (res.ok) remarks = (await res.json()).remarks || [];
+    } finally { remarksLoading = false; }
+  }
+  function closeRemarks() { remarksOpenFor = null; }
+  async function addRemark() {
+    if (!remarksOpenFor) return;
+    const text = newRemarkText.trim();
+    if (!text) return;
+    savingRemark = true;
+    try {
+      const res = await fetch(`/api/fees2/students/${remarksOpenFor.id}/remarks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, case_type: newRemarkCase || null }),
+      });
+      const j = await res.json();
+      if (!res.ok) { flash(j.message || 'Failed', 'err'); return; }
+      remarks = [j.remark, ...remarks];
+      // Bump remark_count + last_remark_at on the student row locally so the
+      // table badge updates without a reload.
+      const newCount = (Number(remarksOpenFor.remark_count) || 0) + 1;
+      students = students.map(s => s.id === remarksOpenFor.id ? { ...s, remark_count: newCount, last_remark_at: j.remark.created_at } : s);
+      remarksOpenFor = { ...remarksOpenFor, remark_count: newCount, last_remark_at: j.remark.created_at };
+      newRemarkText = '';
+      flash('Remark added', 'ok');
+    } catch (e: any) { flash(e?.message || 'Failed', 'err'); }
+    finally { savingRemark = false; }
+  }
+
   const TAG_CASES = [
     'Dropout', 'Will Pay', 'Wants to Drop', 'Hostel Caution Deposit Query',
     'Propelled Loan Case', 'Sales Team Dependency', 'Referral Amount Query',
@@ -716,6 +759,7 @@
                   <th class="px-3 py-2.5 text-left">Status</th>
                   <th class="px-3 py-2.5 text-left">Tag case</th>
                   <th class="px-3 py-2.5 text-left">Success coach</th>
+                  <th class="px-3 py-2.5 text-center">Remarks</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-zinc-800">
@@ -740,6 +784,16 @@
                       </select>
                     </td>
                     <td class="px-3 py-2.5 text-zinc-400 truncate max-w-[160px]" title={s.success_coach_name ?? ''}>{s.success_coach_name ?? '—'}</td>
+                    <td class="px-3 py-2.5 text-center">
+                      <button
+                        class="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800
+                              {Number(s.remark_count) > 0 ? 'text-blue-200 border-blue-800/60 bg-blue-950/30 hover:bg-blue-900/40' : 'text-zinc-400'}"
+                        onclick={() => openRemarks(s)}
+                        title={Number(s.remark_count) > 0 ? `${s.remark_count} remark${Number(s.remark_count) === 1 ? '' : 's'}` : 'Add a remark'}
+                      >
+                        💬 {Number(s.remark_count) > 0 ? s.remark_count : 'Add'}
+                      </button>
+                    </td>
                   </tr>
                 {/each}
               </tbody>
@@ -861,6 +915,82 @@
           </div>
         {/if}
       </div>
+    </aside>
+  </div>
+{/if}
+
+<!-- Student remarks drawer -->
+{#if remarksOpenFor}
+  <div class="fixed inset-0 z-50 flex items-stretch justify-end bg-black/60 backdrop-blur-sm" onclick={closeRemarks} role="presentation" onkeydown={(e) => { if (e.key === 'Escape') closeRemarks(); }}>
+    <aside class="flex w-full max-w-lg flex-col border-l border-zinc-800 bg-zinc-900" onclick={(e) => e.stopPropagation()} role="dialog">
+      <header class="border-b border-zinc-800 p-5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Remarks · {remarksOpenFor.remark_count ?? 0}</div>
+            <div class="mt-1 text-lg font-semibold truncate">{remarksOpenFor.student_name || '—'}</div>
+            <div class="mt-0.5 text-[11px] text-zinc-500 truncate">{remarksOpenFor.university_name || '—'} · <span class="font-mono">{remarksOpenFor.zoho_user_id}</span></div>
+            <div class="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <span class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 tabular-nums">Payable {fmtMoney(Number(remarksOpenFor.payable))}</span>
+              <span class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 tabular-nums text-emerald-300">Paid {fmtMoney(Number(remarksOpenFor.paid))}</span>
+              <span class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5 tabular-nums {Number(remarksOpenFor.pending) > 0 ? 'text-red-300' : 'text-zinc-400'}">Pending {fmtMoney(Number(remarksOpenFor.pending))}</span>
+              <span class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-0.5">{remarksOpenFor.status}</span>
+              {#if remarksOpenFor.tag_case}
+                <span class="rounded-md border border-blue-800/60 bg-blue-950/40 px-2 py-0.5 text-blue-200">{remarksOpenFor.tag_case}</span>
+              {/if}
+            </div>
+          </div>
+          <button class="text-zinc-400 hover:text-zinc-100" onclick={closeRemarks} aria-label="Close">✕</button>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-5 py-4">
+        {#if remarksLoading}
+          <div class="py-8 text-center text-xs text-zinc-500">Loading…</div>
+        {:else if remarks.length === 0}
+          <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-8 text-center text-xs text-zinc-500">
+            No remarks yet. Add the first one below.
+          </div>
+        {:else}
+          <ol class="space-y-3">
+            {#each remarks as r}
+              <li class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
+                <div class="flex items-baseline justify-between gap-3">
+                  <div class="text-sm font-medium">{r.author_name}</div>
+                  <div class="text-[10px] uppercase tracking-[0.15em] text-zinc-500">{new Date(r.created_at).toLocaleString()}</div>
+                </div>
+                <div class="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  {r.role}{r.case_type ? ' · ' + r.case_type : ''}{r.source && r.source !== 'manual' ? ' · ' + r.source : ''}
+                </div>
+                <div class="mt-2 whitespace-pre-wrap text-sm text-zinc-200">{r.text}</div>
+              </li>
+            {/each}
+          </ol>
+        {/if}
+      </div>
+
+      <footer class="border-t border-zinc-800 p-4">
+        <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="remark-input">Add a remark</label>
+        <textarea
+          id="remark-input"
+          rows="3"
+          placeholder="Follow-up notes, conversation summary, escalation reason…"
+          class="mt-1 w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
+          bind:value={newRemarkText}
+          onkeydown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addRemark(); }}
+        ></textarea>
+        <div class="mt-2 flex items-center justify-between gap-3">
+          <select class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200 focus:border-blue-600 focus:outline-none" bind:value={newRemarkCase}>
+            <option value="">No case tag</option>
+            {#each TAG_CASES as t}<option value={t}>{t}</option>{/each}
+          </select>
+          <button
+            class="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:bg-zinc-700"
+            disabled={savingRemark || !newRemarkText.trim()}
+            onclick={addRemark}
+          >{savingRemark ? 'Saving…' : 'Add remark'}</button>
+        </div>
+        <div class="mt-1 text-[10px] text-zinc-500">Tip: ⌘/Ctrl + Enter to submit</div>
+      </footer>
     </aside>
   </div>
 {/if}

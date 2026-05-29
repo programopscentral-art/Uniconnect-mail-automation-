@@ -32,9 +32,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
                 fsp.previous_fee_due, fsp.current_term_discount,
                 fsp.status, fsp.registration_status, fsp.registration_date,
                 fsp.tag_case, fsp.success_coach_name, fsp.updated_at,
-                u.name AS university_name
+                u.name AS university_name,
+                COALESCE(rc.n, 0) AS remark_count,
+                rc.last_at::text AS last_remark_at
            FROM fee_student_payments fsp
            LEFT JOIN universities u ON u.id = fsp.university_id
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS n, MAX(created_at) AS last_at
+               FROM fee_remarks fr
+              WHERE fr.student_payment_id = fsp.id
+           ) rc ON true
           WHERE ${conds.join(' AND ')}
           ORDER BY u.name, fsp.student_name
           LIMIT 5000`,
