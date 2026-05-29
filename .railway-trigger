@@ -1,10 +1,8 @@
-DEPLOYMENT_TRIGGER_V56
-Timestamp: 2026-05-28T13:40:00+05:30
-Status: Force rebuild — fee-collection-v2 UX restructure
+DEPLOYMENT_TRIGGER_V57
+Timestamp: 2026-05-29T13:30:00+05:30
+Status: Force rebuild — fee-collection clarity + snapshot trigger
 Changes:
-  - Top nav: Overview | one chip per batch | Custom (replaces tab list)
-  - Batch view: clear "Batch YYYY · Semester N" header, totals card,
-    university-wise breakdown table, click row to filter students
-  - ⚙ Settings drawer per batch (sub-sheet name, sheet link, sync info)
-  - Custom tab: multi-select batches → combined totals + per-batch table
-  - Dropped redundant "Batch + University" tab (rolled into batch view)
+  - Default sync interval = 5 min (existing window updated in DB)
+  - "Collected" card now shows fully+partial breakdown (so 51L = 40L fully + 10L partial is visible)
+  - Admin "Send snapshot" button on header + POST /api/fees2/windows/:id/send-snapshot
+  - Snapshot logic extracted to apps/app/src/lib/server/fee_snapshot.ts

@@ -57,7 +57,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                     COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int       AS yet_to_pay,
                     COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int        AS dropouts,
                     COALESCE(SUM(fsp.payable), 0)                                 AS total_payable,
-                    COALESCE(SUM(fsp.paid), 0)                                    AS total_paid
+                    COALESCE(SUM(fsp.paid), 0)                                    AS total_paid,
+                    COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0)     AS paid_from_fully,
+                    COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0) AS paid_from_partial
                FROM fee_batch_period bp
                LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
               WHERE bp.window_id = $1
@@ -100,18 +102,20 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         );
 
         let students = 0, fully = 0, partial = 0, yet = 0, dropouts = 0;
-        let totalPayable = 0, totalPaid = 0;
+        let totalPayable = 0, totalPaid = 0, paidFromFully = 0, paidFromPartial = 0;
         for (const b of perBatch.rows) {
             students += Number(b.total); fully += Number(b.fully_paid);
             partial += Number(b.partial); yet += Number(b.yet_to_pay);
             dropouts += Number(b.dropouts);
             totalPayable += Number(b.total_payable); totalPaid += Number(b.total_paid);
+            paidFromFully += Number(b.paid_from_fully); paidFromPartial += Number(b.paid_from_partial);
         }
         const collectionPct = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
 
         overview = {
             totals: { students, fully_paid: fully, partial, yet_to_pay: yet, dropouts,
-                      total_payable: totalPayable, total_paid: totalPaid, collection_pct: collectionPct },
+                      total_payable: totalPayable, total_paid: totalPaid, collection_pct: collectionPct,
+                      paid_from_fully: paidFromFully, paid_from_partial: paidFromPartial },
             per_batch: perBatch.rows,
             tag_counts: tagCounts.rows,
             success_coaches: coaches.rows,

@@ -9,11 +9,11 @@
     last_synced_at: string | null; last_sync_error: string | null;
   };
   type Batch = { id: string; batch_start_year: number; semester_number: number; display_name: string; subsheet_name: string; student_count: number; };
-  type PerBatch = { id: string; batch_start_year: number; semester_number: number; display_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; };
+  type PerBatch = { id: string; batch_start_year: number; semester_number: number; display_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; paid_from_fully: number; paid_from_partial: number; };
   type Coach = { coach: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
   type Overview = {
-    totals: { students: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; collection_pct: number; };
+    totals: { students: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; collection_pct: number; paid_from_fully: number; paid_from_partial: number; };
     per_batch: PerBatch[];
     tag_counts: Array<{ tag_case: string; c: number }>;
     success_coaches: Coach[];
@@ -55,7 +55,7 @@
   let setupForm = $state({
     id: '', name: '', sheet_id: '',
     batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout',
-    auto_sync_enabled: true, auto_sync_interval_minutes: 30,
+    auto_sync_enabled: true, auto_sync_interval_minutes: 5,
   });
   let savingSetup = $state(false);
   let setupError = $state<string | null>(null);
@@ -160,8 +160,22 @@
     finally { syncing = false; }
   }
 
+  let sendingSnapshot = $state(false);
+  async function sendSnapshot() {
+    if (!data.activeWindow) return;
+    sendingSnapshot = true;
+    try {
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/send-snapshot`, { method: 'POST' });
+      const j = await res.json();
+      if (!res.ok) { flash(j.message || 'Snapshot failed', 'err'); return; }
+      const s = j.summary;
+      flash(`Snapshot fired — sent to ${s.recipients_sent}, deduped ${s.recipients_deduped}${s.errors.length ? `, ${s.errors.length} errors` : ''}`, s.errors.length ? 'err' : 'ok');
+    } catch (e: any) { flash(e?.message || 'Snapshot failed', 'err'); }
+    finally { sendingSnapshot = false; }
+  }
+
   function openCreateSetup() {
-    setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', auto_sync_enabled: true, auto_sync_interval_minutes: 30 };
+    setupForm = { id: '', name: '', sheet_id: '', batch_subsheets: '', dates_subsheet: 'semester 3 dates', dropout_subsheet: 'dropout', auto_sync_enabled: true, auto_sync_interval_minutes: 5 };
     setupError = null; showSetup = true;
     discovery = null; discoveryError = null; discoveryLoading = false;
     showAdvanced = false;
@@ -340,6 +354,9 @@
           {/if}
           {#if data.activeWindow && data.userIsAdmin}
             <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" onclick={() => openEditSetup(data.activeWindow!)}>Edit setup</button>
+            <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50" disabled={sendingSnapshot} onclick={sendSnapshot} title="Fire snapshot email to PM/COS/Admin + Pavan + central ops">
+              {sendingSnapshot ? 'Sending…' : '✉ Send snapshot'}
+            </button>
             <button class="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50" disabled={syncing} onclick={triggerSync}>
               {syncing ? 'Syncing…' : '↻ Sync now'}
             </button>
@@ -421,10 +438,14 @@
             <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div>
             <div class="mt-1 text-2xl font-semibold tabular-nums text-zinc-300">{ov.totals.dropouts}</div>
           </div>
-          <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3">
+          <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3" title={`${fmtMoney(ov.totals.paid_from_fully)} from fully paid · ${fmtMoney(ov.totals.paid_from_partial)} from partial`}>
             <div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div>
             <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-200">{fmtMoney(ov.totals.total_paid)}</div>
             <div class="text-[11px] text-blue-300/80">of {fmtMoney(ov.totals.total_payable)}</div>
+            <div class="mt-1 text-[10px] text-blue-300/70 leading-tight">
+              {fmtMoney(ov.totals.paid_from_fully)} · fully<br/>
+              {fmtMoney(ov.totals.paid_from_partial)} · partial
+            </div>
           </div>
           <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3">
             <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div>
@@ -585,7 +606,12 @@
               <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partial</div><div class="mt-1 text-xl font-semibold tabular-nums text-amber-200">{activeBatchPerBatch.partial}</div></div>
               <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-xl font-semibold tabular-nums text-red-200">{activeBatchPerBatch.yet_to_pay}</div></div>
               <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div><div class="mt-1 text-xl font-semibold tabular-nums text-zinc-300">{activeBatchPerBatch.dropouts}</div></div>
-              <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div><div class="mt-1 text-xl font-semibold tabular-nums text-blue-200">{fmtMoney(Number(activeBatchPerBatch.total_paid))}</div><div class="text-[11px] text-blue-300/80">of {fmtMoney(Number(activeBatchPerBatch.total_payable))}</div></div>
+              <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-2.5" title={`${fmtMoney(Number(activeBatchPerBatch.paid_from_fully))} from fully paid · ${fmtMoney(Number(activeBatchPerBatch.paid_from_partial))} from partial`}>
+                <div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div>
+                <div class="mt-1 text-xl font-semibold tabular-nums text-blue-200">{fmtMoney(Number(activeBatchPerBatch.total_paid))}</div>
+                <div class="text-[11px] text-blue-300/80">of {fmtMoney(Number(activeBatchPerBatch.total_payable))}</div>
+                <div class="mt-1 text-[10px] text-blue-300/70 leading-tight">{fmtMoney(Number(activeBatchPerBatch.paid_from_fully))} fully · {fmtMoney(Number(activeBatchPerBatch.paid_from_partial))} partial</div>
+              </div>
               <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-2.5"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div><div class="mt-1 text-xl font-semibold tabular-nums text-emerald-200">{fmtPct(Number(activeBatchPerBatch.total_paid), Number(activeBatchPerBatch.total_payable))}</div></div>
             </div>
           {/if}
@@ -932,8 +958,10 @@
               <input type="checkbox" bind:checked={setupForm.auto_sync_enabled} class="accent-blue-500" />
               Auto-sync every
               <select class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs" bind:value={setupForm.auto_sync_interval_minutes}>
+                <option value={5}>5 minutes (recommended)</option>
+                <option value={10}>10 minutes</option>
                 <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes (recommended)</option>
+                <option value={30}>30 minutes</option>
                 <option value={60}>1 hour</option>
               </select>
             </label>
