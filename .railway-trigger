@@ -1,10 +1,16 @@
-DEPLOYMENT_TRIGGER_V61
-Timestamp: 2026-05-29T16:30:00+05:30
-Status: Force rebuild — fee-collection Overview analytics redesign
+DEPLOYMENT_TRIGGER_V62
+Timestamp: 2026-05-29T17:30:00+05:30
+Status: Force rebuild — fee-collection email redesign + CSV report + worker dedup
 Changes:
-  - Hero card: large collection % gauge (SVG arc) + breakdown chips
-  - Payment status donut chart (fully/partial/yet)
-  - Per-batch collection % horizontal bars (click → drill in)
-  - Top 10 universities bar chart (overlay: payable rail + paid gradient bar)
-  - Tag-case distribution as bar chart (violet→fuchsia gradient)
-  - New per_university aggregation added to overview load
+  - Snapshot email: maroon NIAT header with logo, 3 hero metric cards
+    (blue→green collection gauge / students / breakdown), status mix
+    bar, per-batch progress bars, detail table, two CTA buttons
+    (Download .csv | Open in UniConnect), footer
+  - New endpoint /api/fees2/windows/[id]/report.csv (UTF-8 BOM,
+    Excel-friendly, full student-level dump)
+  - "⬇ Download report" button in page header for everyone
+  - send-snapshot endpoint now accepts admin session OR
+    INTERNAL_SYNC_TOKEN header (so worker can reuse it)
+  - Worker's renderSnapshotHtml + buildSnapshotForWindow + recipient
+    resolver REMOVED — worker now just schedules and HTTP-fires the
+    app endpoint. One source of truth for email markup.

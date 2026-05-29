@@ -15,8 +15,14 @@ import { json, error } from '@sveltejs/kit';
 import { checkFeeAccess } from '$lib/server/fee_access';
 import { fireSnapshot } from '$lib/server/fee_snapshot';
 
-export const POST: RequestHandler = async ({ params, locals, url }) => {
-    checkFeeAccess(locals, 'admin');
+export const POST: RequestHandler = async ({ params, locals, url, request }) => {
+    // Allow either: an admin user session, OR an x-internal-sync-token
+    // header that matches INTERNAL_SYNC_TOKEN. The worker uses the latter
+    // so the snapshot pipeline only lives in one place.
+    const internalToken = request.headers.get('x-internal-sync-token');
+    const expected = process.env.INTERNAL_SYNC_TOKEN;
+    const isInternal = !!(internalToken && expected && internalToken === expected);
+    if (!isInternal) checkFeeAccess(locals, 'admin');
     if (!params.id) throw error(400, 'window id required');
 
     // ?kind=morning|evening|manual — default manual
