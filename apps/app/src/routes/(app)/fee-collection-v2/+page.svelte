@@ -247,6 +247,34 @@
     flash(newTag ? `Tagged: ${newTag}` : 'Tag cleared', 'ok');
   }
 
+  // ─── Dropouts ───────────────────────────────────────────────────────
+  type Dropout = { id: string; zoho_user_id: string | null; student_name: string | null; dropped_at: string | null; reason: string | null; imported_at: string; batch_period_id: string | null; batch_name: string | null; batch_start_year: number | null; semester_number: number | null; university_id: string | null; university_name: string | null; };
+  let dropouts = $state<Dropout[]>([]);
+  let dropoutsLoading = $state(false);
+  let dropoutsLoadedForWindow = $state<string | null>(null);
+
+  async function loadDropouts(force = false) {
+    if (!data.activeWindow) return;
+    if (!force && dropoutsLoadedForWindow === data.activeWindow.id) return;
+    dropoutsLoading = true;
+    try {
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/dropouts`);
+      if (res.ok) {
+        dropouts = (await res.json()).dropouts || [];
+        dropoutsLoadedForWindow = data.activeWindow.id;
+      }
+    } finally { dropoutsLoading = false; }
+  }
+
+  let dropoutsForActiveBatch = $derived(activeBatch ? dropouts.filter(d => d.batch_period_id === activeBatch.id) : []);
+
+  // Load dropouts when overview / batch view is shown (lazy)
+  $effect(() => {
+    if ((tab === 'overview' || tab === 'batch') && data.activeWindow) {
+      loadDropouts();
+    }
+  });
+
   // ─── Remarks drawer ─────────────────────────────────────────────────
   type Remark = { id: string; author_id: string | null; author_name: string; role: string; case_type: string | null; text: string; source: string; created_at: string; };
   let remarksOpenFor = $state<any | null>(null);
@@ -626,6 +654,51 @@
         </section>
         {/if}
 
+        <!-- Dropouts (overview-wide) -->
+        <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+          <header class="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div>
+              <div class="text-sm font-semibold">From the dropout sub-sheet · {dropouts.length} total</div>
+            </div>
+            {#if dropoutsLoading}<div class="text-[11px] text-zinc-500">Loading…</div>{/if}
+          </header>
+          {#if dropouts.length === 0}
+            <div class="px-4 py-8 text-center text-sm text-zinc-500">{dropoutsLoading ? 'Loading…' : 'No dropouts in this window.'}</div>
+          {:else}
+            <div class="max-h-[420px] overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 border-b border-zinc-800 bg-zinc-950/95 text-[10px] uppercase tracking-[0.15em] text-zinc-500 backdrop-blur">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left font-medium">Student</th>
+                    <th class="px-3 py-2.5 text-left font-medium">University</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Batch</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Dropped</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Reason</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each dropouts as d}
+                    <tr>
+                      <td class="px-3 py-2.5">
+                        <div class="font-medium truncate max-w-[220px]">{d.student_name ?? '—'}</div>
+                        <div class="text-[10px] text-zinc-500 truncate max-w-[220px]" title={d.zoho_user_id ?? ''}>{d.zoho_user_id ?? ''}</div>
+                      </td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.university_name ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">
+                        {#if d.batch_start_year}NIAT Batch {d.batch_start_year} · Sem {d.semester_number}
+                        {:else}<span class="text-zinc-600">unmatched batch</span>{/if}
+                      </td>
+                      <td class="px-3 py-2.5 text-zinc-400 tabular-nums">{d.dropped_at ?? new Date(d.imported_at).toLocaleDateString()}</td>
+                      <td class="px-3 py-2.5 text-zinc-300 truncate max-w-[280px]" title={d.reason ?? ''}>{d.reason ?? '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        </section>
+
       {:else if tab === 'batch' && activeBatch}
         <!-- Batch header card: clearly labels which batch + semester we're viewing -->
         <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
@@ -695,6 +768,41 @@
                 {/each}
               </tbody>
             </table>
+          </section>
+        {/if}
+
+        <!-- Dropouts (this batch only) -->
+        {#if dropoutsForActiveBatch.length > 0}
+          <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts in this batch</div>
+              <div class="text-sm font-semibold">{dropoutsForActiveBatch.length} student{dropoutsForActiveBatch.length === 1 ? '' : 's'} listed in the dropout sub-sheet for NIAT Batch {activeBatch.batch_start_year} · Semester {activeBatch.semester_number}</div>
+            </header>
+            <div class="max-h-[300px] overflow-y-auto">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 border-b border-zinc-800 bg-zinc-950/95 text-[10px] uppercase tracking-[0.15em] text-zinc-500 backdrop-blur">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left font-medium">Student</th>
+                    <th class="px-3 py-2.5 text-left font-medium">University</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Dropped</th>
+                    <th class="px-3 py-2.5 text-left font-medium">Reason</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each dropoutsForActiveBatch as d}
+                    <tr>
+                      <td class="px-3 py-2.5">
+                        <div class="font-medium truncate max-w-[220px]">{d.student_name ?? '—'}</div>
+                        <div class="text-[10px] text-zinc-500 truncate max-w-[220px]" title={d.zoho_user_id ?? ''}>{d.zoho_user_id ?? ''}</div>
+                      </td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.university_name ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400 tabular-nums">{d.dropped_at ?? new Date(d.imported_at).toLocaleDateString()}</td>
+                      <td class="px-3 py-2.5 text-zinc-300 truncate max-w-[280px]" title={d.reason ?? ''}>{d.reason ?? '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
           </section>
         {/if}
 

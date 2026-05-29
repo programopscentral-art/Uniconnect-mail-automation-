@@ -1,12 +1,8 @@
-DEPLOYMENT_TRIGGER_V58
-Timestamp: 2026-05-29T15:00:00+05:30
-Status: Force rebuild — fee-collection Phase 7B.1 (student remarks thread)
+DEPLOYMENT_TRIGGER_V59
+Timestamp: 2026-05-29T15:25:00+05:30
+Status: Force rebuild — fee-collection Phase 7B.2 (dropout review queue)
 Changes:
-  - Student row: new Remarks column with count badge + 💬 Add button
-  - Click opens a right-side drawer with the chronological thread
-  - Author / role / case_type / source / timestamp shown per remark
-  - Add remark form at bottom: text + optional case-type select
-  - ⌘/Ctrl+Enter submits; Esc closes; click backdrop closes
-  - Students endpoint returns remark_count + last_remark_at per row
-  - Uses existing fee_remarks table + existing
-    /api/fees2/students/[id]/remarks GET/POST endpoints
+  - GET /api/fees2/windows/[id]/dropouts (?batch_period_id=)
+  - Overview: window-wide dropout table (student / uni / batch / dropped / reason)
+  - Batch view: dropouts-in-this-batch section above the student list
+  - Lazy-loaded once per window selection; auto-refreshed when window changes
