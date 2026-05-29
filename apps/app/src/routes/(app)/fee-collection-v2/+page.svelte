@@ -12,12 +12,14 @@
   type PerBatch = { id: string; batch_start_year: number; semester_number: number; display_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; paid_from_fully: number; paid_from_partial: number; };
   type Coach = { coach: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
+  type PerUni = { id: string; name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
   type Overview = {
     totals: { students: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; collection_pct: number; paid_from_fully: number; paid_from_partial: number; };
     per_batch: PerBatch[];
     tag_counts: Array<{ tag_case: string; c: number }>;
     success_coaches: Coach[];
     university_dates: UniDate[];
+    per_university: PerUni[];
   };
 
   let { data } = $props<{ data: {
@@ -502,42 +504,138 @@
 
       {#if tab === 'overview' && data.overview}
         {@const ov = data.overview}
-        <!-- Totals -->
-        <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-          <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums">{ov.totals.students}</div>
-          </div>
-          <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{ov.totals.fully_paid}</div>
-          </div>
-          <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partial</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{ov.totals.partial}</div>
-          </div>
-          <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{ov.totals.yet_to_pay}</div>
-          </div>
-          <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-zinc-300">{ov.totals.dropouts}</div>
-          </div>
-          <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3" title={`${fmtMoney(ov.totals.paid_from_fully)} from fully paid · ${fmtMoney(ov.totals.paid_from_partial)} from partial`}>
-            <div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-blue-200">{fmtMoney(ov.totals.total_paid)}</div>
-            <div class="text-[11px] text-blue-300/80">of {fmtMoney(ov.totals.total_payable)}</div>
-            <div class="mt-1 text-[10px] text-blue-300/70 leading-tight">
-              {fmtMoney(ov.totals.paid_from_fully)} · fully<br/>
-              {fmtMoney(ov.totals.paid_from_partial)} · partial
+
+        <!-- HERO: collection % gauge + total figures -->
+        <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <!-- Big gauge -->
+          <div class="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-blue-950/40 via-zinc-900 to-zinc-900 p-6">
+            <div class="text-[10px] uppercase tracking-[0.22em] text-blue-300/80">Collection progress</div>
+            <div class="mt-4 flex items-center gap-5">
+              {@const r = 56}
+              {@const cx = 64} {@const cy = 64}
+              {@const circ = 2 * Math.PI * r}
+              {@const dash = (ov.totals.collection_pct / 100) * circ}
+              <svg viewBox="0 0 128 128" class="h-32 w-32 -rotate-90">
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1e293b" stroke-width="14"/>
+                <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#g)" stroke-width="14" stroke-linecap="round" stroke-dasharray={`${dash} ${circ - dash}`} />
+                <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
+              </svg>
+              <div>
+                <div class="text-5xl font-bold tabular-nums leading-none bg-gradient-to-r from-blue-300 to-emerald-300 bg-clip-text text-transparent">{ov.totals.collection_pct}%</div>
+                <div class="mt-2 text-sm text-zinc-400">{fmtMoney(ov.totals.total_paid)} <span class="text-zinc-500">of</span> {fmtMoney(ov.totals.total_payable)}</div>
+                <div class="mt-1 text-[11px] text-zinc-500">collected · payable</div>
+              </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 border-t border-zinc-800 pt-4">
+              <div>
+                <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">From fully paid</div>
+                <div class="mt-0.5 text-base font-semibold text-emerald-300 tabular-nums">{fmtMoney(ov.totals.paid_from_fully)}</div>
+                <div class="text-[10px] text-zinc-500">{ov.totals.fully_paid} students</div>
+              </div>
+              <div>
+                <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">From partial</div>
+                <div class="mt-0.5 text-base font-semibold text-amber-300 tabular-nums">{fmtMoney(ov.totals.paid_from_partial)}</div>
+                <div class="text-[10px] text-zinc-500">{ov.totals.partial} students</div>
+              </div>
             </div>
           </div>
-          <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div>
-            <div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{ov.totals.collection_pct}%</div>
+
+          <!-- Status donut -->
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Payment status</div>
+            <div class="mt-3 flex items-center gap-5">
+              {@const total = Math.max(1, ov.totals.fully_paid + ov.totals.partial + ov.totals.yet_to_pay)}
+              {@const r2 = 50} {@const c2 = 60} {@const circ2 = 2 * Math.PI * r2}
+              {@const dashFully = (ov.totals.fully_paid / total) * circ2}
+              {@const dashPartial = (ov.totals.partial / total) * circ2}
+              {@const dashYet = (ov.totals.yet_to_pay / total) * circ2}
+              <svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90">
+                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#1f2937" stroke-width="18"/>
+                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#10b981" stroke-width="18" stroke-dasharray={`${dashFully} ${circ2 - dashFully}`} />
+                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#f59e0b" stroke-width="18" stroke-dasharray={`${dashPartial} ${circ2 - dashPartial}`} stroke-dashoffset={-dashFully} />
+                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#ef4444" stroke-width="18" stroke-dasharray={`${dashYet} ${circ2 - dashYet}`} stroke-dashoffset={-(dashFully + dashPartial)} />
+              </svg>
+              <div class="space-y-2 text-xs flex-1 min-w-0">
+                <div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>Fully paid</span><span class="font-semibold tabular-nums">{ov.totals.fully_paid}</span></div>
+                <div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span>Partial</span><span class="font-semibold tabular-nums">{ov.totals.partial}</span></div>
+                <div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>Yet to pay</span><span class="font-semibold tabular-nums">{ov.totals.yet_to_pay}</span></div>
+                <div class="flex items-center justify-between gap-2 border-t border-zinc-800 pt-2"><span class="text-zinc-500">Students</span><span class="font-semibold tabular-nums">{ov.totals.students}</span></div>
+                <div class="flex items-center justify-between gap-2"><span class="text-zinc-500">Dropouts</span><span class="font-semibold tabular-nums">{ov.totals.dropouts}</span></div>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <!-- Per-batch collection % bars -->
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Collection % by batch</div>
+            <div class="mt-3 space-y-3">
+              {#each ov.per_batch as b (b.id)}
+                {@const pct = Number(b.total_payable) > 0 ? Math.round((Number(b.total_paid) / Number(b.total_payable)) * 100) : 0}
+                <button class="block w-full text-left" onclick={() => { tab = 'batch'; selectedBatchId = b.id; }}>
+                  <div class="mb-1 flex items-baseline justify-between gap-2">
+                    <span class="truncate text-xs text-zinc-300">NIAT Batch {b.batch_start_year} · Sem {b.semester_number}</span>
+                    <span class="text-xs font-semibold tabular-nums {pct >= 75 ? 'text-emerald-300' : pct >= 25 ? 'text-amber-300' : 'text-red-300'}">{pct}%</span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-zinc-800">
+                    <div class="h-full rounded-full transition-all {pct >= 75 ? 'bg-emerald-500' : pct >= 25 ? 'bg-amber-500' : 'bg-red-500'}" style:width="{pct}%"></div>
+                  </div>
+                  <div class="mt-0.5 text-[10px] text-zinc-500">{fmtMoney(Number(b.total_paid))} of {fmtMoney(Number(b.total_payable))} · {b.total} students</div>
+                </button>
+              {/each}
+            </div>
+          </div>
+        </section>
+
+        <!-- Top universities by payable + Tag distribution -->
+        <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {#if ov.per_university.length > 0}
+            <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Top universities by collection</div>
+              <div class="mt-3 space-y-3">
+                {@const maxPayable = Math.max(...ov.per_university.map(u => Number(u.total_payable)), 1)}
+                {#each ov.per_university.slice(0, 10) as u (u.id)}
+                  {@const payable = Number(u.total_payable)}
+                  {@const paid = Number(u.total_paid)}
+                  {@const pct = payable > 0 ? Math.round((paid / payable) * 100) : 0}
+                  {@const payableWidth = (payable / maxPayable) * 100}
+                  {@const paidWidth = payable > 0 ? (paid / payable) * payableWidth : 0}
+                  <div>
+                    <div class="mb-1 flex items-baseline justify-between gap-2">
+                      <span class="truncate text-xs font-medium text-zinc-200" title={u.name}>{u.name}</span>
+                      <span class="text-xs font-semibold tabular-nums text-emerald-300">{pct}%</span>
+                    </div>
+                    <div class="relative h-3 overflow-hidden rounded-full bg-zinc-950">
+                      <div class="absolute inset-y-0 left-0 rounded-full bg-zinc-800/80" style:width="{payableWidth}%"></div>
+                      <div class="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 to-emerald-500" style:width="{paidWidth}%"></div>
+                    </div>
+                    <div class="mt-0.5 text-[10px] text-zinc-500">{fmtMoney(paid)} of {fmtMoney(payable)} · {u.total} students</div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+
+          {#if ov.tag_counts.length > 0}
+            <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Tag-case distribution</div>
+              <div class="mt-3 space-y-2.5">
+                {@const maxTag = Math.max(...ov.tag_counts.map(t => Number(t.c)), 1)}
+                {#each ov.tag_counts as t}
+                  {@const w = (Number(t.c) / maxTag) * 100}
+                  <div>
+                    <div class="mb-0.5 flex items-baseline justify-between gap-2">
+                      <span class="truncate text-xs text-zinc-200">{t.tag_case}</span>
+                      <span class="text-xs font-semibold tabular-nums text-zinc-100">{t.c}</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
+                      <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" style:width="{w}%"></div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {/if}
+        </section>
 
         <!-- Per-batch -->
         <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
@@ -581,23 +679,6 @@
           {/if}
         </section>
 
-        <!-- Tag-case counts -->
-        {#if ov.tag_counts.length > 0}
-        <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-          <header class="border-b border-zinc-800 px-4 py-3">
-            <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Tag-case counts</div>
-            <div class="text-sm font-semibold">Across the whole window</div>
-          </header>
-          <div class="flex flex-wrap gap-2 p-4">
-            {#each ov.tag_counts as t}
-              <span class="rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1 text-xs">
-                <span class="text-zinc-400">{t.tag_case}</span>
-                <span class="ml-2 font-semibold tabular-nums text-zinc-100">{t.c}</span>
-              </span>
-            {/each}
-          </div>
-        </section>
-        {/if}
 
         <!-- Success coach roll-up -->
         {#if ov.success_coaches.length > 0}

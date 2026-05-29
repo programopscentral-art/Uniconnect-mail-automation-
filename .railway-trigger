@@ -1,8 +1,10 @@
-DEPLOYMENT_TRIGGER_V60
-Timestamp: 2026-05-29T15:50:00+05:30
-Status: Force rebuild — fee-collection Phase 7B.3 + 7B.4
+DEPLOYMENT_TRIGGER_V61
+Timestamp: 2026-05-29T16:30:00+05:30
+Status: Force rebuild — fee-collection Overview analytics redesign
 Changes:
-  - 7B.3: per-batch view shows "Collection dates · Semester N" table
-    sourced from data.overview.university_dates (no new query)
-  - 7B.4: red banner above content when last_sync_error is set; admin
-    Retry sync button right in the banner
+  - Hero card: large collection % gauge (SVG arc) + breakdown chips
+  - Payment status donut chart (fully/partial/yet)
+  - Per-batch collection % horizontal bars (click → drill in)
+  - Top 10 universities bar chart (overlay: payable rail + paid gradient bar)
+  - Tag-case distribution as bar chart (violet→fuchsia gradient)
+  - New per_university aggregation added to overview load

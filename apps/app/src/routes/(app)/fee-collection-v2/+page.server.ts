@@ -87,6 +87,24 @@ export const load: PageServerLoad = async ({ locals, url }) => {
               GROUP BY fsp.success_coach_name ORDER BY total DESC LIMIT 50`,
             [activeWindow.id],
         );
+        const perUniversity = await db.query(
+            `SELECT u.id, u.name,
+                    COUNT(fsp.id)::int                                          AS total,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
+                    COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
+                    COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
+               FROM fee_student_payments fsp
+               JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+               JOIN universities u ON u.id = fsp.university_id
+              WHERE bp.window_id = $1
+              GROUP BY u.id
+              ORDER BY total_payable DESC
+              LIMIT 50`,
+            [activeWindow.id],
+        );
+
         const dates = await db.query(
             `SELECT DISTINCT ON (fum.university_id)
                     u.id AS university_id, u.name AS university_name,
@@ -120,6 +138,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             tag_counts: tagCounts.rows,
             success_coaches: coaches.rows,
             university_dates: dates.rows,
+            per_university: perUniversity.rows,
         };
     }
 
