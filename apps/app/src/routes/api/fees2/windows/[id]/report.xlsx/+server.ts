@@ -1,47 +1,79 @@
 /**
  * GET /api/fees2/windows/[id]/report.xlsx
  *
- * Multi-sheet Excel workbook for the fee window. Five sheets:
- *   - Summary       — totals + breakdown + per-status counts
- *   - Per-Batch     — one row per batch with totals row at bottom
- *   - Per-University — collection by university, ordered by payable DESC
- *   - Students      — every student row (the main data dump)
- *   - Dropouts      — fee_dropout_log rows for the window
+ * NIAT-branded Excel workbook (5 sheets) with proper styling — maroon
+ * headers, color-coded status cells, alternating row stripes, bold
+ * totals rows, frozen panes, auto-filter, ₹ + % formatting.
  *
- * Number formatting (column `z` property) makes ₹ amounts render with
- * thousand separators in Excel; frozen header row (`!views`) keeps the
- * column names visible while scrolling. Column widths set per column
- * so nothing gets truncated on first open.
- *
- * SheetJS community edition doesn't support cell colors/fonts — for
- * THAT level of styling we'd need exceljs or a paid SheetJS. Layout
- * + formatting is what we control.
+ * Uses exceljs (not SheetJS community) because we need cell-level
+ * fonts, fills, borders, and alignment.
  */
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
-const RUPEE_FMT = '"₹"#,##,##0';
+// NIAT palette
+const MAROON = '7A1F2B';
+const MAROON_DARK = '5C141E';
+const MAROON_TINT = 'FBE5E8';
+const EMERALD_BG = 'D1FAE5'; const EMERALD_TX = '047857';
+const AMBER_BG   = 'FEF3C7'; const AMBER_TX   = 'B45309';
+const RED_BG     = 'FEE2E2'; const RED_TX     = 'B91C1C';
+const GRAY_STRIPE = 'F9FAFB';
+const GRAY_BORDER = 'E5E7EB';
+
+const RUPEE_FMT = '"₹"#,##,##0;[Red]-"₹"#,##,##0';
 const PCT_FMT = '0%';
-const DATE_FMT = 'yyyy-mm-dd';
 
-interface SheetCell { v: string | number | null; t?: 'n' | 's'; z?: string; }
-function cell(v: string | number | null | undefined, opts: { rupee?: boolean; date?: boolean; bold?: boolean } = {}): SheetCell {
-    if (v === null || v === undefined) return { v: '', t: 's' };
-    if (typeof v === 'number') return { v, t: 'n', z: opts.rupee ? RUPEE_FMT : undefined };
-    return { v: String(v), t: 's' };
+function setHeaderStyle(row: ExcelJS.Row) {
+    row.eachCell((cell) => {
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: false };
+        cell.border = {
+            top:    { style: 'thin', color: { argb: 'FF' + MAROON_DARK } },
+            bottom: { style: 'thin', color: { argb: 'FF' + MAROON_DARK } },
+            left:   { style: 'thin', color: { argb: 'FF' + MAROON_DARK } },
+            right:  { style: 'thin', color: { argb: 'FF' + MAROON_DARK } },
+        };
+    });
+    row.height = 22;
 }
-function pctCell(num: number, denom: number): SheetCell {
-    return { v: denom > 0 ? num / denom : 0, t: 'n', z: PCT_FMT };
+function setStripeStyle(row: ExcelJS.Row, even: boolean) {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+        if (even) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+        cell.font = { name: 'Calibri', size: 11, color: { argb: 'FF111827' } };
+        cell.alignment = cell.alignment || { vertical: 'middle' };
+        cell.border = { bottom: { style: 'hair', color: { argb: 'FF' + GRAY_BORDER } } };
+    });
+    row.height = 18;
 }
-
-function widenColumns(ws: XLSX.WorkSheet, widths: number[]) {
-    (ws as XLSX.WorkSheet & { '!cols': XLSX.ColInfo[] })['!cols'] = widths.map(w => ({ wch: w }));
+function setTotalsRowStyle(row: ExcelJS.Row) {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        cell.border = {
+            top:    { style: 'medium', color: { argb: 'FF' + MAROON } },
+            bottom: { style: 'medium', color: { argb: 'FF' + MAROON } },
+        };
+    });
+    row.height = 22;
 }
-function freezeHeader(ws: XLSX.WorkSheet, rowsAbove: number = 1) {
-    (ws as XLSX.WorkSheet & { '!views': unknown[] })['!views'] = [{ ySplit: rowsAbove, state: 'frozen' }];
+function pillCell(cell: ExcelJS.Cell, bg: string, tx: string) {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bg } };
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + tx } };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+}
+function statusPill(cell: ExcelJS.Cell, status: string | null) {
+    if (status === 'Fully Paid')      pillCell(cell, EMERALD_BG, EMERALD_TX);
+    else if (status === 'Partially Paid') pillCell(cell, AMBER_BG, AMBER_TX);
+    else if (status === 'Yet To Pay') pillCell(cell, RED_BG, RED_TX);
+}
+function pctTextColor(cell: ExcelJS.Cell, pct: number) {
+    const tx = pct >= 75 ? EMERALD_TX : pct >= 25 ? AMBER_TX : RED_TX;
+    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + tx } };
 }
 
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -52,260 +84,335 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     if (wRes.rows.length === 0) throw error(404, 'window not found');
     const win = wRes.rows[0] as { id: string; name: string; sheet_id: string; last_synced_at: string | null };
 
-    // ── Queries ──────────────────────────────────────────────────────────
-    const totalsR = await db.query(
-        `SELECT COUNT(fsp.id)::int                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully,
+    // ── Queries (same as before, condensed) ─────────────────────────────
+    const totals = (await db.query(
+        `SELECT COUNT(fsp.id)::int AS total,
+                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
                 COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int      AS dropouts,
-                COALESCE(SUM(fsp.payable), 0)                               AS payable,
-                COALESCE(SUM(fsp.paid), 0)                                  AS paid,
-                COALESCE(SUM(fsp.pending), 0)                               AS pending,
-                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0)     AS paid_fully,
+                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
+                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int AS dropouts,
+                COALESCE(SUM(fsp.payable), 0) AS payable,
+                COALESCE(SUM(fsp.paid), 0) AS paid,
+                COALESCE(SUM(fsp.pending), 0) AS pending,
+                COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0) AS paid_fully,
                 COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0) AS paid_partial
            FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-          WHERE bp.window_id = $1`,
-        [win.id],
-    );
-    const totals = totalsR.rows[0];
+           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id WHERE bp.window_id = $1`, [win.id])).rows[0];
 
-    const perBatchR = await db.query(
+    const perBatch = (await db.query(
         `SELECT bp.display_name, bp.batch_start_year, bp.semester_number,
-                COUNT(fsp.id)::int                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully,
+                COUNT(fsp.id)::int AS total,
+                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
                 COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet,
-                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int      AS dropouts,
-                COALESCE(SUM(fsp.payable), 0)                               AS payable,
-                COALESCE(SUM(fsp.paid), 0)                                  AS paid,
-                COALESCE(SUM(fsp.pending), 0)                               AS pending
-           FROM fee_batch_period bp
-           LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
-          WHERE bp.window_id = $1
-          GROUP BY bp.id
-          ORDER BY bp.batch_start_year DESC`,
-        [win.id],
-    );
+                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
+                COUNT(*) FILTER (WHERE fsp.tag_case = 'Dropout')::int AS dropouts,
+                COALESCE(SUM(fsp.payable), 0) AS payable,
+                COALESCE(SUM(fsp.paid), 0) AS paid,
+                COALESCE(SUM(fsp.pending), 0) AS pending
+           FROM fee_batch_period bp LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
+          WHERE bp.window_id = $1 GROUP BY bp.id ORDER BY bp.batch_start_year DESC`, [win.id])).rows;
 
-    const perUniR = await db.query(
+    const perUni = (await db.query(
         `SELECT u.name,
-                COUNT(fsp.id)::int                                          AS total,
-                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully,
+                COUNT(fsp.id)::int AS total,
+                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
                 COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet,
-                COALESCE(SUM(fsp.payable), 0)                               AS payable,
-                COALESCE(SUM(fsp.paid), 0)                                  AS paid
-           FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int AS yet,
+                COALESCE(SUM(fsp.payable), 0) AS payable,
+                COALESCE(SUM(fsp.paid), 0) AS paid
+           FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            JOIN universities u ON u.id = fsp.university_id
-          WHERE bp.window_id = $1
-          GROUP BY u.id
-          ORDER BY payable DESC`,
-        [win.id],
-    );
+          WHERE bp.window_id = $1 GROUP BY u.id ORDER BY payable DESC`, [win.id])).rows;
 
-    const studentsR = await db.query(
-        `SELECT bp.batch_start_year, bp.semester_number, bp.display_name AS batch_name,
-                u.name AS university,
+    const students = (await db.query(
+        `SELECT bp.display_name AS batch_name, bp.semester_number, u.name AS university,
                 fsp.zoho_user_id, fsp.student_name,
                 fsp.payable, fsp.paid, fsp.pending,
                 fsp.previous_fee_due, fsp.current_term_discount,
                 fsp.status, fsp.registration_status, fsp.registration_date::text AS registration_date,
                 fsp.tag_case, fsp.success_coach_name,
                 COALESCE(rc.n, 0) AS remark_count
-           FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+           FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            LEFT JOIN universities u ON u.id = fsp.university_id
            LEFT JOIN LATERAL (SELECT COUNT(*)::int AS n FROM fee_remarks fr WHERE fr.student_payment_id = fsp.id) rc ON true
-          WHERE bp.window_id = $1
-          ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`,
-        [win.id],
-    );
+          WHERE bp.window_id = $1 ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`, [win.id])).rows;
 
-    const dropoutsR = await db.query(
-        `SELECT fdl.zoho_user_id, fdl.student_name,
-                u.name AS university,
-                bp.display_name AS batch_name, bp.batch_start_year, bp.semester_number,
-                fdl.dropped_at::text AS dropped_at, fdl.reason,
-                fdl.imported_at::text AS imported_at
-           FROM fee_dropout_log fdl
-           LEFT JOIN universities u ON u.id = fdl.university_id
+    const dropouts = (await db.query(
+        `SELECT fdl.zoho_user_id, fdl.student_name, u.name AS university,
+                bp.display_name AS batch_name, bp.semester_number,
+                fdl.dropped_at::text AS dropped_at, fdl.reason, fdl.imported_at::text AS imported_at
+           FROM fee_dropout_log fdl LEFT JOIN universities u ON u.id = fdl.university_id
            LEFT JOIN fee_batch_period bp ON bp.id = fdl.batch_period_id
-          WHERE fdl.window_id = $1
-          ORDER BY COALESCE(fdl.dropped_at, fdl.imported_at::date) DESC, fdl.student_name`,
-        [win.id],
-    );
+          WHERE fdl.window_id = $1 ORDER BY COALESCE(fdl.dropped_at, fdl.imported_at::date) DESC, fdl.student_name`, [win.id])).rows;
 
     // ── Workbook ─────────────────────────────────────────────────────────
-    const wb = XLSX.utils.book_new();
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'UniConnect · Program Operations';
+    wb.created = new Date();
     const nowIst = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' IST';
 
-    // ─── Sheet 1: Summary ───────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 1: SUMMARY
+    // ═══════════════════════════════════════════════════════════════════
     {
-        const aoa: SheetCell[][] = [];
-        aoa.push([cell('FEE COLLECTION REPORT')]);
-        aoa.push([cell(win.name)]);
-        aoa.push([cell(`Generated: ${nowIst}`)]);
-        aoa.push([cell(`Sheet source: ${win.sheet_id}`)]);
-        aoa.push([cell(win.last_synced_at ? `Last synced: ${new Date(win.last_synced_at).toISOString().replace('T', ' ').slice(0, 16)} UTC` : '')]);
-        aoa.push([]);
-        aoa.push([cell('PAYMENT BREAKDOWN')]);
-        aoa.push([cell('Students'),        cell(Number(totals.total)),     cell(''), cell('Total payable'),  cell(Number(totals.payable),    { rupee: true })]);
-        aoa.push([cell('Fully paid'),      cell(Number(totals.fully)),     cell(''), cell('Total collected'), cell(Number(totals.paid),       { rupee: true })]);
-        aoa.push([cell('Partially paid'),  cell(Number(totals.partial)),   cell(''), cell('Pending'),        cell(Number(totals.pending),    { rupee: true })]);
-        aoa.push([cell('Yet to pay'),      cell(Number(totals.yet)),       cell(''), cell('Collection %'),   pctCell(Number(totals.paid), Number(totals.payable))]);
-        aoa.push([cell('Dropouts'),        cell(Number(totals.dropouts))]);
-        aoa.push([]);
-        aoa.push([cell('SOURCE OF COLLECTION')]);
-        aoa.push([cell('From fully-paid students'),  cell(Number(totals.paid_fully),   { rupee: true }), cell(`${Number(totals.fully)} students`)]);
-        aoa.push([cell('From partial payments'),     cell(Number(totals.paid_partial), { rupee: true }), cell(`${Number(totals.partial)} students`)]);
-        const ws = XLSX.utils.aoa_to_sheet(aoa.map(row => row.map(c => c.v ?? '')));
-        // Re-apply cell types + formats
-        for (let r = 0; r < aoa.length; r++) {
-            for (let c = 0; c < aoa[r].length; c++) {
-                const cellRef = XLSX.utils.encode_cell({ r, c });
-                const src = aoa[r][c];
-                if (!src) continue;
-                const target = ws[cellRef];
-                if (!target) continue;
-                if (src.t) target.t = src.t;
-                if (src.z) target.z = src.z;
-            }
-        }
-        widenColumns(ws, [32, 18, 4, 32, 22]);
-        // Merge title rows across 5 columns
-        (ws as XLSX.WorkSheet & { '!merges': XLSX.Range[] })['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
-            { s: { r: 3, c: 0 }, e: { r: 3, c: 4 } },
-            { s: { r: 4, c: 0 }, e: { r: 4, c: 4 } },
-            { s: { r: 6, c: 0 }, e: { r: 6, c: 4 } },
-            { s: { r: 13, c: 0 }, e: { r: 13, c: 4 } },
+        const ws = wb.addWorksheet('Summary', { views: [{ showGridLines: false }] });
+        ws.columns = [{ width: 32 }, { width: 20 }, { width: 6 }, { width: 32 }, { width: 22 }];
+
+        // Title bar (rows 1–2)
+        ws.mergeCells('A1:E1');
+        ws.getCell('A1').value = 'FEE COLLECTION REPORT';
+        ws.getCell('A1').font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+        ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(1).height = 38;
+
+        ws.mergeCells('A2:E2');
+        ws.getCell('A2').value = 'NIAT · Program Operations';
+        ws.getCell('A2').font = { name: 'Calibri', size: 11, color: { argb: 'FFFDE2E6' } };
+        ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell('A2').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(2).height = 18;
+
+        // Window meta (rows 4–6)
+        ws.mergeCells('A4:E4');
+        ws.getCell('A4').value = win.name;
+        ws.getCell('A4').font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF111827' } };
+        ws.mergeCells('A5:E5');
+        ws.getCell('A5').value = `Generated: ${nowIst}`;
+        ws.getCell('A5').font = { name: 'Calibri', size: 10, color: { argb: 'FF6B7280' } };
+        ws.mergeCells('A6:E6');
+        ws.getCell('A6').value = win.last_synced_at ? `Sheet last synced: ${new Date(win.last_synced_at).toISOString().replace('T', ' ').slice(0, 16)} UTC · Sheet ID ${win.sheet_id}` : `Sheet ID ${win.sheet_id}`;
+        ws.getCell('A6').font = { name: 'Calibri', size: 10, color: { argb: 'FF6B7280' } };
+
+        // Section: PAYMENT BREAKDOWN
+        const sec1 = ws.getRow(8);
+        ws.mergeCells('A8:E8');
+        sec1.getCell(1).value = 'PAYMENT BREAKDOWN';
+        sec1.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        sec1.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        sec1.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        sec1.height = 22;
+
+        // Pairs: left label + value, gap, right label + value
+        const pairs: Array<[string, number | string, string, number | string, 'count' | 'rupee' | 'pct']> = [
+            ['Students',       Number(totals.total),    'Total payable',  Number(totals.payable),     'rupee'],
+            ['Fully paid',     Number(totals.fully),    'Total collected', Number(totals.paid),       'rupee'],
+            ['Partially paid', Number(totals.partial),  'Pending',        Number(totals.pending),     'rupee'],
+            ['Yet to pay',     Number(totals.yet),      'Collection %',   Number(totals.payable) > 0 ? Number(totals.paid) / Number(totals.payable) : 0, 'pct'],
+            ['Dropouts',       Number(totals.dropouts), '',               '',                          'count'],
         ];
-        XLSX.utils.book_append_sheet(wb, ws, 'Summary');
+        pairs.forEach((p, i) => {
+            const r = ws.getRow(9 + i);
+            r.getCell(1).value = p[0];
+            r.getCell(1).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            r.getCell(2).value = p[1];
+            r.getCell(2).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF111827' } };
+            r.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
+            r.getCell(4).value = p[2];
+            r.getCell(4).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            if (p[2]) {
+                r.getCell(5).value = p[3];
+                r.getCell(5).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF' + (p[4] === 'rupee' || p[4] === 'pct' ? EMERALD_TX : '111827') } };
+                r.getCell(5).alignment = { vertical: 'middle', horizontal: 'right' };
+                if (p[4] === 'rupee') r.getCell(5).numFmt = RUPEE_FMT;
+                if (p[4] === 'pct')   r.getCell(5).numFmt = PCT_FMT;
+            }
+            r.height = 22;
+        });
+
+        // Section: SOURCE OF COLLECTION
+        const sec2Row = 9 + pairs.length + 1;
+        ws.mergeCells(`A${sec2Row}:E${sec2Row}`);
+        ws.getCell(`A${sec2Row}`).value = 'SOURCE OF COLLECTION';
+        ws.getCell(`A${sec2Row}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell(`A${sec2Row}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        ws.getCell(`A${sec2Row}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(sec2Row).height = 22;
+
+        const srcRows: Array<[string, number, string, string]> = [
+            ['From fully-paid students', Number(totals.paid_fully),   `${Number(totals.fully)} students`,   EMERALD_TX],
+            ['From partial payments',    Number(totals.paid_partial), `${Number(totals.partial)} students`, AMBER_TX],
+        ];
+        srcRows.forEach((sr, i) => {
+            const r = ws.getRow(sec2Row + 1 + i);
+            r.getCell(1).value = sr[0]; r.getCell(1).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            r.getCell(2).value = sr[1]; r.getCell(2).numFmt = RUPEE_FMT;
+            r.getCell(2).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF' + sr[3] } };
+            r.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
+            r.getCell(3).value = sr[2]; r.getCell(3).font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF9CA3AF' } };
+            r.height = 22;
+        });
     }
 
-    // ─── Sheet 2: Per-Batch ─────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 2: PER BATCH
+    // ═══════════════════════════════════════════════════════════════════
     {
-        const header = ['Batch', 'Batch Year', 'Semester', 'Total', 'Fully', 'Partial', 'Yet', 'Dropouts', 'Payable', 'Paid', 'Pending', 'Collection %'];
-        const aoa: SheetCell[][] = [header.map(h => cell(h))];
-        let tPay = 0, tPaid = 0, tTotal = 0, tFully = 0, tPartial = 0, tYet = 0, tDrop = 0, tPend = 0;
-        for (const b of perBatchR.rows) {
-            const pay = Number(b.payable), paid = Number(b.paid);
-            tTotal += Number(b.total); tFully += Number(b.fully); tPartial += Number(b.partial);
-            tYet += Number(b.yet); tDrop += Number(b.dropouts); tPay += pay; tPaid += paid; tPend += Number(b.pending);
-            aoa.push([
-                cell(b.display_name), cell(Number(b.batch_start_year)), cell(Number(b.semester_number)),
-                cell(Number(b.total)), cell(Number(b.fully)), cell(Number(b.partial)), cell(Number(b.yet)), cell(Number(b.dropouts)),
-                cell(pay, { rupee: true }), cell(paid, { rupee: true }), cell(Number(b.pending), { rupee: true }),
-                pctCell(paid, pay),
-            ]);
-        }
-        aoa.push([
-            cell('TOTAL'), cell(''), cell(''),
-            cell(tTotal), cell(tFully), cell(tPartial), cell(tYet), cell(tDrop),
-            cell(tPay, { rupee: true }), cell(tPaid, { rupee: true }), cell(tPend, { rupee: true }),
-            pctCell(tPaid, tPay),
-        ]);
-        const ws = XLSX.utils.aoa_to_sheet(aoa.map(row => row.map(c => c.v ?? '')));
-        for (let r = 0; r < aoa.length; r++) for (let c = 0; c < aoa[r].length; c++) {
-            const target = ws[XLSX.utils.encode_cell({ r, c })];
-            const src = aoa[r][c];
-            if (target && src?.t) target.t = src.t;
-            if (target && src?.z) target.z = src.z;
-        }
-        widenColumns(ws, [30, 12, 12, 10, 10, 10, 10, 12, 16, 16, 16, 14]);
-        freezeHeader(ws, 1);
-        XLSX.utils.book_append_sheet(wb, ws, 'Per Batch');
+        const ws = wb.addWorksheet('Per Batch', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+        ws.columns = [
+            { header: 'Batch', key: 'name',  width: 30 },
+            { header: 'Year',  key: 'year',  width: 8  },
+            { header: 'Sem',   key: 'sem',   width: 6  },
+            { header: 'Total', key: 't',     width: 8  },
+            { header: 'Fully', key: 'f',     width: 8  },
+            { header: 'Partial', key: 'p',   width: 10 },
+            { header: 'Yet',   key: 'y',     width: 8  },
+            { header: 'Dropouts', key: 'd',  width: 11 },
+            { header: 'Payable', key: 'pay', width: 18 },
+            { header: 'Paid',  key: 'paid',  width: 18 },
+            { header: 'Pending', key: 'pen', width: 18 },
+            { header: 'Coll %', key: 'pct',  width: 10 },
+        ];
+        setHeaderStyle(ws.getRow(1));
+
+        let tT=0,tF=0,tP=0,tY=0,tD=0,tPay=0,tPaid=0,tPend=0;
+        perBatch.forEach((b, i) => {
+            const pay=Number(b.payable), paid=Number(b.paid);
+            tT+=Number(b.total); tF+=Number(b.fully); tP+=Number(b.partial); tY+=Number(b.yet); tD+=Number(b.dropouts);
+            tPay+=pay; tPaid+=paid; tPend+=Number(b.pending);
+            const pct = pay > 0 ? paid / pay : 0;
+            const row = ws.addRow({
+                name: b.display_name, year: Number(b.batch_start_year), sem: Number(b.semester_number),
+                t: Number(b.total), f: Number(b.fully), p: Number(b.partial), y: Number(b.yet), d: Number(b.dropouts),
+                pay, paid, pen: Number(b.pending), pct,
+            });
+            setStripeStyle(row, i % 2 === 1);
+            row.getCell('pay').numFmt = RUPEE_FMT;
+            row.getCell('paid').numFmt = RUPEE_FMT;
+            row.getCell('pen').numFmt = RUPEE_FMT;
+            row.getCell('pct').numFmt = PCT_FMT;
+            row.getCell('f').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + EMERALD_TX }, bold: true };
+            row.getCell('p').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + AMBER_TX },   bold: true };
+            row.getCell('y').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + RED_TX },     bold: true };
+            pctTextColor(row.getCell('pct'), pct * 100);
+            row.getCell('pct').alignment = { vertical: 'middle', horizontal: 'right' };
+        });
+        const totRow = ws.addRow({
+            name: 'TOTAL', year: '', sem: '',
+            t: tT, f: tF, p: tP, y: tY, d: tD,
+            pay: tPay, paid: tPaid, pen: tPend,
+            pct: tPay > 0 ? tPaid / tPay : 0,
+        });
+        setTotalsRowStyle(totRow);
+        totRow.getCell('pay').numFmt = RUPEE_FMT;
+        totRow.getCell('paid').numFmt = RUPEE_FMT;
+        totRow.getCell('pen').numFmt = RUPEE_FMT;
+        totRow.getCell('pct').numFmt = PCT_FMT;
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 12 } };
     }
 
-    // ─── Sheet 3: Per-University ────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 3: PER UNIVERSITY
+    // ═══════════════════════════════════════════════════════════════════
     {
-        const header = ['University', 'Total', 'Fully', 'Partial', 'Yet', 'Payable', 'Paid', 'Collection %'];
-        const aoa: SheetCell[][] = [header.map(h => cell(h))];
-        let tPay = 0, tPaid = 0, tTotal = 0, tFully = 0, tPartial = 0, tYet = 0;
-        for (const u of perUniR.rows) {
-            const pay = Number(u.payable), paid = Number(u.paid);
-            tTotal += Number(u.total); tFully += Number(u.fully); tPartial += Number(u.partial);
-            tYet += Number(u.yet); tPay += pay; tPaid += paid;
-            aoa.push([
-                cell(u.name), cell(Number(u.total)), cell(Number(u.fully)), cell(Number(u.partial)), cell(Number(u.yet)),
-                cell(pay, { rupee: true }), cell(paid, { rupee: true }), pctCell(paid, pay),
-            ]);
-        }
-        aoa.push([cell('TOTAL'), cell(tTotal), cell(tFully), cell(tPartial), cell(tYet), cell(tPay, { rupee: true }), cell(tPaid, { rupee: true }), pctCell(tPaid, tPay)]);
-        const ws = XLSX.utils.aoa_to_sheet(aoa.map(row => row.map(c => c.v ?? '')));
-        for (let r = 0; r < aoa.length; r++) for (let c = 0; c < aoa[r].length; c++) {
-            const target = ws[XLSX.utils.encode_cell({ r, c })];
-            const src = aoa[r][c];
-            if (target && src?.t) target.t = src.t;
-            if (target && src?.z) target.z = src.z;
-        }
-        widenColumns(ws, [40, 10, 10, 10, 10, 18, 18, 14]);
-        freezeHeader(ws, 1);
-        XLSX.utils.book_append_sheet(wb, ws, 'Per University');
+        const ws = wb.addWorksheet('Per University', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+        ws.columns = [
+            { header: 'University', key: 'name', width: 40 },
+            { header: 'Total',   key: 't',    width: 8  },
+            { header: 'Fully',   key: 'f',    width: 8  },
+            { header: 'Partial', key: 'p',    width: 10 },
+            { header: 'Yet',     key: 'y',    width: 8  },
+            { header: 'Payable', key: 'pay',  width: 18 },
+            { header: 'Paid',    key: 'paid', width: 18 },
+            { header: 'Coll %',  key: 'pct',  width: 10 },
+        ];
+        setHeaderStyle(ws.getRow(1));
+
+        let uT=0,uF=0,uP=0,uY=0,uPay=0,uPaid=0;
+        perUni.forEach((u, i) => {
+            const pay=Number(u.payable), paid=Number(u.paid);
+            uT+=Number(u.total); uF+=Number(u.fully); uP+=Number(u.partial); uY+=Number(u.yet); uPay+=pay; uPaid+=paid;
+            const pct = pay > 0 ? paid / pay : 0;
+            const row = ws.addRow({ name: u.name, t: Number(u.total), f: Number(u.fully), p: Number(u.partial), y: Number(u.yet), pay, paid, pct });
+            setStripeStyle(row, i % 2 === 1);
+            row.getCell('pay').numFmt = RUPEE_FMT;
+            row.getCell('paid').numFmt = RUPEE_FMT;
+            row.getCell('pct').numFmt = PCT_FMT;
+            row.getCell('f').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + EMERALD_TX }, bold: true };
+            row.getCell('p').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + AMBER_TX },   bold: true };
+            row.getCell('y').font = { name: 'Calibri', size: 11, color: { argb: 'FF' + RED_TX },     bold: true };
+            pctTextColor(row.getCell('pct'), pct * 100);
+            row.getCell('pct').alignment = { vertical: 'middle', horizontal: 'right' };
+        });
+        const totRow = ws.addRow({ name: 'TOTAL', t: uT, f: uF, p: uP, y: uY, pay: uPay, paid: uPaid, pct: uPay > 0 ? uPaid / uPay : 0 });
+        setTotalsRowStyle(totRow);
+        totRow.getCell('pay').numFmt = RUPEE_FMT;
+        totRow.getCell('paid').numFmt = RUPEE_FMT;
+        totRow.getCell('pct').numFmt = PCT_FMT;
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 8 } };
     }
 
-    // ─── Sheet 4: Students ──────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 4: STUDENTS
+    // ═══════════════════════════════════════════════════════════════════
     {
-        const header = ['Batch', 'Sem', 'University', 'User ID', 'Student Name', 'Payable', 'Paid', 'Pending', 'Prev Due', 'Discount', 'Status', 'Reg Status', 'Reg Date', 'Tag Case', 'Success Coach', 'Remarks'];
-        const aoa: SheetCell[][] = [header.map(h => cell(h))];
-        for (const s of studentsR.rows) {
-            aoa.push([
-                cell(s.batch_name), cell(Number(s.semester_number)), cell(s.university),
-                cell(s.zoho_user_id), cell(s.student_name),
-                cell(Number(s.payable),               { rupee: true }),
-                cell(Number(s.paid),                  { rupee: true }),
-                cell(Number(s.pending),               { rupee: true }),
-                cell(Number(s.previous_fee_due ?? 0),  { rupee: true }),
-                cell(Number(s.current_term_discount ?? 0), { rupee: true }),
-                cell(s.status), cell(s.registration_status), cell(s.registration_date),
-                cell(s.tag_case), cell(s.success_coach_name),
-                cell(Number(s.remark_count)),
-            ]);
-        }
-        const ws = XLSX.utils.aoa_to_sheet(aoa.map(row => row.map(c => c.v ?? '')));
-        for (let r = 0; r < aoa.length; r++) for (let c = 0; c < aoa[r].length; c++) {
-            const target = ws[XLSX.utils.encode_cell({ r, c })];
-            const src = aoa[r][c];
-            if (target && src?.t) target.t = src.t;
-            if (target && src?.z) target.z = src.z;
-        }
-        widenColumns(ws, [28, 6, 28, 38, 28, 14, 14, 14, 12, 12, 14, 20, 12, 22, 22, 10]);
-        freezeHeader(ws, 1);
-        // Enable Excel's auto filter on the header row
-        (ws as XLSX.WorkSheet & { '!autofilter'?: { ref: string } })['!autofilter'] = { ref: `A1:P${aoa.length}` };
-        XLSX.utils.book_append_sheet(wb, ws, 'Students');
+        const ws = wb.addWorksheet('Students', { views: [{ state: 'frozen', ySplit: 1, xSplit: 5, showGridLines: false }] });
+        ws.columns = [
+            { header: 'Batch',         key: 'batch',  width: 28 },
+            { header: 'Sem',           key: 'sem',    width: 6  },
+            { header: 'University',    key: 'uni',    width: 28 },
+            { header: 'User ID',       key: 'uid',    width: 36 },
+            { header: 'Student Name',  key: 'name',   width: 28 },
+            { header: 'Payable',       key: 'pay',    width: 14 },
+            { header: 'Paid',          key: 'paid',   width: 14 },
+            { header: 'Pending',       key: 'pen',    width: 14 },
+            { header: 'Prev Due',      key: 'prev',   width: 12 },
+            { header: 'Discount',      key: 'disc',   width: 12 },
+            { header: 'Status',        key: 'status', width: 16 },
+            { header: 'Reg Status',    key: 'regs',   width: 20 },
+            { header: 'Reg Date',      key: 'regd',   width: 12 },
+            { header: 'Tag Case',      key: 'tag',    width: 22 },
+            { header: 'Success Coach', key: 'coach',  width: 22 },
+            { header: 'Remarks',       key: 'rem',    width: 10 },
+        ];
+        setHeaderStyle(ws.getRow(1));
+
+        students.forEach((s, i) => {
+            const row = ws.addRow({
+                batch: s.batch_name, sem: Number(s.semester_number), uni: s.university,
+                uid: s.zoho_user_id, name: s.student_name,
+                pay: Number(s.payable), paid: Number(s.paid), pen: Number(s.pending),
+                prev: Number(s.previous_fee_due ?? 0), disc: Number(s.current_term_discount ?? 0),
+                status: s.status, regs: s.registration_status, regd: s.registration_date,
+                tag: s.tag_case, coach: s.success_coach_name, rem: Number(s.remark_count),
+            });
+            setStripeStyle(row, i % 2 === 1);
+            ['pay','paid','pen','prev','disc'].forEach(k => { row.getCell(k).numFmt = RUPEE_FMT; });
+            statusPill(row.getCell('status'), s.status);
+            if (Number(s.remark_count) > 0) row.getCell('rem').font = { name: 'Calibri', size: 11, color: { argb: 'FF1D4ED8' }, bold: true };
+        });
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 16 } };
     }
 
-    // ─── Sheet 5: Dropouts ──────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 5: DROPOUTS
+    // ═══════════════════════════════════════════════════════════════════
     {
-        const header = ['User ID', 'Student', 'University', 'Batch', 'Sem', 'Dropped At', 'Reason'];
-        const aoa: SheetCell[][] = [header.map(h => cell(h))];
-        for (const d of dropoutsR.rows) {
-            const droppedDate = d.dropped_at || (d.imported_at ? d.imported_at.slice(0, 10) : '');
-            aoa.push([
-                cell(d.zoho_user_id), cell(d.student_name), cell(d.university),
-                cell(d.batch_name), cell(d.semester_number ? Number(d.semester_number) : ''),
-                cell(droppedDate), cell(d.reason),
-            ]);
-        }
-        const ws = XLSX.utils.aoa_to_sheet(aoa.map(row => row.map(c => c.v ?? '')));
-        for (let r = 0; r < aoa.length; r++) for (let c = 0; c < aoa[r].length; c++) {
-            const target = ws[XLSX.utils.encode_cell({ r, c })];
-            const src = aoa[r][c];
-            if (target && src?.t) target.t = src.t;
-            if (target && src?.z) target.z = src.z;
-        }
-        widenColumns(ws, [38, 28, 28, 26, 6, 14, 50]);
-        freezeHeader(ws, 1);
-        XLSX.utils.book_append_sheet(wb, ws, 'Dropouts');
+        const ws = wb.addWorksheet('Dropouts', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
+        ws.columns = [
+            { header: 'User ID',    key: 'uid',    width: 36 },
+            { header: 'Student',    key: 'name',   width: 28 },
+            { header: 'University', key: 'uni',    width: 28 },
+            { header: 'Batch',      key: 'batch',  width: 26 },
+            { header: 'Sem',        key: 'sem',    width: 6  },
+            { header: 'Dropped',    key: 'date',   width: 14 },
+            { header: 'Reason',     key: 'reason', width: 50 },
+        ];
+        setHeaderStyle(ws.getRow(1));
+
+        dropouts.forEach((d, i) => {
+            const dropped = d.dropped_at || (d.imported_at ? d.imported_at.slice(0, 10) : '');
+            const row = ws.addRow({
+                uid: d.zoho_user_id, name: d.student_name, uni: d.university,
+                batch: d.batch_name, sem: d.semester_number ? Number(d.semester_number) : '',
+                date: dropped, reason: d.reason,
+            });
+            setStripeStyle(row, i % 2 === 1);
+        });
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 7 } };
     }
 
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const buf = await wb.xlsx.writeBuffer();
     const safeName = win.name.replace(/[^A-Za-z0-9._-]+/g, '_');
     const today = new Date().toISOString().slice(0, 10);
     return new Response(buf, {

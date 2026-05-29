@@ -1,10 +1,17 @@
-DEPLOYMENT_TRIGGER_V63
-Timestamp: 2026-05-29T17:50:00+05:30
-Status: Force rebuild — fee-collection .xlsx report (5-tab workbook)
+DEPLOYMENT_TRIGGER_V64
+Timestamp: 2026-05-29T18:30:00+05:30
+Status: Force rebuild — fee-collection .xlsx report properly styled (exceljs)
 Changes:
-  - NEW endpoint /api/fees2/windows/[id]/report.xlsx — proper multi-
-    sheet Excel workbook (Summary, Per Batch, Per University,
-    Students, Dropouts) with ₹ formatting, totals rows, frozen
-    header, auto-filter, column widths
-  - Email + page header now link to .xlsx (CSV endpoint kept as
-    fallback)
+  - Switched from SheetJS to exceljs for cell-level styling
+  - Maroon (#7A1F2B) title banner, branded "NIAT · Program Operations"
+    sub-bar, section bands (light maroon background, maroon text)
+  - Per-batch / per-uni / students / dropouts sheets:
+      • Maroon header row, white bold, dark borders
+      • Alternating row stripes (white / light gray)
+      • Status pill cells in Students (emerald / amber / red bg + bold tx)
+      • Status count columns (Fully/Partial/Yet) colored per status
+      • Collection % column color-coded green ≥75 / amber ≥25 / red <25
+      • Totals row: bold, maroon-tint bg, medium maroon borders
+      • Frozen header (+ frozen first 5 cols on Students)
+      • Auto-filter on every detail tab
+      • Indian rupee number format ("₹"#,##,##0)
