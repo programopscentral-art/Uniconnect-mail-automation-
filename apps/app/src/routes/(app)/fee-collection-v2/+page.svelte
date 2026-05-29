@@ -423,7 +423,7 @@
             </select>
           {/if}
           {#if data.activeWindow}
-            <a class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" href={`/api/fees2/windows/${data.activeWindow.id}/report.csv`} download title="Download full student-level CSV report">⬇ Download report</a>
+            <a class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" href={`/api/fees2/windows/${data.activeWindow.id}/report.xlsx`} download title="5-tab Excel workbook: Summary, Per-Batch, Per-University, Students, Dropouts">⬇ Download report</a>
           {/if}
           {#if data.activeWindow && data.userIsAdmin}
             <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" onclick={() => openEditSetup(data.activeWindow!)}>Edit setup</button>

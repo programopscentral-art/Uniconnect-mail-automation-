@@ -1,16 +1,10 @@
-DEPLOYMENT_TRIGGER_V62
-Timestamp: 2026-05-29T17:30:00+05:30
-Status: Force rebuild — fee-collection email redesign + CSV report + worker dedup
+DEPLOYMENT_TRIGGER_V63
+Timestamp: 2026-05-29T17:50:00+05:30
+Status: Force rebuild — fee-collection .xlsx report (5-tab workbook)
 Changes:
-  - Snapshot email: maroon NIAT header with logo, 3 hero metric cards
-    (blue→green collection gauge / students / breakdown), status mix
-    bar, per-batch progress bars, detail table, two CTA buttons
-    (Download .csv | Open in UniConnect), footer
-  - New endpoint /api/fees2/windows/[id]/report.csv (UTF-8 BOM,
-    Excel-friendly, full student-level dump)
-  - "⬇ Download report" button in page header for everyone
-  - send-snapshot endpoint now accepts admin session OR
-    INTERNAL_SYNC_TOKEN header (so worker can reuse it)
-  - Worker's renderSnapshotHtml + buildSnapshotForWindow + recipient
-    resolver REMOVED — worker now just schedules and HTTP-fires the
-    app endpoint. One source of truth for email markup.
+  - NEW endpoint /api/fees2/windows/[id]/report.xlsx — proper multi-
+    sheet Excel workbook (Summary, Per Batch, Per University,
+    Students, Dropouts) with ₹ formatting, totals rows, frozen
+    header, auto-filter, column widths
+  - Email + page header now link to .xlsx (CSV endpoint kept as
+    fallback)

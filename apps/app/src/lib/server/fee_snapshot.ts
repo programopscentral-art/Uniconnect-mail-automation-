@@ -125,7 +125,7 @@ function progressBar(pct: number, height: number = 10): string {
 function renderSnapshotHtml(when: 'morning' | 'evening' | 'manual', snap: SnapshotData): string {
     const titleWord = when === 'morning' ? 'Morning' : when === 'evening' ? 'Evening' : 'Live';
     const subtitle = when === 'morning' ? "Today's morning snapshot" : when === 'evening' ? "Today's evening snapshot" : 'On-demand snapshot';
-    const downloadUrl = `${BASE_URL}/api/fees2/windows/${snap.window_id}/report.csv`;
+    const downloadUrl = `${BASE_URL}/api/fees2/windows/${snap.window_id}/report.xlsx`;
     const openUrl = `${BASE_URL}/fee-collection-v2?window=${snap.window_id}`;
     const dateStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toUTCString().replace(' GMT', ' IST');
 
@@ -260,7 +260,7 @@ function renderSnapshotHtml(when: 'morning' | 'evening' | 'manual', snap: Snapsh
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <tr>
             <td style="padding-right:8px;width:50%;">
-              <a href="${downloadUrl}" style="display:block;background:${MAROON};color:#fff;padding:14px 16px;text-align:center;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">⬇ Download full report (.csv)</a>
+              <a href="${downloadUrl}" style="display:block;background:${MAROON};color:#fff;padding:14px 16px;text-align:center;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">⬇ Download full report (.xlsx)</a>
             </td>
             <td style="padding-left:8px;width:50%;">
               <a href="${openUrl}" style="display:block;background:#ffffff;color:${MAROON};padding:13px 16px;text-align:center;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;border:2px solid ${MAROON};">Open in UniConnect →</a>
@@ -268,8 +268,8 @@ function renderSnapshotHtml(when: 'morning' | 'evening' | 'manual', snap: Snapsh
           </tr>
         </table>
         <div style="margin-top:12px;font-size:11px;color:#6b7280;text-align:center;line-height:1.6;">
-          The CSV opens directly in Excel with every student row, payments, status, tag, and remark counts —
-          one workbook for your records.
+          The workbook opens in Excel with 5 tabs — Summary, Per-Batch, Per-University, Students, Dropouts —
+          with ₹ formatting, totals row, and a frozen header.
         </div>
       </td></tr>
 
