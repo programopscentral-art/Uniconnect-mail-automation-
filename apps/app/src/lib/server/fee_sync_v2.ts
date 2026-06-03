@@ -438,16 +438,23 @@ async function syncDropoutSubsheet(
     const buffer: DropoutRow[] = [];
     const seenZoho = new Set<string>();
     for (const r of rows) {
-        const zoho_user_id = String(pickValue(r, ['User ID', 'UserID', 'NIAT ID']) ?? '').trim();
+        // Dropout sheet uses 'UID' for the same UUID that batch sheets call
+        // 'User ID'. Prefer UID first so the link to fee_student_payments
+        // (which stores zoho_user_id from batch sheets) actually matches.
+        // 'NIAT ID' is kept last as a fallback for sheets that only carry
+        // the human-readable code.
+        const zoho_user_id = String(pickValue(r, ['UID', 'User ID', 'UserID', 'Zoho User ID', 'NIAT ID']) ?? '').trim();
         if (!zoho_user_id || seenZoho.has(zoho_user_id)) continue;
         seenZoho.add(zoho_user_id);
-        const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
+        const uniRaw = String(pickValue(r, ['University', 'Unversity name', 'University name', 'University Name']) ?? '').trim();
         buffer.push({
             zoho_user_id,
             university_id: findUniversityIdInIndex(uniIdx, uniRaw),
             student_name: String(pickValue(r, ['Student name', 'Student Name', 'Name']) ?? '').trim() || null,
-            dropped_at: parseLooseDate(pickValue(r, ['Dropout date', 'Date', 'Dropped at'])),
-            reason: String(pickValue(r, ['Reason', 'reason', 'remarks', 'Remarks']) ?? '').trim() || null,
+            dropped_at: parseLooseDate(pickValue(r, ['Dropout date', 'Dropped at', 'Drop date', 'Date'])),
+            // 'Reason for dropout' is the primary column on the NIAT sheet;
+            // 'Remarks' is a secondary follow-up note. Fall through both.
+            reason: String(pickValue(r, ['Reason for dropout', 'Reason for Dropout', 'Reason', 'reason', 'Dropout reason', 'Remarks', 'remarks']) ?? '').trim() || null,
             raw_row: JSON.stringify(r),
         });
     }

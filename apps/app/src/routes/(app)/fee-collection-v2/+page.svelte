@@ -20,6 +20,7 @@
     success_coaches: Coach[];
     university_dates: UniDate[];
     per_university: PerUni[];
+    dropout_reasons: Array<{ reason: string; c: number }>;
   };
 
   let { data } = $props<{ data: {
@@ -518,6 +519,7 @@
         {@const donutYet = (ov.totals.yet_to_pay / donutTotal) * donutCirc}
         {@const maxPayable = Math.max(...ov.per_university.map(u => Number(u.total_payable)), 1)}
         {@const maxTag = Math.max(...ov.tag_counts.map(t => Number(t.c)), 1)}
+        {@const maxDropReason = Math.max(...(ov.dropout_reasons ?? []).map(d => Number(d.c)), 1)}
 
         <!-- HERO: collection % gauge + total figures -->
         <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -639,6 +641,31 @@
             </div>
           {/if}
         </section>
+
+        <!-- Top dropout reasons -->
+        {#if ov.dropout_reasons && ov.dropout_reasons.length > 0}
+          <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div class="flex items-baseline justify-between">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Top dropout reasons</div>
+              <div class="text-[11px] text-zinc-500">{ov.totals.dropouts} total dropouts</div>
+            </div>
+            <div class="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
+              {#each ov.dropout_reasons as d}
+                {@const w = (Number(d.c) / maxDropReason) * 100}
+                {@const pct = ov.totals.dropouts > 0 ? Math.round((Number(d.c) / ov.totals.dropouts) * 100) : 0}
+                <div>
+                  <div class="mb-0.5 flex items-baseline justify-between gap-2">
+                    <span class="truncate text-xs text-zinc-200" title={d.reason}>{d.reason}</span>
+                    <span class="text-xs font-semibold tabular-nums text-zinc-100">{d.c} · {pct}%</span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
+                    <div class="h-full rounded-full bg-gradient-to-r from-rose-500 to-red-500" style:width="{w}%"></div>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
 
         <!-- Per-batch -->
         <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">

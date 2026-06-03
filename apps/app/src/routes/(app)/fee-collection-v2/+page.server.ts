@@ -119,15 +119,36 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             [activeWindow.id],
         );
 
-        let students = 0, fully = 0, partial = 0, yet = 0, dropouts = 0;
+        // Dropout count comes from the dropout sub-sheet directly, NOT from
+        // tag_case = 'Dropout'. Reason: tag_case only gets set when we can
+        // link a dropout row to a batch_period (matching UIDs), which fails
+        // for any student in the dropout sheet who isn't in any batch sheet
+        // (graduated, transferred, sheet drift, etc.). The raw dropout count
+        // is the authoritative number.
+        const dropoutsR = await db.query(
+            `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1`,
+            [activeWindow.id],
+        );
+        const dropoutsTotal = Number(dropoutsR.rows[0]?.n ?? 0);
+
+        const dropoutReasonsR = await db.query(
+            `SELECT COALESCE(NULLIF(TRIM(reason), ''), '(no reason given)') AS reason,
+                    COUNT(*)::int AS c
+               FROM fee_dropout_log
+              WHERE window_id = $1
+              GROUP BY 1 ORDER BY c DESC LIMIT 8`,
+            [activeWindow.id],
+        );
+
+        let students = 0, fully = 0, partial = 0, yet = 0;
         let totalPayable = 0, totalPaid = 0, paidFromFully = 0, paidFromPartial = 0;
         for (const b of perBatch.rows) {
             students += Number(b.total); fully += Number(b.fully_paid);
             partial += Number(b.partial); yet += Number(b.yet_to_pay);
-            dropouts += Number(b.dropouts);
             totalPayable += Number(b.total_payable); totalPaid += Number(b.total_paid);
             paidFromFully += Number(b.paid_from_fully); paidFromPartial += Number(b.paid_from_partial);
         }
+        const dropouts = dropoutsTotal;
         const collectionPct = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
 
         overview = {
@@ -139,6 +160,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             success_coaches: coaches.rows,
             university_dates: dates.rows,
             per_university: perUniversity.rows,
+            dropout_reasons: dropoutReasonsR.rows,
         };
     }
 

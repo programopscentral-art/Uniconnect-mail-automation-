@@ -1,15 +1,19 @@
-DEPLOYMENT_TRIGGER_V66
-Timestamp: 2026-06-03T10:25:00+05:30
-Status: Force rebuild — fee-collection sync 1000x faster via batched upserts
+DEPLOYMENT_TRIGGER_V67
+Timestamp: 2026-06-03T10:55:00+05:30
+Status: Force rebuild — dropout accuracy + analytics in report
 Changes:
-  - syncBatchSubsheet: collects all student rows in memory, then
-    bulk-upserts in chunks of 500 (one INSERT per chunk vs one per
-    student). 4,537 students: was ~19 min, now ~1-2 sec.
-  - syncDatesSubsheet: one bulk INSERT per batch_period instead of
-    per (batch × university). 3 round-trips vs ~54.
-  - syncDropoutSubsheet: single lookup query for all dropout →
-    batch_period mappings (was N queries), one bulk INSERT for the
-    dropout_log (was N), one bulk UPDATE for the Dropout auto-tag
-    (was N). 84 dropouts: was ~84s, now ~50ms.
-  - In-memory dedup of duplicate zoho_user_id within a sheet to
-    avoid Postgres "cannot affect row a second time" on conflict.
+  - Dropout sync now reads 'UID' (the UUID matching batch sheets'
+    User ID) BEFORE 'NIAT ID' so dropouts link to fee_student_payments
+  - Reason candidates now include 'Reason for dropout' (the actual
+    primary column) — previously only matched 'Remarks'
+  - Overview dropout count sourced from fee_dropout_log directly
+    (was tag_case='Dropout' which only counted matched dropouts → 0)
+  - New "Top dropout reasons" widget on Overview tab (rose→red bars)
+  - New "Analytics" sheet in the Excel workbook with:
+      • Top dropout reasons (count + % of total)
+      • Tag-case distribution
+      • University leaderboard (top 5 by collection %, min 50 students)
+      • Needs attention (bottom 5 by collection %)
+      • Batch comparison strip
+  - Backfilled 69 existing dropout rows: 10 now linked to batches,
+    10 students auto-tagged as Dropout

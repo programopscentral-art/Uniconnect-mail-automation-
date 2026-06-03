@@ -145,6 +145,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
            LEFT JOIN fee_batch_period bp ON bp.id = fdl.batch_period_id
           WHERE fdl.window_id = $1 ORDER BY COALESCE(fdl.dropped_at, fdl.imported_at::date) DESC, fdl.student_name`, [win.id])).rows;
 
+    // Analytics queries
+    const dropoutReasons = (await db.query(
+        `SELECT COALESCE(NULLIF(TRIM(reason), ''), '(no reason given)') AS reason,
+                COUNT(*)::int AS n
+           FROM fee_dropout_log
+          WHERE window_id = $1
+          GROUP BY 1 ORDER BY n DESC LIMIT 25`, [win.id])).rows;
+    const tagCounts = (await db.query(
+        `SELECT fsp.tag_case, COUNT(*)::int AS n
+           FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+          WHERE bp.window_id = $1 AND fsp.tag_case IS NOT NULL AND fsp.tag_case <> ''
+          GROUP BY fsp.tag_case ORDER BY n DESC`, [win.id])).rows;
+    const totalDropoutsRow = (await db.query(
+        `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1`, [win.id])).rows[0];
+    const totalDropouts = Number(totalDropoutsRow?.n ?? 0);
+
     // ── Workbook ─────────────────────────────────────────────────────────
     const wb = new ExcelJS.Workbook();
     wb.creator = 'UniConnect · Program Operations';
@@ -199,7 +215,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             ['Fully paid',     Number(totals.fully),    'Total collected', Number(totals.paid),       'rupee'],
             ['Partially paid', Number(totals.partial),  'Pending',        Number(totals.pending),     'rupee'],
             ['Yet to pay',     Number(totals.yet),      'Collection %',   Number(totals.payable) > 0 ? Number(totals.paid) / Number(totals.payable) : 0, 'pct'],
-            ['Dropouts',       Number(totals.dropouts), '',               '',                          'count'],
+            ['Dropouts',       totalDropouts,           '',               '',                          'count'],
         ];
         pairs.forEach((p, i) => {
             const r = ws.getRow(9 + i);
@@ -343,7 +359,199 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SHEET 4: STUDENTS
+    // SHEET 4 (NEW): ANALYTICS — dropout reasons, tag distribution,
+    //                top + bottom universities, batch comparison
+    // ═══════════════════════════════════════════════════════════════════
+    {
+        const ws = wb.addWorksheet('Analytics', { views: [{ showGridLines: false }] });
+        ws.columns = [{ width: 36 }, { width: 12 }, { width: 12 }, { width: 4 }, { width: 36 }, { width: 14 }];
+
+        // Banner
+        ws.mergeCells('A1:F1');
+        ws.getCell('A1').value = 'COLLECTION ANALYTICS';
+        ws.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+        ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+        ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(1).height = 32;
+        ws.mergeCells('A2:F2');
+        ws.getCell('A2').value = win.name;
+        ws.getCell('A2').font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+
+        // ── Section: Dropout reasons (left) + Tag distribution (right) ─
+        ws.mergeCells('A4:C4');
+        ws.getCell('A4').value = 'TOP DROPOUT REASONS';
+        ws.getCell('A4').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell('A4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        ws.getCell('A4').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.mergeCells('E4:F4');
+        ws.getCell('E4').value = 'TAG-CASE DISTRIBUTION';
+        ws.getCell('E4').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell('E4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        ws.getCell('E4').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(4).height = 22;
+
+        // Headers row 5
+        ['Reason', 'Count', '% of total'].forEach((h, i) => {
+            const cell = ws.getCell(5, i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+        ['Tag case', 'Count'].forEach((h, i) => {
+            const cell = ws.getCell(5, i + 5);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+        ws.getRow(5).height = 20;
+
+        // Fill: max length is the longer of the two
+        const maxLen = Math.max(dropoutReasons.length, tagCounts.length);
+        for (let i = 0; i < maxLen; i++) {
+            const r = i + 6;
+            const drop = dropoutReasons[i];
+            if (drop) {
+                ws.getCell(r, 1).value = String(drop.reason);
+                ws.getCell(r, 1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                ws.getCell(r, 2).value = Number(drop.n);
+                ws.getCell(r, 2).alignment = { vertical: 'middle', horizontal: 'right' };
+                ws.getCell(r, 3).value = totalDropouts > 0 ? Number(drop.n) / totalDropouts : 0;
+                ws.getCell(r, 3).numFmt = PCT_FMT;
+                ws.getCell(r, 3).alignment = { vertical: 'middle', horizontal: 'right' };
+                ws.getCell(r, 3).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+            }
+            const tag = tagCounts[i];
+            if (tag) {
+                ws.getCell(r, 5).value = String(tag.tag_case);
+                ws.getCell(r, 5).alignment = { vertical: 'middle', horizontal: 'left' };
+                ws.getCell(r, 6).value = Number(tag.n);
+                ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+                ws.getCell(r, 6).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
+            }
+            // Stripe
+            if (i % 2 === 1) {
+                for (let col = 1; col <= 6; col++) {
+                    if (col === 4) continue;
+                    const cell = ws.getCell(r, col);
+                    if (!cell.fill || (cell.fill as { type?: string }).type !== 'pattern') {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                    }
+                }
+            }
+        }
+
+        // ── Section: University leaderboard ─────────────────────────
+        const lbStart = 6 + maxLen + 2;
+        ws.mergeCells(`A${lbStart}:F${lbStart}`);
+        ws.getCell(`A${lbStart}`).value = 'UNIVERSITY LEADERBOARD — TOP 5 BY COLLECTION % (min 50 students)';
+        ws.getCell(`A${lbStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell(`A${lbStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        ws.getCell(`A${lbStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(lbStart).height = 22;
+
+        ['University', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
+            const cell = ws.getCell(lbStart + 1, i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+
+        const qualifiers = perUni.filter(u => Number(u.total) >= 50).map(u => ({
+            name: u.name, total: Number(u.total), payable: Number(u.payable), paid: Number(u.paid),
+            pct: Number(u.payable) > 0 ? Number(u.paid) / Number(u.payable) : 0,
+        }));
+        const top5 = [...qualifiers].sort((a, b) => b.pct - a.pct).slice(0, 5);
+        top5.forEach((u, i) => {
+            const r = lbStart + 2 + i;
+            ws.getCell(r, 1).value = u.name;
+            ws.getCell(r, 2).value = u.total;
+            ws.getCell(r, 3).value = u.payable; ws.getCell(r, 3).numFmt = RUPEE_FMT;
+            ws.getCell(r, 5).value = u.paid;    ws.getCell(r, 5).numFmt = RUPEE_FMT;
+            ws.getCell(r, 6).value = u.pct;     ws.getCell(r, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(r, 6), u.pct * 100);
+            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+            if (i % 2 === 1) {
+                for (let col = 1; col <= 6; col++) {
+                    if (col === 4) continue;
+                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                }
+            }
+        });
+
+        // ── Bottom 5 (needs attention) ──────────────────────────────
+        const bbStart = lbStart + 2 + top5.length + 2;
+        ws.mergeCells(`A${bbStart}:F${bbStart}`);
+        ws.getCell(`A${bbStart}`).value = 'NEEDS ATTENTION — BOTTOM 5 BY COLLECTION % (min 50 students)';
+        ws.getCell(`A${bbStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + RED_TX } };
+        ws.getCell(`A${bbStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + RED_BG } };
+        ws.getCell(`A${bbStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(bbStart).height = 22;
+
+        ['University', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
+            const cell = ws.getCell(bbStart + 1, i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+        const bottom5 = [...qualifiers].sort((a, b) => a.pct - b.pct).slice(0, 5);
+        bottom5.forEach((u, i) => {
+            const r = bbStart + 2 + i;
+            ws.getCell(r, 1).value = u.name;
+            ws.getCell(r, 2).value = u.total;
+            ws.getCell(r, 3).value = u.payable; ws.getCell(r, 3).numFmt = RUPEE_FMT;
+            ws.getCell(r, 5).value = u.paid;    ws.getCell(r, 5).numFmt = RUPEE_FMT;
+            ws.getCell(r, 6).value = u.pct;     ws.getCell(r, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(r, 6), u.pct * 100);
+            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+            if (i % 2 === 1) {
+                for (let col = 1; col <= 6; col++) {
+                    if (col === 4) continue;
+                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                }
+            }
+        });
+
+        // ── Batch comparison strip ──────────────────────────────────
+        const bcStart = bbStart + 2 + bottom5.length + 2;
+        ws.mergeCells(`A${bcStart}:F${bcStart}`);
+        ws.getCell(`A${bcStart}`).value = 'BATCH COMPARISON';
+        ws.getCell(`A${bcStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+        ws.getCell(`A${bcStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
+        ws.getCell(`A${bcStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        ws.getRow(bcStart).height = 22;
+        ['Batch', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
+            const cell = ws.getCell(bcStart + 1, i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+        perBatch.forEach((b, i) => {
+            const r = bcStart + 2 + i;
+            const pay = Number(b.payable), paid = Number(b.paid);
+            const pct = pay > 0 ? paid / pay : 0;
+            ws.getCell(r, 1).value = b.display_name;
+            ws.getCell(r, 2).value = Number(b.total);
+            ws.getCell(r, 3).value = pay;  ws.getCell(r, 3).numFmt = RUPEE_FMT;
+            ws.getCell(r, 5).value = paid; ws.getCell(r, 5).numFmt = RUPEE_FMT;
+            ws.getCell(r, 6).value = pct;  ws.getCell(r, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(r, 6), pct * 100);
+            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+            if (i % 2 === 1) {
+                for (let col = 1; col <= 6; col++) {
+                    if (col === 4) continue;
+                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                }
+            }
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // SHEET 5: STUDENTS
     // ═══════════════════════════════════════════════════════════════════
     {
         const ws = wb.addWorksheet('Students', { views: [{ state: 'frozen', ySplit: 1, xSplit: 5, showGridLines: false }] });
@@ -385,7 +593,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SHEET 5: DROPOUTS
+    // SHEET 6: DROPOUTS
     // ═══════════════════════════════════════════════════════════════════
     {
         const ws = wb.addWorksheet('Dropouts', { views: [{ state: 'frozen', ySplit: 1, showGridLines: false }] });
