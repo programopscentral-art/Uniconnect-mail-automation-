@@ -1,16 +1,8 @@
-DEPLOYMENT_TRIGGER_V72
-Timestamp: 2026-06-03T13:00:00+05:30
-Status: Force rebuild — trend chart renders the chart frame with 1 point
-User: "here trends nothing is visible yyy"
-Reason: I gated chart rendering on pts.length >= 2 since you can't draw
-a "line" with 1 point — but that meant 100% of users on day 1 saw an
-empty-state card instead of a chart, even though we DO have today's
-data point.
-
-Now: empty state only triggers when there are 0 snapshots. With 1
-snapshot we render the full chart frame (grid + Y-axis %) and place
-a single larger marker at the centre with the % value above and the
-date below. Footer changes from the Δ/Day1/Latest split to a single
-italic note: "First snapshot today — the line will start drawing
-once tomorrow's snapshot lands." With 2+ snapshots the chart works
-exactly as before (gradient area + line + markers + delta footer).
+DEPLOYMENT_TRIGGER_V73
+Timestamp: 2026-06-03T13:25:00+05:30
+Status: Force rebuild — drop empty Operator-tag card from website Overview
+Excel already hides this section when there are 0 non-Dropout tags
+(fixed in V71). Website still showed the card with a "No operator
+tags applied yet…" placeholder. Now identical behaviour: the card
+is omitted entirely when empty, and the Top universities card takes
+the full row width instead of leaving a half-empty grid cell.

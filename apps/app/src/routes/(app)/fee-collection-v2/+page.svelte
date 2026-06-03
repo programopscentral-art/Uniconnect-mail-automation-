@@ -615,9 +615,9 @@
           </div>
         </section>
 
-        <!-- Top universities by payable + Tag distribution -->
-        <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {#if ov.per_university.length > 0}
+        <!-- Top universities (+ operator tags side-by-side only when tags exist) -->
+        {#if ov.per_university.length > 0}
+          <section class="mb-4 grid grid-cols-1 gap-4 {operatorTags.length > 0 ? 'lg:grid-cols-2' : ''}">
             <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
               <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Top universities by collection</div>
               <div class="mt-3 space-y-3">
@@ -641,33 +641,31 @@
                 {/each}
               </div>
             </div>
-          {/if}
 
-          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-            <div class="flex items-baseline justify-between gap-2">
-              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Operator-set tag distribution</div>
-              <div class="text-[10px] text-zinc-600">excludes "Dropout" — see headline</div>
-            </div>
             {#if operatorTags.length > 0}
-              <div class="mt-3 space-y-2.5">
-                {#each operatorTags as t}
-                  {@const w = (Number(t.c) / maxTag) * 100}
-                  <div>
-                    <div class="mb-0.5 flex items-baseline justify-between gap-2">
-                      <span class="truncate text-xs text-zinc-200">{t.tag_case}</span>
-                      <span class="text-xs font-semibold tabular-nums text-zinc-100">{t.c}</span>
+              <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+                <div class="flex items-baseline justify-between gap-2">
+                  <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Operator-set tag distribution</div>
+                  <div class="text-[10px] text-zinc-600">excludes "Dropout" — see headline</div>
+                </div>
+                <div class="mt-3 space-y-2.5">
+                  {#each operatorTags as t}
+                    {@const w = (Number(t.c) / maxTag) * 100}
+                    <div>
+                      <div class="mb-0.5 flex items-baseline justify-between gap-2">
+                        <span class="truncate text-xs text-zinc-200">{t.tag_case}</span>
+                        <span class="text-xs font-semibold tabular-nums text-zinc-100">{t.c}</span>
+                      </div>
+                      <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
+                        <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" style:width="{w}%"></div>
+                      </div>
                     </div>
-                    <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
-                      <div class="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" style:width="{w}%"></div>
-                    </div>
-                  </div>
-                {/each}
+                  {/each}
+                </div>
               </div>
-            {:else}
-              <div class="mt-6 text-center text-xs italic text-zinc-500">No operator tags applied yet. As PMs/COS add tags like "Will Pay", "Loan Applied", etc., they'll appear here.</div>
             {/if}
-          </div>
-        </section>
+          </section>
+        {/if}
 
         <!-- Top dropout reasons (top 8 + Other) -->
         {#if reasonsForUI.length > 0}
