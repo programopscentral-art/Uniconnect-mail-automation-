@@ -507,6 +507,17 @@
 
       {#if tab === 'overview' && data.overview}
         {@const ov = data.overview}
+        {@const gaugeR = 56}
+        {@const gaugeCirc = 2 * Math.PI * gaugeR}
+        {@const gaugeDash = (ov.totals.collection_pct / 100) * gaugeCirc}
+        {@const donutTotal = Math.max(1, ov.totals.fully_paid + ov.totals.partial + ov.totals.yet_to_pay)}
+        {@const donutR = 50}
+        {@const donutCirc = 2 * Math.PI * donutR}
+        {@const donutFully = (ov.totals.fully_paid / donutTotal) * donutCirc}
+        {@const donutPartial = (ov.totals.partial / donutTotal) * donutCirc}
+        {@const donutYet = (ov.totals.yet_to_pay / donutTotal) * donutCirc}
+        {@const maxPayable = Math.max(...ov.per_university.map(u => Number(u.total_payable)), 1)}
+        {@const maxTag = Math.max(...ov.tag_counts.map(t => Number(t.c)), 1)}
 
         <!-- HERO: collection % gauge + total figures -->
         <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -514,13 +525,9 @@
           <div class="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-blue-950/40 via-zinc-900 to-zinc-900 p-6">
             <div class="text-[10px] uppercase tracking-[0.22em] text-blue-300/80">Collection progress</div>
             <div class="mt-4 flex items-center gap-5">
-              {@const r = 56}
-              {@const cx = 64} {@const cy = 64}
-              {@const circ = 2 * Math.PI * r}
-              {@const dash = (ov.totals.collection_pct / 100) * circ}
               <svg viewBox="0 0 128 128" class="h-32 w-32 -rotate-90">
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1e293b" stroke-width="14"/>
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#g)" stroke-width="14" stroke-linecap="round" stroke-dasharray={`${dash} ${circ - dash}`} />
+                <circle cx="64" cy="64" r={gaugeR} fill="none" stroke="#1e293b" stroke-width="14"/>
+                <circle cx="64" cy="64" r={gaugeR} fill="none" stroke="url(#g)" stroke-width="14" stroke-linecap="round" stroke-dasharray={`${gaugeDash} ${gaugeCirc - gaugeDash}`} />
                 <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#10b981"/></linearGradient></defs>
               </svg>
               <div>
@@ -547,16 +554,11 @@
           <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Payment status</div>
             <div class="mt-3 flex items-center gap-5">
-              {@const total = Math.max(1, ov.totals.fully_paid + ov.totals.partial + ov.totals.yet_to_pay)}
-              {@const r2 = 50} {@const c2 = 60} {@const circ2 = 2 * Math.PI * r2}
-              {@const dashFully = (ov.totals.fully_paid / total) * circ2}
-              {@const dashPartial = (ov.totals.partial / total) * circ2}
-              {@const dashYet = (ov.totals.yet_to_pay / total) * circ2}
               <svg viewBox="0 0 120 120" class="h-32 w-32 -rotate-90">
-                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#1f2937" stroke-width="18"/>
-                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#10b981" stroke-width="18" stroke-dasharray={`${dashFully} ${circ2 - dashFully}`} />
-                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#f59e0b" stroke-width="18" stroke-dasharray={`${dashPartial} ${circ2 - dashPartial}`} stroke-dashoffset={-dashFully} />
-                <circle cx={c2} cy={c2} r={r2} fill="none" stroke="#ef4444" stroke-width="18" stroke-dasharray={`${dashYet} ${circ2 - dashYet}`} stroke-dashoffset={-(dashFully + dashPartial)} />
+                <circle cx="60" cy="60" r={donutR} fill="none" stroke="#1f2937" stroke-width="18"/>
+                <circle cx="60" cy="60" r={donutR} fill="none" stroke="#10b981" stroke-width="18" stroke-dasharray={`${donutFully} ${donutCirc - donutFully}`} />
+                <circle cx="60" cy="60" r={donutR} fill="none" stroke="#f59e0b" stroke-width="18" stroke-dasharray={`${donutPartial} ${donutCirc - donutPartial}`} stroke-dashoffset={-donutFully} />
+                <circle cx="60" cy="60" r={donutR} fill="none" stroke="#ef4444" stroke-width="18" stroke-dasharray={`${donutYet} ${donutCirc - donutYet}`} stroke-dashoffset={-(donutFully + donutPartial)} />
               </svg>
               <div class="space-y-2 text-xs flex-1 min-w-0">
                 <div class="flex items-center justify-between gap-2"><span class="flex items-center gap-2"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>Fully paid</span><span class="font-semibold tabular-nums">{ov.totals.fully_paid}</span></div>
@@ -595,7 +597,6 @@
             <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
               <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Top universities by collection</div>
               <div class="mt-3 space-y-3">
-                {@const maxPayable = Math.max(...ov.per_university.map(u => Number(u.total_payable)), 1)}
                 {#each ov.per_university.slice(0, 10) as u (u.id)}
                   {@const payable = Number(u.total_payable)}
                   {@const paid = Number(u.total_paid)}
@@ -622,7 +623,6 @@
             <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
               <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Tag-case distribution</div>
               <div class="mt-3 space-y-2.5">
-                {@const maxTag = Math.max(...ov.tag_counts.map(t => Number(t.c)), 1)}
                 {#each ov.tag_counts as t}
                   {@const w = (Number(t.c) / maxTag) * 100}
                   <div>

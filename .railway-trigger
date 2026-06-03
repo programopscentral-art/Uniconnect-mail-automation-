@@ -1,17 +1,12 @@
-DEPLOYMENT_TRIGGER_V64
-Timestamp: 2026-05-29T18:30:00+05:30
-Status: Force rebuild — fee-collection .xlsx report properly styled (exceljs)
+DEPLOYMENT_TRIGGER_V65
+Timestamp: 2026-06-03T09:55:00+05:30
+Status: Force rebuild — fix Svelte 5 {@const} placement errors blocking app build
 Changes:
-  - Switched from SheetJS to exceljs for cell-level styling
-  - Maroon (#7A1F2B) title banner, branded "NIAT · Program Operations"
-    sub-bar, section bands (light maroon background, maroon text)
-  - Per-batch / per-uni / students / dropouts sheets:
-      • Maroon header row, white bold, dark borders
-      • Alternating row stripes (white / light gray)
-      • Status pill cells in Students (emerald / amber / red bg + bold tx)
-      • Status count columns (Fully/Partial/Yet) colored per status
-      • Collection % column color-coded green ≥75 / amber ≥25 / red <25
-      • Totals row: bold, maroon-tint bg, medium maroon borders
-      • Frozen header (+ frozen first 5 cols on Students)
-      • Auto-filter on every detail tab
-      • Indian rupee number format ("₹"#,##,##0)
+  - {@const} for gauge (r/circ/dash), donut (total/r/circ/fully/
+    partial/yet) and chart max values (maxPayable, maxTag) were
+    placed inside plain <div> elements; Svelte 5 only allows
+    {@const} as the immediate child of control-flow blocks.
+  - Hoisted all of them to the top of {#if tab === 'overview'} so
+    the computed values are in scope for the whole overview view.
+  - Verified locally: vite build now succeeds (4119 + 3776 modules
+    transformed, no errors).
