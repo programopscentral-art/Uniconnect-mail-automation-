@@ -13,6 +13,10 @@ import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
 import ExcelJS from 'exceljs';
+import {
+    renderStatusDoughnut, renderBatchCollectionChart,
+    renderTopUniversitiesChart, renderDropoutReasonsChart, renderTagCaseChart,
+} from '$lib/server/fee_chart_renderer';
 
 // NIAT palette
 const MAROON = '7A1F2B';
@@ -359,195 +363,289 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // SHEET 4 (NEW): ANALYTICS — dropout reasons, tag distribution,
-    //                top + bottom universities, batch comparison
+    // SHEET 4: ANALYTICS — reordered, with embedded PNG charts.
+    //
+    // Section order (per user spec):
+    //   1) Collection KPIs (the most important numbers)
+    //   2) Payment status doughnut chart
+    //   3) Batch comparison + Collection % chart
+    //   4) Top universities by collection (table + chart)
+    //   5) Needs attention — bottom 5
+    //   6) Operator tag distribution (excludes 'Dropout' — the headline
+    //      already shows real dropouts from the dropout sub-sheet, so
+    //      including the operator-applied 'Dropout' tag double-counted
+    //      and confused operators)
+    //   7) Top dropout reasons (capped at top 10 + "Other") + chart
     // ═══════════════════════════════════════════════════════════════════
     {
         const ws = wb.addWorksheet('Analytics', { views: [{ showGridLines: false }] });
-        ws.columns = [{ width: 36 }, { width: 12 }, { width: 12 }, { width: 4 }, { width: 36 }, { width: 14 }];
+        ws.columns = [{ width: 36 }, { width: 14 }, { width: 14 }, { width: 4 }, { width: 36 }, { width: 14 }];
 
-        // Banner
-        ws.mergeCells('A1:F1');
-        ws.getCell('A1').value = 'COLLECTION ANALYTICS';
-        ws.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-        ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
-        ws.getCell('A1').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.getRow(1).height = 32;
-        ws.mergeCells('A2:F2');
-        ws.getCell('A2').value = win.name;
-        ws.getCell('A2').font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+        let row = 1;
+        const banner = (text: string, fg = 'FFFFFF', bg = MAROON, size = 14) => {
+            ws.mergeCells(`A${row}:F${row}`);
+            const cell = ws.getCell(`A${row}`);
+            cell.value = text;
+            cell.font = { name: 'Calibri', size, bold: true, color: { argb: 'FF' + fg } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + bg } };
+            cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(row).height = size === 14 ? 22 : 32;
+            row++;
+        };
 
-        // ── Section: Dropout reasons (left) + Tag distribution (right) ─
-        ws.mergeCells('A4:C4');
-        ws.getCell('A4').value = 'TOP DROPOUT REASONS';
-        ws.getCell('A4').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
-        ws.getCell('A4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
-        ws.getCell('A4').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.mergeCells('E4:F4');
-        ws.getCell('E4').value = 'TAG-CASE DISTRIBUTION';
-        ws.getCell('E4').font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
-        ws.getCell('E4').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
-        ws.getCell('E4').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.getRow(4).height = 22;
+        // Title block
+        banner('COLLECTION ANALYTICS', 'FFFFFF', MAROON, 16);
+        ws.mergeCells(`A${row}:F${row}`);
+        ws.getCell(`A${row}`).value = `${win.name}  ·  Generated ${nowIst}`;
+        ws.getCell(`A${row}`).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+        ws.getRow(row).height = 18;
+        row += 2;
 
-        // Headers row 5
-        ['Reason', 'Count', '% of total'].forEach((h, i) => {
-            const cell = ws.getCell(5, i + 1);
+        // ── Section 1: Collection KPIs ──────────────────────────────
+        banner('COLLECTION SNAPSHOT', MAROON_DARK, MAROON_TINT);
+        const kpis: Array<[string, number | string, string, number | string, 'count' | 'rupee' | 'pct' | 'text']> = [
+            ['Students', Number(totals.total), 'Total payable', Number(totals.payable), 'rupee'],
+            ['Fully paid', Number(totals.fully), 'Total collected', Number(totals.paid), 'rupee'],
+            ['Partially paid', Number(totals.partial), 'Pending', Number(totals.pending), 'rupee'],
+            ['Yet to pay', Number(totals.yet), 'Collection %', Number(totals.payable) > 0 ? Number(totals.paid) / Number(totals.payable) : 0, 'pct'],
+            ['Dropouts', totalDropouts, 'From fully paid', Number(totals.paid_fully), 'rupee'],
+            ['', '', 'From partial', Number(totals.paid_partial), 'rupee'],
+        ];
+        kpis.forEach(([leftLabel, leftVal, rightLabel, rightVal, rightKind]) => {
+            const r = ws.getRow(row);
+            r.getCell(1).value = leftLabel;
+            r.getCell(1).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            if (leftVal !== '') {
+                r.getCell(2).value = leftVal as number;
+                r.getCell(2).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF111827' } };
+                r.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
+            }
+            r.getCell(4).value = rightLabel;
+            r.getCell(4).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            if (rightLabel) {
+                r.getCell(5).value = rightVal as number;
+                r.getCell(5).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF' + (rightKind === 'rupee' || rightKind === 'pct' ? EMERALD_TX : '111827') } };
+                r.getCell(5).alignment = { vertical: 'middle', horizontal: 'right' };
+                if (rightKind === 'rupee') r.getCell(5).numFmt = RUPEE_FMT;
+                if (rightKind === 'pct')   r.getCell(5).numFmt = PCT_FMT;
+            }
+            r.height = 22;
+            row++;
+        });
+        row++;
+
+        // ── Section 2: Payment status doughnut ──────────────────────
+        banner('PAYMENT STATUS', MAROON_DARK, MAROON_TINT);
+        {
+            const img = renderStatusDoughnut(Number(totals.fully), Number(totals.partial), Number(totals.yet));
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, {
+                tl: { col: 0, row: row - 1 },
+                ext: { width: img.width, height: img.height },
+            });
+            // Reserve vertical space so the next section doesn't overlap
+            for (let i = 0; i < 19; i++) ws.getRow(row + i).height = 18;
+            row += 20;
+        }
+
+        // ── Section 3: Batch comparison (table + chart) ─────────────
+        banner('BATCH COMPARISON', MAROON_DARK, MAROON_TINT);
+        ['Batch', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
+            const cell = ws.getCell(row, i + 1);
             cell.value = h;
             cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
             cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
         });
-        ['Tag case', 'Count'].forEach((h, i) => {
-            const cell = ws.getCell(5, i + 5);
-            cell.value = h;
-            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
-            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
-        });
-        ws.getRow(5).height = 20;
-
-        // Fill: max length is the longer of the two
-        const maxLen = Math.max(dropoutReasons.length, tagCounts.length);
-        for (let i = 0; i < maxLen; i++) {
-            const r = i + 6;
-            const drop = dropoutReasons[i];
-            if (drop) {
-                ws.getCell(r, 1).value = String(drop.reason);
-                ws.getCell(r, 1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-                ws.getCell(r, 2).value = Number(drop.n);
-                ws.getCell(r, 2).alignment = { vertical: 'middle', horizontal: 'right' };
-                ws.getCell(r, 3).value = totalDropouts > 0 ? Number(drop.n) / totalDropouts : 0;
-                ws.getCell(r, 3).numFmt = PCT_FMT;
-                ws.getCell(r, 3).alignment = { vertical: 'middle', horizontal: 'right' };
-                ws.getCell(r, 3).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
-            }
-            const tag = tagCounts[i];
-            if (tag) {
-                ws.getCell(r, 5).value = String(tag.tag_case);
-                ws.getCell(r, 5).alignment = { vertical: 'middle', horizontal: 'left' };
-                ws.getCell(r, 6).value = Number(tag.n);
-                ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
-                ws.getCell(r, 6).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
-            }
-            // Stripe
+        row++;
+        const batchChartData: Array<{ label: string; pct: number; paid: number; payable: number }> = [];
+        perBatch.forEach((b, i) => {
+            const pay = Number(b.payable), paid = Number(b.paid);
+            const pct = pay > 0 ? paid / pay : 0;
+            ws.getCell(row, 1).value = b.display_name;
+            ws.getCell(row, 2).value = Number(b.total);
+            ws.getCell(row, 3).value = pay;  ws.getCell(row, 3).numFmt = RUPEE_FMT;
+            ws.getCell(row, 5).value = paid; ws.getCell(row, 5).numFmt = RUPEE_FMT;
+            ws.getCell(row, 6).value = pct;  ws.getCell(row, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(row, 6), pct * 100);
+            ws.getCell(row, 6).alignment = { vertical: 'middle', horizontal: 'right' };
             if (i % 2 === 1) {
                 for (let col = 1; col <= 6; col++) {
                     if (col === 4) continue;
-                    const cell = ws.getCell(r, col);
-                    if (!cell.fill || (cell.fill as { type?: string }).type !== 'pattern') {
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
-                    }
+                    ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
                 }
             }
+            batchChartData.push({ label: String(b.display_name), pct: pct * 100, paid, payable: pay });
+            row++;
+        });
+        row++;
+        {
+            const img = renderBatchCollectionChart(batchChartData);
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
+            for (let i = 0; i < 19; i++) ws.getRow(row + i).height = 18;
+            row += 20;
         }
 
-        // ── Section: University leaderboard ─────────────────────────
-        const lbStart = 6 + maxLen + 2;
-        ws.mergeCells(`A${lbStart}:F${lbStart}`);
-        ws.getCell(`A${lbStart}`).value = 'UNIVERSITY LEADERBOARD — TOP 5 BY COLLECTION % (min 50 students)';
-        ws.getCell(`A${lbStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
-        ws.getCell(`A${lbStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
-        ws.getCell(`A${lbStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.getRow(lbStart).height = 22;
-
+        // ── Section 4: University leaderboard (table + chart) ───────
+        banner('UNIVERSITY LEADERBOARD — TOP 5 BY COLLECTION % (min 50 students)', MAROON_DARK, MAROON_TINT);
         ['University', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
-            const cell = ws.getCell(lbStart + 1, i + 1);
+            const cell = ws.getCell(row, i + 1);
             cell.value = h;
             cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
             cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
         });
-
+        row++;
         const qualifiers = perUni.filter(u => Number(u.total) >= 50).map(u => ({
-            name: u.name, total: Number(u.total), payable: Number(u.payable), paid: Number(u.paid),
+            name: u.name as string, total: Number(u.total), payable: Number(u.payable), paid: Number(u.paid),
             pct: Number(u.payable) > 0 ? Number(u.paid) / Number(u.payable) : 0,
         }));
         const top5 = [...qualifiers].sort((a, b) => b.pct - a.pct).slice(0, 5);
         top5.forEach((u, i) => {
-            const r = lbStart + 2 + i;
-            ws.getCell(r, 1).value = u.name;
-            ws.getCell(r, 2).value = u.total;
-            ws.getCell(r, 3).value = u.payable; ws.getCell(r, 3).numFmt = RUPEE_FMT;
-            ws.getCell(r, 5).value = u.paid;    ws.getCell(r, 5).numFmt = RUPEE_FMT;
-            ws.getCell(r, 6).value = u.pct;     ws.getCell(r, 6).numFmt = PCT_FMT;
-            pctTextColor(ws.getCell(r, 6), u.pct * 100);
-            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+            ws.getCell(row, 1).value = u.name;
+            ws.getCell(row, 2).value = u.total;
+            ws.getCell(row, 3).value = u.payable; ws.getCell(row, 3).numFmt = RUPEE_FMT;
+            ws.getCell(row, 5).value = u.paid;    ws.getCell(row, 5).numFmt = RUPEE_FMT;
+            ws.getCell(row, 6).value = u.pct;     ws.getCell(row, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(row, 6), u.pct * 100);
+            ws.getCell(row, 6).alignment = { vertical: 'middle', horizontal: 'right' };
             if (i % 2 === 1) {
                 for (let col = 1; col <= 6; col++) {
                     if (col === 4) continue;
-                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                    ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
                 }
             }
+            row++;
         });
+        row++;
+        {
+            // Use ALL universities for the chart, sorted by payable DESC, top 10
+            const chartItems = perUni.slice(0, 10).map(u => ({
+                name: String(u.name),
+                payable: Number(u.payable),
+                paid: Number(u.paid),
+                pct: Number(u.payable) > 0 ? Number(u.paid) / Number(u.payable) : 0,
+            }));
+            const img = renderTopUniversitiesChart(chartItems);
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
+            const chartRows = Math.ceil(img.height / 20);
+            for (let i = 0; i < chartRows; i++) ws.getRow(row + i).height = 18;
+            row += chartRows + 1;
+        }
 
-        // ── Bottom 5 (needs attention) ──────────────────────────────
-        const bbStart = lbStart + 2 + top5.length + 2;
-        ws.mergeCells(`A${bbStart}:F${bbStart}`);
-        ws.getCell(`A${bbStart}`).value = 'NEEDS ATTENTION — BOTTOM 5 BY COLLECTION % (min 50 students)';
-        ws.getCell(`A${bbStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + RED_TX } };
-        ws.getCell(`A${bbStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + RED_BG } };
-        ws.getCell(`A${bbStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.getRow(bbStart).height = 22;
-
+        // ── Section 5: Needs attention (bottom 5) ───────────────────
+        banner('NEEDS ATTENTION — BOTTOM 5 BY COLLECTION % (min 50 students)', RED_TX, RED_BG);
         ['University', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
-            const cell = ws.getCell(bbStart + 1, i + 1);
+            const cell = ws.getCell(row, i + 1);
             cell.value = h;
             cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
             cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
         });
+        row++;
         const bottom5 = [...qualifiers].sort((a, b) => a.pct - b.pct).slice(0, 5);
         bottom5.forEach((u, i) => {
-            const r = bbStart + 2 + i;
-            ws.getCell(r, 1).value = u.name;
-            ws.getCell(r, 2).value = u.total;
-            ws.getCell(r, 3).value = u.payable; ws.getCell(r, 3).numFmt = RUPEE_FMT;
-            ws.getCell(r, 5).value = u.paid;    ws.getCell(r, 5).numFmt = RUPEE_FMT;
-            ws.getCell(r, 6).value = u.pct;     ws.getCell(r, 6).numFmt = PCT_FMT;
-            pctTextColor(ws.getCell(r, 6), u.pct * 100);
-            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+            ws.getCell(row, 1).value = u.name;
+            ws.getCell(row, 2).value = u.total;
+            ws.getCell(row, 3).value = u.payable; ws.getCell(row, 3).numFmt = RUPEE_FMT;
+            ws.getCell(row, 5).value = u.paid;    ws.getCell(row, 5).numFmt = RUPEE_FMT;
+            ws.getCell(row, 6).value = u.pct;     ws.getCell(row, 6).numFmt = PCT_FMT;
+            pctTextColor(ws.getCell(row, 6), u.pct * 100);
+            ws.getCell(row, 6).alignment = { vertical: 'middle', horizontal: 'right' };
             if (i % 2 === 1) {
                 for (let col = 1; col <= 6; col++) {
                     if (col === 4) continue;
-                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                    ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
                 }
             }
+            row++;
         });
+        row++;
 
-        // ── Batch comparison strip ──────────────────────────────────
-        const bcStart = bbStart + 2 + bottom5.length + 2;
-        ws.mergeCells(`A${bcStart}:F${bcStart}`);
-        ws.getCell(`A${bcStart}`).value = 'BATCH COMPARISON';
-        ws.getCell(`A${bcStart}`).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
-        ws.getCell(`A${bcStart}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON_TINT } };
-        ws.getCell(`A${bcStart}`).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-        ws.getRow(bcStart).height = 22;
-        ['Batch', 'Students', 'Payable', '', 'Paid', 'Coll %'].forEach((h, i) => {
-            const cell = ws.getCell(bcStart + 1, i + 1);
+        // ── Section 6: Operator tag distribution ────────────────────
+        // Exclude 'Dropout' from this chart/table — the actual dropout count
+        // is already in the headline (totalDropouts from the sub-sheet) and
+        // including the operator-applied 'Dropout' tag here only causes
+        // confusion (it'll always be ≤ totalDropouts and looks wrong).
+        const operatorTags = tagCounts.filter((t: { tag_case: string; n: number }) => t.tag_case !== 'Dropout');
+        banner('OPERATOR-SET TAG DISTRIBUTION (excludes Dropout — see headline)', MAROON_DARK, MAROON_TINT);
+        ['Tag case', 'Count'].forEach((h, i) => {
+            const cell = ws.getCell(row, i === 0 ? 1 : 2);
             cell.value = h;
             cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
             cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
         });
-        perBatch.forEach((b, i) => {
-            const r = bcStart + 2 + i;
-            const pay = Number(b.payable), paid = Number(b.paid);
-            const pct = pay > 0 ? paid / pay : 0;
-            ws.getCell(r, 1).value = b.display_name;
-            ws.getCell(r, 2).value = Number(b.total);
-            ws.getCell(r, 3).value = pay;  ws.getCell(r, 3).numFmt = RUPEE_FMT;
-            ws.getCell(r, 5).value = paid; ws.getCell(r, 5).numFmt = RUPEE_FMT;
-            ws.getCell(r, 6).value = pct;  ws.getCell(r, 6).numFmt = PCT_FMT;
-            pctTextColor(ws.getCell(r, 6), pct * 100);
-            ws.getCell(r, 6).alignment = { vertical: 'middle', horizontal: 'right' };
+        row++;
+        if (operatorTags.length === 0) {
+            ws.getCell(row, 1).value = '(no operator tags applied yet)';
+            ws.getCell(row, 1).font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF9CA3AF' } };
+            row++;
+        } else {
+            operatorTags.forEach((t: { tag_case: string; n: number }, i: number) => {
+                ws.getCell(row, 1).value = t.tag_case;
+                ws.getCell(row, 2).value = Number(t.n);
+                ws.getCell(row, 2).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
+                ws.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'right' };
+                if (i % 2 === 1) {
+                    for (let col = 1; col <= 2; col++) {
+                        ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                    }
+                }
+                row++;
+            });
+        }
+        row++;
+        if (operatorTags.length > 0) {
+            const img = renderTagCaseChart(operatorTags.map((t: { tag_case: string; n: number }) => ({ tag: t.tag_case, n: Number(t.n) })));
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
+            for (let i = 0; i < 19; i++) ws.getRow(row + i).height = 18;
+            row += 20;
+        }
+
+        // ── Section 7: Top dropout reasons (capped + chart) ─────────
+        banner('TOP DROPOUT REASONS', MAROON_DARK, MAROON_TINT);
+        // Cap to top 10, fold the rest into "Other"
+        const topReasons = dropoutReasons.slice(0, 10).map((r: { reason: string; n: number }) => ({ reason: String(r.reason), n: Number(r.n) }));
+        const otherN = dropoutReasons.slice(10).reduce((acc: number, r: { n: number }) => acc + Number(r.n), 0);
+        const reasonsForTable = otherN > 0 ? [...topReasons, { reason: `Other (${dropoutReasons.length - 10} more reasons)`, n: otherN }] : topReasons;
+
+        ['Reason', 'Count', '% of total'].forEach((h, i) => {
+            const cell = ws.getCell(row, i + 1);
+            cell.value = h;
+            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+        });
+        row++;
+        reasonsForTable.forEach((r, i) => {
+            ws.getCell(row, 1).value = r.reason;
+            ws.getCell(row, 1).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+            ws.getCell(row, 2).value = r.n;
+            ws.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'right' };
+            ws.getCell(row, 3).value = totalDropouts > 0 ? r.n / totalDropouts : 0;
+            ws.getCell(row, 3).numFmt = PCT_FMT;
+            ws.getCell(row, 3).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF' + MAROON_DARK } };
+            ws.getCell(row, 3).alignment = { vertical: 'middle', horizontal: 'right' };
             if (i % 2 === 1) {
-                for (let col = 1; col <= 6; col++) {
-                    if (col === 4) continue;
-                    ws.getCell(r, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                for (let col = 1; col <= 3; col++) {
+                    ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
                 }
             }
+            row++;
         });
+        row++;
+        if (topReasons.length > 0) {
+            const img = renderDropoutReasonsChart(topReasons, totalDropouts);
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
+            const chartRows = Math.ceil(img.height / 20);
+            for (let i = 0; i < chartRows; i++) ws.getRow(row + i).height = 18;
+            row += chartRows + 1;
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
