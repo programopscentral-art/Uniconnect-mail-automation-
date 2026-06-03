@@ -1,19 +1,17 @@
-DEPLOYMENT_TRIGGER_V68
-Timestamp: 2026-06-03T11:55:00+05:30
-Status: Force rebuild — Analytics sheet reordered + native PNG charts
+DEPLOYMENT_TRIGGER_V69
+Timestamp: 2026-06-03T12:25:00+05:30
+Status: Force rebuild — website Overview analytics expansion
 Changes:
-  - Analytics sheet reordered: Collection KPIs → Status doughnut →
-    Batch table + bar chart → Top universities table + bar chart →
-    Needs attention → Operator tag distribution → Top dropout reasons
-    table + bar chart (capped at top 10 + "Other")
-  - Five PNG charts embedded via @napi-rs/canvas:
-      • Payment status doughnut
-      • Collection % by batch (vertical bars, color-coded by tier)
-      • Top 10 universities (horizontal bars, payable rail + paid fill)
-      • Top 10 dropout reasons (horizontal bars)
-      • Operator tag distribution (vertical bars, violet→fuchsia)
-  - Tag-case chart excludes 'Dropout' so it doesn't double-count
-    against the dropout headline; small label clarifies why
-  - Dropout reasons capped at top 10 with the rest as "Other"
-  - Each PNG rendered directly with @napi-rs/canvas (already in deps,
-    no native compilation on Railway)
+  - Migration 0099: fee_collection_snapshot daily time-series table
+  - Sync flow now writes a daily snapshot (idempotent per window+IST-date)
+  - Page server: trend query (last 30 days) + extended success_coaches
+    with payable/paid totals
+  - Overview UI additions:
+      • Collection % trend chart — SVG line + gradient area, last 30
+        days, with empty state when <2 points exist
+      • Per-success-coach performance table — sorted by coll % desc,
+        top 8, with status counts + ₹ totals + colored coll %
+      • Needs attention panel — bottom 5 universities by coll %
+        (min 50 students), red-tinted card
+      • Dropout reasons capped at top 8 + "Other" bucket
+      • Tag-case chart now filters out 'Dropout'; label clarifies why

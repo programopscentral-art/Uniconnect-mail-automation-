@@ -80,11 +80,29 @@ export const load: PageServerLoad = async ({ locals, url }) => {
                     COUNT(*)::int                                              AS total,
                     COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int    AS fully_paid,
                     COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
-                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int    AS yet_to_pay
+                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int    AS yet_to_pay,
+                    COALESCE(SUM(fsp.payable), 0)                              AS total_payable,
+                    COALESCE(SUM(fsp.paid), 0)                                 AS total_paid
                FROM fee_student_payments fsp
                JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
               WHERE bp.window_id = $1 AND COALESCE(fsp.success_coach_name, '') <> ''
               GROUP BY fsp.success_coach_name ORDER BY total DESC LIMIT 50`,
+            [activeWindow.id],
+        );
+
+        // Last 30 days of daily snapshots for the collection-% trend chart.
+        // Empty for fresh windows — UI shows "trend will appear after a few
+        // syncs" in that case.
+        const trend = await db.query(
+            `SELECT snapshot_date::text AS d,
+                    students, fully_paid, partial, yet_to_pay,
+                    total_payable::text AS total_payable,
+                    total_paid::text AS total_paid,
+                    collection_pct_x100 AS pct
+               FROM fee_collection_snapshot
+              WHERE window_id = $1
+                AND snapshot_date >= (CURRENT_DATE - INTERVAL '30 days')::date
+              ORDER BY snapshot_date ASC`,
             [activeWindow.id],
         );
         const perUniversity = await db.query(
@@ -161,6 +179,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             university_dates: dates.rows,
             per_university: perUniversity.rows,
             dropout_reasons: dropoutReasonsR.rows,
+            trend: trend.rows,
         };
     }
 

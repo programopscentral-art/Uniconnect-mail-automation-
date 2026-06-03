@@ -10,7 +10,8 @@
   };
   type Batch = { id: string; batch_start_year: number; semester_number: number; display_name: string; subsheet_name: string; student_count: number; };
   type PerBatch = { id: string; batch_start_year: number; semester_number: number; display_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; paid_from_fully: number; paid_from_partial: number; };
-  type Coach = { coach: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; };
+  type Coach = { coach: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
+  type TrendPoint = { d: string; students: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: string; total_paid: string; pct: number; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
   type PerUni = { id: string; name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
   type Overview = {
@@ -21,6 +22,7 @@
     university_dates: UniDate[];
     per_university: PerUni[];
     dropout_reasons: Array<{ reason: string; c: number }>;
+    trend: TrendPoint[];
   };
 
   let { data } = $props<{ data: {
@@ -518,8 +520,28 @@
         {@const donutPartial = (ov.totals.partial / donutTotal) * donutCirc}
         {@const donutYet = (ov.totals.yet_to_pay / donutTotal) * donutCirc}
         {@const maxPayable = Math.max(...ov.per_university.map(u => Number(u.total_payable)), 1)}
-        {@const maxTag = Math.max(...ov.tag_counts.map(t => Number(t.c)), 1)}
-        {@const maxDropReason = Math.max(...(ov.dropout_reasons ?? []).map(d => Number(d.c)), 1)}
+        {@const operatorTags = ov.tag_counts.filter(t => t.tag_case !== 'Dropout')}
+        {@const maxTag = Math.max(...operatorTags.map(t => Number(t.c)), 1)}
+        {@const topReasons = (ov.dropout_reasons ?? []).slice(0, 8)}
+        {@const otherReasonsCount = (ov.dropout_reasons ?? []).slice(8).reduce((a, r) => a + Number(r.c), 0)}
+        {@const reasonsForUI = otherReasonsCount > 0
+          ? [...topReasons, { reason: `Other (${(ov.dropout_reasons ?? []).length - 8} more)`, c: otherReasonsCount }]
+          : topReasons}
+        {@const maxDropReason = Math.max(...reasonsForUI.map(d => Number(d.c)), 1)}
+        {@const qualifiers = ov.per_university.filter(u => Number(u.total) >= 50).map(u => ({
+          ...u,
+          payable: Number(u.total_payable),
+          paid: Number(u.total_paid),
+          pct: Number(u.total_payable) > 0 ? Number(u.total_paid) / Number(u.total_payable) : 0,
+        }))}
+        {@const topUnis = [...qualifiers].sort((a, b) => b.pct - a.pct).slice(0, 5)}
+        {@const bottomUnis = [...qualifiers].sort((a, b) => a.pct - b.pct).slice(0, 5)}
+        {@const coachesWithPct = (ov.success_coaches ?? []).map(c => ({
+          ...c,
+          payable: Number(c.total_payable ?? 0),
+          paid: Number(c.total_paid ?? 0),
+          pct: Number(c.total_payable ?? 0) > 0 ? Number(c.total_paid ?? 0) / Number(c.total_payable ?? 0) : 0,
+        })).sort((a, b) => b.pct - a.pct).slice(0, 8)}
 
         <!-- HERO: collection % gauge + total figures -->
         <section class="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -621,11 +643,14 @@
             </div>
           {/if}
 
-          {#if ov.tag_counts.length > 0}
-            <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Tag-case distribution</div>
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div class="flex items-baseline justify-between gap-2">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Operator-set tag distribution</div>
+              <div class="text-[10px] text-zinc-600">excludes "Dropout" — see headline</div>
+            </div>
+            {#if operatorTags.length > 0}
               <div class="mt-3 space-y-2.5">
-                {#each ov.tag_counts as t}
+                {#each operatorTags as t}
                   {@const w = (Number(t.c) / maxTag) * 100}
                   <div>
                     <div class="mb-0.5 flex items-baseline justify-between gap-2">
@@ -638,29 +663,160 @@
                   </div>
                 {/each}
               </div>
-            </div>
-          {/if}
+            {:else}
+              <div class="mt-6 text-center text-xs italic text-zinc-500">No operator tags applied yet. As PMs/COS add tags like "Will Pay", "Loan Applied", etc., they'll appear here.</div>
+            {/if}
+          </div>
         </section>
 
-        <!-- Top dropout reasons -->
-        {#if ov.dropout_reasons && ov.dropout_reasons.length > 0}
+        <!-- Top dropout reasons (top 8 + Other) -->
+        {#if reasonsForUI.length > 0}
           <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
             <div class="flex items-baseline justify-between">
               <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Top dropout reasons</div>
               <div class="text-[11px] text-zinc-500">{ov.totals.dropouts} total dropouts</div>
             </div>
             <div class="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
-              {#each ov.dropout_reasons as d}
+              {#each reasonsForUI as d}
                 {@const w = (Number(d.c) / maxDropReason) * 100}
                 {@const pct = ov.totals.dropouts > 0 ? Math.round((Number(d.c) / ov.totals.dropouts) * 100) : 0}
+                {@const isOther = d.reason.startsWith('Other (')}
                 <div>
                   <div class="mb-0.5 flex items-baseline justify-between gap-2">
-                    <span class="truncate text-xs text-zinc-200" title={d.reason}>{d.reason}</span>
+                    <span class="truncate text-xs {isOther ? 'italic text-zinc-400' : 'text-zinc-200'}" title={d.reason}>{d.reason}</span>
                     <span class="text-xs font-semibold tabular-nums text-zinc-100">{d.c} · {pct}%</span>
                   </div>
                   <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
-                    <div class="h-full rounded-full bg-gradient-to-r from-rose-500 to-red-500" style:width="{w}%"></div>
+                    <div class="h-full rounded-full {isOther ? 'bg-zinc-600' : 'bg-gradient-to-r from-rose-500 to-red-500'}" style:width="{w}%"></div>
                   </div>
+                </div>
+              {/each}
+            </div>
+          </section>
+        {/if}
+
+        <!-- Collection % trend (last 30 days) -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+          <div class="flex items-baseline justify-between">
+            <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Collection % trend</div>
+            <div class="text-[11px] text-zinc-500">last {ov.trend?.length ?? 0} day{(ov.trend?.length ?? 0) === 1 ? '' : 's'}</div>
+          </div>
+          {#if !ov.trend || ov.trend.length < 2}
+            <div class="mt-4 rounded-lg border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center">
+              <div class="text-3xl">📈</div>
+              <div class="mt-2 text-sm font-semibold text-zinc-300">Trend will appear after a few syncs</div>
+              <div class="mt-1 text-xs text-zinc-500">A snapshot is captured automatically per day (IST). Today's value: <span class="font-semibold text-emerald-300">{ov.totals.collection_pct}%</span>. Come back tomorrow.</div>
+            </div>
+          {:else}
+            {@const pts = ov.trend}
+            {@const W = 1000}
+            {@const H = 200}
+            {@const padL = 36} {@const padR = 12} {@const padT = 12} {@const padB = 28}
+            {@const plotW = W - padL - padR}
+            {@const plotH = H - padT - padB}
+            {@const stepX = pts.length > 1 ? plotW / (pts.length - 1) : plotW}
+            {@const pathPts = pts.map((p, i) => `${padL + i * stepX},${padT + plotH - (p.pct / 100) * plotH}`).join(' ')}
+            {@const areaPath = `M ${padL},${padT + plotH} L ${pathPts.split(' ').join(' L ')} L ${padL + (pts.length - 1) * stepX},${padT + plotH} Z`}
+            <div class="mt-4">
+              <svg viewBox={`0 0 ${W} ${H}`} class="w-full h-48">
+                <!-- Grid lines + Y labels -->
+                {#each [0, 25, 50, 75, 100] as gy}
+                  {@const y = padT + plotH - (gy / 100) * plotH}
+                  <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" stroke-width="1" stroke-dasharray={gy === 0 ? '0' : '4 4'} />
+                  <text x={padL - 8} y={y + 4} text-anchor="end" font-size="11" fill="#71717a">{gy}%</text>
+                {/each}
+                <!-- Area + line -->
+                <defs>
+                  <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+                    <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d={areaPath} fill="url(#trend-area)" />
+                <polyline points={pathPts} fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                {#each pts as p, i}
+                  {@const x = padL + i * stepX}
+                  {@const y = padT + plotH - (p.pct / 100) * plotH}
+                  <circle cx={x} cy={y} r="3" fill="#10b981" stroke="#0f172a" stroke-width="2">
+                    <title>{p.d} · {p.pct}% · {Number(p.total_paid).toLocaleString('en-IN')} of {Number(p.total_payable).toLocaleString('en-IN')}</title>
+                  </circle>
+                {/each}
+                <!-- X labels — first and last -->
+                {#if pts.length > 0}
+                  <text x={padL} y={H - 8} font-size="11" fill="#71717a">{pts[0].d}</text>
+                  <text x={W - padR} y={H - 8} text-anchor="end" font-size="11" fill="#71717a">{pts[pts.length - 1].d}</text>
+                {/if}
+              </svg>
+              <div class="mt-2 flex justify-between text-[11px] text-zinc-500">
+                <span>Day 1: <span class="font-semibold text-emerald-300">{pts[0].pct}%</span></span>
+                {#if pts.length >= 2}
+                  {@const delta = pts[pts.length - 1].pct - pts[0].pct}
+                  <span>Δ {delta > 0 ? '+' : ''}{delta} pp over {pts.length - 1} day{pts.length - 1 === 1 ? '' : 's'}</span>
+                {/if}
+                <span>Latest: <span class="font-semibold text-emerald-300">{pts[pts.length - 1].pct}%</span></span>
+              </div>
+            </div>
+          {/if}
+        </section>
+
+        <!-- Per-success-coach performance -->
+        {#if coachesWithPct.length > 0}
+          <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+            <div class="flex items-baseline justify-between">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Success-coach performance</div>
+              <div class="text-[11px] text-zinc-500">top {coachesWithPct.length} by collection %</div>
+            </div>
+            <div class="mt-3 overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-zinc-800 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <tr>
+                    <th class="px-3 py-2 text-left font-medium">Coach</th>
+                    <th class="px-3 py-2 text-right font-medium">Students</th>
+                    <th class="px-3 py-2 text-right font-medium text-emerald-400">Fully</th>
+                    <th class="px-3 py-2 text-right font-medium text-amber-400">Partial</th>
+                    <th class="px-3 py-2 text-right font-medium text-red-400">Yet</th>
+                    <th class="px-3 py-2 text-right font-medium">Payable</th>
+                    <th class="px-3 py-2 text-right font-medium">Collected</th>
+                    <th class="px-3 py-2 text-right font-medium">Coll %</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each coachesWithPct as c}
+                    <tr>
+                      <td class="px-3 py-2 font-medium">{c.coach}</td>
+                      <td class="px-3 py-2 text-right tabular-nums">{c.total}</td>
+                      <td class="px-3 py-2 text-right tabular-nums text-emerald-300">{c.fully_paid}</td>
+                      <td class="px-3 py-2 text-right tabular-nums text-amber-300">{c.partial}</td>
+                      <td class="px-3 py-2 text-right tabular-nums text-red-300">{c.yet_to_pay}</td>
+                      <td class="px-3 py-2 text-right tabular-nums">{fmtMoney(c.payable)}</td>
+                      <td class="px-3 py-2 text-right tabular-nums">{fmtMoney(c.paid)}</td>
+                      <td class="px-3 py-2 text-right tabular-nums font-semibold {c.pct >= 0.75 ? 'text-emerald-300' : c.pct >= 0.25 ? 'text-amber-300' : 'text-red-300'}">{Math.round(c.pct * 100)}%</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {/if}
+
+        <!-- Needs attention (bottom 5 universities, min 50 students) -->
+        {#if bottomUnis.length > 0}
+          <section class="mb-4 rounded-2xl border border-red-900/60 bg-red-950/20 p-6">
+            <div class="flex items-baseline justify-between">
+              <div class="text-[10px] uppercase tracking-[0.22em] text-red-300">Needs attention</div>
+              <div class="text-[11px] text-red-300/70">bottom 5 by collection % · min 50 students</div>
+            </div>
+            <div class="mt-3 space-y-3">
+              {#each bottomUnis as u}
+                <div>
+                  <div class="mb-1 flex items-baseline justify-between gap-2">
+                    <span class="truncate text-xs font-medium text-zinc-200" title={u.name}>{u.name}</span>
+                    <span class="text-xs font-semibold tabular-nums text-red-300">{Math.round(u.pct * 100)}%</span>
+                  </div>
+                  <div class="h-2 overflow-hidden rounded-full bg-zinc-950">
+                    <div class="h-full rounded-full bg-gradient-to-r from-red-500 to-rose-600" style:width="{Math.max(2, u.pct * 100)}%"></div>
+                  </div>
+                  <div class="mt-0.5 text-[10px] text-zinc-500">{fmtMoney(u.paid)} of {fmtMoney(u.payable)} · {u.total} students</div>
                 </div>
               {/each}
             </div>

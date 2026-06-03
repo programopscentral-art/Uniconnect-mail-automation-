@@ -583,5 +583,32 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
         [window_id, summary.errors.length > 0 ? summary.errors.map(e => `${e.sub_sheet}: ${e.message}`).join(' | ') : null, JSON.stringify(summary)],
     );
 
+    // Daily snapshot for the trend chart. Idempotent — ON CONFLICT keeps the
+    // FIRST snapshot per (window, IST-date), so a 5-min auto-sync doesn't
+    // overwrite the morning snapshot mid-day. Computed against the freshly
+    // upserted state.
+    const istDate = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await db.query(
+        `INSERT INTO fee_collection_snapshot
+            (window_id, snapshot_date, students, fully_paid, partial, yet_to_pay,
+             dropouts, total_payable, total_paid, collection_pct_x100)
+         SELECT $1, $2::date,
+                COUNT(fsp.id)::int,
+                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int,
+                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int,
+                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int,
+                (SELECT COUNT(*)::int FROM fee_dropout_log WHERE window_id = $1),
+                COALESCE(SUM(fsp.payable), 0),
+                COALESCE(SUM(fsp.paid), 0),
+                CASE WHEN COALESCE(SUM(fsp.payable),0) > 0
+                     THEN ROUND(SUM(fsp.paid) * 100.0 / SUM(fsp.payable))::int
+                     ELSE 0 END
+           FROM fee_student_payments fsp
+           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+          WHERE bp.window_id = $1
+         ON CONFLICT (window_id, snapshot_date) DO NOTHING`,
+        [window_id, istDate],
+    );
+
     return summary;
 }
