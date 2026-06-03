@@ -1,17 +1,17 @@
-DEPLOYMENT_TRIGGER_V69
-Timestamp: 2026-06-03T12:25:00+05:30
-Status: Force rebuild — website Overview analytics expansion
-Changes:
-  - Migration 0099: fee_collection_snapshot daily time-series table
-  - Sync flow now writes a daily snapshot (idempotent per window+IST-date)
-  - Page server: trend query (last 30 days) + extended success_coaches
-    with payable/paid totals
-  - Overview UI additions:
-      • Collection % trend chart — SVG line + gradient area, last 30
-        days, with empty state when <2 points exist
-      • Per-success-coach performance table — sorted by coll % desc,
-        top 8, with status counts + ₹ totals + colored coll %
-      • Needs attention panel — bottom 5 universities by coll %
-        (min 50 students), red-tinted card
-      • Dropout reasons capped at top 8 + "Other" bucket
-      • Tag-case chart now filters out 'Dropout'; label clarifies why
+DEPLOYMENT_TRIGGER_V70
+Timestamp: 2026-06-03T12:50:00+05:30
+Status: Force rebuild — fix Analytics tab visibility bugs
+Three real bugs in the previous Analytics sheet:
+  1. KPI right-side labels truncated to "Total"/"Pend"/"Coll"/"Fro"
+     because column D was a 4-char-wide spacer. Restructured the
+     column layout so the right label lives in column C (18 chars)
+     and only column D stays as a narrow visual gap.
+  2. Chart text not rendering on Railway — Linux base image had no
+     fonts installed and my code requested 'Arial' which doesn't
+     exist there. Added dejavu_fonts + fontconfig to nixpacks.toml
+     and changed every chart font to 'DejaVu Sans, Arial, sans-serif'.
+  3. Charts hard to read at a glance — added a maroon title bar to
+     the top of every chart with the chart name + a one-word
+     subtitle (e.g. "4546 students", "3 batches", "top 10", "144
+     total dropouts", "excludes 'Dropout'"). Larger legend numbers
+     in the doughnut chart too.

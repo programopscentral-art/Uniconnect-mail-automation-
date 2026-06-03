@@ -2,7 +2,10 @@
 BODY_SIZE_LIMIT = "52428800"
 
 [phases.setup]
-nixPkgs = ["pnpm", "nodejs-20_x"]
+# dejavu_fonts: needed for @napi-rs/canvas to render chart labels in the
+# fee-collection Excel report (Railway's base image has no system fonts,
+# so without this, all text in the rendered PNGs was blank).
+nixPkgs = ["pnpm", "nodejs-20_x", "dejavu_fonts", "fontconfig"]
 
 [phases.build]
 cmds = [

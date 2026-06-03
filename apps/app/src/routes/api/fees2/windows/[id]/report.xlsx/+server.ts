@@ -379,7 +379,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     // ═══════════════════════════════════════════════════════════════════
     {
         const ws = wb.addWorksheet('Analytics', { views: [{ showGridLines: false }] });
-        ws.columns = [{ width: 36 }, { width: 14 }, { width: 14 }, { width: 4 }, { width: 36 }, { width: 14 }];
+        // Column layout serving every table on this sheet:
+        //   A: text label or row name (Batch / University / Reason / Coach)
+        //   B: count / students
+        //   C: ₹ payable (in tables) OR right-side LABEL (in KPI grid)
+        //   D: thin visual gap
+        //   E: ₹ paid (in tables) OR right-side VALUE (in KPI grid)
+        //   F: Coll %  (10)
+        ws.columns = [{ width: 30 }, { width: 14 }, { width: 18 }, { width: 4 }, { width: 18 }, { width: 12 }];
 
         let row = 1;
         const banner = (text: string, fg = 'FFFFFF', bg = MAROON, size = 14) => {
@@ -411,6 +418,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             ['Dropouts', totalDropouts, 'From fully paid', Number(totals.paid_fully), 'rupee'],
             ['', '', 'From partial', Number(totals.paid_partial), 'rupee'],
         ];
+        // Right-side label goes in col C (width 18 — fits "Total payable" / "Total collected" / "From fully paid" / "Collection %"). Right value goes in col E.
         kpis.forEach(([leftLabel, leftVal, rightLabel, rightVal, rightKind]) => {
             const r = ws.getRow(row);
             r.getCell(1).value = leftLabel;
@@ -420,8 +428,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 r.getCell(2).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF111827' } };
                 r.getCell(2).alignment = { vertical: 'middle', horizontal: 'right' };
             }
-            r.getCell(4).value = rightLabel;
-            r.getCell(4).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
+            r.getCell(3).value = rightLabel;
+            r.getCell(3).font = { name: 'Calibri', size: 11, color: { argb: 'FF6B7280' } };
             if (rightLabel) {
                 r.getCell(5).value = rightVal as number;
                 r.getCell(5).font = { name: 'Calibri', size: 14, bold: true, color: { argb: 'FF' + (rightKind === 'rupee' || rightKind === 'pct' ? EMERALD_TX : '111827') } };

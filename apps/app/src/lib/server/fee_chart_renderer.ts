@@ -38,19 +38,33 @@ function truncate(s: string, n: number): string {
 
 export interface ChartImage { buffer: Buffer; width: number; height: number; }
 
+/** Draws a maroon title bar at the top of a chart. Returns the Y offset
+ *  for the chart body to start drawing below it. */
+function drawTitleBar(ctx: import('@napi-rs/canvas').SKRSContext2D, W: number, title: string, subtitle?: string): number {
+    const barH = 40;
+    ctx.fillStyle = MAROON; ctx.fillRect(0, 0, W, barH);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px DejaVu Sans, Arial, sans-serif';
+    ctx.fillText(title.toUpperCase(), 16, 26);
+    if (subtitle) {
+        ctx.fillStyle = '#fde2e6';
+        ctx.font = '12px DejaVu Sans, Arial, sans-serif';
+        const subX = W - 16 - ctx.measureText(subtitle).width;
+        ctx.fillText(subtitle, subX, 26);
+    }
+    return barH;
+}
+
 // ─── Doughnut: payment status ──────────────────────────────────────────
 export function renderStatusDoughnut(fully: number, partial: number, yet: number, title = 'Payment status'): ChartImage {
-    const W = 640, H = 360;
+    const W = 720, H = 380;
     const c = createCanvas(W, H);
     const x = c.getContext('2d');
     x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-
-    // Title
-    x.font = 'bold 16px Arial'; x.fillStyle = TEXT;
-    x.fillText(title, 24, 30);
+    const topY = drawTitleBar(x, W, title, `${fully + partial + yet} students`);
 
     const total = Math.max(1, fully + partial + yet);
-    const cx = 200, cy = 200, R = 110, r = 65;
+    const cx = 200, cy = topY + 160, R = 110, r = 65;
 
     // Doughnut sectors
     const segments: Array<[number, string, string]> = [
@@ -71,25 +85,24 @@ export function renderStatusDoughnut(fully: number, partial: number, yet: number
         startAngle += sweep;
     }
     // Centre label
-    x.font = 'bold 28px Arial'; x.fillStyle = TEXT;
+    x.font = 'bold 32px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
     const totalText = String(fully + partial + yet);
-    x.fillText(totalText, cx - x.measureText(totalText).width / 2, cy + 4);
-    x.font = '12px Arial'; x.fillStyle = MUTED;
+    x.fillText(totalText, cx - x.measureText(totalText).width / 2, cy + 6);
+    x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
     const subText = 'students';
-    x.fillText(subText, cx - x.measureText(subText).width / 2, cy + 22);
+    x.fillText(subText, cx - x.measureText(subText).width / 2, cy + 26);
 
     // Legend
-    const lx = 380, ly = 110;
-    x.font = '14px Arial';
+    const lx = 400, ly = topY + 70;
     segments.forEach(([count, color, label], i) => {
-        const y = ly + i * 36;
-        x.fillStyle = color; x.fillRect(lx, y - 12, 16, 16);
+        const y = ly + i * 60;
+        x.fillStyle = color; x.fillRect(lx, y - 16, 22, 22);
         x.fillStyle = TEXT;
-        x.fillText(label, lx + 26, y + 1);
-        x.font = 'bold 14px Arial'; x.fillStyle = color;
+        x.font = '15px DejaVu Sans, Arial, sans-serif';
+        x.fillText(label, lx + 34, y);
+        x.font = 'bold 18px DejaVu Sans, Arial, sans-serif'; x.fillStyle = color;
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-        x.fillText(`${count}  ·  ${pct}%`, lx + 26, y + 20);
-        x.font = '14px Arial';
+        x.fillText(`${count.toLocaleString('en-IN')}  ·  ${pct}%`, lx + 34, y + 22);
     });
 
     return { buffer: c.toBuffer('image/png'), width: W, height: H };
@@ -100,19 +113,18 @@ export function renderBatchCollectionChart(
     batches: Array<{ label: string; pct: number; paid: number; payable: number }>,
     title = 'Collection % by batch',
 ): ChartImage {
-    const W = 720, H = 360;
+    const W = 760, H = 380;
     const c = createCanvas(W, H);
     const x = c.getContext('2d');
     x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-    x.font = 'bold 16px Arial'; x.fillStyle = TEXT;
-    x.fillText(title, 24, 30);
+    const topY = drawTitleBar(x, W, title, `${batches.length} batch${batches.length === 1 ? '' : 'es'}`);
 
     if (batches.length === 0) {
-        x.font = '13px Arial'; x.fillStyle = MUTED; x.fillText('No batch data', 24, 60);
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No batch data', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
-    const padL = 60, padR = 30, padT = 60, padB = 80;
+    const padL = 60, padR = 30, padT = topY + 20, padB = 80;
     const plotW = W - padL - padR;
     const plotH = H - padT - padB;
     const barCount = batches.length;
@@ -125,7 +137,7 @@ export function renderBatchCollectionChart(
         const yPct = i * 25;
         const yPos = padT + plotH - (yPct / 100) * plotH;
         x.beginPath(); x.moveTo(padL, yPos); x.lineTo(padL + plotW, yPos); x.stroke();
-        x.font = '11px Arial'; x.fillStyle = MUTED;
+        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         x.fillText(`${yPct}%`, padL - 32, yPos + 4);
     }
 
@@ -140,11 +152,11 @@ export function renderBatchCollectionChart(
         x.fillStyle = color;
         x.fillRect(xBar, yBar, barW, h);
         // value above bar
-        x.font = 'bold 13px Arial'; x.fillStyle = TEXT;
+        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const pctText = `${Math.round(b.pct)}%`;
         x.fillText(pctText, cxBar - x.measureText(pctText).width / 2, yBar - 8);
         // batch label (truncated, wrapped to 2 lines if needed)
-        x.font = '11px Arial'; x.fillStyle = MUTED;
+        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         const lbl = truncate(b.label, 22);
         x.fillText(lbl, cxBar - x.measureText(lbl).width / 2, padT + plotH + 18);
         // money sub-label
@@ -161,19 +173,18 @@ export function renderTopUniversitiesChart(
     title = 'Top universities by collection',
 ): ChartImage {
     const items = rows.slice(0, 10);
-    const W = 760, H = Math.max(220, 60 + items.length * 36);
+    const W = 800, H = Math.max(240, 60 + items.length * 38);
     const c = createCanvas(W, H);
     const x = c.getContext('2d');
     x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-    x.font = 'bold 16px Arial'; x.fillStyle = TEXT;
-    x.fillText(title, 24, 30);
+    const topY = drawTitleBar(x, W, title, `top ${items.length}`);
 
     if (items.length === 0) {
-        x.font = '13px Arial'; x.fillStyle = MUTED; x.fillText('No universities yet', 24, 60);
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No universities yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
-    const labelW = 200, padL = 24, padR = 24, padT = 50;
+    const labelW = 220, padL = 24, padR = 24, padT = topY + 10;
     const barH = 22;
     const rowGap = 36;
     const plotL = padL + labelW;
@@ -183,7 +194,7 @@ export function renderTopUniversitiesChart(
     items.forEach((u, i) => {
         const y = padT + i * rowGap;
         // university name (left)
-        x.font = '13px Arial'; x.fillStyle = TEXT;
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         x.fillText(truncate(u.name, 28), padL, y + 16);
 
         // payable rail (light gray)
@@ -199,12 +210,12 @@ export function renderTopUniversitiesChart(
         x.fillRect(plotL, y + 4, paidW, barH);
 
         // % on the right
-        x.font = 'bold 13px Arial';
+        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif';
         x.fillStyle = u.pct >= 75 ? '#047857' : u.pct >= 25 ? '#b45309' : '#b91c1c';
         x.fillText(`${Math.round(u.pct * 100)}%`, plotL + plotW + 8, y + 16);
 
         // money sub-label below the bar
-        x.font = '11px Arial'; x.fillStyle = MUTED;
+        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         x.fillText(`${fmtMoney(u.paid)} of ${fmtMoney(u.payable)}`, plotL, y + 34);
     });
 
@@ -218,21 +229,18 @@ export function renderDropoutReasonsChart(
     title = 'Top dropout reasons',
 ): ChartImage {
     const items = rows.slice(0, 10);
-    const W = 760, H = Math.max(220, 60 + items.length * 32);
+    const W = 800, H = Math.max(240, 60 + items.length * 34);
     const c = createCanvas(W, H);
     const x = c.getContext('2d');
     x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-    x.font = 'bold 16px Arial'; x.fillStyle = TEXT;
-    x.fillText(title, 24, 30);
-    x.font = '12px Arial'; x.fillStyle = MUTED;
-    x.fillText(`${total} total dropouts`, W - 24 - x.measureText(`${total} total dropouts`).width, 30);
+    const topY = drawTitleBar(x, W, title, `${total} total dropouts`);
 
     if (items.length === 0) {
-        x.font = '13px Arial'; x.fillStyle = MUTED; x.fillText('No dropouts yet', 24, 60);
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No dropouts yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
-    const labelW = 280, padL = 24, padR = 24, padT = 50;
+    const labelW = 300, padL = 24, padR = 24, padT = topY + 10;
     const barH = 18;
     const rowGap = 32;
     const plotL = padL + labelW;
@@ -241,7 +249,7 @@ export function renderDropoutReasonsChart(
 
     items.forEach((r, i) => {
         const y = padT + i * rowGap;
-        x.font = '13px Arial'; x.fillStyle = TEXT;
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         x.fillText(truncate(r.reason, 38), padL, y + 14);
 
         const barW = (r.n / maxN) * plotW;
@@ -252,7 +260,7 @@ export function renderDropoutReasonsChart(
         x.fillStyle = grad;
         x.fillRect(plotL, y + 2, barW, barH);
 
-        x.font = 'bold 13px Arial'; x.fillStyle = TEXT;
+        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const pct = total > 0 ? Math.round((r.n / total) * 100) : 0;
         x.fillText(`${r.n}  ·  ${pct}%`, plotL + plotW + 8, y + 14);
     });
@@ -266,20 +274,19 @@ export function renderTagCaseChart(
     title = 'Operator-set tag distribution',
 ): ChartImage {
     const items = rows.slice(0, 10);
-    const W = 720, H = 360;
+    const W = 760, H = 380;
     const c = createCanvas(W, H);
     const x = c.getContext('2d');
     x.fillStyle = '#ffffff'; x.fillRect(0, 0, W, H);
-    x.font = 'bold 16px Arial'; x.fillStyle = TEXT;
-    x.fillText(title, 24, 30);
+    const topY = drawTitleBar(x, W, title, "excludes 'Dropout'");
 
     if (items.length === 0) {
-        x.font = '13px Arial'; x.fillStyle = MUTED;
-        x.fillText('No operator tags applied yet', 24, 60);
+        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.fillText('No operator tags applied yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
-    const padL = 30, padR = 30, padT = 60, padB = 90;
+    const padL = 30, padR = 30, padT = topY + 20, padB = 90;
     const plotW = W - padL - padR;
     const plotH = H - padT - padB;
     const slotW = plotW / items.length;
@@ -297,14 +304,14 @@ export function renderTagCaseChart(
         x.fillStyle = grad;
         x.fillRect(xBar, yBar, barW, h);
         // value
-        x.font = 'bold 13px Arial'; x.fillStyle = TEXT;
+        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const valText = String(t.n);
         x.fillText(valText, cxBar - x.measureText(valText).width / 2, yBar - 6);
         // label (rotated 30deg)
         x.save();
         x.translate(cxBar, padT + plotH + 12);
         x.rotate(-Math.PI / 6);
-        x.font = '11px Arial'; x.fillStyle = MUTED;
+        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         const lbl = truncate(t.tag, 22);
         x.fillText(lbl, -x.measureText(lbl).width, 0);
         x.restore();
