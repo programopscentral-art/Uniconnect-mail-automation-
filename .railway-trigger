@@ -1,16 +1,16 @@
-DEPLOYMENT_TRIGGER_V71
-Timestamp: 2026-06-03T12:45:00+05:30
-Status: Force rebuild — bundle Roboto font + drop empty Operator-tag section
-After V70 still rendered with no chart text on Railway (nixpacks fonts
-didn't reach the runtime container), switched to embedding Roboto
-Regular Latin subset as base64 directly in the JS bundle. Bytes:
-- TTF: 124KB
-- base64 module: ~165KB
-At module load, GlobalFonts.register() makes it the 'AppFont' family.
-Every chart uses 'AppFont, DejaVu Sans, Arial, sans-serif' so it
-falls through cleanly on every OS. No more dependency on system fonts.
+DEPLOYMENT_TRIGGER_V72
+Timestamp: 2026-06-03T13:00:00+05:30
+Status: Force rebuild — trend chart renders the chart frame with 1 point
+User: "here trends nothing is visible yyy"
+Reason: I gated chart rendering on pts.length >= 2 since you can't draw
+a "line" with 1 point — but that meant 100% of users on day 1 saw an
+empty-state card instead of a chart, even though we DO have today's
+data point.
 
-Also: Operator-tag distribution section moved to the BOTTOM of the
-Analytics sheet AND skipped entirely when no operator tags are set
-yet — user pointed out it was wasting space at the top with just a
-"(no tags applied yet)" placeholder.
+Now: empty state only triggers when there are 0 snapshots. With 1
+snapshot we render the full chart frame (grid + Y-axis %) and place
+a single larger marker at the centre with the % value above and the
+date below. Footer changes from the Δ/Day1/Latest split to a single
+italic note: "First snapshot today — the line will start drawing
+once tomorrow's snapshot lands." With 2+ snapshots the chart works
+exactly as before (gradient area + line + markers + delta footer).

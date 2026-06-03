@@ -701,11 +701,11 @@
             <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Collection % trend</div>
             <div class="text-[11px] text-zinc-500">last {ov.trend?.length ?? 0} day{(ov.trend?.length ?? 0) === 1 ? '' : 's'}</div>
           </div>
-          {#if !ov.trend || ov.trend.length < 2}
+          {#if !ov.trend || ov.trend.length === 0}
             <div class="mt-4 rounded-lg border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center">
               <div class="text-3xl">📈</div>
-              <div class="mt-2 text-sm font-semibold text-zinc-300">Trend will appear after a few syncs</div>
-              <div class="mt-1 text-xs text-zinc-500">A snapshot is captured automatically per day (IST). Today's value: <span class="font-semibold text-emerald-300">{ov.totals.collection_pct}%</span>. Come back tomorrow.</div>
+              <div class="mt-2 text-sm font-semibold text-zinc-300">No snapshots yet</div>
+              <div class="mt-1 text-xs text-zinc-500">A snapshot is captured automatically per day on the first sync. Run a sync now to seed today's data point.</div>
             </div>
           {:else}
             {@const pts = ov.trend}
@@ -715,8 +715,9 @@
             {@const plotW = W - padL - padR}
             {@const plotH = H - padT - padB}
             {@const stepX = pts.length > 1 ? plotW / (pts.length - 1) : plotW}
+            {@const lastX = padL + (pts.length - 1) * stepX}
             {@const pathPts = pts.map((p, i) => `${padL + i * stepX},${padT + plotH - (p.pct / 100) * plotH}`).join(' ')}
-            {@const areaPath = `M ${padL},${padT + plotH} L ${pathPts.split(' ').join(' L ')} L ${padL + (pts.length - 1) * stepX},${padT + plotH} Z`}
+            {@const areaPath = pts.length >= 2 ? `M ${padL},${padT + plotH} L ${pathPts.split(' ').join(' L ')} L ${lastX},${padT + plotH} Z` : ''}
             <div class="mt-4">
               <svg viewBox={`0 0 ${W} ${H}`} class="w-full h-48">
                 <!-- Grid lines + Y labels -->
@@ -725,35 +726,48 @@
                   <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" stroke-width="1" stroke-dasharray={gy === 0 ? '0' : '4 4'} />
                   <text x={padL - 8} y={y + 4} text-anchor="end" font-size="11" fill="#71717a">{gy}%</text>
                 {/each}
-                <!-- Area + line -->
-                <defs>
-                  <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
-                    <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
-                  </linearGradient>
-                </defs>
-                <path d={areaPath} fill="url(#trend-area)" />
-                <polyline points={pathPts} fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                <!-- Area + line (only when 2+ points) -->
+                {#if pts.length >= 2}
+                  <defs>
+                    <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+                      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d={areaPath} fill="url(#trend-area)" />
+                  <polyline points={pathPts} fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+                {/if}
+                <!-- Data points -->
                 {#each pts as p, i}
-                  {@const x = padL + i * stepX}
+                  {@const x = pts.length === 1 ? padL + plotW / 2 : padL + i * stepX}
                   {@const y = padT + plotH - (p.pct / 100) * plotH}
-                  <circle cx={x} cy={y} r="3" fill="#10b981" stroke="#0f172a" stroke-width="2">
-                    <title>{p.d} · {p.pct}% · {Number(p.total_paid).toLocaleString('en-IN')} of {Number(p.total_payable).toLocaleString('en-IN')}</title>
-                  </circle>
+                  {#if pts.length === 1}
+                    <!-- Single-point case: bigger marker with label so the chart isn't empty-looking -->
+                    <circle cx={x} cy={y} r="8" fill="#10b981" fill-opacity="0.3" />
+                    <circle cx={x} cy={y} r="5" fill="#10b981" stroke="#0f172a" stroke-width="2" />
+                    <text x={x} y={y - 16} text-anchor="middle" font-size="14" font-weight="700" fill="#10b981">{p.pct}%</text>
+                    <text x={x} y={y + 28} text-anchor="middle" font-size="11" fill="#71717a">{p.d}</text>
+                  {:else}
+                    <circle cx={x} cy={y} r="3" fill="#10b981" stroke="#0f172a" stroke-width="2">
+                      <title>{p.d} · {p.pct}% · {Number(p.total_paid).toLocaleString('en-IN')} of {Number(p.total_payable).toLocaleString('en-IN')}</title>
+                    </circle>
+                  {/if}
                 {/each}
-                <!-- X labels — first and last -->
-                {#if pts.length > 0}
+                <!-- X-axis date labels — only when 2+ points (single-point case has its own label) -->
+                {#if pts.length >= 2}
                   <text x={padL} y={H - 8} font-size="11" fill="#71717a">{pts[0].d}</text>
                   <text x={W - padR} y={H - 8} text-anchor="end" font-size="11" fill="#71717a">{pts[pts.length - 1].d}</text>
                 {/if}
               </svg>
               <div class="mt-2 flex justify-between text-[11px] text-zinc-500">
-                <span>Day 1: <span class="font-semibold text-emerald-300">{pts[0].pct}%</span></span>
-                {#if pts.length >= 2}
+                {#if pts.length === 1}
+                  <span class="italic">First snapshot today — the line will start drawing once tomorrow's snapshot lands.</span>
+                {:else}
+                  <span>Day 1: <span class="font-semibold text-emerald-300">{pts[0].pct}%</span></span>
                   {@const delta = pts[pts.length - 1].pct - pts[0].pct}
                   <span>Δ {delta > 0 ? '+' : ''}{delta} pp over {pts.length - 1} day{pts.length - 1 === 1 ? '' : 's'}</span>
+                  <span>Latest: <span class="font-semibold text-emerald-300">{pts[pts.length - 1].pct}%</span></span>
                 {/if}
-                <span>Latest: <span class="font-semibold text-emerald-300">{pts[pts.length - 1].pct}%</span></span>
               </div>
             </div>
           {/if}
