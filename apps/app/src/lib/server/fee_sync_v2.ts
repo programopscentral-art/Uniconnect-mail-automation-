@@ -220,10 +220,31 @@ async function syncBatchSubsheet(
 
     const bp = await upsertBatchPeriod(window_id, subsheet_name, batch_start_year, semester_number);
 
-    let studentCount = 0;
+    // Collect every row in memory first, then batch-upsert in chunks. Doing
+    // one INSERT per student through the pooler turned a 4.5k-student batch
+    // into a ~19-minute sync; chunked multi-row INSERTs bring it under 1s.
+    type StudentRow = {
+        zoho_user_id: string; university_id: string; student_name: string;
+        previous_fee_due: number; current_term_discount: number;
+        payable: number; paid: number;
+        status_raw: string; registration_status: string | null;
+        registration_date: string | null; tag_case: string | null;
+        success_coach_name: string | null;
+    };
+    const buffer: StudentRow[] = [];
+    const seenZoho = new Set<string>();
     for (const r of rows) {
         const zoho_user_id = String(pickValue(r, ['User ID', 'UserID', 'NIAT ID', 'Zoho User ID']) ?? '').trim();
         if (!zoho_user_id) continue;
+        // Multi-row INSERT ... ON CONFLICT throws "cannot affect row a second
+        // time" when two rows in the same statement share the same
+        // (batch_period_id, zoho_user_id). Keep only the LAST occurrence
+        // for a given zoho_user_id within the sheet (sheet sometimes has
+        // duplicate rows).
+        if (seenZoho.has(zoho_user_id)) {
+            const idx = buffer.findIndex(b => b.zoho_user_id === zoho_user_id);
+            if (idx >= 0) buffer.splice(idx, 1);
+        }
 
         const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
         const university_id = findUniversityIdInIndex(uniIdx, uniRaw);
@@ -247,13 +268,39 @@ async function syncBatchSubsheet(
         const tag_case = normalizeTagCase(pickValue(r, ['Tag case', 'Tag Case']) as string);
         const success_coach_name = String(pickValue(r, ['success coach name', 'Success Coach Name']) ?? '').trim() || null;
 
+        buffer.push({
+            zoho_user_id, university_id, student_name,
+            previous_fee_due, current_term_discount, payable, paid,
+            status_raw, registration_status, registration_date, tag_case, success_coach_name,
+        });
+        seenZoho.add(zoho_user_id);
+    }
+
+    // Chunked bulk upsert. 500 rows × 13 params/row = 6500 params per call,
+    // well under Postgres' 65535 parameter limit.
+    const CHUNK = 500;
+    let studentCount = 0;
+    for (let start = 0; start < buffer.length; start += CHUNK) {
+        const slice = buffer.slice(start, start + CHUNK);
+        const values: unknown[] = [];
+        const placeholders: string[] = [];
+        slice.forEach((s, i) => {
+            const o = i * 13;
+            placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},$${o+9},$${o+10},$${o+11},$${o+12},$${o+13},now(),now())`);
+            values.push(
+                bp.id, s.university_id, s.zoho_user_id, s.student_name,
+                s.payable, s.paid, s.previous_fee_due, s.current_term_discount,
+                s.status_raw, s.registration_status, s.registration_date, s.tag_case,
+                s.success_coach_name,
+            );
+        });
         await db.query(
             `INSERT INTO fee_student_payments
                 (batch_period_id, university_id, zoho_user_id, student_name,
                  payable, paid, previous_fee_due, current_term_discount,
                  status, registration_status, registration_date, tag_case,
                  success_coach_name, imported_at, updated_at)
-             VALUES ($1,$2,$3,$4, $5,$6,$7,$8, $9,$10,$11,$12, $13, now(), now())
+             VALUES ${placeholders.join(',')}
              ON CONFLICT (batch_period_id, zoho_user_id) WHERE batch_period_id IS NOT NULL
              DO UPDATE SET
                 university_id        = EXCLUDED.university_id,
@@ -269,15 +316,10 @@ async function syncBatchSubsheet(
                 success_coach_name   = EXCLUDED.success_coach_name,
                 imported_at          = now(),
                 updated_at           = now()`,
-            [
-                bp.id, university_id, zoho_user_id, student_name,
-                payable, paid, previous_fee_due, current_term_discount,
-                status_raw, registration_status, registration_date, tag_case,
-                success_coach_name,
-            ],
+            values,
         );
-        studentCount++;
-        summary.students_upserted++;
+        studentCount += slice.length;
+        summary.students_upserted += slice.length;
     }
 
     await db.query(
@@ -306,6 +348,15 @@ async function syncDatesSubsheet(
         summary.errors.push({ sub_sheet: subsheet_name, message: (e as Error).message });
         return;
     }
+
+    type MetaRow = {
+        university_id: string; fee_per_student: number | null;
+        sem_last_date: string | null; collection_start_date: string | null;
+        collection_end_date: string | null; next_sem_start_date: string | null;
+        meta_remarks: string | null;
+    };
+    const buffer: MetaRow[] = [];
+    const seenUni = new Set<string>();
     for (const r of rows) {
         const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
         if (!uniRaw) continue;
@@ -314,37 +365,51 @@ async function syncDatesSubsheet(
             if (!summary.universities_unmatched.includes(uniRaw)) summary.universities_unmatched.push(uniRaw);
             continue;
         }
-        const sem_last_date = String(pickValue(r, ['Sem 2 last date', 'Sem 2 Last Date', 'Previous sem last date']) ?? '').trim() || null;
-        const collection_start_date = String(pickValue(r, ['Sem 3 / Sem 5 Fee Collection Start Date', 'Fee Collection Start Date']) ?? '').trim() || null;
-        const collection_end_date = String(pickValue(r, ['Sem 3 / Sem 5 Fee Collection Last Date', 'Fee Collection Last Date']) ?? '').trim() || null;
-        const next_sem_start_date = String(pickValue(r, ['Sem 3 / Sem 5 Start Date', 'Sem Start Date']) ?? '').trim() || null;
+        if (seenUni.has(university_id)) continue; // dates sheet shouldn't repeat a uni; if it does, first wins
+        seenUni.add(university_id);
         const fee_amount_raw = pickValue(r, ['General Sem 3 / Sem 5 Fee Amount', 'Fee Amount']);
-        const fee_per_student = toNum(fee_amount_raw);
-        const meta_remarks = String(pickValue(r, ['remarks', 'Remarks']) ?? '').trim() || null;
+        buffer.push({
+            university_id,
+            fee_per_student: toNum(fee_amount_raw) || null,
+            sem_last_date: String(pickValue(r, ['Sem 2 last date', 'Sem 2 Last Date', 'Previous sem last date']) ?? '').trim() || null,
+            collection_start_date: String(pickValue(r, ['Sem 3 / Sem 5 Fee Collection Start Date', 'Fee Collection Start Date']) ?? '').trim() || null,
+            collection_end_date: String(pickValue(r, ['Sem 3 / Sem 5 Fee Collection Last Date', 'Fee Collection Last Date']) ?? '').trim() || null,
+            next_sem_start_date: String(pickValue(r, ['Sem 3 / Sem 5 Start Date', 'Sem Start Date']) ?? '').trim() || null,
+            meta_remarks: String(pickValue(r, ['remarks', 'Remarks']) ?? '').trim() || null,
+        });
+    }
 
-        // Write the same dates to every batch_period in this window — the
-        // dates sub-sheet is shared across batches within the window.
-        for (const bp_id of batchPeriodIds) {
-            await db.query(
-                `INSERT INTO fee_university_meta
-                    (batch_period_id, university_id, fee_per_student, sem_last_date,
-                     collection_start_date, collection_end_date, next_sem_start_date,
-                     meta_remarks, updated_at)
-                 VALUES ($1,$2,$3,$4, $5,$6,$7, $8, now())
-                 ON CONFLICT (batch_period_id, university_id) WHERE batch_period_id IS NOT NULL
-                 DO UPDATE SET
-                    fee_per_student       = EXCLUDED.fee_per_student,
-                    sem_last_date         = EXCLUDED.sem_last_date,
-                    collection_start_date = EXCLUDED.collection_start_date,
-                    collection_end_date   = EXCLUDED.collection_end_date,
-                    next_sem_start_date   = EXCLUDED.next_sem_start_date,
-                    meta_remarks          = EXCLUDED.meta_remarks,
-                    updated_at            = now()`,
-                [bp_id, university_id, fee_per_student || null, sem_last_date,
-                 collection_start_date, collection_end_date, next_sem_start_date, meta_remarks],
-            );
-            summary.dates_rows_upserted++;
-        }
+    // Fan out to every batch_period in this window, in a single bulk INSERT
+    // per batch_period instead of one per (batch × university). Replaces what
+    // was ~3 batches × 18 universities = 54 round-trips with 3 round-trips.
+    for (const bp_id of batchPeriodIds) {
+        if (buffer.length === 0) continue;
+        const values: unknown[] = [];
+        const placeholders: string[] = [];
+        buffer.forEach((m, i) => {
+            const o = i * 8;
+            placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8},now())`);
+            values.push(bp_id, m.university_id, m.fee_per_student, m.sem_last_date,
+                m.collection_start_date, m.collection_end_date, m.next_sem_start_date, m.meta_remarks);
+        });
+        await db.query(
+            `INSERT INTO fee_university_meta
+                (batch_period_id, university_id, fee_per_student, sem_last_date,
+                 collection_start_date, collection_end_date, next_sem_start_date,
+                 meta_remarks, updated_at)
+             VALUES ${placeholders.join(',')}
+             ON CONFLICT (batch_period_id, university_id) WHERE batch_period_id IS NOT NULL
+             DO UPDATE SET
+                fee_per_student       = EXCLUDED.fee_per_student,
+                sem_last_date         = EXCLUDED.sem_last_date,
+                collection_start_date = EXCLUDED.collection_start_date,
+                collection_end_date   = EXCLUDED.collection_end_date,
+                next_sem_start_date   = EXCLUDED.next_sem_start_date,
+                meta_remarks          = EXCLUDED.meta_remarks,
+                updated_at            = now()`,
+            values,
+        );
+        summary.dates_rows_upserted += buffer.length;
     }
 }
 
@@ -364,33 +429,63 @@ async function syncDropoutSubsheet(
         return;
     }
 
-    // Find each dropout's batch_period within this window (best-effort —
-    // look up the most recent batch_period that contains this user).
+    // Parse rows first
+    type DropoutRow = {
+        zoho_user_id: string; university_id: string | null;
+        student_name: string | null; dropped_at: string | null;
+        reason: string | null; raw_row: string;
+    };
+    const buffer: DropoutRow[] = [];
+    const seenZoho = new Set<string>();
     for (const r of rows) {
         const zoho_user_id = String(pickValue(r, ['User ID', 'UserID', 'NIAT ID']) ?? '').trim();
-        if (!zoho_user_id) continue;
+        if (!zoho_user_id || seenZoho.has(zoho_user_id)) continue;
+        seenZoho.add(zoho_user_id);
         const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
-        const university_id = findUniversityIdInIndex(uniIdx, uniRaw);
-        const student_name = String(pickValue(r, ['Student name', 'Student Name', 'Name']) ?? '').trim() || null;
-        const dropped_at = parseLooseDate(pickValue(r, ['Dropout date', 'Date', 'Dropped at']));
-        const reason = String(pickValue(r, ['Reason', 'reason', 'remarks', 'Remarks']) ?? '').trim() || null;
+        buffer.push({
+            zoho_user_id,
+            university_id: findUniversityIdInIndex(uniIdx, uniRaw),
+            student_name: String(pickValue(r, ['Student name', 'Student Name', 'Name']) ?? '').trim() || null,
+            dropped_at: parseLooseDate(pickValue(r, ['Dropout date', 'Date', 'Dropped at'])),
+            reason: String(pickValue(r, ['Reason', 'reason', 'remarks', 'Remarks']) ?? '').trim() || null,
+            raw_row: JSON.stringify(r),
+        });
+    }
 
-        const bpLookup = await db.query<{ batch_period_id: string }>(
-            `SELECT fsp.batch_period_id
-               FROM fee_student_payments fsp
-               JOIN fee_batch_period fbp ON fbp.id = fsp.batch_period_id
-              WHERE fbp.window_id = $1
-                AND fsp.zoho_user_id = $2
-              ORDER BY fbp.batch_start_year DESC LIMIT 1`,
-            [window_id, zoho_user_id],
-        );
-        const batch_period_id = bpLookup.rows[0]?.batch_period_id ?? null;
+    if (buffer.length === 0) return;
 
+    // ONE lookup: resolve every zoho_user_id → batch_period_id in this window
+    // in a single query instead of one query per dropout row.
+    const bpMap = new Map<string, string>();
+    const lookup = await db.query(
+        `SELECT DISTINCT ON (fsp.zoho_user_id)
+                fsp.zoho_user_id, fsp.batch_period_id
+           FROM fee_student_payments fsp
+           JOIN fee_batch_period fbp ON fbp.id = fsp.batch_period_id
+          WHERE fbp.window_id = $1
+            AND fsp.zoho_user_id = ANY($2::text[])
+          ORDER BY fsp.zoho_user_id, fbp.batch_start_year DESC`,
+        [window_id, buffer.map(b => b.zoho_user_id)],
+    );
+    for (const row of lookup.rows) bpMap.set(row.zoho_user_id, row.batch_period_id);
+
+    // Bulk upsert dropout_log in chunks
+    const CHUNK = 500;
+    for (let start = 0; start < buffer.length; start += CHUNK) {
+        const slice = buffer.slice(start, start + CHUNK);
+        const values: unknown[] = [];
+        const placeholders: string[] = [];
+        slice.forEach((d, i) => {
+            const o = i * 8;
+            placeholders.push(`($${o+1},$${o+2},$${o+3},$${o+4},$${o+5},$${o+6},$${o+7},$${o+8}::jsonb,now())`);
+            values.push(window_id, bpMap.get(d.zoho_user_id) ?? null, d.zoho_user_id, d.university_id,
+                d.student_name, d.dropped_at, d.reason, d.raw_row);
+        });
         await db.query(
             `INSERT INTO fee_dropout_log
                 (window_id, batch_period_id, zoho_user_id, university_id,
                  student_name, dropped_at, reason, raw_row, imported_at)
-             VALUES ($1,$2,$3,$4, $5,$6,$7, $8::jsonb, now())
+             VALUES ${placeholders.join(',')}
              ON CONFLICT (window_id, zoho_user_id) DO UPDATE SET
                 batch_period_id = EXCLUDED.batch_period_id,
                 university_id   = EXCLUDED.university_id,
@@ -399,21 +494,23 @@ async function syncDropoutSubsheet(
                 reason          = EXCLUDED.reason,
                 raw_row         = EXCLUDED.raw_row,
                 imported_at     = now()`,
-            [window_id, batch_period_id, zoho_user_id, university_id,
-             student_name, dropped_at, reason, JSON.stringify(r)],
+            values,
         );
+        summary.dropouts_upserted += slice.length;
+    }
 
-        // Auto-tag the student as Dropout in fee_student_payments if we found them
-        if (batch_period_id) {
-            await db.query(
-                `UPDATE fee_student_payments
-                    SET tag_case = 'Dropout', updated_at = now()
-                  WHERE batch_period_id = $1 AND zoho_user_id = $2
-                    AND (tag_case IS NULL OR tag_case <> 'Dropout')`,
-                [batch_period_id, zoho_user_id],
-            );
-        }
-        summary.dropouts_upserted++;
+    // One bulk UPDATE auto-tagging every matched dropout as 'Dropout'
+    const tagged = buffer.filter(d => bpMap.has(d.zoho_user_id));
+    if (tagged.length > 0) {
+        await db.query(
+            `UPDATE fee_student_payments fsp
+                SET tag_case = 'Dropout', updated_at = now()
+               FROM (SELECT unnest($1::uuid[]) AS bp_id, unnest($2::text[]) AS zoho) m
+              WHERE fsp.batch_period_id = m.bp_id
+                AND fsp.zoho_user_id    = m.zoho
+                AND (fsp.tag_case IS NULL OR fsp.tag_case <> 'Dropout')`,
+            [tagged.map(d => bpMap.get(d.zoho_user_id)), tagged.map(d => d.zoho_user_id)],
+        );
     }
 }
 

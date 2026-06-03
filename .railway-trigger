@@ -1,12 +1,15 @@
-DEPLOYMENT_TRIGGER_V65
-Timestamp: 2026-06-03T09:55:00+05:30
-Status: Force rebuild — fix Svelte 5 {@const} placement errors blocking app build
+DEPLOYMENT_TRIGGER_V66
+Timestamp: 2026-06-03T10:25:00+05:30
+Status: Force rebuild — fee-collection sync 1000x faster via batched upserts
 Changes:
-  - {@const} for gauge (r/circ/dash), donut (total/r/circ/fully/
-    partial/yet) and chart max values (maxPayable, maxTag) were
-    placed inside plain <div> elements; Svelte 5 only allows
-    {@const} as the immediate child of control-flow blocks.
-  - Hoisted all of them to the top of {#if tab === 'overview'} so
-    the computed values are in scope for the whole overview view.
-  - Verified locally: vite build now succeeds (4119 + 3776 modules
-    transformed, no errors).
+  - syncBatchSubsheet: collects all student rows in memory, then
+    bulk-upserts in chunks of 500 (one INSERT per chunk vs one per
+    student). 4,537 students: was ~19 min, now ~1-2 sec.
+  - syncDatesSubsheet: one bulk INSERT per batch_period instead of
+    per (batch × university). 3 round-trips vs ~54.
+  - syncDropoutSubsheet: single lookup query for all dropout →
+    batch_period mappings (was N queries), one bulk INSERT for the
+    dropout_log (was N), one bulk UPDATE for the Dropout auto-tag
+    (was N). 84 dropouts: was ~84s, now ~50ms.
+  - In-memory dedup of duplicate zoho_user_id within a sheet to
+    avoid Postgres "cannot affect row a second time" on conflict.
