@@ -11,7 +11,7 @@
   type Batch = { id: string; batch_start_year: number; semester_number: number; display_name: string; subsheet_name: string; student_count: number; };
   type PerBatch = { id: string; batch_start_year: number; semester_number: number; display_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; paid_from_fully: number; paid_from_partial: number; };
   type Coach = { coach: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
-  type TrendPoint = { d: string; students: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: string; total_paid: string; pct: number; };
+  type TrendPoint = { d: string; students: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: string; total_paid: string; pct: number; is_estimated: boolean; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
   type PerUni = { id: string; name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
   type Overview = {
@@ -693,80 +693,124 @@
           </section>
         {/if}
 
-        <!-- Collection % trend (last 30 days) -->
+        <!-- Collection % trend — weekly view -->
+        {@const pts = ov.trend ?? []}
+        {@const estimatedCount = pts.filter(p => p.is_estimated).length}
+        {@const realCount = pts.length - estimatedCount}
+        {@const W = 1000}
+        {@const H = 240}
+        {@const padL = 40} {@const padR = 16} {@const padT = 14} {@const padB = 50}
+        {@const plotW = W - padL - padR}
+        {@const plotH = H - padT - padB}
+        {@const stepX = pts.length > 1 ? plotW / (pts.length - 1) : plotW}
+        {@const lastX = padL + (pts.length - 1) * stepX}
+        {@const ptX = (i: number) => pts.length === 1 ? padL + plotW / 2 : padL + i * stepX}
+        {@const ptY = (p: TrendPoint) => padT + plotH - (Math.min(100, Math.max(0, p.pct)) / 100) * plotH}
+        {@const fmtWeek = (d: string) => {
+          const dt = new Date(d);
+          return dt.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        }}
         <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-          <div class="flex items-baseline justify-between">
-            <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Collection % trend</div>
-            <div class="text-[11px] text-zinc-500">last {ov.trend?.length ?? 0} day{(ov.trend?.length ?? 0) === 1 ? '' : 's'}</div>
+          <div class="flex items-baseline justify-between flex-wrap gap-2">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.22em] text-zinc-500">Collection % trend</div>
+              <div class="text-[11px] text-zinc-500 mt-0.5">Weekly view · {pts.length} data point{pts.length === 1 ? '' : 's'}</div>
+            </div>
+            {#if estimatedCount > 0 && realCount > 0}
+              <div class="flex items-center gap-3 text-[10px] text-zinc-500">
+                <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-0.5 border-t border-dashed border-zinc-500"></span> Estimated ({estimatedCount})</span>
+                <span class="flex items-center gap-1.5"><span class="inline-block w-3 h-0.5 bg-emerald-500"></span> Captured ({realCount})</span>
+              </div>
+            {/if}
           </div>
-          {#if !ov.trend || ov.trend.length === 0}
+
+          {#if pts.length === 0}
             <div class="mt-4 rounded-lg border border-dashed border-zinc-700 bg-zinc-950/50 p-6 text-center">
               <div class="text-3xl">📈</div>
               <div class="mt-2 text-sm font-semibold text-zinc-300">No snapshots yet</div>
-              <div class="mt-1 text-xs text-zinc-500">A snapshot is captured automatically per day on the first sync. Run a sync now to seed today's data point.</div>
+              <div class="mt-1 text-xs text-zinc-500">Run a sync to seed today's data point.</div>
             </div>
           {:else}
-            {@const pts = ov.trend}
-            {@const W = 1000}
-            {@const H = 200}
-            {@const padL = 36} {@const padR = 12} {@const padT = 12} {@const padB = 28}
-            {@const plotW = W - padL - padR}
-            {@const plotH = H - padT - padB}
-            {@const stepX = pts.length > 1 ? plotW / (pts.length - 1) : plotW}
-            {@const lastX = padL + (pts.length - 1) * stepX}
-            {@const pathPts = pts.map((p, i) => `${padL + i * stepX},${padT + plotH - (p.pct / 100) * plotH}`).join(' ')}
-            {@const areaPath = pts.length >= 2 ? `M ${padL},${padT + plotH} L ${pathPts.split(' ').join(' L ')} L ${lastX},${padT + plotH} Z` : ''}
             <div class="mt-4">
-              <svg viewBox={`0 0 ${W} ${H}`} class="w-full h-48">
-                <!-- Grid lines + Y labels -->
+              <svg viewBox={`0 0 ${W} ${H}`} class="w-full h-56">
+                <!-- Y grid + labels -->
                 {#each [0, 25, 50, 75, 100] as gy}
                   {@const y = padT + plotH - (gy / 100) * plotH}
                   <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#27272a" stroke-width="1" stroke-dasharray={gy === 0 ? '0' : '4 4'} />
                   <text x={padL - 8} y={y + 4} text-anchor="end" font-size="11" fill="#71717a">{gy}%</text>
                 {/each}
-                <!-- Area + line (only when 2+ points) -->
+
                 {#if pts.length >= 2}
                   <defs>
                     <linearGradient id="trend-area" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+                      <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
                       <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
                     </linearGradient>
                   </defs>
-                  <path d={areaPath} fill="url(#trend-area)" />
-                  <polyline points={pathPts} fill="none" stroke="#10b981" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+
+                  <!-- Area under the curve -->
+                  {@const areaD = `M ${ptX(0)},${padT + plotH} ` + pts.map((p, i) => `L ${ptX(i)},${ptY(p)}`).join(' ') + ` L ${lastX},${padT + plotH} Z`}
+                  <path d={areaD} fill="url(#trend-area)" />
+
+                  <!-- Lines: a dashed segment between estimated→estimated/real boundary,
+                       solid emerald between any two real points -->
+                  {#each pts.slice(1) as p, idx}
+                    {@const prev = pts[idx]}
+                    {@const segmentIsEstimated = prev.is_estimated || p.is_estimated}
+                    <line
+                      x1={ptX(idx)} y1={ptY(prev)}
+                      x2={ptX(idx + 1)} y2={ptY(p)}
+                      stroke={segmentIsEstimated ? '#a1a1aa' : '#10b981'}
+                      stroke-width={segmentIsEstimated ? '1.5' : '2.5'}
+                      stroke-linecap="round"
+                      stroke-dasharray={segmentIsEstimated ? '6 4' : '0'}
+                    />
+                  {/each}
                 {/if}
+
                 <!-- Data points -->
                 {#each pts as p, i}
-                  {@const x = pts.length === 1 ? padL + plotW / 2 : padL + i * stepX}
-                  {@const y = padT + plotH - (p.pct / 100) * plotH}
-                  {#if pts.length === 1}
-                    <!-- Single-point case: bigger marker with label so the chart isn't empty-looking -->
-                    <circle cx={x} cy={y} r="8" fill="#10b981" fill-opacity="0.3" />
-                    <circle cx={x} cy={y} r="5" fill="#10b981" stroke="#0f172a" stroke-width="2" />
-                    <text x={x} y={y - 16} text-anchor="middle" font-size="14" font-weight="700" fill="#10b981">{p.pct}%</text>
-                    <text x={x} y={y + 28} text-anchor="middle" font-size="11" fill="#71717a">{p.d}</text>
-                  {:else}
-                    <circle cx={x} cy={y} r="3" fill="#10b981" stroke="#0f172a" stroke-width="2">
-                      <title>{p.d} · {p.pct}% · {Number(p.total_paid).toLocaleString('en-IN')} of {Number(p.total_payable).toLocaleString('en-IN')}</title>
+                  {@const x = ptX(i)}
+                  {@const y = ptY(p)}
+                  {#if p.is_estimated}
+                    <circle cx={x} cy={y} r="4" fill="#27272a" stroke="#a1a1aa" stroke-width="1.5">
+                      <title>{p.d} · estimated · {p.pct}%</title>
                     </circle>
+                  {:else}
+                    <circle cx={x} cy={y} r="7" fill="#10b981" fill-opacity="0.25" />
+                    <circle cx={x} cy={y} r="5" fill="#10b981" stroke="#0f172a" stroke-width="2">
+                      <title>{p.d} · captured · {p.pct}% · ₹{Number(p.total_paid).toLocaleString('en-IN')} of ₹{Number(p.total_payable).toLocaleString('en-IN')}</title>
+                    </circle>
+                    <text x={x} y={y - 12} text-anchor="middle" font-size="12" font-weight="700" fill="#10b981">{p.pct}%</text>
                   {/if}
                 {/each}
-                <!-- X-axis date labels — only when 2+ points (single-point case has its own label) -->
-                {#if pts.length >= 2}
-                  <text x={padL} y={H - 8} font-size="11" fill="#71717a">{pts[0].d}</text>
-                  <text x={W - padR} y={H - 8} text-anchor="end" font-size="11" fill="#71717a">{pts[pts.length - 1].d}</text>
-                {/if}
+
+                <!-- X-axis week labels: show every snapshot date below its tick.
+                     For >8 points we'd thin them out, but with weekly cadence
+                     and a ~6-12 point span it stays readable. -->
+                {#each pts as p, i}
+                  <text x={ptX(i)} y={H - 22} text-anchor="middle" font-size="10" fill="#71717a">{fmtWeek(p.d)}</text>
+                  {#if p.is_estimated}
+                    <text x={ptX(i)} y={H - 8} text-anchor="middle" font-size="9" fill="#52525b" font-style="italic">est</text>
+                  {/if}
+                {/each}
               </svg>
-              <div class="mt-2 flex justify-between text-[11px] text-zinc-500">
-                {#if pts.length === 1}
-                  <span class="italic">First snapshot today — the line will start drawing once tomorrow's snapshot lands.</span>
-                {:else}
-                  <span>Day 1: <span class="font-semibold text-emerald-300">{pts[0].pct}%</span></span>
-                  {@const delta = pts[pts.length - 1].pct - pts[0].pct}
-                  <span>Δ {delta > 0 ? '+' : ''}{delta} pp over {pts.length - 1} day{pts.length - 1 === 1 ? '' : 's'}</span>
-                  <span>Latest: <span class="font-semibold text-emerald-300">{pts[pts.length - 1].pct}%</span></span>
-                {/if}
-              </div>
+
+              {#if pts.length >= 2}
+                {@const delta = pts[pts.length - 1].pct - pts[0].pct}
+                <div class="mt-3 flex flex-wrap justify-between gap-3 text-[11px] text-zinc-500">
+                  <span>Start: <span class="font-semibold text-zinc-300">{pts[0].pct}%</span> <span class="text-zinc-600">({fmtWeek(pts[0].d)})</span></span>
+                  <span>Δ <span class="font-semibold {delta > 0 ? 'text-emerald-300' : delta < 0 ? 'text-red-300' : 'text-zinc-300'}">{delta > 0 ? '+' : ''}{delta} pp</span> over {pts.length - 1} week{pts.length - 1 === 1 ? '' : 's'}</span>
+                  <span>Latest: <span class="font-semibold text-emerald-300">{pts[pts.length - 1].pct}%</span> <span class="text-zinc-600">({fmtWeek(pts[pts.length - 1].d)})</span></span>
+                </div>
+              {/if}
+
+              {#if estimatedCount > 0}
+                <div class="mt-2 text-[11px] italic text-zinc-500">
+                  Dashed segments are estimated weekly baselines back-calculated from term start;
+                  solid segment is captured snapshots. Every future sync adds a real captured point.
+                </div>
+              {/if}
             </div>
           {/if}
         </section>

@@ -1,8 +1,19 @@
-DEPLOYMENT_TRIGGER_V73
-Timestamp: 2026-06-03T13:25:00+05:30
-Status: Force rebuild — drop empty Operator-tag card from website Overview
-Excel already hides this section when there are 0 non-Dropout tags
-(fixed in V71). Website still showed the card with a "No operator
-tags applied yet…" placeholder. Now identical behaviour: the card
-is omitted entirely when empty, and the Top universities card takes
-the full row width instead of leaving a half-empty grid cell.
+DEPLOYMENT_TRIGGER_V74
+Timestamp: 2026-06-03T13:55:00+05:30
+Status: Force rebuild — weekly trend view with backfilled estimated baseline
+Changes:
+  - Migration 0100: fee_collection_snapshot.is_estimated boolean
+  - Seeded 6 weekly estimated Monday snapshots back to 2026-04-27
+    (term start) with linearly-interpolated values up to today's
+    real captured snapshot
+  - Page server pulls last 90 days of snapshots + is_estimated flag
+  - Trend chart rewritten:
+      • Weekly view with date labels under every point (Apr 27 ...
+        Jun 2 + today's Jun 3)
+      • Per-segment dashed grey when either endpoint is estimated,
+        solid emerald when both are real captured points
+      • Estimated points: hollow grey dots with "est" label below
+      • Real points: filled emerald dot with halo + % value above
+      • Legend chip when both types present
+      • Footer split shows Start / Δ pp / Latest with week dates
+      • Italic disclosure explains the dashed/solid distinction

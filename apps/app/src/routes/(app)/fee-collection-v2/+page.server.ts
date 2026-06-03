@@ -90,18 +90,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             [activeWindow.id],
         );
 
-        // Last 30 days of daily snapshots for the collection-% trend chart.
-        // Empty for fresh windows — UI shows "trend will appear after a few
-        // syncs" in that case.
+        // Weekly trend snapshots for the collection-% chart. Pulls every
+        // snapshot in the last 90 days; older "weekly estimated" points
+        // backfilled by the seed script + recent daily real captures.
         const trend = await db.query(
             `SELECT snapshot_date::text AS d,
                     students, fully_paid, partial, yet_to_pay,
                     total_payable::text AS total_payable,
                     total_paid::text AS total_paid,
-                    collection_pct_x100 AS pct
+                    collection_pct_x100 AS pct,
+                    is_estimated
                FROM fee_collection_snapshot
               WHERE window_id = $1
-                AND snapshot_date >= (CURRENT_DATE - INTERVAL '30 days')::date
+                AND snapshot_date >= (CURRENT_DATE - INTERVAL '90 days')::date
               ORDER BY snapshot_date ASC`,
             [activeWindow.id],
         );
