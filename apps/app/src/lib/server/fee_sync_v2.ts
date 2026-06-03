@@ -116,6 +116,18 @@ async function buildUniversityIndex(): Promise<Map<string, string>> {
         if (u.name) idx.set(norm(u.name), u.id);
         if ((u as { slug?: string }).slug) idx.set(norm((u as { slug?: string }).slug!), u.id);
     }
+    // Fold the fee_university_alias table into the same index. Aliases win
+    // over fuzzy matches because operators add them explicitly when the
+    // sheet uses informal names ("Takshasila" / "ADYPU" / "KKH Batch-2"
+    // etc) that won't fuzzy-match the canonical registry rows.
+    try {
+        const aliasRes = await db.query(`SELECT alias_key, university_id FROM fee_university_alias`);
+        for (const row of aliasRes.rows as Array<{ alias_key: string; university_id: string }>) {
+            idx.set(row.alias_key, row.university_id);
+        }
+    } catch (e) {
+        console.warn('[fee_sync_v2] alias table read failed (ok if migration not applied yet):', (e as Error).message);
+    }
     return idx;
 }
 

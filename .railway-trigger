@@ -1,19 +1,21 @@
-DEPLOYMENT_TRIGGER_V74
-Timestamp: 2026-06-03T13:55:00+05:30
-Status: Force rebuild — weekly trend view with backfilled estimated baseline
+DEPLOYMENT_TRIGGER_V75
+Timestamp: 2026-06-03T14:30:00+05:30
+Status: Force rebuild — fee_university_alias table for sheet→registry mapping
 Changes:
-  - Migration 0100: fee_collection_snapshot.is_estimated boolean
-  - Seeded 6 weekly estimated Monday snapshots back to 2026-04-27
-    (term start) with linearly-interpolated values up to today's
-    real captured snapshot
-  - Page server pulls last 90 days of snapshots + is_estimated flag
-  - Trend chart rewritten:
-      • Weekly view with date labels under every point (Apr 27 ...
-        Jun 2 + today's Jun 3)
-      • Per-segment dashed grey when either endpoint is estimated,
-        solid emerald when both are real captured points
-      • Estimated points: hollow grey dots with "est" label below
-      • Real points: filled emerald dot with halo + % value above
-      • Legend chip when both types present
-      • Footer split shows Start / Δ pp / Latest with week dates
-      • Italic disclosure explains the dashed/solid distinction
+  - Migration 0101: fee_university_alias(alias_text, alias_key, university_id)
+  - buildUniversityIndex() now folds aliases into the index AFTER the
+    canonical registry entries, so explicit aliases win over fuzzy matches
+  - Seeded 16 initial aliases for sheet typos/abbreviations:
+      • Takshasila, Taksahashila → Takshashila University
+      • Yennapoya → Yenepoya
+      • ADYPU → Ajeenkya DY Patil University
+      • SGU → Sanjay Ghodawat University
+      • Svyasa → S-VYASA University
+      • KKH Batch-1, KKH Batch-2, KKH (sem 5) → KKH Hyderabad
+      • Aurora, VGU, NRI, Chevella, Crescent, CITY, Annamacharya
+        → their canonical registry names
+  - On the next Sync now, the 272 missing student rows from 2025 Sem 3
+    (mostly Takshasila + KKH variants) will get pulled in
+  - Still pending: NIU and MRV have no registry candidate. Either add
+    those as new universities, or the rows from those campuses will
+    continue to be skipped.
