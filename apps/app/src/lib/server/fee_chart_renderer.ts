@@ -9,7 +9,25 @@
  * Each function returns a PNG Buffer sized for embedding into a
  * worksheet via worksheet.addImage().
  */
-import { createCanvas } from '@napi-rs/canvas';
+import { createCanvas, GlobalFonts } from '@napi-rs/canvas';
+import { ROBOTO_REGULAR_BASE64 } from './fee_chart_font';
+
+// Register the bundled Roboto-Regular so charts render text on Linux
+// containers (Railway base image has no system fonts). Module-load side
+// effect; registering twice is a no-op. The family name 'AppFont' is what
+// every chart below uses, with fallbacks so local-dev rendering also
+// works if registration silently fails.
+let _fontRegistered = false;
+function ensureFont(): void {
+    if (_fontRegistered) return;
+    try {
+        GlobalFonts.register(Buffer.from(ROBOTO_REGULAR_BASE64, 'base64'), 'AppFont');
+        _fontRegistered = true;
+    } catch (e) {
+        console.warn('[fee_chart_renderer] font register failed:', (e as Error).message);
+    }
+}
+ensureFont();
 
 // NIAT palette (matches the rest of the report's styling)
 const MAROON = '#7A1F2B';
@@ -44,11 +62,11 @@ function drawTitleBar(ctx: import('@napi-rs/canvas').SKRSContext2D, W: number, t
     const barH = 40;
     ctx.fillStyle = MAROON; ctx.fillRect(0, 0, W, barH);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 16px DejaVu Sans, Arial, sans-serif';
+    ctx.font = 'bold 16px AppFont, DejaVu Sans, Arial, sans-serif';
     ctx.fillText(title.toUpperCase(), 16, 26);
     if (subtitle) {
         ctx.fillStyle = '#fde2e6';
-        ctx.font = '12px DejaVu Sans, Arial, sans-serif';
+        ctx.font = '12px AppFont, DejaVu Sans, Arial, sans-serif';
         const subX = W - 16 - ctx.measureText(subtitle).width;
         ctx.fillText(subtitle, subX, 26);
     }
@@ -85,10 +103,10 @@ export function renderStatusDoughnut(fully: number, partial: number, yet: number
         startAngle += sweep;
     }
     // Centre label
-    x.font = 'bold 32px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+    x.font = 'bold 32px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
     const totalText = String(fully + partial + yet);
     x.fillText(totalText, cx - x.measureText(totalText).width / 2, cy + 6);
-    x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+    x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
     const subText = 'students';
     x.fillText(subText, cx - x.measureText(subText).width / 2, cy + 26);
 
@@ -98,9 +116,9 @@ export function renderStatusDoughnut(fully: number, partial: number, yet: number
         const y = ly + i * 60;
         x.fillStyle = color; x.fillRect(lx, y - 16, 22, 22);
         x.fillStyle = TEXT;
-        x.font = '15px DejaVu Sans, Arial, sans-serif';
+        x.font = '15px AppFont, DejaVu Sans, Arial, sans-serif';
         x.fillText(label, lx + 34, y);
-        x.font = 'bold 18px DejaVu Sans, Arial, sans-serif'; x.fillStyle = color;
+        x.font = 'bold 18px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = color;
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         x.fillText(`${count.toLocaleString('en-IN')}  ·  ${pct}%`, lx + 34, y + 22);
     });
@@ -120,7 +138,7 @@ export function renderBatchCollectionChart(
     const topY = drawTitleBar(x, W, title, `${batches.length} batch${batches.length === 1 ? '' : 'es'}`);
 
     if (batches.length === 0) {
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No batch data', 24, topY + 30);
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No batch data', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
@@ -137,7 +155,7 @@ export function renderBatchCollectionChart(
         const yPct = i * 25;
         const yPos = padT + plotH - (yPct / 100) * plotH;
         x.beginPath(); x.moveTo(padL, yPos); x.lineTo(padL + plotW, yPos); x.stroke();
-        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.font = '11px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         x.fillText(`${yPct}%`, padL - 32, yPos + 4);
     }
 
@@ -152,11 +170,11 @@ export function renderBatchCollectionChart(
         x.fillStyle = color;
         x.fillRect(xBar, yBar, barW, h);
         // value above bar
-        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+        x.font = 'bold 13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const pctText = `${Math.round(b.pct)}%`;
         x.fillText(pctText, cxBar - x.measureText(pctText).width / 2, yBar - 8);
         // batch label (truncated, wrapped to 2 lines if needed)
-        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.font = '11px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         const lbl = truncate(b.label, 22);
         x.fillText(lbl, cxBar - x.measureText(lbl).width / 2, padT + plotH + 18);
         // money sub-label
@@ -180,7 +198,7 @@ export function renderTopUniversitiesChart(
     const topY = drawTitleBar(x, W, title, `top ${items.length}`);
 
     if (items.length === 0) {
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No universities yet', 24, topY + 30);
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No universities yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
@@ -194,7 +212,7 @@ export function renderTopUniversitiesChart(
     items.forEach((u, i) => {
         const y = padT + i * rowGap;
         // university name (left)
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         x.fillText(truncate(u.name, 28), padL, y + 16);
 
         // payable rail (light gray)
@@ -210,12 +228,12 @@ export function renderTopUniversitiesChart(
         x.fillRect(plotL, y + 4, paidW, barH);
 
         // % on the right
-        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif';
+        x.font = 'bold 13px AppFont, DejaVu Sans, Arial, sans-serif';
         x.fillStyle = u.pct >= 75 ? '#047857' : u.pct >= 25 ? '#b45309' : '#b91c1c';
         x.fillText(`${Math.round(u.pct * 100)}%`, plotL + plotW + 8, y + 16);
 
         // money sub-label below the bar
-        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.font = '11px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         x.fillText(`${fmtMoney(u.paid)} of ${fmtMoney(u.payable)}`, plotL, y + 34);
     });
 
@@ -236,7 +254,7 @@ export function renderDropoutReasonsChart(
     const topY = drawTitleBar(x, W, title, `${total} total dropouts`);
 
     if (items.length === 0) {
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No dropouts yet', 24, topY + 30);
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED; x.fillText('No dropouts yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
 
@@ -249,7 +267,7 @@ export function renderDropoutReasonsChart(
 
     items.forEach((r, i) => {
         const y = padT + i * rowGap;
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         x.fillText(truncate(r.reason, 38), padL, y + 14);
 
         const barW = (r.n / maxN) * plotW;
@@ -260,7 +278,7 @@ export function renderDropoutReasonsChart(
         x.fillStyle = grad;
         x.fillRect(plotL, y + 2, barW, barH);
 
-        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+        x.font = 'bold 13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const pct = total > 0 ? Math.round((r.n / total) * 100) : 0;
         x.fillText(`${r.n}  ·  ${pct}%`, plotL + plotW + 8, y + 14);
     });
@@ -281,7 +299,7 @@ export function renderTagCaseChart(
     const topY = drawTitleBar(x, W, title, "excludes 'Dropout'");
 
     if (items.length === 0) {
-        x.font = '13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.font = '13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         x.fillText('No operator tags applied yet', 24, topY + 30);
         return { buffer: c.toBuffer('image/png'), width: W, height: H };
     }
@@ -304,14 +322,14 @@ export function renderTagCaseChart(
         x.fillStyle = grad;
         x.fillRect(xBar, yBar, barW, h);
         // value
-        x.font = 'bold 13px DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
+        x.font = 'bold 13px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = TEXT;
         const valText = String(t.n);
         x.fillText(valText, cxBar - x.measureText(valText).width / 2, yBar - 6);
         // label (rotated 30deg)
         x.save();
         x.translate(cxBar, padT + plotH + 12);
         x.rotate(-Math.PI / 6);
-        x.font = '11px DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
+        x.font = '11px AppFont, DejaVu Sans, Arial, sans-serif'; x.fillStyle = MUTED;
         const lbl = truncate(t.tag, 22);
         x.fillText(lbl, -x.measureText(lbl).width, 0);
         x.restore();

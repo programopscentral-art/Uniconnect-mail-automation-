@@ -572,49 +572,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         });
         row++;
 
-        // ── Section 6: Operator tag distribution ────────────────────
-        // Exclude 'Dropout' from this chart/table — the actual dropout count
-        // is already in the headline (totalDropouts from the sub-sheet) and
-        // including the operator-applied 'Dropout' tag here only causes
-        // confusion (it'll always be ≤ totalDropouts and looks wrong).
+        // Operator-tag distribution moved to the BOTTOM (after dropout
+        // reasons), and skipped entirely when no operator tags exist yet —
+        // user noted that a "no operator tags applied" placeholder in the
+        // middle of the analytics was wasting screen space.
         const operatorTags = tagCounts.filter((t: { tag_case: string; n: number }) => t.tag_case !== 'Dropout');
-        banner('OPERATOR-SET TAG DISTRIBUTION (excludes Dropout — see headline)', MAROON_DARK, MAROON_TINT);
-        ['Tag case', 'Count'].forEach((h, i) => {
-            const cell = ws.getCell(row, i === 0 ? 1 : 2);
-            cell.value = h;
-            cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
-            cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
-        });
-        row++;
-        if (operatorTags.length === 0) {
-            ws.getCell(row, 1).value = '(no operator tags applied yet)';
-            ws.getCell(row, 1).font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF9CA3AF' } };
-            row++;
-        } else {
-            operatorTags.forEach((t: { tag_case: string; n: number }, i: number) => {
-                ws.getCell(row, 1).value = t.tag_case;
-                ws.getCell(row, 2).value = Number(t.n);
-                ws.getCell(row, 2).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
-                ws.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'right' };
-                if (i % 2 === 1) {
-                    for (let col = 1; col <= 2; col++) {
-                        ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
-                    }
-                }
-                row++;
-            });
-        }
-        row++;
-        if (operatorTags.length > 0) {
-            const img = renderTagCaseChart(operatorTags.map((t: { tag_case: string; n: number }) => ({ tag: t.tag_case, n: Number(t.n) })));
-            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
-            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
-            for (let i = 0; i < 19; i++) ws.getRow(row + i).height = 18;
-            row += 20;
-        }
 
-        // ── Section 7: Top dropout reasons (capped + chart) ─────────
+        // ── Section 6: Top dropout reasons (capped + chart) ─────────
         banner('TOP DROPOUT REASONS', MAROON_DARK, MAROON_TINT);
         // Cap to top 10, fold the rest into "Other"
         const topReasons = dropoutReasons.slice(0, 10).map((r: { reason: string; n: number }) => ({ reason: String(r.reason), n: Number(r.n) }));
@@ -653,6 +617,42 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             const chartRows = Math.ceil(img.height / 20);
             for (let i = 0; i < chartRows; i++) ws.getRow(row + i).height = 18;
             row += chartRows + 1;
+        }
+
+        // ── Section 7 (only when populated): Operator tag distribution ─
+        // Only rendered when at least one student has a non-Dropout tag
+        // applied. Earlier we always rendered the section header + a
+        // "(no tags applied yet)" placeholder, which wasted space at the
+        // top of every report. Now it appears at the bottom only when
+        // there's something to show.
+        if (operatorTags.length > 0) {
+            banner('OPERATOR-SET TAG DISTRIBUTION (excludes Dropout — see headline)', MAROON_DARK, MAROON_TINT);
+            ['Tag case', 'Count'].forEach((h, i) => {
+                const cell = ws.getCell(row, i === 0 ? 1 : 2);
+                cell.value = h;
+                cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + MAROON } };
+                cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'right' };
+            });
+            row++;
+            operatorTags.forEach((t: { tag_case: string; n: number }, i: number) => {
+                ws.getCell(row, 1).value = t.tag_case;
+                ws.getCell(row, 2).value = Number(t.n);
+                ws.getCell(row, 2).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF1D4ED8' } };
+                ws.getCell(row, 2).alignment = { vertical: 'middle', horizontal: 'right' };
+                if (i % 2 === 1) {
+                    for (let col = 1; col <= 2; col++) {
+                        ws.getCell(row, col).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + GRAY_STRIPE } };
+                    }
+                }
+                row++;
+            });
+            row++;
+            const img = renderTagCaseChart(operatorTags.map((t: { tag_case: string; n: number }) => ({ tag: t.tag_case, n: Number(t.n) })));
+            const id = wb.addImage({ buffer: img.buffer, extension: 'png' });
+            ws.addImage(id, { tl: { col: 0, row: row - 1 }, ext: { width: img.width, height: img.height } });
+            for (let i = 0; i < 19; i++) ws.getRow(row + i).height = 18;
+            row += 20;
         }
     }
 

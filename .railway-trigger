@@ -1,17 +1,16 @@
-DEPLOYMENT_TRIGGER_V70
-Timestamp: 2026-06-03T12:50:00+05:30
-Status: Force rebuild — fix Analytics tab visibility bugs
-Three real bugs in the previous Analytics sheet:
-  1. KPI right-side labels truncated to "Total"/"Pend"/"Coll"/"Fro"
-     because column D was a 4-char-wide spacer. Restructured the
-     column layout so the right label lives in column C (18 chars)
-     and only column D stays as a narrow visual gap.
-  2. Chart text not rendering on Railway — Linux base image had no
-     fonts installed and my code requested 'Arial' which doesn't
-     exist there. Added dejavu_fonts + fontconfig to nixpacks.toml
-     and changed every chart font to 'DejaVu Sans, Arial, sans-serif'.
-  3. Charts hard to read at a glance — added a maroon title bar to
-     the top of every chart with the chart name + a one-word
-     subtitle (e.g. "4546 students", "3 batches", "top 10", "144
-     total dropouts", "excludes 'Dropout'"). Larger legend numbers
-     in the doughnut chart too.
+DEPLOYMENT_TRIGGER_V71
+Timestamp: 2026-06-03T12:45:00+05:30
+Status: Force rebuild — bundle Roboto font + drop empty Operator-tag section
+After V70 still rendered with no chart text on Railway (nixpacks fonts
+didn't reach the runtime container), switched to embedding Roboto
+Regular Latin subset as base64 directly in the JS bundle. Bytes:
+- TTF: 124KB
+- base64 module: ~165KB
+At module load, GlobalFonts.register() makes it the 'AppFont' family.
+Every chart uses 'AppFont, DejaVu Sans, Arial, sans-serif' so it
+falls through cleanly on every OS. No more dependency on system fonts.
+
+Also: Operator-tag distribution section moved to the BOTTOM of the
+Analytics sheet AND skipped entirely when no operator tags are set
+yet — user pointed out it was wasting space at the top with just a
+"(no tags applied yet)" placeholder.
