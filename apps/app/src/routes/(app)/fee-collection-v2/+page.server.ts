@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     let batches: Array<{ id: string; batch_start_year: number; semester_number: number; display_name: string; subsheet_name: string; student_count: number; }> = [];
     let overview: any = null;
+    let snapshotHistoryRows: Array<{ kind: string; fire_count: number; recipient_count: number; last_at: string | null }> = [];
     if (activeWindow) {
         const batchesRes = await db.query<{
             id: string; batch_start_year: number; semester_number: number;
@@ -170,6 +171,37 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         const dropouts = dropoutsTotal;
         const collectionPct = totalPayable > 0 ? Math.round((totalPaid / totalPayable) * 100) : 0;
 
+        // Snapshot-fire history for this window. notifications.source_id is
+        // `fee_${kind}_${window_id}_${ist_date}_${email}` (the doubled "fee_"
+        // happens because the kind value already starts with "fee_snapshot_"
+        // — harmless). The IST date is parseable from the source_id; we
+        // count it via SPLIT_PART so we know "number of fires" vs "number of
+        // recipient rows". For our schema:
+        //   parts split by '_': ['fee', 'fee', 'snapshot', kind_word, uuid,
+        //                        ist_date (YYYY-MM-DD), email...]
+        // (UUIDs contain hyphens, not underscores, so the whole uuid is one
+        // part.) Index 6 (1-indexed in Postgres) is the IST date.
+        const snapshotHistory = await db.query(
+            `SELECT
+                CASE
+                  WHEN source_id LIKE 'fee_fee_snapshot_morning_%' THEN 'morning'
+                  WHEN source_id LIKE 'fee_fee_snapshot_evening_%' THEN 'evening'
+                  WHEN source_id LIKE 'fee_fee_snapshot_manual_%'  THEN 'manual'
+                  ELSE 'other'
+                END AS kind,
+                COUNT(DISTINCT SPLIT_PART(source_id, '_', 6))::int AS fire_count,
+                COUNT(*)::int AS recipient_count,
+                MAX(created_at)::text AS last_at
+              FROM notifications
+             WHERE source_id LIKE 'fee_fee_snapshot_%'
+               AND source_id LIKE '%' || $1 || '%'
+               AND created_at > NOW() - INTERVAL '30 days'
+             GROUP BY 1
+             ORDER BY last_at DESC NULLS LAST`,
+            [activeWindow.id],
+        );
+        snapshotHistoryRows = snapshotHistory.rows;
+
         overview = {
             totals: { students, fully_paid: fully, partial, yet_to_pay: yet, dropouts,
                       total_payable: totalPayable, total_paid: totalPaid, collection_pct: collectionPct,
@@ -189,6 +221,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         activeWindow,
         batches,
         overview,
+        snapshotHistory: snapshotHistoryRows,
         role: locals.user.role,
         userIsAdmin: locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS',
     };

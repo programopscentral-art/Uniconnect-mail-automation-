@@ -25,11 +25,13 @@
     trend: TrendPoint[];
   };
 
+  type SnapshotKindRow = { kind: 'morning' | 'evening' | 'manual' | 'other'; fire_count: number; recipient_count: number; last_at: string | null };
   let { data } = $props<{ data: {
     windows: Window[];
     activeWindow: Window | null;
     batches: Batch[];
     overview: Overview | null;
+    snapshotHistory: SnapshotKindRow[];
     role: string;
     userIsAdmin: boolean;
   } }>();
@@ -410,6 +412,30 @@
           {#if data.activeWindow?.last_synced_at}
             <div class="mt-0.5 text-xs text-zinc-400">
               Last synced: {new Date(data.activeWindow.last_synced_at).toLocaleString()}
+            </div>
+          {/if}
+          {#if data.activeWindow}
+            {@const kindMap = Object.fromEntries(data.snapshotHistory.map(s => [s.kind, s]))}
+            {@const morning = kindMap['morning']}
+            {@const evening = kindMap['evening']}
+            {@const manual = kindMap['manual']}
+            {@const totalFires = data.snapshotHistory.reduce((a, s) => a + Number(s.fire_count), 0)}
+            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+              <span class="font-semibold uppercase tracking-[0.16em] text-zinc-600 text-[10px]">Snapshots (30d):</span>
+              {#if totalFires === 0}
+                <span class="text-amber-400">never fired</span>
+                <span class="text-zinc-600">— scheduled daily at 10:00 + 19:30 IST. Use "Send snapshot" to fire now.</span>
+              {:else}
+                {#if morning}
+                  <span title={`${morning.recipient_count} recipient-rows across ${morning.fire_count} morning fires`}>☀ <span class="text-zinc-300">{morning.fire_count}</span> morning · last {new Date(morning.last_at!).toLocaleString()}</span>
+                {/if}
+                {#if evening}
+                  <span title={`${evening.recipient_count} recipient-rows across ${evening.fire_count} evening fires`}>🌙 <span class="text-zinc-300">{evening.fire_count}</span> evening · last {new Date(evening.last_at!).toLocaleString()}</span>
+                {/if}
+                {#if manual}
+                  <span title={`${manual.recipient_count} recipient-rows across ${manual.fire_count} manual fires`}>✉ <span class="text-zinc-300">{manual.fire_count}</span> manual · last {new Date(manual.last_at!).toLocaleString()}</span>
+                {/if}
+              {/if}
             </div>
           {/if}
         </div>

@@ -1,21 +1,18 @@
-DEPLOYMENT_TRIGGER_V75
-Timestamp: 2026-06-03T14:30:00+05:30
-Status: Force rebuild — fee_university_alias table for sheet→registry mapping
-Changes:
-  - Migration 0101: fee_university_alias(alias_text, alias_key, university_id)
-  - buildUniversityIndex() now folds aliases into the index AFTER the
-    canonical registry entries, so explicit aliases win over fuzzy matches
-  - Seeded 16 initial aliases for sheet typos/abbreviations:
-      • Takshasila, Taksahashila → Takshashila University
-      • Yennapoya → Yenepoya
-      • ADYPU → Ajeenkya DY Patil University
-      • SGU → Sanjay Ghodawat University
-      • Svyasa → S-VYASA University
-      • KKH Batch-1, KKH Batch-2, KKH (sem 5) → KKH Hyderabad
-      • Aurora, VGU, NRI, Chevella, Crescent, CITY, Annamacharya
-        → their canonical registry names
-  - On the next Sync now, the 272 missing student rows from 2025 Sem 3
-    (mostly Takshasila + KKH variants) will get pulled in
-  - Still pending: NIU and MRV have no registry candidate. Either add
-    those as new universities, or the rows from those campuses will
-    continue to be skipped.
+DEPLOYMENT_TRIGGER_V76
+Timestamp: 2026-06-04T14:30:00+05:30
+Status: Force rebuild — snapshot pipeline fixes (3 in 1)
+Audit found: 0 snapshot notifications in DB across all time, despite
+worker running and INTERNAL_SYNC_TOKEN being set. Root cause: the
+send-snapshot endpoint read its token via process.env.INTERNAL_SYNC_TOKEN
+while the sync endpoint uses env from $env/dynamic/private. SvelteKit's
+adapter-node may inline process.env.X to undefined at build time when
+the var isn't visible to Vite — silently breaking the worker's calls
+and producing 401s the worker logged but no notifications.
+Three fixes shipped:
+  1. send-snapshot now reads INTERNAL_SYNC_TOKEN via $env/dynamic/private
+     (runtime read, matches sync endpoint).
+  2. Endpoint logs structured JSON on every call (actor=worker|user, kind,
+     sent/deduped/errors counts, elapsed_ms) so future failures are visible.
+  3. Page header status panel: "Snapshots (30d): ☀ N morning · last X · 🌙
+     N evening · last Y · ✉ N manual · last Z" — or amber "never fired"
+     warning when zero. Reads notifications.source_id history via SPLIT_PART.
