@@ -12,6 +12,7 @@
  */
 import { db, sendEmail } from '@uniconnect/shared';
 import { getEmailUniversityScope, scopeLabel, getUniversityAvailability, type UniversityScope } from './fee_scope';
+import { NIAT_LOGO_B64 } from './niat_logo_b64';
 
 export const FIXED_SNAPSHOT_RECIPIENTS = [
     'pavan.dharma@nxtwave.tech',
@@ -187,7 +188,7 @@ function renderSnapshotHtml(
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
           <tr>
             <td style="vertical-align:middle;width:56px;">
-              <img src="${BASE_URL}/niat-logo.jpg" alt="NIAT" width="44" height="44" style="display:block;border:0;border-radius:8px;background:#fff;padding:4px;" />
+              <img src="${NIAT_LOGO_B64}" alt="NIAT" width="44" height="44" style="display:block;border:0;border-radius:8px;background:#fff;padding:4px;" />
             </td>
             <td style="vertical-align:middle;padding-left:14px;">
               <div style="color:#fde2e6;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;font-weight:600;">NIAT · Program Operations</div>
@@ -204,7 +205,7 @@ function renderSnapshotHtml(
         <div style="font-size:22px;font-weight:700;color:#111827;margin-top:2px;">${snap.window_name}</div>
         ${scopeLabel ? `
         <div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 12px;font-size:12px;color:#92400e;">
-          <b>University${scopeLabel.includes(',') ? 'ies' : ''}:</b> ${scopeLabel}<br/>
+          <b>${scopeLabel.includes(',') ? 'Universities' : 'University'}:</b> ${scopeLabel}<br/>
           <span style="color:#a16207;font-size:11px;">Totals below are summed across only your assigned campuses.</span>
         </div>` : ''}
         ${availability ? `

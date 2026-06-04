@@ -1,16 +1,17 @@
-DEPLOYMENT_TRIGGER_V78
-Timestamp: 2026-06-04T12:00:00+05:30
-Status: Force rebuild — email banner naming + admin coverage strip
+DEPLOYMENT_TRIGGER_V79
+Timestamp: 2026-06-04T11:55:00+05:30
+Status: Force rebuild — fix "Universityies" typo + inline NIAT logo as base64
 Changes:
-  - "Your view:" renamed to "University:" / "Universities:" (auto-pluralizes
-    when multiple) so the label matches operator vocabulary.
-  - Admin recipients now get a two-column coverage strip:
-      • GREEN box: "Universities with data (N): list..."
-      • RED box: "Universities without data (N): list..."
-    sourced from fee_scope.getUniversityAvailability(window_id). Excludes
-    operational non-campus rows (Central Team, CRM, Student Engagement
-    Team) from the "without" list so they don't pollute it.
-  - Logo URL is reachable in production (HTTP 200 confirmed); the broken
-    icon in local previews was Chrome blocking remote images on file://.
-  - Verified end-to-end with 3 local renders (admin, single-uni BOA,
-    multi-uni BOA) — all under 17 KB so no Gmail clipping risk.
+  - Banner label was producing "Universityies:" for multi-uni recipients
+    because the original code appended "ies" to the literal word
+    "University". Fixed by swapping the WHOLE word: "University:" when one,
+    "Universities:" when many.
+  - NIAT logo at the top of the maroon header is now inlined as a
+    base64-embedded 128px JPEG thumbnail (~6.7 KB binary / 9 KB base64).
+    Removes the remote-fetch dependency entirely — the logo now renders
+    identically in Gmail, Outlook, local previews, every client, with no
+    "image blocked by sender" placeholder and no broken-icon when viewing
+    file:// previews. Email size now ~25 KB per render, still far under
+    Gmail's 102 KB clip threshold.
+  - If the logo asset is ever swapped, regenerate the base64 with the
+    sips command documented in apps/app/src/lib/server/niat_logo_b64.ts.
