@@ -11,7 +11,7 @@
  * from double-sending later in the same day.
  */
 import { db, sendEmail } from '@uniconnect/shared';
-import { getEmailUniversityScope, scopeLabel, type UniversityScope } from './fee_scope';
+import { getEmailUniversityScope, scopeLabel, getUniversityAvailability, type UniversityScope } from './fee_scope';
 
 export const FIXED_SNAPSHOT_RECIPIENTS = [
     'pavan.dharma@nxtwave.tech',
@@ -139,6 +139,7 @@ function renderSnapshotHtml(
     when: 'morning' | 'evening' | 'manual',
     snap: SnapshotData,
     scopeLabel: string | null,
+    availability: { withData: string[]; withoutData: string[] } | null,
 ): string {
     const titleWord = when === 'morning' ? 'Morning' : when === 'evening' ? 'Evening' : 'Live';
     const subtitle = when === 'morning' ? "Today's morning snapshot" : when === 'evening' ? "Today's evening snapshot" : 'On-demand snapshot';
@@ -197,15 +198,28 @@ function renderSnapshotHtml(
         </table>
       </td></tr>
 
-      <!-- WINDOW NAME + SCOPE -->
+      <!-- WINDOW NAME + SCOPE / COVERAGE -->
       <tr><td style="padding:20px 28px 0 28px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#6b7280;font-weight:600;">${subtitle}</div>
         <div style="font-size:22px;font-weight:700;color:#111827;margin-top:2px;">${snap.window_name}</div>
         ${scopeLabel ? `
-        <div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;">
-          <b>Your view:</b> ${scopeLabel}<br/>
+        <div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 12px;font-size:12px;color:#92400e;">
+          <b>University${scopeLabel.includes(',') ? 'ies' : ''}:</b> ${scopeLabel}<br/>
           <span style="color:#a16207;font-size:11px;">Totals below are summed across only your assigned campuses.</span>
         </div>` : ''}
+        ${availability ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:8px;border-collapse:separate;border-spacing:8px 0;">
+          <tr>
+            <td style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:10px 12px;width:50%;vertical-align:top;">
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:#047857;font-weight:700;margin-bottom:4px;">Universities with data (${availability.withData.length})</div>
+              <div style="font-size:11px;color:#065f46;line-height:1.5;">${availability.withData.length > 0 ? availability.withData.join(', ') : '<i>(none yet)</i>'}</div>
+            </td>
+            <td style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:10px 12px;width:50%;vertical-align:top;">
+              <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.14em;color:#b91c1c;font-weight:700;margin-bottom:4px;">Universities without data (${availability.withoutData.length})</div>
+              <div style="font-size:11px;color:#7f1d1d;line-height:1.5;">${availability.withoutData.length > 0 ? availability.withoutData.join(', ') : '<i>(none — every registry university has students)</i>'}</div>
+            </td>
+          </tr>
+        </table>` : ''}
       </td></tr>
 
       <!-- HERO METRICS: 3 columns -->
@@ -355,6 +369,11 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
     const subject = `[NIAT Fees] ${labelWhen} snapshot · ${w.name}`;
     const intro = `${labelWhen} fee collection snapshot`;
 
+    // Admin recipients get a coverage strip listing which universities
+    // have data vs which are empty — computed once, reused for every
+    // admin render. Non-admins don't see it (they only see their own).
+    const availability = await getUniversityAvailability(w.id);
+
     // Build one snapshot per unique scope. Cache by scope key so two PMs
     // covering the same campuses share the same rendered body.
     type Cached = { html: string; scopeLabelText: string | null };
@@ -365,7 +384,7 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
         if (hit) return hit;
         const snap = await buildSnapshot(w.id, w.name, scope);
         const label = await scopeLabel(scope);
-        const html = renderSnapshotHtml(when, snap, label);
+        const html = renderSnapshotHtml(when, snap, label, scope.type === 'all' ? availability : null);
         const val = { html, scopeLabelText: label };
         cache.set(key, val);
         return val;

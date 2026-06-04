@@ -1,17 +1,16 @@
-DEPLOYMENT_TRIGGER_V77
-Timestamp: 2026-06-04T11:20:00+05:30
-Status: Force rebuild — per-recipient scoped reports (email + XLSX)
+DEPLOYMENT_TRIGGER_V78
+Timestamp: 2026-06-04T12:00:00+05:30
+Status: Force rebuild — email banner naming + admin coverage strip
 Changes:
-  - New apps/app/src/lib/server/fee_scope.ts — getUserUniversityScope(),
-    getEmailUniversityScope(), scopeLabel(): ADMIN/PROGRAM_OPS → 'all',
-    PM/PMA/BOA/CMA → universities of their assigned campuses,
-    COS → universities of their cluster's campuses.
-  - buildSnapshot() + fireSnapshot() now compute per-recipient scope
-    and send each PM/COS a personalised email summing only their
-    own universities. Same kind dedup as before.
-  - Snapshot email: maroon-header date moved below the title so it no
-    longer wraps. Adds an amber "Your view: <universities>" strip
-    between the window name and the hero cards when scoped.
-  - report.xlsx endpoint reads locals.user scope and appends a SQL
-    filter to every fee_student_payments / fee_dropout_log query.
-    Summary sheet shows a scope row when present.
+  - "Your view:" renamed to "University:" / "Universities:" (auto-pluralizes
+    when multiple) so the label matches operator vocabulary.
+  - Admin recipients now get a two-column coverage strip:
+      • GREEN box: "Universities with data (N): list..."
+      • RED box: "Universities without data (N): list..."
+    sourced from fee_scope.getUniversityAvailability(window_id). Excludes
+    operational non-campus rows (Central Team, CRM, Student Engagement
+    Team) from the "without" list so they don't pollute it.
+  - Logo URL is reachable in production (HTTP 200 confirmed); the broken
+    icon in local previews was Chrome blocking remote images on file://.
+  - Verified end-to-end with 3 local renders (admin, single-uni BOA,
+    multi-uni BOA) — all under 17 KB so no Gmail clipping risk.

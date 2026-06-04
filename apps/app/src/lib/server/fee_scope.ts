@@ -112,3 +112,39 @@ export async function scopeLabel(scope: UniversityScope): Promise<string | null>
     );
     return r.rows.map((x: { name: string }) => x.name).join(', ');
 }
+
+/**
+ * For ADMIN recipients: which universities actually have student data in
+ * the active window, and which are in the registry but completely empty.
+ * Used to render the admin-side coverage panel ("data present in X /
+ * missing for Y") so admins immediately see gaps.
+ *
+ * The "with data" set is taken from fee_student_payments joined to the
+ * window's batches; the "without data" set is every other non-operational
+ * row in public.universities. Excludes obvious non-campus operational
+ * rows ("Central Team", "CRM", "Student Engagement Team") so they don't
+ * pollute the "missing" list.
+ */
+export async function getUniversityAvailability(window_id: string): Promise<{ withData: string[]; withoutData: string[] }> {
+    const r = await db.query(
+        `WITH active AS (
+            SELECT DISTINCT u.name
+              FROM fee_student_payments fsp
+              JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+              JOIN public.universities u ON u.id = fsp.university_id
+             WHERE bp.window_id = $1
+         )
+         SELECT name,
+                (name IN (SELECT name FROM active)) AS has_data
+           FROM public.universities
+          WHERE name NOT IN ('Central Team', 'CRM', 'Student Engagement Team')
+          ORDER BY name`,
+        [window_id],
+    );
+    const withData: string[] = [];
+    const withoutData: string[] = [];
+    for (const row of r.rows as Array<{ name: string; has_data: boolean }>) {
+        (row.has_data ? withData : withoutData).push(row.name);
+    }
+    return { withData, withoutData };
+}
