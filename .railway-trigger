@@ -1,15 +1,16 @@
-DEPLOYMENT_TRIGGER_V80
-Timestamp: 2026-06-04T12:30:00+05:30
-Status: Force rebuild — expand snapshot recipients to 72; exclude CMA + ops placeholders
+DEPLOYMENT_TRIGGER_V81
+Timestamp: 2026-06-04T12:40:00+05:30
+Status: Force rebuild — unblock V80 by pinning svelte-check below 4.6.0
 Changes:
-  - resolveSnapshotRecipients() now picks role IN ('PM','BOA') from
-    user_campus_assignment (was 'PM' only). That brings the 41 BOA-role
-    operators into the snapshot mailing list. Total grows from 31 → 72.
-  - Hard-exclude roles even if they leak into the candidate set:
-    CMA, CMA_MANAGER, STUDENT, FACULTY, UNIVERSITY_OPERATOR.
-  - Exclude assignments whose university is an operational placeholder
-    ('Student Engagement Team', 'CRM', 'Central Team') so a stray
-    BOA/PM assigned to one of those buckets doesn't pull them in.
-  - Worker uses the same endpoint, so no separate worker change needed.
-  - Today's manual dedup rows (31) were cleared from the DB so the
-    next Send-Snapshot click delivers cleanly to the new 72 list.
+  - V80 deploy failed in the install phase because svelte-check 4.6.0
+    (released upstream after our last green build) declares a peer on
+    @sveltejs/load-config@0.1.1, but the registry only ever published
+    0.1.0. pnpm with --no-frozen-lockfile resolves svelte-check to
+    the latest tag, so every fresh install picked the broken release.
+  - Pinned apps/app/package.json from "^4.0.0" to "~4.5.0". Verified
+    4.5.0 has no dependency on @sveltejs/load-config at all (only on
+    sade + chokidar). svelte-check is only referenced in apps/app —
+    no other workspace needs updating.
+  - V80's runtime change (BOA inclusion + role exclusions) is still
+    on main; this trigger just re-fires the build with the working
+    dependency tree.
