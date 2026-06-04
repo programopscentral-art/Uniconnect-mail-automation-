@@ -323,12 +323,37 @@ function renderSnapshotHtml(
 </table>`;
 }
 
+/**
+ * Resolve the recipient list for fee snapshot emails.
+ *
+ * Included:
+ *   - Active users with role IN ('PM','BOA') who have a non-revoked
+ *     assignment to an active, non-operational campus.
+ *   - Active COS-lead users (ops_os.cluster_dim.cos_user_id).
+ *   - All active users with role IN ('ADMIN','PROGRAM_OPS').
+ *   - The FIXED_SNAPSHOT_RECIPIENTS list (Pavan + central ops).
+ *
+ * Hard-excluded — these roles never receive the snapshot regardless of
+ * any assignment they may have:
+ *   CMA, CMA_MANAGER, STUDENT, FACULTY, UNIVERSITY_OPERATOR.
+ *
+ * Operational placeholder universities also excluded so a stray PM/BOA
+ * assigned to "Student Engagement Team" / "CRM" / "Central Team"
+ * doesn't get pulled in via that assignment alone.
+ */
+const EXCLUDED_RECIPIENT_ROLES = ['CMA', 'CMA_MANAGER', 'STUDENT', 'FACULTY', 'UNIVERSITY_OPERATOR'];
+const OPERATIONAL_PLACEHOLDER_UNIS = ['Student Engagement Team', 'CRM', 'Central Team'];
+
 export async function resolveSnapshotRecipients(): Promise<string[]> {
     const r = await db.query(
         `WITH ids AS (
-            SELECT DISTINCT uca.user_id FROM ops_os.user_campus_assignment uca
+            SELECT DISTINCT uca.user_id
+              FROM ops_os.user_campus_assignment uca
               JOIN ops_os.campus_dim cd ON cd.campus_id = uca.campus_id AND cd.status = 'active'
-             WHERE uca.role = 'PM' AND uca.revoked_at IS NULL
+              JOIN public.universities un ON un.id = cd.university_id
+             WHERE uca.role IN ('PM','BOA')
+               AND uca.revoked_at IS NULL
+               AND un.name <> ALL($1::text[])
             UNION
             SELECT DISTINCT cl.cos_user_id FROM ops_os.cluster_dim cl WHERE cl.cos_user_id IS NOT NULL
             UNION
@@ -337,7 +362,9 @@ export async function resolveSnapshotRecipients(): Promise<string[]> {
          SELECT DISTINCT u.email FROM ids
            JOIN public.users u ON u.id = ids.user_id
           WHERE u.email IS NOT NULL AND u.email <> ''
-            AND (u.is_active IS NULL OR u.is_active = true)`,
+            AND (u.is_active IS NULL OR u.is_active = true)
+            AND COALESCE(u.role, '') <> ALL($2::text[])`,
+        [OPERATIONAL_PLACEHOLDER_UNIS, EXCLUDED_RECIPIENT_ROLES],
     );
     const pmCos = r.rows.map((r: any) => r.email as string);
     return Array.from(new Set([...pmCos, ...FIXED_SNAPSHOT_RECIPIENTS]));

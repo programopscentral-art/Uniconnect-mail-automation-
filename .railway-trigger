@@ -1,17 +1,15 @@
-DEPLOYMENT_TRIGGER_V79
-Timestamp: 2026-06-04T11:55:00+05:30
-Status: Force rebuild — fix "Universityies" typo + inline NIAT logo as base64
+DEPLOYMENT_TRIGGER_V80
+Timestamp: 2026-06-04T12:30:00+05:30
+Status: Force rebuild — expand snapshot recipients to 72; exclude CMA + ops placeholders
 Changes:
-  - Banner label was producing "Universityies:" for multi-uni recipients
-    because the original code appended "ies" to the literal word
-    "University". Fixed by swapping the WHOLE word: "University:" when one,
-    "Universities:" when many.
-  - NIAT logo at the top of the maroon header is now inlined as a
-    base64-embedded 128px JPEG thumbnail (~6.7 KB binary / 9 KB base64).
-    Removes the remote-fetch dependency entirely — the logo now renders
-    identically in Gmail, Outlook, local previews, every client, with no
-    "image blocked by sender" placeholder and no broken-icon when viewing
-    file:// previews. Email size now ~25 KB per render, still far under
-    Gmail's 102 KB clip threshold.
-  - If the logo asset is ever swapped, regenerate the base64 with the
-    sips command documented in apps/app/src/lib/server/niat_logo_b64.ts.
+  - resolveSnapshotRecipients() now picks role IN ('PM','BOA') from
+    user_campus_assignment (was 'PM' only). That brings the 41 BOA-role
+    operators into the snapshot mailing list. Total grows from 31 → 72.
+  - Hard-exclude roles even if they leak into the candidate set:
+    CMA, CMA_MANAGER, STUDENT, FACULTY, UNIVERSITY_OPERATOR.
+  - Exclude assignments whose university is an operational placeholder
+    ('Student Engagement Team', 'CRM', 'Central Team') so a stray
+    BOA/PM assigned to one of those buckets doesn't pull them in.
+  - Worker uses the same endpoint, so no separate worker change needed.
+  - Today's manual dedup rows (31) were cleared from the DB so the
+    next Send-Snapshot click delivers cleanly to the new 72 list.
