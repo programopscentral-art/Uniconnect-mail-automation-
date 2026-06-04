@@ -11,6 +11,7 @@
  * from double-sending later in the same day.
  */
 import { db, sendEmail } from '@uniconnect/shared';
+import { getEmailUniversityScope, scopeLabel, type UniversityScope } from './fee_scope';
 
 export const FIXED_SNAPSHOT_RECIPIENTS = [
     'pavan.dharma@nxtwave.tech',
@@ -44,7 +45,19 @@ function fmtMoney(v: number): string {
     return `₹${v.toLocaleString('en-IN')}`;
 }
 
-export async function buildSnapshot(window_id: string, window_name: string): Promise<SnapshotData> {
+export async function buildSnapshot(
+    window_id: string,
+    window_name: string,
+    scope: UniversityScope = { type: 'all', universityIds: null },
+): Promise<SnapshotData> {
+    // Scope filter — when 'subset', restrict to those university IDs.
+    // When 'all', no filter.
+    const params: unknown[] = [window_id];
+    let scopeFilter = '';
+    if (scope.type === 'subset') {
+        params.push(scope.universityIds);
+        scopeFilter = ` AND fsp.university_id = ANY($2::uuid[])`;
+    }
     const perBatch = await db.query(
         `SELECT bp.display_name,
                 COUNT(fsp.id)::int                                                          AS total,
@@ -57,11 +70,11 @@ export async function buildSnapshot(window_id: string, window_name: string): Pro
                 COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0)         AS paid_from_fully,
                 COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0)     AS paid_from_partial
            FROM fee_batch_period bp
-           LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
+           LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id${scopeFilter}
           WHERE bp.window_id = $1
           GROUP BY bp.id, bp.batch_start_year
           ORDER BY bp.batch_start_year DESC`,
-        [window_id],
+        params,
     );
     let students = 0, fully = 0, partial = 0, yet = 0, dropouts = 0;
     let totalPayable = 0, totalPaid = 0, paidFully = 0, paidPartial = 0;
@@ -122,12 +135,19 @@ function progressBar(pct: number, height: number = 10): string {
       </table>`;
 }
 
-function renderSnapshotHtml(when: 'morning' | 'evening' | 'manual', snap: SnapshotData): string {
+function renderSnapshotHtml(
+    when: 'morning' | 'evening' | 'manual',
+    snap: SnapshotData,
+    scopeLabel: string | null,
+): string {
     const titleWord = when === 'morning' ? 'Morning' : when === 'evening' ? 'Evening' : 'Live';
     const subtitle = when === 'morning' ? "Today's morning snapshot" : when === 'evening' ? "Today's evening snapshot" : 'On-demand snapshot';
     const downloadUrl = `${BASE_URL}/api/fees2/windows/${snap.window_id}/report.xlsx`;
     const openUrl = `${BASE_URL}/fee-collection-v2?window=${snap.window_id}`;
-    const dateStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toUTCString().replace(' GMT', ' IST');
+    // Compact IST timestamp — was bleeding to a second line in the maroon
+    // header. "04 Jun · 10:01 IST" fits.
+    const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+    const dateStr = `${String(ist.getUTCDate()).padStart(2,'0')} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][ist.getUTCMonth()]} · ${String(ist.getUTCHours()).padStart(2,'0')}:${String(ist.getUTCMinutes()).padStart(2,'0')} IST`;
 
     const batchRows = snap.per_batch.map(b => {
         const pct = b.total_payable > 0 ? Math.round((b.total_paid / b.total_payable) * 100) : 0;
@@ -170,19 +190,22 @@ function renderSnapshotHtml(when: 'morning' | 'evening' | 'manual', snap: Snapsh
             </td>
             <td style="vertical-align:middle;padding-left:14px;">
               <div style="color:#fde2e6;font-size:11px;text-transform:uppercase;letter-spacing:0.18em;font-weight:600;">NIAT · Program Operations</div>
-              <div style="color:#ffffff;font-size:20px;font-weight:700;margin-top:2px;">Fee Collection · ${titleWord} Snapshot</div>
-            </td>
-            <td style="vertical-align:middle;text-align:right;color:#fde2e6;font-size:11px;">
-              ${dateStr}
+              <div style="color:#ffffff;font-size:20px;font-weight:700;margin-top:2px;line-height:1.2;">Fee Collection · ${titleWord} Snapshot</div>
+              <div style="color:#fde2e6;font-size:11px;margin-top:6px;">${dateStr}</div>
             </td>
           </tr>
         </table>
       </td></tr>
 
-      <!-- WINDOW NAME -->
+      <!-- WINDOW NAME + SCOPE -->
       <tr><td style="padding:20px 28px 0 28px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#6b7280;font-weight:600;">${subtitle}</div>
         <div style="font-size:22px;font-weight:700;color:#111827;margin-top:2px;">${snap.window_name}</div>
+        ${scopeLabel ? `
+        <div style="margin-top:8px;background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400e;">
+          <b>Your view:</b> ${scopeLabel}<br/>
+          <span style="color:#a16207;font-size:11px;">Totals below are summed across only your assigned campuses.</span>
+        </div>` : ''}
       </td></tr>
 
       <!-- HERO METRICS: 3 columns -->
@@ -325,14 +348,28 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
 
     const recipients = await resolveSnapshotRecipients();
     const istDate = todayIstDate();
-    const snap = await buildSnapshot(w.id, w.name);
     const when: 'morning' | 'evening' | 'manual' =
         kind === 'fee_snapshot_morning' ? 'morning' :
         kind === 'fee_snapshot_evening' ? 'evening' : 'manual';
     const labelWhen = when === 'morning' ? 'Morning' : when === 'evening' ? 'Evening' : 'Manual';
     const subject = `[NIAT Fees] ${labelWhen} snapshot · ${w.name}`;
     const intro = `${labelWhen} fee collection snapshot`;
-    const bodyHtml = renderSnapshotHtml(when, snap);
+
+    // Build one snapshot per unique scope. Cache by scope key so two PMs
+    // covering the same campuses share the same rendered body.
+    type Cached = { html: string; scopeLabelText: string | null };
+    const cache = new Map<string, Cached>();
+    async function getCached(scope: UniversityScope): Promise<Cached> {
+        const key = scope.type === 'all' ? 'all' : `subset:${[...scope.universityIds].sort().join(',')}`;
+        const hit = cache.get(key);
+        if (hit) return hit;
+        const snap = await buildSnapshot(w.id, w.name, scope);
+        const label = await scopeLabel(scope);
+        const html = renderSnapshotHtml(when, snap, label);
+        const val = { html, scopeLabelText: label };
+        cache.set(key, val);
+        return val;
+    }
 
     const result: SnapshotResult = {
         window_id: w.id, kind, recipients_total: recipients.length,
@@ -356,11 +393,14 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
         if ((ins.rowCount ?? 0) === 0) { result.recipients_deduped++; continue; }
 
         try {
+            // Personalised body per recipient's scope
+            const scope = await getEmailUniversityScope(email);
+            const { html } = await getCached(scope);
             await sendEmail({
                 to: email,
                 subject,
                 intro,
-                bodyHtml,
+                bodyHtml: html,
                 ctaLabel: 'Open fee collection',
                 ctaUrl: `/fee-collection-v2?window=${w.id}`,
                 tone: 'info',

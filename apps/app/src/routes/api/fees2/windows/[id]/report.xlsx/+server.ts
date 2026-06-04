@@ -12,6 +12,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { db } from '@uniconnect/shared';
 import { checkFeeAccess } from '$lib/server/fee_access';
+import { getUserUniversityScope, scopeLabel } from '$lib/server/fee_scope';
 import ExcelJS from 'exceljs';
 import {
     renderStatusDoughnut, renderBatchCollectionChart,
@@ -84,11 +85,24 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     checkFeeAccess(locals, 'view');
     if (!params.id) throw error(400, 'id required');
 
+    // Per-user scope. Admin/Program-ops → 'all', PM/PMA/BOA/CMA → their
+    // assigned universities, COS → their cluster's universities. Each
+    // DB query below appends a scope filter so a PM only sees their own
+    // students/universities/dropouts in the workbook.
+    const scope = await getUserUniversityScope(locals.user?.id, locals.user?.role);
+    const scopeText = await scopeLabel(scope);
+    const scopeFilter = scope.type === 'subset' ? `AND fsp.university_id = ANY($2::uuid[])` : '';
+    const scopeFilterFdl = scope.type === 'subset' ? `AND fdl.university_id = ANY($2::uuid[])` : '';
+    const scopeFilterU = scope.type === 'subset' ? `AND u.id = ANY($2::uuid[])` : '';
+    const scopeArg = scope.type === 'subset' ? [scope.universityIds] : [];
+
     const wRes = await db.query(`SELECT id, name, sheet_id, last_synced_at::text AS last_synced_at FROM fee_semester_window WHERE id = $1`, [params.id]);
     if (wRes.rows.length === 0) throw error(404, 'window not found');
     const win = wRes.rows[0] as { id: string; name: string; sheet_id: string; last_synced_at: string | null };
 
-    // ── Queries (same as before, condensed) ─────────────────────────────
+    // ── Queries — every fee_student_payments / fee_dropout_log lookup
+    // appends the scopeFilter so a PM's download only includes their own
+    // universities. Admins skip the filter and get the full org view.
     const totals = (await db.query(
         `SELECT COUNT(fsp.id)::int AS total,
                 COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int AS fully,
@@ -101,7 +115,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Fully Paid'), 0) AS paid_fully,
                 COALESCE(SUM(fsp.paid) FILTER (WHERE fsp.status = 'Partially Paid'), 0) AS paid_partial
            FROM fee_student_payments fsp
-           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id WHERE bp.window_id = $1`, [win.id])).rows[0];
+           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id WHERE bp.window_id = $1 ${scopeFilter}`,
+        [win.id, ...scopeArg])).rows[0];
 
     const perBatch = (await db.query(
         `SELECT bp.display_name, bp.batch_start_year, bp.semester_number,
@@ -113,8 +128,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 COALESCE(SUM(fsp.payable), 0) AS payable,
                 COALESCE(SUM(fsp.paid), 0) AS paid,
                 COALESCE(SUM(fsp.pending), 0) AS pending
-           FROM fee_batch_period bp LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id
-          WHERE bp.window_id = $1 GROUP BY bp.id ORDER BY bp.batch_start_year DESC`, [win.id])).rows;
+           FROM fee_batch_period bp LEFT JOIN fee_student_payments fsp ON fsp.batch_period_id = bp.id ${scopeFilter}
+          WHERE bp.window_id = $1 GROUP BY bp.id ORDER BY bp.batch_start_year DESC`,
+        [win.id, ...scopeArg])).rows;
 
     const perUni = (await db.query(
         `SELECT u.name,
@@ -126,7 +142,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 COALESCE(SUM(fsp.paid), 0) AS paid
            FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            JOIN universities u ON u.id = fsp.university_id
-          WHERE bp.window_id = $1 GROUP BY u.id ORDER BY payable DESC`, [win.id])).rows;
+          WHERE bp.window_id = $1 ${scopeFilter} GROUP BY u.id ORDER BY payable DESC`,
+        [win.id, ...scopeArg])).rows;
 
     const students = (await db.query(
         `SELECT bp.display_name AS batch_name, bp.semester_number, u.name AS university,
@@ -139,7 +156,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
            FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            LEFT JOIN universities u ON u.id = fsp.university_id
            LEFT JOIN LATERAL (SELECT COUNT(*)::int AS n FROM fee_remarks fr WHERE fr.student_payment_id = fsp.id) rc ON true
-          WHERE bp.window_id = $1 ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`, [win.id])).rows;
+          WHERE bp.window_id = $1 ${scopeFilter} ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`,
+        [win.id, ...scopeArg])).rows;
 
     const dropouts = (await db.query(
         `SELECT fdl.zoho_user_id, fdl.student_name, u.name AS university,
@@ -147,23 +165,31 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 fdl.dropped_at::text AS dropped_at, fdl.reason, fdl.imported_at::text AS imported_at
            FROM fee_dropout_log fdl LEFT JOIN universities u ON u.id = fdl.university_id
            LEFT JOIN fee_batch_period bp ON bp.id = fdl.batch_period_id
-          WHERE fdl.window_id = $1 ORDER BY COALESCE(fdl.dropped_at, fdl.imported_at::date) DESC, fdl.student_name`, [win.id])).rows;
+          WHERE fdl.window_id = $1 ${scopeFilterFdl} ORDER BY COALESCE(fdl.dropped_at, fdl.imported_at::date) DESC, fdl.student_name`,
+        [win.id, ...scopeArg])).rows;
 
     // Analytics queries
     const dropoutReasons = (await db.query(
-        `SELECT COALESCE(NULLIF(TRIM(reason), ''), '(no reason given)') AS reason,
+        `SELECT COALESCE(NULLIF(TRIM(fdl.reason), ''), '(no reason given)') AS reason,
                 COUNT(*)::int AS n
-           FROM fee_dropout_log
-          WHERE window_id = $1
-          GROUP BY 1 ORDER BY n DESC LIMIT 25`, [win.id])).rows;
+           FROM fee_dropout_log fdl
+          WHERE fdl.window_id = $1 ${scopeFilterFdl}
+          GROUP BY 1 ORDER BY n DESC LIMIT 25`,
+        [win.id, ...scopeArg])).rows;
     const tagCounts = (await db.query(
         `SELECT fsp.tag_case, COUNT(*)::int AS n
            FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
-          WHERE bp.window_id = $1 AND fsp.tag_case IS NOT NULL AND fsp.tag_case <> ''
-          GROUP BY fsp.tag_case ORDER BY n DESC`, [win.id])).rows;
+          WHERE bp.window_id = $1 ${scopeFilter} AND fsp.tag_case IS NOT NULL AND fsp.tag_case <> ''
+          GROUP BY fsp.tag_case ORDER BY n DESC`,
+        [win.id, ...scopeArg])).rows;
     const totalDropoutsRow = (await db.query(
-        `SELECT COUNT(*)::int AS n FROM fee_dropout_log WHERE window_id = $1`, [win.id])).rows[0];
+        `SELECT COUNT(*)::int AS n FROM fee_dropout_log fdl WHERE fdl.window_id = $1 ${scopeFilterFdl}`,
+        [win.id, ...scopeArg])).rows[0];
     const totalDropouts = Number(totalDropoutsRow?.n ?? 0);
+
+    // Note unused-variable guard — keep scopeFilterU referenced in case
+    // future per-university joins need it
+    void scopeFilterU;
 
     // ── Workbook ─────────────────────────────────────────────────────────
     const wb = new ExcelJS.Workbook();
@@ -203,6 +229,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         ws.mergeCells('A6:E6');
         ws.getCell('A6').value = win.last_synced_at ? `Sheet last synced: ${new Date(win.last_synced_at).toISOString().replace('T', ' ').slice(0, 16)} UTC · Sheet ID ${win.sheet_id}` : `Sheet ID ${win.sheet_id}`;
         ws.getCell('A6').font = { name: 'Calibri', size: 10, color: { argb: 'FF6B7280' } };
+        if (scopeText) {
+            ws.mergeCells('A7:E7');
+            ws.getCell('A7').value = `Your view: ${scopeText}  ·  Totals below are summed across only your assigned campuses.`;
+            ws.getCell('A7').font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF92400E' } };
+            ws.getCell('A7').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+            ws.getCell('A7').alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+            ws.getRow(7).height = 20;
+        }
 
         // Section: PAYMENT BREAKDOWN
         const sec1 = ws.getRow(8);

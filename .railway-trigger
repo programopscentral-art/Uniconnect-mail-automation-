@@ -1,18 +1,17 @@
-DEPLOYMENT_TRIGGER_V76
-Timestamp: 2026-06-04T14:30:00+05:30
-Status: Force rebuild — snapshot pipeline fixes (3 in 1)
-Audit found: 0 snapshot notifications in DB across all time, despite
-worker running and INTERNAL_SYNC_TOKEN being set. Root cause: the
-send-snapshot endpoint read its token via process.env.INTERNAL_SYNC_TOKEN
-while the sync endpoint uses env from $env/dynamic/private. SvelteKit's
-adapter-node may inline process.env.X to undefined at build time when
-the var isn't visible to Vite — silently breaking the worker's calls
-and producing 401s the worker logged but no notifications.
-Three fixes shipped:
-  1. send-snapshot now reads INTERNAL_SYNC_TOKEN via $env/dynamic/private
-     (runtime read, matches sync endpoint).
-  2. Endpoint logs structured JSON on every call (actor=worker|user, kind,
-     sent/deduped/errors counts, elapsed_ms) so future failures are visible.
-  3. Page header status panel: "Snapshots (30d): ☀ N morning · last X · 🌙
-     N evening · last Y · ✉ N manual · last Z" — or amber "never fired"
-     warning when zero. Reads notifications.source_id history via SPLIT_PART.
+DEPLOYMENT_TRIGGER_V77
+Timestamp: 2026-06-04T11:20:00+05:30
+Status: Force rebuild — per-recipient scoped reports (email + XLSX)
+Changes:
+  - New apps/app/src/lib/server/fee_scope.ts — getUserUniversityScope(),
+    getEmailUniversityScope(), scopeLabel(): ADMIN/PROGRAM_OPS → 'all',
+    PM/PMA/BOA/CMA → universities of their assigned campuses,
+    COS → universities of their cluster's campuses.
+  - buildSnapshot() + fireSnapshot() now compute per-recipient scope
+    and send each PM/COS a personalised email summing only their
+    own universities. Same kind dedup as before.
+  - Snapshot email: maroon-header date moved below the title so it no
+    longer wraps. Adds an amber "Your view: <universities>" strip
+    between the window name and the hero cards when scoped.
+  - report.xlsx endpoint reads locals.user scope and appends a SQL
+    filter to every fee_student_payments / fee_dropout_log query.
+    Summary sheet shows a scope row when present.
