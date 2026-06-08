@@ -426,8 +426,8 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
     for (const email of recipients) {
         const dedupKey = `fee_${kind}_${w.id}_${istDate}_${email.toLowerCase()}`;
         const ins = await db.query(
-            `INSERT INTO public.notifications (user_id, title, message, type, source_id)
-             SELECT u.id, $1, $2, 'SYSTEM', $3
+            `INSERT INTO public.notifications (user_id, title, message, type, source_id, channel, delivery_status, queued_at)
+             SELECT u.id, $1, $2, 'SYSTEM', $3, 'EMAIL', 'QUEUED', NOW()
                FROM public.users u WHERE u.email = $4
                AND NOT EXISTS (
                  SELECT 1 FROM public.notifications n2
@@ -438,12 +438,19 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
             [subject, `Snapshot for ${w.name}`, dedupKey, email],
         );
         if ((ins.rowCount ?? 0) === 0) { result.recipients_deduped++; continue; }
+        const notificationId = ins.rows[0].id as string;
 
+        // Personalised body per recipient's scope, then send. Honour
+        // sendEmail's return value: it never throws, but returns
+        // { sent: false, reason } if SMTP isn't configured, fails, etc.
+        // Without this, recipients_sent would lie whenever SMTP is silently
+        // broken, and delivery_status would stay QUEUED forever.
+        let sentOk = false;
+        let failReason: string | null = null;
         try {
-            // Personalised body per recipient's scope
             const scope = await getEmailUniversityScope(email);
             const { html } = await getCached(scope);
-            await sendEmail({
+            const r = await sendEmail({
                 to: email,
                 subject,
                 intro,
@@ -452,9 +459,24 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
                 ctaUrl: `/fee-collection-v2?window=${w.id}`,
                 tone: 'info',
             });
-            result.recipients_sent++;
+            sentOk = r.sent;
+            if (!r.sent) failReason = r.reason ?? 'unknown';
         } catch (e) {
-            result.errors.push({ email, message: (e as Error).message });
+            failReason = (e as Error).message;
+        }
+
+        if (sentOk) {
+            await db.query(
+                `UPDATE public.notifications SET delivery_status = 'SENT', sent_at = NOW() WHERE id = $1`,
+                [notificationId],
+            );
+            result.recipients_sent++;
+        } else {
+            await db.query(
+                `UPDATE public.notifications SET delivery_status = 'FAILED', payload_json = jsonb_build_object('failure_reason', $2::text) WHERE id = $1`,
+                [notificationId, failReason ?? 'unknown'],
+            );
+            result.errors.push({ email, message: failReason ?? 'unknown' });
         }
     }
     return result;

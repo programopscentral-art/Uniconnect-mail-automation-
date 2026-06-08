@@ -1,19 +1,32 @@
-DEPLOYMENT_TRIGGER_V84
-Timestamp: 2026-06-08T14:50:00+05:30
-Status: Force rebuild — make deriveStatus strict (math-only) for full consistency
+DEPLOYMENT_TRIGGER_V85
+Timestamp: 2026-06-08T16:10:00+05:30
+Status: Force rebuild — honor sendEmail return value + true delivery status
 Changes:
-  - fee_sync_v2.ts deriveStatus(): payable=0 / paid=0 now ALWAYS returns
-    'Yet To Pay' regardless of what the sheet's Payment Status column
-    says. Previous V82 version was lenient and consulted the typed
-    status for that edge case, which contradicted the one-shot DB
-    cleanup that forced 0/0 to Yet To Pay — the next sync then drifted
-    5 rows back to "Fully Paid" because the sheet had them typed that
-    way. Strict math-only makes the rule self-consistent and matches
-    the dashboard's expectation that "Fully Paid" means "paid in full
-    against a real obligation".
-  - Out-of-band DB cleanup: 5 rows in active window (Dasari Hema Raga
-    Varshitha, Rageni Jeevan Abhi, MAMIDI GREESHMA, Sanku Sravan
-    Aditya, P. Thriveda) flipped from 'Fully Paid' → 'Yet To Pay'.
-    Active window now reports Fully=313, Partial=50, Yet=6604 and a
-    final consistency check confirms ZERO status-vs-amount
-    misclassifications across the whole window.
+  - fee_snapshot.ts fireSnapshot(): the loop now reads sendEmail()'s
+    return value ({ sent: boolean, reason? }) and updates the
+    notification row's delivery_status accordingly:
+      QUEUED → SENT  (with sent_at = NOW())  on success
+      QUEUED → FAILED (with payload_json.failure_reason)  on failure
+    Previously the code ignored sendEmail's return entirely:
+      • recipients_sent was incremented even when SMTP returned
+        smtp_not_configured / smtp_send_failed / invalid_recipient,
+        so the "sent: 72" response was a lie.
+      • Rows stayed at delivery_status='QUEUED' forever — every
+        snapshot row in the DB (going back to May 30) is still
+        QUEUED even though some were actually delivered.
+    Net effect: we now have ground-truth proof of delivery for
+    every recipient in every snapshot fire, the response counts are
+    accurate, and any future SMTP outage will show up immediately
+    in the response payload as `errors[].message = '<smtp reason>'`
+    instead of looking like success.
+  - INSERT also sets channel='EMAIL' (was NULL — only IN_APP rows
+    had channel set), so the notifications table now distinguishes
+    email-delivery rows from in-app-only rows.
+  - Audit findings (no DB change shipped, just observations):
+    • Only 31 fee_snapshot rows in the entire notifications table,
+      all from 2026-05-30, all status='QUEUED'. Reflects the
+      env-var-bug period now closed by V77+ + this V85 visibility
+      improvement.
+    • Next auto-fire window opens at 19:30 IST tonight — first
+      snapshot to run with the corrected env var, recipient list,
+      logo, banner, AND delivery_status tracking will be visible.
