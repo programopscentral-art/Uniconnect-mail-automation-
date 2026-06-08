@@ -1,16 +1,37 @@
-DEPLOYMENT_TRIGGER_V81
-Timestamp: 2026-06-04T12:40:00+05:30
-Status: Force rebuild — unblock V80 by pinning svelte-check below 4.6.0
+DEPLOYMENT_TRIGGER_V82
+Timestamp: 2026-06-08T14:15:00+05:30
+Status: Force rebuild — fee sync amounts-first status + safety-gated purge
 Changes:
-  - V80 deploy failed in the install phase because svelte-check 4.6.0
-    (released upstream after our last green build) declares a peer on
-    @sveltejs/load-config@0.1.1, but the registry only ever published
-    0.1.0. pnpm with --no-frozen-lockfile resolves svelte-check to
-    the latest tag, so every fresh install picked the broken release.
-  - Pinned apps/app/package.json from "^4.0.0" to "~4.5.0". Verified
-    4.5.0 has no dependency on @sveltejs/load-config at all (only on
-    sade + chokidar). svelte-check is only referenced in apps/app —
-    no other workspace needs updating.
-  - V80's runtime change (BOA inclusion + role exclusions) is still
-    on main; this trigger just re-fires the build with the working
-    dependency tree.
+  - fee_sync_v2.ts deriveStatus(): payment status is now derived from the
+    objective paid/payable amounts, not from the sheet's typed status
+    column. The typed text is only consulted for the payable=0/paid=0
+    edge case (no fees, no payment).
+      Concretely fixes: students like Kothakapu Santhosh Reddy
+      (₹187,900/₹187,941) and Onkaram Dheeraj (₹150,000/₹150,050) that
+      were typed as "Fully Paid" in the sheet but actually had small
+      outstanding balances — these no longer inflate the Fully Paid
+      count.
+  - fee_sync_v2.ts syncBatchSubsheet(): after upserting, deletes rows
+    in this batch_period whose zoho_user_id wasn't seen in this sync
+    run. Closes the "stale CDU rows" class of bug (sheet shrinks, DB
+    keeps the ghosts and inflates totals).
+      Safety: if the sheet returned <50% of the rows currently in the
+      DB for this batch, the purge is SKIPPED and logged in
+      summary.purge_skipped — prevents an accidentally-truncated sheet
+      from nuking real data. The next clean sync will catch up.
+  - SyncSummary now reports students_purged + purge_skipped so the
+    sync UI can show what happened.
+  - One-shot DB cleanup applied (out-of-band, pre-deploy):
+      • 15 rows in the active window had their status re-derived from
+        amounts (10 wrongly-Fully-Paid + 5 zero/zero wrongly Fully Paid).
+        Active window now reports Fully=313 (was 328), Partial=50
+        (was 40), Yet=6604 (was 6608).
+      • 9 stale CDU rows from May 30 + June 5 syncs that are no longer
+        in the sheet were deleted. CDU in Batch 2025·Sem 3 now shows
+        1,295 (was 1,304) — matches the user-confirmed actual.
+  - NOT touched: 5,553 bulk-stale rows from this morning's 12:47 IST
+    sync (the sheet then briefly held all 15 universities, then was
+    reduced to just 438 Mallareddy rows at 13:35). Those remain in DB
+    pending operator's call on whether the sheet should be restored
+    to its earlier consolidated form. The safety threshold above
+    prevents the next auto-sync from purging them too.

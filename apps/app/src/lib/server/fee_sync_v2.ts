@@ -39,6 +39,8 @@ export interface SyncSummary {
     finished_at: string;
     batch_periods_synced: number;
     students_upserted: number;
+    students_purged: number;
+    purge_skipped: Array<{ sub_sheet: string; reason: string; seen: number; in_db: number }>;
     universities_unmatched: string[];
     dates_rows_upserted: number;
     dropouts_upserted: number;
@@ -82,6 +84,32 @@ function toNum(v: unknown): number {
     const s = String(v).replace(/[₹,\s]/g, '');
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Resolve a student's payment status from the sheet's typed status column
+ * + the objective paid/payable amounts.
+ *
+ * History: an earlier version trusted the sheet's typed status verbatim.
+ * That let data-entry drift land in the DB — students typed "Fully Paid"
+ * whose paid was a few rupees short of payable showed up as fully paid on
+ * the dashboard, inflating the Fully Paid count and shrinking Partial.
+ *
+ * Rule: amounts win. The typed status is only consulted for the ambiguous
+ * payable=0/paid=0 edge case (no fees, no payment — could be a waiver or
+ * an unbilled student).
+ */
+function deriveStatus(typedRaw: string, payable: number, paid: number): string {
+    if (payable > 0) {
+        if (paid >= payable) return 'Fully Paid';
+        if (paid > 0)        return 'Partially Paid';
+        return 'Yet To Pay';
+    }
+    if (paid > 0) return 'Fully Paid';
+    const t = String(typedRaw || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (t === 'fullypaid' || t === 'fully' || t === 'paid') return 'Fully Paid';
+    if (t === 'partiallypaid' || t === 'partial')           return 'Partially Paid';
+    return 'Yet To Pay';
 }
 
 function pickValue(row: Record<string, unknown>, candidates: string[]): unknown {
@@ -273,7 +301,8 @@ async function syncBatchSubsheet(
         const paid = toNum(pickValue(r, ['Total Term Fee Paid']));
         // NOTE: `pending` is a GENERATED ALWAYS column in Postgres
         //   (GREATEST(payable - paid, 0)) — do not write to it.
-        const status_raw = String(pickValue(r, ['Payment Status']) ?? '').trim() || 'Yet To Pay';
+        const typed_status = String(pickValue(r, ['Payment Status']) ?? '').trim();
+        const status_raw = deriveStatus(typed_status, payable, paid);
         const registration_date_raw = pickValue(r, ['registration date', 'Registration Date']);
         const registration_date = parseLooseDate(registration_date_raw);
         const registration_status = String(pickValue(r, ['Registration Status']) ?? '').trim() || null;
@@ -332,6 +361,37 @@ async function syncBatchSubsheet(
         );
         studentCount += slice.length;
         summary.students_upserted += slice.length;
+    }
+
+    // Purge rows in this batch_period whose zoho_user_id is no longer in the
+    // sheet — students who were dropped/transferred/whatever. The earlier
+    // upsert-only behavior left ghosts in DB that inflated counts (e.g. CDU
+    // showing 1,304 instead of the sheet's true 1,295).
+    //
+    // Safety guard: if the sheet returned < 50% of the rows currently in DB
+    // for this batch, do NOT purge — the sheet is probably mid-edit or
+    // accidentally truncated, and purging would destroy real data. Log and
+    // leave the DB alone; next sync after the sheet is restored will catch up.
+    const existingRes = await db.query(
+        `SELECT COUNT(*)::int AS n FROM fee_student_payments WHERE batch_period_id = $1`,
+        [bp.id],
+    );
+    const inDb = Number(existingRes.rows[0]?.n ?? 0);
+    const seenIds = Array.from(seenZoho);
+    if (seenIds.length > 0 && inDb > 0 && seenIds.length < inDb * 0.5) {
+        summary.purge_skipped.push({
+            sub_sheet: subsheet_name, reason: 'safety_threshold',
+            seen: seenIds.length, in_db: inDb,
+        });
+    } else if (seenIds.length > 0) {
+        const purged = await db.query(
+            `DELETE FROM fee_student_payments
+              WHERE batch_period_id = $1
+                AND zoho_user_id <> ALL($2::text[])
+              RETURNING id`,
+            [bp.id, seenIds],
+        );
+        summary.students_purged += purged.rowCount ?? 0;
     }
 
     await db.query(
@@ -553,6 +613,7 @@ export async function syncFeeSemesterWindow(window_id: string): Promise<SyncSumm
     const summary: SyncSummary = {
         window_id, sheet_id: win.sheet_id, started_at: startedAt, finished_at: '',
         batch_periods_synced: 0, students_upserted: 0,
+        students_purged: 0, purge_skipped: [],
         universities_unmatched: [], dates_rows_upserted: 0, dropouts_upserted: 0,
         errors: [], elapsed_ms: 0,
     };
