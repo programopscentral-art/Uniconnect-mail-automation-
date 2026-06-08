@@ -1,37 +1,15 @@
-DEPLOYMENT_TRIGGER_V82
-Timestamp: 2026-06-08T14:15:00+05:30
-Status: Force rebuild — fee sync amounts-first status + safety-gated purge
+DEPLOYMENT_TRIGGER_V83
+Timestamp: 2026-06-08T14:35:00+05:30
+Status: Force rebuild — fix VGU/Takshashila/Yenepoya missing from per-batch table
 Changes:
-  - fee_sync_v2.ts deriveStatus(): payment status is now derived from the
-    objective paid/payable amounts, not from the sheet's typed status
-    column. The typed text is only consulted for the payable=0/paid=0
-    edge case (no fees, no payment).
-      Concretely fixes: students like Kothakapu Santhosh Reddy
-      (₹187,900/₹187,941) and Onkaram Dheeraj (₹150,000/₹150,050) that
-      were typed as "Fully Paid" in the sheet but actually had small
-      outstanding balances — these no longer inflate the Fully Paid
-      count.
-  - fee_sync_v2.ts syncBatchSubsheet(): after upserting, deletes rows
-    in this batch_period whose zoho_user_id wasn't seen in this sync
-    run. Closes the "stale CDU rows" class of bug (sheet shrinks, DB
-    keeps the ghosts and inflates totals).
-      Safety: if the sheet returned <50% of the rows currently in the
-      DB for this batch, the purge is SKIPPED and logged in
-      summary.purge_skipped — prevents an accidentally-truncated sheet
-      from nuking real data. The next clean sync will catch up.
-  - SyncSummary now reports students_purged + purge_skipped so the
-    sync UI can show what happened.
-  - One-shot DB cleanup applied (out-of-band, pre-deploy):
-      • 15 rows in the active window had their status re-derived from
-        amounts (10 wrongly-Fully-Paid + 5 zero/zero wrongly Fully Paid).
-        Active window now reports Fully=313 (was 328), Partial=50
-        (was 40), Yet=6604 (was 6608).
-      • 9 stale CDU rows from May 30 + June 5 syncs that are no longer
-        in the sheet were deleted. CDU in Batch 2025·Sem 3 now shows
-        1,295 (was 1,304) — matches the user-confirmed actual.
-  - NOT touched: 5,553 bulk-stale rows from this morning's 12:47 IST
-    sync (the sheet then briefly held all 15 universities, then was
-    reduced to just 438 Mallareddy rows at 13:35). Those remain in DB
-    pending operator's call on whether the sheet should be restored
-    to its earlier consolidated form. The safety threshold above
-    prevents the next auto-sync from purging them too.
+  - apps/app/src/routes/api/fees2/batches/[id]/students/+server.ts:
+    bumped LIMIT 5000 → LIMIT 20000.
+      Batch 2025 · Semester 3 has 6,000 students; the old limit cut
+      the response at 5,000. Because results are ORDER BY u.name,
+      fsp.student_name, the cut landed alphabetically inside Sanjay
+      Ghodawat (only 334 of 414 loaded), and Takshashila, VGU,
+      Yenepoya never loaded at all. The "University-wise within
+      this batch" panel aggregates client-side from the loaded
+      students array, so those three were silently missing.
+      LIMIT 20000 covers ~3x current largest batch with headroom.
+  - No other code or data changes in this push.

@@ -44,7 +44,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
            ) rc ON true
           WHERE ${conds.join(' AND ')}
           ORDER BY u.name, fsp.student_name
-          LIMIT 5000`,
+          LIMIT 20000`,
         args,
     );
     return json({ students: r.rows });
