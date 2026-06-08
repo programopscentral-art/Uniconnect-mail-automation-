@@ -1,15 +1,19 @@
-DEPLOYMENT_TRIGGER_V83
-Timestamp: 2026-06-08T14:35:00+05:30
-Status: Force rebuild — fix VGU/Takshashila/Yenepoya missing from per-batch table
+DEPLOYMENT_TRIGGER_V84
+Timestamp: 2026-06-08T14:50:00+05:30
+Status: Force rebuild — make deriveStatus strict (math-only) for full consistency
 Changes:
-  - apps/app/src/routes/api/fees2/batches/[id]/students/+server.ts:
-    bumped LIMIT 5000 → LIMIT 20000.
-      Batch 2025 · Semester 3 has 6,000 students; the old limit cut
-      the response at 5,000. Because results are ORDER BY u.name,
-      fsp.student_name, the cut landed alphabetically inside Sanjay
-      Ghodawat (only 334 of 414 loaded), and Takshashila, VGU,
-      Yenepoya never loaded at all. The "University-wise within
-      this batch" panel aggregates client-side from the loaded
-      students array, so those three were silently missing.
-      LIMIT 20000 covers ~3x current largest batch with headroom.
-  - No other code or data changes in this push.
+  - fee_sync_v2.ts deriveStatus(): payable=0 / paid=0 now ALWAYS returns
+    'Yet To Pay' regardless of what the sheet's Payment Status column
+    says. Previous V82 version was lenient and consulted the typed
+    status for that edge case, which contradicted the one-shot DB
+    cleanup that forced 0/0 to Yet To Pay — the next sync then drifted
+    5 rows back to "Fully Paid" because the sheet had them typed that
+    way. Strict math-only makes the rule self-consistent and matches
+    the dashboard's expectation that "Fully Paid" means "paid in full
+    against a real obligation".
+  - Out-of-band DB cleanup: 5 rows in active window (Dasari Hema Raga
+    Varshitha, Rageni Jeevan Abhi, MAMIDI GREESHMA, Sanku Sravan
+    Aditya, P. Thriveda) flipped from 'Fully Paid' → 'Yet To Pay'.
+    Active window now reports Fully=313, Partial=50, Yet=6604 and a
+    final consistency check confirms ZERO status-vs-amount
+    misclassifications across the whole window.

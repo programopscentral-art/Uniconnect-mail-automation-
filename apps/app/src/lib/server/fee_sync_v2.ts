@@ -87,28 +87,25 @@ function toNum(v: unknown): number {
 }
 
 /**
- * Resolve a student's payment status from the sheet's typed status column
- * + the objective paid/payable amounts.
+ * Resolve a student's payment status purely from the objective paid/payable
+ * amounts. The sheet's typed Payment Status column is ignored — it drifts
+ * (operators mark "Fully Paid" when paid is ₹50 short of payable, or for
+ * students whose fee schedule isn't set up yet) and trusting it inflated
+ * the Fully Paid count on every report.
  *
- * History: an earlier version trusted the sheet's typed status verbatim.
- * That let data-entry drift land in the DB — students typed "Fully Paid"
- * whose paid was a few rupees short of payable showed up as fully paid on
- * the dashboard, inflating the Fully Paid count and shrinking Partial.
- *
- * Rule: amounts win. The typed status is only consulted for the ambiguous
- * payable=0/paid=0 edge case (no fees, no payment — could be a waiver or
- * an unbilled student).
+ *   payable > 0, paid >= payable  → Fully Paid
+ *   payable > 0, paid >  0        → Partially Paid
+ *   payable > 0, paid =  0        → Yet To Pay
+ *   payable = 0, paid >  0        → Fully Paid (one-off / refund-credit scenarios)
+ *   payable = 0, paid =  0        → Yet To Pay (no fee billed, no payment — no obligation met)
  */
-function deriveStatus(typedRaw: string, payable: number, paid: number): string {
+function deriveStatus(_typedRaw: string, payable: number, paid: number): string {
     if (payable > 0) {
         if (paid >= payable) return 'Fully Paid';
         if (paid > 0)        return 'Partially Paid';
         return 'Yet To Pay';
     }
     if (paid > 0) return 'Fully Paid';
-    const t = String(typedRaw || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (t === 'fullypaid' || t === 'fully' || t === 'paid') return 'Fully Paid';
-    if (t === 'partiallypaid' || t === 'partial')           return 'Partially Paid';
     return 'Yet To Pay';
 }
 
