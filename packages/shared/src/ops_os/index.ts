@@ -20,3 +20,4 @@ export * from './email';
 export * from './reminders';
 export * from './auto_assign';
 export * from './weekly';
+export * from './monthly_full';

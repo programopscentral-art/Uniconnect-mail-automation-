@@ -1,21 +1,29 @@
 /**
  * Monthly Summary — read-only rollup view.
  *
- * Same shape as the weekly summary, but the period is a calendar month
- * (1st → last day of month). Aggregates the campus's daily submissions
- * for the full month. No submission, no PM review, no save — pure view.
+ * Comprehensive month aggregation: pulls Ops OS daily submissions PLUS
+ * faculty attendance, success coach calls, and end-of-month fee snapshot
+ * for the campus's university. The previous version of this page only
+ * summed values inside `ops_os.submission_value`, which is why faculty
+ * attendance + coach data appeared missing — those tables live outside
+ * the submission spine.
+ *
+ * Also exposes the campus list AND a per-university list so the user
+ * can pick a campus (default) OR (for admin/COS) trigger a per-uni
+ * XLSX download via `/api/ops-os/monthly-report.xlsx?university=<uuid>`.
  */
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import {
     withReadOnlyUserContext,
-    getPeriodRollup,
+    getMonthlyFullRollup,
     lastCompletedMonth,
     monthBoundariesFromIstDate,
-    type PeriodRollup,
+    type MonthlyFullRollup,
 } from '@uniconnect/shared';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const NETWORK_ROLES = new Set(['ADMIN', 'PROGRAM_OPS', 'COS']);
 
 export const load: PageServerLoad = async ({ locals, url }) => {
     if (!locals.user) throw redirect(302, '/login');
@@ -31,39 +39,53 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         ? monthBoundariesFromIstDate(requestedMonth)
         : lastCompletedMonth();
 
-    const campuses = await withReadOnlyUserContext(userId, role, async (client) => {
-        const r = await client.query<{ campus_id: string; code: string; display_name: string }>(
-            `SELECT c.campus_id, c.code, c.display_name
-             FROM ops_os.campus_dim c
-             JOIN ops_os.user_campus_assignment uca
-                  ON uca.campus_id = c.campus_id
-                 AND uca.user_id = $1
-                 AND uca.revoked_at IS NULL
-             WHERE c.status = 'active'
-             ORDER BY c.display_name`,
+    const { campuses, universities } = await withReadOnlyUserContext(userId, role, async (client) => {
+        // Campuses the user is assigned to
+        const assigned = await client.query<{ campus_id: string; code: string; display_name: string; university_id: string | null; university_name: string | null }>(
+            `SELECT c.campus_id, c.code, c.display_name, c.university_id, u.name AS university_name
+               FROM ops_os.campus_dim c
+               JOIN ops_os.user_campus_assignment uca
+                    ON uca.campus_id = c.campus_id
+                   AND uca.user_id = $1
+                   AND uca.revoked_at IS NULL
+               LEFT JOIN public.universities u ON u.id = c.university_id
+              WHERE c.status = 'active'
+              ORDER BY c.display_name`,
             [userId],
         );
-        if (r.rows.length > 0) return r.rows;
 
-        if (role === 'ADMIN' || role === 'PROGRAM_OPS') {
-            const all = await client.query<{ campus_id: string; code: string; display_name: string }>(
-                `SELECT campus_id, code, display_name FROM ops_os.campus_dim
-                 WHERE status = 'active' ORDER BY display_name`,
+        let campusesRows = assigned.rows;
+        // Admin / Program Ops always see every active campus
+        if (campusesRows.length === 0 && (role === 'ADMIN' || role === 'PROGRAM_OPS')) {
+            const all = await client.query<{ campus_id: string; code: string; display_name: string; university_id: string | null; university_name: string | null }>(
+                `SELECT c.campus_id, c.code, c.display_name, c.university_id, u.name AS university_name
+                   FROM ops_os.campus_dim c
+                   LEFT JOIN public.universities u ON u.id = c.university_id
+                  WHERE c.status = 'active' ORDER BY c.display_name`,
             );
-            return all.rows;
+            campusesRows = all.rows;
         }
 
-        const fallback = await client.query<{ campus_id: string; code: string; display_name: string }>(
-            `SELECT DISTINCT cd.campus_id, cd.code, cd.display_name
-               FROM ops_os.campus_dim cd
-               LEFT JOIN public.users u ON u.id = $1
-               LEFT JOIN public.user_universities uu ON uu.user_id = $1
-              WHERE cd.status = 'active'
-                AND (cd.university_id = u.university_id OR cd.university_id = uu.university_id)
-              ORDER BY cd.display_name`,
-            [userId],
-        );
-        return fallback.rows;
+        // Universities the user can pull "all-campuses-of-this-uni" reports for.
+        // Network roles (ADMIN/PROGRAM_OPS/COS) get every uni; others get only
+        // the unis whose campuses appear in their campus assignments.
+        let universitiesRows: Array<{ id: string; name: string }> = [];
+        if (NETWORK_ROLES.has(role) || role === 'PROGRAM_OPS') {
+            const u = await client.query<{ id: string; name: string }>(
+                `SELECT id::text, name FROM public.universities
+                  WHERE COALESCE(is_team, false) = false
+                  ORDER BY name`,
+            );
+            universitiesRows = u.rows;
+        } else {
+            const seenUniIds = new Set(campusesRows.map(c => c.university_id).filter((x): x is string => !!x));
+            universitiesRows = campusesRows
+                .filter(c => c.university_id && seenUniIds.has(c.university_id))
+                .map(c => ({ id: c.university_id!, name: c.university_name ?? '(uni)' }))
+                .filter((u, i, arr) => arr.findIndex(x => x.id === u.id) === i);
+        }
+
+        return { campuses: campusesRows, universities: universitiesRows };
     });
 
     const requestedCampus = url.searchParams.get('campus') ?? '';
@@ -71,10 +93,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         ?? campuses[0]?.campus_id
         ?? '';
 
-    let rollup: PeriodRollup | null = null;
+    let rollup: MonthlyFullRollup | null = null;
     if (activeCampusId) {
         rollup = await withReadOnlyUserContext(userId, role, c =>
-            getPeriodRollup(
+            getMonthlyFullRollup(
                 { campus_id: activeCampusId, period_start: period.period_start, period_end: period.period_end },
                 c,
             ),
@@ -83,9 +105,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     return {
         campuses,
+        universities,
         period_start: period.period_start,
         period_end: period.period_end,
         role,
+        canDownloadUniWide: NETWORK_ROLES.has(role) || role === 'PROGRAM_OPS',
         activeCampusId,
         rollup,
     };
