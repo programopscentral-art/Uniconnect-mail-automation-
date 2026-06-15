@@ -1222,7 +1222,7 @@
 
         <!-- ── SUMMARY TAB ────────────────────────────── -->
         {:else if activeTab === 'summary'}
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex flex-wrap items-center gap-3 mb-4">
                 <select bind:value={summaryMonth} onchange={() => loadSummary()} class="text-sm rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 px-3 py-2">
                     {#each Array.from({ length: 12 }, (_, i) => i + 1) as m}
                         <option value={m}>{new Date(2024, m - 1).toLocaleDateString('en-IN', { month: 'long' })}</option>
@@ -1233,6 +1233,22 @@
                         <option value={y}>{y}</option>
                     {/each}
                 </select>
+
+                <!-- Download report (.xlsx) — pulls Faculty + Day-by-Day + Coaches
+                     for the selected university + month into one styled workbook. -->
+                <a
+                    href={`/api/faculty-attendance/monthly-report.xlsx?universityId=${universityId}&year=${summaryYear}&month=${summaryMonth}`}
+                    class="ml-auto inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-emerald-50 hover:opacity-90 transition-opacity"
+                    style="background:#065f46"
+                    title="Download faculty attendance + coach calls + day-by-day totals for this month"
+                    download
+                >
+                    <span>⬇</span>
+                    <span>Download report (.xlsx)</span>
+                </a>
+            </div>
+            <div class="-mt-2 mb-4 text-[11px] text-zinc-500 dark:text-zinc-400">
+                Report covers the entire selected month — faculty attendance (per-instructor), success-coach call activity, and day-by-day totals across all instructors at the chosen university.
             </div>
 
             {#if loading}

@@ -1,44 +1,24 @@
-DEPLOYMENT_TRIGGER_V86
-Timestamp: 2026-06-15T15:00:00+05:30
-Status: Force rebuild — comprehensive monthly report + XLSX download
+DEPLOYMENT_TRIGGER_V87
+Timestamp: 2026-06-15T18:00:00+05:30
+Status: Force rebuild — Faculty Attendance Monthly Summary download button
 
 Changes:
-  - The monthly summary at /ops-os/report-monthly was missing faculty
-    attendance, success coach activity, and fee collection data from
-    the rollup. The previous aggregator (getWeeklyRollup, aliased as
-    getPeriodRollup) only summed metrics inside
-    ops_os.submission_value. Faculty attendance lives in
-    public.instructor_attendance, coach calls in
-    public.success_coach_daily_log, and fee data in
-    public.fee_collection_snapshot — none of those were ever joined
-    into the monthly view.
-  - New aggregator: packages/shared/src/ops_os/monthly_full.ts
-    exports getMonthlyFullRollup(campus_id, period_start, period_end)
-    which queries all four sources in parallel and returns a single
-    MonthlyFullRollup with ops + faculty + coach + fees.
-  - Monthly page (+page.server.ts + +page.svelte) now uses the new
-    aggregator. UI shows:
-      • Day completeness (Ops OS submissions)
-      • Academic + daily attendance (BOA submissions)
-      • Faculty attendance (full month, from instructor_attendance) ★ NEW
-      • Success coach calls (full month, from coach daily log) ★ NEW
-      • Fee collection end-of-month snapshot ★ NEW
-      • Student ops + incidents
-    Also a clear warning banner when BOAs missed >50% of days, so
-    operators know which figures cover the full month vs. only
-    submitted days.
-  - New XLSX endpoint: GET /api/ops-os/monthly-report.xlsx
-      ?month=YYYY-MM-01     (default: last completed month)
-      ?campus=<uuid>        (one campus)
-      ?university=<uuid>    (university-wide download — admin/COS only)
-    Produces multi-sheet workbook: Summary + per-campus Ops, Faculty,
-    Coaches, Fees sheets. NIAT-styled with maroon headers, frozen
-    panes, alternating stripes.
-  - University-wide download UI: a new amber panel on the monthly page
-    lets ADMIN/PROGRAM_OPS/COS pick any university and download a
-    single XLSX containing every campus in that university for the
-    chosen month — Ops + Faculty + Coaches + Fees consolidated.
-  - Authorization: existing /ops-os/report-monthly role guard
-    preserved; the XLSX endpoint re-checks the same role list and
-    additionally guards ?university=<uuid> behind ADMIN/PROGRAM_OPS/COS.
-  - No data layer migrations — all reads against existing tables.
+  - The Faculty Attendance page's Monthly Summary tab had a month +
+    year picker but no way to export the data. Users had to read it
+    on-screen, scroll, screenshot.
+  - New endpoint: GET /api/faculty-attendance/monthly-report.xlsx
+      ?universityId=<uuid>  (required; defaults to user.university_id)
+      ?year=YYYY
+      ?month=1..12
+    Returns a NIAT-styled 4-sheet workbook:
+      1. Summary           — KPIs for the selected month
+      2. Faculty Attendance — per-instructor row (Present / Absent /
+                              Training / WFH / Leave / Sessions / Att%)
+      3. Day-by-Day        — one row per date with status totals
+      4. Success Coaches   — per-coach row (calls + target + attainment)
+    Uses the same access rule as /api/faculty-attendance.
+  - Page UI: added "⬇ Download report (.xlsx)" button next to the
+    month/year selectors on the Monthly Summary tab; selecting a
+    different month + year + university and clicking download
+    triggers the new endpoint with those exact params.
+  - No data layer migrations.
