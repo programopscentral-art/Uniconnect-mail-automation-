@@ -130,8 +130,8 @@ importers:
         specifier: ^5.0.0
         version: 5.48.5
       svelte-check:
-        specifier: ^4.0.0
-        version: 4.3.5(svelte@5.48.5)(typescript@5.9.3)
+        specifier: ~4.5.0
+        version: 4.5.0(svelte@5.48.5)(typescript@5.9.3)
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19
@@ -6238,8 +6238,8 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
-  /svelte-check@4.3.5(svelte@5.48.5)(typescript@5.9.3):
-    resolution: {integrity: sha512-e4VWZETyXaKGhpkxOXP+B/d0Fp/zKViZoJmneZWe/05Y2aqSKj3YN2nLfYPJBQ87WEiY4BQCQ9hWGu9mPT1a1Q==}
+  /svelte-check@4.5.0(svelte@5.48.5)(typescript@5.9.3):
+    resolution: {integrity: sha512-9lNwPxCLWniFvQIcEv1LFqjIxcFtO3smb5+5BKbRJ3ttL4o2lXCej5rLF4DAnfLPI66oaA81vAxw6ILdIWI7kA==}
     engines: {node: '>= 18.0.0'}
     hasBin: true
     peerDependencies:
