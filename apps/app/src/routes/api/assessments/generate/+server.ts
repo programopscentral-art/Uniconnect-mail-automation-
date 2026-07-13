@@ -154,6 +154,40 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const globalUsedHashes = new Set<string>();
 
         /**
+         * Slots we could not fill from the question bank.
+         * Previously an empty pool THREW and aborted the whole paper (users saw
+         * generation "get stuck"). We now emit a placeholder for the slot, keep
+         * generating, and report every gap back so the user knows exactly which
+         * questions to add.
+         */
+        const unfilled: Array<{
+            set: string; section: string; slot: string;
+            type: string; marks: number; reason: string;
+        }> = [];
+        /** Non-fatal problems (e.g. thin bank / low variety) reported to the user. */
+        const warnings: string[] = [];
+
+        const makePlaceholder = (
+            setName: string, sectionTitle: string, slotId: string,
+            searchType: string, targetMarks: number, bloom: any, co_id: any, reason: string
+        ) => {
+            unfilled.push({ set: setName, section: sectionTitle, slot: slotId, type: searchType, marks: targetMarks, reason });
+            return {
+                id: `missing-${setName}-${slotId}`,
+                question_id: null,
+                question_text: `[NO QUESTION AVAILABLE] Add more ${searchType} questions for this subject/unit.`,
+                marks: targetMarks,
+                type: searchType,
+                bloom_level: bloom || null,
+                co_id: co_id || null,
+                co: 'CO1',
+                target_co: 'CO1',
+                k_level: 'K1',
+                is_placeholder: true,
+            };
+        };
+
+        /**
          * SINGLE SELECTION ENGINE
          * No other function may pick questions.
          */
@@ -293,9 +327,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 // Try finding any question that matches the searched type (even if marks/bloom/unit differ)
                 let candidates = pool.filter(q => isMatch(q, null, true, false, false, false));
 
-                // If still nothing, throw an error so the user knows they are out of questions of this Type
+                // Question bank has NO questions of this type at all for this subject/unit.
+                // Don't abort the paper — emit a placeholder and report the gap.
                 if (candidates.length === 0) {
-                    throw new Error(`[POOL EXHAUSTED] Not enough ${searchType} questions found in the Question Bank for "${sectionTitle}". Please add more ${searchType} questions.`);
+                    return makePlaceholder(
+                        setName, sectionTitle, slotId, searchType, targetMarks, bloom, co_id,
+                        `No ${searchType} questions exist in the Question Bank for this subject/unit.`
+                    );
                 }
 
                 for (let i = candidates.length - 1; i > 0; i--) {
@@ -313,8 +351,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 }
             }
 
+            // Every candidate is already used elsewhere in this paper. Again: don't
+            // abort — placeholder + report, so the rest of the paper still generates.
             if (!choice) {
-                throw new Error(`[POOL EXHAUSTED] Cannot find question for Set ${setName}, section "${sectionTitle}", Slot ${slotId}. Target: ${targetMarks} Marks, Type: ${searchType}, Bloom: ${bloom}, CO: ${co_id}`);
+                return makePlaceholder(
+                    setName, sectionTitle, slotId, searchType, targetMarks, bloom, co_id,
+                    `Ran out of unused ${searchType} questions (${targetMarks} marks). Add more to the Question Bank.`
+                );
             }
 
             // REGISTER
@@ -520,14 +563,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                 // ULTRA-RELAXED: Only throw if more than 80% of the paper is identical, 
                 // which usually means the database really has only 1-2 questions total for a section.
                 if (intersection.length > (setDebugInfo[s1].length * 0.8) && intersection.length > 10) {
-                    throw new Error(`[POOL EXHAUSTED] Sets ${s1} and ${s2} share ${intersection.length} questions. Please add more questions to your bank for better variety.`);
+                    // Previously threw and killed the whole generation when the bank was
+                    // thin. Now we still produce the paper and warn loudly instead.
+                    warnings.push(
+                        `Sets ${s1} and ${s2} share ${intersection.length} questions — the Question Bank is too small for good variety. Add more questions.`
+                    );
                 } else if (intersection.length > 0) {
                     console.warn(`[VARIETY WARNING] Sets ${s1} and ${s2} share ${intersection.length} questions.`);
                 }
             }
         }
 
-        if (body.preview_only) return json({ sets: generatedSets, template_config });
+        if (body.preview_only) return json({ sets: generatedSets, template_config, unfilled, warnings });
 
         // 4. PERSPECTIVE
         const paperRes = await db.query(`
@@ -544,7 +591,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
             })
         ]);
 
-        return json({ id: paperRes.rows[0].id, sets: generatedSets });
+        return json({ id: paperRes.rows[0].id, sets: generatedSets, unfilled, warnings });
 
     } catch (err: any) {
         console.error('Generation Error:', err);

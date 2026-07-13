@@ -10,7 +10,7 @@ WORKDIR /app
 
 # Final Canvas fix: PNPM override is in root package.json
 # No native dependencies (pixman/cairo) needed because we use @napi-rs/canvas
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Run migrations and build all components
 RUN PGSSLMODE=no-verify NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm -F @uniconnect/shared migrate || true

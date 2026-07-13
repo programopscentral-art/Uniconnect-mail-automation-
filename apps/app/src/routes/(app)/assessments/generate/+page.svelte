@@ -2,16 +2,9 @@
   import { page } from "$app/stores";
   import { slide, fade, fly } from "svelte/transition";
   import { invalidateAll, goto } from "$app/navigation";
-  import CrescentTemplate from "$lib/components/assessments/CrescentTemplate.svelte";
-  import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
-  import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
-  import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
-  import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
-  import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
   import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
-  import ADYPUSemTemplate from "$lib/components/assessments/ADYPUSemTemplate.svelte";
-  import SGU50SEMTemplate from "$lib/components/assessments/SGU50SEMTemplate.svelte";
-  import SGU75SEMTemplate from "$lib/components/assessments/SGU75SEMTemplate.svelte";
+  import TemplateCautionBanner from "$lib/components/assessments/TemplateCautionBanner.svelte";
+  import { resolvePaperTemplate } from "$lib/components/assessments/templateRegistry";
 
   let { data } = $props();
 
@@ -1179,6 +1172,28 @@
 
       if (res.ok) {
         const paper = await res.json();
+        unfilledSlots = paper.unfilled || [];
+        generationWarnings = paper.warnings || [];
+
+        // The paper is saved either way — but if the bank couldn't fill every
+        // slot, say so plainly instead of dropping the user onto a paper with
+        // silent placeholder questions in it.
+        if (unfilledSlots.length > 0) {
+          const detail = unfilledSlots
+            .slice(0, 8)
+            .map(
+              (u: any) =>
+                `• Set ${u.set} · ${u.section || "Section"} Q${u.slot ?? "?"} — needs a ${u.type || "question"} (${u.marks ?? "?"}M)`,
+            )
+            .join("\n");
+          const more =
+            unfilledSlots.length > 8
+              ? `\n…and ${unfilledSlots.length - 8} more.`
+              : "";
+          alert(
+            `Paper generated, but ${unfilledSlots.length} slot(s) could not be filled from the question bank.\n\n${detail}${more}\n\nThese appear as placeholders in the paper. Add matching questions to the bank, then regenerate or swap them in.`,
+          );
+        }
         window.location.href = `/assessments/papers/${paper.id}`;
       } else {
         const err = await res.json();
@@ -1447,6 +1462,7 @@
               })),
             })),
           })),
+          exam_type: selectedExamType,
           selected_template: isVGU ? "vgu-standard-mid-term" : selectedTemplate,
           generation_mode: "Standard", // Use standard for preview to get 1 set
           preview_only: true,
@@ -1456,6 +1472,8 @@
       if (res.ok) {
         const data = await res.json();
         previewSetData = data.sets.A; // API returns { sets: { A: ... } }
+        unfilledSlots = data.unfilled || [];
+        generationWarnings = data.warnings || [];
       }
     } catch (e) {
       console.error("Preview fetch failed", e);
@@ -1625,6 +1643,34 @@
     colWidths: { sno: 40 },
   });
   let previewSetData = $state({ questions: [] });
+
+  /**
+   * Slots the generator could not fill from the question bank, and any non-fatal
+   * problems it hit. Generation no longer aborts on a thin bank — it inserts a
+   * placeholder and reports the gap here, so the user sees exactly what to add.
+   */
+  let unfilledSlots = $state<any[]>([]);
+  let generationWarnings = $state<string[]>([]);
+
+  /** Which university template this paper will use — same resolver as the viewer. */
+  let previewResolved = $derived(
+    resolvePaperTemplate({
+      universityName: data.universities?.find(
+        (u: any) => u.id === selectedUniversityId,
+      )?.name,
+      universityId: selectedUniversityId,
+      examType: selectedExamType,
+      examTitle: examTitleHeader,
+      maxMarks,
+      metaTemplate: selectedTemplate,
+    }),
+  );
+  const PreviewTemplate = $derived(previewResolved.component);
+  let previewQuestionPool = $derived(
+    unitsWithTopics.flatMap((u: any) =>
+      (u.topics || []).flatMap((t: any) => t.questions || []),
+    ),
+  );
 
   $effect(() => {
     previewPaperMeta.paper_date = examDate;
@@ -3284,86 +3330,67 @@
                 </div>
               </div>
 
-              {#if selectedTemplate === "cdu"}
-                <CDUTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
-              {:else if selectedTemplate === "crescent"}
-                {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
-                  <CrescentMidTemplate
-                    paperMeta={previewPaperMeta}
-                    {paperStructure}
-                    currentSetData={previewSetData}
-                    {courseOutcomes}
-                    mode="preview"
-                  />
-                {:else}
-                  <CrescentTemplate
-                    paperMeta={previewPaperMeta}
-                    {paperStructure}
-                    currentSetData={previewSetData}
-                    {courseOutcomes}
-                    mode="preview"
-                  />
-                {/if}
-              {:else if selectedTemplate === "adypu" || isADYPU}
-                <ADYPUSemTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
-              {:else if selectedTemplate === "sgu75" || (isSGU && selectedExamType === "SGU_SEM_75")}
-                <SGU75SEMTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
-              {:else if selectedTemplate === "sgu50" || isSGU}
-                <SGU50SEMTemplate
-                  paperMeta={previewPaperMeta}
-                  {paperStructure}
-                  currentSetData={previewSetData}
-                  {courseOutcomes}
-                  mode="preview"
-                />
-              {:else if selectedTemplate === "vgu-standard-mid-term" || isVGU}
-                {#if selectedExamType === "MID1" || selectedExamType === "MID2" || selectedExamType === "INTERNAL_LAB"}
-                  <VGUMidTemplate
-                    paperMeta={previewPaperMeta}
-                    {paperStructure}
-                    currentSetData={previewSetData}
-                    {courseOutcomes}
-                    mode="preview"
-                  />
-                {:else}
-                  <VGUSemTemplate
-                    paperMeta={previewPaperMeta}
-                    {paperStructure}
-                    currentSetData={previewSetData}
-                    {courseOutcomes}
-                    mode="preview"
-                  />
-                {/if}
-              {:else}
+              {#if unfilledSlots.length > 0 || generationWarnings.length > 0}
+                <div
+                  class="mb-4 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-left print:hidden"
+                >
+                  <div
+                    class="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-amber-800"
+                  >
+                    <span class="text-sm">⚠️</span>
+                    Question bank gaps — {unfilledSlots.length} slot(s) not filled
+                  </div>
+                  <ul
+                    class="mt-2 space-y-1 text-[11px] font-semibold text-amber-900"
+                  >
+                    {#each unfilledSlots.slice(0, 6) as u}
+                      <li>
+                        • <b>Set {u.set} · {u.section || "Section"} Q{u.slot ??
+                            "?"}</b>
+                        — no <b>{u.type || "question"}</b> available for
+                        {u.marks ?? "?"} marks
+                      </li>
+                    {/each}
+                    {#if unfilledSlots.length > 6}
+                      <li class="italic">
+                        …and {unfilledSlots.length - 6} more.
+                      </li>
+                    {/if}
+                    {#each generationWarnings as w}
+                      <li>• {w}</li>
+                    {/each}
+                  </ul>
+                  <p class="mt-2 text-[10px] font-bold text-amber-700">
+                    These slots show a placeholder. Add matching questions to the
+                    bank for this subject, then regenerate — or swap them in
+                    manually on the paper.
+                  </p>
+                </div>
+              {/if}
+
+              {#if previewResolved.status === "missing"}
+                <!-- No university template exists — the renderer falls back to the
+                     standard format and raises its own caution. -->
                 <AssessmentPaperRenderer
                   paperMeta={previewPaperMeta}
                   {paperStructure}
                   bind:currentSetData={previewSetData}
                   layoutSchema={lastLoadedLayout}
                   {courseOutcomes}
-                  questionPool={unitsWithTopics.flatMap((u: any) =>
-                    (u.topics || []).flatMap((t: any) => t.questions || []),
-                  )}
+                  questionPool={previewQuestionPool}
                   mode="preview"
-                  onSwap={(updated) => (previewSetData = updated)}
+                  onSwap={(updated: any) => (previewSetData = updated)}
+                />
+              {:else}
+                <TemplateCautionBanner resolved={previewResolved} />
+                <PreviewTemplate
+                  paperMeta={previewPaperMeta}
+                  {paperStructure}
+                  bind:currentSetData={previewSetData}
+                  {courseOutcomes}
+                  questionPool={previewQuestionPool}
+                  mode="preview"
+                  onSwap={(updated: any) => (previewSetData = updated)}
                 />
               {/if}
             </div>

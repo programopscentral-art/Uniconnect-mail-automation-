@@ -25,6 +25,14 @@ function getPool() {
             rejectUnauthorized: false
         }
     });
+    // Idle clients can emit an async 'error' event when the server terminates
+    // the connection (e.g. Supabase pooler dropping an idle conn: "terminating
+    // connection due to administrator command"). Without a handler, pg
+    // re-emits it as an uncaught 'error' on the pool and crashes the process.
+    // Log and swallow — the pool will transparently create a new connection.
+    internalPool.on('error', (err) => {
+        console.error('[DB_POOL] idle client error (non-fatal):', err.message);
+    });
     return internalPool;
 }
 

@@ -7,14 +7,10 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentVguSlot from "./shared/AssessmentVguSlot.svelte";
-  import ADYPUTemplate from "./ADYPUTemplate.svelte";
-  import SVYASATemplate from "./SVYASATemplate.svelte";
-  import CrescentMidTemplate from "./CrescentMidTemplate.svelte";
-  import CDUTemplate from "./CDUTemplate.svelte";
-  import AnnamacharyaTemplate from "./AnnamacharyaTemplate.svelte";
-import NRITemplate from "./NRITemplate.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import TemplateCautionBanner from "./TemplateCautionBanner.svelte";
+  import { resolvePaperTemplate } from "./templateRegistry";
 
   let {
     paperMeta = $bindable({}),
@@ -49,36 +45,33 @@ import NRITemplate from "./NRITemplate.svelte";
     headerStyle: layoutSchema?.headerStyle || "centered", // 'centered' | 'split'
     showRRN: layoutSchema?.showRRN ?? true,
     courseCodeLabel: layoutSchema?.courseCodeLabel || "Course Code",
-    style:
-      (layoutSchema?.style === "crescent" ||
-        paperMeta?.selected_template === "crescent") &&
-      paperMeta?.exam_title?.toLowerCase().match(/cat|mid|test|internal/)
-        ? "crescent-mid"
-        : layoutSchema?.style === "nri" ||
-          paperMeta?.selected_template === "nri" ||
-          paperMeta?.univ_line_1?.toLowerCase().includes("nri") ||
-          paperMeta?.university_name?.toLowerCase().includes("nri") ||
-          paperMeta?.univ_line_1_2?.toLowerCase().includes("nri")
-          ? "nri"
-          : layoutSchema?.style ||
-            paperMeta?.selected_template ||
-            (paperMeta?.univ_line_1?.toLowerCase().includes("chaitanya") ||
-            paperMeta?.university_name?.toLowerCase().includes("chaitanya")
-              ? "cdu"
-              : "standard"), // 'standard' | 'crescent' | 'cdu' | 'vgu' | 'malla' | 'nri'
+    style: layoutSchema?.style || paperMeta?.selected_template || "standard",
     watermarkText: layoutSchema?.watermarkText || "",
     showBorder: layoutSchema?.showBorder ?? false,
     pageMargin: layoutSchema?.pageMargin || "normal", // 'narrow' | 'normal' | 'wide'
   });
 
-  // Debug logging for VGU rendering
-  $effect(() => {
-    if (layout.style === "vgu" && currentSetData) {
-      const questions = Array.isArray(currentSetData)
-        ? currentSetData
-        : currentSetData?.questions || [];
-    }
-  });
+  /**
+   * Which university template renders this paper, resolved from the canonical
+   * {uni}mid / {uni}sem slug. `status` drives the caution banner:
+   * ready → exact template; fallback → other exam kind; missing → standard format.
+   */
+  const resolved = $derived(
+    resolvePaperTemplate({
+      universityName: layoutSchema?.universityName || paperMeta?.university_name,
+      universityId: paperMeta?.university_id,
+      examType: paperMeta?.exam_type,
+      examTitle: paperMeta?.exam_title,
+      maxMarks: paperMeta?.max_marks,
+      metaTemplate: paperMeta?.selected_template,
+      layoutStyle: layoutSchema?.style,
+    }),
+  );
+  // `missing` → no university template exists at all; fall through to this
+  // component's own built-in standard rendering below.
+  const TemplateComponent = $derived(
+    resolved.status === "missing" ? null : resolved.component,
+  );
 
   function handleDndSync(sectionIndex: number, items: any[]) {
     const section = paperStructure[sectionIndex];
@@ -537,302 +530,13 @@ import NRITemplate from "./NRITemplate.svelte";
         </div>
       {/if}
 
+      <TemplateCautionBanner {resolved} />
+
       <!-- Dynamic Header & Metadata (V16 Image-As-Template Support) -->
       {#if !layoutSchema?.debugImage && !layoutSchema?.backgroundImageUrl}
-        {#if layout.style === "crescent"}
-          <div
-            class="header-container flex flex-col items-center mb-1 pt-1 relative text-center"
-          >
-            <div class="absolute top-0 right-0 flex flex-col items-end gap-1">
-              <div class="flex items-center gap-2">
-                <span class="text-[8pt] font-black uppercase text-gray-400"
-                  >COURSE CODE</span
-                >
-                <div
-                  class="border border-black px-2 py-0.5 min-w-[60px] text-[9pt] font-bold"
-                >
-                  {paperMeta.course_code || ""}
-                </div>
-              </div>
-              <div class="flex items-center gap-1 mt-1">
-                <span class="text-[8pt] font-bold text-right">RRN</span>
-                <div class="flex border border-black">
-                  {#each Array(11) as _}
-                    <div
-                      class="w-3.5 h-3.5 border-r border-black last:border-r-0"
-                    ></div>
-                  {/each}
-                </div>
-              </div>
-            </div>
-
-            <div class="mb-4">
-              {#if layout.logoUrl}
-                <img
-                  src={layout.logoUrl}
-                  alt="University Logo"
-                  class="h-20 mx-auto mb-1"
-                />
-              {/if}
-            </div>
-            <AssessmentEditable
-              value={layout.universityName}
-              onUpdate={(v: string) => {
-                layoutSchema.universityName = v;
-              }}
-              class="text-xl font-black uppercase tracking-tight"
-            />
-            {#if layout.universitySubName || isEditable}
-              <AssessmentEditable
-                value={layout.universitySubName}
-                onUpdate={(v: string) => {
-                  layoutSchema.universitySubName = v;
-                }}
-                class="text-lg font-bold uppercase tracking-tight"
-                placeholder="(SUB-HEADER)"
-              />
-            {/if}
-            <div
-              class="mt-6 font-bold uppercase text-[11pt] border-y border-black py-2 w-full"
-            >
-              <AssessmentEditable
-                value={paperMeta.exam_title}
-                onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-              />
-            </div>
-          </div>
-        {:else if layout.style === "cdu"}
-          <CDUTemplate
-            {paperMeta}
-            {currentSetData}
-            {paperStructure}
-            {activeSet}
-            {courseOutcomes}
-            {questionPool}
-            {mode}
-            {onSwap}
-          />
-        {:else if layout.style === "crescent-mid"}
-          <CrescentMidTemplate
-            {paperMeta}
-            {currentSetData}
-            {paperStructure}
-            {activeSet}
-            {courseOutcomes}
-            {questionPool}
-            {mode}
-            {onSwap}
-          />
-        {:else if layout.style === "vgu"}
-          <!-- VGU HIGH FIDELITY HEADER -->
-          <div class="mb-4">
-            <div class="flex items-center justify-between pb-2">
-              <!-- Left Logo -->
-              <div class="w-16 h-16">
-                <img
-                  src="/vgu-logo.png"
-                  alt="VGU Logo"
-                  class="w-full h-full object-contain"
-                />
-              </div>
-
-              <!-- Center Text -->
-              <div class="flex-1 text-center px-1">
-                <div
-                  class="text-[17pt] font-black uppercase leading-[1] font-serif tracking-tight"
-                >
-                  VIVEKANANDA GLOBAL
-                </div>
-                <div
-                  class="text-[15pt] font-black uppercase leading-[1] font-serif tracking-tight mt-0.5"
-                >
-                  UNIVERSITY, JAIPUR
-                </div>
-                <div
-                  class="text-[7pt] font-medium leading-tight mt-1 opacity-90 italic font-serif"
-                >
-                  (Established by Act 11/2012 of Rajasthan Govt. Covered u/s22
-                  of UGC Act, 1956)
-                </div>
-              </div>
-
-              <!-- Right Logo (NAAC) -->
-              <div class="w-16 h-16 text-right">
-                <img
-                  src="/vgu-naac-badge.png"
-                  alt="NAAC A+ accredited"
-                  class="w-full h-full object-contain ml-auto"
-                />
-              </div>
-            </div>
-
-            <!-- Exam Title Row (Dedicated) -->
-            <div class="text-center py-2">
-              <div class="border border-black py-1 px-8 inline-block">
-                <AssessmentEditable
-                  value={paperMeta.exam_title ||
-                    "II MID TERM EXAMINATIONS (THEORY), December 2025"}
-                  onUpdate={(v: string) => updateText(v, "META", "exam_title")}
-                  class="text-[10pt] font-black uppercase tracking-wide font-serif"
-                />
-              </div>
-            </div>
-
-            <div class="border-b border-black w-full my-2"></div>
-          </div>
-
-          <!-- VGU METADATA (Text Layout, No Borders) -->
-          <!-- VGU METADATA (Table Layout for Print Stability) -->
-          <table class="w-full text-[9pt] mb-3 font-serif border-none">
-            <tbody class="border-none">
-              <tr class="border-none">
-                <td class="w-[60%] border-none p-0 align-bottom">
-                  <div class="flex">
-                    <span class="font-bold whitespace-nowrap"
-                      >Programme & Batch:</span
-                    >
-                    <AssessmentEditable
-                      value={paperMeta.programme}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "programme")}
-                      class="ml-1 flex-1 uppercase font-medium"
-                    />
-                  </div>
-                </td>
-                <td class="w-[40%] border-none p-0 align-bottom text-right">
-                  <div class="flex justify-end">
-                    <span class="font-bold">Semester:</span>
-                    <AssessmentEditable
-                      value={paperMeta.semester}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "semester")}
-                      class="ml-1 w-12 text-right font-medium"
-                    />
-                  </div>
-                </td>
-              </tr>
-              <tr class="border-none">
-                <td class="border-none p-0 pt-1 align-bottom">
-                  <div class="flex">
-                    <span class="font-bold whitespace-nowrap">Course Name:</span
-                    >
-                    <AssessmentEditable
-                      value={paperMeta.subject_name}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "subject_name")}
-                      class="ml-1 flex-1 uppercase font-medium"
-                    />
-                  </div>
-                </td>
-                <td class="border-none p-0 pt-1 align-bottom text-right">
-                  <div class="flex justify-end">
-                    <span class="font-bold whitespace-nowrap">Course Code:</span
-                    >
-                    <AssessmentEditable
-                      value={paperMeta.course_code}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "course_code")}
-                      class="ml-1 uppercase font-medium"
-                    />
-                  </div>
-                </td>
-              </tr>
-              <tr class="border-none">
-                <td class="border-none p-0 pt-1 align-bottom">
-                  <div class="flex">
-                    <span class="font-bold whitespace-nowrap">Duration:</span>
-                    <AssessmentEditable
-                      value={paperMeta.duration_minutes}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "duration_minutes")}
-                      class="ml-1 font-medium"
-                    />
-                    <span class="ml-1">Minutes</span>
-                  </div>
-                </td>
-                <td class="border-none p-0 pt-1 align-bottom text-right">
-                  <div class="flex justify-end">
-                    <span class="font-bold">M.M.:</span>
-                    <AssessmentEditable
-                      value={paperMeta.max_marks}
-                      onUpdate={(v: string) =>
-                        updateText(v, "META", "max_marks")}
-                      class="ml-1 w-12 text-right font-medium"
-                    />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- Instructions & Course Outcomes -->
-          <div class="mb-4 font-serif">
-            <div class="flex gap-2 text-[10pt] font-black italic mb-3">
-              <span>Instructions:</span>
-              <AssessmentEditable
-                value={paperMeta.instructions ||
-                  "Before attempting any question, be sure that you get the correct question paper."}
-                onUpdate={(v: string) => updateText(v, "META", "instructions")}
-                class="flex-1"
-              />
-            </div>
-
-            {#if courseOutcomes && courseOutcomes.length > 0}
-              <div class="text-[9pt]">
-                <div
-                  class="font-bold border-b border-black mb-1 uppercase tracking-tight"
-                >
-                  Course Outcomes:
-                </div>
-                <div class="grid grid-cols-1 gap-1 mt-1">
-                  {#each courseOutcomes as co}
-                    <div class="flex gap-2">
-                      <span class="font-bold whitespace-nowrap">{co.code}:</span
-                      >
-                      <span class="opacity-90 leading-tight"
-                        >{co.name || co.description || co.title || ""}</span
-                      >
-                    </div>
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          </div>
-        {:else if layout.style === "adypu"}
-          <ADYPUTemplate
-            {paperMeta}
-            {currentSetData}
-            {paperStructure}
-            {activeSet}
-            {courseOutcomes}
-            {questionPool}
-            {mode}
-            {onSwap}
-          />
-        {:else if layout.style === "svyasa"}
-          <SVYASATemplate
-            {paperMeta}
-            {currentSetData}
-            {paperStructure}
-            {activeSet}
-            {courseOutcomes}
-            {questionPool}
-            {mode}
-            {onSwap}
-          />
-        {:else if layout.style === "annamacharya"}
-          <AnnamacharyaTemplate
-            bind:paperMeta
-            bind:currentSetData
-            bind:paperStructure
-            {activeSet}
-            {courseOutcomes}
-            {questionPool}
-            {mode}
-            {onSwap}
-          />
-        {:else if layout.style === "nri"}
-          <NRITemplate
+        {#if TemplateComponent}
+          <!-- University's own MID/SEM template (renders the full paper, incl. swap) -->
+          <TemplateComponent
             bind:paperMeta
             bind:currentSetData
             bind:paperStructure
@@ -844,7 +548,9 @@ import NRITemplate from "./NRITemplate.svelte";
           />
         {/if}
 
-        {#if !["cdu", "crescent-mid", "adypu", "svyasa", "annamacharya", "nri"].includes(layout.style)}
+        <!-- Body (metadata table + questions) renders ONLY when the university has
+             no dedicated template component — a template renders the full paper itself. -->
+        {#if !TemplateComponent}
           {#if layoutSchema?.showMetadataTable}
             {#key activeSet + swapCounter}
               <table

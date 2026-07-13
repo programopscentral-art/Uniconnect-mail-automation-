@@ -2,23 +2,8 @@
   import { page } from "$app/stores";
   import { slide, fade, fly } from "svelte/transition";
   import { invalidateAll } from "$app/navigation";
-  import CrescentTemplate from "$lib/components/assessments/CrescentTemplate.svelte";
-  import CDUTemplate from "$lib/components/assessments/CDUTemplate.svelte";
-  import StandardTemplate from "$lib/components/assessments/StandardTemplate.svelte";
-  import VGUMidTemplate from "$lib/components/assessments/VGUMidTemplate.svelte";
-  import VGUSemTemplate from "$lib/components/assessments/VGUSemTemplate.svelte";
-  import MallareddyTemplate from "$lib/components/assessments/MallareddyTemplate.svelte";
-  import TakshashilaTemplate from "$lib/components/assessments/TakshashilaTemplate.svelte";
-  import ADYPUTemplate from "$lib/components/assessments/ADYPUTemplate.svelte";
-  import ADYPUSemTemplate from "$lib/components/assessments/ADYPUSemTemplate.svelte";
-  import SVYASATemplate from "$lib/components/assessments/SVYASATemplate.svelte";
-  import AMETTemplate from "$lib/components/assessments/AMETTemplate.svelte";
-  import NRITemplate from "$lib/components/assessments/NRITemplate.svelte";
-  import CrescentMidTemplate from "$lib/components/assessments/CrescentMidTemplate.svelte";
-  import AnnamacharyaTemplate from "$lib/components/assessments/AnnamacharyaTemplate.svelte";
-  import SGU50SEMTemplate from "$lib/components/assessments/SGU50SEMTemplate.svelte";
-  import SGU75SEMTemplate from "$lib/components/assessments/SGU75SEMTemplate.svelte";
-  import AssessmentPaperRenderer from "$lib/components/assessments/AssessmentPaperRenderer.svelte";
+  import TemplateCautionBanner from "$lib/components/assessments/TemplateCautionBanner.svelte";
+  import { resolvePaperTemplate } from "$lib/components/assessments/templateRegistry";
 
   let { data } = $props();
 
@@ -27,118 +12,36 @@
   const availableSets = $state(["A", "B", "C", "D"]);
   let showSaveModal = $state(false);
 
-  // Absolute Template Enforcement
-  // The university name and ID are the ultimate source of truth
+  /**
+   * Template routing — one source of truth, shared with the generate preview.
+   * Resolves the canonical {uni}mid / {uni}sem slug from the university + exam
+   * type, so a MID paper can never silently render the SEM layout (and vice
+   * versa), and a university with no template for that kind raises a caution.
+   */
+  let resolved = $derived(
+    resolvePaperTemplate({
+      universityName: data?.paper?.university_name,
+      universityId: data?.paper?.university_id,
+      examType: data?.paper?.exam_type,
+      examTitle: data?.paper?.sets_data?.metadata?.exam_title,
+      maxMarks: data?.paper?.max_marks,
+      metaTemplate: data?.paper?.sets_data?.metadata?.selected_template,
+      layoutStyle: data?.paper?.layout_schema?.style,
+    }),
+  );
+
+  /** Legacy family key, kept only for the structure fallbacks further down. */
   let selectedTemplate = $derived.by(() => {
-    const uniName = data?.paper?.university_name?.toLowerCase() || "";
-    const uniId = data?.paper?.university_id;
-    const metaTemplate = data?.paper?.sets_data?.metadata?.selected_template;
-
-    if (
-      String(metaTemplate).toLowerCase().includes("vgu") ||
-      uniName.includes("vgu") ||
-      uniName.includes("vivekananda") ||
-      String(uniId).toLowerCase().startsWith("c40ed15d") ||
-      data?.paper?.layout_schema?.style === "vgu"
-    ) {
-      return "vgu";
-    }
-    if (
-      metaTemplate === "cdu" ||
-      uniName.includes("chaitanya") ||
-      uniName.includes("cdu") ||
-      uniId === "8e5403f9-505a-44d4-add4-aae3efaa9248"
-    ) {
-      return "cdu";
-    }
-    if (metaTemplate === "crescent" || uniName.includes("crescent")) {
-      return "crescent";
-    }
-    if (metaTemplate === "malla" || uniName.includes("malla")) {
-      return "malla";
-    }
-    if (metaTemplate === "takshashila" || uniName.includes("takshashila")) {
-      return "takshashila";
-    }
-    if (
-      metaTemplate === "adypu" ||
-      uniName.includes("adypu") ||
-      uniName.includes("ajeenkya") ||
-      uniName.includes("patil")
-    ) {
-      return "adypu";
-    }
-    if (
-      metaTemplate === "svyasa" ||
-      uniName.includes("svyasa") ||
-      uniName.includes("vyasa") ||
-      uniName.includes("vivekananda yoga")
-    ) {
-      return "svyasa";
-    }
-    if (metaTemplate === "amet" || uniName.includes("amet")) {
-      return "amet";
-    }
-    if (metaTemplate === "annamacharya" || uniName.includes("annamacharya")) {
-      return "annamacharya";
-    }
-    if (
-      metaTemplate === "nri" ||
-      uniName.includes("nri") ||
-      String(data?.paper?.sets_data?.metadata?.univ_line_1 || "")
-        .toLowerCase()
-        .includes("nri") ||
-      String(data?.paper?.sets_data?.metadata?.university_name || "")
-        .toLowerCase()
-        .includes("nri")
-    ) {
-      return "nri";
-    }
-    if (
-      metaTemplate === "sgu75" ||
-      (uniName.includes("sgu") || uniName.includes("shivaji")) &&
-        (String(data?.paper?.max_marks) === "75" || metaTemplate === "sgu75")
-    ) {
-      return "sgu75";
-    }
-    if (
-      metaTemplate === "sgu50" ||
-      uniName.includes("sgu") ||
-      uniName.includes("shivaji")
-    ) {
-      return "sgu50";
-    }
-
-    return metaTemplate || "standard";
+    const key = resolved.uniKey;
+    if (!key) return "standard";
+    if (key === "mrv") return "malla";
+    if (key === "sgu") return Number(data?.paper?.max_marks) === 75 ? "sgu75" : "sgu50";
+    return key;
   });
 
-  let universityLabel = $derived(
-    selectedTemplate === "vgu"
-      ? "Vivekananda Global University (VGU)"
-      : selectedTemplate === "cdu"
-        ? "Chaitanya (CDU)"
-        : selectedTemplate === "crescent"
-          ? "Crescent (IST)"
-          : selectedTemplate === "malla"
-            ? "Malla Reddy (MRTC)"
-            : selectedTemplate === "takshashila"
-              ? "Takshashila University"
-              : selectedTemplate === "adypu"
-                ? "Ajeenkya DY Patil University"
-                : selectedTemplate === "svyasa"
-                  ? "S-VYASA University"
-                  : selectedTemplate === "amet"
-                    ? "Academy of Maritime Education and Training (AMET)"
-                      : selectedTemplate === "annamacharya"
-                        ? "Annamacharya University V1.1.2"
-                        : selectedTemplate === "nri"
-                          ? "NRI Institute of Technology"
-                          : selectedTemplate === "sgu75"
-                            ? "SGU Sem Template (75M)"
-                            : selectedTemplate === "sgu50"
-                              ? "SGU Sem Template (50M)"
-                              : "University Standard",
-  );
+  let universityLabel = $derived(resolved.universityLabel);
+  const PaperTemplate = $derived(resolved.component);
+
 
   // We deep clone paper data to allow local edits
   let editableSets = $state<any>(initializeSets());
@@ -1359,199 +1262,20 @@
           </div>
         </div>
 
-        {#if selectedTemplate === "vgu"}
-          {#if paperMeta.exam_type === "MID1" || paperMeta.exam_type === "MID2" || paperMeta.exam_type === "INTERNAL_LAB" || (paperMeta.exam_type === "PRACTICAL" && !paperMeta.exam_title
-                ?.toLowerCase()
-                .includes("external"))}
-            <VGUMidTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              bind:paperStructure={paperMeta.template_config}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {:else}
-            <VGUSemTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              bind:paperStructure={paperMeta.template_config}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {/if}
-        {:else if selectedTemplate === "cdu"}
-          <CDUTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "crescent"}
-          {#if paperMeta.exam_title && (paperMeta.exam_title
-              .toLowerCase()
-              .includes("cat") || paperMeta.exam_title
-                .toLowerCase()
-                .includes("mid") || paperMeta.exam_title
-                .toLowerCase()
-                .includes("test") || paperMeta.exam_title
-                .toLowerCase()
-                .includes("internal"))}
-            <CrescentMidTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              bind:paperStructure={paperMeta.template_config}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {:else}
-            <CrescentTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              {paperStructure}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {/if}
-        {:else if selectedTemplate === "malla"}
-          <MallareddyTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "takshashila"}
-          <TakshashilaTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "adypu"}
-          {#if paperMeta.exam_type === "SEMESTER" || paperMeta.exam_type === "END_SEM" || paperMeta.exam_title?.toLowerCase().includes("sem") || paperMeta.exam_title?.toLowerCase().includes("end term") || (paperMeta.exam_type !== "MID1" && paperMeta.exam_type !== "MID2" && paperMeta.exam_type !== "UNIT" && paperMeta.exam_title && !paperMeta.exam_title.toLowerCase().includes("unit"))}
-            <ADYPUSemTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              bind:paperStructure={paperMeta.template_config}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {:else}
-            <ADYPUTemplate
-              bind:paperMeta
-              bind:currentSetData={editableSets[activeSet]}
-              bind:paperStructure={paperMeta.template_config}
-              {activeSet}
-              courseOutcomes={data.courseOutcomes}
-              questionPool={data.questionPool}
-              mode="edit"
-              onSwap={handleSetUpdate}
-            />
-          {/if}
-        {:else if selectedTemplate === "svyasa"}
-          <SVYASATemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "amet"}
-          <AMETTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "annamacharya"}
-          <AnnamacharyaTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "nri"}
-          <NRITemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "sgu75"}
-          <SGU75SEMTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else if selectedTemplate === "sgu50"}
-          <SGU50SEMTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            bind:paperStructure={paperMeta.template_config}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {:else}
-          <StandardTemplate
-            bind:paperMeta
-            bind:currentSetData={editableSets[activeSet]}
-            {paperStructure}
-            {activeSet}
-            courseOutcomes={data.courseOutcomes}
-            questionPool={data.questionPool}
-            mode="edit"
-            onSwap={handleSetUpdate}
-          />
-        {/if}
+        <TemplateCautionBanner {resolved} />
+
+        <!-- The university's own MID/SEM template. One resolver decides which,
+             so the viewer and the generate preview can never disagree. -->
+        <PaperTemplate
+          bind:paperMeta
+          bind:currentSetData={editableSets[activeSet]}
+          bind:paperStructure={paperMeta.template_config}
+          {activeSet}
+          courseOutcomes={data.courseOutcomes}
+          questionPool={data.questionPool}
+          mode="edit"
+          onSwap={handleSetUpdate}
+        />
       </div>
     {:else}
       <div class="p-32 text-center space-y-6">
