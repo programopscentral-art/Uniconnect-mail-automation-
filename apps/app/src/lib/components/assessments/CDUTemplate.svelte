@@ -18,6 +18,19 @@
     onSwap = null,
   } = $props();
 
+  /**
+   * Older papers saved sections without a `part` (only title/slots/marks), which
+   * made every question fail to match and rendered a blank paper. Fall back to
+   * `section`, then to the section's position.
+   */
+  const partOf = (section: any, index: number) =>
+    String(
+      section?.part ?? section?.section ?? String.fromCharCode(65 + (index ?? 0)),
+    )
+      .trim()
+      .toUpperCase();
+
+
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return;
 
@@ -258,14 +271,14 @@
     // Count numbers in previous sections
     for (let i = 0; i < sIdx; i++) {
       const section = paperStructure[i];
-      const partQs = allQs.filter((q: any) => q.part === section.part);
+      const partQs = allQs.filter((q: any) => q.part === partOf(section, i));
       partQs.forEach((q: any) => {
         count += q.type === "OR_GROUP" ? 2 : 1;
       });
     }
 
     // Count numbers in current section up to slotIndex
-    const currentPart = paperStructure[sIdx].part;
+    const currentPart = partOf(paperStructure[sIdx], sIdx);
     const currentPartQs = allQs.filter((q: any) => q.part === currentPart);
     for (let i = 0; i < slotIndex; i++) {
       count += currentPartQs[i]?.type === "OR_GROUP" ? 2 : 1;
@@ -378,14 +391,14 @@
       <!-- Sections -->
       <div class="w-full space-y-8">
         {#each paperStructure as section, sIdx}
-          {@const sectionQs = questionsByPart(section.part)}
+          {@const sectionQs = questionsByPart(partOf(section, sIdx))}
           <div class="mb-4">
             <!-- Section Title with border boxes like image -->
             <div class="flex justify-center mb-3">
               <div
                 class="border border-black px-10 py-1 italic font-bold text-[11pt]"
               >
-                Section - {section.part}
+                Section - {partOf(section, sIdx)}
               </div>
             </div>
 
@@ -428,8 +441,8 @@
                   flipDurationMs: 200,
                   dragDisabled: !isEditable,
                 }}
-                onconsider={(e) => handleDndSync(section.part, e.detail.items)}
-                onfinalize={(e) => handleDndSync(section.part, e.detail.items)}
+                onconsider={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
+                onfinalize={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
               >
                 {#each sectionQs as slot, i (slot.id + activeSet + swapCounter)}
                   {@const sn = getSN(sectionQs, i, sIdx)}
@@ -450,7 +463,7 @@
                           <AssessmentRowActions
                             {isEditable}
                             onSwap={() =>
-                              openSwapSidebar(slot, section.part, "q1", q.id)}
+                              openSwapSidebar(slot, partOf(section, sIdx), "q1", q.id)}
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
@@ -521,7 +534,7 @@
                           <AssessmentRowActions
                             {isEditable}
                             onSwap={() =>
-                              openSwapSidebar(slot, section.part, "q2", q.id)}
+                              openSwapSidebar(slot, partOf(section, sIdx), "q2", q.id)}
                             onDelete={() => removeQuestion(slot)}
                             class="!-left-10 !top-2 scale-75"
                           />
@@ -583,7 +596,7 @@
                             onSwap={() =>
                               openSwapSidebar(
                                 slot,
-                                section.part,
+                                partOf(section, sIdx),
                                 undefined,
                                 q.id,
                               )}

@@ -4,6 +4,7 @@
   import { invalidateAll } from "$app/navigation";
   import TemplateCautionBanner from "$lib/components/assessments/TemplateCautionBanner.svelte";
   import { resolvePaperTemplate } from "$lib/components/assessments/templateRegistry";
+  import { deriveStructureFromSet } from "$lib/components/assessments/paperStructure";
 
   let { data } = $props();
 
@@ -158,8 +159,16 @@
     const meta =
       rawSetsData.metadata || rawSetsData.editor_metadata || paper.meta || {};
 
-    // Resolve structure early
+    // Resolve structure early.
+    // Templates render by iterating sections, so an EMPTY template_config paints a
+    // header and nothing else — even when the set holds real questions. Some papers
+    // were saved with `template_config: []`, which is truthy and slipped past the
+    // old `!structure` check. Rebuild the sections from the saved questions so every
+    // stored question is rendered.
     let structure = meta.template_config;
+    if (Array.isArray(structure) && structure.length === 0) {
+      structure = deriveStructureFromSet(rawSetsData.A) || null;
+    }
     if (!structure) {
       const marks = Number(meta.max_marks || paper.max_marks || 100);
       const is100 = marks === 100;

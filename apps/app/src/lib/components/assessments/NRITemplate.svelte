@@ -15,6 +15,18 @@
     onSwap = null,
   } = $props();
 
+  /**
+   * Older papers saved sections without a `part` (only title/slots/marks), which
+   * used to crash this template on render. Fall back to `section`, then position.
+   */
+  const partOf = (section: any, index: number) =>
+    String(
+      section?.part ?? section?.section ?? String.fromCharCode(65 + (index ?? 0)),
+    )
+      .trim()
+      .toUpperCase();
+
+
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return;
     const arr = currentSetData.questions || [];
@@ -176,7 +188,7 @@
         ? currentSetData
         : currentSetData.questions || []
     ).filter(Boolean);
-    const qs = arr.filter((q: any) => q && q.part?.toUpperCase() === part.toUpperCase());
+    const qs = arr.filter((q: any) => q && q.part?.toUpperCase() === String(part ?? "").toUpperCase());
     return qs.reduce((s: number, slot: any) => {
       const marks = Number(
         slot.marks ||
@@ -190,7 +202,7 @@
 
   function getQuestionsByPart(part: string) {
     return (currentSetData?.questions || []).filter(
-      (q: any) => q && q.part?.toUpperCase() === part.toUpperCase(),
+      (q: any) => q && q.part?.toUpperCase() === String(part ?? "").toUpperCase(),
     );
   }
 
@@ -199,7 +211,7 @@
     for (let i = 0; i < sectionIndex; i++) {
       const section = paperStructure[i];
       if (!section) continue;
-      const sectionQs = getQuestionsByPart(section.part);
+      const sectionQs = getQuestionsByPart(partOf(section, i));
       sectionQs.forEach((s: any) => {
         count += (s.type === "OR_GROUP" ? 2 : (s.questions?.length || 1));
       });
@@ -321,14 +333,14 @@
 
       <!-- SECTIONS ITERATION -->
       {#each paperStructure as section, sIdx}
-        {@const sectionQuestions = getQuestionsByPart(section.part)}
-        {@const totalPartMarks = calcTotal(section.part)}
+        {@const sectionQuestions = getQuestionsByPart(partOf(section, sIdx))}
+        {@const totalPartMarks = calcTotal(partOf(section, sIdx))}
         
         {#if sectionQuestions.length > 0 || mode === "preview"}
           <div class="mb-8">
             <div class="text-center font-bold text-[11pt] uppercase flex justify-center items-center gap-10 mb-3">
               <span class="font-bold">
-                <AssessmentEditable value={section.title || `PART ${section.part}`} onUpdate={(v) => { section.title = v; paperStructure = [...paperStructure]; }} />
+                <AssessmentEditable value={section.title || `PART ${partOf(section, sIdx)}`} onUpdate={(v) => { section.title = v; paperStructure = [...paperStructure]; }} />
               </span>
               <span class="font-bold flex items-center gap-0">
                 (<AssessmentEditable value={String(section.answered_count || sectionQuestions.length)} onUpdate={(v) => { section.answered_count = Number(v); paperStructure = [...paperStructure]; }} />
@@ -352,8 +364,8 @@
               </thead>
               <tbody 
                 use:dndzone={{ items: sectionQuestions, flipDurationMs: 200, dragDisabled: !isEditable }}
-                onconsider={(e) => handleDndSync(section.part, e.detail.items)}
-                onfinalize={(e) => handleDndSync(section.part, e.detail.items)}
+                onconsider={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
+                onfinalize={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
               >
                 {#each sectionQuestions as slot, i (slot.id + activeSet)}
                   <!-- Calculate the starting question number for this slot within this section -->
@@ -366,7 +378,7 @@
                     <tr class="group/row min-h-[40px]">
                       <td class="text-center align-top font-bold border border-black p-2 text-[11pt]">{qNumber}</td>
                       <td class="align-top relative text-justify leading-relaxed border border-black p-3">
-                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
+                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx), "q1")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                         {#if slot.choice1?.questions?.[0]}
                            <AssessmentEditable value={slot.choice1.questions[0].text || slot.choice1.questions[0].question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, slot.choice1.questions[0].id)} multiline={true} />
                         {/if}
@@ -391,7 +403,7 @@
                     <tr class="group/row min-h-[40px]">
                       <td class="text-center align-top font-bold border border-black p-2 text-[11pt]">{qNumber + 1}</td>
                       <td class="align-top relative text-justify leading-relaxed border border-black p-3">
-                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q2")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
+                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx), "q2")} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                         {#if slot.choice2?.questions?.[0]}
                            <AssessmentEditable value={slot.choice2.questions[0].text || slot.choice2.questions[0].question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, slot.choice2.questions[0].id)} multiline={true} />
                         {/if}
@@ -414,7 +426,7 @@
                           {qNumber}{questions.length > 1 ? ` ${alphabet[qIdx]})` : ""}
                         </td>
                         <td class="align-top relative text-justify leading-relaxed border border-black p-3">
-                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} class="!-left-10" />
+                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx))} onDelete={() => removeQuestion(slot)} class="!-left-10" />
                           <AssessmentEditable value={q.text || q.question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
                           
                           {#if q.options?.length > 0}

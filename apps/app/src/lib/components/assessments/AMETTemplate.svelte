@@ -17,6 +17,18 @@
     onSwap = null,
   } = $props();
 
+  /**
+   * Older papers saved sections without a `part` (only title/slots/marks), which
+   * used to crash this template on render. Fall back to `section`, then position.
+   */
+  const partOf = (section: any, index: number) =>
+    String(
+      section?.part ?? section?.section ?? String.fromCharCode(65 + (index ?? 0)),
+    )
+      .trim()
+      .toUpperCase();
+
+
   // Mandatory Logic Reuse: Mirroring StandardTemplate / SVYASATemplate
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return;
@@ -174,7 +186,7 @@
     ).filter(Boolean);
     const qs = arr.filter(
       (q: any) =>
-        q && q.part?.trim().toUpperCase() === part.trim().toUpperCase(),
+        q && q.part?.trim().toUpperCase() === String(part ?? "").trim().toUpperCase(),
     );
     return qs.reduce((s: number, slot: any) => {
       const marks = Number(
@@ -188,7 +200,7 @@
   };
 
   function getQuestionsByPart(part: string) {
-    const p = part.trim().toUpperCase();
+    const p = String(part ?? "").trim().toUpperCase();
     return (currentSetData?.questions || []).filter(
       (q: any) => q && q.part?.trim().toUpperCase() === p,
     );
@@ -332,8 +344,8 @@
       <!-- Sections Iteration -->
       <div class="space-y-10">
         {#each paperStructure as section, sIdx}
-          {@const sectionQuestions = getQuestionsByPart(section.part)}
-          {@const sectionTotal = calcTotal(section.part)}
+          {@const sectionQuestions = getQuestionsByPart(partOf(section, sIdx))}
+          {@const sectionTotal = calcTotal(partOf(section, sIdx))}
           {@const baseSN = getPreviousQuestionsCount(sIdx)}
 
           {#if sectionQuestions.length > 0 || mode === "preview"}
@@ -344,7 +356,7 @@
                   class="font-extrabold text-[11pt] uppercase tracking-normal py-2"
                   style="color: black !important;"
                 >
-                  PART {section.part?.trim().toUpperCase()}
+                  PART {partOf(section, sIdx)}
                   ({sectionQuestions.length} x {section.marks_per_q} = {sectionTotal}
                   Marks)
                   <AssessmentEditable
@@ -405,9 +417,9 @@
                     dragDisabled: !isEditable,
                   }}
                   onconsider={(e: any) =>
-                    handleDndSync(section.part, e.detail.items)}
+                    handleDndSync(partOf(section, sIdx), e.detail.items)}
                   onfinalize={(e: any) =>
-                    handleDndSync(section.part, e.detail.items)}
+                    handleDndSync(partOf(section, sIdx), e.detail.items)}
                 >
                   {#each sectionQuestions as slot, i (slot.id + activeSet)}
                     {#if slot.type === "OR_GROUP"}
@@ -432,7 +444,7 @@
                               <AssessmentRowActions
                                 {isEditable}
                                 onSwap={() =>
-                                  openSwapSidebar(slot, section.part, "q1")}
+                                  openSwapSidebar(slot, partOf(section, sIdx), "q1")}
                                 onDelete={() => removeQuestion(slot)}
                                 class="!-left-10 !top-2 scale-75"
                               />
@@ -527,7 +539,7 @@
                               <AssessmentRowActions
                                 {isEditable}
                                 onSwap={() =>
-                                  openSwapSidebar(slot, section.part, "q2")}
+                                  openSwapSidebar(slot, partOf(section, sIdx), "q2")}
                                 onDelete={() => removeQuestion(slot)}
                                 class="!-left-10 !top-2 scale-75"
                               />
@@ -605,7 +617,7 @@
                           >
                             <AssessmentRowActions
                               {isEditable}
-                              onSwap={() => openSwapSidebar(slot, section.part)}
+                              onSwap={() => openSwapSidebar(slot, partOf(section, sIdx))}
                               onDelete={() => removeQuestion(slot)}
                               class="!-left-10 !top-2 scale-75"
                             />

@@ -101,12 +101,21 @@ export function resolveExamKind(examType?: string | null, examTitle?: string | n
 	return "sem";
 }
 
-export function resolveUniversityKey(opts: TemplateInput): string | null {
-	// A canonical slug already carries its university, so trust it first.
-	const style = String(opts.layoutStyle || "").toLowerCase();
+/** `cdumid` / `ametsem` / `sgusem75` → `cdu` / `amet` / `sgu`. */
+function uniKeyFromSlug(value?: string | null): string | null {
+	const slug = String(value || "").toLowerCase();
 	for (const key of Object.keys(UNIVERSITIES)) {
-		if (style === `${key}mid` || style.startsWith(`${key}sem`)) return key;
+		if (slug === `${key}mid` || slug.startsWith(`${key}sem`)) return key;
 	}
+	return null;
+}
+
+export function resolveUniversityKey(opts: TemplateInput): string | null {
+	// A canonical slug already carries its university, so trust it first. Papers
+	// generated after the slug migration carry it in metaTemplate, older ones in
+	// layoutStyle — check both.
+	const fromSlug = uniKeyFromSlug(opts.layoutStyle) || uniKeyFromSlug(opts.metaTemplate);
+	if (fromSlug) return fromSlug;
 
 	const byId = UNIVERSITY_ID_TO_KEY[String(opts.universityId || "").toLowerCase()];
 	if (byId) return byId;
@@ -169,7 +178,14 @@ export function resolveTemplateMeta(opts: TemplateInput, readySlugs: Set<string>
 	}
 
 	const label = UNIVERSITIES[uniKey] || opts.universityName || uniKey;
-	const slug = buildSlug(uniKey, examKind, opts.maxMarks);
+
+	// SGU's end-sem comes in a 50- and a 75-mark variant. Marks decide it, but an
+	// explicitly stored 75 slug wins in case the marks field is missing/stale.
+	const explicit = String(opts.layoutStyle || opts.metaTemplate || "").toLowerCase();
+	const slug =
+		uniKey === "sgu" && examKind === "sem" && (explicit === "sgusem75" || explicit === "sgu75")
+			? "sgusem75"
+			: buildSlug(uniKey, examKind, opts.maxMarks);
 	if (readySlugs.has(slug)) {
 		return { slug, renderSlug: slug, uniKey, universityLabel: label, examKind, status: "ready", message: "" };
 	}
