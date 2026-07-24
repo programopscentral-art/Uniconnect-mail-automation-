@@ -62,6 +62,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         [params.id],
     );
 
+    // Per-(batch, university) breakdown so a batch multi-select can recompute
+    // per-university summaries client-side without another round-trip.
+    const perBatchUni = await db.query(
+        `SELECT fsp.batch_period_id, bp.batch_start_year,
+                u.id AS university_id, u.name AS university_name,
+                COUNT(fsp.id)::int                                          AS total,
+                COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
+                COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
+                COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
+                COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
+                COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
+           FROM fee_student_payments fsp
+           JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+           JOIN universities u ON u.id = fsp.university_id
+          WHERE bp.window_id = $1
+          GROUP BY fsp.batch_period_id, bp.batch_start_year, u.id, u.name`,
+        [params.id],
+    );
+
     // Per-university dates — pull from any one batch_period since the dates
     // sub-sheet is shared across all batches in the window.
     const dates = await db.query(
@@ -104,6 +123,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             collection_pct: collectionPct,
         },
         per_batch: perBatch.rows,
+        per_batch_university: perBatchUni.rows,
         tag_counts: tagCounts.rows,
         success_coaches: coaches.rows,
         university_dates: dates.rows,

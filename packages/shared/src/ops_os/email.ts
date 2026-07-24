@@ -46,6 +46,20 @@ export interface OpsOsEmailArgs {
     ctaLabel?: string;
     ctaUrl?: string;
     tone?: 'info' | 'success' | 'warn' | 'alert';
+    /**
+     * When false, `bodyHtml` is treated as a COMPLETE, self-contained email
+     * body and sent as-is (only wrapped in a minimal doctype/html/body). Use
+     * this for rich, full-width layouts (e.g. the fee-collection snapshot) that
+     * must NOT be squeezed into the 560px Operations-OS card — doing so clips
+     * the layout so half of it is invisible. Defaults to true (the decorative
+     * card wrapper + header/footer/CTA).
+     */
+    wrap?: boolean;
+}
+
+/** Minimal standalone wrapper for pre-rendered, full-width email bodies. */
+function wrapRaw(body: string): string {
+    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;">${body}</body></html>`;
 }
 
 function appBaseUrl(): string {
@@ -109,7 +123,7 @@ export async function sendEmail(args: OpsOsEmailArgs): Promise<{ sent: boolean; 
             from: process.env.SMTP_FROM || process.env.SMTP_USER,
             to: args.to,
             subject: args.subject,
-            html: renderHtml(args),
+            html: args.wrap === false ? wrapRaw(args.bodyHtml) : renderHtml(args),
         });
         return { sent: true };
     } catch (e) {

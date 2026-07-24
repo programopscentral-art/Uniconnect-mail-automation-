@@ -109,6 +109,33 @@ function deriveStatus(_typedRaw: string, payable: number, paid: number): string 
     return 'Yet To Pay';
 }
 
+/**
+ * Resolve the university-name cell. The exact header drifts between sheets and
+ * even carries real typos — the NIAT "2025– Semester 3" tab labels the column
+ * "unveristy name", which no exact candidate matches, so the entire batch was
+ * silently dropping every row (0 matched → student_count zeroed, stale rows
+ * left frozen). After trying the known candidates we fall back to ANY column
+ * whose normalized header looks like a university/college/campus label.
+ */
+function pickUniversity(row: Record<string, unknown>): string {
+    const exact = pickValue(row, [
+        'University', 'University Name', 'University name',
+        'Unversity name', 'Unversity Name', 'Unveristy name', 'Unveristy Name',
+        'College', 'Campus',
+    ]);
+    if (exact !== null && exact !== undefined && String(exact).trim() !== '') return String(exact).trim();
+    for (const k of Object.keys(row)) {
+        const base = norm(k.replace(/__\d+$/, ''));
+        if (!base) continue;
+        // Catches university / univ / unversity / unveristy / college / campus.
+        if (/^(univ|unver|unveristy|colleg|campus)/.test(base) || base.includes('university') || base.includes('unveristy') || base.includes('unversity')) {
+            const v = row[k];
+            if (v !== null && v !== undefined && String(v).trim() !== '') return String(v).trim();
+        }
+    }
+    return '';
+}
+
 function pickValue(row: Record<string, unknown>, candidates: string[]): unknown {
     const keys = Object.keys(row);
     for (const c of candidates) {
@@ -283,7 +310,7 @@ async function syncBatchSubsheet(
             if (idx >= 0) buffer.splice(idx, 1);
         }
 
-        const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
+        const uniRaw = pickUniversity(r);
         const university_id = findUniversityIdInIndex(uniIdx, uniRaw);
         if (!university_id && uniRaw && !summary.universities_unmatched.includes(uniRaw)) {
             summary.universities_unmatched.push(uniRaw);
@@ -375,6 +402,25 @@ async function syncBatchSubsheet(
     );
     const inDb = Number(existingRes.rows[0]?.n ?? 0);
     const seenIds = Array.from(seenZoho);
+
+    // Empty-fetch guard: the sheet yielded ZERO usable rows for a batch that
+    // already has data in the DB. That's almost never a real "everyone left" —
+    // it's a transient gviz empty, a renamed/typo'd header (e.g. the university
+    // column mislabeled so no row matches), or a mid-edit sheet. Overwriting
+    // student_count with 0 here made the batch chip read "(0)" and froze stale
+    // totals. Skip the count/purge update entirely and surface it as an error so
+    // the operator sees it — leave the good prior data untouched.
+    if (seenIds.length === 0 && inDb > 0) {
+        summary.purge_skipped.push({
+            sub_sheet: subsheet_name, reason: 'empty_fetch_guard', seen: 0, in_db: inDb,
+        });
+        summary.errors.push({
+            sub_sheet: subsheet_name,
+            message: `Fetched ${rows.length} sheet rows but matched 0 usable students, while ${inDb} exist in DB. Skipped update to avoid zeroing counts. Check the sheet's University column header and "Anyone with the link → Viewer" sharing.`,
+        });
+        return;
+    }
+
     if (seenIds.length > 0 && inDb > 0 && seenIds.length < inDb * 0.5) {
         summary.purge_skipped.push({
             sub_sheet: subsheet_name, reason: 'safety_threshold',
@@ -427,7 +473,7 @@ async function syncDatesSubsheet(
     const buffer: MetaRow[] = [];
     const seenUni = new Set<string>();
     for (const r of rows) {
-        const uniRaw = String(pickValue(r, ['University']) ?? '').trim();
+        const uniRaw = pickUniversity(r);
         if (!uniRaw) continue;
         const university_id = findUniversityIdInIndex(uniIdx, uniRaw);
         if (!university_id) {
@@ -515,7 +561,7 @@ async function syncDropoutSubsheet(
         const zoho_user_id = String(pickValue(r, ['UID', 'User ID', 'UserID', 'Zoho User ID', 'NIAT ID']) ?? '').trim();
         if (!zoho_user_id || seenZoho.has(zoho_user_id)) continue;
         seenZoho.add(zoho_user_id);
-        const uniRaw = String(pickValue(r, ['University', 'Unversity name', 'University name', 'University Name']) ?? '').trim();
+        const uniRaw = pickUniversity(r);
         buffer.push({
             zoho_user_id,
             university_id: findUniversityIdInIndex(uniIdx, uniRaw),

@@ -89,11 +89,13 @@ export async function ensureFeeTables() {
                 author_id uuid REFERENCES users(id) ON DELETE SET NULL,
                 author_name text NOT NULL,
                 role text NOT NULL DEFAULT 'Other',
+                designation text,
                 case_type text,
                 text text NOT NULL,
                 source text NOT NULL DEFAULT 'manual',
                 created_at timestamptz NOT NULL DEFAULT now()
             );
+            ALTER TABLE fee_remarks ADD COLUMN IF NOT EXISTS designation text;
 
             CREATE TABLE IF NOT EXISTS fee_remark_attachments (
                 id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

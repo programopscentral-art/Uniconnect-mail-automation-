@@ -23,13 +23,23 @@ function csvCell(v: unknown): string {
 }
 function csvRow(cells: unknown[]): string { return cells.map(csvCell).join(',') + '\r\n'; }
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+export const GET: RequestHandler = async ({ params, locals, url }) => {
     checkFeeAccess(locals, 'view');
     if (!params.id) throw error(400, 'id required');
 
     const wRes = await db.query(`SELECT id, name FROM fee_semester_window WHERE id = $1`, [params.id]);
     if (wRes.rows.length === 0) throw error(404, 'window not found');
     const w = wRes.rows[0] as { id: string; name: string };
+
+    // Optional filters so the Student-wise tab can export exactly what's on screen.
+    const universityId = url.searchParams.get('university_id') || '';
+    const batchesCsv = (url.searchParams.get('batches') || '').trim();
+    const batchIds = batchesCsv ? batchesCsv.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    const conds = ['bp.window_id = $1'];
+    const args: unknown[] = [params.id];
+    if (batchIds.length > 0) { args.push(batchIds); conds.push(`fsp.batch_period_id = ANY($${args.length}::uuid[])`); }
+    if (universityId) { args.push(universityId); conds.push(`fsp.university_id = $${args.length}`); }
 
     const r = await db.query(
         `SELECT bp.batch_start_year, bp.semester_number, bp.display_name AS batch_name,
@@ -39,14 +49,25 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 fsp.previous_fee_due, fsp.current_term_discount,
                 fsp.status, fsp.registration_status, fsp.registration_date::text AS registration_date,
                 fsp.tag_case, fsp.success_coach_name,
-                COALESCE(rc.n, 0) AS remark_count
+                COALESCE(rc.n, 0) AS remark_count,
+                rc.remark_text, rc.proof_urls
            FROM fee_student_payments fsp
            JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            LEFT JOIN universities u ON u.id = fsp.university_id
-           LEFT JOIN LATERAL (SELECT COUNT(*)::int AS n FROM fee_remarks fr WHERE fr.student_payment_id = fsp.id) rc ON true
-          WHERE bp.window_id = $1
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS n,
+                    STRING_AGG(fr.text, ' | ' ORDER BY fr.created_at DESC)          AS remark_text,
+                    STRING_AGG(att.urls, ' | ')                                     AS proof_urls
+               FROM fee_remarks fr
+               LEFT JOIN LATERAL (
+                 SELECT STRING_AGG(a.file_url, ' ') AS urls
+                   FROM fee_remark_attachments a WHERE a.remark_id = fr.id
+               ) att ON true
+              WHERE fr.student_payment_id = fsp.id
+           ) rc ON true
+          WHERE ${conds.join(' AND ')}
           ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`,
-        [params.id],
+        args,
     );
 
     const header = [
@@ -54,7 +75,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
         'User ID', 'Student Name',
         'Payable', 'Paid', 'Pending', 'Previous Fee Due', 'Current Term Discount',
         'Status', 'Registration Status', 'Registration Date',
-        'Tag Case', 'Success Coach', 'Remark Count',
+        'Tag Case', 'Success Coach', 'Remark Count', 'Remarks', 'Proof Links',
     ];
     const chunks: string[] = [csvRow(header)];
     for (const row of r.rows) {
@@ -64,6 +85,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             row.payable, row.paid, row.pending, row.previous_fee_due, row.current_term_discount,
             row.status, row.registration_status, row.registration_date,
             row.tag_case, row.success_coach_name, row.remark_count,
+            row.remark_text, row.proof_urls,
         ]));
     }
 

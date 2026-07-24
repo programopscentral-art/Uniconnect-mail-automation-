@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { page, navigating } from '$app/stores';
+  import { toPng } from 'html-to-image';
 
   type Window = {
     id: string; name: string; sheet_id: string; status: string;
@@ -14,6 +15,7 @@
   type TrendPoint = { d: string; students: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: string; total_paid: string; pct: number; is_estimated: boolean; };
   type UniDate = { university_id: string; university_name: string; fee_per_student: number | null; sem_last_date: string | null; collection_start_date: string | null; collection_end_date: string | null; next_sem_start_date: string | null; meta_remarks: string | null; };
   type PerUni = { id: string; name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
+  type PerBatchUni = { batch_period_id: string; batch_start_year: number; university_id: string; university_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
   type Overview = {
     totals: { students: number; fully_paid: number; partial: number; yet_to_pay: number; dropouts: number; total_payable: number; total_paid: number; collection_pct: number; paid_from_fully: number; paid_from_partial: number; };
     per_batch: PerBatch[];
@@ -21,6 +23,7 @@
     success_coaches: Coach[];
     university_dates: UniDate[];
     per_university: PerUni[];
+    per_batch_university: PerBatchUni[];
     dropout_reasons: Array<{ reason: string; c: number }>;
     trend: TrendPoint[];
   };
@@ -36,7 +39,7 @@
     userIsAdmin: boolean;
   } }>();
 
-  type Tab = 'overview' | 'batch' | 'custom';
+  type Tab = 'overview' | 'daily' | 'tags' | 'students' | 'dates' | 'analytics' | 'batch';
   let tab = $state<Tab>('overview');
   let selectedBatchId = $state<string>('');
   let selectedUniversityId = $state<string>('');
@@ -49,12 +52,118 @@
   // Per-batch settings drawer
   let showBatchSettings = $state(false);
 
-  // Custom tab — multi-select batches to combine
+  // Overview batch multi-select — which batches (2023/2024/2025) feed every
+  // Overview aggregate. Defaults to ALL batches; re-initialised when the window
+  // changes (see the effect below).
   let customSelected = $state<Set<string>>(new Set());
+  let selInitForWindow = $state<string | null>(null);
   function toggleCustom(id: string) {
     const next = new Set(customSelected);
     next.has(id) ? next.delete(id) : next.add(id);
     customSelected = next;
+  }
+  function selectAllBatches() { customSelected = new Set(data.batches.map(b => b.id)); }
+  $effect(() => {
+    const wid = data.activeWindow?.id ?? null;
+    if (wid && wid !== selInitForWindow) {
+      customSelected = new Set(data.batches.map(b => b.id));
+      selInitForWindow = wid;
+    }
+  });
+  // Treat "nothing selected" as "all selected" for aggregates so the page is
+  // never blank.
+  let selBatchIds = $derived.by(() => {
+    const all = data.batches.map(b => b.id);
+    if (customSelected.size === 0) return all;
+    return all.filter(id => customSelected.has(id));
+  });
+  let allBatchesSelected = $derived(selBatchIds.length === data.batches.length);
+
+  // Totals across the selected batches (from per_batch).
+  let selTotals = $derived.by(() => {
+    const rows = (data.overview?.per_batch ?? []).filter(b => selBatchIds.includes(b.id));
+    const t = { students: 0, fully_paid: 0, partial: 0, yet_to_pay: 0, total_payable: 0, total_paid: 0 };
+    for (const r of rows) {
+      t.students += Number(r.total); t.fully_paid += Number(r.fully_paid);
+      t.partial += Number(r.partial); t.yet_to_pay += Number(r.yet_to_pay);
+      t.total_payable += Number(r.total_payable); t.total_paid += Number(r.total_paid);
+    }
+    return t;
+  });
+
+  // Per-university summary across the selected batches, joined with the
+  // per-university collection start date (= "Registration Start Date").
+  let selPerUni = $derived.by(() => {
+    const dateMap = new Map<string, string | null>((data.overview?.university_dates ?? []).map(d => [d.university_id, d.collection_start_date] as [string, string | null]));
+    const m = new Map<string, { university_id: string; university_name: string; total: number; fully: number; partial: number; yet: number; payable: number; paid: number; reg_start: string | null }>();
+    for (const r of (data.overview?.per_batch_university ?? [])) {
+      if (!selBatchIds.includes(r.batch_period_id)) continue;
+      const cur = m.get(r.university_id) ?? { university_id: r.university_id, university_name: r.university_name, total: 0, fully: 0, partial: 0, yet: 0, payable: 0, paid: 0, reg_start: dateMap.get(r.university_id) ?? null };
+      cur.total += Number(r.total); cur.fully += Number(r.fully_paid);
+      cur.partial += Number(r.partial); cur.yet += Number(r.yet_to_pay);
+      cur.payable += Number(r.total_payable); cur.paid += Number(r.total_paid);
+      m.set(r.university_id, cur);
+    }
+    return Array.from(m.values()).sort((a, b) => b.payable - a.payable);
+  });
+
+  // Every university that appears in the window (for the filter dropdowns).
+  let windowUniversities = $derived.by(() => {
+    const m = new Map<string, string>();
+    for (const r of (data.overview?.per_batch_university ?? [])) m.set(r.university_id, r.university_name);
+    return Array.from(m.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  // ── Date helpers (registration start / relative label) ──────────────
+  function parseDateLoose(raw: unknown): Date | null {
+    if (!raw) return null;
+    const s = String(raw).trim();
+    if (!s) return null;
+    const gviz = s.match(/^Date\((\d+),(\d+),(\d+)/);
+    if (gviz) return new Date(Number(gviz[1]), Number(gviz[2]), Number(gviz[3]));
+    const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+    if (dmy) { let [, dd, mm, yy] = dmy; if (yy.length === 2) yy = '20' + yy; const d = new Date(Number(yy), Number(mm) - 1, Number(dd)); return isNaN(d.getTime()) ? null : d; }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtRegDate(raw: unknown): string {
+    const d = parseDateLoose(raw);
+    if (!d) return raw ? String(raw) : '—';
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  function regRelLabel(raw: unknown): string | null {
+    const d = parseDateLoose(raw);
+    if (!d) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - d.getTime()) / 86_400_000);
+    if (diff === 0) return 'Started today';
+    if (diff > 0) return `Started ${diff} day${diff === 1 ? '' : 's'} ago`;
+    return `Starts in ${-diff} day${-diff === 1 ? '' : 's'}`;
+  }
+  function istToday(): string {
+    return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
+  // ── Snapshot PNG download ───────────────────────────────────────────
+  let snapshotEl = $state<HTMLElement | null>(null);
+  let snapshotBusy = $state(false);
+  async function downloadSnapshot() {
+    if (!snapshotEl) return;
+    snapshotBusy = true;
+    try {
+      const dataUrl = await toPng(snapshotEl, { backgroundColor: '#09090b', pixelRatio: 2, cacheBust: true });
+      const yrs = data.batches.filter(b => selBatchIds.includes(b.id)).map(b => b.batch_start_year).sort().join('-');
+      const a = document.createElement('a');
+      a.download = `fee-collection-${yrs || 'all'}-${istToday()}.png`;
+      a.href = dataUrl;
+      a.click();
+      flash('Snapshot image downloaded', 'ok');
+    } catch (e: any) {
+      flash('Snapshot failed: ' + (e?.message || e), 'err');
+    } finally {
+      snapshotBusy = false;
+    }
   }
 
   // Setup modal
@@ -254,6 +363,97 @@
     flash(newTag ? `Tagged: ${newTag}` : 'Tag cleared', 'ok');
   }
 
+  // ─── Daily Report ───────────────────────────────────────────────────
+  type DailyRow = { university_id: string; university_name: string; total: number; fully_paid: number; partial: number; yet_to_pay: number; total_payable: number; total_paid: number; };
+  let dailyDate = $state<string>('');
+  let dailyData = $state<{ date: string; locked: boolean; is_today: boolean; universities: DailyRow[] } | null>(null);
+  let dailyLoading = $state(false);
+  let lockingDaily = $state(false);
+  async function loadDaily() {
+    if (!data.activeWindow) return;
+    if (!dailyDate) dailyDate = istToday();
+    dailyLoading = true;
+    try {
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/daily?date=${dailyDate}`);
+      if (res.ok) dailyData = await res.json();
+    } finally { dailyLoading = false; }
+  }
+  async function lockDailyNow() {
+    if (!data.activeWindow) return;
+    lockingDaily = true;
+    try {
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/daily`, { method: 'POST' });
+      const j = await res.json();
+      if (!res.ok) { flash(j.message || 'Lock failed', 'err'); return; }
+      flash(`Locked today · ${j.universities} universities`, 'ok');
+      await loadDaily();
+    } catch (e: any) { flash(e?.message || 'Lock failed', 'err'); }
+    finally { lockingDaily = false; }
+  }
+  $effect(() => {
+    if (tab === 'daily' && data.activeWindow) { dailyDate; loadDaily(); }
+  });
+
+  // ─── Tag Cases ──────────────────────────────────────────────────────
+  type TagUniRow = { university_id: string; university_name: string; total: number; breakdown: Record<string, number> };
+  let tagUni = $state<string>('');
+  let tagData = $state<{ categories: string[]; universities: TagUniRow[]; totals: Record<string, number>; grand_total: number } | null>(null);
+  let tagLoading = $state(false);
+  async function loadTagCases() {
+    if (!data.activeWindow) return;
+    tagLoading = true;
+    try {
+      const p = new URLSearchParams();
+      if (tagUni) p.set('university_id', tagUni);
+      if (!allBatchesSelected) p.set('batches', selBatchIds.join(','));
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/tag-cases?${p}`);
+      if (res.ok) tagData = await res.json();
+    } finally { tagLoading = false; }
+  }
+  $effect(() => {
+    if (tab === 'tags' && data.activeWindow) { tagUni; customSelected; loadTagCases(); }
+  });
+
+  // ─── Student-wise (window-level) ────────────────────────────────────
+  let winStudents = $state<any[]>([]);
+  let winStudentsLoading = $state(false);
+  let swUni = $state(''); let swStatus = $state(''); let swTag = $state(''); let swSearch = $state('');
+  async function loadWinStudents() {
+    if (!data.activeWindow) return;
+    winStudentsLoading = true;
+    try {
+      const p = new URLSearchParams();
+      if (swUni) p.set('university_id', swUni);
+      if (swStatus) p.set('status', swStatus);
+      if (swTag) p.set('tag', swTag);
+      if (swSearch.trim()) p.set('search', swSearch.trim());
+      if (!allBatchesSelected) p.set('batches', selBatchIds.join(','));
+      const res = await fetch(`/api/fees2/windows/${data.activeWindow.id}/students?${p}`);
+      if (res.ok) winStudents = (await res.json()).students || [];
+    } finally { winStudentsLoading = false; }
+  }
+  $effect(() => {
+    if (tab === 'students' && data.activeWindow) { swUni; swStatus; swTag; swSearch; customSelected; loadWinStudents(); }
+  });
+  function exportStudentsCsv() {
+    if (!data.activeWindow) return;
+    const p = new URLSearchParams();
+    if (swUni) p.set('university_id', swUni);
+    if (!allBatchesSelected) p.set('batches', selBatchIds.join(','));
+    window.open(`/api/fees2/windows/${data.activeWindow.id}/report.csv?${p}`, '_blank');
+  }
+  // Inline tag-case edit shared by both the batch table and the student-wise
+  // table — updates whichever list the row lives in.
+  async function setTagCaseWin(studentId: string, newTag: string | null) {
+    const res = await fetch(`/api/fees2/students/${studentId}/tag-case`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tag_case: newTag }),
+    });
+    if (!res.ok) { flash((await res.json()).message || 'Failed', 'err'); return; }
+    winStudents = winStudents.map(s => s.id === studentId ? { ...s, tag_case: newTag } : s);
+    flash(newTag ? `Tagged: ${newTag}` : 'Tag cleared', 'ok');
+  }
+
   // ─── Dropouts ───────────────────────────────────────────────────────
   type Dropout = { id: string; zoho_user_id: string | null; student_name: string | null; dropped_at: string | null; reason: string | null; imported_at: string; batch_period_id: string | null; batch_name: string | null; batch_start_year: number | null; semester_number: number | null; university_id: string | null; university_name: string | null; };
   let dropouts = $state<Dropout[]>([]);
@@ -275,25 +475,39 @@
 
   let dropoutsForActiveBatch = $derived(activeBatch ? dropouts.filter(d => d.batch_period_id === activeBatch.id) : []);
 
-  // Load dropouts when overview / batch view is shown (lazy)
+  // Dropouts & Dates tab — university filter (shared by both tables).
+  let datesUni = $state<string>('');
+  let dropoutsForDatesTab = $derived(
+    datesUni ? dropouts.filter(d => d.university_id === datesUni) : dropouts,
+  );
+  let datesForDatesTab = $derived.by(() => {
+    const rows = data.overview?.university_dates ?? [];
+    return datesUni ? rows.filter(d => d.university_id === datesUni) : rows;
+  });
+
+  // Load dropouts lazily when a view that needs them is shown.
   $effect(() => {
-    if ((tab === 'overview' || tab === 'batch') && data.activeWindow) {
+    if ((tab === 'dates' || tab === 'batch') && data.activeWindow) {
       loadDropouts();
     }
   });
 
   // ─── Remarks drawer ─────────────────────────────────────────────────
-  type Remark = { id: string; author_id: string | null; author_name: string; role: string; case_type: string | null; text: string; source: string; created_at: string; };
+  type RemarkAttachment = { id: string; file_name: string; file_url: string; mime_type: string | null; size_bytes: number };
+  type Remark = { id: string; author_id: string | null; author_name: string; role: string; designation: string | null; case_type: string | null; text: string; source: string; created_at: string; attachments: RemarkAttachment[] };
   let remarksOpenFor = $state<any | null>(null);
   let remarks = $state<Remark[]>([]);
   let remarksLoading = $state(false);
   let newRemarkText = $state('');
   let newRemarkCase = $state('');
+  let newRemarkDesignation = $state('');
   let savingRemark = $state(false);
+  let uploadingFor = $state<string | null>(null);
 
   async function openRemarks(student: any) {
     remarksOpenFor = student;
     remarks = []; newRemarkText = ''; newRemarkCase = student.tag_case || '';
+    newRemarkDesignation = data.role || '';
     remarksLoading = true;
     try {
       const res = await fetch(`/api/fees2/students/${student.id}/remarks`);
@@ -301,6 +515,20 @@
     } finally { remarksLoading = false; }
   }
   function closeRemarks() { remarksOpenFor = null; }
+  async function uploadProof(remarkId: string, file: File | null | undefined) {
+    if (!file) return;
+    uploadingFor = remarkId;
+    try {
+      const fd = new FormData();
+      fd.set('file', file);
+      const res = await fetch(`/api/fees/remarks/${remarkId}/attachments`, { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!res.ok) { flash(j.message || 'Upload failed', 'err'); return; }
+      remarks = remarks.map(r => r.id === remarkId ? { ...r, attachments: [...(r.attachments || []), j] } : r);
+      flash('Proof uploaded', 'ok');
+    } catch (e: any) { flash(e?.message || 'Upload failed', 'err'); }
+    finally { uploadingFor = null; }
+  }
   async function addRemark() {
     if (!remarksOpenFor) return;
     const text = newRemarkText.trim();
@@ -309,7 +537,7 @@
     try {
       const res = await fetch(`/api/fees2/students/${remarksOpenFor.id}/remarks`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, case_type: newRemarkCase || null }),
+        body: JSON.stringify({ text, case_type: newRemarkCase || null, designation: newRemarkDesignation.trim() || null }),
       });
       const j = await res.json();
       if (!res.ok) { flash(j.message || 'Failed', 'err'); return; }
@@ -318,6 +546,7 @@
       // table badge updates without a reload.
       const newCount = (Number(remarksOpenFor.remark_count) || 0) + 1;
       students = students.map(s => s.id === remarksOpenFor.id ? { ...s, remark_count: newCount, last_remark_at: j.remark.created_at } : s);
+      winStudents = winStudents.map(s => s.id === remarksOpenFor.id ? { ...s, remark_count: newCount, last_remark_at: j.remark.created_at } : s);
       remarksOpenFor = { ...remarksOpenFor, remark_count: newCount, last_remark_at: j.remark.created_at };
       newRemarkText = '';
       flash('Remark added', 'ok');
@@ -359,23 +588,6 @@
       map.set(id, r);
     }
     return Array.from(map.values()).sort((a, b) => b.payable - a.payable);
-  });
-
-  // Aggregated totals across the user's currently-selected batches (Custom tab)
-  let customTotals = $derived.by(() => {
-    if (!data.overview) return null;
-    const rows = data.overview.per_batch.filter(b => customSelected.has(b.id));
-    if (rows.length === 0) return null;
-    return rows.reduce((acc, r) => ({
-      students: acc.students + Number(r.total),
-      fully_paid: acc.fully_paid + Number(r.fully_paid),
-      partial: acc.partial + Number(r.partial),
-      yet_to_pay: acc.yet_to_pay + Number(r.yet_to_pay),
-      dropouts: acc.dropouts + Number(r.dropouts),
-      total_payable: acc.total_payable + Number(r.total_payable),
-      total_paid: acc.total_paid + Number(r.total_paid),
-      batches: acc.batches + 1,
-    }), { students: 0, fully_paid: 0, partial: 0, yet_to_pay: 0, dropouts: 0, total_payable: 0, total_paid: 0, batches: 0 });
   });
 
   function selectBatch(id: string) {
@@ -502,14 +714,28 @@
       </div>
     {:else}
 
-      <!-- Top nav: Overview | one chip per batch | Custom -->
-      <div class="mb-4 flex flex-wrap items-center gap-2">
-        <button
-          class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors border
-                 {tab === 'overview' ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
-          onclick={() => { tab = 'overview'; }}
-        >Overview</button>
+      <!-- Primary nav -->
+      {@const primaryTabs = [
+        { id: 'overview',  label: 'Overview' },
+        { id: 'daily',     label: 'Daily Report' },
+        { id: 'tags',      label: 'Tag Cases' },
+        { id: 'students',  label: 'Student-wise' },
+        { id: 'dates',     label: 'Dropouts & Dates' },
+        { id: 'analytics', label: 'Analytics' },
+      ] as const}
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        {#each primaryTabs as t}
+          <button
+            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors border
+                   {tab === t.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
+            onclick={() => { tab = t.id; }}
+          >{t.label}</button>
+        {/each}
+      </div>
 
+      <!-- Per-batch drill-down chips -->
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <span class="text-[10px] uppercase tracking-[0.16em] text-zinc-600">Batches:</span>
         {#each data.batches as b}
           <button
             class="rounded-md px-3 py-1.5 text-xs font-semibold transition-colors border
@@ -524,17 +750,110 @@
             {/if}
           </button>
         {/each}
-
-        {#if data.batches.length > 1}
-          <button
-            class="rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition-colors border
-                   {tab === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}"
-            onclick={() => { tab = 'custom'; }}
-          >Custom</button>
-        {/if}
       </div>
 
       {#if tab === 'overview' && data.overview}
+        {@const sPending = Math.max(0, selTotals.total_payable - selTotals.total_paid)}
+        <!-- Batch selection + snapshot controls (excluded from the PNG capture) -->
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Batches</span>
+            <button
+              class="rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors
+                     {allBatchesSelected ? 'bg-blue-900/40 border-blue-700 text-blue-100' : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-800'}"
+              onclick={selectAllBatches}
+            >All batches</button>
+            {#each data.batches as b}
+              <label class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors
+                            {customSelected.has(b.id) ? 'bg-blue-900/40 border-blue-700 text-blue-100' : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-800'}">
+                <input type="checkbox" checked={customSelected.has(b.id)} onchange={() => toggleCustom(b.id)} class="accent-blue-500" />
+                {b.batch_start_year} · Sem {b.semester_number}
+              </label>
+            {/each}
+          </div>
+          <button
+            class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            disabled={snapshotBusy}
+            onclick={downloadSnapshot}
+            title="Download a PNG image of the summary below to share in group chats"
+          >{snapshotBusy ? 'Rendering…' : '📸 Download snapshot'}</button>
+        </div>
+
+        <!-- Snapshot capture target -->
+        <div bind:this={snapshotEl} class="rounded-2xl bg-zinc-950 p-5">
+          <div class="mb-4 flex items-start justify-between gap-3">
+            <div>
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">NIAT · Fee Collection</div>
+              <div class="mt-0.5 text-lg font-semibold text-zinc-100">{data.activeWindow.name}</div>
+              <div class="mt-1 text-[11px] text-zinc-400">
+                {#if allBatchesSelected}All batches{:else}Batches: {data.batches.filter(b => selBatchIds.includes(b.id)).map(b => `${b.batch_start_year} (Sem ${b.semester_number})`).join(', ')}{/if}
+                · {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary metrics -->
+          <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Total students</div><div class="mt-1 text-2xl font-semibold tabular-nums">{selTotals.students.toLocaleString('en-IN')}</div></div>
+            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{selTotals.fully_paid.toLocaleString('en-IN')}</div></div>
+            <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partially paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{selTotals.partial.toLocaleString('en-IN')}</div></div>
+            <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{selTotals.yet_to_pay.toLocaleString('en-IN')}</div></div>
+          </div>
+          <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Target collection</div><div class="mt-1 text-xl font-semibold tabular-nums">{fmtMoney(selTotals.total_payable)}</div></div>
+            <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Amount collected</div><div class="mt-1 text-xl font-semibold tabular-nums text-blue-200">{fmtMoney(selTotals.total_paid)}</div></div>
+            <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Amount pending</div><div class="mt-1 text-xl font-semibold tabular-nums text-red-200">{fmtMoney(sPending)}</div></div>
+            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div><div class="mt-1 text-xl font-semibold tabular-nums text-emerald-200">{fmtPct(selTotals.total_paid, selTotals.total_payable)}</div></div>
+          </div>
+
+          <!-- Per-university summary -->
+          <section class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Per university · selected batches</div>
+              <div class="text-sm font-semibold">{selPerUni.length} universities</div>
+            </header>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left">University</th>
+                    <th class="px-3 py-2.5 text-right">Students</th>
+                    <th class="px-3 py-2.5 text-right text-emerald-400">Fully</th>
+                    <th class="px-3 py-2.5 text-right text-amber-400">Partial</th>
+                    <th class="px-3 py-2.5 text-right text-red-400">Yet</th>
+                    <th class="px-3 py-2.5 text-right">Collected</th>
+                    <th class="px-3 py-2.5 text-right">Coll %</th>
+                    <th class="px-3 py-2.5 text-left">Registration start</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each selPerUni as u (u.university_id)}
+                    <tr>
+                      <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums">{u.total}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300">{u.fully}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-amber-300">{u.partial}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{u.yet}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(u.paid)}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums font-semibold {fmtPct(u.paid, u.payable) === '—' ? 'text-zinc-500' : ''}">{fmtPct(u.paid, u.payable)}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">
+                        {#if u.reg_start}
+                          {fmtRegDate(u.reg_start)}
+                          {#if regRelLabel(u.reg_start)}<span class="ml-1 text-[10px] text-zinc-500">· {regRelLabel(u.reg_start)}</span>{/if}
+                        {:else}<span class="text-zinc-600">—</span>{/if}
+                      </td>
+                    </tr>
+                  {/each}
+                  {#if selPerUni.length === 0}
+                    <tr><td colspan="8" class="px-3 py-8 text-center text-sm text-zinc-500">No data for the selected batches.</td></tr>
+                  {/if}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+      {:else if tab === 'analytics' && data.overview}
         {@const ov = data.overview}
         {@const gaugeR = 56}
         {@const gaugeCirc = 2 * Math.PI * gaugeR}
@@ -980,55 +1299,287 @@
         </section>
         {/if}
 
-        <!-- Semester dates per university -->
-        {#if ov.university_dates.length > 0}
+      {:else if tab === 'daily'}
+        <!-- ═══ DAILY REPORT ═══ -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div class="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="daily-date">Report date</label>
+              <input id="daily-date" type="date" max={istToday()} bind:value={dailyDate}
+                class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" />
+            </div>
+            <div class="flex items-center gap-2">
+              {#if dailyData}
+                {#if dailyData.locked}
+                  <span class="rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1 text-[11px] font-semibold text-zinc-300">🔒 Locked (frozen at 8 PM IST)</span>
+                {:else if dailyData.is_today}
+                  <span class="rounded-md border border-emerald-800 bg-emerald-950/40 px-2.5 py-1 text-[11px] font-semibold text-emerald-200">● Live · locks at 8 PM IST</span>
+                {:else}
+                  <span class="rounded-md border border-amber-800 bg-amber-950/40 px-2.5 py-1 text-[11px] font-semibold text-amber-200">No snapshot for this date</span>
+                {/if}
+              {/if}
+              {#if data.userIsAdmin && dailyData?.is_today && !dailyData?.locked}
+                <button class="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 disabled:opacity-50" disabled={lockingDaily} onclick={lockDailyNow} title="Freeze today's counts now (normally automatic at 8 PM IST)">
+                  {lockingDaily ? 'Locking…' : 'Lock now'}
+                </button>
+              {/if}
+            </div>
+          </div>
+        </section>
+
+        {#if dailyLoading}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>
+        {:else if !dailyData || dailyData.universities.length === 0}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">No data for {dailyDate}.</div>
+        {:else}
+          {@const dTot = dailyData.universities.reduce((a, u) => ({ total: a.total + u.total, fully: a.fully + u.fully_paid, partial: a.partial + u.partial, yet: a.yet + u.yet_to_pay }), { total: 0, fully: 0, partial: 0, yet: 0 })}
+          <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students</div><div class="mt-1 text-2xl font-semibold tabular-nums">{dTot.total}</div></div>
+            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{dTot.fully}</div></div>
+            <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partially paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{dTot.partial}</div></div>
+            <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{dTot.yet}</div></div>
+          </div>
+          <section class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <header class="border-b border-zinc-800 px-4 py-3">
+              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Daily payment summary · {dailyData.date}</div>
+              <div class="text-sm font-semibold">Fully / Partially paid per university</div>
+            </header>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left">University</th>
+                    <th class="px-3 py-2.5 text-right">Students</th>
+                    <th class="px-3 py-2.5 text-right text-emerald-400">Fully paid</th>
+                    <th class="px-3 py-2.5 text-right text-amber-400">Partially paid</th>
+                    <th class="px-3 py-2.5 text-right text-red-400">Yet to pay</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each dailyData.universities as u (u.university_id)}
+                    <tr>
+                      <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums">{u.total}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300 font-semibold">{u.fully_paid}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-amber-300 font-semibold">{u.partial}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{u.yet_to_pay}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        {/if}
+
+      {:else if tab === 'tags'}
+        <!-- ═══ TAG CASES ═══ -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="tag-uni">University</label>
+              <select id="tag-uni" class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={tagUni}>
+                <option value="">All universities</option>
+                {#each windowUniversities as u (u.id)}<option value={u.id}>{u.name}</option>{/each}
+              </select>
+            </div>
+            <div class="text-[11px] text-zinc-500">
+              {#if allBatchesSelected}All batches{:else}Filtered to {selBatchIds.length} batch(es) — change on Overview{/if}
+            </div>
+          </div>
+        </section>
+
+        {#if tagLoading}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>
+        {:else if !tagData || tagData.universities.length === 0}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">No tag cases recorded.</div>
+        {:else}
+          {@const activeCats = tagData.categories.filter(c => (tagData!.totals[c] ?? 0) > 0)}
+          <div class="mb-3 text-xs text-zinc-500">Total tagged students: <strong class="text-zinc-200">{tagData.grand_total}</strong></div>
+          <section class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left">University</th>
+                    <th class="px-3 py-2.5 text-right">Total</th>
+                    {#each activeCats as c}<th class="px-3 py-2.5 text-right whitespace-nowrap">{c}</th>{/each}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each tagData.universities as u (u.university_id)}
+                    <tr>
+                      <td class="px-3 py-2.5 font-medium">{u.university_name}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums font-semibold">{u.total}</td>
+                      {#each activeCats as c}
+                        <td class="px-3 py-2.5 text-right tabular-nums {(u.breakdown[c] ?? 0) > 0 ? 'text-zinc-200' : 'text-zinc-600'}">{u.breakdown[c] ?? 0}</td>
+                      {/each}
+                    </tr>
+                  {/each}
+                </tbody>
+                <tfoot class="border-t border-zinc-700 bg-zinc-950/60 text-[13px] font-semibold">
+                  <tr>
+                    <td class="px-3 py-2.5">All universities</td>
+                    <td class="px-3 py-2.5 text-right tabular-nums">{tagData.grand_total}</td>
+                    {#each activeCats as c}<td class="px-3 py-2.5 text-right tabular-nums">{tagData.totals[c] ?? 0}</td>{/each}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+        {/if}
+
+      {:else if tab === 'students'}
+        <!-- ═══ STUDENT-WISE ═══ -->
+        <section class="mb-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="sw-uni">University</label>
+              <select id="sw-uni" class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={swUni}>
+                <option value="">All universities</option>
+                {#each windowUniversities as u (u.id)}<option value={u.id}>{u.name}</option>{/each}
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="sw-status">Status</label>
+              <select id="sw-status" class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={swStatus}>
+                <option value="">All</option>
+                <option value="Fully Paid">Fully Paid</option>
+                <option value="Partially Paid">Partially Paid</option>
+                <option value="Yet To Pay">Yet To Pay</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="sw-tag">Tag case</label>
+              <select id="sw-tag" class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={swTag}>
+                <option value="">All</option>
+                {#each TAG_CASES as t}<option value={t}>{t}</option>{/each}
+              </select>
+            </div>
+            <div class="flex-1 min-w-[180px]">
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="sw-search">Search</label>
+              <input id="sw-search" type="search" placeholder="Name or User ID…" class="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={swSearch} />
+            </div>
+            <button class="rounded-md border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800" onclick={exportStudentsCsv} title="Export the current university + batch scope as CSV">⬇ Export CSV</button>
+          </div>
+        </section>
+
+        <div class="mb-3 text-xs text-zinc-500">Showing <strong class="text-zinc-200">{winStudents.length}</strong> students{#if !allBatchesSelected} · {selBatchIds.length} batch(es){/if}</div>
+
+        {#if winStudentsLoading}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">Loading…</div>
+        {:else if winStudents.length === 0}
+          <div class="rounded-2xl border border-zinc-800 bg-zinc-900 py-12 text-center text-sm text-zinc-500">No students match the filters.</div>
+        {:else}
+          <div class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+            <div class="max-h-[70vh] overflow-auto">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 border-b border-zinc-800 bg-zinc-950/95 text-[10px] uppercase tracking-[0.15em] text-zinc-500 backdrop-blur">
+                  <tr>
+                    <th class="px-3 py-2.5 text-left">User ID</th>
+                    <th class="px-3 py-2.5 text-left">Student name</th>
+                    <th class="px-3 py-2.5 text-left">University</th>
+                    <th class="px-3 py-2.5 text-left">Status</th>
+                    <th class="px-3 py-2.5 text-left">Tag case</th>
+                    <th class="px-3 py-2.5 text-center">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each winStudents as s (s.id)}
+                    <tr>
+                      <td class="px-3 py-2.5 font-mono text-[11px] text-zinc-400 truncate max-w-[160px]" title={s.zoho_user_id}>{s.zoho_user_id}</td>
+                      <td class="px-3 py-2.5 font-medium truncate max-w-[200px]">{s.student_name ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400 truncate max-w-[160px]">{s.university_name ?? '—'}</td>
+                      <td class="px-3 py-2.5">
+                        <span class="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider
+                          {s.status === 'Fully Paid' ? 'bg-emerald-900 text-emerald-200' : s.status === 'Partially Paid' ? 'bg-amber-900 text-amber-200' : 'bg-red-900 text-red-200'}">{s.status}</span>
+                      </td>
+                      <td class="px-3 py-2.5">
+                        <select class="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs text-zinc-200 focus:border-blue-600 focus:outline-none" value={s.tag_case ?? ''} onchange={(e) => setTagCaseWin(s.id, (e.currentTarget as HTMLSelectElement).value || null)}>
+                          <option value="">—</option>
+                          {#each TAG_CASES as t}<option value={t}>{t}</option>{/each}
+                        </select>
+                      </td>
+                      <td class="px-3 py-2.5 text-center">
+                        <button
+                          class="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2 py-1 text-xs hover:bg-zinc-800
+                                {Number(s.remark_count) > 0 ? 'text-blue-200 border-blue-800/60 bg-blue-950/30 hover:bg-blue-900/40' : 'text-zinc-400'}"
+                          onclick={() => openRemarks(s)}
+                          title={Number(s.remark_count) > 0 ? `${s.remark_count} remark(s)` : 'Add a remark'}
+                        >💬 {Number(s.remark_count) > 0 ? s.remark_count : 'Add'}</button>
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        {/if}
+
+      {:else if tab === 'dates'}
+        <!-- ═══ DROPOUTS & DATES ═══ -->
+        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+          <div class="flex flex-wrap items-end gap-3">
+            <div>
+              <label class="block text-[10px] uppercase tracking-[0.18em] text-zinc-500" for="dates-uni">University</label>
+              <select id="dates-uni" class="mt-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none" bind:value={datesUni}>
+                <option value="">All universities</option>
+                {#each windowUniversities as u (u.id)}<option value={u.id}>{u.name}</option>{/each}
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Semester dates -->
         <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
           <header class="border-b border-zinc-800 px-4 py-3">
             <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Semester dates</div>
             <div class="text-sm font-semibold">From "{data.activeWindow.dates_subsheet}" sub-sheet</div>
           </header>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-                <tr>
-                  <th class="px-3 py-2.5 text-left">University</th>
-                  <th class="px-3 py-2.5 text-left">Sem 2 last</th>
-                  <th class="px-3 py-2.5 text-left">Collection start</th>
-                  <th class="px-3 py-2.5 text-left">Collection last</th>
-                  <th class="px-3 py-2.5 text-left">Next sem start</th>
-                  <th class="px-3 py-2.5 text-right">Fee amount</th>
-                  <th class="px-3 py-2.5 text-left">Remarks</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-800">
-                {#each ov.university_dates as d}
+          {#if datesForDatesTab.length === 0}
+            <div class="px-4 py-8 text-center text-sm text-zinc-500">No dates for this selection.</div>
+          {:else}
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
                   <tr>
-                    <td class="px-3 py-2.5 font-medium">{d.university_name}</td>
-                    <td class="px-3 py-2.5 text-zinc-400">{d.sem_last_date ?? '—'}</td>
-                    <td class="px-3 py-2.5 text-zinc-400">{d.collection_start_date ?? '—'}</td>
-                    <td class="px-3 py-2.5 text-zinc-400">{d.collection_end_date ?? '—'}</td>
-                    <td class="px-3 py-2.5 text-zinc-400">{d.next_sem_start_date ?? '—'}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(d.fee_per_student)}</td>
-                    <td class="px-3 py-2.5 text-zinc-400 max-w-xs truncate" title={d.meta_remarks ?? ''}>{d.meta_remarks ?? '—'}</td>
+                    <th class="px-3 py-2.5 text-left">University</th>
+                    <th class="px-3 py-2.5 text-left">Sem 2 last</th>
+                    <th class="px-3 py-2.5 text-left">Collection start</th>
+                    <th class="px-3 py-2.5 text-left">Collection last</th>
+                    <th class="px-3 py-2.5 text-left">Next sem start</th>
+                    <th class="px-3 py-2.5 text-right">Fee amount</th>
+                    <th class="px-3 py-2.5 text-left">Remarks</th>
                   </tr>
-                {/each}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody class="divide-y divide-zinc-800">
+                  {#each datesForDatesTab as d (d.university_id)}
+                    <tr>
+                      <td class="px-3 py-2.5 font-medium">{d.university_name}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.sem_last_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.collection_start_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.collection_end_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-zinc-400">{d.next_sem_start_date ?? '—'}</td>
+                      <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(d.fee_per_student)}</td>
+                      <td class="px-3 py-2.5 text-zinc-400 max-w-xs truncate" title={d.meta_remarks ?? ''}>{d.meta_remarks ?? '—'}</td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
         </section>
-        {/if}
 
-        <!-- Dropouts (overview-wide) -->
+        <!-- Dropouts -->
         <section class="mb-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
           <header class="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
             <div>
               <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Dropouts</div>
-              <div class="text-sm font-semibold">From the dropout sub-sheet · {dropouts.length} total</div>
+              <div class="text-sm font-semibold">From the dropout sub-sheet · {dropoutsForDatesTab.length} shown</div>
             </div>
             {#if dropoutsLoading}<div class="text-[11px] text-zinc-500">Loading…</div>{/if}
           </header>
-          {#if dropouts.length === 0}
-            <div class="px-4 py-8 text-center text-sm text-zinc-500">{dropoutsLoading ? 'Loading…' : 'No dropouts in this window.'}</div>
+          {#if dropoutsForDatesTab.length === 0}
+            <div class="px-4 py-8 text-center text-sm text-zinc-500">{dropoutsLoading ? 'Loading…' : 'No dropouts for this selection.'}</div>
           {:else}
             <div class="max-h-[420px] overflow-y-auto">
               <table class="w-full text-sm">
@@ -1042,7 +1593,7 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800">
-                  {#each dropouts as d}
+                  {#each dropoutsForDatesTab as d (d.id)}
                     <tr>
                       <td class="px-3 py-2.5">
                         <div class="font-medium truncate max-w-[220px]">{d.student_name ?? '—'}</div>
@@ -1311,71 +1862,6 @@
           </div>
         {/if}
 
-      {:else if tab === 'custom'}
-        <!-- Custom: multi-select batches and see combined totals -->
-        <section class="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
-          <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Custom view</div>
-          <div class="mt-1 text-sm font-semibold">Pick the batches you want to combine</div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            {#each data.batches as b}
-              <label class="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-semibold transition-colors
-                            {customSelected.has(b.id) ? 'bg-blue-900/40 border-blue-700 text-blue-100' : 'bg-zinc-950 border-zinc-800 text-zinc-300 hover:bg-zinc-800'}">
-                <input type="checkbox" checked={customSelected.has(b.id)} onchange={() => toggleCustom(b.id)} class="accent-blue-500" />
-                NIAT Batch {b.batch_start_year} · Sem {b.semester_number}
-              </label>
-            {/each}
-          </div>
-          {#if customSelected.size === 0}
-            <div class="mt-3 text-[11px] text-zinc-500">Select two or more batches above to see combined totals.</div>
-          {/if}
-        </section>
-
-        {#if customTotals}
-          <div class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-            <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Batches</div><div class="mt-1 text-2xl font-semibold tabular-nums">{customTotals.batches}</div></div>
-            <div class="rounded-xl border border-zinc-800 bg-zinc-950 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Students</div><div class="mt-1 text-2xl font-semibold tabular-nums">{customTotals.students}</div></div>
-            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Fully paid</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{customTotals.fully_paid}</div></div>
-            <div class="rounded-xl border border-amber-900 bg-amber-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-amber-400">Partial</div><div class="mt-1 text-2xl font-semibold tabular-nums text-amber-200">{customTotals.partial}</div></div>
-            <div class="rounded-xl border border-red-900 bg-red-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-red-400">Yet to pay</div><div class="mt-1 text-2xl font-semibold tabular-nums text-red-200">{customTotals.yet_to_pay}</div></div>
-            <div class="rounded-xl border border-blue-900 bg-blue-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-blue-400">Collected</div><div class="mt-1 text-2xl font-semibold tabular-nums text-blue-200">{fmtMoney(customTotals.total_paid)}</div><div class="text-[11px] text-blue-300/80">of {fmtMoney(customTotals.total_payable)}</div></div>
-            <div class="rounded-xl border border-emerald-900 bg-emerald-950/30 px-3 py-3"><div class="text-[10px] uppercase tracking-[0.18em] text-emerald-400">Collection %</div><div class="mt-1 text-2xl font-semibold tabular-nums text-emerald-200">{fmtPct(customTotals.total_paid, customTotals.total_payable)}</div></div>
-          </div>
-
-          <section class="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-            <header class="border-b border-zinc-800 px-4 py-3">
-              <div class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Per batch</div>
-              <div class="text-sm font-semibold">Selected batches breakdown</div>
-            </header>
-            <table class="w-full text-sm">
-              <thead class="border-b border-zinc-800 bg-zinc-950/40 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
-                <tr>
-                  <th class="px-3 py-2.5 text-left">Batch · Semester</th>
-                  <th class="px-3 py-2.5 text-right">Students</th>
-                  <th class="px-3 py-2.5 text-right text-emerald-400">Fully</th>
-                  <th class="px-3 py-2.5 text-right text-amber-400">Partial</th>
-                  <th class="px-3 py-2.5 text-right text-red-400">Yet</th>
-                  <th class="px-3 py-2.5 text-right">Payable</th>
-                  <th class="px-3 py-2.5 text-right">Collected</th>
-                  <th class="px-3 py-2.5 text-right">Coll %</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-zinc-800">
-                {#each (data.overview?.per_batch || []).filter(b => customSelected.has(b.id)) as b}
-                  <tr class="cursor-pointer hover:bg-zinc-800/40" onclick={() => selectBatch(b.id)}>
-                    <td class="px-3 py-2.5 font-medium">{b.display_name}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums">{b.total}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums text-emerald-300">{b.fully_paid}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums text-amber-300">{b.partial}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums text-red-300">{b.yet_to_pay}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(Number(b.total_payable))}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtMoney(Number(b.total_paid))}</td>
-                    <td class="px-3 py-2.5 text-right tabular-nums">{fmtPct(Number(b.total_paid), Number(b.total_payable))}</td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          </section>
-        {/if}
       {/if}
     {/if}
   </div>
@@ -1465,13 +1951,29 @@
             {#each remarks as r}
               <li class="rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3">
                 <div class="flex items-baseline justify-between gap-3">
-                  <div class="text-sm font-medium">{r.author_name}</div>
+                  <div class="text-sm font-medium">{r.author_name}{#if r.designation}<span class="ml-1 text-[11px] font-normal text-zinc-400">· {r.designation}</span>{/if}</div>
                   <div class="text-[10px] uppercase tracking-[0.15em] text-zinc-500">{new Date(r.created_at).toLocaleString()}</div>
                 </div>
                 <div class="mt-0.5 text-[10px] uppercase tracking-[0.15em] text-zinc-500">
                   {r.role}{r.case_type ? ' · ' + r.case_type : ''}{r.source && r.source !== 'manual' ? ' · ' + r.source : ''}
                 </div>
                 <div class="mt-2 whitespace-pre-wrap text-sm text-zinc-200">{r.text}</div>
+                {#if r.attachments && r.attachments.length > 0}
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    {#each r.attachments as a (a.id)}
+                      <a href={a.file_url} target="_blank" rel="noopener" class="inline-flex items-center gap-1 rounded-md border border-blue-800/60 bg-blue-950/30 px-2 py-0.5 text-[11px] text-blue-200 hover:bg-blue-900/40" title={a.file_name}>
+                        📎 {a.mime_type === 'application/pdf' ? 'PDF' : 'Proof'}
+                      </a>
+                    {/each}
+                  </div>
+                {/if}
+                <div class="mt-2">
+                  <label class="inline-flex cursor-pointer items-center gap-1 text-[11px] text-zinc-400 hover:text-zinc-200">
+                    {uploadingFor === r.id ? 'Uploading…' : '＋ Attach proof (PDF/image)'}
+                    <input type="file" accept="application/pdf,image/*" class="hidden" disabled={uploadingFor === r.id}
+                      onchange={(e) => { const f = (e.currentTarget as HTMLInputElement).files?.[0]; uploadProof(r.id, f); (e.currentTarget as HTMLInputElement).value = ''; }} />
+                  </label>
+                </div>
               </li>
             {/each}
           </ol>
@@ -1488,6 +1990,12 @@
           bind:value={newRemarkText}
           onkeydown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') addRemark(); }}
         ></textarea>
+        <input
+          type="text"
+          placeholder="Your designation (e.g. Program Manager)"
+          class="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
+          bind:value={newRemarkDesignation}
+        />
         <div class="mt-2 flex items-center justify-between gap-3">
           <select class="rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-zinc-200 focus:border-blue-600 focus:outline-none" bind:value={newRemarkCase}>
             <option value="">No case tag</option>
@@ -1499,7 +2007,7 @@
             onclick={addRemark}
           >{savingRemark ? 'Saving…' : 'Add remark'}</button>
         </div>
-        <div class="mt-1 text-[10px] text-zinc-500">Tip: ⌘/Ctrl + Enter to submit</div>
+        <div class="mt-1 text-[10px] text-zinc-500">Tip: ⌘/Ctrl + Enter to submit · attach a PDF proof to any saved remark above</div>
       </footer>
     </aside>
   </div>

@@ -139,6 +139,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             [activeWindow.id],
         );
 
+        // Per-(batch, university) breakdown so the Overview's batch multi-select
+        // can recompute per-university summaries for just the selected batches
+        // client-side (no extra round-trip on toggle).
+        const perBatchUni = await db.query(
+            `SELECT fsp.batch_period_id, bp.batch_start_year,
+                    u.id AS university_id, u.name AS university_name,
+                    COUNT(fsp.id)::int                                          AS total,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Fully Paid')::int     AS fully_paid,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Partially Paid')::int AS partial,
+                    COUNT(*) FILTER (WHERE fsp.status = 'Yet To Pay')::int     AS yet_to_pay,
+                    COALESCE(SUM(fsp.payable), 0)                               AS total_payable,
+                    COALESCE(SUM(fsp.paid), 0)                                  AS total_paid
+               FROM fee_student_payments fsp
+               JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
+               JOIN universities u ON u.id = fsp.university_id
+              WHERE bp.window_id = $1
+              GROUP BY fsp.batch_period_id, bp.batch_start_year, u.id, u.name`,
+            [activeWindow.id],
+        );
+
         // Dropout count comes from the dropout sub-sheet directly, NOT from
         // tag_case = 'Dropout'. Reason: tag_case only gets set when we can
         // link a dropout row to a batch_period (matching UIDs), which fails
@@ -211,6 +231,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             success_coaches: coaches.rows,
             university_dates: dates.rows,
             per_university: perUniversity.rows,
+            per_batch_university: perBatchUni.rows,
             dropout_reasons: dropoutReasonsR.rows,
             trend: trend.rows,
         };

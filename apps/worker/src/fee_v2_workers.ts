@@ -133,6 +133,59 @@ async function runSnapshotCycle(): Promise<void> {
     }
 }
 
+// ── Daily-report lock loop ────────────────────────────────────────────────
+//
+// At 20:00 IST every day, freeze each active window's per-university counts
+// into fee_daily_university_snapshot (locked=true) so the Daily Report stops
+// moving after 8 PM. The freeze itself lives in the app
+// (/api/fees2/windows/:id/daily POST → captureDailyUniversitySnapshot), keyed
+// idempotently by (window, university, date) — a restart in the fire window is
+// a no-op. Fires anywhere in 20:00–20:14 IST for restart tolerance.
+
+let dailyLockRunning = false;
+
+async function runDailyLockCycle(): Promise<void> {
+    if (dailyLockRunning) return;
+    dailyLockRunning = true;
+    try {
+        const now = new Date();
+        const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+        if (!(ist.getUTCHours() === 20 && ist.getUTCMinutes() < 15)) return;
+
+        if (!INTERNAL_TOKEN) {
+            console.error('[FEE2_DAILY_LOCK] ❌ INTERNAL_SYNC_TOKEN not set — daily lock skipped.');
+            return;
+        }
+
+        const windows = await db.query(
+            `SELECT id FROM fee_semester_window WHERE status = 'active'`,
+        );
+        for (const w of windows.rows as Array<{ id: string }>) {
+            try {
+                const url = `${APP_BASE_URL}/api/fees2/windows/${w.id}/daily`;
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-internal-sync-token': INTERNAL_TOKEN },
+                });
+                const j: { ok?: boolean; universities?: number; snapshot_date?: string } = await res.json().catch(() => ({} as Record<string, never>));
+                if (!res.ok) {
+                    console.error(`[FEE2_DAILY_LOCK] failed for window ${w.id}: HTTP ${res.status}`);
+                    continue;
+                }
+                console.log(JSON.stringify({
+                    ts: new Date().toISOString(), level: 'info',
+                    scope: 'fee2.daily_lock', msg: 'daily_locked',
+                    window_id: w.id, date: j.snapshot_date, universities: j.universities,
+                }));
+            } catch (e) {
+                console.error(`[FEE2_DAILY_LOCK] error for window ${w.id}:`, (e as Error).message);
+            }
+        }
+    } finally {
+        dailyLockRunning = false;
+    }
+}
+
 // ── Loop starters ────────────────────────────────────────────────────────
 
 export function startFeeV2AutoSyncLoop(): void {
@@ -145,4 +198,9 @@ export function startFeeV2SnapshotLoop(): void {
     setTimeout(() => runSnapshotCycle().catch(e => console.error('[FEE2_SNAPSHOT] initial cycle:', (e as Error).message)), 60 * 1000);
     setInterval(() => runSnapshotCycle().catch(e => console.error('[FEE2_SNAPSHOT] cycle:', (e as Error).message)), 60 * 1000);
     console.log('[FEE2_SNAPSHOT] ✅ Loop started (1-min granularity, fires at 10:00 IST + 19:30 IST)');
+}
+
+export function startFeeV2DailyLockLoop(): void {
+    setInterval(() => runDailyLockCycle().catch(e => console.error('[FEE2_DAILY_LOCK] cycle:', (e as Error).message)), 60 * 1000);
+    console.log('[FEE2_DAILY_LOCK] ✅ Loop started (1-min granularity, locks daily report at 20:00 IST)');
 }

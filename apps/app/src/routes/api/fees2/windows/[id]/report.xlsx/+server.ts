@@ -152,10 +152,20 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 fsp.previous_fee_due, fsp.current_term_discount,
                 fsp.status, fsp.registration_status, fsp.registration_date::text AS registration_date,
                 fsp.tag_case, fsp.success_coach_name,
-                COALESCE(rc.n, 0) AS remark_count
+                COALESCE(rc.n, 0) AS remark_count, rc.remark_text, rc.proof_urls
            FROM fee_student_payments fsp JOIN fee_batch_period bp ON bp.id = fsp.batch_period_id
            LEFT JOIN universities u ON u.id = fsp.university_id
-           LEFT JOIN LATERAL (SELECT COUNT(*)::int AS n FROM fee_remarks fr WHERE fr.student_payment_id = fsp.id) rc ON true
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS n,
+                    STRING_AGG(fr.text, ' | ' ORDER BY fr.created_at DESC)  AS remark_text,
+                    STRING_AGG(att.urls, ' | ')                             AS proof_urls
+               FROM fee_remarks fr
+               LEFT JOIN LATERAL (
+                 SELECT STRING_AGG(a.file_url, ' ') AS urls
+                   FROM fee_remark_attachments a WHERE a.remark_id = fr.id
+               ) att ON true
+              WHERE fr.student_payment_id = fsp.id
+           ) rc ON true
           WHERE bp.window_id = $1 ${scopeFilter} ORDER BY bp.batch_start_year DESC, u.name, fsp.student_name`,
         [win.id, ...scopeArg])).rows;
 
@@ -711,7 +721,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
             { header: 'Reg Date',      key: 'regd',   width: 12 },
             { header: 'Tag Case',      key: 'tag',    width: 22 },
             { header: 'Success Coach', key: 'coach',  width: 22 },
-            { header: 'Remarks',       key: 'rem',    width: 10 },
+            { header: 'Remark #',      key: 'rem',    width: 9  },
+            { header: 'Remarks',       key: 'remtext', width: 48 },
+            { header: 'Proof Links',   key: 'proof',  width: 40 },
         ];
         setHeaderStyle(ws.getRow(1));
 
@@ -723,13 +735,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
                 prev: Number(s.previous_fee_due ?? 0), disc: Number(s.current_term_discount ?? 0),
                 status: s.status, regs: s.registration_status, regd: s.registration_date,
                 tag: s.tag_case, coach: s.success_coach_name, rem: Number(s.remark_count),
+                remtext: s.remark_text ?? '', proof: s.proof_urls ?? '',
             });
             setStripeStyle(row, i % 2 === 1);
             ['pay','paid','pen','prev','disc'].forEach(k => { row.getCell(k).numFmt = RUPEE_FMT; });
             statusPill(row.getCell('status'), s.status);
             if (Number(s.remark_count) > 0) row.getCell('rem').font = { name: 'Calibri', size: 11, color: { argb: 'FF1D4ED8' }, bold: true };
         });
-        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 16 } };
+        ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 18 } };
     }
 
     // ═══════════════════════════════════════════════════════════════════

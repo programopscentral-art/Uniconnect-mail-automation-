@@ -455,8 +455,11 @@ export async function fireSnapshot(window_id: string, kind: SnapshotResult['kind
                 subject,
                 intro,
                 bodyHtml: html,
-                ctaLabel: 'Open fee collection',
-                ctaUrl: `/fee-collection-v2?window=${w.id}`,
+                // The snapshot HTML is a complete, full-width (720px) email in
+                // its own right (own header, CTAs, footer). Send it raw — routing
+                // it through the 560px Operations-OS card wrapper clipped it so
+                // half the layout was invisible.
+                wrap: false,
                 tone: 'info',
             });
             sentOk = r.sent;

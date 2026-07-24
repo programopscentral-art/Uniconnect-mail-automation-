@@ -14,10 +14,22 @@ export const GET: RequestHandler = async ({ params, locals }) => {
     checkFeeAccess(locals, 'view');
     if (!params.id) throw error(400, 'id required');
     const r = await db.query(
-        `SELECT id, author_id, author_name, role, case_type, text, source, created_at
-           FROM fee_remarks
-          WHERE student_payment_id = $1
-          ORDER BY created_at DESC
+        `SELECT r.id, r.author_id, r.author_name, r.role, r.designation, r.case_type,
+                r.text, r.source, r.created_at,
+                COALESCE(
+                    json_agg(
+                        json_build_object('id', a.id, 'file_name', a.file_name,
+                                          'file_url', a.file_url, 'mime_type', a.mime_type,
+                                          'size_bytes', a.size_bytes)
+                        ORDER BY a.uploaded_at
+                    ) FILTER (WHERE a.id IS NOT NULL),
+                    '[]'::json
+                ) AS attachments
+           FROM fee_remarks r
+           LEFT JOIN fee_remark_attachments a ON a.remark_id = r.id
+          WHERE r.student_payment_id = $1
+          GROUP BY r.id
+          ORDER BY r.created_at DESC
           LIMIT 200`,
         [params.id],
     );
@@ -31,14 +43,17 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
     const text = String(body.text ?? '').trim();
     if (!text) throw error(400, 'text required');
     const case_type = body.case_type ? String(body.case_type).trim() : null;
-
     const user = locals.user!;
+    // Designation defaults to the author's role when the caller doesn't supply one.
+    const designation = (body.designation ? String(body.designation).trim() : '') || user.role || null;
+
     const r = await db.query(
         `INSERT INTO fee_remarks
-            (student_payment_id, author_id, author_name, role, case_type, text, source)
-         VALUES ($1, $2, $3, $4, $5, $6, 'manual')
-         RETURNING id, author_id, author_name, role, case_type, text, source, created_at`,
-        [params.id, user.id, user.name || user.email, user.role, case_type, text],
+            (student_payment_id, author_id, author_name, role, designation, case_type, text, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual')
+         RETURNING id, author_id, author_name, role, designation, case_type, text, source, created_at,
+                   '[]'::json AS attachments`,
+        [params.id, user.id, user.name || user.email, user.role, designation, case_type, text],
     );
     return json({ remark: r.rows[0] });
 };

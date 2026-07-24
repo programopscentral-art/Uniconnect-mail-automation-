@@ -458,8 +458,9 @@ import { registerOpsOsWorkers } from './ops_os';
 registerOpsOsWorkers();
 
 // ─── Fee Collection v2 workers ──
-import { startFeeV2AutoSyncLoop, startFeeV2SnapshotLoop } from './fee_v2_workers';
+import { startFeeV2AutoSyncLoop, startFeeV2SnapshotLoop, startFeeV2DailyLockLoop } from './fee_v2_workers';
 startFeeV2AutoSyncLoop();
 startFeeV2SnapshotLoop();
+startFeeV2DailyLockLoop();
 
 console.log('✅ Worker with robust notifications, BullMQ sync, meeting intelligence, ops_os scaffolding, and fee v2 loops started.');
