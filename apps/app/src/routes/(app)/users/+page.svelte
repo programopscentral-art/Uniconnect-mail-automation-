@@ -236,6 +236,7 @@
     BOA: "bg-gray-50 text-gray-700 border-gray-200",
     CMA: "bg-rose-50 text-rose-700 border-rose-200",
     CMA_MANAGER: "bg-pink-50 text-pink-700 border-pink-200",
+    SME: "bg-teal-50 text-teal-700 border-teal-200",
   };
 
   const presenceColors: Record<string, string> = {
@@ -423,6 +424,7 @@
           <option value="CMA_MANAGER" class="dark:bg-slate-900"
             >CMA Manager</option
           >
+          <option value="SME" class="dark:bg-slate-900">SME</option>
         </select>
       </div>
     </div>
@@ -992,6 +994,7 @@
                 <option value="CMA">CMA</option>
                 <option value="CMA_MANAGER">CMA Manager</option>
               {/if}
+              <option value="SME">SME (Examinations · all universities)</option>
             </select>
           </div>
 

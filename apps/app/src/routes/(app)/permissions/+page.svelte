@@ -13,6 +13,7 @@
     "BOA",
     "CMA",
     "CMA_MANAGER",
+    "SME",
   ];
   let features = [
     { id: "dashboard", label: "Dashboard", desc: "Main overview and stats" },

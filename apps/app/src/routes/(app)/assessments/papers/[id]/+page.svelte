@@ -364,8 +364,30 @@
 
   let isSaving = $state(false);
 
-  async function saveChanges() {
+  // Exam-papers Drive sync state
+  let driveConnected = $state(false);
+  let driveEmail = $state<string | null>(null);
+  let driveMsg = $state<{ text: string; ok: boolean } | null>(null);
+
+  async function refreshDriveStatus() {
+    try {
+      const r = await fetch("/api/assessments/drive/status");
+      if (r.ok) {
+        const j = await r.json();
+        driveConnected = !!j.connected;
+        driveEmail = j.email ?? null;
+      }
+    } catch { /* ignore */ }
+  }
+
+  let driveStatusLoaded = false;
+  $effect(() => {
+    if (!driveStatusLoaded) { driveStatusLoaded = true; refreshDriveStatus(); }
+  });
+
+  async function saveChanges(syncDrive = false) {
     isSaving = true;
+    if (syncDrive) driveMsg = null;
     try {
       const res = await fetch(`/api/assessments/papers/${data.paper.id}`, {
         method: "PATCH",
@@ -384,10 +406,29 @@
           exam_type: paperMeta.exam_type,
           duration_minutes: Number(paperMeta.duration_minutes),
           max_marks: Number(paperMeta.max_marks),
+          sync_drive: syncDrive,
         }),
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
+        // Surface the Drive-upload outcome from an explicit Save.
+        if (syncDrive) {
+          const body = await res.clone().json().catch(() => null);
+          const d = body?.drive;
+          if (d?.ok) {
+            driveMsg = { text: `Saved to Drive → ${d.folder_path} (${d.uploaded?.length ?? 0} PDF${(d.uploaded?.length ?? 0) === 1 ? "" : "s"})`, ok: true };
+          } else if (d) {
+            const reasons: Record<string, string> = {
+              not_connected: "Drive not connected — ask an admin to click Connect Drive.",
+              no_university: "Paper has no university set, so it couldn't be routed to a folder.",
+              no_template: "This paper isn't on a print template, so no PDF could be generated for Drive.",
+              no_sets_rendered: "No sets could be rendered to PDF.",
+              paper_not_found: "Paper not found.",
+              error: d.message || "Drive upload failed.",
+            };
+            driveMsg = { text: "Saved. " + (reasons[d.reason] || d.message || "Drive upload skipped."), ok: false };
+          }
+        }
         // Refresh local data from server for standard SvelteKit state
         await invalidateAll();
         // NOTE: We used to re-run initializeSets() here, but in Svelte 5 with deep state,
@@ -1136,6 +1177,19 @@
         GENERATE NEW
       </a>
 
+      {#if driveConnected}
+        <span
+          class="inline-flex items-center gap-1.5 px-3 py-3 bg-white/5 text-emerald-300 text-[10px] font-black rounded-xl border border-emerald-500/30 flex-shrink-0"
+          title={`Exam papers auto-save to Google Drive as ${driveEmail ?? "connected account"}`}
+        >☁ DRIVE ON</span>
+      {:else}
+        <a
+          href="/api/assessments/drive/connect"
+          class="inline-flex items-center px-3 py-3 bg-white/5 text-amber-300 text-[10px] font-black rounded-xl hover:bg-white/10 transition-all border border-amber-500/30 flex-shrink-0"
+          title="Admin: connect the exam-papers Google Drive so Save also uploads the PDF"
+        >☁ CONNECT DRIVE</a>
+      {/if}
+
       <button
         onclick={() => (showSaveModal = true)}
         disabled={isSaving}
@@ -1418,7 +1472,7 @@
           >
           <button
             onclick={async () => {
-              await saveChanges();
+              await saveChanges(true);
               showSaveModal = false;
             }}
             disabled={isSaving}
@@ -1428,6 +1482,19 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+{/if}
+
+{#if driveMsg}
+  <div class="fixed bottom-6 right-6 z-[60] max-w-sm">
+    <div
+      class="flex items-start gap-3 rounded-2xl border px-4 py-3 text-xs font-bold shadow-2xl backdrop-blur
+             {driveMsg.ok ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-100' : 'bg-amber-950/90 border-amber-500/40 text-amber-100'}"
+    >
+      <span class="text-base leading-none">{driveMsg.ok ? '☁' : 'ⓘ'}</span>
+      <span class="flex-1 leading-snug">{driveMsg.text}</span>
+      <button onclick={() => (driveMsg = null)} class="text-white/50 hover:text-white" aria-label="Dismiss">✕</button>
     </div>
   </div>
 {/if}

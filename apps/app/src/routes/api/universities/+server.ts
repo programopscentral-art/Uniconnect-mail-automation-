@@ -6,7 +6,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
     if (!locals.user) throw error(401);
 
     // Allow read access for roles that need university listings
-    const readAllowedRoles = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS', 'UNIVERSITY_OPERATOR', 'BOA'];
+    const readAllowedRoles = ['ADMIN', 'PROGRAM_OPS', 'PM', 'PMA', 'COS', 'UNIVERSITY_OPERATOR', 'BOA', 'SME'];
     if (!readAllowedRoles.includes(locals.user.role as string)) {
         throw error(403, 'Forbidden');
     }

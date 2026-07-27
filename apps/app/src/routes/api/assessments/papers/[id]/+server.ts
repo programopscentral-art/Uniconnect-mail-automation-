@@ -1,6 +1,7 @@
 import { db } from '@uniconnect/shared';
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+import { syncPaperToDrive } from '$lib/server/exam_drive';
 
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     if (!locals.user) throw error(401);
@@ -8,8 +9,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     const { id } = params;
     const body = await request.json();
 
-    // We expect sets_data to be updated
-    const { sets_data, paper_date, duration_minutes, max_marks, exam_type, ...metadata } = body;
+    // `sync_drive` is a control flag (explicit Save → also upload PDFs to
+    // Drive), not paper data — pull it out before the rest becomes metadata.
+    const { sets_data, paper_date, duration_minutes, max_marks, exam_type, sync_drive, ...metadata } = body;
 
     // We store metadata inside the sets_data JSON structure for full persistence
     const setsWithMeta = sets_data ? {
@@ -40,7 +42,15 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 
         if (rows.length === 0) throw error(404, 'Paper not found');
 
-        return json(rows[0]);
+        // On an explicit Save, also upload the rendered PDF(s) to the
+        // university/batch/semester Drive folder. Non-fatal: the paper is
+        // already saved to the DB; Drive result is reported back for the UI.
+        let drive: Awaited<ReturnType<typeof syncPaperToDrive>> | undefined;
+        if (sync_drive) {
+            drive = await syncPaperToDrive(id);
+        }
+
+        return json({ ...rows[0], drive });
     } catch (err: any) {
         console.error('[PAPER_UPDATE_API] Error:', err);
         throw error(500, err.message);

@@ -38,7 +38,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'FACULTY': ["dashboard", "academic-operations", "tasks"],
     'STUDENT': ["dashboard", "academic-operations"],
     'STAKEHOLDER': ["dashboard", "academic-operations", "analytics"],
-    'SUPPORT': ["dashboard", "academic-operations", "tasks"]
+    'SUPPORT': ["dashboard", "academic-operations", "tasks"],
+    // SME (Subject Matter Expert): examinations-only access — the exam-paper /
+    // question-paper generator ("assessments", labelled "Examinations" in the
+    // sidebar) plus read access to the examinations module. Scoped to ALL
+    // universities via api/universities readAllowedRoles.
+    'SME': ["dashboard", "assessments", "academic-operations"]
 };
 
 export async function seedDefaultPermissions(): Promise<void> {
@@ -85,6 +90,14 @@ export async function ensureCorePermissions(): Promise<void> {
                 WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = $1)
             `, [role]);
         }
+
+        // SME: examinations-only. Seed its row if missing (kept out of the loop
+        // above because its default feature set is examinations, not students).
+        await db.query(`
+            INSERT INTO role_permissions (role, features)
+            SELECT 'SME', '["dashboard", "tasks", "assessments", "academic-operations"]'::jsonb
+            WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = 'SME')
+        `);
 
         // Fix orphaned tasks: tasks with NULL university_id should inherit from their creator
         await db.query(`
