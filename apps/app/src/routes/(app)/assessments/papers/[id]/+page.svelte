@@ -385,6 +385,71 @@
     if (!driveStatusLoaded) { driveStatusLoaded = true; refreshDriveStatus(); }
   });
 
+  // Client-side capture of the rendered paper → PDF (works for every paper
+  // format, incl. the non-deterministic ones that only exist as browser HTML).
+  const PAPER_EL_IDS = [
+    "vgu-mid-paper-actual", "crescent-paper-actual", "generic-paper-actual",
+    "svyasa-paper-actual", "amet-paper-actual", "annamacharya-paper-actual",
+    "cdu-paper-actual", "adypu-sem-paper-actual",
+  ];
+  function getPaperEl(): HTMLElement | null {
+    for (const id of PAPER_EL_IDS) {
+      const el = document.getElementById(id);
+      if (el) return el;
+    }
+    return document.getElementById("paper-content");
+  }
+  async function buildActiveSetPdfBlob(): Promise<Blob | null> {
+    const el = getPaperEl();
+    if (!el) return null;
+    // Load browser-only libs on demand so they never run during SSR.
+    const { toPng } = await import("html-to-image");
+    const { jsPDF } = await import("jspdf");
+    const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2, cacheBust: true });
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("image load failed"));
+      img.src = dataUrl;
+    });
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
+    const pageW = 210, pageH = 297;
+    const imgW = pageW;
+    const imgH = (img.height * pageW) / img.width;
+    let heightLeft = imgH;
+    let position = 0;
+    pdf.addImage(dataUrl, "PNG", 0, position, imgW, imgH, undefined, "FAST");
+    heightLeft -= pageH;
+    while (heightLeft > 0) {
+      position -= pageH;
+      pdf.addPage();
+      pdf.addImage(dataUrl, "PNG", 0, position, imgW, imgH, undefined, "FAST");
+      heightLeft -= pageH;
+    }
+    return pdf.output("blob");
+  }
+  async function uploadActiveSetToDrive(): Promise<{ ok: boolean; msg: string }> {
+    try {
+      const blob = await buildActiveSetPdfBlob();
+      if (!blob) return { ok: false, msg: "Could not capture the paper to a PDF." };
+      const fd = new FormData();
+      fd.set("file", blob, "paper.pdf");
+      fd.set("set", activeSet);
+      const r = await fetch(`/api/assessments/papers/${data.paper.id}/drive-upload`, { method: "POST", body: fd });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) return { ok: true, msg: `Saved to Drive → ${d.folder_path} (Set ${activeSet})` };
+      const reasons: Record<string, string> = {
+        not_connected: "Drive isn't connected — click Connect Drive.",
+        no_university: "Paper has no university set, so it couldn't be routed to a folder.",
+        paper_not_found: "Paper not found.",
+        error: d?.message || "Drive upload failed.",
+      };
+      return { ok: false, msg: reasons[d?.reason] || d?.message || "Drive upload failed." };
+    } catch (e: any) {
+      return { ok: false, msg: e?.message || "Drive capture failed." };
+    }
+  }
+
   async function saveChanges(syncDrive = false) {
     isSaving = true;
     if (syncDrive) driveMsg = null;
@@ -406,27 +471,19 @@
           exam_type: paperMeta.exam_type,
           duration_minutes: Number(paperMeta.duration_minutes),
           max_marks: Number(paperMeta.max_marks),
-          sync_drive: syncDrive,
         }),
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        // Surface the Drive-upload outcome from an explicit Save.
+        // On an explicit Save, capture the rendered paper to PDF in the browser
+        // and upload it to Drive (before invalidateAll re-renders the DOM).
         if (syncDrive) {
-          const body = await res.clone().json().catch(() => null);
-          const d = body?.drive;
-          if (d?.ok) {
-            driveMsg = { text: `Saved to Drive → ${d.folder_path} (${d.uploaded?.length ?? 0} PDF${(d.uploaded?.length ?? 0) === 1 ? "" : "s"})`, ok: true };
-          } else if (d) {
-            const reasons: Record<string, string> = {
-              not_connected: "Drive not connected — ask an admin to click Connect Drive.",
-              no_university: "Paper has no university set, so it couldn't be routed to a folder.",
-              no_template: "This paper isn't on a print template, so no PDF could be generated for Drive.",
-              no_sets_rendered: "No sets could be rendered to PDF.",
-              paper_not_found: "Paper not found.",
-              error: d.message || "Drive upload failed.",
-            };
-            driveMsg = { text: "Saved. " + (reasons[d.reason] || d.message || "Drive upload skipped."), ok: false };
+          if (!driveConnected) {
+            driveMsg = { text: "Saved. Drive isn't connected — click Connect Drive.", ok: false };
+          } else {
+            driveMsg = { text: "Uploading to Drive…", ok: true };
+            const u = await uploadActiveSetToDrive();
+            driveMsg = { text: u.ok ? u.msg : "Saved. " + u.msg, ok: u.ok };
           }
         }
         // Refresh local data from server for standard SvelteKit state

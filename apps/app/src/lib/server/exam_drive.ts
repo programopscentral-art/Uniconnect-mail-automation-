@@ -197,6 +197,52 @@ async function renderSetToBuffer(paper: any, setsData: any, setName: string): Pr
     return DeterministicRenderer.renderToBuffer(paper.layout_schema, renderData);
 }
 
+/**
+ * Upload a CLIENT-rendered PDF for one set into the paper's Drive folder.
+ *
+ * Most paper formats (CDU/Chaitanya, Crescent, generic, …) only exist as
+ * browser-rendered HTML and are "printed" client-side — there is no
+ * server-side PDF for them. So the editor captures the rendered paper to a PDF
+ * in the browser and posts it here; we just route it to the right folder. This
+ * works for EVERY paper type (no deterministic template required).
+ */
+export async function uploadPaperPdf(paperId: string, setLabel: string, pdf: Buffer): Promise<DriveSyncResult> {
+    try {
+        const drive = await getDrive();
+        if (!drive) return { ok: false, reason: 'not_connected', message: 'Exam-papers Drive is not connected yet.' };
+
+        const { rows } = await db.query(
+            `SELECT p.exam_type, p.semester,
+                    COALESCE(u.short_name, u.name) AS uni_label,
+                    b.name AS batch_name,
+                    s.name AS subject_name
+               FROM assessment_papers p
+               LEFT JOIN universities u ON u.id = p.university_id
+               LEFT JOIN assessment_batches b ON b.id = p.batch_id
+               LEFT JOIN assessment_subjects s ON s.id = p.subject_id
+              WHERE p.id = $1`,
+            [paperId],
+        );
+        if (rows.length === 0) return { ok: false, reason: 'paper_not_found' };
+        const paper = rows[0];
+        if (!paper.uni_label) return { ok: false, reason: 'no_university', message: 'Paper has no university set — cannot route to a Drive folder.' };
+
+        const uni = String(paper.uni_label).trim();
+        const batch = String(paper.batch_name || 'Unknown Batch').trim();
+        const sem = paper.semester != null ? paper.semester : '?';
+        const pathNames = [`${uni} University`, `${uni} ${batch} Batch`, `${uni} Semester ${sem} Graded Assessments`];
+        const folderId = await ensureFolderPath(drive, EXAM_DRIVE_ROOT_FOLDER_ID, pathNames);
+
+        const safeSubject = String(paper.subject_name || 'Paper').replace(/[\\/:*?"<>|]/g, '-').trim();
+        const fname = `${safeSubject} - ${paper.exam_type || 'Exam'} - Set ${String(setLabel).toUpperCase()}.pdf`;
+        const fileId = await uploadOrReplacePdf(drive, folderId, fname, pdf);
+        return { ok: true, folder_path: pathNames.join(' / '), uploaded: [{ set: String(setLabel).toUpperCase(), file_id: fileId, name: fname }] };
+    } catch (e: any) {
+        console.error('[EXAM_DRIVE] uploadPaperPdf failed:', e?.message);
+        return { ok: false, reason: 'error', message: e?.message || 'Drive upload failed' };
+    }
+}
+
 export interface DriveSyncResult {
     ok: boolean;
     reason?: 'not_connected' | 'paper_not_found' | 'no_university' | 'no_template' | 'no_sets_rendered' | 'error';
