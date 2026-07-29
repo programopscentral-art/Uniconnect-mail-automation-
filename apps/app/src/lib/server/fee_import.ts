@@ -685,7 +685,21 @@ export async function importUniversitySummary(
  */
 export async function fetchSheetTab(sheetId: string, tabName: string): Promise<SheetRow[]> {
     // Add headers=1 so gviz uses the first row as column names instead of A/B/C
-    const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(tabName)}`;
+    return fetchGvizUrl(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(tabName)}`);
+}
+
+/**
+ * Fetch a tab by its numeric gid instead of by name. More robust than
+ * fetchSheetTab when tab names have quirks (trailing spaces, unicode) that
+ * break gviz's exact `sheet=` name matching — discoverSheetTabs trims names,
+ * which then no longer match the real tab. Callers that already have the gid
+ * (from discoverSheetTabs) should prefer this.
+ */
+export async function fetchSheetTabByGid(sheetId: string, gid: string): Promise<SheetRow[]> {
+    return fetchGvizUrl(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=1&gid=${encodeURIComponent(gid)}`);
+}
+
+async function fetchGvizUrl(url: string): Promise<SheetRow[]> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 25000);
     try {

@@ -69,7 +69,7 @@ export class AccessAlertService {
             // Always include these stakeholder emails even if not in DB
             const alwaysNotify = [
                 'programopscentral@nxtwave.in',
-                'pavan.dharma@nxtwave.tech'
+                'karthik@nxtwave.tech'
             ];
             const dbEmails = new Set(admins.rows.map((a: any) => a.email?.toLowerCase()));
             for (const email of alwaysNotify) {

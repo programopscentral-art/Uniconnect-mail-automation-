@@ -20,7 +20,7 @@
  * Reuses the generic public-sheet readers fetchSheetTab + discoverSheetTabs.
  */
 import { db } from '@uniconnect/shared';
-import { fetchSheetTab } from './fee_import';
+import { fetchSheetTabByGid } from './fee_import';
 import { discoverSheetTabs } from './sheet_tabs';
 
 // ── helpers ──────────────────────────────────────────────────────────────
@@ -232,7 +232,10 @@ export async function importPortion(sheetIdOrUrl: string, semester: number, dryR
             continue;
         }
         let rows: Record<string, unknown>[];
-        try { rows = await fetchSheetTab(sheet_id, tab.name); }
+        // Fetch by gid, not name — discoverSheetTabs trims names, so tabs with a
+        // trailing space ("Logical Reasoning ") would fail gviz's exact
+        // name match and return 0 rows.
+        try { rows = await fetchSheetTabByGid(sheet_id, tab.gid); }
         catch (e: any) { out.push({ tab: tab.name, status: 'error', detail: e?.message || 'fetch failed' }); continue; }
 
         const parsed = parseSubjectTab(rows);

@@ -15,7 +15,7 @@ import { getEmailUniversityScope, scopeLabel, getUniversityAvailability, type Un
 import { NIAT_LOGO_B64 } from './niat_logo_b64';
 
 export const FIXED_SNAPSHOT_RECIPIENTS = [
-    'pavan.dharma@nxtwave.tech',
+    'karthik@nxtwave.tech',
     'programopscentral@nxtwave.in',
 ];
 

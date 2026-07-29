@@ -231,13 +231,13 @@ export async function notifyBudgetProposalUpdate(proposal: FullProposal, toStatu
         const setRes = await db.query(
             `SELECT DISTINCT id, email 
              FROM users 
-             WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email IN ('programopscentral@nxtwave.in', 'karthikeya.a054@gmail.com', 'pavan.dharma@nxtwave.tech', 'pravalika.s@nxtwave.co.in'))
+             WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email IN ('programopscentral@nxtwave.in', 'karthikeya.a054@gmail.com', 'karthik@nxtwave.tech', 'pravalika.s@nxtwave.co.in'))
              AND is_active = true`
         );
         recipients = setRes.rows;
 
         // Ensure specifically requested stakeholders are ALWAYS included if they are not in the query result
-        const stakeholderEmails = ['pavan.dharma@nxtwave.tech', 'pravalika.s@nxtwave.co.in'];
+        const stakeholderEmails = ['karthik@nxtwave.tech', 'pravalika.s@nxtwave.co.in'];
         for (const email of stakeholderEmails) {
             if (!recipients.some(r => r.email === email)) {
                 // If not found as active users, add them manually for Email only (dummy ID for notify/push)
