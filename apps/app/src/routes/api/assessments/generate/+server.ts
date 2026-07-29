@@ -133,16 +133,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
         const questionsRes = await db.query(poolQuery, poolParams);
         let allQuestions = questionsRes.rows;
 
-        // Apply strict in-memory topic filtering if explicit topics were selected
+        // Apply strict topic filtering when explicit topics were selected.
+        //
+        // A unit is "restricted" when one of ITS topics was selected — determined
+        // from the topics table, NOT by which questions happen to match. The old
+        // logic inferred restricted units from matching questions, so selecting a
+        // topic (or sub-topic) that had no questions tagged to it left that unit
+        // unrestricted and leaked EVERY question in the unit. Selecting a parent
+        // topic also pulls in its sub-topics (sessions).
         if (topic_ids && topic_ids.length > 0) {
-            const unitsWithTopicsSelected = new Set(
-                allQuestions.filter((q: any) => topic_ids.includes(q.topic_id)).map((q: any) => q.unit_id)
-            );
+            const selTopicRows = (await db.query(
+                `SELECT id, unit_id FROM assessment_topics
+                  WHERE id = ANY($1::uuid[]) OR parent_topic_id = ANY($1::uuid[])`,
+                [topic_ids],
+            )).rows as Array<{ id: string; unit_id: string }>;
+
+            const allowedTopicIds = new Set<string>(selTopicRows.map(t => t.id));
+            for (const id of topic_ids) allowedTopicIds.add(id);
+            const restrictedUnits = new Set<string>(selTopicRows.map(t => t.unit_id));
 
             allQuestions = allQuestions.filter((q: any) => {
-                if (unitsWithTopicsSelected.has(q.unit_id)) {
-                    return topic_ids.includes(q.topic_id);
-                }
+                // Units whose topics were selected: keep ONLY selected topics
+                // (+ their sub-topics). Units with no selection stay open.
+                if (restrictedUnits.has(q.unit_id)) return allowedTopicIds.has(q.topic_id);
                 return true;
             });
         }
