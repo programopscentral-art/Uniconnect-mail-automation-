@@ -405,26 +405,43 @@
     // Load browser-only libs on demand so they never run during SSR.
     const { toPng } = await import("html-to-image");
     const { jsPDF } = await import("jspdf");
-    const dataUrl = await toPng(el, { backgroundColor: "#ffffff", pixelRatio: 2, cacheBust: true });
+
+    // Make sure fonts + images are fully laid out before snapshotting — an
+    // early capture is what produced half / blank pages.
+    try { await (document as any).fonts?.ready; } catch { /* ignore */ }
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+    await new Promise((r) => setTimeout(r, 350));
+
+    // Capture the FULL element (scroll size), so nothing is clipped if the
+    // paper is taller than the viewport.
+    const fullW = Math.max(el.scrollWidth, el.offsetWidth, el.clientWidth);
+    const fullH = Math.max(el.scrollHeight, el.offsetHeight, el.clientHeight);
+    const dataUrl = await toPng(el, {
+      backgroundColor: "#ffffff",
+      pixelRatio: 2,
+      cacheBust: true,
+      width: fullW,
+      height: fullH,
+      style: { transform: "none", margin: "0" },
+    });
     const img = new Image();
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();
       img.onerror = () => reject(new Error("image load failed"));
       img.src = dataUrl;
     });
+
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
     const pageW = 210, pageH = 297;
     const imgW = pageW;
     const imgH = (img.height * pageW) / img.width;
-    let heightLeft = imgH;
-    let position = 0;
-    pdf.addImage(dataUrl, "PNG", 0, position, imgW, imgH, undefined, "FAST");
-    heightLeft -= pageH;
-    while (heightLeft > 0) {
-      position -= pageH;
-      pdf.addPage();
-      pdf.addImage(dataUrl, "PNG", 0, position, imgW, imgH, undefined, "FAST");
-      heightLeft -= pageH;
+    // Number of A4 pages needed; the final page's trailing whitespace is normal,
+    // but don't emit an extra page for a sub-2mm sliver (that was the "blank
+    // page 4").
+    const pages = Math.max(1, Math.ceil((imgH - 2) / pageH));
+    for (let i = 0; i < pages; i++) {
+      if (i > 0) pdf.addPage();
+      pdf.addImage(dataUrl, "PNG", 0, -i * pageH, imgW, imgH, undefined, "FAST");
     }
     return pdf.output("blob");
   }

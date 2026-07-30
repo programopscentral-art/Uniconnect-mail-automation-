@@ -126,16 +126,52 @@ async function getDrive() {
 // ── Folder + upload helpers ──────────────────────────────────────────────
 
 const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+const folderKey = (s: string) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+// List the parent's subfolders and match by normalized name (trim + case +
+// collapsed whitespace) so we REUSE the existing manually-created folders even
+// when their names have quirks like a trailing space ("Logical Reasoning ") or
+// different casing ("Ai for Finance"). Only creates a new folder when none
+// matches — avoids duplicate folders.
 async function findOrCreateFolder(drive: any, name: string, parentId: string): Promise<string> {
-    const q = `name = '${esc(name)}' and mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`;
-    const res = await drive.files.list({ q, fields: 'files(id,name)', pageSize: 1, supportsAllDrives: true, includeItemsFromAllDrives: true });
-    if (res.data.files?.length) return res.data.files[0].id!;
+    const target = folderKey(name);
+    const res = await drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and '${parentId}' in parents and trashed = false`,
+        fields: 'files(id,name)', pageSize: 200, supportsAllDrives: true, includeItemsFromAllDrives: true,
+    });
+    const hit = (res.data.files || []).find((f: any) => folderKey(f.name) === target);
+    if (hit) return hit.id!;
     const created = await drive.files.create({
-        requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
+        requestBody: { name: name.trim(), mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
         fields: 'id', supportsAllDrives: true,
     });
     return created.data.id!;
+}
+
+// exam_type → the assessment-type folder used in Drive.
+const EXAM_TYPE_FOLDER: Record<string, string> = {
+    MID1: 'MID 1 Assessments',
+    MID2: 'MID 2 Assessments',
+    SEM: 'End Sem Assessments',
+};
+
+// Full Drive folder path for a paper:
+//   <Uni> University / <Uni> <Batch> Batch / <Uni> Semester <N> Graded Assessments
+//     / <MID 1 Assessments|...> / <Subject>
+function paperFolderPath(paper: { uni_label: string; batch_name?: string | null; semester?: number | null; exam_type?: string | null; subject_name?: string | null }): string[] {
+    const uni = String(paper.uni_label).trim();
+    const batch = String(paper.batch_name || 'Unknown Batch').trim();
+    const sem = paper.semester != null ? paper.semester : '?';
+    const examType = String(paper.exam_type || '').toUpperCase();
+    const examFolder = EXAM_TYPE_FOLDER[examType] || `${paper.exam_type || 'Assessment'} Assessments`;
+    const subjectFolder = String(paper.subject_name || 'General').trim();
+    return [
+        `${uni} University`,
+        `${uni} ${batch} Batch`,
+        `${uni} Semester ${sem} Graded Assessments`,
+        examFolder,
+        subjectFolder,
+    ];
 }
 
 async function ensureFolderPath(drive: any, rootId: string, names: string[]): Promise<string> {
@@ -227,10 +263,7 @@ export async function uploadPaperPdf(paperId: string, setLabel: string, pdf: Buf
         const paper = rows[0];
         if (!paper.uni_label) return { ok: false, reason: 'no_university', message: 'Paper has no university set — cannot route to a Drive folder.' };
 
-        const uni = String(paper.uni_label).trim();
-        const batch = String(paper.batch_name || 'Unknown Batch').trim();
-        const sem = paper.semester != null ? paper.semester : '?';
-        const pathNames = [`${uni} University`, `${uni} ${batch} Batch`, `${uni} Semester ${sem} Graded Assessments`];
+        const pathNames = paperFolderPath(paper);
         const folderId = await ensureFolderPath(drive, EXAM_DRIVE_ROOT_FOLDER_ID, pathNames);
 
         const safeSubject = String(paper.subject_name || 'Paper').replace(/[\\/:*?"<>|]/g, '-').trim();
@@ -279,10 +312,7 @@ export async function syncPaperToDrive(paperId: string): Promise<DriveSyncResult
         if (!paper.uni_label) return { ok: false, reason: 'no_university', message: 'Paper has no university set — cannot route to a Drive folder.' };
         if (!paper.layout_schema || !paper.layout_schema.slots) return { ok: false, reason: 'no_template', message: 'Paper does not use a deterministic template, so it cannot be rendered to PDF for Drive.' };
 
-        const uni = String(paper.uni_label).trim();
-        const batch = String(paper.batch_name || 'Unknown Batch').trim();
-        const sem = paper.semester != null ? paper.semester : '?';
-        const pathNames = [`${uni} University`, `${uni} ${batch} Batch`, `${uni} Semester ${sem} Graded Assessments`];
+        const pathNames = paperFolderPath(paper);
         const folderId = await ensureFolderPath(drive, EXAM_DRIVE_ROOT_FOLDER_ID, pathNames);
 
         const setsData = typeof paper.sets_data === 'string' ? JSON.parse(paper.sets_data) : (paper.sets_data || {});
