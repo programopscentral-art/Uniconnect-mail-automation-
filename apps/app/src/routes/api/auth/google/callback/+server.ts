@@ -196,7 +196,9 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
             maxAge: 60 * 60 * 24 * 7 // 7 days
         });
 
-        throw redirect(302, '/dashboard');
+        // SME is examinations-only (no dashboard permission) — land it on the
+        // Examinations page instead of /dashboard, which would 403.
+        throw redirect(302, user.role === 'SME' ? '/assessments' : '/dashboard');
     } catch (err: any) {
         if (err.status === 302) throw err; // Re-throw redirects
 

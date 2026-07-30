@@ -32,7 +32,9 @@ function getTransporter(): nodemailer.Transporter | null {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.SMTP_PORT || '587'),
         secure: process.env.SMTP_SECURE === 'true',
-        auth: { user, pass },
+        // Strip whitespace — a Gmail app password pasted as "xxxx xxxx xxxx xxxx"
+        // (with spaces) is rejected by SMTP auth.
+        auth: { user: user.trim(), pass: pass.replace(/\s+/g, '') },
         tls: { rejectUnauthorized: false },
     });
     return _transporter;

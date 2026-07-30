@@ -381,8 +381,12 @@ const transporter = nodemailer.createTransport({
   port: smtpPort,
   secure: smtpSecure,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
+    user: process.env.SMTP_USER?.trim(),
+    // Gmail shows the app password as "xxxx xxxx xxxx xxxx"; if it was pasted
+    // WITH the spaces the SMTP auth is rejected. Strip all whitespace so both
+    // the spaced and unspaced forms work. This is why worker-side emails
+    // (ops report, budget proposal) silently failed while the app's did not.
+    pass: process.env.SMTP_PASS?.replace(/\s+/g, '')
   },
   tls: {
     rejectUnauthorized: false

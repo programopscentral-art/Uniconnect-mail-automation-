@@ -39,11 +39,12 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'STUDENT': ["dashboard", "academic-operations"],
     'STAKEHOLDER': ["dashboard", "academic-operations", "analytics"],
     'SUPPORT': ["dashboard", "academic-operations", "tasks"],
-    // SME (Subject Matter Expert): examinations-only access — the exam-paper /
-    // question-paper generator ("assessments", labelled "Examinations" in the
-    // sidebar) plus read access to the examinations module. Scoped to ALL
-    // universities via api/universities readAllowedRoles.
-    'SME': ["dashboard", "assessments", "academic-operations"]
+    // SME (Subject Matter Expert): EXAMINATIONS ONLY. Just the exam-paper /
+    // question-paper generator + syllabus/portion ("assessments", labelled
+    // "Examinations" in the sidebar), scoped to ALL universities via
+    // api/universities readAllowedRoles. Deliberately NO dashboard / tasks /
+    // academic-operations (Operations Hub) — SME must see only Examinations.
+    'SME': ["assessments"]
 };
 
 export async function seedDefaultPermissions(): Promise<void> {
@@ -67,18 +68,20 @@ export async function getRolePermissions(role: string): Promise<string[]> {
  */
 export async function ensureCorePermissions(): Promise<void> {
     try {
-        // Add 'tasks' to every role that doesn't already have it
+        // Add 'tasks' to every role that doesn't already have it.
+        // SME is exempt — it is examinations-only and must NOT get tasks.
         await db.query(`
             UPDATE role_permissions
             SET features = features || '["tasks"]'::jsonb, updated_at = NOW()
-            WHERE NOT (features @> '["tasks"]'::jsonb)
+            WHERE NOT (features @> '["tasks"]'::jsonb) AND role <> 'SME'
         `);
 
-        // Add 'dashboard' to every role that doesn't already have it
+        // Add 'dashboard' to every role that doesn't already have it.
+        // SME is exempt — examinations-only, no dashboard.
         await db.query(`
             UPDATE role_permissions
             SET features = features || '["dashboard"]'::jsonb, updated_at = NOW()
-            WHERE NOT (features @> '["dashboard"]'::jsonb)
+            WHERE NOT (features @> '["dashboard"]'::jsonb) AND role <> 'SME'
         `);
 
         // Insert rows for roles that don't have ANY row yet
@@ -91,11 +94,10 @@ export async function ensureCorePermissions(): Promise<void> {
             `, [role]);
         }
 
-        // SME: examinations-only. Seed its row if missing (kept out of the loop
-        // above because its default feature set is examinations, not students).
+        // SME: examinations-only (just 'assessments'). Seed its row if missing.
         await db.query(`
             INSERT INTO role_permissions (role, features)
-            SELECT 'SME', '["dashboard", "tasks", "assessments", "academic-operations"]'::jsonb
+            SELECT 'SME', '["assessments"]'::jsonb
             WHERE NOT EXISTS (SELECT 1 FROM role_permissions WHERE role = 'SME')
         `);
 

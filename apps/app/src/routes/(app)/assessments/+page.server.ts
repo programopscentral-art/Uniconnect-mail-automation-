@@ -8,7 +8,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const universityId = url.searchParams.get('universityId') || locals.user.university_id;
 
     let universities: any[] = [];
-    if (locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS') {
+    // ADMIN / PROGRAM_OPS and SME see ALL universities (SME is an
+    // all-universities examinations role with no single university_id).
+    if (locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS' || locals.user.role === 'SME') {
         universities = await getAllUniversities();
     } else if (locals.user.university_id) {
         const uni = await getUniversityById(locals.user.university_id);
