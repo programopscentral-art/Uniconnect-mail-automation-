@@ -242,7 +242,7 @@ async function renderSetToBuffer(paper: any, setsData: any, setName: string): Pr
  * in the browser and posts it here; we just route it to the right folder. This
  * works for EVERY paper type (no deterministic template required).
  */
-export async function uploadPaperPdf(paperId: string, setLabel: string, pdf: Buffer): Promise<DriveSyncResult> {
+export async function uploadPaperPdf(paperId: string, setLabel: string, pdf: Buffer, kind: 'paper' | 'answer_key' = 'paper'): Promise<DriveSyncResult> {
     try {
         const drive = await getDrive();
         if (!drive) return { ok: false, reason: 'not_connected', message: 'Exam-papers Drive is not connected yet.' };
@@ -267,7 +267,8 @@ export async function uploadPaperPdf(paperId: string, setLabel: string, pdf: Buf
         const folderId = await ensureFolderPath(drive, EXAM_DRIVE_ROOT_FOLDER_ID, pathNames);
 
         const safeSubject = String(paper.subject_name || 'Paper').replace(/[\\/:*?"<>|]/g, '-').trim();
-        const fname = `${safeSubject} - ${paper.exam_type || 'Exam'} - Set ${String(setLabel).toUpperCase()}.pdf`;
+        const suffix = kind === 'answer_key' ? ' - Answer Key' : '';
+        const fname = `${safeSubject} - ${paper.exam_type || 'Exam'} - Set ${String(setLabel).toUpperCase()}${suffix}.pdf`;
         const fileId = await uploadOrReplacePdf(drive, folderId, fname, pdf);
         return { ok: true, folder_path: pathNames.join(' / '), uploaded: [{ set: String(setLabel).toUpperCase(), file_id: fileId, name: fname }] };
     } catch (e: any) {

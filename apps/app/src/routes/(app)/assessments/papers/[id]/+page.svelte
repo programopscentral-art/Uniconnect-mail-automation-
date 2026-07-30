@@ -399,69 +399,112 @@
     }
     return document.getElementById("paper-content");
   }
-  async function buildActiveSetPdfBlob(): Promise<Blob | null> {
-    const el = getPaperEl();
+  const settle = () =>
+    new Promise((r) => requestAnimationFrame(() => setTimeout(() => r(null), 350)));
+
+  // Render a DOM element to a multi-page A4 PDF, EXCLUDING UI controls
+  // (anything marked no-print / a <button>) and breaking pages at question-row
+  // boundaries so a question is never split across two pages.
+  async function elementToPdfBlob(el: HTMLElement | null): Promise<Blob | null> {
     if (!el) return null;
-    // Load browser-only libs on demand so they never run during SSR.
-    const { toPng } = await import("html-to-image");
+    const { toCanvas } = await import("html-to-image");
     const { jsPDF } = await import("jspdf");
-
-    // Make sure fonts + images are fully laid out before snapshotting — an
-    // early capture is what produced half / blank pages.
     try { await (document as any).fonts?.ready; } catch { /* ignore */ }
-    await new Promise((r) => requestAnimationFrame(() => r(null)));
-    await new Promise((r) => setTimeout(r, 350));
+    await settle();
 
-    // Capture the FULL element (scroll size), so nothing is clipped if the
-    // paper is taller than the viewport.
-    const fullW = Math.max(el.scrollWidth, el.offsetWidth, el.clientWidth);
-    const fullH = Math.max(el.scrollHeight, el.offsetHeight, el.clientHeight);
-    const dataUrl = await toPng(el, {
-      backgroundColor: "#ffffff",
-      pixelRatio: 2,
-      cacheBust: true,
-      width: fullW,
-      height: fullH,
-      style: { transform: "none", margin: "0" },
-    });
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("image load failed"));
-      img.src = dataUrl;
-    });
+    const filter = (node: any) => {
+      if (!(node instanceof HTMLElement)) return true;
+      const cls = typeof node.className === "string" ? node.className : "";
+      if (/(^|\s)(no-print|no-print-force)(\s|$)/.test(cls) || cls.includes("print:hidden")) return false;
+      if (node.tagName === "BUTTON") return false;
+      return true;
+    };
+    const canvas = await toCanvas(el, { backgroundColor: "#ffffff", pixelRatio: 2, cacheBust: true, filter });
+    const cw = canvas.width, ch = canvas.height;
+    const rect = el.getBoundingClientRect();
+    const ratio = ch / rect.height;              // canvas px per screen px
+    const pageMaxPx = (297 / 210) * cw;          // A4 page height in canvas px
+
+    // Break candidates = the bottom edge of each question row.
+    const rows = Array.from(el.querySelectorAll("tr")) as HTMLElement[];
+    let cands = rows
+      .map((r) => Math.round((r.getBoundingClientRect().bottom - rect.top) * ratio))
+      .filter((y) => y > 0 && y < ch);
+    cands = Array.from(new Set(cands)).sort((a, b) => a - b);
+    cands.push(ch);
+
+    const slices: Array<[number, number]> = [];
+    let start = 0;
+    for (let i = 0; i < cands.length; i++) {
+      if (cands[i] - start > pageMaxPx) {
+        const prev = i > 0 ? cands[i - 1] : start;
+        if (prev > start) { slices.push([start, prev]); start = prev; i--; }
+        else { slices.push([start, start + pageMaxPx]); start += pageMaxPx; } // row taller than a page
+      }
+    }
+    if (start < ch) slices.push([start, ch]);
 
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-    const pageW = 210, pageH = 297;
-    const imgW = pageW;
-    const imgH = (img.height * pageW) / img.width;
-    // Number of A4 pages needed; the final page's trailing whitespace is normal,
-    // but don't emit an extra page for a sub-2mm sliver (that was the "blank
-    // page 4").
-    const pages = Math.max(1, Math.ceil((imgH - 2) / pageH));
-    for (let i = 0; i < pages; i++) {
+    const pageW = 210;
+    const tmp = document.createElement("canvas");
+    const tctx = tmp.getContext("2d")!;
+    slices.forEach(([y0, y1], i) => {
+      const h = Math.max(1, y1 - y0);
+      tmp.width = cw; tmp.height = h;
+      tctx.fillStyle = "#ffffff"; tctx.fillRect(0, 0, cw, h);
+      tctx.drawImage(canvas, 0, y0, cw, h, 0, 0, cw, h);
+      const url = tmp.toDataURL("image/jpeg", 0.92);
       if (i > 0) pdf.addPage();
-      pdf.addImage(dataUrl, "PNG", 0, -i * pageH, imgW, imgH, undefined, "FAST");
-    }
+      pdf.addImage(url, "JPEG", 0, 0, pageW, (h / cw) * pageW, undefined, "FAST");
+    });
     return pdf.output("blob");
   }
+
+  function findSolutionsToggle(): HTMLButtonElement | null {
+    return (Array.from(document.querySelectorAll("button")).find((b) =>
+      /solutions\s*mode/i.test(b.textContent || "")) as HTMLButtonElement) || null;
+  }
+
+  async function uploadOne(blob: Blob, kind: "paper" | "answer_key"): Promise<any> {
+    const fd = new FormData();
+    fd.set("file", blob, kind === "answer_key" ? "answer-key.pdf" : "paper.pdf");
+    fd.set("set", activeSet);
+    fd.set("kind", kind);
+    const r = await fetch(`/api/assessments/papers/${data.paper.id}/drive-upload`, { method: "POST", body: fd });
+    return r.json().catch(() => ({}));
+  }
+
   async function uploadActiveSetToDrive(): Promise<{ ok: boolean; msg: string }> {
     try {
-      const blob = await buildActiveSetPdfBlob();
-      if (!blob) return { ok: false, msg: "Could not capture the paper to a PDF." };
-      const fd = new FormData();
-      fd.set("file", blob, "paper.pdf");
-      fd.set("set", activeSet);
-      const r = await fetch(`/api/assessments/papers/${data.paper.id}/drive-upload`, { method: "POST", body: fd });
-      const d = await r.json().catch(() => ({}));
-      if (r.ok && d.ok) return { ok: true, msg: `Saved to Drive → ${d.folder_path} (Set ${activeSet})` };
-      const reasons: Record<string, string> = {
-        not_connected: "Drive isn't connected — click Connect Drive.",
-        no_university: "Paper has no university set, so it couldn't be routed to a folder.",
-        paper_not_found: "Paper not found.",
-        error: d?.message || "Drive upload failed.",
-      };
-      return { ok: false, msg: reasons[d?.reason] || d?.message || "Drive upload failed." };
+      const toggle = findSolutionsToggle();
+      // 1) Paper (Solutions OFF) — ensure it's off first.
+      if (toggle && /Solutions\s*Mode:\s*ON/i.test(toggle.textContent || "")) { toggle.click(); await settle(); }
+      const paperBlob = await elementToPdfBlob(getPaperEl());
+      if (!paperBlob) return { ok: false, msg: "Could not capture the paper to a PDF." };
+      const d = await uploadOne(paperBlob, "paper");
+      if (!d.ok) {
+        const reasons: Record<string, string> = {
+          not_connected: "Drive isn't connected — click Connect Drive.",
+          no_university: "Paper has no university set, so it couldn't be routed to a folder.",
+          paper_not_found: "Paper not found.",
+        };
+        return { ok: false, msg: reasons[d?.reason] || d?.message || "Drive upload failed." };
+      }
+
+      // 2) Answer key (Solutions ON), if this template supports it.
+      let ansMsg = "";
+      if (toggle) {
+        toggle.click(); await settle();                         // turn ON
+        const ansBlob = await elementToPdfBlob(getPaperEl());
+        toggle.click(); await settle();                         // restore OFF
+        if (ansBlob) {
+          const da = await uploadOne(ansBlob, "answer_key");
+          ansMsg = da.ok ? " + answer key" : " (answer key failed)";
+        }
+      } else {
+        ansMsg = " (no answer-key mode for this template)";
+      }
+      return { ok: true, msg: `Saved to Drive → ${d.folder_path} (Set ${activeSet})${ansMsg}` };
     } catch (e: any) {
       return { ok: false, msg: e?.message || "Drive capture failed." };
     }

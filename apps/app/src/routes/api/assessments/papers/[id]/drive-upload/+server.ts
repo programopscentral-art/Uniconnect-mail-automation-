@@ -21,10 +21,11 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     const form = await request.formData();
     const file = form.get('file');
     const set = String(form.get('set') || 'A').trim() || 'A';
+    const kind = String(form.get('kind') || 'paper') === 'answer_key' ? 'answer_key' : 'paper';
     if (!(file instanceof File)) throw error(400, 'file (pdf) is required');
     if (file.size > MAX) throw error(400, 'PDF exceeds 25 MB');
 
     const buf = Buffer.from(await file.arrayBuffer());
-    const result = await uploadPaperPdf(params.id, set, buf);
+    const result = await uploadPaperPdf(params.id, set, buf, kind as 'paper' | 'answer_key');
     return json(result);
 };
