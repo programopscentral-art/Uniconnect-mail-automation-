@@ -6,33 +6,37 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
     if (!locals.user || locals.user.role !== 'ADMIN') throw error(401);
 
     const { id } = params;
-    const { status } = await request.json();
+    const body = await request.json();
+    const status = body.status;
+    const roleOverride = body.role as string | undefined; // optional: admin picks a role
 
     if (!['APPROVED', 'REJECTED'].includes(status)) {
         throw error(400, 'Invalid status');
     }
 
+    const VALID_ROLES = ['ADMIN', 'PROGRAM_OPS', 'UNIVERSITY_OPERATOR', 'COS', 'PM', 'PMA', 'BOA', 'CMA', 'CMA_MANAGER', 'SET_REVIEWER', 'PROPOSER', 'FACULTY', 'STUDENT', 'STAKEHOLDER', 'SUPPORT', 'SME'];
+    // Don't auto-grant top-level admin roles from a self-requested intent — those
+    // require the admin to pass an explicit `role` override.
+    const ELEVATED = ['ADMIN', 'PROGRAM_OPS'];
+
     try {
         const ar = await updateAccessRequestStatus(id, status);
 
         if (status === 'APPROVED') {
-            // Note: In a full implementation, we might want to store MULTIPLE university IDs.
-            // For now, the prompt implies "opening the respective college".
-            // If they are Nxtwave users, they might manage multiple.
-            // Requirement says: "if they have to access any college a permission must be sent... they should be given option to select colleges"
-            // "if admin accepts permission will be granted"
+            // Apply the REQUESTED role (role_intent) on approval — previously only
+            // university_id was set, so approved BOA/PMA/etc. requests silently
+            // stayed on the login default (UNIVERSITY_OPERATOR).
+            let targetRole: string | null =
+                roleOverride && VALID_ROLES.includes(roleOverride) ? roleOverride
+                : (ar.role_intent && VALID_ROLES.includes(ar.role_intent)) ? ar.role_intent
+                : null;
+            if (targetRole && ELEVATED.includes(targetRole) && !roleOverride) targetRole = null;
 
-            // For now, we'll keep the first university ID as their primary but in a real app 
-            // we'd probably have a many-to-many relationship.
-            // The dashboard/stats logic currently uses universityId query param.
-            // So we just need the UI to let them select from approved ones.
-
-            // I will update the user's university_id to the FIRST one in the request as a default
-            // but the dashboard logic already supports universityId selection for ADMINS.
-            // For Nxtwave users, we should allow them to pass universityId if it's in their approved list.
-
-            if (ar.university_ids.length > 0) {
-                await db.query(`UPDATE users SET university_id = $1 WHERE id = $2`, [ar.university_ids[0], ar.user_id]);
+            const primaryUni = ar.university_ids && ar.university_ids.length > 0 ? ar.university_ids[0] : null;
+            if (targetRole && primaryUni) {
+                await db.query(`UPDATE users SET role = $1, university_id = $2, updated_at = NOW() WHERE id = $3`, [targetRole, primaryUni, ar.user_id]);
+            } else if (targetRole) {
+                await db.query(`UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2`, [targetRole, ar.user_id]);
             }
         }
 
