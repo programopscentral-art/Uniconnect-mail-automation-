@@ -402,7 +402,7 @@
       const d = await r.json();
       if (!r.ok) { driveMsg = { text: d.message || "Failed to send for approval", ok: false }; return; }
       approvalStatus = "pending_review";
-      driveMsg = { text: `Sent for review — notified ${d.sme_count} SME(s)${d.emailed ? `, emailed ${d.emailed}` : ""}.`, ok: true };
+      driveMsg = { text: `Sent for review — notified ${d.sme_count} ${d.scoped ? "subject SME(s)" : "SME(s)"}${d.emailed ? `, emailed ${d.emailed}` : ""}.`, ok: true };
     } catch (e: any) {
       driveMsg = { text: e?.message || "Failed to send for approval", ok: false };
     } finally { approvalBusy = false; }
@@ -1310,10 +1310,10 @@
       <!-- Left empty for balance or future use -->
     </div>
 
-    <div class="flex items-center gap-3 px-4">
+    <div class="flex flex-wrap items-center justify-end gap-2 gap-y-2 px-4">
       <!-- Set Selector -->
       <div
-        class="flex items-center gap-1 bg-white/10 p-1.5 rounded-2xl mr-4 border border-white/5"
+        class="flex items-center gap-1 bg-white/10 p-1.5 rounded-2xl mr-2 border border-white/5"
       >
         {#each availableSets as set}
           <button

@@ -48,11 +48,25 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             [params.id, user.id],
         );
 
-        const smes = await db.query(
-            `SELECT id, email, name FROM users WHERE role = 'SME' AND is_active = true AND email IS NOT NULL AND email <> ''`,
-        );
+        // Notify only the SME(s) assigned to this subject; fall back to all
+        // active SMEs if the subject has no assignment.
+        const subjectKey = String(paper.subject_name ?? '').toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]/g, '').replace(/s$/, '');
+        let recipients = (await db.query(
+            `SELECT DISTINCT u.id, u.email, u.name
+               FROM sme_subject_assignment a
+               JOIN users u ON u.id = a.sme_user_id
+              WHERE a.subject_key = $1 AND u.role = 'SME' AND u.is_active = true
+                AND u.email IS NOT NULL AND u.email <> ''`,
+            [subjectKey],
+        )).rows as Array<{ id: string; email: string; name: string }>;
+        const scoped = recipients.length > 0;
+        if (!scoped) {
+            recipients = (await db.query(
+                `SELECT id, email, name FROM users WHERE role = 'SME' AND is_active = true AND email IS NOT NULL AND email <> ''`,
+            )).rows as Array<{ id: string; email: string; name: string }>;
+        }
         let notified = 0;
-        for (const sme of smes.rows as Array<{ id: string; email: string; name: string }>) {
+        for (const sme of recipients) {
             await createNotification({
                 user_id: sme.id,
                 title: 'Exam paper ready for review',
@@ -74,7 +88,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
             }).catch(() => ({ sent: false }));
             if (r?.sent) notified++;
         }
-        return json({ ok: true, approval_status: 'pending_review', sme_count: smes.rows.length, emailed: notified });
+        return json({ ok: true, approval_status: 'pending_review', sme_count: recipients.length, emailed: notified, scoped });
     }
 
     if (action === 'approve' || action === 'request_changes') {
