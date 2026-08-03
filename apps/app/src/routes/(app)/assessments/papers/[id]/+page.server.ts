@@ -66,7 +66,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
             questionPool = pool;
         }
 
-        return { paper, courseOutcomes, questionPool };
+        return { paper, courseOutcomes, questionPool, role: locals.user.role };
     } catch (err: any) {
         console.error('[PAPER_LOAD] Error:', err);
         throw error(500, err.message);

@@ -385,6 +385,47 @@
     if (!driveStatusLoaded) { driveStatusLoaded = true; refreshDriveStatus(); }
   });
 
+  // ── Approval workflow ──────────────────────────────────────────────
+  let approvalStatus = $state<string>((data as any).paper?.approval_status || "draft");
+  let approvalBusy = $state(false);
+  const myRole = (data as any).role as string;
+  const isReviewer = myRole === "SME" || myRole === "ADMIN" || myRole === "PROGRAM_OPS";
+  const isSme = myRole === "SME";
+
+  async function sendForApproval() {
+    approvalBusy = true;
+    try {
+      const r = await fetch(`/api/assessments/papers/${data.paper.id}/approval`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send" }),
+      });
+      const d = await r.json();
+      if (!r.ok) { driveMsg = { text: d.message || "Failed to send for approval", ok: false }; return; }
+      approvalStatus = "pending_review";
+      driveMsg = { text: `Sent for review — notified ${d.sme_count} SME(s)${d.emailed ? `, emailed ${d.emailed}` : ""}.`, ok: true };
+    } catch (e: any) {
+      driveMsg = { text: e?.message || "Failed to send for approval", ok: false };
+    } finally { approvalBusy = false; }
+  }
+
+  async function reviewAction(action: "approve" | "request_changes") {
+    approvalBusy = true;
+    try {
+      let note = "";
+      if (action === "request_changes") note = window.prompt("What needs to change? (optional)") || "";
+      const r = await fetch(`/api/assessments/papers/${data.paper.id}/approval`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, note }),
+      });
+      const d = await r.json();
+      if (!r.ok) { driveMsg = { text: d.message || "Failed", ok: false }; return; }
+      approvalStatus = d.approval_status;
+      driveMsg = { text: action === "approve" ? "Paper approved." : "Sent back for changes.", ok: true };
+    } catch (e: any) {
+      driveMsg = { text: e?.message || "Failed", ok: false };
+    } finally { approvalBusy = false; }
+  }
+
   // Client-side capture of the rendered paper → PDF (works for every paper
   // format, incl. the non-deterministic ones that only exist as browser HTML).
   const PAPER_EL_IDS = [
@@ -1293,6 +1334,37 @@
       >
         GENERATE NEW
       </a>
+
+      <!-- Approval status + actions -->
+      <span
+        class="inline-flex items-center px-3 py-3 text-[10px] font-black rounded-xl border flex-shrink-0
+          {approvalStatus === 'approved' ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+           : approvalStatus === 'pending_review' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+           : 'bg-white/5 text-gray-400 border-white/10'}"
+        title="Approval status"
+      >{approvalStatus === 'pending_review' ? 'PENDING REVIEW' : approvalStatus === 'approved' ? 'APPROVED' : 'DRAFT'}</span>
+
+      {#if !isSme && approvalStatus !== 'pending_review'}
+        <button
+          onclick={sendForApproval}
+          disabled={approvalBusy}
+          class="inline-flex items-center px-4 py-3 bg-blue-600 text-white text-[10px] font-black rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 flex-shrink-0"
+          title="Notify the SMEs to review this paper"
+        >{approvalBusy ? "SENDING…" : "SEND FOR APPROVAL"}</button>
+      {/if}
+
+      {#if isReviewer && approvalStatus === 'pending_review'}
+        <button
+          onclick={() => reviewAction('approve')}
+          disabled={approvalBusy}
+          class="inline-flex items-center px-4 py-3 bg-emerald-600 text-white text-[10px] font-black rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 flex-shrink-0"
+        >{approvalBusy ? "…" : "APPROVE"}</button>
+        <button
+          onclick={() => reviewAction('request_changes')}
+          disabled={approvalBusy}
+          class="inline-flex items-center px-4 py-3 bg-white/5 text-amber-300 text-[10px] font-black rounded-xl border border-amber-500/30 hover:bg-white/10 transition-all disabled:opacity-50 flex-shrink-0"
+        >REQUEST CHANGES</button>
+      {/if}
 
       {#if driveConnected}
         <span
