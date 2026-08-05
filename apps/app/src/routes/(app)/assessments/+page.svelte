@@ -43,10 +43,17 @@
   // Universal Sync state
   let showSyncModal = $state(false);
   let syncSourceUniId = $state("");
-  let syncSourceSubjectId = $state("");
+  let syncSourceSubjectIds = $state<string[]>([]);
   let syncTargetBatchName = $state("");
   let syncTargetUniIds = $state<string[]>([]);
   let syncQuestionBank = $state(false);
+  function toggleSyncSubject(id: string) {
+    syncSourceSubjectIds = syncSourceSubjectIds.includes(id)
+      ? syncSourceSubjectIds.filter((x) => x !== id)
+      : [...syncSourceSubjectIds, id];
+  }
+  const syncSubjectName = (id: string) =>
+    syncSourceSubjects.find((s: any) => s.id === id)?.name || id;
   let isSyncing = $state(false);
   let syncSearchQuery = $state("");
   let discoveredMatches = $state<any[]>([]);
@@ -241,74 +248,88 @@
 
   async function runUniversalSync() {
     if (
-      !syncSourceSubjectId ||
+      syncSourceSubjectIds.length === 0 ||
       !syncTargetBatchName ||
       syncTargetUniIds.length === 0
     ) {
-      alert("Please fill all fields");
+      alert("Select at least one subject, a target batch, and target universities.");
       return;
     }
 
     isSyncing = true;
     try {
-      const res = await fetch("/api/assessments/sync-power", {
-        method: "POST",
-        body: JSON.stringify({
-          sourceSubjectId: syncSourceSubjectId,
-          targetBatchName: syncTargetBatchName,
-          targetUniversityIds: syncTargetUniIds,
-          syncQuestionBank: syncQuestionBank,
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const successes = data.results.filter(
-          (r: any) => r.status === "success",
-        );
-        const failures = data.results.filter((r: any) => r.status === "failed");
-
-        if (failures.length > 0) {
-          const errorMsg = failures
-            .map((f: any) => `- Uni ID ${f.uniId}: ${f.error}`)
-            .slice(0, 5)
-            .join("\n");
-          alert(
-            `Sync partially complete.\nSuccess: ${successes.length}\nFailed: ${failures.length}\n\nTop Errors:\n${errorMsg}${failures.length > 5 ? "\n...and more" : ""}`,
-          );
-        } else {
-          alert(
-            `Sync Complete! Successfully synced to ${successes.length} universities.`,
-          );
+      let totalSuccess = 0;
+      let totalFail = 0;
+      const errs: string[] = [];
+      // Replicate each selected subject to the chosen universities.
+      for (const subjId of syncSourceSubjectIds) {
+        try {
+          const res = await fetch("/api/assessments/sync-power", {
+            method: "POST",
+            body: JSON.stringify({
+              sourceSubjectId: subjId,
+              targetBatchName: syncTargetBatchName,
+              targetUniversityIds: syncTargetUniIds,
+              syncQuestionBank: syncQuestionBank,
+            }),
+            headers: { "Content-Type": "application/json" },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            totalSuccess += (data.results || []).filter((r: any) => r.status === "success").length;
+            const fails = (data.results || []).filter((r: any) => r.status === "failed");
+            totalFail += fails.length;
+            for (const f of fails) errs.push(`${syncSubjectName(subjId)} → uni ${f.uniId}: ${f.error}`);
+          } else {
+            const err = await res.json().catch(() => ({}));
+            totalFail++;
+            errs.push(`${syncSubjectName(subjId)}: ${err.message || "failed"}`);
+          }
+        } catch (e: any) {
+          totalFail++;
+          errs.push(`${syncSubjectName(subjId)}: ${e?.message || "error"}`);
         }
-        showSyncModal = false;
-        syncTargetUniIds = [];
-      } else {
-        const err = await res.json();
-        alert(`Sync Failed: ${err.message || "Unknown error"}`);
       }
+
+      if (totalFail > 0) {
+        alert(
+          `Sync done.\nSuccessful copies: ${totalSuccess}\nFailed: ${totalFail}\n\n${errs.slice(0, 6).join("\n")}${errs.length > 6 ? "\n…and more" : ""}`,
+        );
+      } else {
+        alert(
+          `Sync Complete! ${syncSourceSubjectIds.length} subject(s) replicated to ${syncTargetUniIds.length} universities.`,
+        );
+      }
+      showSyncModal = false;
+      syncTargetUniIds = [];
+      syncSourceSubjectIds = [];
     } finally {
       isSyncing = false;
     }
   }
 
-  async function discoverPresence(subjectId: string) {
-    if (!subjectId) {
+  async function discoverPresence(subjectIds: string[]) {
+    if (!subjectIds || subjectIds.length === 0) {
       discoveredMatches = [];
+      syncTargetUniIds = [];
       return;
     }
     isPredicting = true;
     try {
-      const res = await fetch(
-        `/api/assessments/sync-power/discover?subjectId=${subjectId}&excludeUniversityId=${syncSourceUniId}`,
-      );
-      if (res.ok) {
-        const result = await res.json();
-        discoveredMatches = result.matches || [];
-        // Automatically pre-select discovered matches
-        syncTargetUniIds = discoveredMatches.map((m: any) => m.id);
+      // Union of universities that already have ANY of the selected subjects.
+      const byId = new Map<string, any>();
+      for (const subjectId of subjectIds) {
+        const res = await fetch(
+          `/api/assessments/sync-power/discover?subjectId=${subjectId}&excludeUniversityId=${syncSourceUniId}`,
+        );
+        if (res.ok) {
+          const result = await res.json();
+          for (const m of result.matches || []) byId.set(m.id, m);
+        }
       }
+      discoveredMatches = Array.from(byId.values());
+      // Automatically pre-select discovered matches
+      syncTargetUniIds = discoveredMatches.map((m: any) => m.id);
     } finally {
       isPredicting = false;
     }
@@ -352,8 +373,8 @@
   });
 
   $effect(() => {
-    if (showSyncModal && syncSourceSubjectId) {
-      discoverPresence(syncSourceSubjectId);
+    if (showSyncModal) {
+      discoverPresence(syncSourceSubjectIds);
     }
   });
 
@@ -1622,26 +1643,52 @@
               </select>
             </div>
             <div class="space-y-2">
-              <label
-                for="syncSourceSub"
-                class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
-                >Source Subject</label
-              >
-              <select
-                id="syncSourceSub"
-                bind:value={syncSourceSubjectId}
-                class="w-full bg-white dark:bg-slate-800 border-gray-100 dark:border-gray-700 rounded-2xl text-xs font-bold focus:ring-4 focus:ring-indigo-500/10 transition-all px-4 py-3 text-gray-900 dark:text-white"
-                disabled={isLoadingSyncSourceSubjects}
-              >
-                <option value=""
-                  >{isLoadingSyncSourceSubjects
-                    ? "Loading..."
-                    : "-- Choose subject --"}</option
+              <div class="flex items-center justify-between">
+                <label
+                  class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1"
+                  >Source Subjects</label
                 >
-                {#each syncSourceSubjects as s}
-                  <option value={s.id}>{s.name} ({s.code || "NO-REF"})</option>
-                {/each}
-              </select>
+                <div class="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest">
+                  <button
+                    type="button"
+                    class="text-indigo-500 hover:text-indigo-400"
+                    onclick={() => (syncSourceSubjectIds = syncSourceSubjects.map((s: any) => s.id))}
+                  >All</button>
+                  <span class="text-gray-500">·</span>
+                  <button
+                    type="button"
+                    class="text-gray-400 hover:text-gray-300"
+                    onclick={() => (syncSourceSubjectIds = [])}
+                  >Clear</button>
+                </div>
+              </div>
+              <div
+                class="w-full bg-white dark:bg-slate-800 border border-gray-100 dark:border-gray-700 rounded-2xl px-2 py-2 max-h-56 overflow-y-auto space-y-0.5"
+              >
+                {#if isLoadingSyncSourceSubjects}
+                  <div class="text-xs font-bold text-gray-400 px-2 py-2">Loading…</div>
+                {:else if syncSourceSubjects.length === 0}
+                  <div class="text-xs font-bold text-gray-400 px-2 py-2">No subjects for this university.</div>
+                {:else}
+                  {#each syncSourceSubjects as s}
+                    <label
+                      class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs font-bold text-gray-900 dark:text-white hover:bg-indigo-500/10 transition-colors
+                        {syncSourceSubjectIds.includes(s.id) ? 'bg-indigo-500/10' : ''}"
+                    >
+                      <input
+                        type="checkbox"
+                        class="accent-indigo-500"
+                        checked={syncSourceSubjectIds.includes(s.id)}
+                        onchange={() => toggleSyncSubject(s.id)}
+                      />
+                      <span>{s.name} <span class="text-gray-400 font-normal">({s.code || "NO-REF"})</span></span>
+                    </label>
+                  {/each}
+                {/if}
+              </div>
+              <div class="text-[9px] font-black text-indigo-400 uppercase tracking-widest ml-1">
+                {syncSourceSubjectIds.length} subject(s) selected
+              </div>
             </div>
           </div>
         </div>
@@ -1854,7 +1901,7 @@
           <button
             onclick={runUniversalSync}
             disabled={isSyncing ||
-              !syncSourceSubjectId ||
+              syncSourceSubjectIds.length === 0 ||
               !syncTargetBatchName ||
               syncTargetUniIds.length === 0}
             class="flex-1 sm:flex-none px-10 py-4 bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-700 transition-all shadow-2xl shadow-indigo-500/30 disabled:opacity-50"
