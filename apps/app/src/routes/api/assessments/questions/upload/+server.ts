@@ -220,10 +220,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
                     const normalizedTName = getStrictDisplay(rawTopic);
                     const canonicalTarget = getExtremeCanonical(rawTopic);
 
-                    let topic = allTopics.find(t => t.unit_id === unit.id && getExtremeCanonical(t.name) === canonicalTarget);
+                    let topic = allTopics.find(t => t.unit_id === unit.id && !t.parent_topic_id && getExtremeCanonical(t.name) === canonicalTarget);
                     if (!topic) {
                         const res = await db.query('INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING *', [unit.id, normalizedTName]);
                         topic = res.rows[0]; allTopics.push(topic);
+                    }
+
+                    // Session Name → sub-topic under the topic (parent_topic_id).
+                    // Previously the "Session Name" column was ignored, so sessions
+                    // never appeared inside a topic. Create the session as a child
+                    // topic and tag the question to it (falls back to the topic
+                    // when no session, or when the session name equals the topic).
+                    let targetTopicId = topic.id;
+                    const rawSession = findVal(row, ['Session Name', 'Session', 'Sub Topic', 'Subtopic'])?.toString().trim();
+                    if (rawSession) {
+                        const canonSession = getExtremeCanonical(rawSession);
+                        if (canonSession && canonSession !== canonicalTarget) {
+                            let session = allTopics.find(t => t.unit_id === unit.id && t.parent_topic_id === topic.id && getExtremeCanonical(t.name) === canonSession);
+                            if (!session) {
+                                const res = await db.query('INSERT INTO assessment_topics (unit_id, name, parent_topic_id) VALUES ($1, $2, $3) RETURNING *', [unit.id, getStrictDisplay(rawSession), topic.id]);
+                                session = res.rows[0]; allTopics.push(session);
+                            }
+                            targetTopicId = session.id;
+                        }
                     }
 
                     const bloomRaw = (findVal(row, ['Blooms Level', 'Blooms Level (K-Level)', 'Bloom Level', 'bloom_level']) || 'L1').toString().toUpperCase().trim();
@@ -241,7 +260,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
                     questionsToCreate.push({
                         unit_id: unit.id,
-                        topic_id: topic.id,
+                        topic_id: targetTopicId,
                         co_id: coCode ? coMap.get(coCode) : null,
                         question_text: qText.trim(),
                         bloom_level: bloomLevel,

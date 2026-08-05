@@ -1149,7 +1149,7 @@
                     <label
                       for="subjectSemester"
                       class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2"
-                      >Academic Phase</label
+                      >Semester</label
                     >
                     <select
                       id="subjectSemester"
@@ -1192,7 +1192,7 @@
                       <div
                         class="px-4 py-1.5 bg-gray-900 dark:bg-slate-800 text-white text-[11px] font-black rounded-xl shadow-lg border border-gray-800 dark:border-gray-700 uppercase tracking-widest"
                       >
-                        Phase {sem}
+                        Semester {sem}
                       </div>
                       <div
                         class="h-px flex-1 bg-gradient-to-r from-gray-100 dark:from-gray-800 to-transparent"
@@ -1538,7 +1538,7 @@
           <label
             for="editSubjectSemester"
             class="text-[10px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-[0.2em] ml-2"
-            >Phase Vector</label
+            >Semester</label
           >
           <select
             id="editSubjectSemester"
