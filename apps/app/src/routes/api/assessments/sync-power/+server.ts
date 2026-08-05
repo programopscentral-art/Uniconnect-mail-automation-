@@ -46,138 +46,110 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         console.log(`[UniversalSync] Starting sync for ${targetUniversityIds.length} hubs. Source: ${sourceSubject.name} (${questions.length} questions)`);
 
-        // 3. Sync to each university sequentially for stability
-        const results = [];
-        for (const uniId of targetUniversityIds) {
-            try {
-                // a. Find or create target batch
-                let { rows: [targetBatch] } = await db.query(
-                    'SELECT id FROM assessment_batches WHERE university_id = $1 AND name = $2',
-                    [uniId, targetBatchName]
-                );
+        // Multi-row INSERT helper — one round-trip for a whole table instead of
+        // one query per row. Postgres returns RETURNING rows in VALUES order, so
+        // callers map source[i] -> returned[i].
+        async function bulkInsert(table: string, columns: string[], rowsData: any[][], returning = 'id'): Promise<any[]> {
+            if (rowsData.length === 0) return [];
+            const ncol = columns.length;
+            const placeholders = rowsData
+                .map((_, i) => '(' + columns.map((__, j) => '$' + (i * ncol + j + 1)).join(',') + ')')
+                .join(',');
+            const flat: any[] = [];
+            for (const r of rowsData) flat.push(...r);
+            const q = `INSERT INTO ${table} (${columns.join(',')}) VALUES ${placeholders}` + (returning ? ` RETURNING ${returning}` : '');
+            const { rows } = await db.query(q, flat);
+            return rows;
+        }
 
-                if (!targetBatch) {
-                    const { rows: [newBatch] } = await db.query(
-                        'INSERT INTO assessment_batches (university_id, name) VALUES ($1, $2) RETURNING id',
-                        [uniId, targetBatchName]
-                    );
-                    targetBatch = newBatch;
-                }
+        const rootTopics = topics.filter(t => !t.parent_topic_id);
+        const subTopics = topics.filter(t => t.parent_topic_id);
 
-                // b. Find or create target branch (department)
-                let { rows: [targetBranch] } = await db.query(
-                    'SELECT id FROM assessment_branches WHERE university_id = $1 AND name = $2 AND batch_id = $3',
-                    [uniId, sourceSubject.branch_name, targetBatch.id]
-                );
-
-                if (!targetBranch) {
-                    const { rows: [newBranch] } = await db.query(
-                        'INSERT INTO assessment_branches (university_id, name, batch_id) VALUES ($1, $2, $3) RETURNING id',
-                        [uniId, sourceSubject.branch_name, targetBatch.id]
-                    );
-                    targetBranch = newBranch;
-                }
-
-                // c. Find or create target subject
-                let { rows: [targetSubject] } = await db.query(
-                    'SELECT id FROM assessment_subjects WHERE branch_id = $1 AND name = $2 AND batch_id = $3',
-                    [targetBranch.id, sourceSubject.name, targetBatch.id]
-                );
-
-                if (!targetSubject) {
-                    const { rows: [newSub] } = await db.query(
-                        'INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester, difficulty_levels) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-                        [targetBranch.id, targetBatch.id, sourceSubject.name, sourceSubject.code, sourceSubject.semester, sourceSubject.difficulty_levels]
-                    );
-                    targetSubject = newSub;
-                } else {
-                    // Clear existing data - CASCADE handles topics and questions
-                    await db.query('DELETE FROM assessment_units WHERE subject_id = $1', [targetSubject.id]);
-                    await db.query('DELETE FROM assessment_practicals WHERE subject_id = $1', [targetSubject.id]);
-                    await db.query('DELETE FROM assessment_course_outcomes WHERE subject_id = $1', [targetSubject.id]);
-                }
-
-                // d. Copy Portion
-                const unitMap = new Map();
-                for (const unit of units) {
-                    const { rows: [newUnit] } = await db.query(
-                        'INSERT INTO assessment_units (subject_id, unit_number, name) VALUES ($1, $2, $3) RETURNING id',
-                        [targetSubject.id, unit.unit_number, unit.name]
-                    );
-                    unitMap.set(unit.id, newUnit.id);
-                }
-
-                const topicMap = new Map();
-                const rootTopics = topics.filter(t => !t.parent_topic_id);
-                for (const topic of rootTopics) {
-                    const newUnitId = unitMap.get(topic.unit_id);
-                    if (!newUnitId) continue;
-                    const { rows: [newTopic] } = await db.query(
-                        'INSERT INTO assessment_topics (unit_id, name) VALUES ($1, $2) RETURNING id',
-                        [newUnitId, topic.name]
-                    );
-                    topicMap.set(topic.id, newTopic.id);
-                }
-
-                const subTopics = topics.filter(t => t.parent_topic_id);
-                for (const topic of subTopics) {
-                    const newUnitId = unitMap.get(topic.unit_id);
-                    const newParentId = topicMap.get(topic.parent_topic_id);
-                    if (!newUnitId || !newParentId) continue;
-                    await db.query(
-                        'INSERT INTO assessment_topics (unit_id, name, parent_topic_id) VALUES ($1, $2, $3)',
-                        [newUnitId, topic.name, newParentId]
-                    );
-                }
-
-                for (const p of practicals) {
-                    await db.query(
-                        'INSERT INTO assessment_practicals (subject_id, name, description) VALUES ($1, $2, $3)',
-                        [targetSubject.id, p.name, p.description]
-                    );
-                }
-
-                const coMap = new Map();
-                for (const co of cos) {
-                    const { rows: [newCo] } = await db.query(
-                        'INSERT INTO assessment_course_outcomes (subject_id, code, description) VALUES ($1, $2, $3) RETURNING id',
-                        [targetSubject.id, co.code, co.description]
-                    );
-                    coMap.set(co.id, newCo.id);
-                }
-
-                if (syncQuestionBank && questions.length > 0) {
-                    const values: any[] = [];
-                    const valuePlaceholders: string[] = [];
-                    let pIdx = 1;
-
-                    for (const q of questions) {
-                        const tId = q.topic_id ? topicMap.get(q.topic_id) : null;
-                        const uId = q.unit_id ? unitMap.get(q.unit_id) : null;
-                        const cId = q.co_id ? coMap.get(q.co_id) : null;
-
-                        valuePlaceholders.push(`($${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++}, $${pIdx++})`);
-                        values.push(
-                            tId, uId, cId, q.question_text, q.bloom_level, q.difficulty || 'MEDIUM', q.marks, q.type,
-                            typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
-                            q.answer_key, q.image_url, q.explanation, q.is_important || false
-                        );
-                    }
-
-                    const bulkQuery = `
-                        INSERT INTO assessment_questions (
-                            topic_id, unit_id, co_id, question_text, bloom_level, difficulty, marks, type, options, 
-                            answer_key, image_url, explanation, is_important
-                        ) VALUES ${valuePlaceholders.join(', ')}
-                    `;
-                    await db.query(bulkQuery, values);
-                }
-
-                results.push({ uniId, status: 'success' });
-            } catch (innerErr: any) {
-                console.error(`Sync failed for uni ${uniId}:`, innerErr);
-                results.push({ uniId, status: 'failed', error: innerErr.message });
+        async function syncOneUniversity(uniId: string) {
+            // a. Find or create target batch
+            let { rows: [targetBatch] } = await db.query(
+                'SELECT id FROM assessment_batches WHERE university_id = $1 AND name = $2', [uniId, targetBatchName]);
+            if (!targetBatch) {
+                ({ rows: [targetBatch] } = await db.query(
+                    'INSERT INTO assessment_batches (university_id, name) VALUES ($1, $2) RETURNING id', [uniId, targetBatchName]));
             }
+            // b. Find or create target branch
+            let { rows: [targetBranch] } = await db.query(
+                'SELECT id FROM assessment_branches WHERE university_id = $1 AND name = $2 AND batch_id = $3',
+                [uniId, sourceSubject.branch_name, targetBatch.id]);
+            if (!targetBranch) {
+                ({ rows: [targetBranch] } = await db.query(
+                    'INSERT INTO assessment_branches (university_id, name, batch_id) VALUES ($1, $2, $3) RETURNING id',
+                    [uniId, sourceSubject.branch_name, targetBatch.id]));
+            }
+            // c. Find or create target subject (wipe existing portion for a clean copy)
+            let { rows: [targetSubject] } = await db.query(
+                'SELECT id FROM assessment_subjects WHERE branch_id = $1 AND name = $2 AND batch_id = $3',
+                [targetBranch.id, sourceSubject.name, targetBatch.id]);
+            if (!targetSubject) {
+                ({ rows: [targetSubject] } = await db.query(
+                    'INSERT INTO assessment_subjects (branch_id, batch_id, name, code, semester, difficulty_levels) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+                    [targetBranch.id, targetBatch.id, sourceSubject.name, sourceSubject.code, sourceSubject.semester, sourceSubject.difficulty_levels]));
+            } else {
+                // CASCADE from units clears topics + questions.
+                await Promise.all([
+                    db.query('DELETE FROM assessment_units WHERE subject_id = $1', [targetSubject.id]),
+                    db.query('DELETE FROM assessment_practicals WHERE subject_id = $1', [targetSubject.id]),
+                    db.query('DELETE FROM assessment_course_outcomes WHERE subject_id = $1', [targetSubject.id]),
+                ]);
+            }
+            const sid = targetSubject.id;
+
+            // d. Copy portion — one bulk INSERT per table.
+            const newUnits = await bulkInsert('assessment_units', ['subject_id', 'unit_number', 'name'],
+                units.map(u => [sid, u.unit_number, u.name]));
+            const unitMap = new Map<string, string>();
+            units.forEach((u, i) => unitMap.set(u.id, newUnits[i].id));
+
+            const rt = rootTopics.filter(t => unitMap.has(t.unit_id));
+            const newRoot = await bulkInsert('assessment_topics', ['unit_id', 'name'],
+                rt.map(t => [unitMap.get(t.unit_id), t.name]));
+            const topicMap = new Map<string, string>();
+            rt.forEach((t, i) => topicMap.set(t.id, newRoot[i].id));
+
+            const st = subTopics.filter(t => unitMap.has(t.unit_id) && topicMap.has(t.parent_topic_id));
+            if (st.length) await bulkInsert('assessment_topics', ['unit_id', 'name', 'parent_topic_id'],
+                st.map(t => [unitMap.get(t.unit_id), t.name, topicMap.get(t.parent_topic_id)]), '');
+
+            if (practicals.length) await bulkInsert('assessment_practicals', ['subject_id', 'name', 'description'],
+                practicals.map(p => [sid, p.name, p.description]), '');
+
+            const newCos = await bulkInsert('assessment_course_outcomes', ['subject_id', 'code', 'description'],
+                cos.map(c => [sid, c.code, c.description]));
+            const coMap = new Map<string, string>();
+            cos.forEach((c, i) => coMap.set(c.id, newCos[i].id));
+
+            if (syncQuestionBank && questions.length > 0) {
+                await bulkInsert('assessment_questions',
+                    ['topic_id', 'unit_id', 'co_id', 'question_text', 'bloom_level', 'difficulty', 'marks', 'type', 'options', 'answer_key', 'image_url', 'explanation', 'is_important'],
+                    questions.map(q => [
+                        q.topic_id ? topicMap.get(q.topic_id) ?? null : null,
+                        q.unit_id ? unitMap.get(q.unit_id) ?? null : null,
+                        q.co_id ? coMap.get(q.co_id) ?? null : null,
+                        q.question_text, q.bloom_level, q.difficulty || 'MEDIUM', q.marks, q.type,
+                        typeof q.options === 'string' ? q.options : JSON.stringify(q.options),
+                        q.answer_key, q.image_url, q.explanation, q.is_important || false,
+                    ]), '');
+            }
+        }
+
+        // 3. Sync universities in parallel batches (each is independent).
+        const results: any[] = [];
+        const CONCURRENCY = 6;
+        for (let i = 0; i < targetUniversityIds.length; i += CONCURRENCY) {
+            const batch = targetUniversityIds.slice(i, i + CONCURRENCY);
+            const settled = await Promise.all(batch.map((uid: string) =>
+                syncOneUniversity(uid).then(() => ({ uniId: uid, status: 'success' }))
+                    .catch((e: any) => {
+                        console.error(`Sync failed for uni ${uid}:`, e);
+                        return { uniId: uid, status: 'failed', error: e.message };
+                    })));
+            results.push(...settled);
         }
 
         return json({ results });
