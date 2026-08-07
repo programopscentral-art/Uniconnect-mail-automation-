@@ -1708,10 +1708,11 @@
     class="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4"
   >
     <div class="flex items-center gap-6">
-      <a
-        href="/assessments"
+      <button
+        type="button"
+        onclick={() => (currentStep > 1 ? prevStep() : goto("/assessments"))}
         class="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-center text-gray-400 hover:text-indigo-600 hover:border-indigo-100 dark:hover:border-indigo-900 transition-all active:scale-95"
-        title="Back to Papers"
+        title={currentStep > 1 ? "Back to previous step" : "Back to Papers"}
       >
         <svg
           class="w-6 h-6"
@@ -1725,7 +1726,7 @@
             d="M15 19l-7-7 7-7"
           /></svg
         >
-      </a>
+      </button>
 
       <div class="space-y-1">
         <div
