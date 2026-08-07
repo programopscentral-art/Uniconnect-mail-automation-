@@ -20,17 +20,20 @@
     class: className = "",
   } = $props();
 
-  // Reordering + Solutions Mode come from the parent template via context.
-  // Move buttons move the whole OR group (slot.id) as one unit.
-  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  // Reordering (drag-and-drop) + Solutions Mode come from the parent template
+  // via context. The whole OR group (slot.id) moves as one unit.
+  const drag = getContext<any>("paper:drag");
   const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
-  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
-  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 
   // Use direct access to avoid binding to derivation crash
 </script>
 
-<div class="flex flex-col border-black {className}">
+<div
+  class="flex flex-col border-black {className} {drag && drag.overId === slot.id && drag.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+  ondragover={(e) => { if (drag?.activeId) { e.preventDefault(); drag.setOver(slot.id); } }}
+  ondrop={(e) => { if (drag?.activeId) { e.preventDefault(); drag.drop(slot.id); } }}
+  role="listitem"
+>
   <!-- Choice 1 Row -->
   <div class="flex border-b border-black">
     <div
@@ -54,8 +57,7 @@
                 {isEditable}
                 onSwap={() => onSwap1(q.id)}
                 onDelete={onRemove}
-                onMoveUp={i === 0 ? onMoveUp : null}
-                onMoveDown={i === 0 ? onMoveDown : null}
+                slotId={i === 0 ? slot.id : null}
                 class="-left-8 top-0 scale-75 opacity-0 group-hover/q:opacity-100 transition-opacity"
               />
               <div class="flex gap-2">
@@ -120,8 +122,7 @@
           {isEditable}
           onSwap={onSwap1}
           onDelete={onRemove}
-          {onMoveUp}
-          {onMoveDown}
+          slotId={slot.id}
         />
         {@const q1 = slot.choice1}
         <AssessmentEditable

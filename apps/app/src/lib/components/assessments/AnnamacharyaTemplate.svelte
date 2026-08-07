@@ -5,6 +5,7 @@
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import { installPaperUi } from "./shared/paperUi.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import AssessmentDragHandle from "./shared/AssessmentDragHandle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -18,7 +19,7 @@
   } = $props();
 
   // Move Up/Down reordering (replaces the broken table drag) + Solutions Mode.
-  const { ui: paperUi, move: movePaper } = installPaperUi({
+  const { ui: paperUi, drag: paperDrag } = installPaperUi({
     getSet: () => currentSetData,
     persist: (s) => {
       currentSetData = s;
@@ -520,7 +521,9 @@
                 {#each slot.questions as q, qidx}
                   {@const globalIdx = startIdx + qidx}
                   <tr
-                    class="group relative border-b border-black last:border-b-0"
+                    class={`group relative border-b border-black last:border-b-0 ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                    ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                    ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
                   >
                     {#if globalIdx === 0}
                       <td
@@ -546,42 +549,7 @@
                             class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
                           >
                             {#if qidx === 0}
-                              <button
-                                onclick={() => movePaper(slot.id, -1)}
-                                class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                                title="Move Up"
-                              >
-                                <svg
-                                  class="w-3 h-3 text-slate-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  ><path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2.5"
-                                    d="M5 15l7-7 7 7"
-                                  /></svg
-                                >
-                              </button>
-                              <button
-                                onclick={() => movePaper(slot.id, 1)}
-                                class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                                title="Move Down"
-                              >
-                                <svg
-                                  class="w-3 h-3 text-slate-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  ><path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2.5"
-                                    d="M19 9l-7 7-7-7"
-                                  /></svg
-                                >
-                              </button>
+                              <AssessmentDragHandle slotId={slot.id} class="w-6 h-6" />
                             {/if}
                             <button
                               onclick={() =>
@@ -651,7 +619,9 @@
               {:else}
                 {@const globalIdx = startIdx}
                 <tr
-                  class="group relative border-b border-black last:border-b-0"
+                  class={`group relative border-b border-black last:border-b-0 ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                  ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                  ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
                 >
                   {#if globalIdx === 0}
                     <td
@@ -673,42 +643,7 @@
                         <div
                           class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
                         >
-                          <button
-                            onclick={() => movePaper(slot.id, -1)}
-                            class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                            title="Move Up"
-                          >
-                            <svg
-                              class="w-3 h-3 text-slate-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              ><path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2.5"
-                                d="M5 15l7-7 7 7"
-                              /></svg
-                            >
-                          </button>
-                          <button
-                            onclick={() => movePaper(slot.id, 1)}
-                            class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                            title="Move Down"
-                          >
-                            <svg
-                              class="w-3 h-3 text-slate-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              ><path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2.5"
-                                d="M19 9l-7 7-7-7"
-                              /></svg
-                            >
-                          </button>
+                          <AssessmentDragHandle slotId={slot.id} class="w-6 h-6" />
                           <button
                             onclick={() => openSwapSidebar(slot, "A")}
                             class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
@@ -833,7 +768,11 @@
               {#if slot.type === "OR_GROUP"}
                 <!-- Choice 1 -->
                 {#each slot.choice1.questions || [] as q, qidx}
-                  <tr class="group relative border-b border-black">
+                  <tr
+                    class={`group relative border-b border-black ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                    ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                    ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                  >
                     {#if qidx === 0}
                       <td
                         rowspan={slot.choice1.questions.length}
@@ -860,42 +799,7 @@
                             class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
                           >
                             {#if qidx === 0}
-                              <button
-                                onclick={() => movePaper(slot.id, -1)}
-                                class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                                title="Move Up"
-                              >
-                                <svg
-                                  class="w-3 h-3 text-slate-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  ><path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2.5"
-                                    d="M5 15l7-7 7 7"
-                                  /></svg
-                                >
-                              </button>
-                              <button
-                                onclick={() => movePaper(slot.id, 1)}
-                                class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                                title="Move Down"
-                              >
-                                <svg
-                                  class="w-3 h-3 text-slate-600"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                  ><path
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    stroke-width="2.5"
-                                    d="M19 9l-7 7-7-7"
-                                  /></svg
-                                >
-                              </button>
+                              <AssessmentDragHandle slotId={slot.id} class="w-6 h-6" />
                             {/if}
                             <button
                               onclick={() =>
@@ -973,7 +877,11 @@
                 {/each}
 
                 <!-- (OR) Row -->
-                <tr class="border-b border-black bg-gray-50/20">
+                <tr
+                  class={`border-b border-black bg-gray-50/20 ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                  ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                  ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                >
                   <td
                     colspan="6"
                     class="p-0.5 text-center font-bold text-[9.5pt] italic tracking-tight uppercase"
@@ -985,7 +893,9 @@
                 <!-- Choice 2 -->
                 {#each slot.choice2.questions || [] as q, qidx}
                   <tr
-                    class="group relative border-b border-black last:border-b-0"
+                    class={`group relative border-b border-black last:border-b-0 ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                    ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                    ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
                   >
                     {#if qidx === 0}
                       <td
@@ -1088,7 +998,9 @@
                 {/each}
               {:else}
                 <tr
-                  class="group relative border-b border-black last:border-b-0"
+                  class={`group relative border-b border-black last:border-b-0 ${paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? "ring-2 ring-emerald-400 ring-inset" : ""}`}
+                  ondragover={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                  ondrop={(e: DragEvent) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
                 >
                   <td
                     class="border-r border-black p-1 w-[35px] font-[500] text-[15pt] text-center align-top pt-[2px]"
@@ -1111,42 +1023,7 @@
                         <div
                           class="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex gap-1 z-20"
                         >
-                          <button
-                            onclick={() => movePaper(slot.id, -1)}
-                            class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                            title="Move Up"
-                          >
-                            <svg
-                              class="w-3 h-3 text-slate-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              ><path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2.5"
-                                d="M5 15l7-7 7 7"
-                              /></svg
-                            >
-                          </button>
-                          <button
-                            onclick={() => movePaper(slot.id, 1)}
-                            class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"
-                            title="Move Down"
-                          >
-                            <svg
-                              class="w-3 h-3 text-slate-600"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                              ><path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="2.5"
-                                d="M19 9l-7 7-7-7"
-                              /></svg
-                            >
-                          </button>
+                          <AssessmentDragHandle slotId={slot.id} class="w-6 h-6" />
                           <button
                             onclick={() => openSwapSidebar(slot, "B")}
                             class="p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-100"

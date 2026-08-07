@@ -397,7 +397,7 @@
                     <tr class="group/row min-h-[40px]">
                       <td class="text-center align-top font-bold border border-black p-2 text-[11pt]">{qNumber}</td>
                       <td class="align-top relative text-justify leading-relaxed border border-black p-3">
-                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx), "q1")} onDelete={() => removeQuestion(slot)} onMoveUp={() => movePaper(slot.id, -1)} onMoveDown={() => movePaper(slot.id, 1)} class="!-left-10" />
+                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx), "q1")} onDelete={() => removeQuestion(slot)} slotId={slot.id} class="!-left-10" />
                         {#if slot.choice1?.questions?.[0]}
                            <AssessmentEditable value={slot.choice1.questions[0].text || slot.choice1.questions[0].question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, slot.choice1.questions[0].id)} multiline={true} />
                            {#if paperUi.showSolutions}
@@ -465,7 +465,7 @@
                           {qNumber}{questions.length > 1 ? ` ${alphabet[qIdx]})` : ""}
                         </td>
                         <td class="align-top relative text-justify leading-relaxed border border-black p-3">
-                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx))} onDelete={() => removeQuestion(slot)} onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null} onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null} class="!-left-10" />
+                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, partOf(section, sIdx))} onDelete={() => removeQuestion(slot)} slotId={qIdx === 0 ? slot.id : null} class="!-left-10" />
                           <AssessmentEditable value={q.text || q.question_text} onUpdate={(v) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
 
                           {#if q.options?.length > 0}

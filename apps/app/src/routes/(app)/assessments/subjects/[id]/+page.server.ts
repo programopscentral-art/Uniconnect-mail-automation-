@@ -59,7 +59,8 @@ export const load: PageServerLoad = async ({ params, locals }) => {
                 [subjectId]
             ),
             db.query(
-                `SELECT id, exam_type, paper_date, max_marks, created_at,
+                `SELECT id, exam_type, paper_date, max_marks, created_at, semester,
+                        approval_status, reviewed_at, sent_for_review_at,
                         sets_data->'metadata'->>'assessment_title' as title
                  FROM assessment_papers
                  WHERE subject_id = $1

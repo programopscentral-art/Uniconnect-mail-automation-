@@ -512,8 +512,7 @@
                             onSwap={() =>
                               openSwapSidebar(slot, section.part, "q1")}
                             onDelete={() => removeQuestion(slot)}
-                            onMoveUp={() => movePaper(slot.id, -1)}
-                            onMoveDown={() => movePaper(slot.id, 1)}
+                            slotId={slot.id}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">
@@ -652,8 +651,7 @@
                             {isEditable}
                             onSwap={() => openSwapSidebar(slot, section.part)}
                             onDelete={() => removeQuestion(slot)}
-                            onMoveUp={() => movePaper(slot.id, -1)}
-                            onMoveDown={() => movePaper(slot.id, 1)}
+                            slotId={slot.id}
                             class="!-left-10 !top-2 scale-75"
                           />
 

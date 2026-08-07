@@ -19,6 +19,37 @@
     localPapers = data.papers || [];
   });
 
+  // Human label for an exam type code (MID1 → "Mid 1", SEM → "Semester", …).
+  function examLabel(examType: string | null | undefined): string {
+    const map: Record<string, string> = {
+      MID1: "Mid 1",
+      MID2: "Mid 2",
+      SEM: "Semester",
+      INTERNAL_LAB: "Internal Lab",
+      EXTERNAL_LAB: "External Lab",
+    };
+    return map[String(examType || "").toUpperCase()] || String(examType || "Exam");
+  }
+
+  // Approval-status badge descriptor for a saved paper.
+  function paperStatus(paper: any): { label: string; cls: string } {
+    const s = String(paper?.approval_status || "draft").toLowerCase();
+    if (s === "approved")
+      return {
+        label: `Approved · ${examLabel(paper.exam_type)}`,
+        cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
+      };
+    if (s === "pending_review")
+      return {
+        label: "Pending Review",
+        cls: "bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/30",
+      };
+    return {
+      label: "Draft",
+      cls: "bg-gray-400/10 text-gray-500 dark:text-slate-400 border-gray-300 dark:border-slate-700",
+    };
+  }
+
   function toggleUnit(unitId: string) {
     if (expandedUnits.includes(unitId)) {
       expandedUnits = expandedUnits.filter((id) => id !== unitId);
@@ -2063,6 +2094,15 @@
                     /></svg
                   >
                 </button>
+
+                <div
+                  class="absolute top-6 right-6 inline-flex items-center px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-full border z-10 {paperStatus(
+                    paper,
+                  ).cls}"
+                  title="Approval status"
+                >
+                  {paperStatus(paper).label}
+                </div>
 
                 <div class="p-8 pb-4 space-y-6 flex-1 pt-16">
                   <div class="flex justify-between items-start">

@@ -541,8 +541,7 @@
                     {isEditable}
                     onSwap={() => openSwapSidebar(slot, "B", "q1")}
                     onDelete={() => removeQuestion(slot)}
-                    onMoveUp={() => movePaper(slot.id, -1)}
-                    onMoveDown={() => movePaper(slot.id, 1)}
+                    slotId={slot.id}
                   />
                   {#if slot.choice1?.questions?.[0]}
                     <AssessmentEditable

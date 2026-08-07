@@ -18,18 +18,21 @@
     class: className = "",
   } = $props();
 
-  // Reordering + Solutions Mode are provided by the parent template through
-  // context so every template gets consistent behaviour without per-row wiring.
-  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  // Reordering (drag-and-drop) + Solutions Mode come from the parent template
+  // via context, so every template gets consistent behaviour with no per-row wiring.
+  const drag = getContext<any>("paper:drag");
   const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
-  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
-  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 
   // Do NOT use $derived(slot.questions[0]) because Svelte 5 prohibits binding to derived properties.
   // Instead, we access slot.questions[0] directly in the template and use callbacks for updates.
 </script>
 
-<div class="flex border-b border-black {className}">
+<div
+  class="flex border-b border-black {className} {drag && drag.overId === slot.id && drag.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+  ondragover={(e) => { if (drag?.activeId) { e.preventDefault(); drag.setOver(slot.id); } }}
+  ondrop={(e) => { if (drag?.activeId) { e.preventDefault(); drag.drop(slot.id); } }}
+  role="listitem"
+>
   <div
     class="w-10 border-r border-black flex items-center justify-center font-bold {textClass} tabular-nums no-print-border"
     style="width: {snoWidth}px"
@@ -49,8 +52,7 @@
               {isEditable}
               onSwap={() => onSwap(q.id)}
               onDelete={onRemove}
-              onMoveUp={i === 0 ? onMoveUp : null}
-              onMoveDown={i === 0 ? onMoveDown : null}
+              slotId={i === 0 ? slot.id : null}
               class="-left-8 top-0 scale-75 opacity-0 group-hover/q:opacity-100 transition-opacity"
             />
             <div class="flex gap-2">
@@ -119,8 +121,7 @@
         {isEditable}
         {onSwap}
         onDelete={onRemove}
-        {onMoveUp}
-        {onMoveDown}
+        slotId={slot.id}
       />
       <AssessmentEditable
         value={slot.text || ""}

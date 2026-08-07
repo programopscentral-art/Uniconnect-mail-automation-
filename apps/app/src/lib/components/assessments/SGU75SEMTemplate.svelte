@@ -323,7 +323,7 @@
                       <td class="border border-black p-1 text-center align-top font-bold">{sn}</td>
                       <td class="border border-black p-1 text-center align-top">a</td>
                       <td class="border border-black p-1 align-top relative">
-                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} onMoveUp={() => movePaper(slot.id, -1)} onMoveDown={() => movePaper(slot.id, 1)} class="!-left-10 !top-1 scale-75" />
+                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} slotId={slot.id} class="!-left-10 !top-1 scale-75" />
                         <AssessmentEditable value={q1?.text || q1?.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q1?.id)} multiline={true} />
                         {#if paperUi.showSolutions}
                           <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
@@ -396,7 +396,7 @@
                           {#if questions.length > 1}{getSubLabel(qIdx)}{/if}
                         </td>
                         <td class="border border-black p-1 align-top relative">
-                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null} onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null} class="!-left-10 !top-1 scale-75" />
+                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} slotId={qIdx === 0 ? slot.id : null} class="!-left-10 !top-1 scale-75" />
                           <AssessmentEditable value={q.text || q.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
                           {#if paperUi.showSolutions}
                             <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">

@@ -1,20 +1,20 @@
 <script lang="ts">
     /**
-     * Shared row actions for assessment templates (Swap, Move Up/Down, Delete).
+     * Shared row actions for assessment templates (Swap, Drag-to-reorder, Delete).
      *
-     * Reordering is done with explicit Move Up / Move Down buttons rather than
-     * native drag-and-drop. Drag (svelte-dnd-action on <tbody> rows) broke on
-     * OR-groups — a single question slot renders multiple <tr> rows, so the
-     * library mis-mapped items to rows during a drag and stacked the text on top
-     * of itself. Move buttons are deterministic and work identically on every
-     * template, including table-based ones.
-     *
-     * onMoveUp/onMoveDown are optional: when a template hasn't wired reordering,
-     * the buttons simply don't render (no dead controls).
+     * Reordering is handle-based drag-and-drop via AssessmentDragHandle (drag a
+     * grip onto another slot's grip). Pass `slotId` to enable it. The old
+     * onMoveUp/onMoveDown props are accepted but no longer rendered — reordering
+     * is drag-only now.
      */
+    import { getContext } from "svelte";
+    import AssessmentDragHandle from "./AssessmentDragHandle.svelte";
+
     let {
         onSwap,
         onDelete,
+        slotId = null,
+        // Deprecated (drag replaced the arrows) — still accepted so callers don't break.
         onMoveUp = null,
         onMoveDown = null,
         canMoveUp = true,
@@ -22,10 +22,15 @@
         isEditable = true,
         class: className = ""
     } = $props();
+
+    const drag = getContext<any>("paper:drag");
+    // Keep the action bar visible while a drag is in progress so grips are
+    // reachable as drop targets even without hovering the row.
+    const dragActive = $derived(!!drag && !!drag.activeId);
 </script>
 
 {#if isEditable}
-    <div class="absolute -left-12 top-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 group-hover/row:opacity-100 group-hover/q:opacity-100 transition-opacity no-print z-50 {className}">
+    <div class="absolute -left-12 top-1 flex flex-col gap-1 {dragActive ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 group-hover/row:opacity-100 group-hover/q:opacity-100 transition-opacity no-print z-50 {className}">
         {#if onSwap}
             <button
                 onclick={(e) => { e.stopPropagation(); onSwap(); }}
@@ -36,26 +41,8 @@
             </button>
         {/if}
 
-        {#if onMoveUp}
-            <button
-                onclick={(e) => { e.stopPropagation(); onMoveUp(); }}
-                disabled={!canMoveUp}
-                title="Move Up"
-                class="w-7 h-7 bg-slate-800 text-white rounded-lg flex items-center justify-center shadow hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-800"
-            >
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" /></svg>
-            </button>
-        {/if}
-
-        {#if onMoveDown}
-            <button
-                onclick={(e) => { e.stopPropagation(); onMoveDown(); }}
-                disabled={!canMoveDown}
-                title="Move Down"
-                class="w-7 h-7 bg-slate-800 text-white rounded-lg flex items-center justify-center shadow hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-slate-800"
-            >
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" /></svg>
-            </button>
+        {#if slotId}
+            <AssessmentDragHandle {slotId} />
         {/if}
 
         {#if onDelete}

@@ -392,6 +392,22 @@
   const isReviewer = myRole === "SME" || myRole === "ADMIN" || myRole === "PROGRAM_OPS";
   const isSme = myRole === "SME";
 
+  // Human label for the exam type (MID1 → "Mid 1", SEM → "Semester", …), used
+  // in the "Approved for …" badge + banner.
+  function examLabel(examType: string | null | undefined): string {
+    const map: Record<string, string> = {
+      MID1: "Mid 1", MID2: "Mid 2", SEM: "Semester",
+      INTERNAL_LAB: "Internal Lab", EXTERNAL_LAB: "External Lab",
+    };
+    return map[String(examType || "").toUpperCase()] || String(examType || "Exam");
+  }
+  const examTypeLabel = examLabel((data as any).paper?.exam_type);
+  const statusLabel = $derived(
+    approvalStatus === "approved" ? `APPROVED · ${examTypeLabel.toUpperCase()}`
+    : approvalStatus === "pending_review" ? "PENDING REVIEW"
+    : "DRAFT",
+  );
+
   async function sendForApproval() {
     approvalBusy = true;
     try {
@@ -1342,7 +1358,7 @@
            : approvalStatus === 'pending_review' ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
            : 'bg-white/5 text-gray-400 border-white/10'}"
         title="Approval status"
-      >{approvalStatus === 'pending_review' ? 'PENDING REVIEW' : approvalStatus === 'approved' ? 'APPROVED' : 'DRAFT'}</span>
+      >{statusLabel}</span>
 
       {#if !isSme && approvalStatus !== 'pending_review'}
         <button
@@ -1402,7 +1418,9 @@
               d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
             /></svg
           >
-          <span class="tracking-widest uppercase">Save Changes</span>
+          <span class="tracking-widest uppercase"
+            >{approvalStatus === "approved" ? "Save Changes" : "Save as Draft"}</span
+          >
         {/if}
       </button>
       <button
@@ -1515,6 +1533,44 @@
         </div>
 
         <TemplateCautionBanner {resolved} />
+
+        <!-- Clear approval banner on the paper itself (screen only — kept out of
+             the printed/PDF paper via no-print). -->
+        {#if approvalStatus === "approved"}
+          <div
+            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3"
+          >
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500 text-white">
+              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+            </span>
+            <div>
+              <p class="text-sm font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                Approved for {examTypeLabel}
+              </p>
+              <p class="text-[11px] font-semibold text-emerald-600/80 dark:text-emerald-400/70">
+                This is the approved paper for this assessment.
+              </p>
+            </div>
+          </div>
+        {:else if approvalStatus === "pending_review"}
+          <div
+            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-3"
+          >
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500 text-white font-black">…</span>
+            <p class="text-sm font-black uppercase tracking-wide text-amber-700 dark:text-amber-300">
+              Pending SME review — sent for approval
+            </p>
+          </div>
+        {:else}
+          <div
+            class="no-print mb-4 flex items-center gap-3 rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-500/5 px-5 py-3"
+          >
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-400 text-white font-black text-xs">DR</span>
+            <p class="text-sm font-black uppercase tracking-wide text-slate-600 dark:text-slate-300">
+              Draft — not yet sent for approval
+            </p>
+          </div>
+        {/if}
 
         <!-- The university's own MID/SEM template. One resolver decides which,
              so the viewer and the generate preview can never disagree. -->

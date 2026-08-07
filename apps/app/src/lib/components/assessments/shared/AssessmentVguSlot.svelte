@@ -16,13 +16,15 @@
 
   const target = $derived(slot.questions?.[0] || slot);
 
-  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  const drag = getContext<any>("paper:drag");
   const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
-  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
-  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 </script>
 
-<tr class="border-b border-black group/row {className}">
+<tr
+  class="border-b border-black group/row {className} {drag && drag.overId === slot.id && drag.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+  ondragover={(e) => { if (drag?.activeId) { e.preventDefault(); drag.setOver(slot.id); } }}
+  ondrop={(e) => { if (drag?.activeId) { e.preventDefault(); drag.drop(slot.id); } }}
+>
   <td
     class="w-[60px] border-r border-black p-2 text-center align-top font-bold text-[10pt] relative"
   >
@@ -30,8 +32,7 @@
       {isEditable}
       {onSwap}
       onDelete={onRemove}
-      {onMoveUp}
-      {onMoveDown}
+      slotId={slot.id}
       class="-left-2 top-2"
     />
     {slot.part !== "A" ? "Q." : ""}{qNumber}{slot.part === "A" ? "." : ""}

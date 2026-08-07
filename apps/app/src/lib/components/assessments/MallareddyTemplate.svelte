@@ -8,6 +8,7 @@
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import AssessmentDragHandle from "./shared/AssessmentDragHandle.svelte";
   import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
@@ -23,7 +24,7 @@
 
   // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
   // shared slot components via context; the toggle drives answer-block display.
-  const { ui: paperUi, move: movePaper } = installPaperUi({
+  const { ui: paperUi, drag: paperDrag } = installPaperUi({
     getSet: () => currentSetData,
     persist: (s) => {
       currentSetData = s;
@@ -264,14 +265,7 @@
       {/if}
 
       {#snippet moveBtns(slotId: string)}
-        <button
-          onclick={() => movePaper(slotId, -1)}
-          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
-          title="Move Up">▲</button>
-        <button
-          onclick={() => movePaper(slotId, 1)}
-          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
-          title="Move Down">▼</button>
+        <AssessmentDragHandle {slotId} class="w-6 h-6" />
       {/snippet}
       {#snippet solutionBlock(q: any)}
         {#if paperUi.showSolutions && q}
@@ -548,7 +542,11 @@
             >
               {#each questionsA as slot, idx (slot.id + activeSet)}
                 {@const qNum = displayNumbersA[idx]}
-                <tr class="group relative">
+                <tr
+                  class="group relative {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                  ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                  ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                >
                   <td
                     class="border border-black p-2 font-bold text-center align-top whitespace-nowrap"
                   >
@@ -832,7 +830,11 @@
             >
               {#each questionsB as slot, idx (slot.id + activeSet)}
                 {@const qNum = displayNumbersB[idx]}
-                <tr class="group relative">
+                <tr
+                  class="group relative {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                  ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                  ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                >
                   <td
                     class="border border-black p-2 font-bold text-center align-top whitespace-nowrap"
                   >

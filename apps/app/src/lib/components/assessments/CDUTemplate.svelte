@@ -479,8 +479,7 @@
                             onSwap={() =>
                               openSwapSidebar(slot, partOf(section, sIdx), "q1", q.id)}
                             onDelete={() => removeQuestion(slot)}
-                            onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
-                            onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
+                            slotId={qIdx === 0 ? slot.id : null}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">
@@ -617,8 +616,7 @@
                                 q.id,
                               )}
                             onDelete={() => removeQuestion(slot)}
-                            onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
-                            onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
+                            slotId={qIdx === 0 ? slot.id : null}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">

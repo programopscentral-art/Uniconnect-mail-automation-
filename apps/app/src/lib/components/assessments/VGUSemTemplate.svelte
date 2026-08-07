@@ -8,6 +8,7 @@
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import AssessmentDragHandle from "./shared/AssessmentDragHandle.svelte";
   import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
@@ -23,7 +24,7 @@
 
   // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
   // shared slot components via context; the toggle drives answer-block display.
-  const { ui: paperUi, move: movePaper } = installPaperUi({
+  const { ui: paperUi, drag: paperDrag } = installPaperUi({
     getSet: () => currentSetData,
     persist: (s) => {
       currentSetData = s;
@@ -423,7 +424,24 @@
             </td>
           </tr>
           {#each questionsA as q, idx (q.id + activeSet)}
-            <tr class="group relative">
+            <tr
+              class={"group relative " +
+                (paperDrag?.overId === q.id && paperDrag?.activeId !== q.id
+                  ? "ring-2 ring-emerald-400 ring-inset"
+                  : "")}
+              ondragover={(e: DragEvent) => {
+                if (paperDrag?.activeId) {
+                  e.preventDefault();
+                  paperDrag.setOver(q.id);
+                }
+              }}
+              ondrop={(e: DragEvent) => {
+                if (paperDrag?.activeId) {
+                  e.preventDefault();
+                  paperDrag.drop(q.id);
+                }
+              }}
+            >
               <td class="border border-black p-2 text-center align-top"
                 >{idx + 1}.</td
               >
@@ -434,42 +452,7 @@
                 <div
                   class="absolute -left-12 top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                 >
-                  <button
-                    onclick={() => movePaper(q.id, -1)}
-                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
-                    aria-label="Move up"
-                  >
-                    <svg
-                      class="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 15l7-7 7 7"
-                      /></svg
-                    >
-                  </button>
-                  <button
-                    onclick={() => movePaper(q.id, 1)}
-                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
-                    aria-label="Move down"
-                  >
-                    <svg
-                      class="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      /></svg
-                    >
-                  </button>
+                  <AssessmentDragHandle slotId={q.id} class="w-6 h-6" />
                   <button
                     onclick={() => openSwapSidebar(q, "A")}
                     class="p-1 hover:bg-gray-100 rounded text-indigo-600"
@@ -583,7 +566,24 @@
             </td>
           </tr>
           {#each questionsB as q, idx (q.id + activeSet)}
-            <tr class="group relative">
+            <tr
+              class={"group relative " +
+                (paperDrag?.overId === q.id && paperDrag?.activeId !== q.id
+                  ? "ring-2 ring-emerald-400 ring-inset"
+                  : "")}
+              ondragover={(e: DragEvent) => {
+                if (paperDrag?.activeId) {
+                  e.preventDefault();
+                  paperDrag.setOver(q.id);
+                }
+              }}
+              ondrop={(e: DragEvent) => {
+                if (paperDrag?.activeId) {
+                  e.preventDefault();
+                  paperDrag.drop(q.id);
+                }
+              }}
+            >
               <td class="border border-black p-2 text-center align-top"
                 >Q.{idx + 11}</td
               >
@@ -594,42 +594,7 @@
                 <div
                   class="absolute -left-12 top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                 >
-                  <button
-                    onclick={() => movePaper(q.id, -1)}
-                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
-                    aria-label="Move up"
-                  >
-                    <svg
-                      class="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M5 15l7-7 7 7"
-                      /></svg
-                    >
-                  </button>
-                  <button
-                    onclick={() => movePaper(q.id, 1)}
-                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
-                    aria-label="Move down"
-                  >
-                    <svg
-                      class="w-3 h-3"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      /></svg
-                    >
-                  </button>
+                  <AssessmentDragHandle slotId={q.id} class="w-6 h-6" />
                   <button
                     onclick={() => openSwapSidebar(q, "B")}
                     class="p-1 hover:bg-gray-100 rounded text-indigo-600"

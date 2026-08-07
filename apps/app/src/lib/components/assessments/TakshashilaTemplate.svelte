@@ -8,6 +8,7 @@
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import AssessmentDragHandle from "./shared/AssessmentDragHandle.svelte";
   import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
@@ -23,7 +24,7 @@
 
   // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
   // shared slot components via context; the toggle drives answer-block display.
-  const { ui: paperUi, move: movePaper } = installPaperUi({
+  const { ui: paperUi, drag: paperDrag } = installPaperUi({
     getSet: () => currentSetData,
     persist: (s) => {
       currentSetData = s;
@@ -292,14 +293,7 @@
       {/if}
 
       {#snippet moveBtns(slotId: string)}
-        <button
-          onclick={() => movePaper(slotId, -1)}
-          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
-          title="Move Up">▲</button>
-        <button
-          onclick={() => movePaper(slotId, 1)}
-          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
-          title="Move Down">▼</button>
+        <AssessmentDragHandle {slotId} class="w-6 h-6" />
       {/snippet}
       {#snippet solutionBlock(q: any)}
         {#if paperUi.showSolutions && q}
@@ -548,7 +542,11 @@
                 </thead>
                 <tbody>
                   {#each questionsA as slot, idx (slot.id + activeSet)}
-                    <tr class="group relative text-[9pt]">
+                    <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                       <td
                         class="border-b border-r border-black p-2 text-center align-middle relative"
                       >
@@ -731,7 +729,11 @@
                     {#if slot.type === "OR_GROUP"}
                       <!-- TWO ROWS for OR_GROUP -->
                       <!-- ROW 1: Choice A -->
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >
@@ -815,7 +817,11 @@
                         </td>
                       </tr>
                       <!-- OR Row -->
-                      <tr class="text-[8pt] italic">
+                      <tr
+                        class="text-[8pt] italic {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                        ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                        ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                      >
                         <td
                           class="border-b border-r border-black font-bold text-center p-1"
                           >(or)</td
@@ -823,7 +829,11 @@
                         <td colspan="3" class="border-b border-black"></td>
                       </tr>
                       <!-- ROW 2: Choice B -->
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >
@@ -888,7 +898,11 @@
                         </td>
                       </tr>
                     {:else}
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >
@@ -1022,7 +1036,11 @@
                     {#if slot.type === "OR_GROUP"}
                       <!-- TWO ROWS for OR_GROUP -->
                       <!-- ROW 1: Choice A -->
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >
@@ -1109,7 +1127,11 @@
                         </td>
                       </tr>
                       <!-- OR Row -->
-                      <tr class="text-[8pt] italic">
+                      <tr
+                        class="text-[8pt] italic {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                        ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                        ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                      >
                         <td
                           class="border-b border-r border-black font-bold text-center p-1"
                           >(or)</td
@@ -1117,7 +1139,11 @@
                         <td colspan="3" class="border-b border-black"></td>
                       </tr>
                       <!-- ROW 2: Choice B -->
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >
@@ -1185,7 +1211,11 @@
                         </td>
                       </tr>
                     {:else}
-                      <tr class="group relative text-[9pt]">
+                      <tr
+                      class="group relative text-[9pt] {paperDrag?.overId === slot.id && paperDrag?.activeId !== slot.id ? 'ring-2 ring-emerald-400 ring-inset' : ''}"
+                      ondragover={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.setOver(slot.id); } }}
+                      ondrop={(e) => { if (paperDrag?.activeId) { e.preventDefault(); paperDrag.drop(slot.id); } }}
+                    >
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle relative"
                         >

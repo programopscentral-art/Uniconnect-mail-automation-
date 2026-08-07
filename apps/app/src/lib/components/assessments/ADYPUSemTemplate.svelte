@@ -436,8 +436,7 @@
                                 {isEditable}
                                 onSwap={() => openSwapSidebar(slot, section.part, "q1")}
                                 onDelete={() => removeQuestion(slot)}
-                                onMoveUp={() => movePaper(slot.id, -1)}
-                                onMoveDown={() => movePaper(slot.id, 1)}
+                                slotId={slot.id}
                                 class="!-left-10 !top-1 scale-75"
                               />
                               <AssessmentEditable
@@ -535,8 +534,7 @@
                                   {isEditable}
                                   onSwap={() => openSwapSidebar(slot, section.part)}
                                   onDelete={() => removeQuestion(slot)}
-                                  onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
-                                  onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
+                                  slotId={qIdx === 0 ? slot.id : null}
                                   class="!-left-10 !top-1 scale-75"
                                 />
                                 <AssessmentEditable
