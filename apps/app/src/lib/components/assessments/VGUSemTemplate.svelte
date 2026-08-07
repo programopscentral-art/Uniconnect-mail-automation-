@@ -7,6 +7,8 @@
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -18,6 +20,16 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
+  // shared slot components via context; the toggle drives answer-block display.
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return;
@@ -227,6 +239,11 @@
       class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
       <!-- VGU SEMESTER HIGH FIDELITY HEADER -->
       <div class="mb-2">
         <div
@@ -391,7 +408,7 @@
 
         <!-- Section A Container -->
         <tbody
-          use:dndzone={{ items: questionsA, flipDurationMs: 200 }}
+          use:dndzone={{ items: questionsA, flipDurationMs: 200, dragDisabled: true }}
           onconsider={(e) => handleDndSync("A", (e.detail as any).items)}
           onfinalize={(e) => handleDndSync("A", (e.detail as any).items)}
         >
@@ -417,6 +434,42 @@
                 <div
                   class="absolute -left-12 top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                 >
+                  <button
+                    onclick={() => movePaper(q.id, -1)}
+                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
+                    aria-label="Move up"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 15l7-7 7 7"
+                      /></svg
+                    >
+                  </button>
+                  <button
+                    onclick={() => movePaper(q.id, 1)}
+                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
+                    aria-label="Move down"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      /></svg
+                    >
+                  </button>
                   <button
                     onclick={() => openSwapSidebar(q, "A")}
                     class="p-1 hover:bg-gray-100 rounded text-indigo-600"
@@ -478,6 +531,24 @@
                     class="mt-2 text-[9pt]"
                   />
                 {/if}
+                {#if paperUi.showSolutions}
+                  <div
+                    class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                  >
+                    <div
+                      class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                    >
+                      Solution
+                    </div>
+                    <AssessmentEditable
+                      value={q.answer_key || q.answer || ""}
+                      onUpdate={(v: string) => {
+                        q.answer_key = v;
+                      }}
+                      multiline={true}
+                    />
+                  </div>
+                {/if}
               </td>
               <td class="border border-black p-2 text-center align-top"
                 >{q.marks || q.mark || 1}</td
@@ -497,7 +568,7 @@
 
         <!-- Section B Container -->
         <tbody
-          use:dndzone={{ items: questionsB, flipDurationMs: 200 }}
+          use:dndzone={{ items: questionsB, flipDurationMs: 200, dragDisabled: true }}
           onconsider={(e) => handleDndSync("B", (e.detail as any).items)}
           onfinalize={(e) => handleDndSync("B", (e.detail as any).items)}
         >
@@ -523,6 +594,42 @@
                 <div
                   class="absolute -left-12 top-2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                 >
+                  <button
+                    onclick={() => movePaper(q.id, -1)}
+                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
+                    aria-label="Move up"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 15l7-7 7 7"
+                      /></svg
+                    >
+                  </button>
+                  <button
+                    onclick={() => movePaper(q.id, 1)}
+                    class="p-1 hover:bg-gray-100 rounded text-gray-600"
+                    aria-label="Move down"
+                  >
+                    <svg
+                      class="w-3 h-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 9l-7 7-7-7"
+                      /></svg
+                    >
+                  </button>
                   <button
                     onclick={() => openSwapSidebar(q, "B")}
                     class="p-1 hover:bg-gray-100 rounded text-indigo-600"
@@ -584,6 +691,26 @@
                           class="mt-2 text-[9pt]"
                         />
                       {/if}
+                      {#if paperUi.showSolutions && q.choice1?.questions?.[0]}
+                        <div
+                          class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                        >
+                          <div
+                            class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                          >
+                            Solution
+                          </div>
+                          <AssessmentEditable
+                            value={q.choice1.questions[0].answer_key ||
+                              q.choice1.questions[0].answer ||
+                              ""}
+                            onUpdate={(v: string) => {
+                              q.choice1.questions[0].answer_key = v;
+                            }}
+                            multiline={true}
+                          />
+                        </div>
+                      {/if}
                     </div>
                     <div class="text-center font-bold italic py-1 text-[9pt]">
                       -- OR --
@@ -609,6 +736,26 @@
                           class="mt-2 text-[9pt]"
                         />
                       {/if}
+                      {#if paperUi.showSolutions && q.choice2?.questions?.[0]}
+                        <div
+                          class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                        >
+                          <div
+                            class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                          >
+                            Solution
+                          </div>
+                          <AssessmentEditable
+                            value={q.choice2.questions[0].answer_key ||
+                              q.choice2.questions[0].answer ||
+                              ""}
+                            onUpdate={(v: string) => {
+                              q.choice2.questions[0].answer_key = v;
+                            }}
+                            multiline={true}
+                          />
+                        </div>
+                      {/if}
                     </div>
                   </div>
                 {:else}
@@ -633,6 +780,24 @@
                       options={q.questions?.[0]?.options || q.options}
                       class="mt-2 text-[9pt]"
                     />
+                  {/if}
+                  {#if paperUi.showSolutions}
+                    <div
+                      class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                    >
+                      <div
+                        class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                      >
+                        Solution
+                      </div>
+                      <AssessmentEditable
+                        value={q.answer_key || q.answer || ""}
+                        onUpdate={(v: string) => {
+                          q.answer_key = v;
+                        }}
+                        multiline={true}
+                      />
+                    </div>
                   {/if}
                 {/if}
               </td>

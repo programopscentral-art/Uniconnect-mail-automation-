@@ -7,6 +7,8 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -18,6 +20,17 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Reordering (Move Up/Down) + Solutions Mode. Some questions render via the
+  // shared slot components (Move + Solutions for free); the inline-rendered ones
+  // wire Move + Solution blocks manually below.
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   // Mandatory Logic Reuse: Implementation mirrored from StandardTemplate
   function rebuildAnswerSheet() {
@@ -364,6 +377,11 @@
       class="mx-auto bg-white p-[0.7in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
       <!-- Header (Centered layout) -->
       <div class="text-center mb-6 space-y-1">
         <div
@@ -468,7 +486,7 @@
                   use:dndzone={{
                     items: sectionQuestions,
                     flipDurationMs: 200,
-                    dragDisabled: !isEditable,
+                    dragDisabled: true,
                   }}
                   onconsider={(e: any) =>
                     handleDndSync(section.part, e.detail.items)}
@@ -494,6 +512,8 @@
                             onSwap={() =>
                               openSwapSidebar(slot, section.part, "q1")}
                             onDelete={() => removeQuestion(slot)}
+                            onMoveUp={() => movePaper(slot.id, -1)}
+                            onMoveDown={() => movePaper(slot.id, 1)}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">
@@ -513,6 +533,24 @@
                                 )}
                               multiline={true}
                             />
+                            {#if paperUi.showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
+                                <AssessmentEditable
+                                  value={q1.answer_key || q1.answer || ""}
+                                  onUpdate={(v: string) => {
+                                    q1.answer_key = v;
+                                  }}
+                                  multiline={true}
+                                />
+                              </div>
+                            {/if}
                           </div>
                         </td>
                       </tr>
@@ -560,6 +598,24 @@
                                 )}
                               multiline={true}
                             />
+                            {#if paperUi.showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
+                                <AssessmentEditable
+                                  value={q2.answer_key || q2.answer || ""}
+                                  onUpdate={(v: string) => {
+                                    q2.answer_key = v;
+                                  }}
+                                  multiline={true}
+                                />
+                              </div>
+                            {/if}
                           </div>
                         </td>
                       </tr>
@@ -596,6 +652,8 @@
                             {isEditable}
                             onSwap={() => openSwapSidebar(slot, section.part)}
                             onDelete={() => removeQuestion(slot)}
+                            onMoveUp={() => movePaper(slot.id, -1)}
+                            onMoveDown={() => movePaper(slot.id, 1)}
                             class="!-left-10 !top-2 scale-75"
                           />
 
@@ -667,6 +725,25 @@
                                     src={q.image_url}
                                     alt="Question"
                                     class="max-h-[250px] object-contain border border-gray-100 rounded"
+                                  />
+                                </div>
+                              {/if}
+
+                              {#if paperUi.showSolutions}
+                                <div
+                                  class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                                >
+                                  <div
+                                    class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                  >
+                                    Solution
+                                  </div>
+                                  <AssessmentEditable
+                                    value={q.answer_key || q.answer || ""}
+                                    onUpdate={(v: string) => {
+                                      q.answer_key = v;
+                                    }}
+                                    multiline={true}
                                   />
                                 </div>
                               {/if}

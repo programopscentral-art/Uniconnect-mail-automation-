@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import AssessmentRowActions from "./AssessmentRowActions.svelte";
   import AssessmentEditable from "./AssessmentEditable.svelte";
   import AssessmentMcqOptions from "./AssessmentMcqOptions.svelte";
@@ -14,6 +15,11 @@
   } = $props();
 
   const target = $derived(slot.questions?.[0] || slot);
+
+  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
+  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
+  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 </script>
 
 <tr class="border-b border-black group/row {className}">
@@ -24,6 +30,8 @@
       {isEditable}
       {onSwap}
       onDelete={onRemove}
+      {onMoveUp}
+      {onMoveDown}
       class="-left-2 top-2"
     />
     {slot.part !== "A" ? "Q." : ""}{qNumber}{slot.part === "A" ? "." : ""}
@@ -89,6 +97,16 @@
             src={q.image_url}
             alt="Question"
             class="max-h-[300px] object-contain"
+          />
+        </div>
+      {/if}
+      {#if showSolutions?.()}
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+          <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+          <AssessmentEditable
+            value={q.answer_key || q.answer || ""}
+            onUpdate={(v: string) => { q.answer_key = v; }}
+            multiline={true}
           />
         </div>
       {/if}

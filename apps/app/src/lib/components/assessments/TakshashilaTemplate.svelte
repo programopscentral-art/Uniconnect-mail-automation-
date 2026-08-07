@@ -7,6 +7,8 @@
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -18,6 +20,16 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
+  // shared slot components via context; the toggle drives answer-block display.
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   const normalizePart = (q: any) => {
     const p = (q.part || q.section || "").toUpperCase();
@@ -273,6 +285,40 @@
       class="mx-auto bg-white p-[0.5in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
+
+      {#snippet moveBtns(slotId: string)}
+        <button
+          onclick={() => movePaper(slotId, -1)}
+          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
+          title="Move Up">▲</button>
+        <button
+          onclick={() => movePaper(slotId, 1)}
+          class="p-1 hover:bg-gray-100 rounded text-gray-600 bg-white shadow-sm border text-[11px] leading-none font-bold"
+          title="Move Down">▼</button>
+      {/snippet}
+      {#snippet solutionBlock(q: any)}
+        {#if paperUi.showSolutions && q}
+          <div
+            class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+          >
+            <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">
+              Solution
+            </div>
+            <AssessmentEditable
+              value={q.answer_key || q.answer || ""}
+              onUpdate={(v: string) => {
+                q.answer_key = v;
+              }}
+              multiline={true}
+            />
+          </div>
+        {/if}
+      {/snippet}
       <!-- HEADER -->
       <div class="mb-4">
         <table class="w-full border-collapse border-none">
@@ -476,7 +522,7 @@
             </div>
 
             <div
-              use:dndzone={{ items: questionsA, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsA, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("A", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("A", (e.detail as any).items)}
               class="border-t border-l border-r border-black"
@@ -511,6 +557,7 @@
                           <div
                             class="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                           >
+                            {@render moveBtns(slot.id)}
                             <button
                               onclick={() => openSwapSidebar(slot, "A")}
                               class="p-1 hover:bg-gray-100 rounded text-indigo-600 bg-white shadow-sm border"
@@ -561,7 +608,7 @@
                               >
                               <AssessmentEditable
                                 value={getQuestionText(slot.choice1)}
-                                onUpdate={(v) =>
+                                onUpdate={(v: string) =>
                                   updateText(
                                     v,
                                     "QUESTION",
@@ -573,6 +620,7 @@
                                 multiline={true}
                               />
                             </div>
+                            {@render solutionBlock(slot.choice1?.questions?.[0])}
                             <div class="text-center italic text-[8pt]">
                               (or)
                             </div>
@@ -594,6 +642,7 @@
                                 multiline={true}
                               />
                             </div>
+                            {@render solutionBlock(slot.choice2?.questions?.[0])}
                           </div>
                         {:else}
                           <AssessmentEditable
@@ -608,6 +657,7 @@
                               )}
                             multiline={true}
                           />
+                          {@render solutionBlock(slot.questions?.[0] || slot)}
                         {/if}
                       </td>
                       <td
@@ -652,7 +702,7 @@
             </div>
 
             <div
-              use:dndzone={{ items: questionsB, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsB, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("B", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("B", (e.detail as any).items)}
               class="border-t border-l border-r border-black"
@@ -690,6 +740,7 @@
                             <div
                               class="absolute -left-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                             >
+                              {@render moveBtns(slot.id)}
                               <button
                                 onclick={() => openSwapSidebar(slot, "B", "q1")}
                                 class="p-1 hover:bg-gray-100 rounded text-indigo-600 bg-white shadow-sm border"
@@ -748,6 +799,7 @@
                               multiline={true}
                             />
                           </div>
+                          {@render solutionBlock(slot.choice1?.questions?.[0])}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"
@@ -820,6 +872,7 @@
                               multiline={true}
                             />
                           </div>
+                          {@render solutionBlock(slot.choice2?.questions?.[0])}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"
@@ -844,6 +897,7 @@
                             <div
                               class="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                             >
+                              {@render moveBtns(slot.id)}
                               <button
                                 onclick={() => openSwapSidebar(slot, "B")}
                                 class="p-1 hover:bg-gray-100 rounded text-indigo-600 bg-white shadow-sm border"
@@ -898,6 +952,7 @@
                               )}
                             multiline={true}
                           />
+                          {@render solutionBlock(slot.questions?.[0] || slot)}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"
@@ -938,7 +993,7 @@
             </div>
 
             <div
-              use:dndzone={{ items: questionsC, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsC, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("C", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("C", (e.detail as any).items)}
               class="border-t border-l border-r border-black"
@@ -979,6 +1034,7 @@
                             <div
                               class="absolute -left-10 top-0 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                             >
+                              {@render moveBtns(slot.id)}
                               <button
                                 onclick={() => openSwapSidebar(slot, "C", "q1")}
                                 class="p-1 hover:bg-gray-100 rounded text-indigo-600 bg-white shadow-sm border"
@@ -1037,6 +1093,7 @@
                               multiline={true}
                             />
                           </div>
+                          {@render solutionBlock(slot.choice1?.questions?.[0])}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"
@@ -1112,6 +1169,7 @@
                               multiline={true}
                             />
                           </div>
+                          {@render solutionBlock(slot.choice2?.questions?.[0])}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"
@@ -1136,6 +1194,7 @@
                             <div
                               class="absolute -left-10 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity no-print flex flex-col gap-1"
                             >
+                              {@render moveBtns(slot.id)}
                               <button
                                 onclick={() => openSwapSidebar(slot, "C")}
                                 class="p-1 hover:bg-gray-100 rounded text-indigo-600 bg-white shadow-sm border"
@@ -1190,6 +1249,7 @@
                               )}
                             multiline={true}
                           />
+                          {@render solutionBlock(slot.questions?.[0] || slot)}
                         </td>
                         <td
                           class="border-b border-r border-black p-2 text-center align-middle"

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import AssessmentRowActions from "./AssessmentRowActions.svelte";
   import AssessmentEditable from "./AssessmentEditable.svelte";
   import AssessmentMcqOptions from "./AssessmentMcqOptions.svelte";
@@ -16,6 +17,13 @@
     marksClass = "border-l-[1.5pt] border-black min-w-[50px] print:border-l-[1.5pt]",
     class: className = "",
   } = $props();
+
+  // Reordering + Solutions Mode are provided by the parent template through
+  // context so every template gets consistent behaviour without per-row wiring.
+  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
+  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
+  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 
   // Do NOT use $derived(slot.questions[0]) because Svelte 5 prohibits binding to derived properties.
   // Instead, we access slot.questions[0] directly in the template and use callbacks for updates.
@@ -41,6 +49,8 @@
               {isEditable}
               onSwap={() => onSwap(q.id)}
               onDelete={onRemove}
+              onMoveUp={i === 0 ? onMoveUp : null}
+              onMoveDown={i === 0 ? onMoveDown : null}
               class="-left-8 top-0 scale-75 opacity-0 group-hover/q:opacity-100 transition-opacity"
             />
             <div class="flex gap-2">
@@ -70,6 +80,22 @@
                     />
                   </div>
                 {/if}
+                {#if showSolutions?.()}
+                  <div
+                    class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                  >
+                    <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">
+                      Solution
+                    </div>
+                    <AssessmentEditable
+                      value={q.answer_key || q.answer || ""}
+                      onUpdate={(v: string) => {
+                        q.answer_key = v;
+                      }}
+                      multiline={true}
+                    />
+                  </div>
+                {/if}
               </div>
               {#if slot.questions.length > 1}
                 <div
@@ -89,7 +115,13 @@
         {/each}
       </div>
     {:else}
-      <AssessmentRowActions {isEditable} {onSwap} onDelete={onRemove} />
+      <AssessmentRowActions
+        {isEditable}
+        {onSwap}
+        onDelete={onRemove}
+        {onMoveUp}
+        {onMoveDown}
+      />
       <AssessmentEditable
         value={slot.text || ""}
         onUpdate={(v: string) => {
@@ -100,6 +132,22 @@
         class="question-text-content"
       />
       <AssessmentMcqOptions options={slot.options} />
+      {#if showSolutions?.()}
+        <div
+          class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+        >
+          <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">
+            Solution
+          </div>
+          <AssessmentEditable
+            value={slot.answer_key || slot.answer || ""}
+            onUpdate={(v: string) => {
+              slot.answer_key = v;
+            }}
+            multiline={true}
+          />
+        </div>
+      {/if}
     {/if}
   </div>
   <div

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from "svelte";
   import AssessmentRowActions from "./AssessmentRowActions.svelte";
   import AssessmentEditable from "./AssessmentEditable.svelte";
   import AssessmentMcqOptions from "./AssessmentMcqOptions.svelte";
@@ -18,6 +19,13 @@
     marksClass = "min-w-[50px] gap-1",
     class: className = "",
   } = $props();
+
+  // Reordering + Solutions Mode come from the parent template via context.
+  // Move buttons move the whole OR group (slot.id) as one unit.
+  const moveSlot = getContext<((id: string, dir: -1 | 1) => void) | undefined>("paper:move");
+  const showSolutions = getContext<(() => boolean) | undefined>("paper:showSolutions");
+  const onMoveUp = moveSlot ? () => moveSlot(slot.id, -1) : null;
+  const onMoveDown = moveSlot ? () => moveSlot(slot.id, 1) : null;
 
   // Use direct access to avoid binding to derivation crash
 </script>
@@ -46,6 +54,8 @@
                 {isEditable}
                 onSwap={() => onSwap1(q.id)}
                 onDelete={onRemove}
+                onMoveUp={i === 0 ? onMoveUp : null}
+                onMoveDown={i === 0 ? onMoveDown : null}
                 class="-left-8 top-0 scale-75 opacity-0 group-hover/q:opacity-100 transition-opacity"
               />
               <div class="flex gap-2">
@@ -75,6 +85,18 @@
                       />
                     </div>
                   {/if}
+                  {#if showSolutions?.()}
+                    <div
+                      class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                    >
+                      <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                      <AssessmentEditable
+                        value={q.answer_key || q.answer || ""}
+                        onUpdate={(v: string) => { q.answer_key = v; }}
+                        multiline={true}
+                      />
+                    </div>
+                  {/if}
                 </div>
                 {#if slot.choice1.questions.length > 1}
                   <div
@@ -98,6 +120,8 @@
           {isEditable}
           onSwap={onSwap1}
           onDelete={onRemove}
+          {onMoveUp}
+          {onMoveDown}
         />
         {@const q1 = slot.choice1}
         <AssessmentEditable
@@ -111,6 +135,18 @@
           class="question-text-content"
         />
         <AssessmentMcqOptions options={q1.options} />
+        {#if showSolutions?.()}
+          <div
+            class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+          >
+            <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+            <AssessmentEditable
+              value={q1.answer_key || q1.answer || ""}
+              onUpdate={(v: string) => { q1.answer_key = v; }}
+              multiline={true}
+            />
+          </div>
+        {/if}
       {/if}
     </div>
     <div
@@ -196,6 +232,18 @@
                       />
                     </div>
                   {/if}
+                  {#if showSolutions?.()}
+                    <div
+                      class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                    >
+                      <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                      <AssessmentEditable
+                        value={q.answer_key || q.answer || ""}
+                        onUpdate={(v: string) => { q.answer_key = v; }}
+                        multiline={true}
+                      />
+                    </div>
+                  {/if}
                 </div>
                 {#if slot.choice2.questions.length > 1}
                   <div
@@ -232,6 +280,18 @@
           class="question-text-content"
         />
         <AssessmentMcqOptions options={q2.options} />
+        {#if showSolutions?.()}
+          <div
+            class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+          >
+            <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+            <AssessmentEditable
+              value={q2.answer_key || q2.answer || ""}
+              onUpdate={(v: string) => { q2.answer_key = v; }}
+              multiline={true}
+            />
+          </div>
+        {/if}
       {/if}
     </div>
     <div

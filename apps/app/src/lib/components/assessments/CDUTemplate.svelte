@@ -6,6 +6,7 @@
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -17,6 +18,19 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Move Up/Down reordering (replaces the broken table drag). This template
+  // renders Solutions Mode itself, so we only take `move` here.
+  const { move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      if (onSwap) {
+        rebuildAnswerSheet();
+        onSwap($state.snapshot(currentSetData));
+      }
+    },
+  });
 
   /**
    * Older papers saved sections without a `part` (only title/slots/marks), which
@@ -439,7 +453,7 @@
                 use:dndzone={{
                   items: sectionQs,
                   flipDurationMs: 200,
-                  dragDisabled: !isEditable,
+                  dragDisabled: true,
                 }}
                 onconsider={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
                 onfinalize={(e) => handleDndSync(partOf(section, sIdx), e.detail.items)}
@@ -465,6 +479,8 @@
                             onSwap={() =>
                               openSwapSidebar(slot, partOf(section, sIdx), "q1", q.id)}
                             onDelete={() => removeQuestion(slot)}
+                            onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
+                            onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">
@@ -601,6 +617,8 @@
                                 q.id,
                               )}
                             onDelete={() => removeQuestion(slot)}
+                            onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
+                            onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
                             class="!-left-10 !top-2 scale-75"
                           />
                           <div class="text-[11pt] leading-relaxed">

@@ -13,6 +13,8 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -24,6 +26,14 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   // ── Reused verbatim from ADYPUSemTemplate ──────────────────────────────────
 
@@ -158,6 +168,12 @@
       class="mx-auto bg-white shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in; padding: 0.5in 0.6in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
+
       <!-- ═══ HEADER ═══ -->
       <!-- PRN box (left) | Course Code box (right) -->
       <table class="w-full border-collapse mb-2 text-[10pt]">
@@ -301,8 +317,14 @@
                       <td class="border border-black p-1 text-center align-top font-bold">{sn}</td>
                       <td class="border border-black p-1 text-center align-top">a</td>
                       <td class="border border-black p-1 align-top relative">
-                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} class="!-left-10 !top-1 scale-75" />
+                        <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q1")} onDelete={() => removeQuestion(slot)} onMoveUp={() => movePaper(slot.id, -1)} onMoveDown={() => movePaper(slot.id, 1)} class="!-left-10 !top-1 scale-75" />
                         <AssessmentEditable value={q1?.text || q1?.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q1?.id)} multiline={true} />
+                        {#if paperUi.showSolutions}
+                          <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                            <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                            <AssessmentEditable value={q1?.answer_key || q1?.answer || ""} onUpdate={(v: string) => { if (q1) q1.answer_key = v; }} multiline={true} />
+                          </div>
+                        {/if}
                       </td>
                       <td class="border border-black p-1 text-center align-top">
                         <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />
@@ -326,6 +348,12 @@
                       <td class="border border-black p-1 align-top relative">
                         <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part, "q2")} onDelete={() => removeQuestion(slot)} class="!-left-10 !top-1 scale-75" />
                         <AssessmentEditable value={q2?.text || q2?.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q2?.id)} multiline={true} />
+                        {#if paperUi.showSolutions}
+                          <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                            <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                            <AssessmentEditable value={q2?.answer_key || q2?.answer || ""} onUpdate={(v: string) => { if (q2) q2.answer_key = v; }} multiline={true} />
+                          </div>
+                        {/if}
                       </td>
                       <td class="border border-black p-1 text-center align-top">
                         <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />
@@ -358,8 +386,14 @@
                           {#if questions.length > 1}{getSubLabel(qIdx)}{/if}
                         </td>
                         <td class="border border-black p-1 align-top relative">
-                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} class="!-left-10 !top-1 scale-75" />
+                          <AssessmentRowActions {isEditable} onSwap={() => openSwapSidebar(slot, section.part)} onDelete={() => removeQuestion(slot)} onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null} onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null} class="!-left-10 !top-1 scale-75" />
                           <AssessmentEditable value={q.text || q.question_text || ""} onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q.id)} multiline={true} />
+                          {#if paperUi.showSolutions}
+                            <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                              <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                              <AssessmentEditable value={q.answer_key || q.answer || ""} onUpdate={(v: string) => { q.answer_key = v; }} multiline={true} />
+                            </div>
+                          {/if}
                         </td>
                         <td class="border border-black p-1 text-center align-top">
                           <AssessmentEditable value={String(marks)} onUpdate={(v: string) => { section.marks_per_q = Number(v) || v; paperStructure = [...paperStructure]; }} class="text-center" />

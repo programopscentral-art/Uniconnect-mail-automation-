@@ -5,6 +5,8 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -16,6 +18,18 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Move Up/Down reordering (replaces the broken table drag) + Solutions Mode.
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      if (onSwap) {
+        rebuildAnswerSheet();
+        onSwap($state.snapshot(currentSetData));
+      }
+    },
+  });
 
   /**
    * Older papers saved sections without a `part` (only title/slots/marks), which
@@ -246,6 +260,12 @@
       class="mx-auto bg-white p-[0.7in] shadow-2xl transition-all duration-500 font-sans relative"
       style="width: 8.27in; min-height: 11.69in; color: black !important; background-color: white !important;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
+
       <!-- Top Logo Section -->
       <div class="flex justify-center mb-6">
         <img
@@ -414,7 +434,7 @@
                   use:dndzone={{
                     items: sectionQuestions,
                     flipDurationMs: 200,
-                    dragDisabled: !isEditable,
+                    dragDisabled: true,
                   }}
                   onconsider={(e: any) =>
                     handleDndSync(partOf(section, sIdx), e.detail.items)}
@@ -446,6 +466,8 @@
                                 onSwap={() =>
                                   openSwapSidebar(slot, partOf(section, sIdx), "q1")}
                                 onDelete={() => removeQuestion(slot)}
+                                onMoveUp={() => movePaper(slot.id, -1)}
+                                onMoveDown={() => movePaper(slot.id, 1)}
                                 class="!-left-10 !top-2 scale-75"
                               />
                             {/if}
@@ -472,6 +494,24 @@
                                     {String.fromCharCode(97 + oIdx)}) {opt}
                                   </div>
                                 {/each}
+                              </div>
+                            {/if}
+                            {#if paperUi.showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
+                                <AssessmentEditable
+                                  value={q1.answer_key || q1.answer || ""}
+                                  onUpdate={(v: string) => {
+                                    q1.answer_key = v;
+                                  }}
+                                  multiline={true}
+                                />
                               </div>
                             {/if}
                           </td>
@@ -558,6 +598,24 @@
                                 multiline={true}
                               />
                             </div>
+                            {#if paperUi.showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
+                                <AssessmentEditable
+                                  value={q2.answer_key || q2.answer || ""}
+                                  onUpdate={(v: string) => {
+                                    q2.answer_key = v;
+                                  }}
+                                  multiline={true}
+                                />
+                              </div>
+                            {/if}
                           </td>
                           <td
                             class="border border-black p-2 text-center align-top tabular-nums"
@@ -619,6 +677,8 @@
                               {isEditable}
                               onSwap={() => openSwapSidebar(slot, partOf(section, sIdx))}
                               onDelete={() => removeQuestion(slot)}
+                              onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
+                              onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
                               class="!-left-10 !top-2 scale-75"
                             />
                             <div class="leading-relaxed">
@@ -652,6 +712,24 @@
                                   src={q.image_url}
                                   alt="Question"
                                   class="max-h-[200px] object-contain border border-gray-100 rounded"
+                                />
+                              </div>
+                            {/if}
+                            {#if paperUi.showSolutions}
+                              <div
+                                class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                              >
+                                <div
+                                  class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                                >
+                                  Solution
+                                </div>
+                                <AssessmentEditable
+                                  value={q.answer_key || q.answer || ""}
+                                  onUpdate={(v: string) => {
+                                    q.answer_key = v;
+                                  }}
+                                  multiline={true}
                                 />
                               </div>
                             {/if}

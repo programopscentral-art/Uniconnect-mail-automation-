@@ -8,6 +8,8 @@
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import AssessmentMcqOptions from "./shared/AssessmentMcqOptions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -19,6 +21,16 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
+  // shared slot components via context; the toggle drives answer-block display.
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return; // Only for object-based sets
@@ -286,6 +298,11 @@
       class="mx-auto bg-white p-[0.3in] shadow-2xl transition-all duration-500 font-serif text-black relative border border-black"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 left-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
       <!-- Header -->
       <div
         class="header-container flex flex-col items-center mb-1 pt-1 relative"
@@ -443,7 +460,7 @@
       </div>
       <div
         class="border-x border-t border-black"
-        use:dndzone={{ items: questionsA, flipDurationMs: 200 }}
+        use:dndzone={{ items: questionsA, flipDurationMs: 200, dragDisabled: true }}
         onconsider={(e) => handleDndSync("A", (e.detail as any).items)}
         onfinalize={(e) => handleDndSync("A", (e.detail as any).items)}
       >
@@ -505,7 +522,7 @@
       </div>
       <div
         class="border-x border-black"
-        use:dndzone={{ items: questionsB, flipDurationMs: 200 }}
+        use:dndzone={{ items: questionsB, flipDurationMs: 200, dragDisabled: true }}
         onconsider={(e) => handleDndSync("B", (e.detail as any).items)}
         onfinalize={(e) => handleDndSync("B", (e.detail as any).items)}
       >
@@ -524,6 +541,8 @@
                     {isEditable}
                     onSwap={() => openSwapSidebar(slot, "B", "q1")}
                     onDelete={() => removeQuestion(slot)}
+                    onMoveUp={() => movePaper(slot.id, -1)}
+                    onMoveDown={() => movePaper(slot.id, 1)}
                   />
                   {#if slot.choice1?.questions?.[0]}
                     <AssessmentEditable
@@ -544,6 +563,25 @@
                     <AssessmentMcqOptions
                       options={slot.choice1.questions[0].options}
                     />
+                    {#if paperUi.showSolutions}
+                      <div
+                        class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                      >
+                        <div
+                          class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                        >
+                          Solution
+                        </div>
+                        <AssessmentEditable
+                          value={slot.choice1.questions[0].answer_key ||
+                            slot.choice1.questions[0].answer ||
+                            ""}
+                          onUpdate={(v: string) =>
+                            (slot.choice1.questions[0].answer_key = v)}
+                          multiline={true}
+                        />
+                      </div>
+                    {/if}
                   {/if}
                 </div>
                 <div
@@ -597,6 +635,25 @@
                     <AssessmentMcqOptions
                       options={slot.choice2.questions[0].options}
                     />
+                    {#if paperUi.showSolutions}
+                      <div
+                        class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]"
+                      >
+                        <div
+                          class="text-[8pt] font-bold uppercase mb-1 text-blue-600"
+                        >
+                          Solution
+                        </div>
+                        <AssessmentEditable
+                          value={slot.choice2.questions[0].answer_key ||
+                            slot.choice2.questions[0].answer ||
+                            ""}
+                          onUpdate={(v: string) =>
+                            (slot.choice2.questions[0].answer_key = v)}
+                          multiline={true}
+                        />
+                      </div>
+                    {/if}
                   {/if}
                 </div>
                 <div

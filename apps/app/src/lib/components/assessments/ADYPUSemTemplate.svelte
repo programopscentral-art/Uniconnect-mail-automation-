@@ -4,6 +4,8 @@
   import AssessmentEditable from "./shared/AssessmentEditable.svelte";
   import AssessmentRowActions from "./shared/AssessmentRowActions.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -15,6 +17,17 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      if (onSwap) {
+        rebuildAnswerSheet();
+        onSwap($state.snapshot(currentSetData));
+      }
+    },
+  });
 
   // ── Mandatory Logic Reuse: mirrored from ADYPUTemplate / StandardTemplate ──
 
@@ -232,6 +245,12 @@
       class="mx-auto bg-white p-[0.6in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
+
       <!-- ═══ HEADER ═══ -->
       <div class="flex items-start justify-between mb-3">
         <div class="w-[100px]">
@@ -391,7 +410,7 @@
                       use:dndzone={{
                         items: sectionQuestions,
                         flipDurationMs: 200,
-                        dragDisabled: !isEditable,
+                        dragDisabled: true,
                       }}
                       onconsider={(e: any) => handleDndSync(section.part, e.detail.items)}
                       onfinalize={(e: any) => handleDndSync(section.part, e.detail.items)}
@@ -417,6 +436,8 @@
                                 {isEditable}
                                 onSwap={() => openSwapSidebar(slot, section.part, "q1")}
                                 onDelete={() => removeQuestion(slot)}
+                                onMoveUp={() => movePaper(slot.id, -1)}
+                                onMoveDown={() => movePaper(slot.id, 1)}
                                 class="!-left-10 !top-1 scale-75"
                               />
                               <AssessmentEditable
@@ -424,6 +445,16 @@
                                 onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q1.id)}
                                 multiline={true}
                               />
+                              {#if paperUi.showSolutions}
+                                <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                                  <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                                  <AssessmentEditable
+                                    value={q1.answer_key || q1.answer || ""}
+                                    onUpdate={(v: string) => { q1.answer_key = v; }}
+                                    multiline={true}
+                                  />
+                                </div>
+                              {/if}
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[50px]">
                               <AssessmentEditable
@@ -464,6 +495,16 @@
                                 onUpdate={(v: string) => updateText(v, "QUESTION", "text", slot.id, q2.id)}
                                 multiline={true}
                               />
+                              {#if paperUi.showSolutions}
+                                <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                                  <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                                  <AssessmentEditable
+                                    value={q2.answer_key || q2.answer || ""}
+                                    onUpdate={(v: string) => { q2.answer_key = v; }}
+                                    multiline={true}
+                                  />
+                                </div>
+                              {/if}
                             </td>
                             <td class="border border-black p-1.5 text-center align-top w-[50px]">
                               <AssessmentEditable
@@ -494,6 +535,8 @@
                                   {isEditable}
                                   onSwap={() => openSwapSidebar(slot, section.part)}
                                   onDelete={() => removeQuestion(slot)}
+                                  onMoveUp={qIdx === 0 ? () => movePaper(slot.id, -1) : null}
+                                  onMoveDown={qIdx === 0 ? () => movePaper(slot.id, 1) : null}
                                   class="!-left-10 !top-1 scale-75"
                                 />
                                 <AssessmentEditable
@@ -514,6 +557,16 @@
                                 {#if q.image_url}
                                   <div class="mt-2">
                                     <img src={q.image_url} alt="Question" class="max-h-[200px] object-contain border border-gray-100 rounded" />
+                                  </div>
+                                {/if}
+                                {#if paperUi.showSolutions}
+                                  <div class="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-blue-900 text-[10pt]">
+                                    <div class="text-[8pt] font-bold uppercase mb-1 text-blue-600">Solution</div>
+                                    <AssessmentEditable
+                                      value={q.answer_key || q.answer || ""}
+                                      onUpdate={(v: string) => { q.answer_key = v; }}
+                                      multiline={true}
+                                    />
                                   </div>
                                 {/if}
                               </td>

@@ -6,6 +6,8 @@
   import AssessmentSlotSingle from "./shared/AssessmentSlotSingle.svelte";
   import AssessmentSlotOrGroup from "./shared/AssessmentSlotOrGroup.svelte";
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
+  import { installPaperUi } from "./shared/paperUi.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -17,6 +19,16 @@
     mode = "view",
     onSwap = null,
   } = $props();
+
+  // Reordering (Move Up/Down) + Solutions Mode. Reordering is wired into the
+  // shared slot components via context; the toggle drives answer-block display.
+  const { ui: paperUi } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   function rebuildAnswerSheet() {
     if (Array.isArray(currentSetData)) return; // Only for object-based sets
@@ -226,6 +238,11 @@
       class="mx-auto bg-white p-[0.75in] shadow-2xl transition-all duration-500 font-serif text-black relative"
       style="width: 8.27in; min-height: 11.69in;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-10">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
       <div class="text-center mb-8 border-b-2 border-black pb-4">
         <h1 class="text-2xl font-black uppercase tracking-tighter mb-1">
           Assessment Report
@@ -303,7 +320,7 @@
               </div>
             </div>
             <div
-              use:dndzone={{ items: questionsA, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsA, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("A", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("A", (e.detail as any).items)}
             >
@@ -350,7 +367,7 @@
               </div>
             </div>
             <div
-              use:dndzone={{ items: questionsB, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsB, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("B", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("B", (e.detail as any).items)}
             >
@@ -401,7 +418,7 @@
               </div>
             </div>
             <div
-              use:dndzone={{ items: questionsC, flipDurationMs: 200 }}
+              use:dndzone={{ items: questionsC, flipDurationMs: 200, dragDisabled: true }}
               onconsider={(e) => handleDndSync("C", (e.detail as any).items)}
               onfinalize={(e) => handleDndSync("C", (e.detail as any).items)}
             >

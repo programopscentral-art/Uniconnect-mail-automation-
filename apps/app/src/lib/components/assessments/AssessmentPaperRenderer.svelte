@@ -11,6 +11,8 @@
   import SwapQuestionSidebar from "./shared/SwapQuestionSidebar.svelte";
   import TemplateCautionBanner from "./TemplateCautionBanner.svelte";
   import { resolvePaperTemplate } from "./templateRegistry";
+  import { installPaperUi } from "./shared/paperUi.svelte";
+  import AssessmentSolutionsToggle from "./shared/AssessmentSolutionsToggle.svelte";
 
   let {
     paperMeta = $bindable({}),
@@ -23,6 +25,15 @@
     mode = "view",
     onSwap = null as ((updatedSet: any) => void) | null,
   } = $props();
+
+  // Move Up/Down + Solutions Mode (shared slots read these via context).
+  const { ui: paperUi, move: movePaper } = installPaperUi({
+    getSet: () => currentSetData,
+    persist: (s) => {
+      currentSetData = s;
+      onSwap?.($state.snapshot(currentSetData));
+    },
+  });
 
   let isSwapSidebarOpen = $state(false);
   let swapContext = $state<any>(null);
@@ -516,6 +527,11 @@
         ? `url(${layoutSchema.debugImage || layoutSchema.backgroundImageUrl})`
         : 'white'}; background-size: 100% 100%;"
     >
+      {#if isEditable}
+        <div class="no-print absolute top-4 right-4 z-20">
+          <AssessmentSolutionsToggle ui={paperUi} />
+        </div>
+      {/if}
       <!-- Watermark -->
       {#if layout.watermarkText}
         <div
@@ -859,7 +875,7 @@
                       use:dndzone={{
                         items: sectionQuestions,
                         flipDurationMs: 200,
-                        dragDisabled: !isEditable,
+                        dragDisabled: true,
                       }}
                       onconsider={(e) =>
                         handleDndSync(idx, (e.detail as any).items)}
@@ -1007,6 +1023,7 @@
                       use:dndzone={{
                         items: sectionQuestions,
                         flipDurationMs: 200,
+                        dragDisabled: true,
                       }}
                       onconsider={(e) =>
                         handleDndSync(idx, (e.detail as any).items)}
