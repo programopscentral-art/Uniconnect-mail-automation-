@@ -227,22 +227,37 @@ export async function notifyBudgetProposalUpdate(proposal: FullProposal, toStatu
     }
 
     if (isToSET) {
+        // Karthik is the ADMIN approver: he only needs budget-proposal mails for
+        // proposals that actually require admin approval (estimated budget
+        // ≥ ₹10,000). Below ₹10,000, CMA (L1) approval is final, so he must NOT
+        // be emailed those. This applies to every SET mail (submission, L1
+        // approval, report) — not just L1 approval.
+        const budget = Number(proposal.estimated_total_budget) || 0;
+        const adminApprovalNeeded = budget >= 10000;
+        const KARTHIK_EMAIL = 'karthik@nxtwave.tech';
+
         // "Main Mails" - Explicitly requested by user + Admins/Ops
         const setRes = await db.query(
-            `SELECT DISTINCT id, email 
-             FROM users 
+            `SELECT DISTINCT id, email
+             FROM users
              WHERE (role IN ('ADMIN', 'PROGRAM_OPS') OR email IN ('programopscentral@nxtwave.in', 'karthikeya.a054@gmail.com', 'karthik@nxtwave.tech', 'pravalika.s@nxtwave.co.in'))
              AND is_active = true`
         );
         recipients = setRes.rows;
 
-        // Ensure specifically requested stakeholders are ALWAYS included if they are not in the query result
-        const stakeholderEmails = ['karthik@nxtwave.tech', 'pravalika.s@nxtwave.co.in'];
+        // Ensure specifically requested stakeholders are ALWAYS included if they are not in the query result.
+        // Karthik is only force-included when admin approval is actually needed (≥ ₹10K).
+        const stakeholderEmails = ['pravalika.s@nxtwave.co.in', ...(adminApprovalNeeded ? [KARTHIK_EMAIL] : [])];
         for (const email of stakeholderEmails) {
             if (!recipients.some(r => r.email === email)) {
                 // If not found as active users, add them manually for Email only (dummy ID for notify/push)
                 recipients.push({ id: 'STAKEHOLDER_' + Math.random().toString(36).substr(2, 9), email });
             }
+        }
+
+        // Below ₹10K → CMA approval is final; Karthik (admin) should not receive it.
+        if (!adminApprovalNeeded) {
+            recipients = recipients.filter(r => r.email !== KARTHIK_EMAIL);
         }
 
         // For SUBMITTED and REPORT_SUBMITTED, also notify the proposer themselves as confirmation
