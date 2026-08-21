@@ -103,6 +103,7 @@ export const handle: Handle = async ({ event, resolve }) => {
             '/day-plan': 'day-plan',
             '/communication-tasks': 'communication-tasks',
             '/budget-proposals': 'budget-proposals',
+            '/petty-cash': 'petty-cash',
             '/academic-operations': 'academic-operations',
             '/meetings': 'meetings',
             '/ops-dashboard': 'analytics',

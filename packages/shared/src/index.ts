@@ -55,6 +55,7 @@ export * from './canonical-template';
 export * from './db/permissions';
 export * from './template';
 export * from './db/budget_proposals';
+export * from './db/petty_cash';
 export * from './services/academic.service';
 export * from './services/faculty.service';
 export * from './services/student.service';
