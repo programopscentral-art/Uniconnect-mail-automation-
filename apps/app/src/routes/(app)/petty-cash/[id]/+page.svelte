@@ -90,6 +90,9 @@
   }
 
   const settleBalance = $derived(Number(req.total_paid || 0) - Number(settleForm.spent_amount || 0));
+
+  const isImage = (name: string | undefined) => /\.(png|jpe?g|webp|gif|heic)$/i.test(name || "");
+  let previewUrl = $state<string | null>(null);
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-slate-950 p-4 sm:p-8">
@@ -210,12 +213,33 @@
             <h2 class="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-4">Bills</h2>
             <div class="space-y-3">
               {#each data.bills as b}
-                <div class="flex items-center justify-between p-3 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800">
-                  <div>
+                <div class="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800">
+                  <!-- Thumbnail / file icon -->
+                  {#if b.file_url && isImage(b.file_name)}
+                    <button onclick={() => (previewUrl = b.file_url)} class="w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700 bg-white">
+                      <img src={b.file_url} alt="Bill" class="w-full h-full object-cover" />
+                    </button>
+                  {:else if b.file_url}
+                    <a href={b.file_url} target="_blank" class="w-16 h-16 shrink-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-red-500">
+                      <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                    </a>
+                  {:else}
+                    <div class="w-16 h-16 shrink-0 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-300 text-[9px] font-black uppercase">No file</div>
+                  {/if}
+
+                  <div class="flex-1 min-w-0">
                     <p class="font-black text-gray-900 dark:text-white tabular-nums">{money(b.bill_amount)} <span class="text-[10px] font-bold text-gray-400">{b.vendor || ""}</span></p>
-                    <p class="text-[11px] text-gray-400">{b.bill_no || "no #"} · {fdate(b.bill_date)}{b.file_url ? " · " : ""}{#if b.file_url}<a href={b.file_url} target="_blank" class="text-indigo-500 underline">file</a>{/if}</p>
+                    <p class="text-[11px] text-gray-400 truncate">{b.bill_no || "no #"} · {fdate(b.bill_date)}{b.file_name ? ` · ${b.file_name}` : ""}</p>
+                    {#if b.file_url}
+                      {#if isImage(b.file_name)}
+                        <button onclick={() => (previewUrl = b.file_url)} class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">View Bill</button>
+                      {:else}
+                        <a href={b.file_url} target="_blank" class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">View Bill ↗</a>
+                      {/if}
+                    {/if}
                   </div>
-                  <div class="flex items-center gap-2">
+
+                  <div class="flex items-center gap-2 shrink-0">
                     <span class="inline-flex px-2 py-0.5 rounded-full border text-[9px] font-black uppercase tracking-widest {b.status === 'VERIFIED' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' : b.status === 'REJECTED' ? 'bg-red-500/10 text-red-600 border-red-500/30' : 'bg-amber-500/10 text-amber-600 border-amber-500/30'}">{b.status}</span>
                     {#if canFin && b.status === "PENDING" && req.status === "BILL_SUBMITTED"}
                       <button onclick={() => call(`/api/petty-cash/${req.id}/bills/${b.id}/verify`, { decision: "verify" })} disabled={busy} class="px-2.5 py-1 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-emerald-700">Verify</button>
@@ -381,3 +405,14 @@
     </div>
   </div>
 </div>
+
+{#if previewUrl}
+  <button
+    onclick={() => (previewUrl = null)}
+    class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+    aria-label="Close preview"
+  >
+    <img src={previewUrl} alt="Bill preview" class="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain" />
+    <span class="absolute top-6 right-6 text-white/70 text-3xl font-black">×</span>
+  </button>
+{/if}
