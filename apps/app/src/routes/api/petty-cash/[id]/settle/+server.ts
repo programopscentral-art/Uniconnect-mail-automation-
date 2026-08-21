@@ -41,6 +41,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
     const updated = await transitionPettyCashStatus(params.id, 'SETTLED', actor,
         `Settled — ${direction} ₹${Math.abs(balance).toLocaleString('en-IN')}`);
-    await notifyPettyCashUpdate(updated, 'SETTLED', actor.name);
+    void notifyPettyCashUpdate(updated, 'SETTLED', actor.name).catch(() => {});
     return json({ ok: true, status: 'SETTLED', direction, balance });
 };

@@ -26,7 +26,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     let status = fresh!.request.status;
     if (fresh!.request.status === 'BILL_SUBMITTED' && anyVerified && !anyPending) {
         const updated = await transitionPettyCashStatus(params.id, 'BILL_VERIFIED', actor, 'Bill(s) verified');
-        await notifyPettyCashUpdate(updated, 'BILL_VERIFIED', actor.name);
+        void notifyPettyCashUpdate(updated, 'BILL_VERIFIED', actor.name).catch(() => {});
         status = 'BILL_VERIFIED';
     }
     return json({ ok: true, decision, status });

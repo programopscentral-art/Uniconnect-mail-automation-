@@ -45,6 +45,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
 
     const updated = await transitionPettyCashStatus(params.id, 'DISBURSED', actor,
         `Paid ${mode} · ${body.reference_no || 'no ref'}`, { bill_due_on });
-    await notifyPettyCashUpdate(updated, 'DISBURSED', actor.name);
+    void notifyPettyCashUpdate(updated, 'DISBURSED', actor.name).catch(() => {});
     return json({ ok: true, status: 'DISBURSED', bill_due_on });
 };

@@ -67,6 +67,6 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     }
 
     const updated = await transitionPettyCashStatus(params.id, toStatus, actor, body.note || body.remarks);
-    await notifyPettyCashUpdate(updated, toStatus, actor.name, body.note || body.remarks);
+    void notifyPettyCashUpdate(updated, toStatus, actor.name, body.note || body.remarks).catch(() => {});
     return json({ ok: true, status: toStatus });
 };

@@ -18,6 +18,6 @@ export const POST: RequestHandler = async ({ params, locals }) => {
 
     const updated = await transitionPettyCashStatus(params.id, 'SUBMITTED',
         { id: locals.user.id, name: locals.user.name || locals.user.email }, 'Submitted for approval');
-    await notifyPettyCashUpdate(updated, 'SUBMITTED', locals.user.name || locals.user.email);
+    void notifyPettyCashUpdate(updated, 'SUBMITTED', locals.user.name || locals.user.email).catch(() => {});
     return json({ ok: true, status: 'SUBMITTED' });
 };
