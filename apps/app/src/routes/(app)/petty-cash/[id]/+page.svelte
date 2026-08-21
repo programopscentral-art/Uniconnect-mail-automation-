@@ -92,7 +92,23 @@
   const settleBalance = $derived(Number(req.total_paid || 0) - Number(settleForm.spent_amount || 0));
 
   const isImage = (name: string | undefined) => /\.(png|jpe?g|webp|gif|heic)$/i.test(name || "");
+  const isPdf = (name: string | undefined) => /\.pdf$/i.test(name || "");
   let previewUrl = $state<string | null>(null);
+  let previewPdf = $state(false);
+  let previewName = $state("");
+  function openPreview(url: string, name: string) {
+    if (isImage(name) || isPdf(name)) { previewUrl = url; previewPdf = isPdf(name); previewName = name; }
+    else window.open(url, "_blank");
+  }
+
+  async function deleteRequest() {
+    if (!confirm(`Delete ${req.request_no}? This removes the request and all its records permanently.`)) return;
+    busy = true;
+    const r = await fetch(`/api/petty-cash/${req.id}`, { method: "DELETE" });
+    busy = false;
+    if (r.ok) { goto("/petty-cash"); return; }
+    err = (await r.json().catch(() => ({}))).message || "Could not delete.";
+  }
 </script>
 
 <div class="min-h-screen bg-gray-50 dark:bg-slate-950 p-4 sm:p-8">
@@ -216,13 +232,13 @@
                 <div class="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800">
                   <!-- Thumbnail / file icon -->
                   {#if b.file_url && isImage(b.file_name)}
-                    <button onclick={() => (previewUrl = b.file_url)} class="w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700 bg-white">
+                    <button onclick={() => openPreview(b.file_url, b.file_name)} class="w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700 bg-white">
                       <img src={b.file_url} alt="Bill" class="w-full h-full object-cover" />
                     </button>
                   {:else if b.file_url}
-                    <a href={b.file_url} target="_blank" class="w-16 h-16 shrink-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-red-500">
+                    <button onclick={() => openPreview(b.file_url, b.file_name || "bill.pdf")} class="w-16 h-16 shrink-0 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center text-red-500">
                       <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                    </a>
+                    </button>
                   {:else}
                     <div class="w-16 h-16 shrink-0 rounded-xl border border-dashed border-gray-200 dark:border-slate-700 flex items-center justify-center text-gray-300 text-[9px] font-black uppercase">No file</div>
                   {/if}
@@ -231,11 +247,7 @@
                     <p class="font-black text-gray-900 dark:text-white tabular-nums">{money(b.bill_amount)} <span class="text-[10px] font-bold text-gray-400">{b.vendor || ""}</span></p>
                     <p class="text-[11px] text-gray-400 truncate">{b.bill_no || "no #"} · {fdate(b.bill_date)}{b.file_name ? ` · ${b.file_name}` : ""}</p>
                     {#if b.file_url}
-                      {#if isImage(b.file_name)}
-                        <button onclick={() => (previewUrl = b.file_url)} class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">View Bill</button>
-                      {:else}
-                        <a href={b.file_url} target="_blank" class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">View Bill ↗</a>
-                      {/if}
+                      <button onclick={() => openPreview(b.file_url, b.file_name || "bill.pdf")} class="mt-1.5 inline-flex items-center gap-1 text-[10px] font-black text-indigo-500 uppercase tracking-widest hover:underline">View Bill</button>
                     {/if}
                   </div>
 
@@ -400,6 +412,15 @@
           {:else}
             <p class="text-sm text-gray-400">Waiting on {canFin ? "the requester" : "finance"} for the next step.</p>
           {/if}
+
+          {#if data.caps.isAdmin}
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <button onclick={deleteRequest} disabled={busy} class="w-full py-2.5 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-900/40 text-red-500 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 disabled:opacity-50">
+                Delete Request
+              </button>
+              <p class="text-[9px] text-gray-400 text-center mt-1.5 uppercase tracking-wider">Admin · removes it permanently</p>
+            </div>
+          {/if}
         </div>
       </div>
     </div>
@@ -407,12 +428,20 @@
 </div>
 
 {#if previewUrl}
-  <button
-    onclick={() => (previewUrl = null)}
-    class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
-    aria-label="Close preview"
-  >
-    <img src={previewUrl} alt="Bill preview" class="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain" />
-    <span class="absolute top-6 right-6 text-white/70 text-3xl font-black">×</span>
-  </button>
+  <div class="fixed inset-0 z-[100] flex flex-col bg-black/85 backdrop-blur-sm" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-between px-6 py-4 shrink-0">
+      <span class="text-white/80 text-sm font-bold truncate">{previewName || "Bill"}</span>
+      <div class="flex items-center gap-3">
+        <a href={previewUrl} target="_blank" class="text-[11px] font-black text-white/80 uppercase tracking-widest hover:text-white">Open ↗</a>
+        <button onclick={() => (previewUrl = null)} class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white text-xl font-black flex items-center justify-center">×</button>
+      </div>
+    </div>
+    <div class="flex-1 min-h-0 px-6 pb-6 flex items-center justify-center">
+      {#if previewPdf}
+        <iframe src={previewUrl} title="Bill preview" class="w-full h-full max-w-4xl rounded-2xl bg-white shadow-2xl"></iframe>
+      {:else}
+        <img src={previewUrl} alt="Bill preview" class="max-w-full max-h-full rounded-2xl shadow-2xl object-contain" />
+      {/if}
+    </div>
+  </div>
 {/if}

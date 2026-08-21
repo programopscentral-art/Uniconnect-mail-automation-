@@ -39,9 +39,12 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
     const detail = await getPettyCashRequestById(params.id);
     if (!detail) throw error(404, 'Request not found');
     const r = detail.request;
+    const admin = isGlobalAdmin(locals.user);
     const isOwner = r.requester_user_id === locals.user.id;
-    if (!isOwner && !isGlobalAdmin(locals.user)) throw error(403, 'Not allowed.');
-    if (!['DRAFT', 'SENT_BACK', 'REJECTED'].includes(r.status)) {
+    if (!isOwner && !admin) throw error(403, 'Not allowed.');
+    // Admins can delete any request; the requester can only delete their own
+    // before it has moved through the money legs.
+    if (!admin && !['DRAFT', 'SENT_BACK', 'REJECTED'].includes(r.status)) {
         throw error(400, 'Only draft, sent-back, or rejected requests can be deleted.');
     }
     await db.query(`DELETE FROM petty_cash_requests WHERE id = $1`, [params.id]);
