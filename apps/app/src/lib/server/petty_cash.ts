@@ -1,4 +1,5 @@
 import { db, createNotification, sendEmail, type PettyCashRequest, type PettyCashStatus } from '@uniconnect/shared';
+import { buildPettyCashEmail } from './petty_cash_email';
 
 /**
  * Petty-cash lifecycle notifications.
@@ -110,15 +111,20 @@ export async function notifyPettyCashUpdate(
             }).catch(() => {});
         }
         if (email && r.email) {
+            const html = buildPettyCashEmail({
+                recipientName: r.name,
+                title: title.replace(/[🔔✅🔄❌💸✔️]/g, '').trim(),
+                message: body,
+                req,
+                toStatus,
+                ctaUrl,
+            });
             await sendEmail({
                 to: r.email,
                 subject: `[Petty Cash] ${title.replace(/[🔔✅🔄❌💸✔️]/g, '').trim()} — ${req.request_no || ''}`,
                 intro: title,
-                bodyHtml: `<p>Hi ${r.name || 'there'},</p><p>${body}</p>` +
-                    `<p style="color:#6B7280;font-size:13px;">University: ${req.university_name || ''} · Requested by ${req.requester_name || req.requester_email}</p>`,
-                ctaLabel: 'Open in UniConnect',
-                ctaUrl,
-                tone: toStatus === 'REJECTED' ? 'alert' : toStatus === 'SUBMITTED' ? 'info' : 'success',
+                bodyHtml: html,
+                wrap: false, // html is a complete, self-contained branded email
             }).catch(() => ({ sent: false }));
         }
     }
