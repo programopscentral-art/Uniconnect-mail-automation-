@@ -995,6 +995,7 @@
                 <option value="CMA_MANAGER">CMA Manager</option>
               {/if}
               <option value="SME">SME (Examinations · all universities)</option>
+              <option value="FACILITIES">Facilities (Finance Ops)</option>
             </select>
           </div>
 

@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { getPettyCashRequestById, transitionPettyCashStatus, addPettyCashApproval, type PettyCashStatus } from '@uniconnect/shared';
-import { assertFinance, isFinance, isGlobalAdmin } from '$lib/server/petty_cash_access';
+import { assertApprover, isFinance, isGlobalAdmin } from '$lib/server/petty_cash_access';
 import { notifyPettyCashUpdate } from '$lib/server/petty_cash';
 import type { RequestHandler } from './$types';
 
@@ -21,7 +21,7 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
     let toStatus: PettyCashStatus;
 
     if (action === 'approve') {
-        assertFinance(locals.user);
+        assertApprover(locals.user);
         if (r.status !== 'SUBMITTED') throw error(400, 'Only submitted requests can be approved.');
 
         const channel = String(body.approval_channel || 'IN_APP').toUpperCase();
@@ -45,12 +45,12 @@ export const POST: RequestHandler = async ({ params, request, locals }) => {
         });
         toStatus = 'APPROVED';
     } else if (action === 'send_back') {
-        assertFinance(locals.user);
+        assertApprover(locals.user);
         if (r.status !== 'SUBMITTED') throw error(400, 'Only submitted requests can be sent back.');
         if (!body.note) throw error(400, 'Add a note describing what needs changing.');
         toStatus = 'SENT_BACK';
     } else if (action === 'reject') {
-        assertFinance(locals.user);
+        assertApprover(locals.user);
         if (r.status !== 'SUBMITTED') throw error(400, 'Only submitted requests can be rejected.');
         if (!body.note) throw error(400, 'A reason is required to reject.');
         toStatus = 'REJECTED';

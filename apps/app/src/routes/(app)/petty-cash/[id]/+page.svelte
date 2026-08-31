@@ -310,8 +310,8 @@
               <button onclick={() => call(`/api/petty-cash/${req.id}/approve`, { action: "cancel" })} disabled={busy} class="w-full py-3 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-500 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50">Cancel Request</button>
             </div>
 
-          <!-- SUBMITTED: finance approves -->
-          {:else if req.status === "SUBMITTED" && canFin}
+          <!-- SUBMITTED: approver approves -->
+          {:else if req.status === "SUBMITTED" && data.caps.canApprove}
             {#if panel === "approve"}
               <div class="space-y-3">
                 <label class="block"><span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Approved amount (₹)</span>

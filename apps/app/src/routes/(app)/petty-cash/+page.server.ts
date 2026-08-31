@@ -1,5 +1,5 @@
 import { getPettyCashRequests, getPettyCashDashboardStats, listPettyCashEligibility, db } from '@uniconnect/shared';
-import { isGlobalAdmin, isFinance, scopeUniversity } from '$lib/server/petty_cash_access';
+import { isGlobalAdmin, isFinance, isApprover, scopeUniversity } from '$lib/server/petty_cash_access';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -67,6 +67,6 @@ export const load: PageServerLoad = async ({ locals }) => {
         universities,
         budget,
         me: { id: user.id, name: user.name, email: user.email, role: user.role },
-        caps: { isAdmin: admin, isFinance: finance },
+        caps: { isAdmin: admin, isFinance: finance, canApprove: isApprover(user) },
     };
 };

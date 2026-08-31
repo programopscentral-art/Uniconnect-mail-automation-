@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import { getPettyCashRequestById } from '@uniconnect/shared';
-import { assertUniversityAccess, isFinance, isGlobalAdmin } from '$lib/server/petty_cash_access';
+import { assertUniversityAccess, isFinance, isApprover, isGlobalAdmin } from '$lib/server/petty_cash_access';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -11,6 +11,6 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     return {
         ...detail,
         me: { id: user.id, name: user.name, email: user.email, role: user.role },
-        caps: { isFinance: isFinance(user), isAdmin: isGlobalAdmin(user) },
+        caps: { isFinance: isFinance(user), isAdmin: isGlobalAdmin(user), canApprove: isApprover(user) },
     };
 };

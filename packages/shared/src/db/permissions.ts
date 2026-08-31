@@ -33,6 +33,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     'BOA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "petty-cash", "fee-collection", "ops-os-report"],
     'CMA': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "petty-cash", "fee-collection"],
     'CMA_MANAGER': ["dashboard", "tasks", "students", "analytics", "templates", "campaigns", "assessments", "communication-tasks", "budget-proposals", "petty-cash", "fee-collection"],
+    'FACILITIES': ["dashboard", "tasks", "budget-proposals", "petty-cash", "fee-collection"],
     'SET_REVIEWER': ["dashboard", "budget-proposals", "universities", "students"],
     'PROPOSER': ["dashboard", "budget-proposals"],
     'FACULTY': ["dashboard", "academic-operations", "tasks"],

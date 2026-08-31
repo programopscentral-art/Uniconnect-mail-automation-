@@ -3,21 +3,32 @@ import { error } from '@sveltejs/kit';
 /**
  * Shared RBAC/scoping helpers for petty-cash endpoints.
  *
- * Approver / disburser / verifier / settler roles = the finance approvers
- * ("Satish" and admins). Global admins bypass university scoping.
+ * - Approvers ("Satish" + admins) can approve / send back / reject.
+ * - Finance-ops (approvers + Facilities) see the console and handle the money
+ *   legs: disburse, verify bills, settle.
+ * - Global admins bypass university scoping.
  */
-const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
+const APPROVER_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
+const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS', 'FACILITIES'];
 const GLOBAL_ROLES = ['ADMIN', 'PROGRAM_OPS'];
 
+/** Sees the Finance Console + can disburse / verify / settle. */
 export function isFinance(user: any): boolean {
     return FINANCE_ROLES.includes(user?.role);
+}
+/** Can approve / send back / reject a request. */
+export function isApprover(user: any): boolean {
+    return APPROVER_ROLES.includes(user?.role);
 }
 export function isGlobalAdmin(user: any): boolean {
     return GLOBAL_ROLES.includes(user?.role);
 }
 
 export function assertFinance(user: any) {
-    if (!isFinance(user)) throw error(403, 'Only finance approvers (CMA Manager / Admin) can perform this action.');
+    if (!isFinance(user)) throw error(403, 'Only the finance team (Facilities / CMA Manager / Admin) can perform this action.');
+}
+export function assertApprover(user: any) {
+    if (!isApprover(user)) throw error(403, 'Only an approver (CMA Manager / Admin) can approve, send back, or reject.');
 }
 
 /** Global admins bypass; otherwise the user must belong to the university. */

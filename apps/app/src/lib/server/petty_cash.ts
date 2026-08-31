@@ -10,9 +10,10 @@ import { buildPettyCashEmail } from './petty_cash_email';
  */
 
 const APPROVER_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
+const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS', 'FACILITIES'];
 
-async function approversFor(universityId: string): Promise<Array<{ id: string; email: string; name: string }>> {
-    // University-scoped approvers + global finance admins.
+async function usersWithRoles(universityId: string, roles: string[]): Promise<Array<{ id: string; email: string; name: string }>> {
+    // University-scoped users in the given roles + global admins/ops.
     const { rows } = await db.query(
         `SELECT DISTINCT u.id, u.email, u.name
            FROM users u
@@ -20,10 +21,12 @@ async function approversFor(universityId: string): Promise<Array<{ id: string; e
           WHERE u.is_active = true AND u.email IS NOT NULL AND u.email <> ''
             AND u.role = ANY($1)
             AND (u.role IN ('ADMIN','PROGRAM_OPS') OR uu.university_id = $2 OR u.university_id = $2)`,
-        [APPROVER_ROLES, universityId],
+        [roles, universityId],
     );
     return rows;
 }
+const approversFor = (universityId: string) => usersWithRoles(universityId, APPROVER_ROLES);
+const financeFor = (universityId: string) => usersWithRoles(universityId, FINANCE_ROLES);
 
 const money = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
@@ -56,8 +59,8 @@ export async function notifyPettyCashUpdate(
             title = 'Petty cash approved ✅';
             body = `Your request ${label} was approved by ${actorName}. Finance will disburse shortly.`;
             recipients = [{ id: req.requester_user_id, email: req.requester_email, name: req.requester_name }];
-            // Also nudge finance (in-app only, routine work) — approvers double as disbursers here.
-            const finance = await approversFor(req.university_id);
+            // Also nudge the finance/facilities team (in-app only) — they disburse.
+            const finance = await financeFor(req.university_id);
             for (const f of finance) {
                 await createNotification({ user_id: f.id, university_id: req.university_id,
                     title: 'Petty cash ready to disburse', message: `${label} is approved and awaiting payment.`,
