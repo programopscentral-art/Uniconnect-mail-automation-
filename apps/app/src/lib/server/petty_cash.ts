@@ -12,6 +12,12 @@ import { buildPettyCashEmail } from './petty_cash_email';
 const APPROVER_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
 const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS', 'FACILITIES'];
 
+// Configured facilities finance contacts.
+//  - Approvers ("main managers for facilities") always get the approval request.
+//  - The disburser gets the "ready to disburse" mail once a request is approved.
+const PC_APPROVER_EMAILS = ['programopscentral@nxtwave.in', 'satish.jada@nxtwave.co.in'];
+const PC_DISBURSER = { id: '', email: 'manda.sasikanth@nxtwave.co.in', name: 'Sasi' };
+
 async function usersWithRoles(universityId: string, roles: string[]): Promise<Array<{ id: string; email: string; name: string }>> {
     // University-scoped users in the given roles + global admins/ops.
     const { rows } = await db.query(
@@ -53,19 +59,18 @@ export async function notifyPettyCashUpdate(
             title = 'Petty cash request needs your approval 🔔';
             body = `${actorName} submitted ${label}. Please approve, send back, or reject.`;
             recipients = await approversFor(req.university_id);
+            // Always include the configured facilities managers (Satish + Program Ops),
+            // even if their role isn't a finance role.
+            for (const e of PC_APPROVER_EMAILS) {
+                if (!recipients.some((r) => r.email === e)) recipients.push({ id: '', email: e });
+            }
             break;
         }
         case 'APPROVED': {
             title = 'Petty cash approved ✅';
             body = `Your request ${label} was approved by ${actorName}. Finance will disburse shortly.`;
             recipients = [{ id: req.requester_user_id, email: req.requester_email, name: req.requester_name }];
-            // Also nudge the finance/facilities team (in-app only) — they disburse.
-            const finance = await financeFor(req.university_id);
-            for (const f of finance) {
-                await createNotification({ user_id: f.id, university_id: req.university_id,
-                    title: 'Petty cash ready to disburse', message: `${label} is approved and awaiting payment.`,
-                    type: 'SYSTEM', link, source_id: `PC_${req.id}_DISBURSE_QUEUE` }).catch(() => {});
-            }
+            // The disburse handoff email (to Sasi + facilities) is sent below.
             break;
         }
         case 'SENT_BACK': {
@@ -150,6 +155,38 @@ export async function notifyPettyCashUpdate(
                     subject: `[Petty Cash] New request raised — ${req.request_no || ''}`,
                     intro: facTitle,
                     bodyHtml: buildPettyCashEmail({ recipientName: f.name, title: facTitle, message: facBody, req, toStatus: 'SUBMITTED', ctaUrl }),
+                    wrap: false,
+                }).catch(() => ({ sent: false }));
+            }
+        }
+    }
+
+    // Disburse handoff: once (and only once) a request is APPROVED, the disburser
+    // (Sasi) + any facilities users are told they can now pay out the money.
+    if (toStatus === 'APPROVED') {
+        const who = req.requester_name || req.requester_email;
+        const amount = money(req.amount_approved || req.amount_requested);
+        const dTitle = `Ready to disburse — pay ${who}`;
+        const dBody = `${req.request_no || 'This petty cash request'} · ${req.purpose} (${amount}) has been approved by ${actorName}. You can now hand over ${amount} to ${who} and record the payment in UniConnect.`;
+
+        const facUsers = await usersWithRoles(req.university_id, ['FACILITIES']);
+        const targets: Target[] = [PC_DISBURSER, ...facUsers.map((f) => ({ id: f.id, email: f.email, name: f.name }))]
+            .filter((t, i, arr) => arr.findIndex((x) => x.email === t.email) === i);
+
+        for (const t of targets) {
+            if (t.id) {
+                await createNotification({
+                    user_id: t.id, university_id: req.university_id,
+                    title: 'Ready to disburse', message: dBody, type: 'SYSTEM', link,
+                    source_id: `PC_${req.id}_DISBURSE_READY`,
+                }).catch(() => {});
+            }
+            if (t.email) {
+                await sendEmail({
+                    to: t.email,
+                    subject: `[Petty Cash] Ready to disburse — ${req.request_no || ''}`,
+                    intro: dTitle,
+                    bodyHtml: buildPettyCashEmail({ recipientName: t.name, title: dTitle, message: dBody, req, toStatus: 'APPROVED', ctaUrl }),
                     wrap: false,
                 }).catch(() => ({ sent: false }));
             }
