@@ -131,4 +131,28 @@ export async function notifyPettyCashUpdate(
             }).catch(() => ({ sent: false }));
         }
     }
+
+    // Facilities/Finance-ops get an immediate heads-up the moment a request is
+    // raised — so they can plan the disbursement even before it's approved.
+    if (toStatus === 'SUBMITTED') {
+        const facilities = await usersWithRoles(req.university_id, ['FACILITIES']);
+        const facTitle = 'New petty cash request raised';
+        const facBody = `${req.requester_name || req.requester_email} raised ${label}. It is awaiting approval — you'll be able to disburse once it's approved.`;
+        for (const f of facilities) {
+            await createNotification({
+                user_id: f.id, university_id: req.university_id,
+                title: facTitle, message: facBody, type: 'SYSTEM', link,
+                source_id: `PC_${req.id}_FACILITIES_NEW`,
+            }).catch(() => {});
+            if (f.email) {
+                await sendEmail({
+                    to: f.email,
+                    subject: `[Petty Cash] New request raised — ${req.request_no || ''}`,
+                    intro: facTitle,
+                    bodyHtml: buildPettyCashEmail({ recipientName: f.name, title: facTitle, message: facBody, req, toStatus: 'SUBMITTED', ctaUrl }),
+                    wrap: false,
+                }).catch(() => ({ sent: false }));
+            }
+        }
+    }
 }

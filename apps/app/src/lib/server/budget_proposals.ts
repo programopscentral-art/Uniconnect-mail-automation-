@@ -260,6 +260,22 @@ export async function notifyBudgetProposalUpdate(proposal: FullProposal, toStatu
             recipients = recipients.filter(r => r.email !== KARTHIK_EMAIL);
         }
 
+        // Facilities / Finance-ops team are looped in on budget proposals for this
+        // university (they own the downstream money/procurement).
+        try {
+            const facRes = await db.query(
+                `SELECT DISTINCT u.id, u.email
+                   FROM users u
+                   LEFT JOIN user_universities uu ON uu.user_id = u.id
+                  WHERE u.role = 'FACILITIES' AND u.is_active = true AND u.email IS NOT NULL AND u.email <> ''
+                    AND (uu.university_id = $1 OR u.university_id = $1)`,
+                [university_id],
+            );
+            for (const f of facRes.rows) {
+                if (!recipients.some(r => r.email === f.email)) recipients.push(f);
+            }
+        } catch { /* non-blocking */ }
+
         // For SUBMITTED and REPORT_SUBMITTED, also notify the proposer themselves as confirmation
         if ((toStatus === 'SUBMITTED' || toStatus === 'REPORT_SUBMITTED') && !recipients.some(r => r.id === proposer_user_id)) {
             recipients.push({ id: proposer_user_id, email: proposer_email });
