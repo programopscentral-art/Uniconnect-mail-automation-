@@ -25,6 +25,7 @@
         { id: 'UNIVERSITY_OPERATOR', label: 'University Operator', desc: 'I manage university-level operations', icon: 'campus' },
         { id: 'SET_REVIEWER', label: 'SET Reviewer', desc: 'I review student evaluation and assessments', icon: 'review' },
         { id: 'PROPOSER', label: 'Proposer', desc: 'I create and submit budget proposals', icon: 'budget' },
+        { id: 'FACILITIES', label: 'Facilities (Finance Ops)', desc: 'I disburse petty cash, verify bills and settle payments', icon: 'budget' },
         { id: 'STAKEHOLDER', label: 'Stakeholder', desc: 'I need view access for monitoring and oversight', icon: 'view' },
     ];
 
