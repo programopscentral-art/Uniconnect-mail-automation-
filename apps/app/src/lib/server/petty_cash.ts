@@ -1,5 +1,6 @@
 import { db, createNotification, sendEmail, type PettyCashRequest, type PettyCashStatus } from '@uniconnect/shared';
 import { buildPettyCashEmail } from './petty_cash_email';
+import { PC_APPROVER_EMAILS } from './petty_cash_access';
 
 /**
  * Petty-cash lifecycle notifications.
@@ -12,10 +13,8 @@ import { buildPettyCashEmail } from './petty_cash_email';
 const APPROVER_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
 const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS', 'FACILITIES'];
 
-// Configured facilities finance contacts.
-//  - Approvers ("main managers for facilities") always get the approval request.
-//  - The disburser gets the "ready to disburse" mail once a request is approved.
-const PC_APPROVER_EMAILS = ['programopscentral@nxtwave.in', 'satish.jada@nxtwave.co.in'];
+// The disburser gets the "ready to disburse" mail once a request is approved.
+// (Approver emails live in petty_cash_access so approval rights + mail agree.)
 const PC_DISBURSER = { id: '', email: 'manda.sasikanth@nxtwave.co.in', name: 'Sasi' };
 
 async function usersWithRoles(universityId: string, roles: string[]): Promise<Array<{ id: string; email: string; name: string }>> {
@@ -149,7 +148,9 @@ export async function notifyPettyCashUpdate(
     // Facilities/Finance-ops get an immediate heads-up the moment a request is
     // raised — so they can plan the disbursement even before it's approved.
     if (toStatus === 'SUBMITTED') {
-        const facilities = await usersWithRoles(req.university_id, ['FACILITIES']);
+        const facilities = (await usersWithRoles(req.university_id, ['FACILITIES']))
+            // Approver-managers already got the "please approve" mail above.
+            .filter((f) => !PC_APPROVER_EMAILS.includes(String(f.email || '').toLowerCase()));
         const facTitle = 'New petty cash request raised';
         const facBody = `${req.requester_name || req.requester_email} raised ${label}. It is awaiting approval — you'll be able to disburse once it's approved.`;
         for (const f of facilities) {
@@ -180,6 +181,8 @@ export async function notifyPettyCashUpdate(
 
         const facUsers = await usersWithRoles(req.university_id, ['FACILITIES']);
         const targets: Target[] = [PC_DISBURSER, ...facUsers.map((f) => ({ id: f.id, email: f.email, name: f.name }))]
+            // The approver-managers (e.g. Satish) approve — they don't disburse.
+            .filter((t) => !PC_APPROVER_EMAILS.includes(String(t.email || '').toLowerCase()))
             .filter((t, i, arr) => arr.findIndex((x) => x.email === t.email) === i);
 
         for (const t of targets) {
