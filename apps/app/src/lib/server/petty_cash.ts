@@ -60,7 +60,16 @@ export async function notifyPettyCashUpdate(
             body = `${actorName} submitted ${label}. Please approve, send back, or reject.`;
             recipients = await approversFor(req.university_id);
             // Always include the configured facilities managers (Satish + Program Ops),
-            // even if their role isn't a finance role.
+            // even if their role isn't a finance role. Resolve them to real user
+            // records so the email greets them by name (and notifies them in-app).
+            const managers = (await db.query(
+                `SELECT id, email, name FROM users WHERE email = ANY($1) AND is_active = true`,
+                [PC_APPROVER_EMAILS],
+            )).rows as Target[];
+            for (const m of managers) {
+                if (!recipients.some((r) => r.email === m.email)) recipients.push(m);
+            }
+            // Any configured email that isn't a user yet → email-only fallback.
             for (const e of PC_APPROVER_EMAILS) {
                 if (!recipients.some((r) => r.email === e)) recipients.push({ id: '', email: e });
             }
