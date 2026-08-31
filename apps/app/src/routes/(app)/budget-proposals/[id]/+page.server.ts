@@ -17,9 +17,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     const isGlobalAdmin = locals.user.role === 'ADMIN' || locals.user.role === 'PROGRAM_OPS';
     const isSET = locals.user.role === 'SET_REVIEWER';
     const isCMAManager = locals.user.role === 'CMA_MANAGER';
+    // Facilities / Finance-ops are looped in on proposals (procurement) — read-only.
+    const isFinanceViewer = locals.user.role === 'FACILITIES';
     const isProposer = proposal.proposer_user_id === locals.user.id;
 
-    if (!isGlobalAdmin && !isSET && !isCMAManager && !isProposer) {
+    if (!isGlobalAdmin && !isSET && !isCMAManager && !isFinanceViewer && !isProposer) {
         const hasAccess = locals.user.universities?.some(u => u.id === proposal.university_id);
         if (!hasAccess) throw error(403, 'Forbidden: You do not have access to this proposal');
     }

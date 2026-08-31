@@ -17,7 +17,7 @@ ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (
 );
 
 INSERT INTO role_permissions (role, features)
-VALUES ('FACILITIES', '["dashboard","tasks","budget-proposals","petty-cash","fee-collection"]'::jsonb)
+VALUES ('FACILITIES', '["dashboard","tasks","budget-proposals","petty-cash"]'::jsonb)
 ON CONFLICT (role) DO UPDATE SET features = EXCLUDED.features, updated_at = NOW();
 
 COMMIT;
