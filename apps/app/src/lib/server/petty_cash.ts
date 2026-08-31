@@ -10,9 +10,6 @@ import { PC_APPROVER_EMAILS } from './petty_cash_access';
  * are a scheduled worker job — not fired here.)
  */
 
-const APPROVER_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS'];
-const FINANCE_ROLES = ['CMA_MANAGER', 'ADMIN', 'PROGRAM_OPS', 'FACILITIES'];
-
 // The disburser gets the "ready to disburse" mail once a request is approved.
 // (Approver emails live in petty_cash_access so approval rights + mail agree.)
 const PC_DISBURSER = { id: '', email: 'manda.sasikanth@nxtwave.co.in', name: 'Sasi' };
@@ -30,8 +27,6 @@ async function usersWithRoles(universityId: string, roles: string[]): Promise<Ar
     );
     return rows;
 }
-const approversFor = (universityId: string) => usersWithRoles(universityId, APPROVER_ROLES);
-const financeFor = (universityId: string) => usersWithRoles(universityId, FINANCE_ROLES);
 
 const money = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
@@ -57,18 +52,12 @@ export async function notifyPettyCashUpdate(
         case 'SUBMITTED': {
             title = 'Petty cash request needs your approval 🔔';
             body = `${actorName} submitted ${label}. Please approve, send back, or reject.`;
-            recipients = await approversFor(req.university_id);
-            // Always include the configured facilities managers (Satish + Program Ops),
-            // even if their role isn't a finance role. Resolve them to real user
-            // records so the email greets them by name (and notifies them in-app).
-            const managers = (await db.query(
+            // Petty cash: Satish is the sole approver, so only he gets the request.
+            // Resolve to a real user record for the greeting + in-app notification.
+            recipients = (await db.query(
                 `SELECT id, email, name FROM users WHERE email = ANY($1) AND is_active = true`,
                 [PC_APPROVER_EMAILS],
             )).rows as Target[];
-            for (const m of managers) {
-                if (!recipients.some((r) => r.email === m.email)) recipients.push(m);
-            }
-            // Any configured email that isn't a user yet → email-only fallback.
             for (const e of PC_APPROVER_EMAILS) {
                 if (!recipients.some((r) => r.email === e)) recipients.push({ id: '', email: e });
             }
