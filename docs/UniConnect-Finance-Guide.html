@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniConnect Finance Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --ground: #F6F7FB;
+    --surface: #FFFFFF;
+    --surface-2: #F0F2F8;
+    --ink: #1B2233;
+    --muted: #59637A;
+    --faint: #8B95A8;
+    --hair: #E4E8F2;
+    --accent: #4F46E5;
+    --accent-soft: #EEF0FE;
+    --amber: #B45309; --amber-bg: #FEF3E2;
+    --teal: #0F766E;  --teal-bg: #E3F5F2;
+    --indigo: #4338CA;--indigo-bg: #ECEDFE;
+    --emerald:#047857; --emerald-bg:#E1F5EC;
+    --red: #C0392B;   --red-bg: #FCEAE7;
+    --violet: #6D28D9;--violet-bg: #F1EBFE;
+    --shadow: 0 1px 2px rgba(20,28,50,.04), 0 8px 24px -12px rgba(20,28,50,.14);
+    --step-line: #D8DDEA;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0C1016; --surface: #141B27; --surface-2: #1B2331;
+      --ink: #E7ECF6; --muted: #9BA6BB; --faint: #6C7891; --hair: #232C3C;
+      --accent: #8A8CF6; --accent-soft: #1C2236;
+      --amber:#F0B25E; --amber-bg:#2A2113; --teal:#4FD1C0; --teal-bg:#0F241F;
+      --indigo:#9AA0F8; --indigo-bg:#191d33; --emerald:#4FD397; --emerald-bg:#0E2419;
+      --red:#F08A7C; --red-bg:#2A1512; --violet:#B79BF3; --violet-bg:#1E1633;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.6);
+      --step-line: #2C3648;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0C1016; --surface: #141B27; --surface-2: #1B2331;
+    --ink: #E7ECF6; --muted: #9BA6BB; --faint: #6C7891; --hair: #232C3C;
+    --accent: #8A8CF6; --accent-soft: #1C2236;
+    --amber:#F0B25E; --amber-bg:#2A2113; --teal:#4FD1C0; --teal-bg:#0F241F;
+    --indigo:#9AA0F8; --indigo-bg:#191d33; --emerald:#4FD397; --emerald-bg:#0E2419;
+    --red:#F08A7C; --red-bg:#2A1512; --violet:#B79BF3; --violet-bg:#1E1633;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 30px -16px rgba(0,0,0,.6);
+    --step-line: #2C3648;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 78px; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    line-height: 1.62; font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Sticky bar ── */
+  .bar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--hair);
+  }
+  .bar-in {
+    max-width: 940px; margin: 0 auto; padding: 13px 24px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; letter-spacing: -.01em; }
+  .brand .mark {
+    width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+    background: var(--accent); color: #fff; font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 15px;
+  }
+  .jumps { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+  .jumps a {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .08em; text-decoration: none;
+    color: var(--muted); padding: 6px 11px; border-radius: 999px; white-space: nowrap;
+    transition: background .15s, color .15s;
+  }
+  .jumps a:hover { color: var(--ink); background: var(--surface-2); }
+  .jumps a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Layout ── */
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px 96px; }
+  .hero { padding: 64px 0 40px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800;
+    font-size: clamp(2.3rem, 6vw, 3.4rem); line-height: 1.02; letter-spacing: -.025em;
+    margin: 16px 0 0; text-wrap: balance;
+  }
+  .lede { font-size: 1.14rem; color: var(--muted); margin: 20px 0 0; max-width: 60ch; }
+
+  section { scroll-margin-top: 78px; }
+  .sec-head { margin: 56px 0 8px; padding-top: 24px; border-top: 1px solid var(--hair); }
+  .sec-head.first { border-top: none; padding-top: 0; }
+  .sec-kicker {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+  }
+  h2 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800;
+    font-size: clamp(1.7rem, 4vw, 2.2rem); letter-spacing: -.02em; line-height: 1.1;
+    margin: 10px 0 0; text-wrap: balance;
+  }
+  .sec-sub { color: var(--muted); margin: 12px 0 0; font-size: 1.04rem; }
+  h3 {
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 700;
+    font-size: 1.16rem; letter-spacing: -.01em; margin: 40px 0 14px;
+  }
+
+  /* ── When-to-use band ── */
+  .use {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--hair); border-radius: 14px;
+    padding: 18px 20px; margin-top: 26px; box-shadow: var(--shadow);
+  }
+  .use .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--accent);
+    padding: 5px 9px; border-radius: 7px; white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+  }
+  .use p { margin: 0; font-size: .97rem; }
+  .use strong { color: var(--ink); }
+
+  /* ── Stepper ── */
+  ol.steps { list-style: none; margin: 30px 0 0; padding: 0; }
+  ol.steps > li {
+    position: relative; padding: 0 0 30px 60px;
+  }
+  ol.steps > li::before { /* number chip */
+    counter-increment: step;
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 38px; height: 38px; border-radius: 11px;
+    display: grid; place-items: center;
+    font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 1.02rem;
+    background: var(--surface); color: var(--accent);
+    border: 1.5px solid var(--accent); box-shadow: var(--shadow); z-index: 2;
+  }
+  ol.steps > li::after { /* connector */
+    content: ""; position: absolute; left: 18.5px; top: 40px; bottom: -2px;
+    width: 2px; background: var(--step-line);
+  }
+  ol.steps > li:last-child { padding-bottom: 0; }
+  ol.steps > li:last-child::after { display: none; }
+  ol.steps { counter-reset: step; }
+  .step-t { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 1.1rem; letter-spacing: -.01em; margin: 4px 0 0; }
+  .step-b { margin: 7px 0 0; color: var(--muted); font-size: .97rem; }
+  .step-b strong { color: var(--ink); font-weight: 600; }
+  .meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; align-items: center; }
+
+  /* chips */
+  .who, .pill {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: .03em; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .who { background: var(--surface-2); color: var(--muted); border: 1px solid var(--hair); }
+  .who b { color: var(--ink); font-weight: 700; }
+  .who::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .pill { border: 1px solid transparent; text-transform: uppercase; letter-spacing: .06em; font-size: 10px; }
+  .p-amber   { background: var(--amber-bg);   color: var(--amber);   }
+  .p-teal    { background: var(--teal-bg);    color: var(--teal);    }
+  .p-indigo  { background: var(--indigo-bg);  color: var(--indigo);  }
+  .p-emerald { background: var(--emerald-bg); color: var(--emerald); }
+  .p-red     { background: var(--red-bg);     color: var(--red);     }
+  .p-violet  { background: var(--violet-bg);  color: var(--violet);  }
+  .arrow { color: var(--faint); font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+
+  /* ── Callout ── */
+  .callout {
+    border: 1px solid var(--hair); border-left: 4px solid var(--accent);
+    background: var(--surface); border-radius: 0 14px 14px 0;
+    padding: 20px 22px; margin: 30px 0 0; box-shadow: var(--shadow);
+  }
+  .callout.rule { border-left-color: var(--violet); }
+  .callout h4 {
+    margin: 0 0 4px; font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 1.05rem;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .callout h4 .k {
+    font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    background: var(--violet); color: #fff; padding: 3px 8px; border-radius: 6px; font-weight: 600;
+  }
+  .callout p { margin: 8px 0 0; font-size: .97rem; color: var(--muted); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .split > div { background: var(--surface-2); border: 1px solid var(--hair); border-radius: 11px; padding: 14px 16px; }
+  .split .amt { font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: .92rem; letter-spacing: -.01em; }
+  .split .u { color: var(--emerald); } .split .o { color: var(--amber); }
+  .split p { margin: 6px 0 0; font-size: .9rem; color: var(--muted); }
+  @media (max-width: 560px) { .split { grid-template-columns: 1fr; } }
+
+  /* ── Status legend ── */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+
+  /* ── Roles table ── */
+  .roles { border: 1px solid var(--hair); border-radius: 14px; overflow: hidden; margin-top: 26px; box-shadow: var(--shadow); background: var(--surface); }
+  .role-row { display: grid; grid-template-columns: 190px 1fr; gap: 16px; padding: 15px 20px; border-top: 1px solid var(--hair); align-items: baseline; }
+  .role-row:first-child { border-top: none; }
+  .role-who { display: flex; flex-direction: column; gap: 3px; }
+  .role-who .n { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; }
+  .role-who .r { font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .role-row .d { color: var(--muted); font-size: .96rem; }
+  @media (max-width: 560px) { .role-row { grid-template-columns: 1fr; gap: 5px; } }
+
+  /* ── FAQ ── */
+  details {
+    border: 1px solid var(--hair); border-radius: 12px; background: var(--surface);
+    padding: 0 20px; margin-top: 12px; box-shadow: var(--shadow);
+  }
+  details[open] { padding-bottom: 6px; }
+  summary {
+    cursor: pointer; list-style: none; padding: 16px 0; font-weight: 600;
+    display: flex; align-items: center; gap: 12px; font-size: 1.01rem;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after {
+    content: "+"; margin-left: auto; color: var(--accent); font-family: "IBM Plex Mono", monospace;
+    font-size: 1.3rem; font-weight: 600; transition: transform .2s;
+  }
+  details[open] summary::after { content: "\2013"; }
+  summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+  details p { margin: 0 0 14px; color: var(--muted); font-size: .97rem; }
+
+  .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--hair); color: var(--faint); font-size: .85rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .foot .mono { font-family: "IBM Plex Mono", monospace; }
+
+  b.amt { font-family: "IBM Plex Mono", monospace; font-weight: 600; letter-spacing: -.01em; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(10px); animation: rise .5s cubic-bezier(.2,.7,.3,1) forwards; }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+  }
+  @media print {
+    .bar { display: none; } .callout, .use, .roles, details { box-shadow: none; }
+    body { font-size: 12px; } .hero { padding: 20px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand"><span class="mark">U</span> UniConnect</div>
+    <nav class="jumps">
+      <a href="#budget">Budget Proposals</a>
+      <a href="#petty">Petty Cash</a>
+      <a href="#roles">Who's Who</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero reveal">
+    <div class="eyebrow">Finance Guide · for new users</div>
+    <h1>Spending money, the UniConnect way.</h1>
+    <p class="lede">Two tools handle every rupee: <strong>Budget Proposals</strong> to plan and get sign-off <em>before</em> an event, and <strong>Petty Cash</strong> to get a small advance now and settle it with the bill. This guide walks both, end to end.</p>
+  </div>
+
+  <!-- pick-one -->
+  <section>
+    <div class="use">
+      <span class="tag">Budget</span>
+      <p><strong>Planning an event or activity?</strong> Use a <strong>Budget Proposal</strong> — list what you'll spend, get it approved, then run the event and report back with bills.</p>
+    </div>
+    <div class="use" style="margin-top:12px">
+      <span class="tag" style="background:var(--teal)">Petty Cash</span>
+      <p><strong>Need a small amount of cash right now</strong> (materials, refreshments, a quick purchase)? Raise a <strong>Petty Cash</strong> request, get it approved, receive the money, and submit the bill within 7 days.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════ BUDGET PROPOSALS ═══════════ -->
+  <section id="budget">
+    <div class="sec-head first">
+      <div class="sec-kicker">Guide 01</div>
+      <h2>Budget Proposals</h2>
+      <p class="sec-sub">Get money approved before you spend it — for a fest, a workshop, a celebration, any planned activity.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <p class="step-t">Draft &amp; submit the proposal</p>
+        <p class="step-b">Open <strong>Budgeting → New Proposal</strong>. Add a title, the line items you'll spend on, the estimated total, the proposed date, and attach any quotes or supporting files. Hit <strong>Submit</strong>.</p>
+        <div class="meta"><span class="who">You — <b>Proposer</b> (PM / BOA)</span><span class="arrow">→</span><span class="pill p-amber">Submitted</span></div>
+      </li>
+      <li>
+        <p class="step-t">Review</p>
+        <p class="step-b">Reviewers open your proposal and check it. They can approve it, <strong>Request Changes</strong> (it comes back to you to edit and resubmit), or <strong>Reject</strong> it.</p>
+        <div class="meta"><span class="who">CMA Manager · Reviewers</span><span class="arrow">→</span><span class="pill p-indigo">Under Review</span><span class="pill p-red">Changes Requested</span></div>
+      </li>
+      <li>
+        <p class="step-t">CMA approval (Level 1)</p>
+        <p class="step-b">The <strong>CMA Manager</strong> (Pravalika) gives the first approval. What happens next depends on the amount — see the ₹10,000 rule below.</p>
+        <div class="meta"><span class="who">CMA Manager — <b>Pravalika</b></span><span class="arrow">→</span><span class="pill p-teal">CMA Approved</span></div>
+      </li>
+      <li>
+        <p class="step-t">Final approval</p>
+        <p class="step-b">Once fully approved you'll be notified that you can <strong>go ahead and run the event</strong>. Procurement / spending can begin.</p>
+        <div class="meta"><span class="who">Admin — <b>Karthik</b> <span style="opacity:.7">(if ≥ ₹10,000)</span></span><span class="arrow">→</span><span class="pill p-emerald">Approved</span></div>
+      </li>
+      <li>
+        <p class="step-t">After the event — report &amp; bills</p>
+        <p class="step-b">When the event is done, upload your <strong>post-event report</strong> and the <strong>bills</strong>. Reviewers check the outcome and close the proposal.</p>
+        <div class="meta"><span class="who">You — <b>Proposer</b></span><span class="arrow">→</span><span class="pill p-indigo">Report Submitted</span><span class="pill p-emerald">Closed</span></div>
+      </li>
+    </ol>
+
+    <div class="callout rule">
+      <h4><span class="k">Key rule</span> The ₹10,000 line</h4>
+      <p>Where a proposal ends depends on its estimated total:</p>
+      <div class="split">
+        <div>
+          <div class="amt u">Under ₹10,000</div>
+          <p>CMA approval (Pravalika) is <strong>final</strong>. Procurement can proceed straight away — no admin sign-off needed.</p>
+        </div>
+        <div>
+          <div class="amt o">₹10,000 and above</div>
+          <p>Needs <strong>Admin approval (Karthik)</strong> on top of CMA approval before the proposal is fully approved.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Statuses you'll see</h3>
+    <div class="legend">
+      <span class="pill p-amber">Submitted</span>
+      <span class="pill p-indigo">Under Review</span>
+      <span class="pill p-red">Changes Requested</span>
+      <span class="pill p-teal">CMA Approved</span>
+      <span class="pill p-emerald">Approved</span>
+      <span class="pill p-indigo">Report Submitted</span>
+      <span class="pill p-emerald">Closed</span>
+      <span class="pill p-red">Rejected</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ PETTY CASH ═══════════ -->
+  <section id="petty">
+    <div class="sec-head">
+      <div class="sec-kicker">Guide 02</div>
+      <h2>Petty Cash</h2>
+      <p class="sec-sub">A small cash advance for an immediate need — approved in two steps, then settled with the bill.</p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <p class="step-t">Raise the request</p>
+        <p class="step-b">Open <strong>Petty Cash → New Request</strong>. Enter the purpose, amount, category, when you need it by, and the linked activity. Submit it.</p>
+        <div class="meta"><span class="who">You — <b>Requester</b></span><span class="arrow">→</span><span class="pill p-amber">Awaiting L1</span></div>
+      </li>
+      <li>
+        <p class="step-t">Level&nbsp;1 approval</p>
+        <p class="step-b"><strong>Pravalika</strong> reviews the request and the event it's for. She approves it (or sends it back for changes / rejects it). Approving passes it up to Level&nbsp;2.</p>
+        <div class="meta"><span class="who">Level 1 — <b>Pravalika</b></span><span class="arrow">→</span><span class="pill p-amber">Awaiting L2</span></div>
+      </li>
+      <li>
+        <p class="step-t">Level&nbsp;2 approval (budget check)</p>
+        <p class="step-b"><strong>Satish</strong> checks the budget and gives the <strong>final approval</strong>, confirming the approved amount. Only after this can money move.</p>
+        <div class="meta"><span class="who">Level 2 — <b>Satish</b></span><span class="arrow">→</span><span class="pill p-teal">Approved</span></div>
+      </li>
+      <li>
+        <p class="step-t">Disburse the money</p>
+        <p class="step-b">Finance pays you and records it: the amount, the mode (UPI / NEFT / Cash), the UTR / reference, and an <strong>uploaded proof</strong> — the payment screenshot or the confirmation mail. This starts a <strong>7-day bill deadline</strong>.</p>
+        <div class="meta"><span class="who">Finance — <b>Sasi</b></span><span class="arrow">→</span><span class="pill p-indigo">Disbursed</span></div>
+      </li>
+      <li>
+        <p class="step-t">Submit your bill</p>
+        <p class="step-b">Attach the bill(s) for what you actually spent — bill number, date, vendor, amount, and a photo or PDF. Do this within 7 days of getting the money.</p>
+        <div class="meta"><span class="who">You — <b>Requester</b></span><span class="arrow">→</span><span class="pill p-indigo">Bill Submitted</span></div>
+      </li>
+      <li>
+        <p class="step-t">Verify the bill</p>
+        <p class="step-b">Finance checks the bill against the advance and marks it verified (or rejects an invalid one).</p>
+        <div class="meta"><span class="who">Finance</span><span class="arrow">→</span><span class="pill p-teal">Bill Verified</span></div>
+      </li>
+      <li>
+        <p class="step-t">Settle &amp; close</p>
+        <p class="step-b">Finance enters the <strong>actual amount spent</strong>. The system works out whether you <strong>return</strong> leftover cash or are owed a <strong>top-up</strong>, and closes it out.</p>
+        <div class="meta"><span class="who">Finance</span><span class="arrow">→</span><span class="pill p-emerald">Settled</span></div>
+      </li>
+    </ol>
+
+    <div class="callout">
+      <h4>Two approvals, always in order</h4>
+      <p>Petty cash needs <strong>both</strong> sign-offs: <strong>Pravalika (Level&nbsp;1)</strong> first, then <strong>Satish (Level&nbsp;2)</strong> for the budget check. The request only becomes payable after Level&nbsp;2 — no one can skip a level, and the money is disbursed only once it reaches <span class="pill p-teal" style="vertical-align:middle">Approved</span>.</p>
+    </div>
+
+    <h3>Statuses you'll see</h3>
+    <div class="legend">
+      <span class="pill p-amber">Awaiting L1</span>
+      <span class="pill p-amber">Awaiting L2</span>
+      <span class="pill p-teal">Approved</span>
+      <span class="pill p-indigo">Disbursed</span>
+      <span class="pill p-indigo">Bill Submitted</span>
+      <span class="pill p-teal">Bill Verified</span>
+      <span class="pill p-emerald">Settled</span>
+      <span class="pill p-red">Sent Back / Rejected</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ ROLES ═══════════ -->
+  <section id="roles">
+    <div class="sec-head">
+      <div class="sec-kicker">Reference</div>
+      <h2>Who does what</h2>
+      <p class="sec-sub">The people each request passes through.</p>
+    </div>
+    <div class="roles">
+      <div class="role-row"><div class="role-who"><span class="n">Requester / Proposer</span><span class="r">PM · BOA · Campus staff</span></div><div class="d">Raises the petty-cash request or budget proposal, then submits the bill / post-event report.</div></div>
+      <div class="role-row"><div class="role-who"><span class="n">Pravalika</span><span class="r">Level 1 · CMA Manager</span></div><div class="d">First approver. For petty cash she gives Level&nbsp;1 sign-off; for budget proposals she gives CMA approval.</div></div>
+      <div class="role-row"><div class="role-who"><span class="n">Satish</span><span class="r">Level 2 · Facilities</span></div><div class="d">Final petty-cash approver — checks the budget and clears the request for payment. Sees every campus.</div></div>
+      <div class="role-row"><div class="role-who"><span class="n">Sasi &amp; Finance</span><span class="r">Facilities · Finance ops</span></div><div class="d">Pays out the money, records the disbursement with proof, verifies bills, and settles &amp; closes.</div></div>
+      <div class="role-row"><div class="role-who"><span class="n">Karthik</span><span class="r">Admin</span></div><div class="d">Approves budget proposals of <b class="amt">₹10,000</b> and above (the only ones that reach him).</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FAQ ═══════════ -->
+  <section id="faq">
+    <div class="sec-head">
+      <div class="sec-kicker">Questions</div>
+      <h2>Good to know</h2>
+    </div>
+
+    <details open>
+      <summary>Budget Proposal or Petty Cash — which one?</summary>
+      <p>If you're <strong>planning</strong> an event and want the spend approved ahead of time, raise a <strong>Budget Proposal</strong>. If you need a <strong>small amount of cash in hand now</strong> and will bring back a bill, use <strong>Petty Cash</strong>. A large planned event goes through a budget proposal; a quick ₹1,000 purchase goes through petty cash.</p>
+    </details>
+    <details>
+      <summary>Who approves my petty cash, and in what order?</summary>
+      <p>Always two people, in order: <strong>Pravalika</strong> approves first (Level&nbsp;1), then <strong>Satish</strong> gives the final budget approval (Level&nbsp;2). Only after Satish approves does finance disburse the money. You'll get a mail at each step.</p>
+    </details>
+    <details>
+      <summary>Satish said he'd pay me and send a confirmation mail — where does that go?</summary>
+      <p>At the <strong>Disburse</strong> step. Whoever pays opens the request, enters the amount and the UTR / reference, and <strong>uploads the confirmation mail or screenshot as the payment proof</strong>. That's the evidence attached to the record.</p>
+    </details>
+    <details>
+      <summary>What if I spend more or less than the advance?</summary>
+      <p>The <strong>Settle</strong> step handles it. Finance enters what you actually spent; if you spent <em>less</em>, you <strong>return</strong> the leftover; if you spent <em>more</em>, you're owed a <strong>top-up</strong>. Either way the request is then closed.</p>
+    </details>
+    <details>
+      <summary>How long do I have to submit the bill?</summary>
+      <p><strong>7 days</strong> from the day the money is disbursed. The request shows the due date, and it's flagged as overdue if the bill is late.</p>
+    </details>
+    <details>
+      <summary>Why does the ₹10,000 line matter for budgets?</summary>
+      <p>Under ₹10,000, CMA approval (Pravalika) is the final sign-off and you can proceed. ₹10,000 and above also needs <strong>Admin approval (Karthik)</strong> before the proposal is fully approved.</p>
+    </details>
+    <details>
+      <summary>I'm on the Facilities / finance team — why do I only see one campus?</summary>
+      <p>You shouldn't any more. Facilities and finance now see <strong>every university</strong> in both Budgeting and Petty Cash. If a page still looks scoped to one campus, do a hard refresh (Cmd/Ctrl&nbsp;+&nbsp;Shift&nbsp;+&nbsp;R) or sign out and back in.</p>
+    </details>
+  </section>
+
+  <div class="foot">
+    <span>UniConnect · Program Operations</span>
+    <span class="mono">Budget Proposals &amp; Petty Cash</span>
+  </div>
+</main>
+</body>
+</html>

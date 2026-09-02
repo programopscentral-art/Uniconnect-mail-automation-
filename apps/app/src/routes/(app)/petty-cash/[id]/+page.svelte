@@ -63,6 +63,17 @@
     return true;
   }
 
+  let notice = $state("");
+  async function resendApproval() {
+    err = ""; notice = ""; busy = true;
+    const r = await fetch(`/api/petty-cash/${req.id}/resend-notification`, { method: "POST" });
+    busy = false;
+    if (!r.ok) { err = (await r.json().catch(() => ({}))).message || "Could not resend."; return; }
+    const j = await r.json().catch(() => ({}));
+    notice = `Approval mail re-sent to ${j.approver || "the approver"}.`;
+    setTimeout(() => (notice = ""), 6000);
+  }
+
   // ── Action form models ─────────────────────────────────────────────────
   let approveForm = $state({ amount_approved: null as number | null, approval_channel: "IN_APP", approved_by_name: "", remarks: "", evidence_url: "" });
   let disburseForm = $state({ amount_paid: null as number | null, payment_mode: "UPI", reference_no: "", proof_url: "", paid_on: "" });
@@ -430,6 +441,20 @@
               {:else if req.status === "BILL_VERIFIED"}Bill verified — waiting for finance to settle & close.
               {:else}Waiting for the next step.{/if}
             </p>
+          {/if}
+
+          {#if notice}
+            <p class="mt-3 text-[11px] font-bold text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-center">{notice}</p>
+          {/if}
+
+          <!-- Resend the current stage's approval mail (finance / admin) -->
+          {#if data.caps.pendingLevel && (data.caps.isFinance || data.caps.isAdmin)}
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+              <button onclick={resendApproval} disabled={busy} class="w-full py-2.5 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/40 text-indigo-600 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-950/20 disabled:opacity-50">
+                {busy ? "Sending…" : `Resend approval mail to ${data.caps.pendingLevel === 1 ? "Pravalika" : "Satish"}`}
+              </button>
+              <p class="text-[9px] text-gray-400 text-center mt-1.5 uppercase tracking-wider">Nudge the {data.caps.pendingLevel === 1 ? "Level 1" : "Level 2"} approver</p>
+            </div>
           {/if}
 
           {#if data.caps.isAdmin}
